@@ -9,15 +9,19 @@ from __future__ import annotations
 
 from functools import total_ordering
 from math import inf
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 import networkx as nx
 
 import pynguin.ga.computations as ff
 
+
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow import ControlDependenceGraph, ProgramGraphNode
-    from pynguin.testcase.execution import ExecutionResult, ExecutionTracer
+    from pynguin.analyses.controlflow import ControlDependenceGraph
+    from pynguin.analyses.controlflow import ProgramGraphNode
+    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.testcase.execution import ExecutionTracer
 
 
 @total_ordering

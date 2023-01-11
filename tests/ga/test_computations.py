@@ -4,19 +4,19 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.testcase.execution import (
-    ExecutionResult,
-    ExecutionTrace,
-    SubjectProperties,
-    TestCaseExecutor,
-)
+
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.execution import SubjectProperties
+from pynguin.testcase.execution import TestCaseExecutor
 
 
 class DummyTestCaseChromosomeComputation(ff.TestCaseChromosomeComputation):

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import pytest
+
 from bytecode import Bytecode
 
 from pynguin.analyses.controlflow import CFG

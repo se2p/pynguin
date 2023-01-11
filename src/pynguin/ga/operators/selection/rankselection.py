@@ -12,8 +12,10 @@ from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.utils import randomness
+
 
 T = TypeVar("T", bound=chrom.Chromosome)  # pylint:disable=invalid-name
 

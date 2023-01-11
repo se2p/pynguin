@@ -8,7 +8,8 @@ import sys
 
 from bytecode import Bytecode
 
-from pynguin.analyses.controlflow import CFG, DominatorTree
+from pynguin.analyses.controlflow import CFG
+from pynguin.analyses.controlflow import DominatorTree
 from tests.fixtures.programgraph.samples import for_loop
 
 

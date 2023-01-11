@@ -12,25 +12,27 @@ from __future__ import annotations
 
 import logging
 import sys
-from importlib.abc import FileLoader, MetaPathFinder
-from importlib.machinery import ModuleSpec, SourceFileLoader
+
+from importlib.abc import FileLoader
+from importlib.abc import MetaPathFinder
+from importlib.machinery import ModuleSpec
+from importlib.machinery import SourceFileLoader
 from inspect import isclass
 from types import CodeType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pynguin.configuration as config
-from pynguin.analyses.constants import (
-    ConstantPool,
-    DynamicConstantProvider,
-    EmptyConstantProvider,
-)
-from pynguin.instrumentation.instrumentation import (
-    BranchCoverageInstrumentation,
-    CheckedCoverageInstrumentation,
-    DynamicSeedingInstrumentation,
-    InstrumentationTransformer,
-    LineCoverageInstrumentation,
-)
+
+from pynguin.analyses.constants import ConstantPool
+from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
+from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import InstrumentationAdapter
@@ -67,7 +69,7 @@ class InstrumentationLoader(SourceFileLoader):
             The modules code blocks
         """
         to_instrument = cast(CodeType, super().get_code(fullname))
-        assert to_instrument, "Failed to get code object of module."
+        assert to_instrument is not None, "Failed to get code object of module."
         return self._transformer.instrument_module(to_instrument)
 
 

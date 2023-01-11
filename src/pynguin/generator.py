@@ -26,8 +26,10 @@ import logging
 import os
 import sys
 import threading
+
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.configuration as config
@@ -38,30 +40,27 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.constants import (
-    ConstantProvider,
-    DelegatingConstantProvider,
-    DynamicConstantProvider,
-    EmptyConstantProvider,
-    RestrictedConstantPool,
-    collect_static_constants,
-)
+
+from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.constants import DelegatingConstantProvider
+from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import RestrictedConstantPool
+from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.generation import export
-from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
+from pynguin.instrumentation.machinery import InstrumentationFinder
+from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
-from pynguin.testcase.execution import (
-    AssertionExecutionObserver,
-    ExecutionTracer,
-    TestCaseExecutor,
-)
+from pynguin.testcase.execution import AssertionExecutionObserver
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
-from pynguin.utils.report import (
-    get_coverage_report,
-    render_coverage_report,
-    render_xml_coverage_report,
-)
+from pynguin.utils.report import get_coverage_report
+from pynguin.utils.report import render_coverage_report
+from pynguin.utils.report import render_xml_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
@@ -662,7 +661,7 @@ def _instantiate_test_generation_strategy(
     return factory.get_search_algorithm()
 
 
-def _collect_miscellaneous_statistics(test_cluster) -> None:
+def _collect_miscellaneous_statistics(test_cluster: ModuleTestCluster) -> None:
     test_cluster.log_cluster_statistics()
     stat.track_output_variable(
         RuntimeVariable.TargetModule, config.configuration.module_name

@@ -12,12 +12,14 @@ import inspect
 import numbers
 import types
 import typing
+
 from inspect import isclass
 from typing import Any
 
 from typing_inspect import get_origin
 
 from pynguin.utils.orderedset import OrderedSet
+
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import InferredSignature

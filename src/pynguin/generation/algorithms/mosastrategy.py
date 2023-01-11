@@ -8,16 +8,19 @@
 from __future__ import annotations
 
 import logging
+
 from typing import TYPE_CHECKING
 
 import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
+
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
 from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc

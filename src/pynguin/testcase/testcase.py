@@ -7,18 +7,21 @@
 """Provides an implementation for a test case."""
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 
+
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
+
     from pynguin.analyses.module import TestCluster
     from pynguin.analyses.typesystem import ProperType
 

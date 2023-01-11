@@ -9,19 +9,22 @@
 
 import importlib.util
 import threading
+
 from types import CodeType
 
-from bytecode import BasicBlock, Instr
+from bytecode import BasicBlock
+from bytecode import Instr
 
 import pynguin.configuration as config
-from pynguin.instrumentation.instrumentation import (
-    CheckedCoverageInstrumentation,
-    InstrumentationTransformer,
-)
+
+from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.dynamicslicer import DynamicSlicer, SlicingCriterion
+from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 from pynguin.testcase.execution import ExecutionTracer
+
 
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ast
+
 from typing import Any
 
 import pynguin.assertion.assertion as ass

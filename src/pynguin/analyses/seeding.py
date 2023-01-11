@@ -11,7 +11,11 @@ import ast
 import inspect
 import logging
 import os
-from typing import TYPE_CHECKING, Any, AnyStr, cast
+
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import AnyStr
+from typing import cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -19,22 +23,28 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
+
 from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
-    GenericConstructor,
-    GenericFunction,
-    GenericMethod,
 )
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import is_assertable
+
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
     import pynguin.testcase.variablereference as vr
+
     from pynguin.analyses.module import ModuleTestCluster
 
 

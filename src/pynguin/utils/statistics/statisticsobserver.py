@@ -12,7 +12,9 @@ import typing
 
 import pynguin.generation.searchobserver as so
 import pynguin.utils.statistics.statistics as stat
+
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc

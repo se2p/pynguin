@@ -8,9 +8,13 @@
 from __future__ import annotations
 
 import logging
-from abc import ABCMeta, abstractmethod
+
+from abc import ABCMeta
+from abc import abstractmethod
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING
+from typing import Generic
+from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
@@ -24,8 +28,11 @@ import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
-from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
+
+from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import FilteredModuleTestCluster
+from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
@@ -39,26 +46,34 @@ from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearchstrategy import (
     RandomTestCaseSearchStrategy,
+)
+from pynguin.generation.algorithms.randomsearchstrategy import (
     RandomTestSuiteSearchStrategy,
 )
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxSearchTimeStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxStatementExecutionsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
-    StoppingCondition,
 )
-from pynguin.testcase.execution import (
-    AbstractTestCaseExecutor,
-    TypeTracingTestCaseExecutor,
-)
+from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.testcase.execution import AbstractTestCaseExecutor
+from pynguin.testcase.execution import TypeTracingTestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
 
+
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
+
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.generation.algorithms.testgenerationstrategy import (

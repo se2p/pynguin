@@ -9,6 +9,7 @@ import ast
 import copy
 import logging
 import threading
+
 from collections.abc import Sized
 from types import ModuleType
 from typing import cast
@@ -22,13 +23,14 @@ import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.typesystem import ANY, TypeInfo
-from pynguin.utils.type_utils import (
-    is_assertable,
-    is_collection_type,
-    is_ignorable_type,
-    is_primitive_type,
-)
+
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.utils.type_utils import is_assertable
+from pynguin.utils.type_utils import is_collection_type
+from pynguin.utils.type_utils import is_ignorable_type
+from pynguin.utils.type_utils import is_primitive_type
+
 
 _LOGGER = logging.getLogger(__name__)
 

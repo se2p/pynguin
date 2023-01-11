@@ -12,6 +12,7 @@ from typing import TypeVar
 
 from pynguin.utils import randomness
 
+
 T = TypeVar("T")  # pylint:disable=invalid-name
 
 

@@ -6,12 +6,14 @@
 #
 import inspect
 import operator
+
 from builtins import isinstance as real_isinstance
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.utils.typetracing as tt
+
 from pynguin.utils.orderedset import OrderedSet
 
 

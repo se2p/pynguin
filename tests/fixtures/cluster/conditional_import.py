@@ -6,6 +6,7 @@
 #
 import typing
 
+
 if typing.TYPE_CHECKING:
     from tests.fixtures.cluster.complex_dependency import SomeOtherType
 

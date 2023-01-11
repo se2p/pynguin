@@ -6,11 +6,9 @@
 #
 import pytest
 
-from pynguin.utils.exceptions import (
-    ConfigurationException,
-    ConstructionFailedException,
-    GenerationException,
-)
+from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import GenerationException
 
 
 def test_raise_test_generation_exception():

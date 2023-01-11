@@ -7,6 +7,7 @@
 # Simulate a large test cluster.
 from dataclasses import dataclass
 
+
 for i in range(100):
     exec(
         f"""

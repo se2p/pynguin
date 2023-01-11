@@ -6,7 +6,8 @@
 #
 """Defines an abstract test case visitor."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 
 
 # pylint: disable=too-few-public-methods

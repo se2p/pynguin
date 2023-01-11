@@ -5,31 +5,37 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
-from typing import Any, List, Set, Tuple, TypeVar, Union
+
+from typing import Any
+from typing import List
+from typing import Set
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
 from unittest import mock
 
 import pytest
 
 import pynguin.configuration as config
+
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import (
-    UNSUPPORTED,
-    AnyType,
-    InferredSignature,
-    Instance,
-    NoneType,
-    TupleType,
-    TypeInfo,
-    TypeSystem,
-    UnionType,
-    _is_partial_type_match,
-    is_collection_type,
-    is_primitive_type,
-)
+from pynguin.analyses.typesystem import UNSUPPORTED
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import TypeSystem
+from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import _is_partial_type_match
+from pynguin.analyses.typesystem import is_collection_type
+from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typetracing import UsageTraceNode
-from tests.fixtures.types.subtyping import Sub, Super
+from tests.fixtures.types.subtyping import Sub
+from tests.fixtures.types.subtyping import Super
 
 
 def __dummy(x: int, y: int) -> int:

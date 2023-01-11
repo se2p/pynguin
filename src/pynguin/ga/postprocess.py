@@ -10,14 +10,18 @@ Provides chromosome visitors to perform post-processing.
 from __future__ import annotations
 
 import logging
+
 from abc import ABC
 from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcasevisitor as tcv
-from pynguin.assertion.assertion import Assertion, ExceptionAssertion
+
+from pynguin.assertion.assertion import Assertion
+from pynguin.assertion.assertion import ExceptionAssertion
 from pynguin.testcase.statement import StatementVisitor
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc

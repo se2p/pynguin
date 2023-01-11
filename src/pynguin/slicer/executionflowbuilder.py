@@ -10,13 +10,16 @@
 from __future__ import annotations
 
 import dis
+
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from bytecode import Instr
 
 import pynguin.utils.opcodes as op
+
 from pynguin.utils.exceptions import InstructionNotFoundException
+
 
 UNSET = object()
 
@@ -568,7 +571,7 @@ class ExecutionFlowBuilder:
                 in the given code object
         """
         code_object = self.known_code_objects[code_object_id]
-        assert code_object, "Unknown code object id"
+        assert code_object is not None, "Unknown code object id"
         for node in code_object.original_cfg.nodes:
             if node.index == basic_block_id and node.basic_block:
                 return node.basic_block, node.offset

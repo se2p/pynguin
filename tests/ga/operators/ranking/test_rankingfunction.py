@@ -10,11 +10,10 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-from pynguin.ga.operators.ranking.rankingfunction import (
-    RankBasedPreferenceSorting,
-    RankedFronts,
-    RankingFunction,
-)
+
+from pynguin.ga.operators.ranking.rankingfunction import RankBasedPreferenceSorting
+from pynguin.ga.operators.ranking.rankingfunction import RankedFronts
+from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 
 
 @pytest.fixture

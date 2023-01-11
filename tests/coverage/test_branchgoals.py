@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import importlib
 import threading
+
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -19,18 +20,18 @@ import pynguin.coverage.branchgoals as bg
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
+
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import (
-    ExecutionResult,
-    ExecutionTrace,
-    ExecutionTracer,
-    LineMetaData,
-    SubjectProperties,
-    TestCaseExecutor,
-)
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import LineMetaData
+from pynguin.testcase.execution import SubjectProperties
+from pynguin.testcase.execution import TestCaseExecutor
 
 
 @pytest.fixture

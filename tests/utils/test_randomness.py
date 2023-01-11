@@ -7,6 +7,7 @@
 import string
 
 import hypothesis.strategies as st
+
 from hypothesis import given
 
 import pynguin.utils.randomness as randomness

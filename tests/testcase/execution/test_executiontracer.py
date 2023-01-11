@@ -5,16 +5,21 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import threading
+
 from decimal import Decimal
 from math import inf
 from unittest.mock import MagicMock
 
 import pytest
+
 from bytecode import Compare
 
 import pynguin.utils.typetracing as tt
+
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
-from pynguin.testcase.execution import ExecutionTracer, _le, _lt
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import _le
+from pynguin.testcase.execution import _lt
 from pynguin.utils.orderedset import OrderedSet
 
 

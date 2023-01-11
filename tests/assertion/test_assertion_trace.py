@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.assertion.assertion_trace as at
+
 from pynguin.utils.orderedset import OrderedSet
 
 

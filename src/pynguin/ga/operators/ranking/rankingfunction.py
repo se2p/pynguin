@@ -8,18 +8,24 @@
 from __future__ import annotations
 
 import logging
-from abc import ABCMeta, abstractmethod
+
+from abc import ABCMeta
+from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING
+from typing import Generic
+from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.ga.comparators.preferencesortingcomparator import (
     PreferenceSortingComparator,
 )
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

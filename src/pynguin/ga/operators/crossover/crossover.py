@@ -6,9 +6,11 @@
 #
 """Provide various crossover functions for genetic algorithms."""
 from abc import abstractmethod
-from typing import Generic, TypeVar
+from typing import Generic
+from typing import TypeVar
 
 import pynguin.ga.chromosome as chrom
+
 
 # pylint: disable=invalid-name
 T = TypeVar("T", bound=chrom.Chromosome)

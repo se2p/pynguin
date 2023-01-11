@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+
 from collections.abc import Callable
 from types import ModuleType
 
@@ -18,7 +19,9 @@ import mutpy.utils as mu
 import mutpy.views as mv
 
 import pynguin.configuration as config
+
 from pynguin.utils.exceptions import ConfigurationException
+
 
 _LOGGER = logging.getLogger(__name__)
 

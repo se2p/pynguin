@@ -7,32 +7,30 @@
 import importlib
 import os
 import threading
+
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
+from unittest.mock import call
 
 import pytest
+
 from bytecode import Compare
 
 import pynguin.utils.opcodes as op
-from pynguin.analyses.constants import (
-    ConstantPool,
-    DynamicConstantProvider,
-    EmptyConstantProvider,
-)
-from pynguin.instrumentation.instrumentation import (
-    ArtificialInstr,
-    BranchCoverageInstrumentation,
-    CheckedCoverageInstrumentation,
-    DynamicSeedingInstrumentation,
-    InstrumentationAdapter,
-    InstrumentationTransformer,
-    LineCoverageInstrumentation,
-)
-from pynguin.slicer.executedinstruction import (
-    ExecutedControlInstruction,
-    ExecutedMemoryInstruction,
-    ExecutedReturnInstruction,
-)
+
+from pynguin.analyses.constants import ConstantPool
+from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.instrumentation.instrumentation import ArtificialInstr
+from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
+from pynguin.instrumentation.instrumentation import InstrumentationAdapter
+from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+from pynguin.slicer.executedinstruction import ExecutedControlInstruction
+from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
+from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.utils.orderedset import OrderedSet
 

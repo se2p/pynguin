@@ -9,15 +9,21 @@ from __future__ import annotations
 
 import time
 import typing
-from abc import ABCMeta, abstractmethod
-from typing import Generic, TypeVar, overload
+
+from abc import ABCMeta
+from abc import abstractmethod
+from typing import Generic
+from typing import TypeVar
+from typing import overload
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.statisticsbackend as sb
 
+
 if typing.TYPE_CHECKING:
     import pynguin.ga.chromosome as chrom
     import pynguin.utils.statistics.statistics as stat
+
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 T = TypeVar("T", int, float)  # pylint: disable=invalid-name

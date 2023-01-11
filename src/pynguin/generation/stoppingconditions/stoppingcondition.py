@@ -9,21 +9,24 @@ from __future__ import annotations
 
 import ast
 import time
-from abc import ABCMeta, abstractmethod
+
+from abc import ABCMeta
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import pynguin.generation.searchobserver as so
+
 from pynguin.testcase.execution import ExecutionObserver
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution import (
-        ExecutionContext,
-        ExecutionResult,
-        TestCaseExecutor,
-    )
+
+    from pynguin.testcase.execution import ExecutionContext
+    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.testcase.execution import TestCaseExecutor
 
 
 class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):

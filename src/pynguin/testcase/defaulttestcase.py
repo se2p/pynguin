@@ -8,11 +8,15 @@
 from __future__ import annotations
 
 import logging
+
 from itertools import islice
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 import pynguin.testcase.testcase as tc
+
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass

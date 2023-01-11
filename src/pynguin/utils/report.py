@@ -14,9 +14,11 @@ import inspect
 import sys
 import typing
 import xml.etree.ElementTree as ET
+
 from pathlib import Path
 
 import pygments
+
 from jinja2 import Template
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
@@ -24,10 +26,13 @@ from pygments.lexers.python import PythonLexer
 import pynguin.__version__ as ver
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
+
 from pynguin.utils.orderedset import OrderedSet
+
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
+
     from pynguin.testcase.execution import TestCaseExecutor
 
 

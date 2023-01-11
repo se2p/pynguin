@@ -10,22 +10,24 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import hypothesis.strategies as st
 import pytest
+
 from hypothesis import given
 
 import pynguin.ga.computations as ff
+
 from pynguin.instrumentation.instrumentation import PredicateMetaData
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
-from pynguin.testcase.execution import (
-    ExecutedAssertion,
-    ExecutionResult,
-    ExecutionTrace,
-    LineMetaData,
-    SubjectProperties,
-)
+from pynguin.slicer.dynamicslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.testcase.execution import ExecutedAssertion
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.execution import LineMetaData
+from pynguin.testcase.execution import SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
 
 

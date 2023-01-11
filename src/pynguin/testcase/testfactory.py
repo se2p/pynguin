@@ -8,30 +8,34 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.typesystem import (
-    ANY,
-    InferredSignature,
-    Instance,
-    NoneType,
-    ProperType,
-    TupleType,
-    is_collection_type,
-    is_primitive_type,
-)
+
+from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import is_collection_type
+from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
+
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
+
     from pynguin.analyses.module import ModuleTestCluster
 
 
@@ -797,7 +801,7 @@ class TestFactory:
         replacement: stmt.Statement | None = None
         if call.is_method():
             method = cast(gao.GenericMethod, call)
-            assert method.owner
+            assert method.owner is not None
             callee = test_case.get_random_object(
                 self._test_cluster.type_system.make_instance(method.owner), position
             )

@@ -6,15 +6,11 @@
 #
 import pytest
 
-from pynguin.analyses.controlflow import (
-    ControlDependenceGraph,
-    ControlDependency,
-    ProgramGraphNode,
-)
-from pynguin.instrumentation.instrumentation import (
-    BranchCoverageInstrumentation,
-    InstrumentationTransformer,
-)
+from pynguin.analyses.controlflow import ControlDependenceGraph
+from pynguin.analyses.controlflow import ControlDependency
+from pynguin.analyses.controlflow import ProgramGraphNode
+from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.testcase.execution import ExecutionTracer
 
 

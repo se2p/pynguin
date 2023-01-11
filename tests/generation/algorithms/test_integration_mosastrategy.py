@@ -7,6 +7,7 @@
 import importlib
 import itertools
 import threading
+
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -14,9 +15,11 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
+
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import TestCaseExecutor
 
 
 @pytest.mark.parametrize(

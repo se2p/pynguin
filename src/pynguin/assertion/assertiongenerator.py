@@ -12,6 +12,7 @@ import dataclasses
 import logging
 import threading
 import types
+
 from typing import TYPE_CHECKING
 
 import mutpy
@@ -24,15 +25,15 @@ import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.statistics as stat
-from pynguin.analyses.constants import (
-    ConstantPool,
-    DynamicConstantProvider,
-    EmptyConstantProvider,
-)
+
+from pynguin.analyses.constants import ConstantPool
+from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc

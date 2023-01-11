@@ -5,17 +5,20 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import math
+
 from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
 import pytest
-from hypothesis import assume, given
 
-from pynguin.coverage.controlflowdistance import (
-    ControlFlowDistance,
-    get_root_control_flow_distance,
-)
-from pynguin.testcase.execution import ExecutionResult, ExecutionTrace, ExecutionTracer
+from hypothesis import assume
+from hypothesis import given
+
+from pynguin.coverage.controlflowdistance import ControlFlowDistance
+from pynguin.coverage.controlflowdistance import get_root_control_flow_distance
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import ExecutionTrace
+from pynguin.testcase.execution import ExecutionTracer
 
 
 @pytest.fixture(scope="module")

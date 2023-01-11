@@ -11,12 +11,11 @@ import pytest
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
-from pynguin.generation.algorithms.archive import (
-    CoverageArchive,
-    MIOArchive,
-    MIOPopulation,
-    MIOPopulationPair,
-)
+
+from pynguin.generation.algorithms.archive import CoverageArchive
+from pynguin.generation.algorithms.archive import MIOArchive
+from pynguin.generation.algorithms.archive import MIOPopulation
+from pynguin.generation.algorithms.archive import MIOPopulationPair
 from pynguin.utils.orderedset import OrderedSet
 
 

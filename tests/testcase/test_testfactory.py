@@ -6,9 +6,12 @@
 #
 import enum
 import inspect
-from inspect import Parameter, Signature
+
+from inspect import Parameter
+from inspect import Signature
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
+from unittest.mock import call
 
 import pytest
 
@@ -17,9 +20,12 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.typesystem import AnyType, InferredSignature, NoneType
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import NoneType
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey

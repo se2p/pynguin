@@ -7,14 +7,18 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+
+from typing import TYPE_CHECKING
+from typing import cast
 
 import networkx as nx
+
 from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.utils.statistics.statistics as stat
+
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
@@ -22,10 +26,12 @@ from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestS
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
+
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
+
     from pynguin.generation.algorithms.archive import CoverageArchive
     from pynguin.testcase.execution import SubjectProperties
 

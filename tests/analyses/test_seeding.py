@@ -9,6 +9,7 @@ import ast
 import pytest
 
 import pynguin.ga.testcasechromosome as tcc
+
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer

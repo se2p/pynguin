@@ -34,8 +34,18 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import itertools
-from collections.abc import Hashable, Iterable, Iterator, MutableSet, Sequence
-from typing import AbstractSet, Any, TypeVar, cast, overload
+
+from collections.abc import Hashable
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import MutableSet
+from collections.abc import Sequence
+from typing import AbstractSet
+from typing import Any
+from typing import TypeVar
+from typing import cast
+from typing import overload
+
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)

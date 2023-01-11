@@ -8,20 +8,21 @@ import argparse
 import importlib
 import logging
 import os
+
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
+from unittest.mock import call
 
 import pytest
 
 import pynguin.configuration as config
-from pynguin.cli import (
-    _DANGER_ENV,
-    _create_argument_parser,
-    _expand_arguments_if_necessary,
-    _setup_logging,
-    main,
-)
+
+from pynguin.cli import _DANGER_ENV
+from pynguin.cli import _create_argument_parser
+from pynguin.cli import _expand_arguments_if_necessary
+from pynguin.cli import _setup_logging
+from pynguin.cli import main
 from pynguin.generator import ReturnCode
 
 

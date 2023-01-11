@@ -22,12 +22,15 @@ import contextlib
 import dataclasses
 import logging
 import operator
+
 from collections import defaultdict
 
-from asciitree import BoxStyle, LeftAligned
+from asciitree import BoxStyle
+from asciitree import LeftAligned
 from asciitree.drawing import BOX_LIGHT
 
 from pynguin.utils.orderedset import OrderedSet
+
 
 LOGGER = logging.getLogger(__name__)
 

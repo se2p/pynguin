@@ -7,12 +7,11 @@
 import pytest
 
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.constants import (
-    ConstantPool,
-    DynamicConstantProvider,
-    EmptyConstantProvider,
-    RestrictedConstantPool,
-)
+
+from pynguin.analyses.constants import ConstantPool
+from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.utils.orderedset import OrderedSet
 
 

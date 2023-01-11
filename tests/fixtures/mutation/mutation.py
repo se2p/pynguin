@@ -4,7 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from time import sleep, time_ns
+from time import sleep
+from time import time_ns
 
 
 def foo(param) -> float:

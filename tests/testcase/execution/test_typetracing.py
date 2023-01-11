@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import ast
+
 from typing import cast
 
 import pytest
@@ -12,14 +13,13 @@ import pytest
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.typesystem import NoneType, UnionType
-from pynguin.testcase.execution import (
-    ExecutionTracer,
-    ReturnTypeObserver,
-    TestCaseExecutor,
-    TypeTracingObserver,
-    TypeTracingTestCaseExecutor,
-)
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import UnionType
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import ReturnTypeObserver
+from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import TypeTracingObserver
+from pynguin.testcase.execution import TypeTracingTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )

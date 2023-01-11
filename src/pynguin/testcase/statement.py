@@ -10,26 +10,32 @@ from __future__ import annotations
 import abc
 import logging
 import math
-from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
+
+from abc import ABCMeta
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Generic
+from typing import TypeVar
+from typing import cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+
 from pynguin.analyses import constants
-from pynguin.analyses.typesystem import (
-    ANY,
-    InferredSignature,
-    Instance,
-    NoneType,
-    ProperType,
-    TypeInfo,
-)
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TypeInfo
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
+
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
@@ -1136,7 +1142,7 @@ class ParametrizedStatement(
             The number of occurrences.
         """
         count = 0
-        if not type_:
+        if type_ is None:
             return 0
         for var_ref in self.args.values():
             if self.test_case.test_cluster.type_system.is_maybe_subtype(

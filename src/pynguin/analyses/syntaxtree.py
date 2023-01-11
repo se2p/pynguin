@@ -15,12 +15,16 @@ from __future__ import annotations
 import ast
 import dataclasses
 import logging
+
 from collections import deque
 from collections.abc import Iterable
-from typing import Any, TypeAlias
+from typing import Any
+from typing import TypeAlias
 
 import astroid
+
 from astroid.nodes.as_string import to_code
+
 
 _LOGGER = logging.getLogger(__name__)
 AstroidFunctionDef: TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef

@@ -4,7 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from tests.fixtures.cluster.diamond_bottom import FooBar, foo
+from tests.fixtures.cluster.diamond_bottom import FooBar
+from tests.fixtures.cluster.diamond_bottom import foo
 
 
 def bar():

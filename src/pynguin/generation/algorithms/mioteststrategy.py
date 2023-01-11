@@ -8,14 +8,17 @@
 from __future__ import annotations
 
 import logging
+
 from dataclasses import dataclass
 from math import ceil
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.generation.algorithms.archive as arch
+
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc

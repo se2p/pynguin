@@ -6,33 +6,36 @@
 #
 import importlib
 import itertools
+
 from logging import Logger
-from typing import Union, cast
+from typing import Union
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 
 from pynguin.analyses import module
-from pynguin.analyses.module import (
-    MODULE_BLACKLIST,
-    ModuleTestCluster,
-    TypeInferenceStrategy,
-    _ModuleParseResult,
-    analyse_module,
-    generate_test_cluster,
-    parse_module,
-)
-from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
+from pynguin.analyses.module import MODULE_BLACKLIST
+from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.module import TypeInferenceStrategy
+from pynguin.analyses.module import _ModuleParseResult
+from pynguin.analyses.module import analyse_module
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import parse_module
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import UnionType
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericAccessibleObject,
-    GenericConstructor,
-    GenericEnum,
-    GenericFunction,
-    GenericMethod,
-)
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericEnum
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
+from pynguin.utils.type_utils import COLLECTIONS
+from pynguin.utils.type_utils import PRIMITIVES
 
 
 @pytest.fixture(scope="module")
@@ -332,7 +335,8 @@ def test_complex_dependencies():
 
 def test_inheritance_generator():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
-    from tests.fixtures.cluster.inheritance import Bar, Foo
+    from tests.fixtures.cluster.inheritance import Bar
+    from tests.fixtures.cluster.inheritance import Foo
 
     res_foo, only_any = cluster.get_generators_for(
         cluster.type_system.convert_type_hint(Foo)
@@ -377,7 +381,8 @@ def test_only_any_generator_3(module_test_cluster):
 
 def test_inheritance_modifier():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
-    from tests.fixtures.cluster.inheritance import Bar, Foo
+    from tests.fixtures.cluster.inheritance import Bar
+    from tests.fixtures.cluster.inheritance import Foo
 
     assert (
         len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Bar))) == 2

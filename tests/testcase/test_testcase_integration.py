@@ -10,6 +10,7 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as st
+
 from pynguin.utils.exceptions import ConstructionFailedException
 
 

@@ -11,6 +11,7 @@ import pytest
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.comparators.dominancecomparator as dc
 import pynguin.ga.computations as ff
+
 from pynguin.utils.orderedset import OrderedSet
 
 

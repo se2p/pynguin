@@ -17,18 +17,30 @@ import logging
 import os
 import sys
 import threading
+
 from abc import abstractmethod
 from collections.abc import Sized
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from importlib import reload
 from math import inf
-from queue import Empty, Queue
-from types import BuiltinFunctionType, BuiltinMethodType, ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from queue import Empty
+from queue import Queue
+from types import BuiltinFunctionType
+from types import BuiltinMethodType
+from types import ModuleType
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypeVar
+from typing import cast
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # pylint:disable=unused-import # noqa: F401
-from bytecode import BasicBlock, CellVar, Compare, FreeVar
+
+from bytecode import BasicBlock
+from bytecode import CellVar
+from bytecode import Compare
+from bytecode import FreeVar
 from jellyfish import levenshtein_distance
 
 import pynguin.assertion.assertion as ass
@@ -43,27 +55,29 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
-from pynguin.instrumentation.instrumentation import (
-    ArtificialInstr,
-    CheckedCoverageInstrumentation,
-    CodeObjectMetaData,
-    InstrumentationTransformer,
-    PredicateMetaData,
-)
+
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
+from pynguin.instrumentation.instrumentation import ArtificialInstr
+from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.type_utils import (
-    given_exception_matches,
-    is_bytes,
-    is_numeric,
-    is_string,
-)
+from pynguin.utils.type_utils import given_exception_matches
+from pynguin.utils.type_utils import is_bytes
+from pynguin.utils.type_utils import is_numeric
+from pynguin.utils.type_utils import is_string
+
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
+
     from pynguin.analyses import module
 
 

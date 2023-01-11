@@ -14,12 +14,14 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
+
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericAccessibleObject,
     GenericCallableAccessibleObject,
 )
 

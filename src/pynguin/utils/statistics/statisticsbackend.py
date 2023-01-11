@@ -10,12 +10,16 @@ from __future__ import annotations
 import csv
 import ctypes
 import logging
-from abc import ABCMeta, abstractmethod
+
+from abc import ABCMeta
+from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic
+from typing import TypeVar
 
 import pynguin.configuration as config
+
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

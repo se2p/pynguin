@@ -4,7 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from tests.fixtures.cluster import diamond_left, diamond_right
+from tests.fixtures.cluster import diamond_left
+from tests.fixtures.cluster import diamond_right
 
 
 def baz():

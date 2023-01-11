@@ -12,8 +12,10 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testsuitechromosome as tsc
+
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

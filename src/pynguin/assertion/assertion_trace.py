@@ -8,10 +8,12 @@
 from __future__ import annotations
 
 import dataclasses
+
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass

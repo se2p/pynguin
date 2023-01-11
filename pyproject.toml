@@ -118,7 +118,7 @@ exclude = '''
 
 [tool.coverage.run]
 branch = true
-# source = ["pynguin", "tests"]
+source = ["src/pynguin", "tests"]
 omit = ["tests/fixtures/*"]
 
 [tool.coverage.report]
@@ -137,12 +137,24 @@ exclude_lines = [
 directory = "cov_html"
 
 [tool.isort]
-line_length=88
-multi_line_output=3
-include_trailing_comma=true
-indent='    '
+py_version = 310
+profile = "black"
+force_single_line = true
+combine_as_imports = true
+lines_between_types = 1
+lines_after_imports = 2
+src_paths = [ "src", "tests"]
 
 [tool.mypy]
+files = "src"
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
+show_error_codes = true
+enable_error_code = [
+  #"ignore-without-code",
+  "truthy-bool",
+]
 check_untyped_defs = true
 ignore_errors = false
 ignore_missing_imports = true
@@ -150,12 +162,9 @@ strict_optional = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
-files = "src"
 
 [tool.pytest.ini_options]
-minversion = "6.0.0rc1"
-# Always using Coverage.py disables debugging.
-# addopts = "--cov=pynguin --cov-branch --cov-report html:cov_html --cov-report=term-missing"
+addopts = "-n auto"
 testpaths = [
   "tests",
 ]

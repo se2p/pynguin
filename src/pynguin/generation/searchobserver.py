@@ -8,8 +8,11 @@
 from __future__ import annotations
 
 import logging
-from abc import ABCMeta, abstractmethod
+
+from abc import ABCMeta
+from abc import abstractmethod
 from typing import TYPE_CHECKING
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc

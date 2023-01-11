@@ -7,9 +7,12 @@
 """Provides a comparator for preference sorting."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING
+from typing import Generic
+from typing import TypeVar
 
 import pynguin.ga.chromosome as chrom
+
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

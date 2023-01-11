@@ -6,6 +6,7 @@
 #
 """Module-level docstring."""
 import string
+
 from collections.abc import Iterator
 from contextlib import contextmanager
 

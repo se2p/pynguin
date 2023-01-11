@@ -14,6 +14,7 @@ import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
+
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

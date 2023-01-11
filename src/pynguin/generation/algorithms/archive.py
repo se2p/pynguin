@@ -9,12 +9,16 @@ from __future__ import annotations
 
 import logging
 import sys
-from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable
+
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Callable
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
+
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 

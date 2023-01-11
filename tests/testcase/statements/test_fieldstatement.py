@@ -10,6 +10,7 @@ import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+
 from tests.testutils import feed_typesystem
 
 

@@ -12,6 +12,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as st
 import pynguin.testcase.variablereference as vr
+
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
 from pynguin.utils.orderedset import OrderedSet

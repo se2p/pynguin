@@ -8,13 +8,14 @@
 # https://github.com/ipsw1/pychecco
 
 import pytest
-from bytecode import BasicBlock, Compare, Instr
 
-from tests.slicer.util import (
-    dummy_code_object,
-    slice_function_at_return,
-    slice_module_at_return,
-)
+from bytecode import BasicBlock
+from bytecode import Compare
+from bytecode import Instr
+
+from tests.slicer.util import dummy_code_object
+from tests.slicer.util import slice_function_at_return
+from tests.slicer.util import slice_module_at_return
 
 
 @pytest.mark.xfail

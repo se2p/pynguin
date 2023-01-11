@@ -13,34 +13,41 @@ import logging
 import re
 import types
 import typing
-from abc import ABC, abstractmethod
-from collections import Counter, defaultdict
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
-from typing import (  # type:ignore
-    Any,
-    Final,
-    ForwardRef,
-    Generic,
-    TypeVar,
-    _BaseGenericAlias,
-    _eval_type,
-    cast,
-    get_origin,
-    get_type_hints,
-)
+
+from abc import ABC
+from abc import abstractmethod
+from collections import Counter
+from collections import defaultdict
+from collections.abc import Callable
+from collections.abc import Sequence
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Final
+from typing import ForwardRef
+from typing import Generic
+from typing import TypeVar
+from typing import _BaseGenericAlias  # type:ignore
+from typing import _eval_type  # type:ignore
+from typing import cast
+from typing import get_origin
+from typing import get_type_hints
 
 import networkx as nx
+
 from networkx.drawing.nx_pydot import to_pydot
 from typing_inspect import is_union_type
 
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
+
 from pynguin.analyses.type4py_api import Type4pyFunctionData
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
+from pynguin.utils.type_utils import COLLECTIONS
+from pynguin.utils.type_utils import PRIMITIVES
+
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.module import TypeGuessingStats

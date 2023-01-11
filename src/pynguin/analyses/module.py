@@ -19,72 +19,66 @@ import json
 import logging
 import queue
 import typing
+
 from collections import defaultdict
 from collections.abc import Callable
-from types import (
-    BuiltinFunctionType,
-    FunctionType,
-    GenericAlias,
-    MethodDescriptorType,
-    ModuleType,
-    WrapperDescriptorType,
-)
+from types import BuiltinFunctionType
+from types import FunctionType
+from types import GenericAlias
+from types import MethodDescriptorType
+from types import ModuleType
+from types import WrapperDescriptorType
 from typing import Any
 
 import astroid
 
 import pynguin.utils.statistics.statistics as stat
 import pynguin.utils.typetracing as tt
+
 from pynguin.analyses.modulecomplexity import mccabe_complexity
-from pynguin.analyses.syntaxtree import (
-    FunctionDescription,
-    astroid_to_ast,
-    get_class_node_from_ast,
-    get_function_description,
-    get_function_node_from_ast,
-)
-from pynguin.analyses.type4py_api import (
-    Type4pyData,
-    find_predicted_signature,
-    query_type4py_api,
-)
-from pynguin.analyses.typesystem import (
-    ANY,
-    AnyType,
-    Instance,
-    NoneType,
-    ProperType,
-    TupleType,
-    TypeInfo,
-    TypeSystem,
-    TypeVisitor,
-    UnionType,
-    Unsupported,
-    is_primitive_type,
-)
+from pynguin.analyses.syntaxtree import FunctionDescription
+from pynguin.analyses.syntaxtree import astroid_to_ast
+from pynguin.analyses.syntaxtree import get_class_node_from_ast
+from pynguin.analyses.syntaxtree import get_function_description
+from pynguin.analyses.syntaxtree import get_function_node_from_ast
+from pynguin.analyses.type4py_api import Type4pyData
+from pynguin.analyses.type4py_api import find_predicted_signature
+from pynguin.analyses.type4py_api import query_type4py_api
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import TypeSystem
+from pynguin.analyses.typesystem import TypeVisitor
+from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import Unsupported
+from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericAccessibleObject,
     GenericCallableAccessibleObject,
-    GenericConstructor,
-    GenericEnum,
-    GenericFunction,
-    GenericMethod,
 )
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericEnum
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.type_utils import (
-    COLLECTIONS,
-    PRIMITIVES,
-    get_class_that_defined_method,
-)
+from pynguin.utils.type_utils import COLLECTIONS
+from pynguin.utils.type_utils import PRIMITIVES
+from pynguin.utils.type_utils import get_class_that_defined_method
+
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.generation.algorithms.archive as arch
+
     from pynguin.testcase.execution import SubjectProperties
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef

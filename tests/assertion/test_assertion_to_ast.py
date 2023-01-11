@@ -6,6 +6,7 @@
 #
 import ast
 import enum
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,6 +15,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.ast_util as au
+
 from pynguin.utils.namingscope import NamingScope
 
 

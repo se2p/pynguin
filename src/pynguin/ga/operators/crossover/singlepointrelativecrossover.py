@@ -9,8 +9,10 @@ from math import floor
 from typing import TypeVar
 
 import pynguin.ga.chromosome as chrom
+
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.utils import randomness
+
 
 # pylint:disable=invalid-name
 T = TypeVar("T", bound=chrom.Chromosome)

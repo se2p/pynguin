@@ -4,7 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Union
 from unittest.mock import MagicMock
 

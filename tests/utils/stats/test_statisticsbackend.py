@@ -8,11 +8,10 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pynguin.configuration as config
-from pynguin.utils.statistics.statisticsbackend import (
-    ConsoleStatisticsBackend,
-    CSVStatisticsBackend,
-    OutputVariable,
-)
+
+from pynguin.utils.statistics.statisticsbackend import ConsoleStatisticsBackend
+from pynguin.utils.statistics.statisticsbackend import CSVStatisticsBackend
+from pynguin.utils.statistics.statisticsbackend import OutputVariable
 
 
 def test_output_variable():

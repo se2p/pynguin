@@ -9,7 +9,9 @@ import json
 import pytest
 
 import pynguin.configuration as config
-from pynguin.analyses.type4py_api import find_predicted_signature, query_type4py_api
+
+from pynguin.analyses.type4py_api import find_predicted_signature
+from pynguin.analyses.type4py_api import query_type4py_api
 
 
 def test_type4py_api(requests_mock):

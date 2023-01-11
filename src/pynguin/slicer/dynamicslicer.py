@@ -13,39 +13,36 @@ from __future__ import annotations
 import logging
 import operator
 import time
-from dataclasses import dataclass, field
+
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
-from pynguin.slicer.executedinstruction import (
-    ExecutedAttributeInstruction,
-    ExecutedMemoryInstruction,
-)
-from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
+
+from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
+from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
+from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder
+from pynguin.slicer.executionflowbuilder import UniqueInstruction
 from pynguin.slicer.stack.stackeffect import StackEffect
 from pynguin.slicer.stack.stacksimulation import TraceStack
-from pynguin.utils.exceptions import (
-    InstructionNotFoundException,
-    SlicingTimeoutException,
-)
+from pynguin.utils.exceptions import InstructionNotFoundException
+from pynguin.utils.exceptions import SlicingTimeoutException
+
 
 if TYPE_CHECKING:
     from bytecode import Instr
 
-    from pynguin.analyses.controlflow import (
-        CFG,
-        ControlDependenceGraph,
-        ProgramGraphNode,
-    )
+    from pynguin.analyses.controlflow import CFG
+    from pynguin.analyses.controlflow import ControlDependenceGraph
+    from pynguin.analyses.controlflow import ProgramGraphNode
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
-    from pynguin.testcase.execution import (
-        ExecutedAssertion,
-        ExecutionTrace,
-        SubjectProperties,
-    )
+    from pynguin.testcase.execution import ExecutedAssertion
+    from pynguin.testcase.execution import ExecutionTrace
+    from pynguin.testcase.execution import SubjectProperties
 
 
 @dataclass
@@ -614,7 +611,7 @@ class DynamicSlicer:
         elif traced_instr.opcode in (op.STORE_NAME, op.DELETE_NAME):
             if (
                 traced_instr.code_object_id in self._known_code_objects
-                and self._known_code_objects[traced_instr.code_object_id]
+                and self._known_code_objects[traced_instr.code_object_id] is not None
                 and self._known_code_objects[
                     traced_instr.code_object_id
                 ].code_object.co_name
@@ -722,7 +719,7 @@ class DynamicSlicer:
         elif traced_instr.opcode == op.LOAD_NAME:
             if (
                 traced_instr.code_object_id in self._known_code_objects
-                and self._known_code_objects[traced_instr.code_object_id]
+                and self._known_code_objects[traced_instr.code_object_id] is not None
                 and self._known_code_objects[
                     traced_instr.code_object_id
                 ].code_object.co_name

@@ -40,6 +40,7 @@ SOFTWARE.
 from __future__ import annotations
 
 import ast
+
 from abc import ABCMeta
 from ast import iter_child_nodes
 from collections import defaultdict

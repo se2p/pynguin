@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import inspect
+
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -13,7 +14,9 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
-from pynguin.analyses.typesystem import AnyType, InferredSignature
+
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 
 

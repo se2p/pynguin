@@ -4,13 +4,16 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from typing import Any, cast
+from typing import Any
+from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.assertion.assertion as ass
-from pynguin.assertion.assertion import Assertion, AssertionVisitor
+
+from pynguin.assertion.assertion import Assertion
+from pynguin.assertion.assertion import AssertionVisitor
 from pynguin.testcase import variablereference as vr
 
 

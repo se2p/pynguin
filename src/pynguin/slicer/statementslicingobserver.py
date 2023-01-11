@@ -13,9 +13,11 @@ import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.utils.opcodes as op
+
 from pynguin.ga.computations import compute_statement_checked_lines
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
+
 
 _LOGGER = logging.getLogger(__name__)
 

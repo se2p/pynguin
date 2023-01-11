@@ -5,7 +5,9 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 import tempfile as temp
-from tempfile import SpooledTemporaryFile, mkdtemp
+
+from tempfile import SpooledTemporaryFile
+from tempfile import mkdtemp
 
 
 def bar():

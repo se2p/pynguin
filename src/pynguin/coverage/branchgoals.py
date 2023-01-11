@@ -8,20 +8,22 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
+
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
-    from pynguin.testcase.execution import (
-        AbstractTestCaseExecutor,
-        ExecutionResult,
-        ExecutionTracer,
-        SubjectProperties,
-    )
+
+    from pynguin.testcase.execution import AbstractTestCaseExecutor
+    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.testcase.execution import ExecutionTracer
+    from pynguin.testcase.execution import SubjectProperties
 
 
 # pylint:disable=too-few-public-methods

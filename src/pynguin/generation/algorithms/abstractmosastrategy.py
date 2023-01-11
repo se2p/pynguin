@@ -8,11 +8,13 @@
 from __future__ import annotations
 
 import logging
+
 from abc import ABCMeta
 from typing import cast
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.generation.algorithms.archive import CoverageArchive
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy

@@ -5,7 +5,8 @@
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
+from unittest.mock import call
 
 import pytest
 
@@ -13,6 +14,7 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
+
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.assertion.assertion import ExceptionAssertion
 from pynguin.utils.orderedset import OrderedSet

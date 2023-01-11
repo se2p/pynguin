@@ -13,12 +13,11 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.statistics as stat
+
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.statistics.statisticsbackend import (
-    ConsoleStatisticsBackend,
-    CSVStatisticsBackend,
-    OutputVariable,
-)
+from pynguin.utils.statistics.statisticsbackend import ConsoleStatisticsBackend
+from pynguin.utils.statistics.statisticsbackend import CSVStatisticsBackend
+from pynguin.utils.statistics.statisticsbackend import OutputVariable
 
 
 @pytest.fixture

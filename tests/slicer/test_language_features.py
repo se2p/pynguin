@@ -8,14 +8,16 @@
 # https://github.com/ipsw1/pychecco
 
 
-from bytecode import BasicBlock, CellVar, Compare, FreeVar, Instr
+from bytecode import BasicBlock
+from bytecode import CellVar
+from bytecode import Compare
+from bytecode import FreeVar
+from bytecode import Instr
 
-from tests.slicer.util import (
-    compare,
-    dummy_code_object,
-    slice_function_at_return,
-    slice_module_at_return,
-)
+from tests.slicer.util import compare
+from tests.slicer.util import dummy_code_object
+from tests.slicer.util import slice_function_at_return
+from tests.slicer.util import slice_module_at_return
 
 
 def test_simple_loop():

@@ -11,22 +11,26 @@ import abc
 import dataclasses
 import math
 import statistics
+
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import TypeVar
 
 import pynguin.utils.opcodes as op
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
+
+from pynguin.slicer.dynamicslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.testcase.execution import ExecutionTrace
 from pynguin.testcase.statement import Statement
 
+
 if TYPE_CHECKING:
     from pynguin.slicer.dynamicslicer import SlicingCriterion
-    from pynguin.testcase.execution import (
-        AbstractTestCaseExecutor,
-        ExecutionResult,
-        SubjectProperties,
-    )
+    from pynguin.testcase.execution import AbstractTestCaseExecutor
+    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.testcase.execution import SubjectProperties
 
 
 @dataclasses.dataclass(eq=False)

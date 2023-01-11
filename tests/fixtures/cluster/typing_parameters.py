@@ -4,7 +4,8 @@
 #
 #  SPDX-License-Identifier: LGPL-3.0-or-later
 #
-from tests.fixtures.cluster.complex_dependency import SomeOtherType, YetAnotherType
+from tests.fixtures.cluster.complex_dependency import SomeOtherType
+from tests.fixtures.cluster.complex_dependency import YetAnotherType
 from tests.fixtures.cluster.dependency import SomeArgumentType
 
 

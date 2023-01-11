@@ -6,7 +6,10 @@
 #
 """Some utilites to make testing easier."""
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.typesystem import Instance, ProperType, TypeSystem
+
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TypeSystem
 
 
 def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):

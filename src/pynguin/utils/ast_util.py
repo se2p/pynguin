@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import typing
 
+
 if typing.TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
     import pynguin.utils.namingscope as ns

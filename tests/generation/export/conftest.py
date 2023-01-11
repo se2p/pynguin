@@ -10,13 +10,12 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
+
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.testcase.statement import (
-    ConstructorStatement,
-    FloatPrimitiveStatement,
-    FunctionStatement,
-    IntPrimitiveStatement,
-)
+from pynguin.testcase.statement import ConstructorStatement
+from pynguin.testcase.statement import FloatPrimitiveStatement
+from pynguin.testcase.statement import FunctionStatement
+from pynguin.testcase.statement import IntPrimitiveStatement
 
 
 @pytest.fixture

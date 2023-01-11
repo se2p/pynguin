@@ -13,6 +13,7 @@ import ast
 import logging
 import os
 import typing
+
 from abc import ABC
 from pathlib import Path
 from pkgutil import iter_modules
@@ -24,6 +25,7 @@ from pynguin.utils.orderedset import OrderedSet
 
 # Used for type hinting and for restricting stored types
 from pynguin.utils.typetracing import unwrap
+
 
 ConstantTypes = float | int | str | bytes | complex
 

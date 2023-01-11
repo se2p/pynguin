@@ -10,6 +10,7 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
+
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
 from pynguin.generation.algorithms.randomsearchstrategy import (
@@ -19,8 +20,14 @@ from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxSearchTimeStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxStatementExecutionsStoppingCondition,
+)
+from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxTestExecutionsStoppingCondition,
 )
 from pynguin.testcase.execution import TestCaseExecutor

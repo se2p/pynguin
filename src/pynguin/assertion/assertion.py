@@ -7,11 +7,15 @@
 """Provides a base class for assertions."""
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any
+from abc import ABC
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+from typing import Any
+
 
 if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
+
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 

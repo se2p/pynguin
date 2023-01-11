@@ -9,7 +9,9 @@ import multiprocessing.shared_memory as sm
 
 # Uses function from blacklisted module
 import tempfile as temp
-from tempfile import SpooledTemporaryFile, mkdtemp
+
+from tempfile import SpooledTemporaryFile
+from tempfile import mkdtemp
 from time import sleep
 
 import tests.fixtures.cluster.blacklist_transitive as bl_tr

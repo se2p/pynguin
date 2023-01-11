@@ -10,7 +10,9 @@ import pytest
 
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.testcase.execution import ExecutionContext, ModuleProvider
+
+from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.execution import ModuleProvider
 
 
 def test_get_reference_value():

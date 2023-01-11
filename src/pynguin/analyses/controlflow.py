@@ -9,16 +9,27 @@ from __future__ import annotations
 
 import queue
 import sys
+
 from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from typing import Any
+from typing import Generic
+from typing import TypeVar
 
 import networkx as nx
-from bytecode import UNSET, BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
+
+from bytecode import UNSET
+from bytecode import BasicBlock
+from bytecode import Bytecode
+from bytecode import Compare
+from bytecode import ControlFlowGraph
+from bytecode import Instr
 from networkx import lowest_common_ancestor
 from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.utils.opcodes as op
+
 from pynguin.utils.orderedset import OrderedSet
+
 
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"

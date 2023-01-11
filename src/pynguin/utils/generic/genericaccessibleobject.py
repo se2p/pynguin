@@ -13,16 +13,17 @@ from __future__ import annotations
 import abc
 import enum
 import typing
-from types import (
-    BuiltinFunctionType,
-    ClassMethodDescriptorType,
-    FunctionType,
-    MethodDescriptorType,
-    WrapperDescriptorType,
-)
 
-from pynguin.analyses.typesystem import InferredSignature, Instance
+from types import BuiltinFunctionType
+from types import ClassMethodDescriptorType
+from types import FunctionType
+from types import MethodDescriptorType
+from types import WrapperDescriptorType
+
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import Instance
 from pynguin.utils.orderedset import OrderedSet
+
 
 TypesOfCallables = typing.Union[
     FunctionType,
@@ -33,7 +34,8 @@ TypesOfCallables = typing.Union[
 ]
 
 if typing.TYPE_CHECKING:
-    from pynguin.analyses.typesystem import ProperType, TypeInfo
+    from pynguin.analyses.typesystem import ProperType
+    from pynguin.analyses.typesystem import TypeInfo
 
 
 class GenericAccessibleObject(metaclass=abc.ABCMeta):
@@ -311,7 +313,7 @@ class GenericMethod(GenericCallableAccessibleObject):
     def get_dependencies(
         self, memo: dict[InferredSignature, dict[str, ProperType]]
     ) -> OrderedSet[ProperType]:
-        assert self.owner, "Method must have an owner"
+        assert self.owner is not None, "Method must have an owner"
         dependencies = super().get_dependencies(memo)
         dependencies.add(Instance(self.owner))
         return dependencies
@@ -412,7 +414,7 @@ class GenericField(GenericAbstractField):
 
     def __init__(self, owner: TypeInfo, field: str, field_type: ProperType):
         super().__init__(owner, field, field_type)
-        assert owner, "Field must have an owner"
+        assert owner is not None, "Field must have an owner"
 
     def get_dependencies(
         self, memo: dict[InferredSignature, dict[str, ProperType]]
@@ -447,7 +449,7 @@ class GenericStaticField(GenericAbstractField):
 
     def __init__(self, owner: TypeInfo, field: str, field_type: ProperType):
         super().__init__(owner, field, field_type)
-        assert owner, "Field must have an owner"
+        assert owner is not None, "Field must have an owner"
 
     def is_static(self) -> bool:
         return True

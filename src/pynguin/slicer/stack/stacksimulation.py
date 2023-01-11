@@ -9,10 +9,12 @@
 """Provides classes to simulate the stack during dynamic slicing."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from typing import TYPE_CHECKING
 
 import pynguin.utils.opcodes as op
+
 
 if TYPE_CHECKING:
     from pynguin.slicer.executionflowbuilder import UniqueInstruction

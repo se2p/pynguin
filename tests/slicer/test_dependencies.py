@@ -8,14 +8,14 @@
 # https://github.com/ipsw1/pychecco
 
 
-from bytecode import BasicBlock, Compare, Instr
+from bytecode import BasicBlock
+from bytecode import Compare
+from bytecode import Instr
 
-from tests.slicer.util import (
-    compare,
-    dummy_code_object,
-    slice_function_at_return,
-    slice_module_at_return,
-)
+from tests.slicer.util import compare
+from tests.slicer.util import dummy_code_object
+from tests.slicer.util import slice_function_at_return
+from tests.slicer.util import slice_module_at_return
 
 
 def test_data_dependency_1():

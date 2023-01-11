@@ -9,11 +9,13 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.chromosomefactory as cf
+
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.testcase.execution import ExecutionTracer, TestCaseExecutor
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import TestCaseExecutor
 
 
 @pytest.fixture

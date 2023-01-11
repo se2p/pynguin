@@ -15,16 +15,20 @@ import argparse
 import logging
 import os
 import sys
+
 from pathlib import Path
 
 import simple_parsing
+
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
 import pynguin.configuration as config
+
 from pynguin.__version__ import __version__
-from pynguin.generator import run_pynguin, set_configuration
+from pynguin.generator import run_pynguin
+from pynguin.generator import set_configuration
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -95,7 +99,7 @@ def _expand_arguments_if_necessary(arguments: list[str]) -> list[str]:
     return arguments
 
 
-def _parse_comma_separated_option(arguments: list[str], option: str):
+def _parse_comma_separated_option(arguments: list[str], option: str) -> list[str]:
     index = arguments.index(option)
     if "," not in arguments[index + 1]:
         return arguments

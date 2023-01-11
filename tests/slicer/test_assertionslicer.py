@@ -15,18 +15,19 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.generic.genericaccessibleobject as gao
+
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
-from pynguin.testcase.execution import (
-    AssertionExecutionObserver,
-    ExecutionTracer,
-    TestCaseExecutor,
-)
-from pynguin.testcase.variablereference import FieldReference, StaticFieldReference
+from pynguin.slicer.dynamicslicer import AssertionSlicer
+from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.testcase.execution import AssertionExecutionObserver
+from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.variablereference import FieldReference
+from pynguin.testcase.variablereference import StaticFieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
 

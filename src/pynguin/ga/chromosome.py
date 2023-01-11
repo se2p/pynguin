@@ -7,7 +7,8 @@
 """Provides an abstract base class for chromosomes."""
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
+from abc import abstractmethod
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff

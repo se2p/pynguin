@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
@@ -15,10 +16,13 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
+
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
+from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import GenerationException
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc

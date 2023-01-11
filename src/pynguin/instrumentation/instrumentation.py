@@ -10,15 +10,23 @@ from __future__ import annotations
 import builtins
 import json
 import logging
+
 from dataclasses import dataclass
 from types import CodeType
 from typing import TYPE_CHECKING
 
-from bytecode import BasicBlock, Bytecode, Compare, ControlFlowGraph, Instr
+from bytecode import BasicBlock
+from bytecode import Bytecode
+from bytecode import Compare
+from bytecode import ControlFlowGraph
+from bytecode import Instr
 
 import pynguin.utils.opcodes as op
+
 from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.controlflow import CFG, ControlDependenceGraph
+from pynguin.analyses.controlflow import CFG
+from pynguin.analyses.controlflow import ControlDependenceGraph
+
 
 if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ProgramGraphNode

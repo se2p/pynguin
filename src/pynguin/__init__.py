@@ -8,6 +8,7 @@
 import pynguin.configuration as config
 import pynguin.generator as gen
 
+
 set_configuration = gen.set_configuration
 run_pynguin = gen.run_pynguin
 Configuration = config.Configuration

@@ -8,15 +8,19 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.ga.computations as ff
 import pynguin.generation.algorithms.archive as arch
+
 from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
