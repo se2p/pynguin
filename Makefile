@@ -105,9 +105,9 @@ check-safety:
 .PHONY: check-style
 check-style:
 	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
-	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 pynguin/**/*.py
-	$(ISORT_COMMAND_FLAG)poetry run isort --check-only . --profile black
-	$(MYPY_COMMAND_FLAG)poetry run mypy pynguin
+	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 src/pynguin/**/*.py
+	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
+	$(MYPY_COMMAND_FLAG)poetry run mypy
 
 .PHONY: codestyle
 codestyle:
@@ -115,23 +115,23 @@ codestyle:
 
 .PHONY: test
 test:
-	poetry run pytest --cov=pynguin --cov=tests --cov-branch --cov-report=term-missing --cov-report html:cov_html tests/
+	poetry run pytest --cov-report=term-missing --cov-report html:cov_html tests/
 
 .PHONY: mypy
 mypy:
-	poetry run mypy pynguin
+	poetry run mypy
 
 .PHONY: pylint
 pylint:
-	poetry run pylint pynguin
+	poetry run pylint src/pynguin
 
 .PHONY: ruff
 ruff:
-	poetry run ruff pynguin
+	poetry run ruff src/pynguin
 
 .PHONY: isort
 isort:
-	poetry run isort . --profile black
+	poetry run isort .
 
 .PHONY: black
 black:
@@ -139,7 +139,7 @@ black:
 
 .PHONY: darglint
 darglint:
-	poetry run darglint -v 2 pynguin/**/*.py
+	poetry run darglint -v 2 src/pynguin/**/*.py
 
 update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes

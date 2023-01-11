@@ -35,6 +35,12 @@ classifiers = [
     "Topic :: Software Development :: Testing :: Unit",
     "Typing :: Typed",
 ]
+packages = [
+    { include = "pynguin", from = "src" }
+]
+include = [
+    { path = "tests", format = "sdist" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
@@ -112,7 +118,7 @@ exclude = '''
 
 [tool.coverage.run]
 branch = true
-source = ["pynguin", "tests"]
+# source = ["pynguin", "tests"]
 omit = ["tests/fixtures/*"]
 
 [tool.coverage.report]
@@ -144,6 +150,7 @@ strict_optional = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
+files = "src"
 
 [tool.pytest.ini_options]
 minversion = "6.0.0rc1"
