@@ -11,6 +11,12 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.29.0
+
+- Move code to `src`-based layout
+- Make configuration of `mypy` more strict
+- Remove an accidentally committed file
+
 ## Pynguin 0.28.0
 
 - Fix distance computations for `<=` and always convert values to `float`.
