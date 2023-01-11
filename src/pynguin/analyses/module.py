@@ -729,7 +729,7 @@ class ModuleTestCluster(TestCluster):
         ) -> OrderedSet[GenericAccessibleObject]:
             result: OrderedSet[GenericAccessibleObject] = OrderedSet()
             for element in left.items:
-                result.update(element.accept(self))  # type:ignore
+                result.update(element.accept(self))  # type: ignore[arg-type]
             return result
 
         def visit_unsupported_type(

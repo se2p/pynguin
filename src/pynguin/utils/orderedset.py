@@ -64,7 +64,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
     def __getitem__(self, index: slice) -> _AbstractOrderedSet[T]:
         pass
 
-    def __getitem__(self, index: int | slice) -> T:  # type:ignore
+    def __getitem__(self, index: int | slice) -> T:  # type: ignore[misc]
         """Lookup item at given position. Caution, as this runs in O(n).
 
         Args:
@@ -318,7 +318,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             self._items[item] = None
 
 
-class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type:ignore
+class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[type-var]
     """A frozen (i.e. immutable) set that retains its order.
     This is safe to use with the V2 engine.
     """

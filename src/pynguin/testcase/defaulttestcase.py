@@ -62,7 +62,7 @@ class DefaultTestCase(tc.TestCase):
             if statement.ret_val is not None:
                 # If the original statement created a variable, then so does the clone
                 # Thus we know that clone.ret_val is not None
-                memo[statement.ret_val] = clone.ret_val  # type: ignore
+                memo[statement.ret_val] = clone.ret_val  # type: ignore[assignment]
             self._statements.append(clone)
 
     def remove(self, position: int) -> None:
@@ -104,7 +104,7 @@ class DefaultTestCase(tc.TestCase):
             if statement.ret_val is not None:
                 # If the original statement created a variable, then so does the clone
                 # Thus we know that clone.ret_val is not None
-                memo[statement.ret_val] = copy.ret_val  # type: ignore
+                memo[statement.ret_val] = copy.ret_val  # type: ignore[assignment]
             test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
         return test_case
@@ -163,7 +163,7 @@ class DefaultTestCase(tc.TestCase):
                 if lret is not None:
                     # lret is not None, so rret is also not None, otherwise we would be
                     # in the above case.
-                    memo[lret] = rret  # type:ignore
+                    memo[lret] = rret  # type: ignore[assignment]
                 if not left.structural_eq(right, memo):
                     return False
         return True

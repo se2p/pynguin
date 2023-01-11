@@ -187,7 +187,7 @@ class GenericCallableAccessibleObject(
         owner: TypeInfo | None,
         callable_: TypesOfCallables,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore
+        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
     ) -> None:
         super().__init__(owner)
         self._callable = callable_
@@ -243,7 +243,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
         self,
         owner: TypeInfo,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore
+        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
     ) -> None:
         super().__init__(
             owner,
@@ -286,7 +286,7 @@ class GenericMethod(GenericCallableAccessibleObject):
         owner: TypeInfo,
         method: TypesOfCallables,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore
+        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
         method_name: str | None = None,
     ) -> None:
         super().__init__(owner, method, inferred_signature, raised_exceptions)
@@ -345,7 +345,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         self,
         function: FunctionType,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore
+        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
         function_name: str | None = None,
     ) -> None:
         self._function_name = function_name

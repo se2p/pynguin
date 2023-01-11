@@ -48,7 +48,7 @@ class DynaMOSATestStrategy(AbstractMOSATestStrategy):
     def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,  # type: ignore
+            self._test_case_fitness_functions,  # type: ignore[arg-type]
             self._archive,
             self.executor.tracer.get_subject_properties(),
         )
@@ -157,7 +157,7 @@ class _GoalsManager:
         self._current_goals: OrderedSet[
             bg.BranchCoverageTestFitness
         ] = self._graph.root_branches
-        self._archive.add_goals(self._current_goals)  # type: ignore
+        self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
     def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
@@ -166,7 +166,7 @@ class _GoalsManager:
         Returns:
             The set of current goals
         """
-        return self._current_goals  # type: ignore
+        return self._current_goals  # type: ignore[return-value]
 
     def update(self, solutions: list[tcc.TestCaseChromosome]) -> None:
         """Updates the information on the current goals from the found solutions.
@@ -191,7 +191,7 @@ class _GoalsManager:
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
-            self._archive.add_goals(self._current_goals)  # type: ignore
+            self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
         self._logger.debug("current goals after update: %s", self._current_goals)
 
 

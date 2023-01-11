@@ -81,7 +81,7 @@ class _ASTVisitor(metaclass=ABCMeta):
             class_name = klass.__name__
             meth = getattr(self.visitor, "visit" + class_name, self.default)
             self._cache[klass] = meth
-        return meth(node)  # type: ignore
+        return meth(node)  # type: ignore[misc]
 
     def preorder(self, tree: ast.AST, visitor: _ASTVisitor):
         """Do preorder walk of tree using visitor.

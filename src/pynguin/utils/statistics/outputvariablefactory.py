@@ -168,7 +168,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
                 ratio = value_delta / time_delta
                 diff = preferred_time - self._time_stamps[i - 1]
                 value = float(self._values[i - 1]) + (diff * ratio)
-                return value  # type: ignore
+                return value  # type: ignore[return-value]
 
         # no time stamp was higher, just use the last value seen
         return self._values[-1]
@@ -190,7 +190,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
 
     def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
         super().__init__(variable)
-        self._value = start_value  # type: ignore
+        self._value = start_value  # type: ignore[var-annotated]
 
     def get_value(self, individual) -> T:
         return self._value

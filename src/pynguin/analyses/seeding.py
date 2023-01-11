@@ -212,7 +212,7 @@ def create_assign_stmt(
         new_stmt = None
     if new_stmt is None:
         return None
-    ref_id = str(assign.targets[0].id)  # type: ignore
+    ref_id = str(assign.targets[0].id)  # type: ignore[attr-defined]
     return ref_id, new_stmt
 
 
@@ -231,9 +231,9 @@ def create_assert_stmt(
     """
     assertion: ass.Assertion | None = None
     try:
-        source = ref_dict[assert_node.test.left.id]  # type: ignore
-        val_elem = assert_node.test.comparators[0]  # type: ignore
-        operator = assert_node.test.ops[0]  # type: ignore
+        source = ref_dict[assert_node.test.left.id]  # type: ignore[attr-defined]
+        val_elem = assert_node.test.comparators[0]  # type: ignore[attr-defined]
+        operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
     except (KeyError, AttributeError):
         return None
     if isinstance(operator, (ast.Is, ast.Eq)):
@@ -257,7 +257,7 @@ def create_assertion(
         The assertion.
     """
     if isinstance(val_elem, ast.UnaryOp):
-        val_elem = val_elem.operand  # type: ignore
+        val_elem = val_elem.operand  # type: ignore[assignment]
 
     if isinstance(val_elem, ast.Constant) and is_assertable(val_elem.value):
         return ass.ObjectAssertion(source, val_elem.value)
@@ -307,7 +307,7 @@ def create_variable_references_from_call_args(
         elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
             call_arg, ast.Starred
         ):
-            reference = ref_dict.get(call_arg.value.id)  # type: ignore
+            reference = ref_dict.get(call_arg.value.id)  # type: ignore[attr-defined]
         else:
             return None
         if reference is None:
@@ -391,7 +391,7 @@ def create_stmt_from_unaryop(
     Returns:
         The corresponding statement.
     """
-    val = unaryop.operand.value  # type: ignore
+    val = unaryop.operand.value  # type: ignore[attr-defined]
     if isinstance(val, bool):
         return stmt.BooleanPrimitiveStatement(testcase, not val)
     if isinstance(val, float):
@@ -430,7 +430,7 @@ def create_stmt_from_call(
         The corresponding statement.
     """
     try:
-        call.func.attr  # type: ignore
+        call.func.attr  # type: ignore[attr-defined]
     except AttributeError:
         return try_generating_specific_function(
             call,
@@ -478,20 +478,20 @@ def find_gen_callable(
         The corresponding generic accessible object under test. This can be a
         GenericConstructor, a GenericMethod or a GenericFunction.
     """
-    call_name = str(call.func.attr)  # type: ignore
+    call_name = str(call.func.attr)  # type: ignore[attr-defined]
     for obj in objs_under_test:
         if isinstance(obj, GenericConstructor):
             assert obj.owner
             owner = str(obj.owner.name)
-            call_id = call.func.value.id  # type: ignore
+            call_id = call.func.value.id  # type: ignore[attr-defined]
             if call_name == owner and call_id not in ref_dict:
                 return obj
         elif isinstance(obj, GenericMethod):
             # test if the type of the calling object is equal to the type of the owner
             # of the generic method
-            call_id = call.func.value.id  # type: ignore
+            call_id = call.func.value.id  # type: ignore[attr-defined]
             if call_name == obj.method_name and call_id in ref_dict:
-                obj_from_ast = str(call.func.value.id)  # type: ignore
+                obj_from_ast = str(call.func.value.id)  # type: ignore[attr-defined]
                 var_type = ref_dict[obj_from_ast].type
                 if isinstance(var_type, Instance) and var_type.type == obj.owner:
                     return obj
@@ -527,7 +527,7 @@ def assemble_stmt_from_gen_callable(
         if not isinstance(keyword, ast.keyword):
             return None
     var_refs = create_variable_references_from_call_args(
-        call.args, call.keywords, gen_callable, ref_dict  # type: ignore
+        call.args, call.keywords, gen_callable, ref_dict  # type: ignore[arg-type]
     )
     if var_refs is None:
         return None
@@ -539,7 +539,7 @@ def assemble_stmt_from_gen_callable(
         return stmt.MethodStatement(
             testcase,
             gen_callable,
-            ref_dict[call.func.value.id],  # type: ignore
+            ref_dict[call.func.value.id],  # type: ignore[attr-defined]
             var_refs,
         )
     if isinstance(gen_callable, GenericConstructor):
@@ -775,7 +775,7 @@ def try_generating_specific_function(
 
     """
     try:
-        func_id = str(call.func.id)  # type: ignore
+        func_id = str(call.func.id)  # type: ignore[attr-defined]
     except AttributeError:
         return None
     if func_id == "set":
@@ -826,8 +826,14 @@ def try_generating_specific_function(
     if func_id == "dict":
         try:
             dict_node = ast.Dict(
-                keys=call.args[0].keys if call.args else [],  # type: ignore
-                values=call.args[0].values if call.args else [],  # type: ignore
+                keys=(
+                    call.args[0].keys if call.args else []  # type: ignore[attr-defined]
+                ),
+                values=(
+                    call.args[0].values  # type: ignore[attr-defined]
+                    if call.args
+                    else []
+                ),
                 ctx=ast.Load(),
             )
         except AttributeError:

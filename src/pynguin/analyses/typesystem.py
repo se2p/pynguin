@@ -27,8 +27,8 @@ from typing import Final
 from typing import ForwardRef
 from typing import Generic
 from typing import TypeVar
-from typing import _BaseGenericAlias  # type:ignore
-from typing import _eval_type  # type:ignore
+from typing import _BaseGenericAlias  # type: ignore[attr-defined]
+from typing import _eval_type  # type: ignore[attr-defined]
 from typing import cast
 from typing import get_origin
 from typing import get_type_hints

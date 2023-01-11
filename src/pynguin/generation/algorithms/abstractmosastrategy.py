@@ -93,7 +93,7 @@ class AbstractMOSATestStrategy(
         self, solutions: list[tcc.TestCaseChromosome]
     ) -> list[tcc.TestCaseChromosome]:
         comparator: DominanceComparator[tcc.TestCaseChromosome] = DominanceComparator(
-            goals=self._archive.covered_goals  # type: ignore
+            goals=self._archive.covered_goals  # type: ignore[arg-type]
         )
         next_front: list[tcc.TestCaseChromosome] = []
         for solution in solutions:

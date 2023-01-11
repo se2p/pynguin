@@ -486,7 +486,7 @@ def astroid_to_ast(astroid_in: AstroidFunctionDef) -> ASTFunctionDef:
         The ast function def
     """
     # TODO(fk) port all of the analysis to astroid so this is no longer necessary.
-    return ast.parse(to_code(astroid_in)).body[0]  # type: ignore
+    return ast.parse(to_code(astroid_in)).body[0]  # type: ignore[return-value]
 
 
 def get_function_node_from_ast(

@@ -152,7 +152,7 @@ namespace_packages = true
 explicit_package_bases = true
 show_error_codes = true
 enable_error_code = [
-  #"ignore-without-code",
+  "ignore-without-code",
   "truthy-bool",
 ]
 check_untyped_defs = true
@@ -164,7 +164,6 @@ warn_redundant_casts = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-addopts = "-n auto"
 testpaths = [
   "tests",
 ]
