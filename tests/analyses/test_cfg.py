@@ -61,8 +61,7 @@ RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
 LOAD_NAME 'print'
 LOAD_NAME 'test'
 POP_JUMP_IF_FALSE ProgramGraphNode";
-}
-"""
+}"""
     assert cfg.cyclomatic_complexity == 2
     assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
@@ -123,8 +122,7 @@ LOAD_CONST 'no'";
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
-}
-"""
+}"""
     assert reversed_cfg.cyclomatic_complexity == 2
     assert cfg.diameter == 6
     assert cfg.entry_node.is_artificial
@@ -293,8 +291,7 @@ RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
 "ProgramGraphNode(-1)" -> "ProgramGraphNode(0)
 LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE ProgramGraphNode";
-}
-""",
+}""",
             id="Python 3.10+, extract return None into separate node",
         ),
     ],

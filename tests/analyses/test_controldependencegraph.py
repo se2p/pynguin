@@ -31,8 +31,7 @@ def test_integration(small_control_flow_graph):
 "ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(2)";
 "ProgramGraphNode(5)" -> "ProgramGraphNode(3)";
 "ProgramGraphNode(5)" -> "ProgramGraphNode(4)";
-}
-"""
+}"""
     assert dot_representation == graph
     assert control_dependence_graph.entry_node.is_artificial
 

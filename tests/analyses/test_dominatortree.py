@@ -59,8 +59,7 @@ POP_JUMP_IF_FALSE ProgramGraphNode";
 LOAD_NAME 'print'
 LOAD_NAME 'test'
 POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(-1)";
-}
-"""
+}"""
     assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(
         graph, "utf-8"
     ).decode("unicode_escape")
@@ -86,8 +85,7 @@ def test_integration(small_control_flow_graph):
 "ProgramGraphNode(2)" -> "ProgramGraphNode(5)";
 "ProgramGraphNode(5)" -> "ProgramGraphNode(6)";
 "ProgramGraphNode(6)" -> "ProgramGraphNode(0)";
-}
-"""
+}"""
     assert dot_representation == graph
     assert post_dominator_tree.entry_node.index == sys.maxsize
 

@@ -23,8 +23,6 @@ from bytecode import Bytecode
 from bytecode import Compare
 from bytecode import ControlFlowGraph
 from bytecode import Instr
-from networkx import lowest_common_ancestor
-from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.utils.opcodes as op
 
@@ -289,7 +287,7 @@ class ProgramGraph(Generic[N]):
         Returns:
             The least common ancestor node of the two nodes
         """
-        return lowest_common_ancestor(self._graph, first, second)
+        return nx.lowest_common_ancestor(self._graph, first, second)
 
     @property
     def dot(self) -> str:
@@ -298,8 +296,17 @@ class ProgramGraph(Generic[N]):
         Returns:
             The DOT representation of this graph
         """
-        dot = to_pydot(self._graph)
-        return dot.to_string()
+        graph = ["strict digraph  {"]
+        for node in self._graph.nodes:
+            graph.append(f'"{node}";')
+        for source, target, edge_data in self._graph.edges(data=True):
+            if edge_data == {}:
+                graph.append(f'"{source}" -> "{target}";')
+            else:
+                str_edge_data = ", ".join([f"{k}={v}" for k, v in edge_data.items()])
+                graph.append(f'"{source}" -> "{target}"  [{str_edge_data}];')
+        graph.append("}")
+        return "\n".join(graph)
 
 
 G = TypeVar("G", bound=ProgramGraph)  # pylint: disable=invalid-name
