@@ -10,7 +10,7 @@ import os
 import sys
 
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import pynguin  # noqa  # isort:skip
 
@@ -31,7 +31,7 @@ copyright = f"2019–{datetime.datetime.utcnow().year}, {author}"
 
 _d = {}
 with open(
-    os.path.join(os.path.dirname(__file__), "..", "pynguin", "__version__.py")
+    os.path.join(os.path.dirname(__file__), "..", "src", "pynguin", "__version__.py")
 ) as f:
     exec(f.read(), _d)
     version = _d["__version__"]

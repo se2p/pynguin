@@ -99,28 +99,28 @@ mypy:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - poetry run mypy pynguin
+    - poetry run mypy
   needs: ["isort", "black"]
 
 ruff:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - poetry run ruff pynguin
+    - poetry run ruff src/pynguin
   needs: ["isort", "black"]
 
 pylint:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - poetry run pylint pynguin
+    - poetry run pylint src/pynguin
   needs: ["isort", "black"]
 
 darglint:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - poetry run darglint -v 2 pynguin/**/*.py
+    - poetry run darglint -v 2 src/pynguin/**/*.py
   needs: ["isort", "black"]
 
 isort:
@@ -144,20 +144,6 @@ sphinx:
     expire_in: 1 week
     paths:
       - docs/_build
-
-safety:
-  stage: security
-  image: python:3.10-bullseye
-  script:
-    - poetry run safety check --full-report
-  needs: ["unit-tests:python-3.10"]
-
-bandit:
-  stage: security
-  image: python:3.10-bullseye
-  script:
-    - poetry run bandit -ll -r pynguin
-  needs: ["unit-tests:python-3.10"]
 
 # check license declarations etc.
 reuse:

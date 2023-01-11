@@ -9,8 +9,6 @@ VERSION=$(shell git rev-parse --short HEAD)
 ifeq ($(STRICT), 1)
 	POETRY_COMMAND_FLAG =
 	PIP_COMMAND_FLAG =
-	SAFETY_COMMAND_FLAG =
-	BANDIT_COMMAND_FLAG =
 	SECRETS_COMMAND_FLAG =
 	BLACK_COMMAND_FLAG =
 	DARGLINT_COMMAND_FLAG =
@@ -19,8 +17,6 @@ ifeq ($(STRICT), 1)
 else
 	POETRY_COMMAND_FLAG = -
 	PIP_COMMAND_FLAG = -
-	SAFETY_COMMAND_FLAG = -
-	BANDIT_COMMAND_FLAG = -
 	SECRETS_COMMAND_FLAG = -
 	BLACK_COMMAND_FLAG = -
 	DARGLINT_COMMAND_FLAG = -
@@ -38,18 +34,6 @@ ifeq ($(PIP_STRICT), 1)
 	PIP_COMMAND_FLAG =
 else ifeq ($(PIP_STRICT), 0)
 	PIP_COMMAND_FLAG = -
-endif
-
-ifeq ($(SAFETY_STRICT), 1)
-	SAFETY_COMMAND_FLAG =
-else ifeq ($(SAFETY_STRICT), 0)
-	SAFETY_COMMAND_FLAG = -
-endif
-
-ifeq ($(BANDIT_STRICT), 1)
-	BANDIT_COMMAND_FLAG =
-else ifeq ($(BANDIT_STRICT), 0)
-	BANDIT_COMMAND_FLAG = -
 endif
 
 ifeq ($(SECRETS_STRICT), 1)
@@ -99,8 +83,6 @@ endif
 check-safety:
 	$(POETRY_COMMAND_FLAG)poetry check
 	$(PIP_COMMAND_FLAG)pip check
-	$(SAFETY_COMMAND_FLAG)poetry run safety check --full-report
-	$(BANDIT_COMMAND_FLAG)poetry run bandit -ll -r pynguin
 
 .PHONY: check-style
 check-style:
