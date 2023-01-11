@@ -20,6 +20,7 @@ for the source-code artifacts of each version.
   from the `utils` package.
 - Improve warning in documentation that Pynguin actually executes the code under test.
 - Various refactorings and improvements.
+- Update copyright notices in all files.
 
 ## Pynguin 0.27.0
 
