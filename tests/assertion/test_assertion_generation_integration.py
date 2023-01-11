@@ -88,7 +88,7 @@ def test_generate_mutation_assertions(generator, expected_result):
 
 # Known mutants of tests.fixtures.mutation.mutation
 _MUTANTS = [
-    "from time import sleep, time_ns\n"
+    "from time import sleep\nfrom time import time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
@@ -97,7 +97,7 @@ _MUTANTS = [
     "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from time import sleep, time_ns\n"
+    "from time import sleep\nfrom time import time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
@@ -106,7 +106,7 @@ _MUTANTS = [
     "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from time import sleep, time_ns\n"
+    "from time import sleep\nfrom time import time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
@@ -115,7 +115,7 @@ _MUTANTS = [
     "        return time_ns()\n"
     "    else:\n"
     "        return 2.0",
-    "from time import sleep, time_ns\n"
+    "from time import sleep\nfrom time import time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
@@ -124,7 +124,7 @@ _MUTANTS = [
     "        return time_ns()\n"
     "    else:\n"
     "        return 3.0",
-    "from time import sleep, time_ns\n"
+    "from time import sleep\nfrom time import time_ns\n"
     "\n"
     "def foo(param) -> float:\n"
     '    """This is flaky"""\n'
