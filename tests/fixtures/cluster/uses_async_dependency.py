@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 from tests.fixtures.cluster.async_class_gen import Foo
 from tests.fixtures.cluster.async_class_method import Foo as Foo2

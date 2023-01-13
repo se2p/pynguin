@@ -27,7 +27,7 @@ keywords:
   - python
   - "test generation"
   - "unit test"
-license: "LGPL-3.0+"
+license: "MIT"
 references:
   - authors:
     - family-names: Lukasczyk
