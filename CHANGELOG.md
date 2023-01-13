@@ -11,6 +11,8 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.30.0
+
 - Re-license Pynguin to MIT License
 
 ## Pynguin 0.29.0
