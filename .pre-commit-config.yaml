@@ -35,3 +35,8 @@ repos:
     hooks:
       - id: black
         args: [--config, ./pyproject.toml]
+
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v1.1.0
+    hooks:
+      - id: reuse
