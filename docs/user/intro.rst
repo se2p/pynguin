@@ -46,7 +46,7 @@ Publications on Pynguin
 
 * S. Lukasczyk, F. Kroiß, and G. Fraser.
   **An Empirical Study of Automated Unit Test Generation for Python**.
-  Submitted to the EMSE Special Edition on “Advances in Search-Based Software
+  Accepted for the EMSE Special Edition on “Advances in Search-Based Software
   Engineering”.  `arXiv:2111.05003 <https://arxiv.org/abs/2111.05003>`_
 
   BibTeX entry:
@@ -91,6 +91,19 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* S. Labrenz: **Using Checked Coverage as Fitness Function for Test Generation in
+  Python**.  Master Thesis.  University of Passau, 2022.
+
+  Provides checked coverage both as a fitness function for test generation as well as an
+  optimisation criterion for assertion minimisation.
+* M. Königseder: **DeepTyper für Python und der Einfluss von Typvorhersagen auf die
+  automatische Testgenerierung**. Bachelor Thesis.  University of Passau, 2022.
+
+* M. Reichenberger: **Measuring Oracle Quality in Python**.  Master Thesis.  University
+  of Passau, 2022.
+
+  Although this work did not directly contribute to Pynguin, its implementation of
+  Checked Coverage was the basis for the thesis of S. Labrenz.
 * F. Straubinger: **Mutation Analysis to Improve the Generation of Assertions for
   Automatically Generated Python Unit-tests**.  Bachelor Thesis.  University of Passau,
   2021.
