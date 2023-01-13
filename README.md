@@ -31,7 +31,7 @@ and allows the automated generation of unit tests for Python programs.
 
 </details>
 
-[![License LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://github.com/se2p/pynguin)
@@ -154,8 +154,9 @@ If you want to use the PyCharm IDE you have to set up a few things:
 
 ## License
 
-This project is licensed under the terms of the
-[GNU Lesser General Public License](LICENSE.rst).
+This project is licensed under the terms of the [MIT License](LICENSE.rst).
+Pynguin was using the GNU Lesser General Public License (LGPL) until version 0.29.0,
+its licence was changed with version 0.30.0.
 
 ## Star History
 

@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 """Generate a version of Pynguin which belongs to a separate package in order
 to apply pynguin to itself."""

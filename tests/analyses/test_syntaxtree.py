@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 """The implementation of this module contains some code adopted from the ``darglint``
 library (https://github.com/terrencepreilly/darglint), which was released by Terrence

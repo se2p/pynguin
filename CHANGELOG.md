@@ -11,6 +11,8 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+- Re-license Pynguin to MIT License
+
 ## Pynguin 0.29.0
 
 - Move code to `src`-based layout

@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 """Provide various crossover functions for genetic algorithms."""
 from abc import abstractmethod

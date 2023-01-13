@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 from tests.fixtures.examples.type_tracing.large_test_cluster import *  # noqa: F403,F401
 

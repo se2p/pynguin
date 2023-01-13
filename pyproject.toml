@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-# SPDX-License-Identifier: LGPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 
 [tool.poetry]
 name = "pynguin"
 version = "0.30.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
-license = "LGPL-3.0-or-later"
+license = "MIT"
 readme = "README.md"
 repository = "https://github.com/se2p/pynguin"
 documentation = "https://pynguin.readthedocs.io"
@@ -24,7 +24,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",

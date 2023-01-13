@@ -2,7 +2,7 @@
 #
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
-#  SPDX-License-Identifier: LGPL-3.0-or-later
+#  SPDX-License-Identifier: MIT
 #
 # Adapted from
 # https://github.com/KmolYuan/apimd/blob/f23060a996adcc30552b4e93c49804640e4c4c95/apimd/compiler.py#L119
