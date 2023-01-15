@@ -800,6 +800,7 @@ def test_update_guess_multi(inferred_signature):
 
 
 def test_update_guess_multi_drop(inferred_signature):
+    config.configuration.test_creation.type_tracing_kept_guesses = 5
     inferred_signature._update_guess(
         "x", inferred_signature.type_system.convert_type_hint(int)
     )
