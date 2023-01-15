@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.30.0.dev"
+version = "0.31.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@lukasczyk.me>"]
 license = "MIT"
@@ -58,7 +58,7 @@ simple-parsing = "^0.0.21.post1"
 typing_inspect = "^0.8.0"
 asciitree = "^0.3.3"
 libcst = "^0.4.9"
-requests = "^2.28.1"
+requests = "^2.28.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.12.0"
