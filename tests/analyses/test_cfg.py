@@ -7,9 +7,9 @@
 import pytest
 
 from bytecode import Bytecode
-from tests.fixtures.programgraph.whileloop import Foo
 
 from pynguin.analyses.controlflow import CFG
+from tests.fixtures.programgraph.whileloop import Foo
 
 
 def test_integration_create_cfg(conditional_jump_example_bytecode):

@@ -13,6 +13,7 @@ from bytecode import CellVar
 from bytecode import Compare
 from bytecode import FreeVar
 from bytecode import Instr
+
 from tests.slicer.util import compare
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return

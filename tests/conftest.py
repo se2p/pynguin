@@ -18,12 +18,6 @@ import pytest
 from bytecode import Bytecode
 from bytecode import Instr
 from bytecode import Label
-from tests.fixtures.accessibles.accessible import SomeType
-from tests.fixtures.accessibles.accessible import simple_function
-
-# -- FIXTURES --------------------------------------------------------------------------
-from tests.fixtures.linecoverage.list import ListTest
-from tests.fixtures.linecoverage.plus import Plus
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -49,6 +43,12 @@ from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from tests.fixtures.accessibles.accessible import SomeType
+from tests.fixtures.accessibles.accessible import simple_function
+
+# -- FIXTURES --------------------------------------------------------------------------
+from tests.fixtures.linecoverage.list import ListTest
+from tests.fixtures.linecoverage.plus import Plus
 
 
 @pytest.fixture(autouse=True)

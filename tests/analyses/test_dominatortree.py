@@ -7,10 +7,10 @@
 import sys
 
 from bytecode import Bytecode
-from tests.fixtures.programgraph.samples import for_loop
 
 from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.controlflow import DominatorTree
+from tests.fixtures.programgraph.samples import for_loop
 
 
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):

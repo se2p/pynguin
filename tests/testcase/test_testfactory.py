@@ -15,9 +15,6 @@ from unittest.mock import call
 
 import pytest
 
-from tests.fixtures.examples.monkey import Monkey
-from tests.testutils import feed_typesystem
-
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
@@ -31,6 +28,8 @@ from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
+from tests.fixtures.examples.monkey import Monkey
+from tests.testutils import feed_typesystem
 
 
 def test_append_statement_unknown_type(test_case_mock):

@@ -13,8 +13,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tests.fixtures.linecoverage.setter_getter import SetterGetter
-
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -32,6 +30,7 @@ from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import MethodStatement
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from tests.fixtures.linecoverage.setter_getter import SetterGetter
 
 
 @pytest.fixture

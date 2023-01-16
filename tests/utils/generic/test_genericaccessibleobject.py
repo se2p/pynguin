@@ -6,8 +6,6 @@
 #
 from unittest.mock import MagicMock
 
-from tests.fixtures.accessibles.accessible import SomeType
-
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import ProperType
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
@@ -16,6 +14,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
+from tests.fixtures.accessibles.accessible import SomeType
 
 
 class TestAccessibleObject(GenericAccessibleObject):
