@@ -12,7 +12,6 @@ import pytest
 from bytecode import BasicBlock
 from bytecode import Compare
 from bytecode import Instr
-
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return

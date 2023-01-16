@@ -10,6 +10,8 @@ import threading
 
 import pytest
 
+from tests.fixtures.linecoverage.plus import Plus
+
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -28,7 +30,6 @@ from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.variablereference import FieldReference
 from pynguin.testcase.variablereference import StaticFieldReference
-from tests.fixtures.linecoverage.plus import Plus
 
 
 @pytest.fixture

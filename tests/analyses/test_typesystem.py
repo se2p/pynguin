@@ -16,6 +16,9 @@ from unittest import mock
 
 import pytest
 
+from tests.fixtures.types.subtyping import Sub
+from tests.fixtures.types.subtyping import Super
+
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
@@ -34,8 +37,6 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typetracing import UsageTraceNode
-from tests.fixtures.types.subtyping import Sub
-from tests.fixtures.types.subtyping import Super
 
 
 def __dummy(x: int, y: int) -> int:

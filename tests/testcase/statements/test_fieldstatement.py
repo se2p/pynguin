@@ -6,12 +6,12 @@
 #
 from unittest.mock import MagicMock
 
+from tests.testutils import feed_typesystem
+
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-
-from tests.testutils import feed_typesystem
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
