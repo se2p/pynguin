@@ -22,6 +22,26 @@ All contributions to Pynguin should keep these important rules in mind.
 Publications on Pynguin
 -----------------------
 
+* S. Lukasczyk, F. Kroiß, and G. Fraser.
+  **An Empirical Study of Automated Unit Test Generation for Python**.
+  Empirical Software Engineering **28**, 36 (2023).
+  DOI `10.1007/s10664-022-10248-w <https://doi.org/10.1007/s10664-022-10248-w>`_.
+  `arXiv:2111.05003 <https://arxiv.org/abs/2111.05003>`_
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+      @Article{journals/ese/LukasczykKF23,
+        author    = {Stephan Lukasczyk and Florian Kroi{\ss} and Gordon Fraser},
+        title     = {An empirical study of automated unit test generation for python},
+        journal   = {Empirical Software Engineering},
+        volume    = {28},
+        number    = {2},
+        year      = {2023},
+        doi       = {10.1007/s10664-022-10248-w},
+      }
+
 * S. Lukasczyk and G. Fraser.
   **Pynguin: Automated Unit Test Generation for Python**.
   In *Proceedings of the 44th International Conference on Software Engineering
@@ -34,33 +54,16 @@ Publications on Pynguin
 
   .. code-block:: bibtex
 
-      @Article{journals/corr/abs-2202-05218,
+      @inproceedings{DBLP:conf/icse/LukasczykF22,
         author    = {Stephan Lukasczyk and Gordon Fraser},
         title     = {Pynguin: Automated Unit Test Generation for Python},
-        journal   = {CoRR},
-        volume    = {abs/2202.05218},
+        booktitle = {44th {IEEE/ACM} International Conference on Software Engineering:
+                     Companion Proceedings, {ICSE} Companion 2022, Pittsburgh, PA, USA,
+                     May 22-24, 2022},
+        pages     = {168--172},
+        publisher = {{ACM/IEEE}},
         year      = {2022},
-        eprinttype = {arXiv},
-        eprint    = {2202.05218},
-      }
-
-* S. Lukasczyk, F. Kroiß, and G. Fraser.
-  **An Empirical Study of Automated Unit Test Generation for Python**.
-  Accepted for the EMSE Special Edition on “Advances in Search-Based Software
-  Engineering”.  `arXiv:2111.05003 <https://arxiv.org/abs/2111.05003>`_
-
-  BibTeX entry:
-
-  .. code-block:: bibtex
-
-      @Article{journals/corr/abs-2111-05003,
-        author    = {Stephan Lukasczyk and Florian Kroi{\ss} and Gordon Fraser},
-        title     = {An Empirical Study of Automated Unit Test Generation for Python},
-        journal   = {CoRR},
-        volume    = {abs/2111.05003},
-        year      = {2021},
-        eprinttype = {arXiv},
-        eprint    = {2111.05003},
+        doi       = {10.1145/3510454.3516829},
       }
 
 * S. Lukasczyk, F. Kroiß, and G. Fraser. **Automated Unit Test Generation for Python.**

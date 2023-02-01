@@ -47,12 +47,13 @@ references:
       given-names: Florian
     - family-names: Fraser
       given-names: Gordon
-    title: An Empirical Study of Automated Unit Test Generation for Python
+    title: An empirical study of automated unit test generation for python
     type: article
-    journal: CoRR
-    url: https://arxiv.org/abs/2111.05003
-    volume: abs/2111.05003
-    year: 2021
+    journal: Empirical Software Engineering
+    doi: 10.1007/s10664-022-10248-w
+    volume: 28
+    number: 2
+    year: 2023
   - authors:
     - family-names: Lukasczyk
       given-names: Stephan
