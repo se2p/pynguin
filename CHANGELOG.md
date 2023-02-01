@@ -12,6 +12,7 @@ for the source-code artifacts of each version.
 ## Unreleased
 
 - Update literature references in documentation
+- Add issue templates for GitHub
 
 ## Pynguin 0.30.0
 
