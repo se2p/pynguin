@@ -74,7 +74,6 @@ class InitialPopulationProvider:
 
     @staticmethod
     def _get_ast_tree(module_path: AnyStr | os.PathLike[AnyStr]) -> ast.Module | None:
-
         """Returns the ast tree from a module
 
         Args:

@@ -19,7 +19,6 @@ def test_merge():
 
 
 def test_merge_full():
-
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
     stmt0 = MagicMock()
     assert0 = ExecutedAssertion(0, 1, 2, stmt0)

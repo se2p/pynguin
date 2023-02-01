@@ -77,7 +77,6 @@ class Config:
 
 
 if __name__ == "__main__":
-
     arg_parser = simple_parsing.ArgumentParser(
         add_option_string_dash_variants=simple_parsing.DashVariant.UNDERSCORE_AND_DASH,
         description="A small utility to move Pynguin to a different package prefix.",

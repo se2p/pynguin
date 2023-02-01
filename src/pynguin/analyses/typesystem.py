@@ -515,7 +515,6 @@ class _MaybeSubtypeVisitor(_SubtypeVisitor):
 
 
 class _CollectionTypeVisitor(TypeVisitor[bool]):
-
     Collections = {dict, list, set}  # No tuple because it is a separate type.
 
     def visit_any_type(self, left: AnyType) -> bool:
@@ -541,7 +540,6 @@ is_collection_type = _CollectionTypeVisitor()
 
 
 class _PrimitiveTypeVisitor(TypeVisitor[bool]):
-
     Primitives = {int, str, bool, float, complex, bytes, type}
 
     def visit_any_type(self, left: AnyType) -> bool:

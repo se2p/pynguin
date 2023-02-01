@@ -1229,7 +1229,6 @@ def __resolve_dependencies(
     test_cluster: ModuleTestCluster,
     query_type4py: bool = False,
 ) -> None:
-
     parse_results: dict[str, _ModuleParseResult] = _ParseResults(
         query_type4py=query_type4py
     )

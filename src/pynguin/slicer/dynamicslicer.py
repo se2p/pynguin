@@ -786,7 +786,7 @@ class DynamicSlicer:
         Raises:
             ValueError: If the line of the instruction is not part of the known data.
         """
-        for (line_id, line_meta) in subject_properties.existing_lines.items():
+        for line_id, line_meta in subject_properties.existing_lines.items():
             if (
                 line_meta.file_name == instruction.file
                 and line_meta.line_number == instruction.lineno
@@ -839,7 +839,6 @@ class AssertionSlicer:
     def _slicing_criterion_from_assertion(
         self, assertion: ExecutedAssertion, trace: ExecutionTrace
     ) -> SlicingCriterion:
-
         traced_instr = trace.executed_instructions[assertion.trace_position]
         code_meta = self._known_code_objects[traced_instr.code_object_id]
 

@@ -305,7 +305,6 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
         else:
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
-
                 exc = executor.execute_ast(
                     exec_ctx.wrap_node_in_module(
                         exec_ctx.node_for_assertion(assertion, ast.stmt())

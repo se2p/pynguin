@@ -20,9 +20,9 @@ from pynguin.utils.namingscope import NamingScope
 
 
 @pytest.fixture
-def assertion_to_ast_ref() -> tuple[
-    ata.PyTestAssertionToAstVisitor, vr.VariableReference
-]:
+def assertion_to_ast_ref() -> (
+    tuple[ata.PyTestAssertionToAstVisitor, vr.VariableReference]
+):
     scope = NamingScope()
     module_aliases = NamingScope(prefix="module")
     var = vr.VariableReference(MagicMock(), None)

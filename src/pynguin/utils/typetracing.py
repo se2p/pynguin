@@ -202,7 +202,6 @@ def proxify(log_arg_types=False, no_wrap_return=False):
 
 
 class _ObjectProxyMethods:
-
     # We use properties to override the values of __module__ and
     # __doc__. If we add these in ObjectProxy, the derived class
     # __dict__ will still be setup to have string variants of these

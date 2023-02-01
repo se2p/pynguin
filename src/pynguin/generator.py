@@ -197,9 +197,9 @@ def _setup_random_number_generator() -> None:
     randomness.RNG.seed(config.configuration.seeding.seed)
 
 
-def _setup_constant_seeding() -> tuple[
-    ConstantProvider, DynamicConstantProvider | None
-]:
+def _setup_constant_seeding() -> (
+    tuple[ConstantProvider, DynamicConstantProvider | None]
+):
     """Collect constants from SUT, if enabled."""
     # Use empty provider by default.
     wrapped_provider: ConstantProvider = EmptyConstantProvider()
@@ -233,9 +233,9 @@ def _setup_constant_seeding() -> tuple[
     return wrapped_provider, dynamic_constant_provider
 
 
-def _setup_and_check() -> tuple[
-    TestCaseExecutor, ModuleTestCluster, ConstantProvider
-] | None:
+def _setup_and_check() -> (
+    tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None
+):
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
     Perform setup and some sanity checks.
