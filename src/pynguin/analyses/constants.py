@@ -323,7 +323,9 @@ class _ConstantCollector(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         return self._visit_doc_string(node)
 
-    def _visit_doc_string(self, node: ast.AST):
+    def _visit_doc_string(
+        self, node: ast.AsyncFunctionDef | ast.FunctionDef | ast.ClassDef | ast.Module
+    ):
         if docstring := ast.get_docstring(node):
             self._string_expressions.add(docstring)
         return self.generic_visit(node)

@@ -140,7 +140,7 @@ class Statement(metaclass=ABCMeta):
         """Provides the position of this statement in the test case.
 
         Raises:
-            Exception: if the statement is not found in the test case
+            RuntimeError: if the statement is not found in the test case
 
         Returns:
             The position of this statement
@@ -149,7 +149,7 @@ class Statement(metaclass=ABCMeta):
         for idx, stmt in enumerate(self._test_case.statements):
             if stmt == self:
                 return idx
-        raise Exception("Statement is not part of it's test case")
+        raise RuntimeError("Statement is not part of it's test case")
 
     def add_assertion(self, assertion: ass.Assertion) -> None:
         """Add the given assertion to this statement.

@@ -210,7 +210,7 @@ class VariableReference(Reference):
         in the test case.
 
         Raises:
-            Exception: if the statement is not found in the test case
+            RuntimeError: if the statement is not found in the test case
 
         Returns:
             The position  # noqa: DAR202
@@ -218,7 +218,7 @@ class VariableReference(Reference):
         for idx, stmt in enumerate(self._test_case.statements):
             if stmt.ret_val == self:
                 return idx
-        raise Exception(
+        raise RuntimeError(
             "Variable reference is not declared in the test case in which it is used"
         )
 
