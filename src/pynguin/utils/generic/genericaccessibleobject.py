@@ -25,7 +25,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.utils.orderedset import OrderedSet
 
 
-TypesOfCallables = typing.Union[
+TypesOfCallables = typing.Union[  # pylint: disable=invalid-name
     FunctionType,
     BuiltinFunctionType,
     WrapperDescriptorType,
