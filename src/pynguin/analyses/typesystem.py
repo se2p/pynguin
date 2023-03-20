@@ -464,11 +464,10 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         if isinstance(self.right, Instance):
             if not self.graph.is_subclass(left.type, self.right.type):
                 return False
-            # pylint: disable=bad-chained-comparison
             if (
                 left.type.num_hardcoded_generic_parameters
                 == self.right.type.num_hardcoded_generic_parameters
-                is not None
+                and left.type.num_hardcoded_generic_parameters is not None
             ):
                 # TODO(fk) handle generics properly :(
                 # We only check hard coded generics for now and treat them as invariant,
