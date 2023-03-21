@@ -120,7 +120,7 @@ darglint:
   stage: lint
   image: python:3.10-bullseye
   script:
-    - poetry run darglint -v 2 src/pynguin/**/*.py
+    - poetry run darglint2 -v 2 src/pynguin/**/*.py
   needs: ["isort", "black"]
 
 isort:

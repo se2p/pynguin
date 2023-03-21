@@ -87,7 +87,7 @@ check-safety:
 .PHONY: check-style
 check-style:
 	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
-	$(DARGLINT_COMMAND_FLAG)poetry run darglint -v 2 src/pynguin/**/*.py
+	$(DARGLINT_COMMAND_FLAG)poetry run darglint2 -v 2 src/pynguin/**/*.py
 	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
 	$(MYPY_COMMAND_FLAG)poetry run mypy
 
@@ -121,7 +121,7 @@ black:
 
 .PHONY: darglint
 darglint:
-	poetry run darglint -v 2 src/pynguin/**/*.py
+	poetry run darglint2 -v 2 src/pynguin/**/*.py
 
 update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
