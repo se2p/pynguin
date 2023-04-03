@@ -40,7 +40,7 @@ import pytest  # pylint:disable=unused-import # noqa: F401
 from bytecode import BasicBlock
 from bytecode import CellVar
 from bytecode import FreeVar
-from jellyfish import levenshtein_distance
+from jellyfish import levenshtein_distance  # pylint: disable=no-name-in-module
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast

@@ -11,9 +11,9 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.9-slim-bullseye AS build
+FROM python:3.10.10-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
-ENV POETRY_VERSION "1.3.2"
+ENV POETRY_VERSION "1.4.2"
 
 WORKDIR /pynguin-build
 
@@ -24,6 +24,11 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # monitor the output in real time
 ENV PYTHONUNBUFFERED 1
 
+# Install git to pull in the latest version of the bytecode library from GitHub
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY . .
 
 RUN pip install poetry==$POETRY_VERSION \
@@ -32,7 +37,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.9-slim-bullseye AS execute
+FROM python:3.10.10-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
@@ -51,6 +56,11 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 # Disable random hash seeding for reproducible runs
 ENV PYTHONHASHSEED 0
+
+# Install git to pull in the latest version of the bytecode library from GitHub
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /pynguin
 

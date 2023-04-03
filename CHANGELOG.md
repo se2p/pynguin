@@ -11,6 +11,14 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+- Update the [`bytecode`](https://github.com/MatthieuDartiailh/bytecode) library to its
+  latest GitHub version.
+
+  Necessary to include a fix for a regression in that library, which was pointed out to
+  us in GitHub issue #42 (hopefully fixed by this library upgrade).
+- Adjust the header of generated test files; we now refer to Pynguin's
+  [website](https://www.pynguin.eu).
+
 ## Pynguin 0.31.0
 
 - Update literature references in documentation
