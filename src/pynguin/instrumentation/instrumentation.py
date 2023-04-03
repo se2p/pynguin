@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import builtins
+import enum
 import json
 import logging
 
@@ -15,9 +16,9 @@ from dataclasses import dataclass
 from types import CodeType
 from typing import TYPE_CHECKING
 
+from bytecode import UNSET
 from bytecode import BasicBlock
 from bytecode import Bytecode
-from bytecode import Compare
 from bytecode import ControlFlowGraph
 from bytecode import Instr
 
@@ -33,6 +34,28 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import ExecutionTracer
 
 CODE_OBJECT_ID_KEY = "code_object_id"
+
+
+@enum.unique
+class PynguinCompare(enum.IntEnum):
+    """Enum of all compare operations.
+    Previously we were able to use a similar enum from the bytecode library,
+    because upto 3.8, there was only a single compare op. With 3.9+, there are now some
+    separate compare ops, e.g., IS_OP or CONTAINS_OP. Therefore, we recreate the
+    original enum here and map these new ops back.
+    """
+
+    LT = 0
+    LE = 1
+    EQ = 2
+    NE = 3
+    GT = 4
+    GE = 5
+    IN = 6
+    NOT_IN = 7
+    IS = 8
+    IS_NOT = 9
+    EXC_MATCH = 10
 
 
 @dataclass
@@ -333,7 +356,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         """
 
         assert len(basic_block) > 0, "Empty basic block in CFG."
-        maybe_jump: Instr = basic_block[self._JUMP_OP_POS]
+        maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
         orig_instructions_positions = InstrumentationAdapter._map_instr_positions(
             basic_block
         )
@@ -385,7 +408,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id that was assigned to the predicate.
         """
-        maybe_compare = block[maybe_compare_idx]
+        maybe_compare = block[maybe_compare_idx]  # type: ignore[index]
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
@@ -422,16 +445,22 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id assigned to the predicate.
         """
-        lineno = block[self._JUMP_OP_POS].lineno
+        lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
+            PredicateMetaData(
+                line_no=lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
         # it to the tracer.
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP", lineno=lineno),
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+            ),
             ArtificialInstr(
                 "LOAD_METHOD",
                 # references method in the ExecutionTracer by name
@@ -471,22 +500,34 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id assigned to the predicate.
         """
-        lineno = block[self._JUMP_OP_POS].lineno
+        lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
+            PredicateMetaData(
+                line_no=lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
         )
         operation = block[compare_idx]
 
-        match operation.name:
+        match operation.name:  # type: ignore[union-attr]
             case "COMPARE_OP":
-                compare = operation.arg
+                compare = int(operation.arg)  # type: ignore[arg-type,union-attr]
             case "IS_OP":
                 # Beginning with 3.9, there are separate OPs for various comparisons.
                 # Map them back to the old operations, so we can use the enum from the
                 # bytecode library.
-                compare = Compare.IS_NOT if operation.arg else Compare.IS
+                compare = (
+                    PynguinCompare.IS_NOT.value
+                    if operation.arg  # type: ignore[union-attr]
+                    else PynguinCompare.IS.value
+                )
             case "CONTAINS_OP":
-                compare = Compare.NOT_IN if operation.arg else Compare.IN
+                compare = (
+                    PynguinCompare.NOT_IN.value
+                    if operation.arg  # type: ignore[union-attr]
+                    else PynguinCompare.IN.value
+                )
             case _:
                 raise RuntimeError(f"Unknown comparison OP {operation}")
 
@@ -495,7 +536,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # them to the tracer.
         block[compare_idx:compare_idx] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+            ),
             ArtificialInstr(
                 "LOAD_METHOD",
                 # references method in the ExecutionTracer by name
@@ -528,16 +571,22 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id assigned to the predicate.
         """
-        lineno = basic_block[self._JUMP_OP_POS].lineno
+        lineno = basic_block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
+            PredicateMetaData(
+                line_no=lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
         )
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         basic_block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+            ),
             ArtificialInstr(
                 "LOAD_METHOD",
                 # references method in the ExecutionTracer by name
@@ -564,10 +613,12 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 which contains the given basic block.
         """
         # Use line number of first instruction
-        lineno = basic_block[0].lineno
+        lineno = basic_block[0].lineno  # type: ignore[union-attr]
         # Insert instructions at the beginning.
         basic_block[0:0] = [
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+            ),
             ArtificialInstr(
                 "LOAD_METHOD",
                 # references method in the ExecutionTracer by name
@@ -621,12 +672,16 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             The ID of the instrumented predicate
         """
         for_instr = basic_block[self._JUMP_OP_POS]
-        assert for_instr.opcode == op.FOR_ITER
-        lineno = for_instr.lineno
+        assert for_instr.opcode == op.FOR_ITER  # type: ignore[union-attr]
+        lineno = for_instr.lineno  # type: ignore[union-attr]
         predicate_id = self._tracer.register_predicate(
-            PredicateMetaData(line_no=lineno, code_object_id=code_object_id, node=node)
+            PredicateMetaData(
+                line_no=lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
         )
-        for_loop_exit = for_instr.arg
+        for_loop_exit = for_instr.arg  # type: ignore[union-attr]
         for_loop_body = basic_block.next_block
 
         # pylint:disable=unbalanced-tuple-unpacking
@@ -635,11 +690,13 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         )
         # TODO(fk) for_instr is not artificial but we changed it
         #  How to deal with this?
-        for_instr.arg = not_entered
+        for_instr.arg = not_entered  # type: ignore[union-attr]
 
         entered.extend(
             [
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
+                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -651,13 +708,19 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
                 ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
                 ArtificialInstr("POP_TOP", lineno=lineno),
-                ArtificialInstr("JUMP_ABSOLUTE", for_loop_body, lineno=lineno),
+                ArtificialInstr(
+                    "JUMP_ABSOLUTE",
+                    for_loop_body,  # type: ignore[arg-type]
+                    lineno=lineno,
+                ),
             ]
         )
 
         not_entered.extend(
             [
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+                ArtificialInstr(
+                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -699,11 +762,18 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         lineno = None
         instr_index = 0
         while instr_index < len(basic_block):
-            if basic_block[instr_index].lineno != lineno:
-                lineno = basic_block[instr_index].lineno
-                line_id = self._tracer.register_line(code_object_id, file_name, lineno)
+            if basic_block[instr_index].lineno != lineno:  # type: ignore[union-attr]
+                lineno = basic_block[instr_index].lineno  # type: ignore[union-attr]
+                line_id = self._tracer.register_line(
+                    code_object_id, file_name, lineno  # type: ignore[arg-type]
+                )
                 instr_index += (  # increment by the amount of instructions inserted
-                    self.instrument_line(basic_block, instr_index, line_id, lineno)
+                    self.instrument_line(
+                        basic_block,
+                        instr_index,
+                        line_id,
+                        lineno,  # type: ignore[arg-type]
+                    )
                 )
             instr_index += 1
 
@@ -724,7 +794,9 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             The number of instructions inserted into the block
         """
         inserted_instructions = [
-            ArtificialInstr("LOAD_CONST", self._tracer, lineno=lineno),
+            ArtificialInstr(
+                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+            ),
             ArtificialInstr(
                 "LOAD_METHOD",
                 # references method in the ExecutionTracer by name
@@ -789,12 +861,17 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 continue
 
             # register all lines available
-            if instr.lineno != lineno and file_name != "<ast>":
-                lineno = instr.lineno
-                self._tracer.register_line(code_object_id, file_name, lineno)
+            if (
+                instr.lineno != lineno  # type: ignore[union-attr]
+                and file_name != "<ast>"
+            ):
+                lineno = instr.lineno  # type: ignore[union-attr]
+                self._tracer.register_line(
+                    code_object_id, file_name, lineno  # type: ignore[arg-type]
+                )
 
             # Perform the actual instrumentation
-            match instr.opcode:
+            match instr.opcode:  # type: ignore[union-attr]
                 case opcode if opcode in (
                     op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
                 ):
@@ -802,7 +879,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         new_block_instructions,
                         code_object_id,
                         node.index,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -811,7 +888,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -820,7 +897,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -829,7 +906,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -838,7 +915,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -847,7 +924,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -856,7 +933,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -865,7 +942,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         cfg,
                         file_name,
@@ -875,7 +952,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -884,7 +961,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
@@ -893,13 +970,13 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,
+                        instr,  # type: ignore[arg-type]
                         offset,
                         file_name,
                     )
                 case _:
                     # Un-traced instruction retrieved during analysis
-                    new_block_instructions.append(instr)
+                    new_block_instructions.append(instr)  # type: ignore[arg-type]
 
             offset += 2
 
@@ -919,7 +996,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -937,7 +1018,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Instruction opcode
                 ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
                 # Line number of access
-                ArtificialInstr("LOAD_CONST", instr.lineno, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    instr.lineno,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 # Instruction number of access
                 ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
                 # Call tracing method
@@ -964,7 +1049,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1039,7 +1128,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1070,7 +1163,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Determine source address
                 #   Load lookup method
                 ArtificialInstr(
-                    "LOAD_CONST", self._tracer.__class__, lineno=instr.lineno
+                    "LOAD_CONST",
+                    self._tracer.__class__,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
@@ -1160,7 +1255,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1191,9 +1290,13 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("ROT_TWO", lineno=instr.lineno),
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # No arg address
-                ArtificialInstr("LOAD_CONST", None, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST", None, lineno=instr.lineno  # type: ignore[arg-type]
+                ),
                 # No arg type
-                ArtificialInstr("LOAD_CONST", None, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST", None, lineno=instr.lineno  # type: ignore[arg-type]
+                ),
                 # Call tracing method
                 ArtificialInstr("CALL_METHOD", 10, lineno=instr.lineno),
                 ArtificialInstr("POP_TOP", lineno=instr.lineno),
@@ -1219,7 +1322,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1276,7 +1383,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 instr,
                 ArtificialInstr("DUP_TOP"),
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1334,7 +1445,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1401,7 +1516,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1415,7 +1534,12 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # Load arguments
         new_block_instructions.extend(
             self._load_args(
-                code_object_id, node_id, offset, instr.arg.name, instr, file_name
+                code_object_id,
+                node_id,
+                offset,
+                instr.arg.name,  # type: ignore[union-attr]
+                instr,
+                file_name,
             )
         )
 
@@ -1457,7 +1581,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 # references method in the ExecutionTracer by name
                 # to avoid circular import
                 ArtificialInstr("LOAD_METHOD", "track_jump", lineno=instr.lineno),
@@ -1470,7 +1598,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 code_object_id,
                 node_id,
                 offset,
-                cfg.bytecode_cfg().get_block_index(instr.arg),
+                cfg.bytecode_cfg().get_block_index(instr.arg),  # type: ignore[arg-type]
                 instr,
                 file_name,
             )
@@ -1496,7 +1624,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         file_name: str,
     ) -> None:
         # Trace argument only for calls with integer arguments
-        if isinstance(instr.arg, int):
+        if isinstance(instr.arg, int) and instr.arg != UNSET:
             argument = instr.arg
         else:
             argument = None
@@ -1505,7 +1633,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 # references method in the ExecutionTracer by name
                 # to avoid circular import
                 ArtificialInstr("LOAD_METHOD", "track_call", lineno=instr.lineno),
@@ -1539,7 +1671,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.extend(
             [
                 # Load tracing method
-                ArtificialInstr("LOAD_CONST", self._tracer, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 ArtificialInstr(
                     "LOAD_METHOD",
                     # references method in the ExecutionTracer by name
@@ -1557,7 +1693,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Instruction opcode
                 ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
                 # Line number of access
-                ArtificialInstr("LOAD_CONST", instr.lineno, lineno=instr.lineno),
+                ArtificialInstr(
+                    "LOAD_CONST",
+                    instr.lineno,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
+                ),
                 # Instruction number of access
                 ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
                 # Call tracing method
@@ -1590,7 +1730,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # Instruction opcode
             ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
             # Line number of access
-            ArtificialInstr("LOAD_CONST", instr.lineno, lineno=instr.lineno),
+            ArtificialInstr(
+                "LOAD_CONST",
+                instr.lineno,  # type: ignore[arg-type]
+                lineno=instr.lineno,
+            ),
             # Instruction number of access
             ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
             # Argument name
@@ -1624,7 +1768,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
             ArtificialInstr("ROT_TWO", lineno=instr.lineno),
             #   Line number of access
-            ArtificialInstr("LOAD_CONST", instr.lineno, lineno=instr.lineno),
+            ArtificialInstr(
+                "LOAD_CONST",
+                instr.lineno,  # type: ignore[arg-type]
+                lineno=instr.lineno,
+            ),
             ArtificialInstr("ROT_TWO", lineno=instr.lineno),
             #   Instruction number of access
             ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
@@ -1681,13 +1829,17 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
     ) -> None:
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_compare: Instr | None = (
-            basic_block[self._COMPARE_OP_POS] if len(basic_block) > 1 else None
+            basic_block[self._COMPARE_OP_POS]  # type: ignore[assignment]
+            if len(basic_block) > 1
+            else None
         )
         maybe_string_func: Instr | None = (
-            basic_block[self._STRING_FUNC_POS] if len(basic_block) > 2 else None
+            basic_block[self._STRING_FUNC_POS]  # type: ignore[assignment]
+            if len(basic_block) > 2
+            else None
         )
         maybe_string_func_with_arg: Instr | None = (
-            basic_block[self._STRING_FUNC_POS_WITH_ARG]
+            basic_block[self._STRING_FUNC_POS_WITH_ARG]  # type: ignore[assignment]
             if len(basic_block) > 3
             else None
         )
@@ -1698,13 +1850,17 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             and maybe_string_func.opcode == op.LOAD_METHOD
             and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
-            self._instrument_string_func(basic_block, maybe_string_func.arg)
+            self._instrument_string_func(
+                basic_block, maybe_string_func.arg  # type: ignore[arg-type]
+            )
         if (
             isinstance(maybe_string_func_with_arg, Instr)
             and maybe_string_func_with_arg.opcode == op.LOAD_METHOD
             and maybe_string_func_with_arg.arg in {"startswith", "endswith"}
         ):
-            self._instrument_string_func(basic_block, maybe_string_func_with_arg.arg)
+            self._instrument_string_func(
+                basic_block, maybe_string_func_with_arg.arg  # type: ignore[arg-type]
+            )
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
         """Instruments the startswith function in bytecode. Stores for the expression
@@ -1715,13 +1871,15 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             block: The basic block where the new instructions are inserted.
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
-        lineno = block[insert_pos].lineno
+        lineno = block[insert_pos].lineno  # type: ignore[union-attr]
         block[insert_pos:insert_pos] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr("ROT_TWO", lineno=lineno),
             ArtificialInstr("BINARY_ADD", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
+                "LOAD_CONST",
+                self._dynamic_constant_provider,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -1744,12 +1902,14 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             block: The basic block where the new instructions are inserted.
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
-        lineno = block[insert_pos].lineno
+        lineno = block[insert_pos].lineno  # type: ignore[union-attr]
         block[insert_pos:insert_pos] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr("BINARY_ADD", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
+                "LOAD_CONST",
+                self._dynamic_constant_provider,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -1773,11 +1933,13 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             function_name: The name of the function
         """
         insert_pos = self._STRING_FUNC_POS_WITH_ARG + 2
-        lineno = block[insert_pos].lineno
+        lineno = block[insert_pos].lineno  # type: ignore[union-attr]
         block[insert_pos:insert_pos] = [
             ArtificialInstr("DUP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
+                "LOAD_CONST",
+                self._dynamic_constant_provider,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -1814,11 +1976,13 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         Args:
             block: The containing basic block.
         """
-        lineno = block[self._COMPARE_OP_POS].lineno
+        lineno = block[self._COMPARE_OP_POS].lineno  # type: ignore[union-attr]
         block[self._COMPARE_OP_POS : self._COMPARE_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
+                "LOAD_CONST",
+                self._dynamic_constant_provider,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -1830,7 +1994,9 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
             ArtificialInstr("POP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._dynamic_constant_provider, lineno=lineno
+                "LOAD_CONST",
+                self._dynamic_constant_provider,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",

@@ -46,7 +46,7 @@ include = [
 python = ">=3.10, <3.11"
 astroid = "^2.15.0"
 black = "^23.1.0"
-bytecode = "0.13"
+bytecode = { git = "https://github.com/MatthieuDartiailh/bytecode", branch = "main" }
 jellyfish = "^0.9.0"
 Jinja2 = "^3.1.2"
 MutPy-Pynguin = "^0.7.1"
