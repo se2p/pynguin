@@ -39,7 +39,6 @@ import pytest  # pylint:disable=unused-import # noqa: F401
 
 from bytecode import BasicBlock
 from bytecode import CellVar
-from bytecode import Compare
 from bytecode import FreeVar
 from jellyfish import levenshtein_distance
 
@@ -65,6 +64,7 @@ from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentati
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import PredicateMetaData
+from pynguin.instrumentation.instrumentation import PynguinCompare
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
@@ -411,10 +411,10 @@ class AssertionExecutionObserver(ExecutionObserver):
         for node in code_object.cfg.nodes:
             if node.is_artificial:
                 continue
-            bb_node: BasicBlock = node.basic_block
+            bb_node: BasicBlock = node.basic_block  # type: ignore[assignment]
             if (
                 not isinstance(bb_node[-1], ArtificialInstr)
-                and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE
+                and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE  # type:ignore[union-attr]
             ):
                 assert_node = node
         assert assert_node
@@ -1127,7 +1127,7 @@ class ExecutionTracer:
         return predicate_id
 
     def executed_compare_predicate(
-        self, value1, value2, predicate: int, cmp_op: Compare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         """A predicate that is based on a comparison was executed.
 
@@ -1158,50 +1158,50 @@ class ExecutionTracer:
             value2 = tt.unwrap(value2)
 
             match cmp_op:
-                case Compare.EQ:
+                case PynguinCompare.EQ:
                     distance_true, distance_false = _eq(value1, value2), _neq(
                         value1, value2
                     )
-                case Compare.NE:
+                case PynguinCompare.NE:
                     distance_true, distance_false = _neq(value1, value2), _eq(
                         value1, value2
                     )
-                case Compare.LT:
+                case PynguinCompare.LT:
                     distance_true, distance_false = (
                         _lt(value1, value2),
                         _le(value2, value1),
                     )
-                case Compare.LE:
+                case PynguinCompare.LE:
                     distance_true, distance_false = (
                         _le(value1, value2),
                         _lt(value2, value1),
                     )
-                case Compare.GT:
+                case PynguinCompare.GT:
                     distance_true, distance_false = (
                         _lt(value2, value1),
                         _le(value1, value2),
                     )
-                case Compare.GE:
+                case PynguinCompare.GE:
                     distance_true, distance_false = (
                         _le(value2, value1),
                         _lt(value1, value2),
                     )
-                case Compare.IN:
+                case PynguinCompare.IN:
                     distance_true, distance_false = (
                         _in(value1, value2),
                         _nin(value1, value2),
                     )
-                case Compare.NOT_IN:
+                case PynguinCompare.NOT_IN:
                     distance_true, distance_false = (
                         _nin(value1, value2),
                         _in(value1, value2),
                     )
-                case Compare.IS:
+                case PynguinCompare.IS:
                     distance_true, distance_false = (
                         _is(value1, value2),
                         _isn(value1, value2),
                     )
-                case Compare.IS_NOT:
+                case PynguinCompare.IS_NOT:
                     distance_true, distance_false = (
                         _isn(value1, value2),
                         _is(value1, value2),

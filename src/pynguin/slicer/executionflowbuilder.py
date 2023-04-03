@@ -225,7 +225,7 @@ class ExecutionFlowBuilder:
         # before the IMPORT_NAME instruction ("import back call").
         # This case is the end of these module instructions
         # and we continue before the IMPORT_NAME.
-        if not last_instr and import_instr:
+        if not last_instr and import_instr:  # type: ignore[truthy-bool]
             last_instr = self._continue_before_import(efb_state, import_instr)
             return LastInstrState(
                 efb_state.file,
@@ -315,7 +315,7 @@ class ExecutionFlowBuilder:
             )
 
         # Handle method invocation
-        if not last_instr:
+        if not last_instr:  # type: ignore[truthy-bool]
             last_instr = self._handle_method_invocation(
                 efb_state, import_instr, last_traced_instr
             )
@@ -511,7 +511,7 @@ class ExecutionFlowBuilder:
             last_instr = self._get_last_in_basic_block(efb_state.co_id, efb_state.bb_id)
             efb_state.offset -= 2
 
-        return last_instr
+        return last_instr  # type: ignore[return-value]
 
     def _continue_before_import(
         self, efb_state: ExecutionFlowBuilderState, import_instr: UniqueInstruction
@@ -550,7 +550,7 @@ class ExecutionFlowBuilder:
                 instr = node.basic_block[-1]
                 break
         assert instr, "Block did not contain a last instruction"
-        return instr
+        return instr  # type: ignore[return-value]
 
     def _get_basic_block(
         self, code_object_id: int, basic_block_id: int
@@ -574,7 +574,7 @@ class ExecutionFlowBuilder:
         assert code_object is not None, "Unknown code object id"
         for node in code_object.original_cfg.nodes:
             if node.index == basic_block_id and node.basic_block:
-                return node.basic_block, node.offset
+                return node.basic_block, node.offset  # type: ignore[return-value]
 
         raise InstructionNotFoundException
 

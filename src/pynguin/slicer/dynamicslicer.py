@@ -396,11 +396,11 @@ class DynamicSlicer:
 
         for instruction in basic_block:
             if (
-                instr.opcode == instruction.opcode
-                and instr.lineno == instruction.lineno
+                instr.opcode == instruction.opcode  # type: ignore[union-attr]
+                and instr.lineno == instruction.lineno  # type: ignore[union-attr]
                 and instr.offset == bb_offset
             ):
-                return instruction
+                return instruction  # type: ignore[return-value]
             bb_offset += 2
 
         raise InstructionNotFoundException
@@ -815,7 +815,7 @@ class DynamicSlicer:
                 continue
             if instruction.lineno == curr_line:  # only add new lines
                 continue
-            curr_line = instruction.lineno
+            curr_line = instruction.lineno  # type: ignore[assignment]
             line_ids.add(
                 DynamicSlicer.get_line_id_by_instruction(
                     instruction, subject_properties
@@ -852,7 +852,7 @@ class AssertionSlicer:
         # the traced instruction is always the jump at the end of the bb
         original_instr = None
         for instr in reversed(list(basic_block)):
-            if instr.opcode == traced_instr.opcode:
+            if instr.opcode == traced_instr.opcode:  # type: ignore[union-attr]
                 original_instr = instr
                 break
         assert original_instr
@@ -864,7 +864,7 @@ class AssertionSlicer:
             traced_instr.node_id,
             code_meta,
             traced_instr.offset,
-            original_instr.arg,  # UniqueInstruction requires the original argument
+            original_instr.arg,  # type: ignore[union-attr]
             traced_instr.lineno,
         )
 

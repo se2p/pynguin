@@ -130,7 +130,7 @@ class ProgramGraphNode:
         if self._basic_block is not None:
             instructions = []
             for instr in self._basic_block:
-                arg = instr.arg
+                arg = instr.arg  # type: ignore[union-attr]
                 if isinstance(arg, BasicBlock):
                     # We cannot determine which ProgramGraphNode this is.
                     arg = "ProgramGraphNode"
@@ -140,7 +140,7 @@ class ProgramGraphNode:
                     arg = ""
                 else:
                     arg = repr(arg)
-                formatted = instr.name
+                formatted = instr.name  # type: ignore[union-attr]
                 if arg != "":
                     formatted += f" {arg}"
                 instructions.append(formatted)
@@ -499,7 +499,9 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                         + last_instr.name
                     )
                 for next_branch, value in [(true_branch, True), (false_branch, False)]:
-                    next_index = blocks.get_block_index(next_branch)
+                    next_index = blocks.get_block_index(
+                        next_branch  # type: ignore[arg-type]
+                    )
                     # 'label' is also set to value, to get a nicer DOT representation,
                     # because 'label' is a keyword for labelling edges.
                     edges[node_index].append(

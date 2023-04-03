@@ -88,7 +88,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             for assertion in stmt.assertions:
                 new_checked_lines: OrderedSet[int] = OrderedSet()
                 for instr in assertion.checked_instructions:
-                    new_checked_lines.add(instr.lineno)
+                    new_checked_lines.add(instr.lineno)  # type: ignore[arg-type]
                 if (
                     # keep exception assertions to catch the exceptions
                     isinstance(assertion, ExceptionAssertion)

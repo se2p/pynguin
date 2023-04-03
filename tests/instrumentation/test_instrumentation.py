@@ -14,8 +14,6 @@ from unittest.mock import call
 
 import pytest
 
-from bytecode import Compare
-
 import pynguin.utils.opcodes as op
 
 from pynguin.analyses.constants import ConstantPool
@@ -28,6 +26,7 @@ from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentatio
 from pynguin.instrumentation.instrumentation import InstrumentationAdapter
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+from pynguin.instrumentation.instrumentation import PynguinCompare
 from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
@@ -381,7 +380,7 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
 
 @pytest.mark.parametrize(
     "op",
-    [op for op in Compare if op != Compare.EXC_MATCH],
+    [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
 )
 def test_comparison(comparison_module, op):
     tracer = ExecutionTracer()
