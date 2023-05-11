@@ -1177,7 +1177,7 @@ class InferredSignature:
                 str(s) for s in self.type4py_return_types_for_statistics
             ]
             if self.return_type != self.original_return_type:
-                sig_info.recorded_return_types = [str(return_type)]
+                sig_info.recorded_return_type = str(return_type)
         sig_info.guessed_parameter_types = parameter_types
         sig_info.type4py_parameter_types = type4py_parameter_types
 

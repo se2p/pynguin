@@ -490,7 +490,7 @@ class SignatureInfo:
     annotated_return_type: str | None = None
 
     # Recorded return type, if Any.
-    recorded_return_types: list[str] = dataclasses.field(default_factory=list)
+    recorded_return_type: str | None = None
 
     # Type4Py return type
     type4py_return_types: list[str] = dataclasses.field(default_factory=list)
