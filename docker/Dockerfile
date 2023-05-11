@@ -11,7 +11,7 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.10-slim-bullseye AS build
+FROM python:3.10.11-slim-bullseye AS build
 MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
 ENV POETRY_VERSION "1.4.2"
 
@@ -37,7 +37,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.10-slim-bullseye AS execute
+FROM python:3.10.11-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
