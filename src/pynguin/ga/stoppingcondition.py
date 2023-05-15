@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 """Provides an interface for a stopping condition of the algorithm."""
 from __future__ import annotations
@@ -14,7 +19,7 @@ from abc import ABCMeta
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import pynguin.generation.searchobserver as so
+import pynguin.ga.searchobserver as so
 
 from pynguin.testcase.execution import ExecutionObserver
 
@@ -77,7 +82,11 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
 
     @property
     def observes_execution(self) -> bool:
-        """Should this observer be attached to the executor?"""
+        """Should this observer be attached to the executor?
+
+        Returns:
+            Whether this observer should be attached to the executor
+        """
         return self._observes_execution
 
     def before_test_case_execution(self, test_case: tc.TestCase):

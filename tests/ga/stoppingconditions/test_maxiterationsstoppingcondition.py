@@ -6,9 +6,7 @@
 #
 import pytest
 
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxIterationsStoppingCondition,
-)
+from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 
 
 @pytest.fixture

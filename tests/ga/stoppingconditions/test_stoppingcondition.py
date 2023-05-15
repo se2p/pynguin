@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.ga.stoppingcondition import StoppingCondition
 
 
 class DummyStopping(StoppingCondition):

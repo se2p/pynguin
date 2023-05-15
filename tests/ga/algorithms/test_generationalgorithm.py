@@ -8,9 +8,7 @@ from unittest.mock import MagicMock
 
 from pynguin.ga import chromosome as chrom
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxStatementExecutionsStoppingCondition,
-)
+from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 
 
 class DummyAlgorithm(GenerationAlgorithm):

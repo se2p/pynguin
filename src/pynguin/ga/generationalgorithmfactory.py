@@ -26,11 +26,11 @@ import pynguin.coverage.branchgoals as bg
 import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
+import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
-import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
 
@@ -53,19 +53,11 @@ from pynguin.ga.operators.ranking.rankingfunction import RankBasedPreferenceSort
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.ga.operators.selection.tournamentselection import TournamentSelection
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxIterationsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxSearchTimeStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxStatementExecutionsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxTestExecutionsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import StoppingCondition
+from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
+from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import StoppingCondition
 from pynguin.testcase.execution import AbstractTestCaseExecutor
 from pynguin.testcase.execution import TypeTracingTestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException

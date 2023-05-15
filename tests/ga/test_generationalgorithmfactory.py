@@ -21,18 +21,10 @@ from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxIterationsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxSearchTimeStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxStatementExecutionsStoppingCondition,
-)
-from pynguin.generation.stoppingconditions.stoppingcondition import (
-    MaxTestExecutionsStoppingCondition,
-)
+from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
+from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 

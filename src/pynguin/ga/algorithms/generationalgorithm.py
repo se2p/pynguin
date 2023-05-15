@@ -26,17 +26,15 @@ if TYPE_CHECKING:
     import pynguin.coverage.branchgoals as bg
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.computations as ff
+    import pynguin.ga.searchobserver as so
     import pynguin.ga.testcasechromosome as tcc
-    import pynguin.generation.searchobserver as so
     import pynguin.testcase.testfactory as tf
 
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.ga.operators.selection.selection import SelectionFunction
-    from pynguin.generation.stoppingconditions.stoppingcondition import (
-        StoppingCondition,
-    )
+    from pynguin.ga.stoppingcondition import StoppingCondition
     from pynguin.testcase.execution import AbstractTestCaseExecutor
 
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
