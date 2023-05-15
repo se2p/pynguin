@@ -172,7 +172,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
         Args:
             assertion: the assertion that is visited.
         """
-        if isinstance(assertion.object, (bool, type(None))):
+        if isinstance(assertion.object, bool | type(None)):
             self._assertion_nodes.append(
                 self._create_constant_assert(
                     assertion.source, ast.Is(), assertion.object

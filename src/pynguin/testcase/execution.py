@@ -1443,7 +1443,7 @@ class ExecutionTracer:
         if not arg:
             if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
                 raise ValueError("A memory access instruction must have an argument")
-        if isinstance(arg, (CellVar, FreeVar)):
+        if isinstance(arg, CellVar | FreeVar):
             arg = arg.name
 
         # Determine if this is a mutable type

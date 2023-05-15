@@ -198,7 +198,7 @@ def create_assign_stmt(
             ref_dict,
             constant_provider=constant_provider,
         )
-    elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
+    elif isinstance(value, ast.List | ast.Set | ast.Dict | ast.Tuple):
         new_stmt = create_stmt_from_collection(
             value,
             testcase,
@@ -235,7 +235,7 @@ def create_assert_stmt(
         operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
     except (KeyError, AttributeError):
         return None
-    if isinstance(operator, (ast.Is, ast.Eq)):
+    if isinstance(operator, ast.Is | ast.Eq):
         assertion = create_assertion(source, val_elem)
     if assertion is not None:
         return assertion, source
@@ -520,7 +520,7 @@ def assemble_stmt_from_gen_callable(
         The corresponding statement.
     """
     for arg in call.args:
-        if not isinstance(arg, (ast.Name, ast.Starred)):
+        if not isinstance(arg, ast.Name | ast.Starred):
             return None
     for keyword in call.keywords:
         if not isinstance(keyword, ast.keyword):
@@ -676,7 +676,7 @@ def create_elements(
             if not statement:
                 return None
             coll_elems.append(testcase.add_variable_creating_statement(statement))
-        elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+        elif isinstance(elem, ast.List | ast.Tuple | ast.Set | ast.Dict):
             statement = create_stmt_from_collection(
                 elem,
                 testcase,

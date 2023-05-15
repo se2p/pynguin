@@ -229,7 +229,7 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         value = unwrap(value)
         if type(value) in typing.get_args(ConstantTypes):
             if (
-                isinstance(value, (str, bytes))
+                isinstance(value, str | bytes)
                 and len(value) > self._max_constant_length
             ):
                 return

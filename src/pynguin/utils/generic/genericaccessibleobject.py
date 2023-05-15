@@ -25,13 +25,14 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.utils.orderedset import OrderedSet
 
 
-TypesOfCallables = typing.Union[  # pylint: disable=invalid-name
-    FunctionType,
-    BuiltinFunctionType,
-    WrapperDescriptorType,
-    MethodDescriptorType,
-    ClassMethodDescriptorType,
-]
+# pylint: disable=invalid-name
+TypesOfCallables = (
+    FunctionType
+    | BuiltinFunctionType
+    | WrapperDescriptorType
+    | MethodDescriptorType
+    | ClassMethodDescriptorType
+)
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import ProperType

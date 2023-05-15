@@ -1711,7 +1711,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
                     sorted(self.__convert_args_if_exists(hint, unsupported=unsupported))
                 )
             )
-        if isinstance(hint, (_BaseGenericAlias, types.GenericAlias)):
+        if isinstance(hint, _BaseGenericAlias | types.GenericAlias):
             # list[int, str] or List[int, str] or Dict[int, str] or set[str]
             result = Instance(
                 self.to_type_info(hint.__origin__),

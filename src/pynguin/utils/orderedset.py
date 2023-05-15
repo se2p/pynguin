@@ -40,7 +40,7 @@ from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import MutableSet
 from collections.abc import Sequence
-from typing import AbstractSet
+from collections.abc import Set
 from typing import Any
 from typing import TypeVar
 from typing import cast
@@ -53,7 +53,7 @@ T_co = TypeVar("T_co", covariant=True)
 _TAbstractOrderedSet = TypeVar("_TAbstractOrderedSet", bound="_AbstractOrderedSet")
 
 
-class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
+class _AbstractOrderedSet(Set[T], Sequence[T]):
     """Common functionality shared between OrderedSet and FrozenOrderedSet."""
 
     @overload

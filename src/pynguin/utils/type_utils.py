@@ -127,7 +127,7 @@ def is_bytes(value: Any) -> bool:
     Returns:
         Whether or not the given value is of type bytes or bytearray
     """
-    return isinstance(value, (bytes, bytearray))
+    return isinstance(value, bytes | bytearray)
 
 
 def is_list(typ: type) -> bool:

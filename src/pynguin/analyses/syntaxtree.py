@@ -122,7 +122,7 @@ class _Context:
             elif isinstance(curr, ast.Tuple):
                 names: list[str] = []
                 for node in curr.elts:
-                    if isinstance(node, (ast.Attribute, ast.Name)):
+                    if isinstance(node, ast.Attribute | ast.Name):
                         names.extend(self.__get_attr_name(node))
                     else:
                         _LOGGER.error(
@@ -145,7 +145,7 @@ class _Context:
 
     @staticmethod
     def __get_name_name(name: ast.Name | ast.Tuple) -> str | list[str]:
-        assert isinstance(name, (ast.Name, ast.Tuple))
+        assert isinstance(name, ast.Name | ast.Tuple)
         if isinstance(name, ast.Name):
             return name.id
         return [node.id for node in name.elts if isinstance(node, ast.Name)]
@@ -333,9 +333,9 @@ class _RaiseVisitor(ast.NodeVisitor):
             self.visit(child)
         for handler in node.handlers:
             if handler.type:
-                if handler.name and (isinstance(handler.type, (ast.Name, ast.Tuple))):
+                if handler.name and (isinstance(handler.type, ast.Name | ast.Tuple)):
                     self.context.add_variable(handler.name, handler.type)
-                elif isinstance(handler.type, (ast.Attribute, ast.Name, ast.Tuple)):
+                elif isinstance(handler.type, ast.Attribute | ast.Name | ast.Tuple):
                     self.context.set_handling(handler.type)
                 else:
                     _LOGGER.error(
@@ -506,7 +506,7 @@ def get_function_node_from_ast(
     if name not in tree.locals:
         return None
     maybe_function = tree.locals[name][0]
-    if isinstance(maybe_function, (astroid.FunctionDef, astroid.AsyncFunctionDef)):
+    if isinstance(maybe_function, astroid.FunctionDef | astroid.AsyncFunctionDef):
         return maybe_function
     return None
 
