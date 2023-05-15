@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
 
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+    from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
     from pynguin.ga.operators.selection.selection import SelectionFunction
     from pynguin.ga.stoppingcondition import StoppingCondition

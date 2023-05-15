@@ -46,9 +46,7 @@ from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestCaseSearchAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
-from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
-    SinglePointRelativeCrossOver,
-)
+from pynguin.ga.operators.crossover import SinglePointRelativeCrossOver
 from pynguin.ga.operators.ranking.rankingfunction import RankBasedPreferenceSorting
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
@@ -68,7 +66,7 @@ if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
 
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
-    from pynguin.ga.operators.crossover.crossover import CrossOverFunction
+    from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
