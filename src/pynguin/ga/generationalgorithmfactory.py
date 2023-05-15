@@ -48,9 +48,9 @@ from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlg
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.operators.crossover import SinglePointRelativeCrossOver
 from pynguin.ga.operators.ranking import RankBasedPreferenceSorting
-from pynguin.ga.operators.selection.rankselection import RankSelection
-from pynguin.ga.operators.selection.selection import SelectionFunction
-from pynguin.ga.operators.selection.tournamentselection import TournamentSelection
+from pynguin.ga.operators.selection import RankSelection
+from pynguin.ga.operators.selection import SelectionFunction
+from pynguin.ga.operators.selection import TournamentSelection
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition

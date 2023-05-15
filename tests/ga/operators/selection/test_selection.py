@@ -6,10 +6,10 @@
 #
 from unittest.mock import MagicMock
 
-import pynguin.ga.operators.selection.selection as sel
+import pynguin.ga.operators.selection as sel
 import pynguin.ga.testsuitechromosome as tsc
 
-from pynguin.ga.operators.selection.selection import T
+from pynguin.ga.operators.selection import T
 from pynguin.utils import randomness
 
 

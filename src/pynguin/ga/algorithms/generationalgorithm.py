@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking import RankingFunction
-    from pynguin.ga.operators.selection.selection import SelectionFunction
+    from pynguin.ga.operators.selection import SelectionFunction
     from pynguin.ga.stoppingcondition import StoppingCondition
     from pynguin.testcase.execution import AbstractTestCaseExecutor
 
