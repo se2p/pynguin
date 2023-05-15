@@ -23,9 +23,9 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
-    import pynguin.coverage.branchgoals as bg
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.computations as ff
+    import pynguin.ga.coveragegoals as bg
     import pynguin.ga.searchobserver as so
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.testcase.testfactory as tf

@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.configuration as config
-import pynguin.coverage.branchgoals as bg
 import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.computations as ff
+import pynguin.ga.coveragegoals as bg
 
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness

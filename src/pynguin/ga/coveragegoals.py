@@ -11,8 +11,8 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
-import pynguin.coverage.controlflowdistance as cfd
 import pynguin.ga.computations as ff
+import pynguin.utils.controlflowdistance as cfd
 
 from pynguin.utils.orderedset import OrderedSet
 

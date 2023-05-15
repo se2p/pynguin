@@ -22,10 +22,10 @@ from typing import Generic
 from typing import TypeVar
 
 import pynguin.configuration as config
-import pynguin.coverage.branchgoals as bg
 import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
+import pynguin.ga.coveragegoals as bg
 import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf

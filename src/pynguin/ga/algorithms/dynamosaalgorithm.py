@@ -16,7 +16,7 @@ import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
-import pynguin.coverage.branchgoals as bg
+import pynguin.ga.coveragegoals as bg
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm

@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.coverage.branchgoals as bg
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
+import pynguin.ga.coveragegoals as bg
 
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer

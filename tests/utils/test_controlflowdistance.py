@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 import math
 
@@ -14,11 +19,11 @@ import pytest
 from hypothesis import assume
 from hypothesis import given
 
-from pynguin.coverage.controlflowdistance import ControlFlowDistance
-from pynguin.coverage.controlflowdistance import get_root_control_flow_distance
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import ExecutionTrace
 from pynguin.testcase.execution import ExecutionTracer
+from pynguin.utils.controlflowdistance import ControlFlowDistance
+from pynguin.utils.controlflowdistance import get_root_control_flow_distance
 
 
 @pytest.fixture(scope="module")

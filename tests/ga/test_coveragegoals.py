@@ -16,10 +16,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.coverage.branchgoals as bg
-import pynguin.coverage.controlflowdistance as cfd
+import pynguin.ga.coveragegoals as bg
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
+import pynguin.utils.controlflowdistance as cfd
 
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
@@ -116,7 +116,7 @@ def test_statement_coverage_eq_other(statement_coverage_goal):
 
 def test_root_get_distance(branchless_codeobject_goal, mocker):
     mock = mocker.patch(
-        "pynguin.coverage.branchgoals.cfd" ".get_root_control_flow_distance",
+        "pynguin.ga.coveragegoals.cfd.get_root_control_flow_distance",
         return_value=42,
     )
     distance = branchless_codeobject_goal.get_distance(MagicMock(), MagicMock())
@@ -126,7 +126,7 @@ def test_root_get_distance(branchless_codeobject_goal, mocker):
 
 def test_non_root_get_distance(branch_goal, mocker):
     mock = mocker.patch(
-        "pynguin.coverage.branchgoals.cfd" ".get_non_root_control_flow_distance",
+        "pynguin.ga.coveragegoals.cfd.get_non_root_control_flow_distance",
         return_value=42,
     )
     distance = branch_goal.get_distance(MagicMock(), MagicMock())
