@@ -48,10 +48,10 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.generation import export
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
+from pynguin.testcase import export
 from pynguin.testcase.execution import AssertionExecutionObserver
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor

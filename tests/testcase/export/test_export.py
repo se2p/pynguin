@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from pynguin.generation import export
+from pynguin.testcase import export
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
