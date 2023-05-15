@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.generation.generationalgorithmfactory as gaf
+import pynguin.ga.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy

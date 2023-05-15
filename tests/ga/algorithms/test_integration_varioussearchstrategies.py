@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-import pynguin.generation.generationalgorithmfactory as gaf
+import pynguin.ga.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook

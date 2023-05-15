@@ -26,9 +26,7 @@ from pynguin.analyses import seeding
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.generation.generationalgorithmfactory import (
-    TestSuiteGenerationAlgorithmFactory,
-)
+from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
 
 
 @pytest.fixture()

@@ -10,8 +10,8 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
+import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 
