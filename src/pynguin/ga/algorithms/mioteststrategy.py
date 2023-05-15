@@ -14,9 +14,9 @@ from math import ceil
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
-import pynguin.generation.algorithms.archive as arch
+import pynguin.ga.algorithms.archive as arch
 
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 
 

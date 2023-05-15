@@ -11,8 +11,8 @@ import pytest
 
 import pynguin.configuration as config
 
-from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
-from pynguin.generation.algorithms.mioteststrategy import Parameters
+from pynguin.ga.algorithms.mioteststrategy import MIOTestStrategy
+from pynguin.ga.algorithms.mioteststrategy import Parameters
 
 
 def test_parameters_default():

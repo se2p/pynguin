@@ -76,8 +76,8 @@ from pynguin.utils.type_utils import get_class_that_defined_method
 
 
 if typing.TYPE_CHECKING:
+    import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
-    import pynguin.generation.algorithms.archive as arch
 
     from pynguin.testcase.execution import SubjectProperties
 

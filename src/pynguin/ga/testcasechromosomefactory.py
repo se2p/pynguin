@@ -18,9 +18,9 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
+    import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
     import pynguin.ga.testcasefactory as tcf
-    import pynguin.generation.algorithms.archive as arch
     import pynguin.testcase.testfactory as tf
 
 

@@ -15,9 +15,9 @@ from typing import cast
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 
+from pynguin.ga.algorithms.archive import CoverageArchive
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
-from pynguin.generation.algorithms.archive import CoverageArchive
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 

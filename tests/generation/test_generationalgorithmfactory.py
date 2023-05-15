@@ -12,12 +12,10 @@ import pynguin.configuration as config
 import pynguin.generation.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.generation.algorithms.randomsearchstrategy import (
-    RandomTestSuiteSearchStrategy,
-)
-from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
+from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy
+from pynguin.ga.algorithms.randomsearchstrategy import RandomTestSuiteSearchStrategy
+from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
+from pynguin.ga.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
 )

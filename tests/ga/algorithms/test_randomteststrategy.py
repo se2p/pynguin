@@ -16,7 +16,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
+from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException

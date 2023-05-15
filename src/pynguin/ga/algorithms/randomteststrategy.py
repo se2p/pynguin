@@ -17,7 +17,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
 
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.exceptions import GenerationException

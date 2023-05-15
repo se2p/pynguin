@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 from typing import Generic
 from typing import TypeVar
 
+import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.generation.algorithms.archive as arch
 
 from pynguin.utils.orderedset import OrderedSet
 

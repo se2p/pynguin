@@ -18,13 +18,13 @@ from typing import TypeVar
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
+import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
-import pynguin.generation.algorithms.archive as arch
 import pynguin.generation.searchobserver as so
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
@@ -34,6 +34,13 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
+from pynguin.ga.algorithms.dynamosastrategy import DynaMOSATestStrategy
+from pynguin.ga.algorithms.mioteststrategy import MIOTestStrategy
+from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy
+from pynguin.ga.algorithms.randomsearchstrategy import RandomTestCaseSearchStrategy
+from pynguin.ga.algorithms.randomsearchstrategy import RandomTestSuiteSearchStrategy
+from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
+from pynguin.ga.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
@@ -41,17 +48,6 @@ from pynguin.ga.operators.ranking.rankingfunction import RankBasedPreferenceSort
 from pynguin.ga.operators.selection.rankselection import RankSelection
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.ga.operators.selection.tournamentselection import TournamentSelection
-from pynguin.generation.algorithms.dynamosastrategy import DynaMOSATestStrategy
-from pynguin.generation.algorithms.mioteststrategy import MIOTestStrategy
-from pynguin.generation.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.generation.algorithms.randomsearchstrategy import (
-    RandomTestCaseSearchStrategy,
-)
-from pynguin.generation.algorithms.randomsearchstrategy import (
-    RandomTestSuiteSearchStrategy,
-)
-from pynguin.generation.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.generation.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -74,11 +70,9 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
 
+    from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
-    from pynguin.generation.algorithms.testgenerationstrategy import (
-        TestGenerationStrategy,
-    )
 
 C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
 

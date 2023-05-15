@@ -64,9 +64,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.generation.algorithms.testgenerationstrategy import (
-        TestGenerationStrategy,
-    )
+    from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 
 
 @enum.unique

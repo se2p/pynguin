@@ -11,7 +11,7 @@ import logging
 
 from typing import TYPE_CHECKING
 
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 
 
 if TYPE_CHECKING:

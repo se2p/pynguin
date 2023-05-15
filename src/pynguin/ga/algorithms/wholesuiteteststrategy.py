@@ -14,10 +14,10 @@ from typing import cast
 
 import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
+import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.computations as ff
-import pynguin.generation.algorithms.archive as arch
 
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 

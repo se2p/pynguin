@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.coverage.branchgoals as bg
-import pynguin.generation.algorithms.dynamosastrategy as dyna
+import pynguin.ga.algorithms.dynamosastrategy as dyna
 
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer

@@ -7,7 +7,7 @@
 from unittest.mock import MagicMock
 
 from pynguin.ga import chromosome as chrom
-from pynguin.generation.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxStatementExecutionsStoppingCondition,
 )

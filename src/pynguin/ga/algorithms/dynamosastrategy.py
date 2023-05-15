@@ -19,10 +19,10 @@ import pynguin.configuration as config
 import pynguin.coverage.branchgoals as bg
 import pynguin.utils.statistics.statistics as stat
 
+from pynguin.ga.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
-from pynguin.generation.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
-    from pynguin.generation.algorithms.archive import CoverageArchive
+    from pynguin.ga.algorithms.archive import CoverageArchive
     from pynguin.testcase.execution import SubjectProperties
 
 
