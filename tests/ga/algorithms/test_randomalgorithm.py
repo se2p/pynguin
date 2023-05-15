@@ -16,7 +16,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
+from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import GenerationException
@@ -81,7 +81,7 @@ def test_random_test_cases_no_bounds(executor):
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)
     tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
-    assert isinstance(algorithm, RandomTestStrategy)
+    assert isinstance(algorithm, RandomAlgorithm)
     result = algorithm._random_test_cases([tc_1, tc_2])
     assert 0 <= len(result) <= 2
 
@@ -99,7 +99,7 @@ def test_random_test_cases_with_bounds(executor):
     tc_1.statements = [MagicMock(stmt.Statement)]
     tc_2 = MagicMock(tc.TestCase)
     tc_2.statements = [MagicMock(stmt.Statement), MagicMock(stmt.Statement)]
-    assert isinstance(algorithm, RandomTestStrategy)
+    assert isinstance(algorithm, RandomAlgorithm)
     result = algorithm._random_test_cases([tc_1, tc_2])
     assert 0 <= len(result) <= 1
 
@@ -113,7 +113,7 @@ def test_random_public_method(executor):
     out_1 = MagicMock(GenericAccessibleObject)
     out_2 = MagicMock(GenericCallableAccessibleObject)
     outs = {out_0, out_1, out_2}
-    assert isinstance(algorithm, RandomTestStrategy)
+    assert isinstance(algorithm, RandomAlgorithm)
     result = algorithm._random_public_method(outs)
     assert result == out_0 or result == out_2
 
@@ -132,7 +132,7 @@ def test_generate_sequence(has_exceptions, executor, default_test_case):
     algorithm._random_public_method = lambda x: None  # pragma: no cover
     default_test_case.add_statement(MagicMock(stmt.Statement, ret_val=MagicMock()))
     algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
-    assert isinstance(algorithm, RandomTestStrategy)
+    assert isinstance(algorithm, RandomAlgorithm)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
             tsc.TestSuiteChromosome(),
@@ -149,7 +149,7 @@ def test_generate_sequence_duplicate(executor, default_test_case):
     ).get_search_algorithm()
     algorithm._random_public_method = lambda x: None  # pragma: no cover
     algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
-    assert isinstance(algorithm, RandomTestStrategy)
+    assert isinstance(algorithm, RandomAlgorithm)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
             tsc.TestSuiteChromosome(),

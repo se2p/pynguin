@@ -10,7 +10,7 @@ import pytest
 
 import pynguin.ga.chromosomefactory as cf
 
-from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy
+from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
 from pynguin.ga.operators.crossover.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction

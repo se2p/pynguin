@@ -17,7 +17,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.generic.genericaccessibleobject as gao
 
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.exceptions import GenerationException
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
 
-class RandomTestStrategy(TestGenerationStrategy):
+class RandomAlgorithm(GenerationAlgorithm):
     """Implements a random test generation algorithm similar to Randoop."""
 
     _logger = logging.getLogger(__name__)

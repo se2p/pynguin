@@ -11,7 +11,7 @@ import logging
 
 from typing import TYPE_CHECKING
 
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 # pylint: disable=too-few-public-methods
-class RandomTestSuiteSearchStrategy(TestGenerationStrategy):
+class RandomTestSuiteSearchAlgorithm(GenerationAlgorithm):
     """Create random test suites."""
 
     _logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class RandomTestSuiteSearchStrategy(TestGenerationStrategy):
         return solution
 
 
-class RandomTestCaseSearchStrategy(TestGenerationStrategy):
+class RandomTestCaseSearchAlgorithm(GenerationAlgorithm):
     """Creates random test suites based on test-case chromosomes."""
 
     _logger = logging.getLogger(__name__)

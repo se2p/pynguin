@@ -16,15 +16,13 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 
 from pynguin.ga.algorithms.archive import CoverageArchive
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.comparators.dominancecomparator import DominanceComparator
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
-class AbstractMOSATestStrategy(
-    TestGenerationStrategy[CoverageArchive], metaclass=ABCMeta
-):
+class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], metaclass=ABCMeta):
     """An abstract base implementation for MOSA and its derivatives."""
 
     _logger = logging.getLogger(__name__)

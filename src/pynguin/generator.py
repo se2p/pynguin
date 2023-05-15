@@ -64,7 +64,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+    from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
 
 @enum.unique
@@ -321,7 +321,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
 
 
 def _get_coverage_ff_from_algorithm(
-    algorithm: TestGenerationStrategy, function_type: type[ff.TestSuiteCoverageFunction]
+    algorithm: GenerationAlgorithm, function_type: type[ff.TestSuiteCoverageFunction]
 ) -> ff.TestSuiteCoverageFunction:
     """Retrieve the coverage function for a test suite of a given coverage type.
 
@@ -512,7 +512,7 @@ def _run() -> ReturnCode:
     if config.CoverageMetric.CHECKED in coverage_metrics:
         executor.add_observer(StatementSlicingObserver(executor.tracer))
 
-    algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
+    algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
     )
     _LOGGER.info("Start generating test cases")
@@ -606,7 +606,7 @@ def _generate_assertions(executor, generation_result):
 
 
 def _track_search_metrics(
-    algorithm: TestGenerationStrategy,
+    algorithm: GenerationAlgorithm,
     generation_result: tsc.TestSuiteChromosome,
     coverage_metrics: list[config.CoverageMetric],
 ) -> None:
@@ -652,7 +652,7 @@ def _instantiate_test_generation_strategy(
     executor: TestCaseExecutor,
     test_cluster: ModuleTestCluster,
     constant_provider: ConstantProvider,
-) -> TestGenerationStrategy:
+) -> GenerationAlgorithm:
     factory = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster, constant_provider
     )

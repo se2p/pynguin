@@ -17,7 +17,7 @@ import pynguin.coverage.branchgoals as bg
 import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.computations as ff
 
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 # pylint: disable=too-few-public-methods
-class WholeSuiteTestStrategy(TestGenerationStrategy[arch.CoverageArchive]):
+class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 
     _logger = logging.getLogger(__name__)

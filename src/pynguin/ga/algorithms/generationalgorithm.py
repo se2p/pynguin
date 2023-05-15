@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
 
 
-class TestGenerationStrategy(
+class GenerationAlgorithm(
     Generic[A]
 ):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Provides an abstract base class for a test generation algorithm."""

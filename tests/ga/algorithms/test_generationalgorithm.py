@@ -7,19 +7,19 @@
 from unittest.mock import MagicMock
 
 from pynguin.ga import chromosome as chrom
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxStatementExecutionsStoppingCondition,
 )
 
 
-class DummyTestStrategy(TestGenerationStrategy):
+class DummyAlgorithm(GenerationAlgorithm):
     def generate_tests(self) -> chrom.Chromosome:
         pass  # pragma: no cover
 
 
 def test_progress():
-    strategy = DummyTestStrategy()
+    strategy = DummyAlgorithm()
     stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
     stopping.before_statement_execution(None, None, None)
@@ -28,7 +28,7 @@ def test_progress():
 
 
 def test_add_search_observer():
-    strategy = DummyTestStrategy()
+    strategy = DummyAlgorithm()
     obs = MagicMock()
     strategy.add_search_observer(obs)
     assert strategy._search_observers == [obs]

@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 """Provides factories for the generation algorithm."""
 from __future__ import annotations
@@ -34,13 +39,13 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
-from pynguin.ga.algorithms.dynamosastrategy import DynaMOSATestStrategy
-from pynguin.ga.algorithms.mioteststrategy import MIOTestStrategy
-from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.ga.algorithms.randomsearchstrategy import RandomTestCaseSearchStrategy
-from pynguin.ga.algorithms.randomsearchstrategy import RandomTestSuiteSearchStrategy
-from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.ga.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
+from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSATestStrategy
+from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
+from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
+from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
+from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestCaseSearchAlgorithm
+from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
+from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.operators.crossover.singlepointrelativecrossover import (
     SinglePointRelativeCrossOver,
 )
@@ -70,7 +75,7 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
 
-    from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+    from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
     from pynguin.ga.operators.crossover.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
 
@@ -114,7 +119,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         return conditions
 
     @abstractmethod
-    def get_search_algorithm(self) -> TestGenerationStrategy:
+    def get_search_algorithm(self) -> GenerationAlgorithm:
         """Initialises and sets up the test-generation strategy to use.
 
         Returns:
@@ -128,14 +133,14 @@ class TestSuiteGenerationAlgorithmFactory(
 ):
     """A factory for a search algorithm generating test-suites."""
 
-    _strategies: dict[config.Algorithm, Callable[[], TestGenerationStrategy]] = {
+    _strategies: dict[config.Algorithm, Callable[[], GenerationAlgorithm]] = {
         config.Algorithm.DYNAMOSA: DynaMOSATestStrategy,
-        config.Algorithm.MIO: MIOTestStrategy,
+        config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSATestStrategy,
-        config.Algorithm.RANDOM: RandomTestStrategy,
-        config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchStrategy,
-        config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchStrategy,
-        config.Algorithm.WHOLE_SUITE: WholeSuiteTestStrategy,
+        config.Algorithm.RANDOM: RandomAlgorithm,
+        config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchAlgorithm,
+        config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchAlgorithm,
+        config.Algorithm.WHOLE_SUITE: WholeSuiteAlgorithm,
     }
 
     _selections: dict[config.Selection, Callable[[], SelectionFunction]] = {
@@ -158,7 +163,7 @@ class TestSuiteGenerationAlgorithmFactory(
         self._constant_provider: ConstantProvider = constant_provider
 
     def _get_chromosome_factory(
-        self, strategy: TestGenerationStrategy
+        self, strategy: GenerationAlgorithm
     ) -> cf.ChromosomeFactory:
         """Provides a chromosome factory.
 
@@ -215,7 +220,7 @@ class TestSuiteGenerationAlgorithmFactory(
             strategy.test_suite_coverage_functions,
         )
 
-    def get_search_algorithm(self) -> TestGenerationStrategy:
+    def get_search_algorithm(self) -> GenerationAlgorithm:
         """Initialises and sets up the test-generation strategy to use.
 
         Returns:
@@ -266,7 +271,7 @@ class TestSuiteGenerationAlgorithmFactory(
         return strategy
 
     @classmethod
-    def _get_generation_strategy(cls) -> TestGenerationStrategy:
+    def _get_generation_strategy(cls) -> GenerationAlgorithm:
         """Provides a generation strategy.
 
         Returns:
@@ -313,7 +318,7 @@ class TestSuiteGenerationAlgorithmFactory(
         self._logger.info("Using crossover function: SinglePointRelativeCrossOver")
         return SinglePointRelativeCrossOver()
 
-    def _get_archive(self, strategy: TestGenerationStrategy) -> arch.Archive:
+    def _get_archive(self, strategy: GenerationAlgorithm) -> arch.Archive:
         if config.configuration.algorithm == config.Algorithm.MIO:
             self._logger.info("Using MIOArchive")
             size = config.configuration.mio.initial_config.number_of_tests_per_target
@@ -334,7 +339,7 @@ class TestSuiteGenerationAlgorithmFactory(
         return RankBasedPreferenceSorting()
 
     def _get_test_case_fitness_functions(
-        self, strategy: TestGenerationStrategy
+        self, strategy: GenerationAlgorithm
     ) -> OrderedSet[ff.TestCaseFitnessFunction]:
         """Creates the fitness functions for test cases.
 
@@ -409,7 +414,7 @@ class TestSuiteGenerationAlgorithmFactory(
         # be added and calculated after the assertion generation
         return test_suite_ffs
 
-    def _get_test_cluster(self, strategy: TestGenerationStrategy):
+    def _get_test_cluster(self, strategy: GenerationAlgorithm):
         search_alg = config.configuration.search_algorithm
         if search_alg.filter_covered_targets_from_test_cluster:
             # Wrap test cluster in filter.
@@ -423,7 +428,7 @@ class TestSuiteGenerationAlgorithmFactory(
 
     @staticmethod
     def _get_test_factory(
-        strategy: TestGenerationStrategy, constant_provider: ConstantProvider
+        strategy: GenerationAlgorithm, constant_provider: ConstantProvider
     ):
         return tf.TestFactory(
             strategy.test_cluster, constant_provider=constant_provider

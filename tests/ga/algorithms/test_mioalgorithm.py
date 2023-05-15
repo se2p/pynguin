@@ -11,8 +11,8 @@ import pytest
 
 import pynguin.configuration as config
 
-from pynguin.ga.algorithms.mioteststrategy import MIOTestStrategy
-from pynguin.ga.algorithms.mioteststrategy import Parameters
+from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
+from pynguin.ga.algorithms.mioalgorithm import Parameters
 
 
 def test_parameters_default():
@@ -30,7 +30,7 @@ def test_parameters_default():
 
 
 def test_update_parameters_gradual():
-    strategy = MIOTestStrategy()
+    strategy = MIOAlgorithm()
     strategy._archive = MagicMock()
     config.configuration.mio.exploitation_starts_at_percent = 0.4
     with mock.patch.object(strategy, "progress") as progress_mock:
@@ -51,7 +51,7 @@ def test_update_parameters_gradual():
 
 
 def test_update_parameters_focused_phase():
-    strategy = MIOTestStrategy()
+    strategy = MIOAlgorithm()
     strategy._archive = MagicMock()
     config.configuration.mio.exploitation_starts_at_percent = 0.4
     config.configuration.mio.initial_config.number_of_tests_per_target = 2

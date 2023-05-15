@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.ga.algorithms.archive as arch
 
-from pynguin.ga.algorithms.testgenerationstrategy import TestGenerationStrategy
+from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness
 
 
@@ -49,7 +49,7 @@ class Parameters:
 
 
 # pylint: disable=too-few-public-methods
-class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
+class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
     """Implements MIO."""
 
     _logger = logging.getLogger(__name__)
@@ -103,20 +103,20 @@ class MIOTestStrategy(TestGenerationStrategy[arch.MIOArchive]):
                 config.configuration.mio.focused_config.number_of_mutations
             )
         else:
-            self._parameters.Pr = MIOTestStrategy._scale(
+            self._parameters.Pr = MIOAlgorithm._scale(
                 config.configuration.mio.initial_config.random_test_or_from_archive_probability,
                 config.configuration.mio.focused_config.random_test_or_from_archive_probability,
                 progress_until_focused,
             )
             self._parameters.n = ceil(
-                MIOTestStrategy._scale(
+                MIOAlgorithm._scale(
                     config.configuration.mio.initial_config.number_of_tests_per_target,
                     config.configuration.mio.focused_config.number_of_tests_per_target,
                     progress_until_focused,
                 )
             )
             self._parameters.m = ceil(
-                MIOTestStrategy._scale(
+                MIOAlgorithm._scale(
                     config.configuration.mio.initial_config.number_of_mutations,
                     config.configuration.mio.focused_config.number_of_mutations,
                     progress_until_focused,

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
 
-from pynguin.ga.algorithms.abstractmosastrategy import AbstractMOSATestStrategy
+from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking.crowdingdistance import (
     fast_epsilon_dominance_assignment,
 )
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 
 # pylint: disable=too-many-instance-attributes
-class MOSATestStrategy(AbstractMOSATestStrategy):
+class MOSATestStrategy(AbstractMOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA."""
 
     _logger = logging.getLogger(__name__)

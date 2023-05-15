@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 from unittest.mock import MagicMock
 
@@ -12,10 +17,10 @@ import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.ga.algorithms.mosastrategy import MOSATestStrategy
-from pynguin.ga.algorithms.randomsearchstrategy import RandomTestSuiteSearchStrategy
-from pynguin.ga.algorithms.randomteststrategy import RandomTestStrategy
-from pynguin.ga.algorithms.wholesuiteteststrategy import WholeSuiteTestStrategy
+from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
+from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
+from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
+from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.generation.stoppingconditions.stoppingcondition import (
     MaxIterationsStoppingCondition,
 )
@@ -44,10 +49,10 @@ def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
     [
         pytest.param(config.Algorithm.MOSA, MOSATestStrategy),
         pytest.param(
-            config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchStrategy
+            config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchAlgorithm
         ),
-        pytest.param(config.Algorithm.RANDOM, RandomTestStrategy),
-        pytest.param(config.Algorithm.WHOLE_SUITE, WholeSuiteTestStrategy),
+        pytest.param(config.Algorithm.RANDOM, RandomAlgorithm),
+        pytest.param(config.Algorithm.WHOLE_SUITE, WholeSuiteAlgorithm),
     ],
 )
 def test_instantiate_strategy(algorithm, cls, algorithm_factory):
