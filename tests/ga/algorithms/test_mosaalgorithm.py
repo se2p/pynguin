@@ -12,7 +12,7 @@ import pynguin.ga.chromosomefactory as cf
 
 from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
 from pynguin.ga.operators.crossover import CrossOverFunction
-from pynguin.ga.operators.ranking.rankingfunction import RankingFunction
+from pynguin.ga.operators.ranking import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor

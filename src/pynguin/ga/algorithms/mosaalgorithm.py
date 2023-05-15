@@ -15,9 +15,7 @@ import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
-from pynguin.ga.operators.ranking.crowdingdistance import (
-    fast_epsilon_dominance_assignment,
-)
+from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
