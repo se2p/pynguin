@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import SubjectProperties
 
 
-class DynaMOSATestStrategy(AbstractMOSAAlgorithm):
+class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
     """Implements the Dynamic Many-Objective Sorting Algorithm DynaMOSA."""
 
     _logger = logging.getLogger(__name__)

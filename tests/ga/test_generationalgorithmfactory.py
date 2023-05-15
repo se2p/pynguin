@@ -17,7 +17,7 @@ import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
+from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
@@ -39,7 +39,7 @@ def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
 @pytest.mark.parametrize(
     "algorithm, cls",
     [
-        pytest.param(config.Algorithm.MOSA, MOSATestStrategy),
+        pytest.param(config.Algorithm.MOSA, MOSAAlgorithm),
         pytest.param(
             config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchAlgorithm
         ),

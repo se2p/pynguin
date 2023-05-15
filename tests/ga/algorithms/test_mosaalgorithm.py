@@ -10,7 +10,7 @@ import pytest
 
 import pynguin.ga.chromosomefactory as cf
 
-from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
+from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.operators.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking import RankingFunction
 from pynguin.ga.operators.selection.selection import SelectionFunction
@@ -20,7 +20,7 @@ from pynguin.testcase.execution import TestCaseExecutor
 
 @pytest.fixture
 def mosa_strategy():
-    return MOSATestStrategy()
+    return MOSAAlgorithm()
 
 
 def test_property_chromosome_factory(mosa_strategy):

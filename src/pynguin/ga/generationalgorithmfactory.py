@@ -39,9 +39,9 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
-from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSATestStrategy
+from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
-from pynguin.ga.algorithms.mosaalgorithm import MOSATestStrategy
+from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestCaseSearchAlgorithm
 from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
@@ -124,9 +124,9 @@ class TestSuiteGenerationAlgorithmFactory(
     """A factory for a search algorithm generating test-suites."""
 
     _strategies: dict[config.Algorithm, Callable[[], GenerationAlgorithm]] = {
-        config.Algorithm.DYNAMOSA: DynaMOSATestStrategy,
+        config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
-        config.Algorithm.MOSA: MOSATestStrategy,
+        config.Algorithm.MOSA: MOSAAlgorithm,
         config.Algorithm.RANDOM: RandomAlgorithm,
         config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchAlgorithm,
         config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchAlgorithm,

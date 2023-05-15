@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 # pylint: disable=too-many-instance-attributes
-class MOSATestStrategy(AbstractMOSAAlgorithm):
+class MOSAAlgorithm(AbstractMOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA."""
 
     _logger = logging.getLogger(__name__)
