@@ -4,8 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Provides the implementation of an ordered set.
 
-"""
 The following code is taken from https://github.com/pantsbuild/pants
 We made minor changes so that our linting pipeline accepts the code.
 
@@ -40,7 +40,7 @@ from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import MutableSet
 from collections.abc import Sequence
-from typing import AbstractSet
+from collections.abc import Set
 from typing import Any
 from typing import TypeVar
 from typing import cast
@@ -49,11 +49,11 @@ from typing import overload
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
-# pylint:disable=invalid-name
+
 _TAbstractOrderedSet = TypeVar("_TAbstractOrderedSet", bound="_AbstractOrderedSet")
 
 
-class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
+class _AbstractOrderedSet(Set[T], Sequence[T]):
     """Common functionality shared between OrderedSet and FrozenOrderedSet."""
 
     @overload
@@ -122,7 +122,6 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
             x == y for x, y in zip(self._items, other._items, strict=True)
         )
 
-    # pylint:disable-next=line-too-long, arguments-renamed
     def __or__(  # type: ignore[override]
         self: _TAbstractOrderedSet, other: Iterable[T]
     ) -> _TAbstractOrderedSet:
@@ -130,6 +129,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
 
     def union(self: _TAbstractOrderedSet, *others: Iterable[T]) -> _TAbstractOrderedSet:
         """Combines all unique items.
+
         Each item's order is defined by its first appearance # noqa: DAR201,DAR101.
 
         Args:
@@ -159,6 +159,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
         self: _TAbstractOrderedSet, *others: Iterable[T]
     ) -> _TAbstractOrderedSet:
         """Returns elements in common between all sets.
+
         Order is defined only by the first set.
 
         Args:
@@ -224,7 +225,6 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
             pass
         return all(item in self for item in other)
 
-    # pylint:disable-next=line-too-long, arguments-renamed
     def __xor__(  # type: ignore[override]
         self: _TAbstractOrderedSet, other: Iterable[T]
     ) -> _TAbstractOrderedSet:
@@ -233,7 +233,9 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
     def symmetric_difference(
         self: _TAbstractOrderedSet, other: Iterable[T]
     ) -> _TAbstractOrderedSet:
-        """Return the symmetric difference of this OrderedSet and another set as a new
+        """Computes the symmetric difference.
+
+        Return the symmetric difference of this OrderedSet and another set as a new
         OrderedSet. That is, the new set will contain all elements that are in exactly
         one of the sets. Their order will be preserved, with elements from `self`
         preceding elements from `other`.
@@ -252,6 +254,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):
 
 class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
     """A mutable set that retains its order.
+
     This is not safe to use with the V2 engine.
     """
 
@@ -272,10 +275,10 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         for item in iterable:
             self._items[item] = None
 
-    def discard(self, value: T) -> None:
+    def discard(self, value: T) -> None:  # noqa: D102
         self._items.pop(value, None)
 
-    def clear(self) -> None:
+    def clear(self) -> None:  # noqa: D102
         self._items.clear()
 
     def difference_update(self, *others: Iterable[T]) -> None:
@@ -293,7 +296,9 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         }
 
     def intersection_update(self, other: Iterable[T]) -> None:
-        """Update this OrderedSet to keep only items in another set, preserving their
+        """Computes the intersection inplace.
+
+        Update this OrderedSet to keep only items in another set, preserving their
         order in this set.
 
         Args:
@@ -303,7 +308,9 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         self._items = {item: None for item in self._items.keys() if item in other}
 
     def symmetric_difference_update(self, other: Iterable[T]) -> None:
-        """Update this OrderedSet to remove items from another set, then add items from
+        """Computes the symmetric difference inplace.
+
+        Update this OrderedSet to remove items from another set, then add items from
         the other set that were not present in this set.
 
         Args:
@@ -320,14 +327,15 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
 
 class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[type-var]
     """A frozen (i.e. immutable) set that retains its order.
+
     This is safe to use with the V2 engine.
     """
 
-    def __init__(self, iterable: Iterable[T_co] | None = None) -> None:
+    def __init__(self, iterable: Iterable[T_co] | None = None) -> None:  # noqa: D107
         super().__init__(iterable)
         self.__hash: int | None = None
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # noqa: D105
         if self.__hash is None:
             self.__hash = 0
             for item in self._items.keys():

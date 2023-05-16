@@ -4,10 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""
-Provides an atomic integer implementation similar to the Java class
-`AtomicInteger`.
-"""
+"""Provides an atomic integer implementation."""
 import threading
 
 
@@ -20,6 +17,11 @@ class AtomicInteger:
     """
 
     def __init__(self, value: int = 0) -> None:
+        """Initializes the atomic integer.
+
+        Args:
+            value: The start value, defaults to zero.
+        """
         self._value = value
         self._lock = threading.Lock()
 

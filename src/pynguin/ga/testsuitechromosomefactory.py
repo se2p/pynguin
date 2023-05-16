@@ -21,9 +21,7 @@ if TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
 
-class TestSuiteChromosomeFactory(
-    cf.ChromosomeFactory[tsc.TestSuiteChromosome]
-):  # pylint:disable=too-few-public-methods.
+class TestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome]):
     """A factory that provides new test suite chromosomes of random length."""
 
     def __init__(
@@ -48,7 +46,7 @@ class TestSuiteChromosomeFactory(
         self._fitness_functions = fitness_functions
         self._coverage_functions = coverage_functions
 
-    def get_chromosome(self) -> tsc.TestSuiteChromosome:
+    def get_chromosome(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         chromosome = tsc.TestSuiteChromosome(self._test_case_chromosome_factory)
         num_tests = randomness.next_int(
             config.configuration.search_algorithm.min_initial_tests,

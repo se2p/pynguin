@@ -36,6 +36,11 @@ class Reference(metaclass=ABCMeta):
     """
 
     def __init__(self, typ: ProperType) -> None:
+        """Constructs a new reference.
+
+        Args:
+            typ: The type of the reference
+        """
         self._type = typ
 
     @property
@@ -150,6 +155,12 @@ class VariableReference(Reference):
     """
 
     def __init__(self, test_case: tc.TestCase, typ: ProperType):
+        """Constructs a new variable reference.
+
+        Args:
+            test_case: The test case, the reference belongs to
+            typ: The type of the referenced variable
+        """
         super().__init__(typ)
         self._test_case = test_case
         self._distance = 0
@@ -165,8 +176,9 @@ class VariableReference(Reference):
 
     @property
     def distance(self) -> int:
-        """Distance metric used to select variables for mutation based on how close
-        they are to the subject under test.
+        """Distance metric used to select variables for mutation.
+
+        The selection is based on how close they are to the subject under test.
 
         Returns:
             The distance value
@@ -182,32 +194,33 @@ class VariableReference(Reference):
         """
         self._distance = distance
 
-    def get_names(
+    def get_names(  # noqa: D102
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
     ) -> list[str]:
         return [variable_names.get_name(self)]
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[VariableReference, VariableReference]
     ) -> VariableReference:
         return memo[self]
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, self.__class__):
             return False
         return memo[self] == other
 
-    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         # Use position where variable is defined as hash value.
         return memo[self]
 
     def get_statement_position(self) -> int:
-        """Provides the position of the statement which defines this variable reference
-        in the test case.
+        """Provides the position of the statement.
+
+        The position defines this variable reference in the test case.
 
         Raises:
             RuntimeError: if the statement is not found in the test case
@@ -222,10 +235,10 @@ class VariableReference(Reference):
             "Variable reference is not declared in the test case in which it is used"
         )
 
-    def get_variable_reference(self) -> VariableReference | None:
+    def get_variable_reference(self) -> VariableReference | None:  # noqa: D102
         return self
 
-    def replace_variable_reference(
+    def replace_variable_reference(  # noqa: D102
         self, old: VariableReference, new: VariableReference
     ) -> None:
         # We can't replace ourselves.
@@ -257,23 +270,29 @@ class CallBasedVariableReference(VariableReference):
         test_case: tc.TestCase,
         generic_callable: gao.GenericCallableAccessibleObject,
     ):
+        """Constructs a new call-based variable reference.
+
+        Args:
+            test_case: The test case the reference belongs to
+            generic_callable: The call the reference is based on
+        """
         super().__init__(test_case, NoneType())  # dummy
         self._callable = generic_callable
 
     @property
-    def type(self) -> ProperType:
+    def type(self) -> ProperType:  # noqa: D102
         # Dynamically look up type instead of using fixed type given at
         # construction time.
         return self._callable.generated_type()
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, self.__class__):
             return False
         return super().structural_eq(other, memo) and self._callable == other._callable
 
-    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash((super().structural_hash(memo), self._callable))
 
 
@@ -281,6 +300,12 @@ class FieldReference(Reference):
     """A reference to a non-static field."""
 
     def __init__(self, source: Reference, field: gao.GenericField):
+        """Constructs a new reference to a non-static field.
+
+        Args:
+            source: The reference to call the field on
+            field: The field
+        """
         super().__init__(field.generated_type())
         self._source = source
         self._field = field
@@ -303,7 +328,7 @@ class FieldReference(Reference):
         """
         return self._field
 
-    def get_names(
+    def get_names(  # noqa: D102
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
@@ -312,10 +337,12 @@ class FieldReference(Reference):
         lst.append(self._field.field)
         return lst
 
-    def clone(self, memo: dict[VariableReference, VariableReference]) -> FieldReference:
+    def clone(  # noqa: D102
+        self, memo: dict[VariableReference, VariableReference]
+    ) -> FieldReference:
         return FieldReference(self._source.clone(memo), self._field)
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, FieldReference):
@@ -324,7 +351,7 @@ class FieldReference(Reference):
             other._source, memo
         )
 
-    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash((self._field, self._source.structural_hash(memo)))
 
     def __eq__(self, other):
@@ -335,10 +362,10 @@ class FieldReference(Reference):
     def __hash__(self):
         return hash((self._field, self._source))
 
-    def get_variable_reference(self) -> VariableReference | None:
+    def get_variable_reference(self) -> VariableReference | None:  # noqa: D102
         return self._source.get_variable_reference()
 
-    def replace_variable_reference(
+    def replace_variable_reference(  # noqa: D102
         self, old: VariableReference, new: VariableReference
     ) -> None:
         if self._source == old:
@@ -351,6 +378,11 @@ class StaticFieldReference(Reference):
     """A reference to a static field of a class."""
 
     def __init__(self, field: gao.GenericStaticField):
+        """Constructs a new reference to a static field of a class.
+
+        Args:
+            field: The field
+        """
         super().__init__(field.generated_type())
         self._field = field
 
@@ -363,7 +395,7 @@ class StaticFieldReference(Reference):
         """
         return self._field
 
-    def get_names(
+    def get_names(  # noqa: D102
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
@@ -375,19 +407,19 @@ class StaticFieldReference(Reference):
             self._field.field,
         ]
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[VariableReference, VariableReference]
     ) -> StaticFieldReference:
         return StaticFieldReference(self._field)
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, StaticFieldReference):
             return False
         return self._field == other._field
 
-    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash(self._field)
 
     def __eq__(self, other):
@@ -396,10 +428,10 @@ class StaticFieldReference(Reference):
     def __hash__(self):
         return self.structural_hash({})
 
-    def get_variable_reference(self) -> VariableReference | None:
+    def get_variable_reference(self) -> VariableReference | None:  # noqa: D102
         return None
 
-    def replace_variable_reference(
+    def replace_variable_reference(  # noqa: D102
         self, old: VariableReference, new: VariableReference
     ) -> None:
         return
@@ -411,6 +443,11 @@ class StaticModuleFieldReference(Reference):
     # TODO(fk) combine with regular static field?
 
     def __init__(self, field: gao.GenericStaticModuleField):
+        """Constructs a reference to a static module field.
+
+        Args:
+            field: The field
+        """
         super().__init__(field.generated_type())
         self._field = field
 
@@ -423,26 +460,26 @@ class StaticModuleFieldReference(Reference):
         """
         return self._field
 
-    def get_names(
+    def get_names(  # noqa: D102
         self,
         variable_names: ns.AbstractNamingScope,
         module_names: ns.AbstractNamingScope,
     ) -> list[str]:
         return [module_names.get_name(self._field.module), self._field.field]
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[VariableReference, VariableReference]
     ) -> StaticModuleFieldReference:
         return StaticModuleFieldReference(self._field)
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[VariableReference, VariableReference]
     ) -> bool:
         if not isinstance(other, StaticModuleFieldReference):
             return False
         return self._field == other._field
 
-    def structural_hash(self, memo: dict[VariableReference, int]) -> int:
+    def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash(self._field)
 
     def __eq__(self, other):
@@ -451,10 +488,10 @@ class StaticModuleFieldReference(Reference):
     def __hash__(self):
         return self.structural_hash({})
 
-    def get_variable_reference(self) -> VariableReference | None:
+    def get_variable_reference(self) -> VariableReference | None:  # noqa: D102
         return None
 
-    def replace_variable_reference(
+    def replace_variable_reference(  # noqa: D102
         self, old: VariableReference, new: VariableReference
     ) -> None:
         return

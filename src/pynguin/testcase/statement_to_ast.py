@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides a visitor that transforms statements to ast"""
+"""Provides a visitor that transforms statements to AST."""
 from __future__ import annotations
 
 import ast
@@ -56,8 +56,9 @@ class StatementToAstVisitor(StatementVisitor):
         variable_names: ns.AbstractNamingScope,
         store_call_return: bool = True,
     ) -> None:
-        """Creates a new transformation visitor that transforms our internal
-        statements to Python AST nodes.
+        """Creates a new transformation visitor.
+
+        The visitor transforms our internal statements to Python AST nodes.
 
         Args:
             module_aliases: A naming scope for module alias names.
@@ -82,29 +83,37 @@ class StatementToAstVisitor(StatementVisitor):
         assert self._ast_node, "No statement visited"
         return self._ast_node
 
-    def visit_int_primitive_statement(self, stmt: IntPrimitiveStatement) -> None:
+    def visit_int_primitive_statement(  # noqa: D102
+        self, stmt: IntPrimitiveStatement
+    ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_float_primitive_statement(self, stmt: FloatPrimitiveStatement) -> None:
+    def visit_float_primitive_statement(  # noqa: D102
+        self, stmt: FloatPrimitiveStatement
+    ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_complex_primitive_statement(
+    def visit_complex_primitive_statement(  # noqa: D102
         self, stmt: ComplexPrimitiveStatement
     ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_string_primitive_statement(self, stmt: StringPrimitiveStatement) -> None:
+    def visit_string_primitive_statement(  # noqa: D102
+        self, stmt: StringPrimitiveStatement
+    ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_bytes_primitive_statement(self, stmt: BytesPrimitiveStatement) -> None:
+    def visit_bytes_primitive_statement(  # noqa: D102
+        self, stmt: BytesPrimitiveStatement
+    ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_boolean_primitive_statement(
+    def visit_boolean_primitive_statement(  # noqa: D102
         self, stmt: BooleanPrimitiveStatement
     ) -> None:
         self._ast_node = self._create_constant(stmt)
 
-    def visit_enum_statement(self, stmt: EnumPrimitiveStatement) -> None:
+    def visit_enum_statement(self, stmt: EnumPrimitiveStatement) -> None:  # noqa: D102
         owner = stmt.accessible_object().owner
         assert owner
         self._ast_node = ast.Assign(
@@ -124,7 +133,9 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_class_primitive_statement(self, stmt: ClassPrimitiveStatement) -> None:
+    def visit_class_primitive_statement(  # noqa: D102
+        self, stmt: ClassPrimitiveStatement
+    ) -> None:
         clazz = stmt.type_info
         self._ast_node = ast.Assign(
             targets=[
@@ -140,10 +151,12 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_none_statement(self, stmt: NoneStatement) -> None:
+    def visit_none_statement(self, stmt: NoneStatement) -> None:  # noqa: D102
         self._ast_node = self._create_constant(stmt)
 
-    def visit_constructor_statement(self, stmt: ConstructorStatement) -> None:
+    def visit_constructor_statement(  # noqa: D102
+        self, stmt: ConstructorStatement
+    ) -> None:
         owner = stmt.accessible_object().owner
         assert owner
         args, kwargs = self._create_args(stmt)
@@ -168,7 +181,7 @@ class StatementToAstVisitor(StatementVisitor):
         else:
             self._ast_node = ast.Expr(value=call)
 
-    def visit_method_statement(self, stmt: MethodStatement) -> None:
+    def visit_method_statement(self, stmt: MethodStatement) -> None:  # noqa: D102
         args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
@@ -193,7 +206,7 @@ class StatementToAstVisitor(StatementVisitor):
                 value=call,
             )
 
-    def visit_function_statement(self, stmt: FunctionStatement) -> None:
+    def visit_function_statement(self, stmt: FunctionStatement) -> None:  # noqa: D102
         args, kwargs = self._create_args(stmt)
         call = ast.Call(
             func=ast.Attribute(
@@ -218,7 +231,7 @@ class StatementToAstVisitor(StatementVisitor):
                 value=call,
             )
 
-    def visit_field_statement(self, stmt: FieldStatement) -> None:
+    def visit_field_statement(self, stmt: FieldStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 ast.Name(
@@ -235,7 +248,9 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_assignment_statement(self, stmt: AssignmentStatement) -> None:
+    def visit_assignment_statement(  # noqa: D102
+        self, stmt: AssignmentStatement
+    ) -> None:
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
@@ -247,7 +262,7 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_list_statement(self, stmt: ListStatement) -> None:
+    def visit_list_statement(self, stmt: ListStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
@@ -265,7 +280,7 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_set_statement(self, stmt: SetStatement) -> None:
+    def visit_set_statement(self, stmt: SetStatement) -> None:  # noqa: D102
         # There is no literal for empty sets, so we have to write "set()"
         inner: Any
         if len(stmt.elements) == 0:
@@ -292,7 +307,7 @@ class StatementToAstVisitor(StatementVisitor):
             value=inner,
         )
 
-    def visit_tuple_statement(self, stmt: TupleStatement) -> None:
+    def visit_tuple_statement(self, stmt: TupleStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
@@ -310,7 +325,7 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_dict_statement(self, stmt: DictStatement) -> None:
+    def visit_dict_statement(self, stmt: DictStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
@@ -354,7 +369,9 @@ class StatementToAstVisitor(StatementVisitor):
     def _create_args(
         self, stmt: ParametrizedStatement
     ) -> tuple[list[ast.expr], list[ast.keyword]]:
-        """Creates the positional arguments, i.e., POSITIONAL_ONLY,
+        """Creates the AST nodes for arguments.
+
+        Creates the positional arguments, i.e., POSITIONAL_ONLY,
         POSITIONAL_OR_KEYWORD and VAR_POSITIONAL as well as the keyword arguments,
         i.e., KEYWORD_ONLY or VAR_KEYWORD.
 

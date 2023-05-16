@@ -33,9 +33,7 @@ class RandomAlgorithm(GenerationAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(
-        self,
-    ) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()
         failing_test_chromosome: tsc.TestSuiteChromosome = tsc.TestSuiteChromosome()

@@ -18,14 +18,13 @@ import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
 
-# pylint: disable=invalid-name
 T = TypeVar("T", bound=chrom.Chromosome)
 
 
 class SelectionFunction(Generic[T]):
     """Abstract base class for selection functions."""
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         self._maximize = True
 
     @abstractmethod
@@ -103,7 +102,7 @@ class RankSelection(SelectionFunction[T]):
 class TournamentSelection(SelectionFunction[T]):
     """Tournament selection."""
 
-    def get_index(self, population: list[T]) -> int:
+    def get_index(self, population: list[T]) -> int:  # noqa: D102
         new_num = randomness.next_int(lower_bound=0, upper_bound=len(population))
         winner = new_num
 

@@ -18,7 +18,10 @@ class Chromosome(metaclass=ABCMeta):
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):
-        """
+        """Initializes the chromosome.
+
+        If a chromosome is given, we clone from that.
+
         Args:
             orig: Original, if we clone an existing chromosome.
         """
@@ -36,6 +39,7 @@ class Chromosome(metaclass=ABCMeta):
     @abstractmethod
     def size(self) -> int:
         """Return the size of an individual.
+
         This should be number of elements it contains.
 
         Returns:
@@ -45,6 +49,7 @@ class Chromosome(metaclass=ABCMeta):
     @abstractmethod
     def length(self) -> int:
         """Provide the length of an individual.
+
         This should be the total length of all contained elements and possible
         sub-elements. Look at the implementation to see the difference to size().
 

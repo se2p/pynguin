@@ -10,7 +10,6 @@ from abc import ABC
 from abc import abstractmethod
 
 
-# pylint: disable=too-few-public-methods
 class TestCaseVisitor(ABC):
     """An abstract test case visitor."""
 

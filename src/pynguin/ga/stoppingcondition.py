@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
     """Provides an interface for a stopping condition of an algorithm."""
 
-    def __init__(self, observes_execution: bool = False):
+    def __init__(self, observes_execution: bool = False):  # noqa: D107
         self._observes_execution = observes_execution
 
     @abstractmethod
@@ -90,19 +90,33 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         return self._observes_execution
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
+
+        Args:
+            test_case: Not used
+        """
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        pass
+        """Not used.
+
+        Args:
+            test_case: Not used
+            result: Not used
+        """
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
-        pass
+        """Not used.
 
-    def before_statement_execution(
+        Args:
+            test_case: Not used
+            result: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
         return node
@@ -114,19 +128,38 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         exec_ctx: ExecutionContext,
         exception: BaseException | None,
     ) -> None:
-        pass
+        """Not used.
+
+        Args:
+            statement: Not used
+            executor: Not used
+            exec_ctx: Not used
+            exception: Not used
+        """
 
     def before_search_start(self, start_time_ns: int) -> None:
-        pass
+        """Not used.
+
+        Args:
+            start_time_ns: Not used.
+        """
 
     def before_first_search_iteration(self, initial: tsc.TestSuiteChromosome) -> None:
-        pass
+        """Not used.
+
+        Args:
+            initial: Not used.
+        """
 
     def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
-        pass
+        """Not used.
+
+        Args:
+            best: Not used
+        """
 
     def after_search_finish(self) -> None:
-        pass
+        """Not used."""
 
 
 class MaxIterationsStoppingCondition(StoppingCondition):
@@ -143,25 +176,27 @@ class MaxIterationsStoppingCondition(StoppingCondition):
         assert max_iterations > 0.0
         self._max_iterations = max_iterations
 
-    def current_value(self) -> int:
+    def current_value(self) -> int:  # noqa: D102
         return self._num_iterations
 
-    def limit(self) -> int:
+    def limit(self) -> int:  # noqa: D102
         return self._max_iterations
 
-    def is_fulfilled(self) -> bool:
+    def is_fulfilled(self) -> bool:  # noqa: D102
         return self._num_iterations >= self._max_iterations
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: D102
         self._num_iterations = 0
 
-    def set_limit(self, limit: int) -> None:
+    def set_limit(self, limit: int) -> None:  # noqa: D102
         self._max_iterations = limit
 
-    def before_search_start(self, start_time_ns: int) -> None:
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._num_iterations = 0
 
-    def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
         self._num_iterations += 1
 
     def __str__(self):
@@ -182,25 +217,25 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
         assert max_test_executions > 0.0
         self._max_test_executions = max_test_executions
 
-    def current_value(self) -> int:
+    def current_value(self) -> int:  # noqa: D102
         return self._num_executed_tests
 
-    def limit(self) -> int:
+    def limit(self) -> int:  # noqa: D102
         return self._max_test_executions
 
-    def is_fulfilled(self) -> bool:
+    def is_fulfilled(self) -> bool:  # noqa: D102
         return self._num_executed_tests >= self._max_test_executions
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: D102
         self._num_executed_tests = 0
 
-    def set_limit(self, limit: int) -> None:
+    def set_limit(self, limit: int) -> None:  # noqa: D102
         self._max_test_executions = limit
 
-    def before_search_start(self, start_time_ns: int) -> None:
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._num_executed_tests = 0
 
-    def before_test_case_execution(self, test_case: tc.TestCase):
+    def before_test_case_execution(self, test_case: tc.TestCase):  # noqa: D102
         self._num_executed_tests += 1
 
     def __str__(self):
@@ -221,25 +256,25 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
         assert max_executed_statements > 0.0
         self._max_executed_statements = max_executed_statements
 
-    def current_value(self) -> int:
+    def current_value(self) -> int:  # noqa: D102
         return self._num_executed_statements
 
-    def limit(self) -> int:
+    def limit(self) -> int:  # noqa: D102
         return self._max_executed_statements
 
-    def is_fulfilled(self) -> bool:
+    def is_fulfilled(self) -> bool:  # noqa: D102
         return self._num_executed_statements >= self._max_executed_statements
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: D102
         self._num_executed_statements = 0
 
-    def set_limit(self, limit: int) -> None:
+    def set_limit(self, limit: int) -> None:  # noqa: D102
         self._max_executed_statements = limit
 
-    def before_search_start(self, start_time_ns: int) -> None:
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._num_executed_statements = 0
 
-    def before_statement_execution(
+    def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ):
         self._num_executed_statements += 1
@@ -263,22 +298,22 @@ class MaxSearchTimeStoppingCondition(StoppingCondition):
         assert max_seconds > 0.0
         self._max_seconds = max_seconds
 
-    def current_value(self) -> int:
+    def current_value(self) -> int:  # noqa: D102
         return (time.time_ns() - self._start_time) // 1_000_000_000
 
-    def limit(self) -> int:
+    def limit(self) -> int:  # noqa: D102
         return self._max_seconds
 
-    def is_fulfilled(self) -> bool:
+    def is_fulfilled(self) -> bool:  # noqa: D102
         return ((time.time_ns() - self._start_time) / 1_000_000_000) > self._max_seconds
 
-    def reset(self) -> None:
+    def reset(self) -> None:  # noqa: D102
         self._start_time = time.time_ns()
 
-    def set_limit(self, limit: int) -> None:
+    def set_limit(self, limit: int) -> None:  # noqa: D102
         self._max_seconds = limit
 
-    def before_search_start(self, start_time_ns: int) -> None:
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._start_time = start_time_ns
 
     def __str__(self):

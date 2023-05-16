@@ -11,7 +11,6 @@ ifeq ($(STRICT), 1)
 	PIP_COMMAND_FLAG =
 	SECRETS_COMMAND_FLAG =
 	BLACK_COMMAND_FLAG =
-	DARGLINT_COMMAND_FLAG =
 	ISORT_COMMAND_FLAG =
 	MYPY_COMMAND_FLAG =
 else
@@ -19,7 +18,6 @@ else
 	PIP_COMMAND_FLAG = -
 	SECRETS_COMMAND_FLAG = -
 	BLACK_COMMAND_FLAG = -
-	DARGLINT_COMMAND_FLAG = -
 	ISORT_COMMAND_FLAG = -
 	MYPY_COMMAND_FLAG = -
 endif
@@ -46,12 +44,6 @@ ifeq ($(BLACK_STRICT), 1)
 	BLACK_COMMAND_FLAG =
 else ifeq ($(BLACK_STRICT), 0)
 	BLACK_COMMAND_FLAG = -
-endif
-
-ifeq ($(DARGLINT_STRICT), 1)
-	DARGLINT_COMMAND_FLAG =
-else ifeq ($(DARGLINT_STRICT), 0)
-	DARGLINT_COMMAND_FLAG = -
 endif
 
 ifeq ($(ISORT_STRICT), 1)
@@ -87,7 +79,6 @@ check-safety:
 .PHONY: check-style
 check-style:
 	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
-	$(DARGLINT_COMMAND_FLAG)poetry run darglint2 -v 2 src/pynguin/**/*.py
 	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
 	$(MYPY_COMMAND_FLAG)poetry run mypy
 
@@ -103,10 +94,6 @@ test:
 mypy:
 	poetry run mypy
 
-.PHONY: pylint
-pylint:
-	poetry run pylint src/pynguin
-
 .PHONY: ruff
 ruff:
 	poetry run ruff src/pynguin
@@ -119,15 +106,11 @@ isort:
 black:
 	poetry run black .
 
-.PHONY: darglint
-darglint:
-	poetry run darglint2 -v 2 src/pynguin/**/*.py
-
 update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
-check: update-docs-requirements isort black mypy ruff pylint darglint test
+check: update-docs-requirements isort black mypy ruff test
 
 .PHONY: lint
 lint: test check-safety check-style

@@ -31,7 +31,7 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
-C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+C = TypeVar("C", bound=chrom.Chromosome)
 
 
 @dataclass
@@ -66,7 +66,6 @@ class RankedFronts(Generic[C]):
         return len(self.fronts)
 
 
-# pylint: disable=too-few-public-methods
 class RankingFunction(Generic[C], metaclass=ABCMeta):
     """Interface for ranking algorithms."""
 
@@ -92,13 +91,12 @@ class RankingFunction(Generic[C], metaclass=ABCMeta):
         """
 
 
-# pylint: disable=too-few-public-methods
 class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     """Ranks the test cases according to the preference criterion defined for MOSA."""
 
     _logger = logging.getLogger(__name__)
 
-    def compute_ranking_assignment(
+    def compute_ranking_assignment(  # noqa: C901,D102
         self, solutions: list[C], uncovered_goals: OrderedSet[ff.FitnessFunction]
     ) -> RankedFronts:
         if not solutions:

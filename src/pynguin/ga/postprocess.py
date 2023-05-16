@@ -4,9 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""
-Provides chromosome visitors to perform post-processing.
-"""
+"""Provides chromosome visitors to perform post-processing."""
 from __future__ import annotations
 
 import logging
@@ -31,11 +29,15 @@ if TYPE_CHECKING:
 class ExceptionTruncation(cv.ChromosomeVisitor):
     """Truncates test cases after an exception-raising statement."""
 
-    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
-    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
         if chromosome.is_failing():
             chop_position = chromosome.get_last_mutatable_statement()
             if chop_position is not None:
@@ -44,13 +46,14 @@ class ExceptionTruncation(cv.ChromosomeVisitor):
 
 class AssertionMinimization(cv.ChromosomeVisitor):
     """Calculates the checked lines of each assertion.
-    If an assertion does not cover new lines,
-    it is removed from the resulting test case.
+
+    If an assertion does not cover new lines, it is removed from the resulting test
+    case.
     """
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
         self._deleted_assertions: OrderedSet[Assertion] = OrderedSet()
         self._checked_line_numbers: OrderedSet[int] = OrderedSet()
@@ -73,7 +76,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         """
         return self._deleted_assertions
 
-    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
@@ -82,7 +87,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             f"test suite that do not increase checked coverage",
         )
 
-    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
         for stmt in chromosome.test_case.statements:
             to_remove: OrderedSet[Assertion] = OrderedSet()
             for assertion in stmt.assertions:
@@ -111,14 +118,20 @@ class AssertionMinimization(cv.ChromosomeVisitor):
 class TestCasePostProcessor(cv.ChromosomeVisitor):
     """Applies all given visitors to the visited test cases."""
 
-    def __init__(self, test_case_visitors: list[ModificationAwareTestCaseVisitor]):
+    def __init__(  # noqa: D107
+        self, test_case_visitors: list[ModificationAwareTestCaseVisitor]
+    ):
         self._test_case_visitors = test_case_visitors
 
-    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
-    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
         for visitor in self._test_case_visitors:
             chromosome.test_case.accept(visitor)
             if (last_exec := chromosome.get_last_execution_result()) is not None:
@@ -132,7 +145,7 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
 class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
     """Visitor that keep information on modifications."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._deleted_statement_indexes: set[int] = set()
 
     @property
@@ -145,13 +158,12 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         return self._deleted_statement_indexes
 
 
-# pylint:disable=too-few-public-methods
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
     """Removes unused primitive and collection statements."""
 
     _logger = logging.getLogger(__name__)
 
-    def visit_default_test_case(self, test_case) -> None:
+    def visit_default_test_case(self, test_case) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
         primitive_remover = UnusedPrimitiveOrCollectionStatementVisitor()
         size_before = test_case.size()
@@ -169,10 +181,11 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
 
 class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
     """Visits all statements and removes the unused primitives and collections.
+
     Has to visit the statements in reverse order.
     """
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._used_references = set()
         self._deleted_statement_indexes: set[int] = set()
 
@@ -197,56 +210,56 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
         used.discard(stmt.ret_val)
         self._used_references.update(used)
 
-    def visit_int_primitive_statement(self, stmt) -> None:
+    def visit_int_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_float_primitive_statement(self, stmt) -> None:
+    def visit_float_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_complex_primitive_statement(self, stmt) -> None:
+    def visit_complex_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_string_primitive_statement(self, stmt) -> None:
+    def visit_string_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_bytes_primitive_statement(self, stmt) -> None:
+    def visit_bytes_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_boolean_primitive_statement(self, stmt) -> None:
+    def visit_boolean_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_enum_statement(self, stmt) -> None:
+    def visit_enum_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_class_primitive_statement(self, stmt) -> None:
+    def visit_class_primitive_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_none_statement(self, stmt) -> None:
+    def visit_none_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_constructor_statement(self, stmt) -> None:
+    def visit_constructor_statement(self, stmt) -> None:  # noqa: D102
         self._handle_remaining(stmt)
 
-    def visit_method_statement(self, stmt) -> None:
+    def visit_method_statement(self, stmt) -> None:  # noqa: D102
         self._handle_remaining(stmt)
 
-    def visit_function_statement(self, stmt) -> None:
+    def visit_function_statement(self, stmt) -> None:  # noqa: D102
         self._handle_remaining(stmt)
 
-    def visit_field_statement(self, stmt) -> None:
+    def visit_field_statement(self, stmt) -> None:  # noqa: D102
         raise NotImplementedError("No field support yet.")
 
-    def visit_assignment_statement(self, stmt) -> None:
+    def visit_assignment_statement(self, stmt) -> None:  # noqa: D102
         raise NotImplementedError("No field support yet.")
 
-    def visit_list_statement(self, stmt) -> None:
+    def visit_list_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_set_statement(self, stmt) -> None:
+    def visit_set_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_tuple_statement(self, stmt) -> None:
+    def visit_tuple_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
-    def visit_dict_statement(self, stmt) -> None:
+    def visit_dict_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)

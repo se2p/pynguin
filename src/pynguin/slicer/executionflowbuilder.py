@@ -30,13 +30,13 @@ if TYPE_CHECKING:
 
 
 class UniqueInstruction(Instr):
-    """
-    The UniqueInstruction is a representation for concrete occurrences of instructions.
+    """A representation for concrete occurrences of instructions.
+
     It combines multiple information sources, including the corresponding
     instruction in the disassembly.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         file: str,
         name: str,
@@ -48,6 +48,19 @@ class UniqueInstruction(Instr):
         lineno: int | None = None,
         in_slice: bool = False,
     ):
+        """Initializes a unique instruction.
+
+        Args:
+            file: The name of the file where the instruction is from
+            name: The name of the callable where the instruction is from
+            code_object_id: The code object ID containing the instruction
+            node_id: The node ID
+            code_meta: Meta information about the code object
+            offset: The offset of the instruction in the code object
+            arg: Additional arguments
+            lineno: The instruction's line number
+            in_slice: Whether the instruction is part of a slice
+        """
         self.file = file
         if arg is not UNSET:
             super().__init__(name, arg, lineno=lineno)
@@ -141,8 +154,9 @@ class UniqueInstruction(Instr):
 
 
 @dataclass
-class LastInstrState:  # pylint: disable=too-many-instance-attributes
-    """
+class LastInstrState:
+    """The state at the last instruction.
+
     When the execution flow is reconstructed with traced instructions there are some
     events which can happen between instructions, e.g. a switch to a different code
     object with a function call.
@@ -165,10 +179,8 @@ class LastInstrState:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class ExecutionFlowBuilderState:  # pylint: disable=too-many-instance-attributes
-    """Holds the configuration and state of the execution flow builder
-    while determining the last instruction executed.
-    """
+class ExecutionFlowBuilderState:
+    """Holds the configuration and state of the execution flow builder."""
 
     bb_id: int
     co_id: int
@@ -183,11 +195,10 @@ class ExecutionFlowBuilderState:  # pylint: disable=too-many-instance-attributes
 
 
 class ExecutionFlowBuilder:
-    """
-    The ExecutionFlowBuilder reconstructs the execution flow of a program run
-    (backwards!) with the help of an execution trace.
-    The trace must contain instructions relevant for the control flow of the specific
-    execution.
+    """The ExecutionFlowBuilder reconstructs the execution flow of a program run.
+
+    It does so in a backwards direction with the help of an execution trace.  The trace
+    must contain instructions relevant for the control flow of the specific execution.
 
     Note: The solution here is designed to provide a last instruction whenever possible.
     That means, whenever there is an unexpected mismatch between expected and real last
@@ -200,6 +211,12 @@ class ExecutionFlowBuilder:
         trace: ExecutionTrace,
         known_code_objects: dict[int, CodeObjectMetaData],
     ):
+        """Initializes the builder.
+
+        Args:
+            trace: The execution trace
+            known_code_objects: A dictionary of known code object data
+        """
         self.trace = trace
         self.known_code_objects = known_code_objects
 
@@ -244,7 +261,7 @@ class ExecutionFlowBuilder:
             efb_state.offset,
         )
 
-    def get_last_instruction(  # pylint: disable=too-many-arguments
+    def get_last_instruction(
         self,
         file: str,
         instr: Instr,
@@ -254,8 +271,7 @@ class ExecutionFlowBuilder:
         bb_id: int,
         import_instr: UniqueInstruction | None = None,
     ) -> LastInstrState:
-        """
-        Look for the last instruction that must have been executed before ``instr``.
+        """Look for the last instruction that must have been executed before ``instr``.
 
         Args:
             file: File of parameter instr
@@ -340,7 +356,7 @@ class ExecutionFlowBuilder:
             import_back_call=efb_state.import_back_call,
         )
 
-    def _determine_last_instruction(  # pylint: disable=too-many-arguments
+    def _determine_last_instruction(
         self,
         efb_state: ExecutionFlowBuilderState,
         basic_block,
@@ -380,7 +396,7 @@ class ExecutionFlowBuilder:
                 last_instr = self._continue_at_last_basic_block(efb_state)
         return last_instr
 
-    def _handle_return_instructions(  # pylint: disable=too-many-arguments
+    def _handle_return_instructions(
         self,
         efb_state: ExecutionFlowBuilderState,
         instr,
@@ -472,7 +488,7 @@ class ExecutionFlowBuilder:
             efb_state.exception = True
         return last_instr
 
-    def _create_unique_instruction(  # pylint: disable=too-many-arguments
+    def _create_unique_instruction(
         self, module: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         code_meta = self.known_code_objects.get(code_object_id)
@@ -555,8 +571,9 @@ class ExecutionFlowBuilder:
     def _get_basic_block(
         self, code_object_id: int, basic_block_id: int
     ) -> tuple[list[Instr], int]:
-        """Locates the basic block in CFG to which the current state
-        (i.e. the last instruction) belongs.
+        """Locates the basic block in CFG to which the current state belongs.
+
+        The current state is defined by the last instruction.
 
         Args:
             code_object_id: the code object to look inside of
@@ -598,8 +615,7 @@ class ExecutionFlowBuilder:
     def locate_in_basic_block(
         instr: Instr, instr_offset: int, basic_block: list[Instr], bb_offset: int
     ) -> int:
-        """Searches for the location (that is the index) of the
-        instruction in the given basic block.
+        """Searches for the location, i.e., the index of the instruction in basic block.
 
         Args:
             instr: Instruction to be searched for

@@ -4,3 +4,4 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Provides analyses on the SUT needed by Pynguin."""

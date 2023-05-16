@@ -127,7 +127,7 @@ def is_bytes(value: Any) -> bool:
     Returns:
         Whether or not the given value is of type bytes or bytearray
     """
-    return isinstance(value, (bytes, bytearray))
+    return isinstance(value, bytes | bytearray)
 
 
 def is_list(typ: type) -> bool:
@@ -191,8 +191,7 @@ def is_enum(value: Any) -> bool:
 
 
 def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
-    """Check if we can generate an assertion with the given object as an
-    exact comparison value.
+    """Returns whether we can generate an assertion using an exact comparison value.
 
     Primitives (except float) are assertable.
     Enum values are assertable.
@@ -260,7 +259,9 @@ def get_class_that_defined_method(method: object) -> object | None:
 
 
 def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:
-    """There are some parameter types (*args, **kwargs, parameters with default) that
+    """Returns, whether a parameter is optional.
+
+    There are some parameter types (*args, **kwargs, parameters with default) that
     are optional.
 
     This is a simple utility method to check if the given parameter is optional.
@@ -284,7 +285,9 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
 
 
 def given_exception_matches(err, exc) -> bool:
-    """This is a naive approach to figure out if an exception matches, similar to
+    """Returns whether a raised exception matches an exception class.
+
+    This is a naive approach to figure out if an exception matches, similar to
     what CPython does here:
     https://github.com/python/cpython/blob/ae3c66acb89a6104fcd0eea760f80a0287327cc4/Python/errors.c#L231.
 

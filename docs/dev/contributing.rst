@@ -78,8 +78,7 @@ We use the following tools and checks:
 - `isort`_ for import ordering
 - `black`_ for code formatting
 - `mypy`_ for type checking
-- `flake8`_ and `pylint`_ for code linting
-- `darglint`_ to lint the docstrings
+- `ruff`_ for static code analyses
 
 Before Submitting
 ^^^^^^^^^^^^^^^^^
@@ -128,6 +127,4 @@ If you want to use the PyCharm IDE you have to set up a few things:
 .. _`Google Python Style Guide`: https://google.github.io/styleguide/pyguide.html
 .. _pytest: https://pytest.org/
 .. _mypy: http://mypy-lang.org
-.. _flake8: https://flake8.pycqa.org
-.. _pylint: https://pylint.pycqa.org
-.. _darglint: https://github.com/terrencepreilly/darglint
+.. _ruff: https://beta.ruff.rs/docs/

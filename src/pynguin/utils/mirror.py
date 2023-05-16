@@ -9,11 +9,11 @@
 
 class Mirror(dict):
     """A dictionary that returns each key as its value.
-    e.g.
-    mirror = Mirror()
-    assert mirror[5] == 5.
+
+    >>> mirror = Mirror()
+    >>> assert mirror[5] == 5.
     """
 
-    def __missing__(self, item):
+    def __missing__(self, item):  # noqa: D105
         self[item] = item
         return item

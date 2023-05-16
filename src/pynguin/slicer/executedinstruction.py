@@ -71,8 +71,7 @@ class ExecutedMemoryInstruction(ExecutedInstruction):
 
 @dataclass(frozen=True)
 class ExecutedAttributeInstruction(ExecutedInstruction):
-    """
-    Represents an executed instructions which accessed an attribute.
+    """Represents an executed instructions which accessed an attribute.
 
     We prepend each accessed attribute with the address of the object the attribute
     is taken from. This allows to build correct def-use pairs during backward traversal.
@@ -84,8 +83,7 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
 
     @property
     def combined_attr(self):
-        """Format the source address and the argument
-        for an ExecutedAttributeInstruction.
+        """Format the source address and the argument for an instruction.
 
         Returns:
             A string representation of the attribute in memory

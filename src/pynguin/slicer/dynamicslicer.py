@@ -47,18 +47,18 @@ if TYPE_CHECKING:
 
 @dataclass
 class SlicingCriterion:
-    """Slicing criterion data class holding the instruction
-    and position in the trace to slice for.
-    """
+    """The slicing criterion, consists of instruction and position in the trace."""
 
     unique_instr: UniqueInstruction
     trace_position: int
 
 
 @dataclass
-class SlicingContext:  # pylint: disable=too-many-instance-attributes
-    """Data class storing all defined and used variables as well as instructions
-    used at one point during the slicing.
+class SlicingContext:
+    """Stores the slicing context.
+
+    The context consists of all defined and used variables, as well as instructions used
+    at one point during slicing.
     """
 
     # Instructions included in the slice
@@ -83,9 +83,10 @@ class SlicingContext:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class SlicingState:  # pylint: disable=too-many-instance-attributes
-    """Holds the configuration and state of the dynamic slicing process
-    for each analysed instruction.
+class SlicingState:
+    """Holds the configuration and state of the dynamic slicing process.
+
+    The state is tracked for each analysed instruction.
     """
 
     basic_block_id: int
@@ -136,9 +137,14 @@ class DynamicSlicer:
         self,
         known_code_objects: dict[int, CodeObjectMetaData],
     ):
+        """Initializes the dynamic slicer.
+
+        Args:
+            known_code_objects: A dictionary of code object data
+        """
         self._known_code_objects = known_code_objects
 
-    def slice(  # pylint: disable=too-many-branches, too-many-locals
+    def slice(  # noqa: C901
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
@@ -276,7 +282,7 @@ class DynamicSlicer:
         self._update_stack_effects(last_state, last_unique_instr, slc)
         return prev_import_back_call
 
-    def _trace_housekeeping(  # pylint: disable=too-many-arguments
+    def _trace_housekeeping(
         self, criterion_in_slice, include_use, last_traced_instr, last_unique_instr, slc
     ):
         # Add instruction to slice
@@ -405,11 +411,10 @@ class DynamicSlicer:
 
         raise InstructionNotFoundException
 
-    def create_unique_instruction(  # pylint: disable=too-many-arguments
+    def create_unique_instruction(
         self, file: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
-        """Creates and returns a unique instruction object from an instruction,
-        the code object id, the node id and the offset of the instruction.
+        """Creates and returns a unique instruction object from an instruction.
 
         Args:
             file: the file name which contains the instruction
@@ -439,8 +444,7 @@ class DynamicSlicer:
         unique_instr: UniqueInstruction,
         code_object_id: int,
     ) -> bool:
-        """Check if the given unique instruction has a control dependency from the
-        slicing context.
+        """Check if the given instruction has a control dependency from the context.
 
         Args:
             context: the slicing context
@@ -503,8 +507,7 @@ class DynamicSlicer:
     def get_node(
         node_id: int, graph: ControlDependenceGraph | CFG
     ) -> ProgramGraphNode | None:
-        """Iterate through all nodes of the graph and return the node
-        with the given id.
+        """Iterate through all nodes of the graph and return the node with the given id.
 
         Args:
             node_id: the node id to find inside the given graph
@@ -519,14 +522,13 @@ class DynamicSlicer:
                 return node
         return None
 
-    def check_explicit_data_dependency(
+    def check_explicit_data_dependency(  # noqa: C901
         self,
         context: SlicingContext,
         unique_instr: UniqueInstruction,
         traced_instr: ExecutedInstruction | None,
     ) -> tuple[bool, set[str]]:
-        """Analyses the explicit data dependencies from one instruction to another
-        instruction.
+        """Analyses the explicit data dependencies from one instruction to another.
 
         Args:
             context: The slicing context used in the analyses
@@ -798,8 +800,9 @@ class DynamicSlicer:
     def map_instructions_to_lines(
         instructions: list[UniqueInstruction], subject_properties: SubjectProperties
     ) -> set[int]:
-        """Map the list of instructions in a slice to a set of lines of the module
-        under test. Instructions of the test case statements are ignored.
+        """Map the list of instructions in a slice to a set of lines of the SUT.
+
+        Instructions of the test case statements are ignored.
 
         Args:
             instructions: list of unique instructions
@@ -824,16 +827,21 @@ class DynamicSlicer:
         return line_ids
 
 
-# pylint:disable=too-few-public-methods
 class AssertionSlicer:
-    """Holds all logic of slicing traced assertions to generate the
-    dynamic slice produced by a test.
+    """Holds all logic of slicing traced assertions.
+
+    Generates the dynamic slice produced by a test.
     """
 
     def __init__(
         self,
         known_code_objects: dict[int, CodeObjectMetaData],
     ):
+        """Initializes the slicer.
+
+        Args:
+            known_code_objects: The dictionary of code object data
+        """
         self._known_code_objects = known_code_objects
 
     def _slicing_criterion_from_assertion(

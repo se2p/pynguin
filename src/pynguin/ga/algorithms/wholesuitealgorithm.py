@@ -29,17 +29,16 @@ if TYPE_CHECKING:
 # also create another subclass?
 
 
-# pylint: disable=too-few-public-methods
 class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._population: list[tsc.TestSuiteChromosome] = []
 
-    def generate_tests(
+    def generate_tests(  # noqa: D102
         self,
     ) -> tsc.TestSuiteChromosome:
         self.before_search_start()

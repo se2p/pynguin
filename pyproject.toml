@@ -62,12 +62,10 @@ requests = "^2.30.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
-darglint2 = "^1.8.2"
 flake8 = "^6.0.0"
 isort = {extras = ["pyproject"], version = "^5.12.0"}
 mypy = "^1.3.0"
 pre-commit = "^3.3.1"
-pylint = "^2.17.4"
 pyupgrade = "^3.4.0"
 types-requests = "^2.30.0.0"
 requests-mock = "^1.10.0"
@@ -174,14 +172,22 @@ build-backend = "poetry.core.masonry.api"
 
 
 [tool.ruff]
+# Assume Python 3.10.
+target-version = "py310"
 line-length = 88
-
-select = ["E", "F", "W", "T20"]
-
-ignore = ["E999"]
-# E999: Pattern matching currently not supported.
-
-
+src = ["src"]
+select = [
+  "C90",  # mccabe
+  "D",  # pydocstyle
+  "E",  # pycodestyle
+  "F",  # pyflakes
+  "UP",  # pyupgrade
+  "W",  # pycodestyle
+  "T20",
+]
+ignore = [
+  "D105",  # do not complain due to missing docstrings in magic methods
+]
 # Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
@@ -205,13 +211,12 @@ exclude = [
     "venv",
 ]
 per-file-ignores = {}
-
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-# Assume Python 3.10.
-target-version = "py310"
 
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
+
+[tool.ruff.pydocstyle]
+convention = "google"

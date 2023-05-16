@@ -24,10 +24,9 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
 
 
-class TestCaseChromosomeFactory(
-    cf.ChromosomeFactory[tcc.TestCaseChromosome]
-):  # pylint:disable=too-few-public-methods.
+class TestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):
     """A factory that creates test case chromosomes using the given test case factory.
+
     Also add the given fitness functions to the newly created test case chromosome.
     """
 
@@ -50,7 +49,7 @@ class TestCaseChromosomeFactory(
         self._test_case_factory = test_case_factory
         self._fitness_functions = fitness_functions
 
-    def get_chromosome(self) -> tcc.TestCaseChromosome:
+    def get_chromosome(self) -> tcc.TestCaseChromosome:  # noqa: D102
         test_case = self._test_case_factory.get_test_case()
         chrom = tcc.TestCaseChromosome(
             test_case=test_case, test_factory=self._test_factory
@@ -62,12 +61,13 @@ class TestCaseChromosomeFactory(
 
 class ArchiveReuseTestCaseChromosomeFactory(
     cf.ChromosomeFactory[tcc.TestCaseChromosome]
-):  # pylint:disable=too-few-public-methods.
-    """Provides test case chromosomes from an archive with some probability,
-    otherwise delegates to wrapped chromosome factory.
+):
+    """Provides test case chromosomes from an archive with some probability.
+
+    Otherwise, delegates to wrapped chromosome factory.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         delegate: cf.ChromosomeFactory[tcc.TestCaseChromosome],
         archive: arch.Archive,
@@ -75,7 +75,7 @@ class ArchiveReuseTestCaseChromosomeFactory(
         self._delegate = delegate
         self._archive = archive
 
-    def get_chromosome(self) -> tcc.TestCaseChromosome:
+    def get_chromosome(self) -> tcc.TestCaseChromosome:  # noqa: D102
         pick_from = self._archive.solutions
         if (
             len(pick_from) > 0

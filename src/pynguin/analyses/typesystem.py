@@ -66,11 +66,12 @@ T = TypeVar("T")
 class ProperType(ABC):
     """Base class for all types. Might have to add another layer, like mypy's Type?.
 
-    All subclasses of this class are immutable."""
+    All subclasses of this class are immutable.
+    """
 
     @abstractmethod
     def accept(self, visitor: TypeVisitor[T]) -> T:
-        """Accept a type visitor
+        """Accept a type visitor.
 
         Args:
             visitor: the visitor
@@ -87,9 +88,9 @@ class ProperType(ABC):
 
 
 class AnyType(ProperType):
-    """The Any Type"""
+    """The Any Type."""
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_any_type(self)
 
     def __hash__(self):
@@ -100,9 +101,9 @@ class AnyType(ProperType):
 
 
 class NoneType(ProperType):
-    """The None type"""
+    """The None type."""
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_none_type(self)
 
     def __hash__(self):
@@ -114,10 +115,13 @@ class NoneType(ProperType):
 
 class Instance(ProperType):
     """An instance type of form C[T1, ..., Tn].
-    C is a class.
-    Args can be empty."""
 
-    def __init__(self, typ: TypeInfo, args: tuple[ProperType, ...] | None = None):
+    C is a class.  Args can be empty.
+    """
+
+    def __init__(  # noqa: D107
+        self, typ: TypeInfo, args: tuple[ProperType, ...] | None = None
+    ):
         assert typ.raw_type is not tuple, "Use TupleType instead!"
         self.type = typ
         if args is None:
@@ -126,7 +130,7 @@ class Instance(ProperType):
         # Cached hash value
         self._hash: int | None = None
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_instance(self)
 
     def __hash__(self):
@@ -144,16 +148,20 @@ class Instance(ProperType):
 
 class TupleType(ProperType):
     """Tuple type Tuple[T1, ..., Tn].
-    Note that tuple is a special case and intentionally not
-    `Instance(TypeInfo(tuple))` because tuple is varargs generic."""
 
-    def __init__(self, args: tuple[ProperType, ...], unknown_size: bool = False):
+    Note that tuple is a special case and intentionally not
+    `Instance(TypeInfo(tuple))` because tuple is varargs generic.
+    """
+
+    def __init__(  # noqa: D107
+        self, args: tuple[ProperType, ...], unknown_size: bool = False
+    ):
         self.args: Final[tuple[ProperType, ...]] = args
         self.unknown_size: Final[bool] = unknown_size
         # Cached hash value
         self._hash: int | None = None
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_tuple_type(self)
 
     def __hash__(self):
@@ -172,14 +180,14 @@ class TupleType(ProperType):
 class UnionType(ProperType):
     """The union type Union[T1, ..., Tn] (at least one type argument)."""
 
-    def __init__(self, items: tuple[ProperType, ...]):
+    def __init__(self, items: tuple[ProperType, ...]):  # noqa: D107
         self.items: Final[tuple[ProperType, ...]] = items
         # TODO(fk) think about flattening Unions, also order should not matter.
         assert len(self.items) > 0
         # Cached hash value
         self._hash: int | None = None
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_union_type(self)
 
     def __hash__(self):
@@ -192,9 +200,12 @@ class UnionType(ProperType):
 
 
 class Unsupported(ProperType):
-    """Artificial type which represents a type that is currently not supported by
+    """Marks an unsupported type in the type system.
+
+    Artificial type which represents a type that is currently not supported by
     our type abstraction. This is purely used for statistic purposes and should not
-    be encountered during regular use."""
+    be encountered during regular use.
+    """
 
     def __eq__(self, other):
         return isinstance(other, Unsupported)
@@ -202,7 +213,7 @@ class Unsupported(ProperType):
     def __hash__(self):
         return hash(Unsupported)
 
-    def accept(self, visitor: TypeVisitor[T]) -> T:
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_unsupported_type(self)
 
 
@@ -214,14 +225,16 @@ UNSUPPORTED = Unsupported()
 
 class TypeVisitor(Generic[T]):
     """A type visitor.
+
     Note that the parameter of the visit_* methods is called 'left',
     because it makes the implementations of _SubTypeVisitor and _MaybeSubTypeVisitor
     more clear and Python does not like changing the names of parameters in subclasses,
-    thus we renamed them in this class."""
+    thus we renamed them in this class.
+    """
 
     @abstractmethod
     def visit_any_type(self, left: AnyType) -> T:
-        """Visit the Any type
+        """Visit the Any type.
 
         Args:
             left: the Any type
@@ -232,7 +245,7 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_none_type(self, left: NoneType) -> T:
-        """Visit the None type
+        """Visit the None type.
 
         Args:
             left: the None type
@@ -243,7 +256,7 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_instance(self, left: Instance) -> T:
-        """Visit an instance
+        """Visit an instance.
 
         Args:
             left: instance
@@ -254,7 +267,7 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_tuple_type(self, left: TupleType) -> T:
-        """Visit a tuple type
+        """Visit a tuple type.
 
         Args:
             left: tuple
@@ -265,7 +278,7 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_union_type(self, left: UnionType) -> T:
-        """Visit a union
+        """Visit a union.
 
         Args:
             left: union
@@ -276,7 +289,7 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_unsupported_type(self, left: Unsupported) -> T:
-        """Visit unsupported type
+        """Visit unsupported type.
 
         Args:
             left: unsupported
@@ -293,30 +306,25 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
         self.right = right
 
     def visit_any_type(self, left: AnyType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         # Any is not guessed/recorded
         return None
 
     def visit_none_type(self, left: NoneType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         if isinstance(self.right, NoneType):
             return NONE_TYPE
         return None
 
     def visit_instance(self, left: Instance) -> ProperType | None:
-        # pylint:disable=missing-function-docstring
         if isinstance(self.right, Instance) and left.type == self.right.type:
             return Instance(left.type)
         return None
 
     def visit_tuple_type(self, left: TupleType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         if isinstance(self.right, TupleType):
             return TupleType(())
         return None
 
     def visit_union_type(self, left: UnionType) -> ProperType | None:
-        # pylint:disable=missing-function-docstring
         matches: tuple[ProperType, ...] = tuple(
             elem
             for elem in (
@@ -330,13 +338,13 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
         return None
 
     def visit_unsupported_type(self, left: Unsupported) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         # Cannot compare.
         return None
 
 
 def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | None:
     """Is left a partial type match of right?
+
     This is only useful for statistics purposes, i.e., do we have a fuzzy type match?
 
     Args:
@@ -369,67 +377,68 @@ def _is_partial_type_match(left: ProperType, right: ProperType) -> ProperType | 
 class TypeStringVisitor(TypeVisitor[str]):
     """A simple visitor to convert a proper type to a string."""
 
-    def visit_any_type(self, left: AnyType) -> str:
+    def visit_any_type(self, left: AnyType) -> str:  # noqa: D102
         return "Any"
 
-    def visit_none_type(self, left: NoneType) -> str:
+    def visit_none_type(self, left: NoneType) -> str:  # noqa: D102
         return "None"
 
-    def visit_instance(self, left: Instance) -> str:
+    def visit_instance(self, left: Instance) -> str:  # noqa: D102
         rep = left.type.name if left.type.module == "builtins" else left.type.full_name
         if len(left.args) > 0:
             rep += "[" + self._sequence_str(left.args) + "]"
         return rep
 
-    def visit_tuple_type(self, left: TupleType) -> str:
+    def visit_tuple_type(self, left: TupleType) -> str:  # noqa: D102
         rep = "tuple"
         if len(left.args) > 0:
             rep += "[" + self._sequence_str(left.args) + "]"
         return rep
 
-    def visit_union_type(self, left: UnionType) -> str:
+    def visit_union_type(self, left: UnionType) -> str:  # noqa: D102
         if len(left.items) == 1:
             return left.items[0].accept(self)
         return self._sequence_str(left.items, sep=" | ")
 
-    def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:
+    def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:  # noqa: D102
         return sep.join(t.accept(self) for t in typs)
 
-    def visit_unsupported_type(self, left: Unsupported) -> str:
+    def visit_unsupported_type(self, left: Unsupported) -> str:  # noqa: D102
         return "<?>"
 
 
 class TypeReprVisitor(TypeVisitor[str]):
     """A simple visitor to create a repr from a proper type."""
 
-    def visit_any_type(self, left: AnyType) -> str:
+    def visit_any_type(self, left: AnyType) -> str:  # noqa: D102
         return "AnyType()"
 
-    def visit_none_type(self, left: NoneType) -> str:
+    def visit_none_type(self, left: NoneType) -> str:  # noqa: D102
         return "NoneType()"
 
-    def visit_instance(self, left: Instance) -> str:
+    def visit_instance(self, left: Instance) -> str:  # noqa: D102
         rep = f"Instance({left.type!r}"
         if len(left.args) > 0:
             rep += "(" + self._sequence_str(left.args) + ")"
         return rep + ")"
 
-    def visit_tuple_type(self, left: TupleType) -> str:
+    def visit_tuple_type(self, left: TupleType) -> str:  # noqa: D102
         return f"TupleType({self._sequence_str(left.args)})"
 
-    def visit_union_type(self, left: UnionType) -> str:
+    def visit_union_type(self, left: UnionType) -> str:  # noqa: D102
         return f"UnionType({self._sequence_str(left.items)})"
 
     def _sequence_str(self, typs: Sequence[ProperType]) -> str:
         return ", ".join(t.accept(self) for t in typs)
 
-    def visit_unsupported_type(self, left: Unsupported) -> str:
+    def visit_unsupported_type(self, left: Unsupported) -> str:  # noqa: D102
         return "Unsupported()"
 
 
 class _SubtypeVisitor(TypeVisitor[bool]):
-    """A visitor to check the subtyping relationship between two types, i.e.,
-    is left a subtype of right?
+    """A visitor to check the subtyping relationship between two types.
+
+    Checks whether left is a subtype of right.
 
     There is no need to check 'right' for AnyType, as this is done outside.
     """
@@ -440,7 +449,7 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         right: ProperType,
         sub_type_check: Callable[[ProperType, ProperType], bool],
     ):
-        """Create new visitor
+        """Create new visitor.
 
         Args:
             graph: The inheritance graph.
@@ -451,11 +460,11 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         self.right = right
         self.sub_type_check = sub_type_check
 
-    def visit_any_type(self, left: AnyType) -> bool:  # pylint:disable=unused-argument
+    def visit_any_type(self, left: AnyType) -> bool:
         # Any wins always
         return True
 
-    def visit_none_type(self, left: NoneType) -> bool:  # pylint:disable=unused-argument
+    def visit_none_type(self, left: NoneType) -> bool:
         # None cannot be subtyped
         # TODO(fk) handle protocols, e.g., hashable.
         return isinstance(self.right, NoneType)
@@ -502,8 +511,10 @@ class _SubtypeVisitor(TypeVisitor[bool]):
 
 class _MaybeSubtypeVisitor(_SubtypeVisitor):
     """A weaker subtype check, which only checks if left may be a subtype of right.
+
     For example, tuple[str | int | bytes, str | int | bytes] is not a subtype of
-    tuple[int, int], but the actual return value may be."""
+    tuple[int, int], but the actual return value may be.
+    """
 
     def visit_union_type(self, left: UnionType) -> bool:
         return any(
@@ -564,10 +575,11 @@ class _PrimitiveTypeVisitor(TypeVisitor[bool]):
 is_primitive_type = _PrimitiveTypeVisitor()
 
 
-# pylint:disable=too-many-instance-attributes
 class TypeInfo:
     """A small wrapper around type, i.e., classes.
-    Corresponds 1:1 to a class."""
+
+    Corresponds 1:1 to a class.
+    """
 
     def __init__(self, raw_type: type):
         """Create type info from the given type.
@@ -600,7 +612,7 @@ class TypeInfo:
 
     @staticmethod
     def to_full_name(typ: type) -> str:
-        """Get the full name of the given type
+        """Get the full name of the given type.
 
         Args:
             typ: The type for which we want a full name.
@@ -621,8 +633,11 @@ class TypeInfo:
 
 
 class NamedDefaultDict(dict[str, tt.UsageTraceNode]):
-    """Default dict which automatically creates a UsageTraceNode for each requested
-    and non-existing key."""
+    """A default dictionary that automatically creates nodes for keys.
+
+    Default dict which automatically creates a UsageTraceNode for each requested
+    and non-existing key.
+    """
 
     def __missing__(self, key):
         # Create node for missing attribute
@@ -686,6 +701,7 @@ class InferredSignature:
         self, signature_memo: dict[InferredSignature, dict[str, ProperType]]
     ) -> dict[str, ProperType]:
         """Get a possible type signature for the parameters.
+
         This method may choose a random type signature, or return the original one or
         create one based on the observed knowledge.
 
@@ -769,7 +785,6 @@ class InferredSignature:
             # append current
             old.append(guessed)
 
-    # pylint:disable=too-many-return-statements
     def _guess_parameter_type(
         self, knowledge: tt.UsageTraceNode, kind
     ) -> ProperType | None:
@@ -847,7 +862,6 @@ class InferredSignature:
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
     _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
 
-    # pylint:disable=invalid-name
     # Similar to above, but these are not dunder methods but are called,
     # e.g., for 'append', we need to search for 'append.__call__(...)'
     _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
@@ -888,7 +902,6 @@ class InferredSignature:
             self.type_system.find_by_attribute(random_attribute)
         )
 
-    # pylint:disable=too-many-return-statements
     def _guess_parameter_type_from(
         self, knowledge: tt.UsageTraceNode, recursion_depth: int = 0
     ) -> ProperType | None:
@@ -1012,7 +1025,6 @@ class InferredSignature:
                 )
         return self.type_system.make_instance(randomness.choice(positive_types))
 
-    # pylint:disable-next=too-many-arguments
     def _guess_generic_arguments(
         self,
         knowledge: tt.UsageTraceNode,
@@ -1100,11 +1112,11 @@ class InferredSignature:
             )
         return None
 
-    def log_stats_and_guess_signature(
+    def log_stats_and_guess_signature(  # noqa: C901
         self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
     ) -> None:
-        # pylint:disable=too-many-locals
         """Logs some statistics and creates a guessed signature.
+
         Parameters annotated with Any could not be guessed.
 
         Parameters:
@@ -1190,14 +1202,16 @@ class InferredSignature:
                 )
 
 
-class TypeSystem:  # pylint:disable=too-many-public-methods
-    """Provides a simple inheritance graph relating various classes using their subclass
+class TypeSystem:
+    """Implements Pynguin's internal type system.
+
+    Provides a simple inheritance graph relating various classes using their subclass
     relationships. Note that parents point to their children.
 
     This is also the central system to store/handle type information.
     """
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._graph = nx.DiGraph()
         # Maps all known types from their full name to their type info.
         self._types: dict[str, TypeInfo] = {}
@@ -1421,7 +1435,9 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         return list(self._types.values())
 
     def push_attributes_down(self) -> None:
-        """We don't want to see attributes multiple times, e.g., in subclasses, so only
+        """Pushes attributes down in hierarchy.
+
+        We don't want to see attributes multiple times, e.g., in subclasses, so only
         the first class in the hierarchy which adds the attribute should have it listed
         as an attribute, i.e., when searching for a class with that attribute we only
         want to retrieve the top-most class(es) in the hierarchy which define it,
@@ -1457,7 +1473,9 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
                 self._attribute_map[attribute].add(type_info)
 
     def wrap_var_param_type(self, typ: ProperType, param_kind) -> ProperType:
-        """Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
+        """Wrap parameter types.
+
+        Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
         respectively.
 
         Args:
@@ -1558,7 +1576,6 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         Returns:
             The inference result
         """
-        # pylint:disable=too-many-locals
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
@@ -1635,7 +1652,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         glob: dict[str, Any] = {}
         # Make sure typing constructs are available
-        # pylint: disable=exec-used
+
         exec("from typing import *", glob)  # nosec
         # Make globals from module available
         glob.update(globs)
@@ -1648,9 +1665,8 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             potential_import = potential_type.group(0).rpartition(".")[0]
             _LOGGER.info("Try to import %s", potential_import)
             try:
-                # pylint: disable=exec-used
                 exec("import " + potential_import, glob)  # nosec
-            except Exception:  # pylint:disable=broad-except
+            except Exception:
                 # Well...
                 pass
         # If a type cannot be build from this info, there is not much we can do.
@@ -1658,13 +1674,14 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             # (Ab)use typing module
             ref = ForwardRef(candidate)
             return self.convert_type_hint(_eval_type(ref, glob, glob))
-        except Exception:  # pylint:disable=broad-except
+        except Exception:
             # Give up?
             return ANY
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:
-        # pylint:disable=too-many-return-statements
-        """Python's builtin functionality makes handling types during runtime really
+        """Converts a type hint to a proper type.
+
+        Python's builtin functionality makes handling types during runtime really
         hard, because 1) this is not intended to be used at runtime and 2) there are a
         lot of different notations, due to the constantly evolving type hint system.
         We also cannot easily use mypy's type abstraction because it is 1) strongly
@@ -1711,7 +1728,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
                     sorted(self.__convert_args_if_exists(hint, unsupported=unsupported))
                 )
             )
-        if isinstance(hint, (_BaseGenericAlias, types.GenericAlias)):
+        if isinstance(hint, _BaseGenericAlias | types.GenericAlias):
             # list[int, str] or List[int, str] or Dict[int, str] or set[str]
             result = Instance(
                 self.to_type_info(hint.__origin__),

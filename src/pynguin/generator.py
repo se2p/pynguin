@@ -124,7 +124,9 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
 
 
 def _setup_path() -> bool:
-    """Inserts the path to the SUT into the path list, installs the import hook and
+    """Set up the run-time path.
+
+    Inserts the path to the SUT into the path list, installs the import hook and
     tries to load the SUT.
 
     Returns:
@@ -372,18 +374,20 @@ def _reset_cache_for_result(generation_result):
 
 
 def _track_final_metrics(
-    algortihm,
+    algorithm,
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
     constant_provider: ConstantProvider,
 ) -> set[config.CoverageMetric]:
-    """
+    """Track the final coverage metrics.
+
     Re-loads all required instrumentations for metrics that were not already
     calculated and tracked during the result generation.
     These metrics are then also calculated on the result, which is executed
     once again with the new instrumentation.
 
     Args:
+        algorithm: the used test-generation algorithm
         executor: the testcase executor of the run
         generation_result: the generated testsuite containing assertions
         constant_provider: the constant provider required for the
@@ -392,8 +396,6 @@ def _track_final_metrics(
     Returns:
         The set of tracked coverage metrics, including the ones that we optimised for.
     """
-    # pylint:disable=too-many-locals
-
     output_variables = config.configuration.statistics_output.output_variables
     # Alias for shorter lines
     cov_metrics = config.configuration.statistics_output.coverage_metrics
@@ -402,7 +404,7 @@ def _track_final_metrics(
     to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
 
     _add_additional_metrics(
-        algortihm,
+        algorithm,
         cov_metrics,
         executor,
         metrics_for_reinstrumenation,
@@ -466,7 +468,6 @@ def _add_additional_metrics(
     output_variables,
     to_calculate,
 ):
-    # pylint:disable=too-many-arguments
     if (
         RuntimeVariable.FinalLineCoverage in output_variables
         and config.CoverageMetric.LINE not in cov_metrics
@@ -611,6 +612,7 @@ def _track_search_metrics(
     coverage_metrics: list[config.CoverageMetric],
 ) -> None:
     """Track multiple set coverage metrics of the generated test suites.
+
     This possibly re-executes the test suites.
 
     Args:

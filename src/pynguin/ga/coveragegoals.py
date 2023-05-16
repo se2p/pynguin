@@ -26,11 +26,10 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import SubjectProperties
 
 
-# pylint:disable=too-few-public-methods
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         code_object_id: int,
     ):
@@ -60,7 +59,7 @@ class AbstractCoverageGoal:
 class LineCoverageGoal(AbstractCoverageGoal):
     """Line to be covered by the search as goal."""
 
-    def __init__(self, code_object_id: int, line_id: int):
+    def __init__(self, code_object_id: int, line_id: int):  # noqa: D107
         super().__init__(code_object_id)
         self._line_id = line_id
 
@@ -73,7 +72,7 @@ class LineCoverageGoal(AbstractCoverageGoal):
         """
         return self._line_id
 
-    def is_covered(self, result: ExecutionResult) -> bool:
+    def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._line_id in result.execution_trace.covered_line_ids
 
     def __str__(self) -> str:
@@ -96,7 +95,7 @@ class LineCoverageGoal(AbstractCoverageGoal):
 class CheckedCoverageGoal(AbstractCoverageGoal):
     """Line to be checked covered by the search as goal."""
 
-    def __init__(self, code_object_id: int, line_id: int):
+    def __init__(self, code_object_id: int, line_id: int):  # noqa: D107
         super().__init__(code_object_id)
         self._line_id = line_id
 
@@ -109,7 +108,7 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
         """
         return self._line_id
 
-    def is_covered(self, result: ExecutionResult) -> bool:
+    def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._line_id in result.execution_trace.checked_lines
 
     def __str__(self) -> str:
@@ -138,6 +137,13 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
         is_branchless_code_object: bool = False,
         is_branch: bool = False,
     ):
+        """Initializes the branch coverage goal.
+
+        Args:
+            code_object_id: The code object ID of the branch
+            is_branchless_code_object: Whether the code object is branchless
+            is_branch: Whether this is an actual branch
+        """
         super().__init__(code_object_id)
         assert (
             is_branchless_code_object ^ is_branch
@@ -181,15 +187,15 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
 class BranchlessCodeObjectGoal(AbstractBranchCoverageGoal):
     """Entry into a code object without branches."""
 
-    def __init__(self, code_object_id: int):
+    def __init__(self, code_object_id: int):  # noqa: D107
         super().__init__(code_object_id=code_object_id, is_branchless_code_object=True)
 
-    def get_distance(
+    def get_distance(  # noqa: D102
         self, result: ExecutionResult, tracer: ExecutionTracer
     ) -> cfd.ControlFlowDistance:
         return cfd.get_root_control_flow_distance(result, self._code_object_id, tracer)
 
-    def is_covered(self, result: ExecutionResult) -> bool:
+    def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._code_object_id in result.execution_trace.executed_code_objects
 
     def __str__(self) -> str:
@@ -212,19 +218,21 @@ class BranchlessCodeObjectGoal(AbstractBranchCoverageGoal):
 class BranchGoal(AbstractBranchCoverageGoal):
     """The true/false evaluation of a jump condition."""
 
-    def __init__(self, code_object_id: int, predicate_id: int, value: bool):
+    def __init__(  # noqa: D107
+        self, code_object_id: int, predicate_id: int, value: bool
+    ):
         super().__init__(code_object_id=code_object_id, is_branch=True)
         self._predicate_id = predicate_id
         self._value = value
 
-    def get_distance(
+    def get_distance(  # noqa: D102
         self, result: ExecutionResult, tracer: ExecutionTracer
     ) -> cfd.ControlFlowDistance:
         return cfd.get_non_root_control_flow_distance(
             result, self._predicate_id, self._value, tracer
         )
 
-    def is_covered(self, result: ExecutionResult) -> bool:
+    def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         trace = result.execution_trace
         distances = trace.true_distances if self._value else trace.false_distances
         return (
@@ -274,7 +282,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
 class BranchGoalPool:
     """Convenience class that creates and provides all branch coverage related goals."""
 
-    def __init__(self, subject_properties: SubjectProperties):
+    def __init__(self, subject_properties: SubjectProperties):  # noqa: D107
         self._branchless_code_object_goals = self._compute_branchless_code_object_goals(
             subject_properties
         )
@@ -336,23 +344,27 @@ class BranchGoalPool:
 class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A branch coverage fitness implementation for test cases."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self, executor: AbstractTestCaseExecutor, goal: AbstractBranchCoverageGoal
     ):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
-    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+    def compute_fitness(  # noqa: D102
+        self, individual: tcc.TestCaseChromosome
+    ) -> float:
         result = self._run_test_case_chromosome(individual)
 
         distance = self._goal.get_distance(result, self._executor.tracer)
         return distance.get_resulting_branch_fitness()
 
-    def compute_is_covered(self, individual: tcc.TestCaseChromosome) -> bool:
+    def compute_is_covered(  # noqa: D102
+        self, individual: tcc.TestCaseChromosome
+    ) -> bool:
         result = self._run_test_case_chromosome(individual)
         return self._goal.is_covered(result)
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
     def __str__(self) -> str:
@@ -377,18 +389,22 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: AbstractTestCaseExecutor, goal: LineCoverageGoal):
+    def __init__(  # noqa: D107
+        self, executor: AbstractTestCaseExecutor, goal: LineCoverageGoal
+    ):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
-    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+    def compute_fitness(  # noqa: D102
+        self, individual: tcc.TestCaseChromosome
+    ) -> float:
         return 0 if self.compute_is_covered(individual) else 1
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         return self._goal.is_covered(result)
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
     def __str__(self) -> str:
@@ -403,18 +419,22 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
 class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
     """A statement checked coverage fitness implementation for test cases."""
 
-    def __init__(self, executor: AbstractTestCaseExecutor, goal: CheckedCoverageGoal):
+    def __init__(  # noqa: D107
+        self, executor: AbstractTestCaseExecutor, goal: CheckedCoverageGoal
+    ):
         super().__init__(executor, goal.code_object_id)
         self._goal = goal
 
-    def compute_fitness(self, individual: tcc.TestCaseChromosome) -> float:
+    def compute_fitness(  # noqa: D102
+        self, individual: tcc.TestCaseChromosome
+    ) -> float:
         return 0 if self.compute_is_covered(individual) else 1
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         return self._goal.is_covered(result)
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
     def __str__(self) -> str:

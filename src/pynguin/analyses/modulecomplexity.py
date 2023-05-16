@@ -155,7 +155,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         for node in node_list:
             self.dispatch(node)
 
-    # pylint: disable=invalid-name
     def visitFunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         """Visits a function-definition node.
 
@@ -193,7 +192,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         self.tail = path_node
         return path_node
 
-    # pylint: disable=invalid-name
     def visitSimpleStatement(self, node: ast.stmt) -> None:
         """Visits a simple statement node of the AST.
 
@@ -215,7 +213,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         else:
             super().default(node, *args)
 
-    # pylint: disable=invalid-name
     def visitLoop(self, node: ast.AsyncFor | ast.For | ast.While) -> None:
         """Visits a loop node.
 
@@ -227,7 +224,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
 
     visitAsyncFor = visitFor = visitWhile = visitLoop
 
-    # pylint: disable=invalid-name
     def visitIf(self, node: ast.If) -> None:
         """Visits an if expression node.
 
@@ -285,7 +281,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
                 self.graph.connect(loose_end, bottom)
             self.tail = bottom
 
-    # pylint: disable=invalid-name
     def visitTryExcept(self, node: ast.Try) -> None:
         """Visits a try-except AST node.
 
@@ -297,7 +292,6 @@ class _PathGraphingAstVisitor(_ASTVisitor):
 
     visitTry = visitTryExcept
 
-    # pylint: disable=invalid-name
     def visitWith(self, node: ast.With | ast.AsyncWith) -> None:
         """Visits a with-block AST node.
 

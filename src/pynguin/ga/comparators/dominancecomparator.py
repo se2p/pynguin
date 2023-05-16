@@ -16,10 +16,9 @@ import pynguin.ga.computations as ff
 from pynguin.utils.orderedset import OrderedSet
 
 
-C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+C = TypeVar("C", bound=chrom.Chromosome)
 
 
-# pylint: disable=too-few-public-methods
 class DominanceComparator(Generic[C]):
     """Implements a comparator to compare chromosomes based on the dominance test."""
 
@@ -29,6 +28,18 @@ class DominanceComparator(Generic[C]):
         goal: ff.FitnessFunction | None = None,
         goals: OrderedSet[ff.FitnessFunction] | None = None,
     ) -> None:
+        """Instantiates the comparator.
+
+        Requires either one fitness function as a goal or a set of fitness functions as
+        goals for the comparison.  In case both parameters are given, the implementation
+        respects the set of fitness functions as the comparator objective; in case none
+        of the parameters is given, the implementation aims to retrieve the fitness
+        functions from the first given chromosome in the compare method.
+
+        Args:
+            goal: A single fitness function
+            goals: A set of fitness functions
+        """
         if goals is not None:
             self._objectives: OrderedSet[ff.FitnessFunction] | None = goals
         elif goal is not None:
@@ -36,8 +47,9 @@ class DominanceComparator(Generic[C]):
         else:
             self._objectives = None
 
-    # pylint: disable=too-many-return-statements
-    def compare(self, chromosome_1: C | None, chromosome_2: C | None) -> int:
+    def compare(  # noqa: C901
+        self, chromosome_1: C | None, chromosome_2: C | None
+    ) -> int:
         """Compares two chromosomes regarding their dominance.
 
         Args:

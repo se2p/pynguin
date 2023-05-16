@@ -24,32 +24,42 @@ _LOGGER = logging.getLogger(__name__)
 
 class StatementSlicingObserver(ex.ExecutionObserver):
     """Observer that updates the checked lines of a testcase.
+
     Observes the execution of a test case and calculates the
     slices of its statements.
     """
 
     _STORE_INSTRUCTION_OFFSET = 3
 
-    class SlicingLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    class SlicingLocalState(threading.local):
         """Stores thread-local slicing data."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             self.slicing_criteria: dict[int, SlicingCriterion] = {}
 
     def __init__(self, tracer: ex.ExecutionTracer) -> None:
+        """Initializes the observer.
+
+        Args:
+            tracer: The execution tracer
+        """
         self._tracer = tracer
         self._slicing_local_state = StatementSlicingObserver.SlicingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
 
-    def before_statement_execution(
+        Args:
+            test_case: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         return node
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: st.Statement,
         executor: ex.TestCaseExecutor,
@@ -83,7 +93,7 @@ class StatementSlicingObserver(ex.ExecutionObserver):
                 statement.get_position()
             ] = slicing_criterion
 
-    def after_test_case_execution_inside_thread(
+    def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ) -> None:
         checked_lines = compute_statement_checked_lines(
@@ -97,4 +107,9 @@ class StatementSlicingObserver(ex.ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ) -> None:
-        pass
+        """Not used.
+
+        Args:
+            test_case: Not used
+            result: Not used
+        """

@@ -12,10 +12,9 @@ from typing import TypeVar
 import pynguin.ga.chromosome as chrom
 
 
-T = TypeVar("T", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+T = TypeVar("T", bound=chrom.Chromosome)
 
 
-# pylint: disable=too-few-public-methods
 class ChromosomeFactory(Generic[T]):
     """A factory that provides new chromosomes."""
 

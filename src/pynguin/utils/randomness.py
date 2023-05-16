@@ -24,13 +24,12 @@ class Random(random.Random):
     use the current time stamp in nano seconds as seed.
     """
 
-    def __init__(self, x=None) -> None:
+    def __init__(self, x=None) -> None:  # noqa: D107
         super().__init__(x)
         self._current_seed: int | None = None
         self.seed(x)
 
-    # pylint: disable=import-outside-toplevel
-    def seed(self, a=None, version: int = 2) -> None:
+    def seed(self, a=None, version: int = 2) -> None:  # noqa: D102
         if a is None:
             import time
 
@@ -107,8 +106,9 @@ def next_float(lower_bound=0, upper_bound=1) -> float:
 
 
 def next_gaussian() -> float:
-    """Returns the next pseudorandom, Gaussian ("normally") distributed
-    value with mu 0.0 and sigma 1.0.
+    """Returns the next pseudorandom.
+
+    Use a Gaussian ("normally") distribution value with mu 0.0 and sigma 1.0.
 
     Returns:
         The next random number
@@ -116,7 +116,7 @@ def next_gaussian() -> float:
     return RNG.gauss(0, 1)
 
 
-_T = TypeVar("_T")  # pylint:disable=invalid-name
+_T = TypeVar("_T")
 
 
 def choice(sequence: Sequence[_T]) -> _T:

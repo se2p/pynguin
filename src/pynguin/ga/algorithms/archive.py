@@ -28,7 +28,7 @@ class Archive(ABC):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._on_target_covered_callbacks: list[
             Callable[[ff.TestCaseFitnessFunction], None]
         ] = []
@@ -65,8 +65,7 @@ class Archive(ABC):
     def add_on_target_covered(
         self, callback: Callable[[ff.TestCaseFitnessFunction], None]
     ) -> None:
-        """Register a callback that is called once when a new target is covered for the
-        first time.
+        """Register a callback for whenever a new target is covered for the first time.
 
         Args:
             callback: The call back to be registered.
@@ -99,7 +98,9 @@ class CoverageArchive(Archive):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, objectives: OrderedSet[ff.TestCaseFitnessFunction]) -> None:
+    def __init__(  # noqa: D107
+        self, objectives: OrderedSet[ff.TestCaseFitnessFunction]
+    ) -> None:
         super().__init__()
         self._covered: dict[ff.TestCaseFitnessFunction, tcc.TestCaseChromosome] = {}
         self._uncovered = OrderedSet(objectives)
@@ -172,7 +173,7 @@ class CoverageArchive(Archive):
                 self._uncovered.add(goal)
 
     @property
-    def solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:
+    def solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:  # noqa: D102
         assert self._all_covered(), "Some covered targets have a fitness != 0.0"
         return OrderedSet(self._covered.values())
 
@@ -193,7 +194,7 @@ class MIOPopulationPair:
     """A tuple of h-value and corresponding test case chromosome."""
 
     # The h-value as described in the MIO paper.
-    # pylint: disable=invalid-name
+
     h: float
 
     # The test case chromosome.
@@ -203,7 +204,7 @@ class MIOPopulationPair:
 class MIOPopulation:
     """The population that is stored per target."""
 
-    def __init__(self, population_size: int) -> None:
+    def __init__(self, population_size: int) -> None:  # noqa: D107
         self._counter = 0
         self._capacity = population_size
         # Assumption: These are always sorted.
@@ -211,8 +212,9 @@ class MIOPopulation:
 
     @property
     def counter(self) -> int:
-        """How often was a solution sampled from this population since the last
-        improvement in the h-value.
+        """Number of solution sampled from this population.
+
+        Measured since the last improvement in the h-value.
         """
         return self._counter
 
@@ -225,7 +227,6 @@ class MIOPopulation:
             and self._solutions[0].h == 1.0
         )
 
-    # pylint: disable=invalid-name
     def add_solution(
         self, h: float, test_case_chromosome: tcc.TestCaseChromosome
     ) -> bool:
@@ -351,7 +352,7 @@ class MIOPopulation:
 class MIOArchive(Archive):
     """The archive that is used in MIO."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         targets: OrderedSet[ff.TestCaseFitnessFunction],
         initial_size: int,
@@ -430,7 +431,7 @@ class MIOArchive(Archive):
             population.shrink_population(new_population_size)
 
     @property
-    def solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:
+    def solutions(self) -> OrderedSet[tcc.TestCaseChromosome]:  # noqa: D102
         result: OrderedSet[tcc.TestCaseChromosome] = OrderedSet()
         for population in self._archive.values():
             solution = population.get_best_solution_if_any()

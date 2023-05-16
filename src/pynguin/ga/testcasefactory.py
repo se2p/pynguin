@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
 
 
-# pylint:disable=too-few-public-methods
 class TestCaseFactory:
     """Abstract class for test case factories."""
 
@@ -47,11 +46,13 @@ class TestCaseFactory:
 class RandomLengthTestCaseFactory(TestCaseFactory):
     """Create random test cases with random length."""
 
-    def __init__(self, test_factory: tf.TestFactory, test_cluster: TestCluster):
+    def __init__(  # noqa: D107
+        self, test_factory: tf.TestFactory, test_cluster: TestCluster
+    ):
         super().__init__(test_factory)
         self._test_cluster = test_cluster
 
-    def get_test_case(self) -> tc.TestCase:
+    def get_test_case(self) -> tc.TestCase:  # noqa: D102
         test_case = dtc.DefaultTestCase(self._test_cluster)
         attempts = 0
         size = randomness.next_int(
@@ -76,14 +77,14 @@ class SeededTestCaseFactory(TestCaseFactory):
     generation is delegated to the RandomLengthTestCaseFactory.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107
         self, delegate: TestCaseFactory, population_provider: InitialPopulationProvider
     ):
         super().__init__(delegate._test_factory)
         self._delegate = delegate
         self._population_provider = population_provider
 
-    def get_test_case(self) -> tc.TestCase:
+    def get_test_case(self) -> tc.TestCase:  # noqa: D102
         if (
             randomness.next_float()
             <= config.configuration.seeding.seeded_testcases_reuse_probability

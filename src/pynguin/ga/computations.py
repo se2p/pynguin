@@ -34,21 +34,20 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass(eq=False)
-class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
+class ChromosomeComputation(abc.ABC):
     """An abstract computation on chromosomes."""
 
     _executor: AbstractTestCaseExecutor
     """Executor that will be used by the computation to execute chromosomes."""
 
 
-class TestCaseChromosomeComputation(
-    ChromosomeComputation, metaclass=abc.ABCMeta
-):  # pylint:disable=too-few-public-methods
+class TestCaseChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
     """A function that computes something on a test case chromosome."""
 
     def _run_test_case_chromosome(self, individual) -> ExecutionResult:
-        """Runs a test suite and updates the execution results for
-        all test cases that were changed.
+        """Runs a test suite and updates the execution results.
+
+        Updates all test cases that were changed.
 
         Args:
             individual: The individual to run
@@ -66,14 +65,13 @@ class TestCaseChromosomeComputation(
         return result
 
 
-class TestSuiteChromosomeComputation(
-    ChromosomeComputation, metaclass=abc.ABCMeta
-):  # pylint:disable=too-few-public-methods
+class TestSuiteChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
     """A function that computes something on a test suite chromosome."""
 
     def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
-        """Runs a test suite and updates the execution results for
-        all test cases that were changed.
+        """Runs a test suite and updates the execution results.
+
+        Updates all test cases that were changed.
 
         Args:
             individual: The individual to run
@@ -118,6 +116,7 @@ class FitnessFunction:
     @abstractmethod
     def compute_is_covered(self, individual) -> bool:
         """Compute if the goal of this fitness function is covered.
+
         This computation is usually cheaper than computing the fitness, because
         we are not interested in the distance, but only a boolean result.
 
@@ -142,7 +141,7 @@ class TestCaseFitnessFunction(
 ):
     """Base class for test case fitness functions."""
 
-    def __init__(self, executor, code_object_id: int):
+    def __init__(self, executor, code_object_id: int):  # noqa: D107
         super().__init__(executor)
         self._code_object_id = code_object_id
 
@@ -159,7 +158,7 @@ class TestCaseFitnessFunction(
 class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
     """A fitness function based on branch distances and entered code objects."""
 
-    def compute_fitness(self, individual) -> float:
+    def compute_fitness(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -168,7 +167,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
             merged_trace, tracer.get_subject_properties()
         )
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -177,7 +176,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
             merged_trace, tracer.get_subject_properties()
         )
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
 
@@ -190,7 +189,7 @@ class TestSuiteFitnessFunction(
 class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on branch distances and entered code objects."""
 
-    def __init__(self, executor):
+    def __init__(self, executor):  # noqa: D107
         super().__init__(executor)
         self._excluded_code_objects: set[int] = set()
         self._excluded_true_predicates: set[int] = set()
@@ -199,7 +198,9 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def restrict(
         self, exclude_code: set[int], exclude_true: set[int], exclude_false: set[int]
     ) -> None:
-        """Restrict this fitness function, i.e., which branches/code objects it
+        """Restrict this fitness function.
+
+        Restricts the fitness function with respect to the branches/code objects it
         considers.
 
         Args:
@@ -212,7 +213,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         self._excluded_true_predicates.update(exclude_true)
         self._excluded_false_predicates.update(exclude_false)
 
-    def compute_fitness(self, individual) -> float:
+    def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -225,7 +226,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             self._excluded_false_predicates,
         )
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -238,21 +239,21 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             self._excluded_false_predicates,
         )
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
 
 class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     """A fitness function based on lines covered and entered code objects."""
 
-    def compute_fitness(self, individual) -> float:
+    def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
         existing_lines = tracer.get_subject_properties().existing_lines
         return len(existing_lines) - len(merged_trace.covered_line_ids)
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -262,16 +263,18 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             tracer.get_subject_properties(),
         )
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
 
 class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
-    """A fitness function based on lines included in the backward
-    slice of each statement of a test suite.
+    """A fitness function for the checked statement coverage of test suites.
+
+    A fitness function based on lines included in the backward slice of each statement
+    of a test suite.
     """
 
-    def compute_fitness(self, individual) -> float:
+    def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -280,7 +283,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             merged_trace.checked_lines
         )
 
-    def compute_is_covered(self, individual) -> bool:
+    def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -290,11 +293,11 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             tracer.get_subject_properties(),
         )
 
-    def is_maximisation_function(self) -> bool:
+    def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
 
 
-class CoverageFunction:  # pylint:disable=too-few-public-methods
+class CoverageFunction:
     """Interface for a coverage function."""
 
     @abstractmethod
@@ -309,7 +312,6 @@ class CoverageFunction:  # pylint:disable=too-few-public-methods
         """
 
 
-# pylint: disable=too-few-public-methods
 class TestSuiteCoverageFunction(
     TestSuiteChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
 ):
@@ -318,14 +320,14 @@ class TestSuiteCoverageFunction(
 
 class TestCaseCoverageFunction(
     TestCaseChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
-):  # pylint: disable=too-few-public-methods
+):
     """Base class for all coverage functions that act on test case level."""
 
 
 class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
     """Computes branch coverage on test suites."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -335,7 +337,7 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
     """Computes branch coverage on test cases."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -345,7 +347,7 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
     """Computes line coverage on test suites."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -355,7 +357,7 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
     """Computes line coverage on test cases."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -365,7 +367,7 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on the statements of test suites."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -385,7 +387,7 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
 class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on the statements of test cases."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -404,7 +406,7 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
 class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
     """Computes checked coverage on test suites with assertions."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
@@ -416,7 +418,7 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
     """Computes checked coverage on test cases with assertions."""
 
-    def compute_coverage(self, individual) -> float:
+    def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
@@ -428,7 +430,7 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
 class ComputationCache:
     """Caches computation results and computes values on demand."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         chromosome,
         fitness_functions: list[FitnessFunction] | None = None,
@@ -436,7 +438,7 @@ class ComputationCache:
         fitness_cache: dict[FitnessFunction, float] | None = None,
         is_covered_cache: dict[FitnessFunction, bool] | None = None,
         coverage_cache: dict[CoverageFunction, float] | None = None,
-    ):  # pylint:disable=too-many-arguments
+    ):
         self._chromosome = chromosome
         self._fitness_functions = fitness_functions if fitness_functions else []
         self._coverage_functions = coverage_functions if coverage_functions else []
@@ -840,8 +842,9 @@ def compute_checked_coverage_statement_fitness_is_covered(
 def compute_branch_coverage(
     trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> float:
-    """Computes branch coverage on bytecode instructions which should equal
-    decision coverage on source.
+    """Computes branch coverage on bytecode instructions.
+
+    The resulting coverage should be equal to decision coverage on source code.
 
     Args:
         trace: The execution trace
@@ -928,6 +931,7 @@ def compute_statement_checked_lines(
     statement_slicing_criteria: dict[int, SlicingCriterion],
 ) -> set[int]:
     """Computes checked coverage on bytecode instructions.
+
     Each statement can be sliced, returning a list of instructions
     that are checked by the return value of the statement.
     If we combine all lists of instructions returned by slicing all statements,
@@ -975,6 +979,7 @@ def compute_assertion_checked_coverage(
     trace: ExecutionTrace, subject_properties: SubjectProperties
 ) -> float:
     """Computes checked coverage on bytecode instructions.
+
     Each assertion can be sliced, returning a list of instructions
     that are checked by an assertion.
     If we combine all lists of instructions returned by slicing all assertions,

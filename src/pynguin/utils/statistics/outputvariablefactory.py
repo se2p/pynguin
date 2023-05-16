@@ -26,13 +26,18 @@ if typing.TYPE_CHECKING:
 
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-T = TypeVar("T", int, float)  # pylint: disable=invalid-name
+T = TypeVar("T", int, float)
 
 
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Factory to create an output variable when given a test suite chromosome."""
 
     def __init__(self, variable: RuntimeVariable) -> None:
+        """Initializes the factory for a given RuntimeVariable.
+
+        Args:
+            variable: The runtime variable for that output variable
+        """
         self._variable = variable
 
     @abstractmethod
@@ -63,7 +68,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
     """Creates an output variable that represents a sequence of values."""
 
-    def __init__(self, variable: stat.RuntimeVariable) -> None:
+    def __init__(self, variable: stat.RuntimeVariable) -> None:  # noqa: D107
         self._variable = variable
         self._time_stamps: list[int] = []
         self._values: list[T] = []
@@ -144,7 +149,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             return 0
         interval = config.configuration.statistics_output.timeline_interval
         preferred_time = interval * index
-        # pylint:disable=consider-using-enumerate
+
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
             # the value for
@@ -183,16 +188,13 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
 
 
 class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic[T]):
-    """Sequence output variable whose value can be set directly, instead of
-    retrieving it from an individual
-    .
-    """
+    """Sequence output variable whose value can be set directly."""
 
-    def __init__(self, variable: RuntimeVariable, start_value: T) -> None:
+    def __init__(self, variable: RuntimeVariable, start_value: T) -> None:  # noqa: D107
         super().__init__(variable)
         self._value = start_value  # type: ignore[var-annotated]
 
-    def get_value(self, individual) -> T:
+    def get_value(self, individual) -> T:  # noqa: D102
         return self._value
 
     def set_value(self, value: T) -> None:

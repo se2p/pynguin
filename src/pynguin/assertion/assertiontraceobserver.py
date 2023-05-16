@@ -37,18 +37,19 @@ _LOGGER = logging.getLogger(__name__)
 
 class AssertionTraceObserver(ex.ExecutionObserver):
     """Observer that creates assertions.
+
     Observes the execution of a test case and generates assertions from it.
     """
 
-    class AssertionLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    class AssertionLocalState(threading.local):
         """Stores thread-local assertion data."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             self.trace: at.AssertionTrace = at.AssertionTrace()
             self.watch_list: list[vr.VariableReference] = []
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         self._assertion_local_state = AssertionTraceObserver.AssertionLocalState()
 
     def get_trace(self) -> at.AssertionTrace:
@@ -61,15 +62,19 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         return self._assertion_local_state.trace.clone()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
 
-    def before_statement_execution(
+        Args:
+            test_case: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         # Nothing to do before statement.
         return node
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: st.Statement,
         executor: ex.TestCaseExecutor,
@@ -89,7 +94,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             stmt = cast(st.VariableCreatingStatement, statement)
             self._handle(stmt, exec_ctx)
 
-    def after_test_case_execution_inside_thread(
+    def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
         result.assertion_trace = self.get_trace()
@@ -97,10 +102,14 @@ class AssertionTraceObserver(ex.ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ):
-        pass
+        """Not used.
 
-    # pylint:disable=too-many-branches
-    def _handle(
+        Args:
+            test_case: Not used
+            result: Not used
+        """
+
+    def _handle(  # noqa: C901
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
     ) -> None:
         """Actually handle the statement.
@@ -177,7 +186,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     trace,
                 )
 
-    def _check_reference(  # pylint: disable=too-many-arguments
+    def _check_reference(
         self,
         exec_ctx: ex.ExecutionContext,
         ref: vr.Reference,
@@ -187,6 +196,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         max_depth: int = 1,
     ):
         """Check if we can generate an assertion for the given reference.
+
         For complex types, we do one recursion step, i.e., try to assert anything
         on the attributes of the given object.
 
@@ -220,7 +230,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             position, ass.CollectionLengthAssertion(ref, length)
                         )
                         return
-                    except BaseException:  # pylint: disable=broad-except
+                    except BaseException:
                         # Could not get len, so continue down.
                         pass
             if depth < max_depth and hasattr(value, "__dict__"):
@@ -253,22 +263,24 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 class AssertionVerificationObserver(ex.ExecutionObserver):
     """This observer is used to check if assertions hold."""
 
-    class AssertionExecutorLocalState(
-        threading.local
-    ):  # pylint:disable=too-few-public-methods
+    class AssertionExecutorLocalState(threading.local):
         """Local state for assertion executor."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             self.trace = at.AssertionVerificationTrace()
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self.state = AssertionVerificationObserver.AssertionExecutorLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
 
-    def after_test_case_execution_inside_thread(
+        Args:
+            test_case: Not used
+        """
+
+    def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ) -> None:
         result.assertion_verification_trace = self.state.trace
@@ -276,16 +288,21 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ex.ExecutionResult
     ) -> None:
-        pass
+        """Not used.
 
-    def before_statement_execution(
+        Args:
+            test_case: Not used
+            result: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         if statement.has_only_exception_assertion():
             return exec_ctx.node_for_assertion(list(statement.assertions)[0], node)
         return node
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: st.Statement,
         executor: ex.TestCaseExecutor,

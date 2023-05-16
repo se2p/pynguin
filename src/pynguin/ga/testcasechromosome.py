@@ -33,7 +33,8 @@ class TestCaseChromosome(chrom.Chromosome):
         test_factory: tf.TestFactory | None = None,
         orig: TestCaseChromosome | None = None,
     ) -> None:
-        """
+        """Initializes a new test-case chromosome.
+
         Must supply either a TestCaseChromosome to copy from or the remaining arguments.
 
         Args:
@@ -76,13 +77,13 @@ class TestCaseChromosome(chrom.Chromosome):
         # TODO(fk) what to do with this when crossover is used?
         return self._num_mutations
 
-    def size(self) -> int:
+    def size(self) -> int:  # noqa: D102
         return self._test_case.size()
 
-    def length(self) -> int:
+    def length(self) -> int:  # noqa: D102
         return self.size()
 
-    def cross_over(
+    def cross_over(  # noqa: D102
         self, other: chrom.Chromosome, position1: int, position2: int
     ) -> None:
         assert isinstance(
@@ -104,7 +105,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self._test_case = offspring_test_case
             self.changed = True
 
-    def mutate(self) -> None:
+    def mutate(self) -> None:  # noqa: C901,D102
         changed = False
 
         if (
@@ -199,11 +200,13 @@ class TestCaseChromosome(chrom.Chromosome):
         return changed
 
     def _mutation_insert(self) -> bool:
-        """With exponentially decreasing probability, insert statements at a
-        random position.
+        """Insertion mutation operation.
+
+        With exponentially decreasing probability, insert statements at a random
+        position.
 
         Returns:
-            Whether or not the test case was changed
+            Whether the test case was changed
         """
         changed = False
         alpha = config.configuration.search_algorithm.statement_insertion_probability
@@ -285,10 +288,10 @@ class TestCaseChromosome(chrom.Chromosome):
             return False
         return self._last_execution_result.has_test_exceptions()
 
-    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:  # noqa: D102
         visitor.visit_test_case_chromosome(self)
 
-    def clone(self) -> TestCaseChromosome:
+    def clone(self) -> TestCaseChromosome:  # noqa: D102
         return TestCaseChromosome(orig=self)
 
     def __eq__(self, other):

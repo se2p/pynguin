@@ -72,8 +72,7 @@ class LineAnnotation:
     lines: CoverageEntry
 
     def message(self):
-        """Compute the message that should be displayed as a tool tip
-        when hovering over this line number.
+        """Compute the message that should be displayed as a tool tip.
 
         Returns:
             The message for this line.
@@ -117,7 +116,7 @@ class LineAnnotation:
 
 
 @dataclasses.dataclass
-class CoverageReport:  # pylint:disable=too-many-instance-attributes
+class CoverageReport:
     """All coverage related data required to create a coverage report."""
 
     module: str
@@ -144,7 +143,6 @@ class CoverageReport:  # pylint:disable=too-many-instance-attributes
     line_coverage: float | None = None
 
 
-# pylint:disable=too-many-locals
 def get_coverage_report(
     suite: tsc.TestSuiteChromosome,
     executor: TestCaseExecutor,

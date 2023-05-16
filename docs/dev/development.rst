@@ -119,3 +119,37 @@ To track data on the test case execution, e.g., line or branch coverage, we use 
 Usage of threading.local may interfere with debugging tools, such as pydevd.
 In such a case, disable Cython by setting the following environment variable:
 ``PYDEVD_USE_CYTHON=NO``
+
+
+Comments and DocStrings
+-----------------------
+
+We have no general policy regarding comments in the source code.
+Use them, whenever you feel they are necessary.
+Please do not explain *what* the code is doing, but *why*.
+
+DocStrings are required for all public functions, methods, constructors, classes, and
+modules.
+We use the ``ruff`` linter to check for the DocStrings.
+You can omit the DocString for default constructors, i.e., constructors that take no
+arguments, and methods that override a method from a parent class.
+In the former case, disable ``ruff``'s warning by adding ``# noqa: D107`` to the line
+of the constructor declaration;
+use ``# noqa: D102`` in the latter case, respectively.
+
+Please follow the Google style for your DocString formatting.
+
+Sometimes, the interface of a class forces you to override a method, e.g., because the
+base class is abstract, but there is no need for a concrete implementation.  In such a
+case put the following DocString to the overriding method to show that it is empty on
+purpose.
+
+.. code-block:: python
+    :linenos:
+
+        def overriding_method(self, a: int):
+            """Not used.
+
+            Args:
+                a: not used
+            """

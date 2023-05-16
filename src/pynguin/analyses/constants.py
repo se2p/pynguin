@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class ConstantPool:
     """A pool of constants for various types."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._constants: dict[type[ConstantTypes], OrderedSet[ConstantTypes]] = {
             tp_: OrderedSet() for tp_ in typing.get_args(ConstantTypes)
         }
@@ -101,28 +101,28 @@ class ConstantPool:
 
 class RestrictedConstantPool(ConstantPool):
     """A constant pool that is restricted in its size.
+
     If the size limit is reached, the oldest values are purged.
     """
 
     def __init__(self, max_size: int = 50):
-        """Create a new restricted constant pool with the given max number of constants
-        per collected type.
+        """Create a new restricted constant pool.
 
         Args:
-            max_size: The maximum number of collected values.
+            max_size: The maximum number of collected values per type.
         """
         super().__init__()
         assert max_size > 0, "Size limit for constant pool must be positive."
         self._max_size = max_size
 
-    def add_constant(self, constant: ConstantTypes) -> None:
+    def add_constant(self, constant: ConstantTypes) -> None:  # noqa: D102
         values = self._constants[type(constant)]
         values.add(constant)
         if len(values) > self._max_size:
             values.remove(values[0])
 
 
-class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
+class ConstantProvider(abc.ABC):
     """Provides constants."""
 
     @abc.abstractmethod
@@ -137,16 +137,14 @@ class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
         """
 
 
-class EmptyConstantProvider(ConstantProvider):  # pylint:disable=too-few-public-methods
+class EmptyConstantProvider(ConstantProvider):
     """Empty provider."""
 
-    def get_constant_for(self, tp_: type[T]) -> T | None:
+    def get_constant_for(self, tp_: type[T]) -> T | None:  # noqa: D102
         return None
 
 
-class DelegatingConstantProvider(
-    ConstantProvider, ABC
-):  # pylint:disable=too-few-public-methods
+class DelegatingConstantProvider(ConstantProvider, ABC):
     """Either provides values from its own pool or delegates to another provider."""
 
     def __init__(
@@ -164,7 +162,7 @@ class DelegatingConstantProvider(
         self._delegate = delegate
         self._probability = probability
 
-    def get_constant_for(self, tp_: type[T]) -> T | None:
+    def get_constant_for(self, tp_: type[T]) -> T | None:  # noqa: D102
         if (
             self._pool.has_constant_for(tp_)
             and randomness.next_float() < self._probability
@@ -229,7 +227,7 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         value = unwrap(value)
         if type(value) in typing.get_args(ConstantTypes):
             if (
-                isinstance(value, (str, bytes))
+                isinstance(value, str | bytes)
                 and len(value) > self._max_constant_length
             ):
                 return
@@ -293,12 +291,11 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
             try:
                 tree = ast.parse(module_file.read())
                 collector.visit(tree)
-            except BaseException as exception:  # pylint: disable=broad-except
+            except BaseException as exception:
                 logger.exception("Cannot collect constants: %s", exception)
     return collector.constants
 
 
-# pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     """AST visitor that collects constants."""
 

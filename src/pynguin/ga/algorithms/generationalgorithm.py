@@ -37,15 +37,13 @@ if TYPE_CHECKING:
     from pynguin.ga.stoppingcondition import StoppingCondition
     from pynguin.testcase.execution import AbstractTestCaseExecutor
 
-A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
+A = TypeVar("A", bound=arch.Archive)
 
 
-class GenerationAlgorithm(
-    Generic[A]
-):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+class GenerationAlgorithm(Generic[A]):
     """Provides an abstract base class for a test generation algorithm."""
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         self._archive: A
         self._chromosome_factory: cf.ChromosomeFactory
         self._executor: AbstractTestCaseExecutor
@@ -290,7 +288,9 @@ class GenerationAlgorithm(
             obs.before_search_start(start)
 
     def before_first_search_iteration(self, initial: tsc.TestSuiteChromosome) -> None:
-        """Has to be called once before the very first iteration of the search
+        """A hook methode before the first search iteration.
+
+        Has to be called once before the very first iteration of the search
         algorithm. Calling this is optional, as not every approach has a result before
         the first iteration.
 
@@ -324,6 +324,7 @@ class GenerationAlgorithm(
 
     def progress(self) -> float:
         """Provides the progress of the search.
+
         Averages the progress of all stopping conditions.
 
         Returns:

@@ -8,7 +8,6 @@
 import enum
 
 
-# pylint: disable=invalid-name
 @enum.unique
 class RuntimeVariable(str, enum.Enum):
     """Defines all runtime variables we want to store in the result CSV files.
@@ -184,5 +183,5 @@ class RuntimeVariable(str, enum.Enum):
     # they do not increase the resulting checked coverage
     DeletedAssertions = "DeletedAssertions"
 
-    def __repr__(self):
+    def __repr__(self):  # noqa: D105
         return f"{self.name}"

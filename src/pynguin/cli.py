@@ -182,9 +182,9 @@ to see why this happens and what you must do to prevent it."""
 
     argument_parser = _create_argument_parser()
     parsed = argument_parser.parse_args(argv)
-    # pylint: disable=no-member
+
     _setup_output_path(parsed.config.test_case_output.output_path)
-    # pylint: disable=no-member
+
     console = _setup_logging(parsed.verbosity, parsed.no_rich)
 
     set_configuration(parsed.config)

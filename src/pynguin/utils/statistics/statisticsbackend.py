@@ -21,7 +21,7 @@ from typing import TypeVar
 import pynguin.configuration as config
 
 
-T = TypeVar("T")  # pylint: disable=invalid-name
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,6 @@ class OutputVariable(Generic[T]):
     value: T
 
 
-# pylint: disable=too-few-public-methods
 class AbstractStatisticsBackend(metaclass=ABCMeta):
     """An interface for a statistics writer."""
 
@@ -45,16 +44,15 @@ class AbstractStatisticsBackend(metaclass=ABCMeta):
         """
 
 
-# pylint: disable=too-few-public-methods
 class CSVStatisticsBackend(AbstractStatisticsBackend):
     """A statistics backend writing all (selected) output variables to a CSV file."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         csv.field_size_limit(int(ctypes.c_ulong(-1).value // 2))
 
-    def write_data(self, data: dict[str, OutputVariable]) -> None:
+    def write_data(self, data: dict[str, OutputVariable]) -> None:  # noqa: D102
         try:
             output_dir = Path(
                 config.configuration.statistics_output.report_dir
@@ -72,10 +70,9 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
             logging.exception("Error while writing statistics: %s", error)
 
 
-# pylint: disable=too-few-public-methods
 class ConsoleStatisticsBackend(AbstractStatisticsBackend):
     """Simple dummy backend that just outputs all output variables to the console."""
 
-    def write_data(self, data: dict[str, OutputVariable]) -> None:
+    def write_data(self, data: dict[str, OutputVariable]) -> None:  # noqa: D102
         for key, value in data.items():
             print(f"{key}: {value}")  # noqa: T201

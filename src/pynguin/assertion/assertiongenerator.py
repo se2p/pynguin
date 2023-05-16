@@ -45,6 +45,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class AssertionGenerator(cv.ChromosomeVisitor):
     """A simple assertion generator.
+
     Creates all regression assertions.
     """
 
@@ -53,8 +54,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
     def __init__(
         self, plain_executor: ex.TestCaseExecutor, filtering_executions: int = 1
     ):
-        """
-        Create new assertion generator.
+        """Create new assertion generator.
 
         Args:
             plain_executor: The executor that is used to execute on the non mutated
@@ -66,12 +66,16 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         self._filtering_executions = filtering_executions
         self._plain_executor = plain_executor
 
-    def visit_test_suite_chromosome(self, chromosome: tsc.TestSuiteChromosome) -> None:
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
         self._add_assertions(
             [chrom.test_case for chrom in chromosome.test_case_chromosomes]
         )
 
-    def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
         self._add_assertions([chromosome.test_case])
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
@@ -242,12 +246,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
-        # pylint: disable=exec-used
+
         exec(code, module.__dict__)  # nosec
         return module
 
     def __init__(self, plain_executor: ex.TestCaseExecutor, testing: bool = False):
-        """
+        """Initializes the generator.
 
         Args:
             plain_executor: Executor used for plain execution

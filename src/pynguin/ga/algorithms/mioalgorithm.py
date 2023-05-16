@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
 
-# pylint: disable=invalid-name
 @dataclass
 class Parameters:
     """Represents the parameters that are adjusted while running the algorithm."""
@@ -48,22 +47,19 @@ class Parameters:
         assert self.m >= 1
 
 
-# pylint: disable=too-few-public-methods
 class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
     """Implements MIO."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._solution: tcc.TestCaseChromosome | None = None
         self._parameters = Parameters()
         self._current_mutations = 0
         self._focused = False
 
-    def generate_tests(
-        self,
-    ) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         while (
             self.resources_left()
@@ -77,7 +73,6 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
         self.after_search_finish()
         return self.create_test_suite(self._archive.solutions)
 
-    # pylint:disable=line-too-long
     def _update_parameters(self):
         progress = self.progress()
         progress_until_focused = (

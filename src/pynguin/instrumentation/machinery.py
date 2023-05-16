@@ -4,8 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""
-Provides classes for runtime instrumentation.
+"""Provides classes for runtime instrumentation.
+
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py.
 """
 from __future__ import annotations
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         fullname,
         path,
@@ -53,14 +53,15 @@ class InstrumentationLoader(SourceFileLoader):
         self._tracer = tracer
         self._transformer = transformer
 
-    def exec_module(self, module):
+    def exec_module(self, module):  # noqa: D102
         self._tracer.reset()
         super().exec_module(module)
         self._tracer.store_import_trace()
 
     def get_code(self, fullname) -> CodeType:
-        """Add instrumentation instructions to the code of the module
-        before it is executed.
+        """Add instrumentation instructions to the code of the module.
+
+        This happens before the module is executed.
 
         Args:
             fullname: The name of the module
@@ -78,8 +79,7 @@ def build_transformer(
     coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
-    """Create an instrumentation transformer that applies the configured
-    instrumentations.
+    """Build a transformer that applies the configured instrumentation.
 
     Args:
         tracer: The tracer to use.
@@ -106,15 +106,14 @@ def build_transformer(
 
 
 class InstrumentationFinder(MetaPathFinder):
-    """
-    A meta pathfinder which wraps another pathfinder.
+    """A meta pathfinder which wraps another pathfinder.
+
     It receives all import requests and intercepts the ones for the modules that
     should be instrumented.
     """
 
     _logger = logging.getLogger(__name__)
 
-    # pylint:disable=too-many-arguments
     def __init__(
         self,
         original_pathfinder,
@@ -144,8 +143,9 @@ class InstrumentationFinder(MetaPathFinder):
         coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None,
     ) -> None:
-        """Update the coverage instrumentation. Useful for re-applying a different
-        instrumentation.
+        """Update the coverage instrumentation.
+
+        Useful for re-applying a different instrumentation.
 
         Args:
             tracer: The new execution tracer
@@ -201,7 +201,7 @@ class InstrumentationFinder(MetaPathFinder):
 class ImportHookContextManager:
     """A simple context manager for using the import hook."""
 
-    def __init__(self, hook: MetaPathFinder):
+    def __init__(self, hook: MetaPathFinder):  # noqa: D107
         self.hook = hook
 
     def __enter__(self):

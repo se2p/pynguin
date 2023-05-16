@@ -26,7 +26,7 @@ from pynguin.utils.exceptions import ConfigurationException
 _LOGGER = logging.getLogger(__name__)
 
 
-class MutationAdapter:  # pylint: disable=too-few-public-methods
+class MutationAdapter:
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
     _strategies: dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {
@@ -36,12 +36,13 @@ class MutationAdapter:  # pylint: disable=too-few-public-methods
         config.MutationStrategy.EACH_CHOICE: mc.EachChoiceHOMStrategy,
     }
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self.target_loader: mu.ModulesLoader | None = None
 
     def mutate_module(self) -> list[tuple[ModuleType, list[mo.Mutation]]]:
-        """Mutates the modules specified in the configuration by using MutPys'
-        mutation procedure.
+        """Mutates the modules specified in the configuration.
+
+        Uses MutPy's mutation procedure.
 
         Returns:
             A list of tuples where the first entry is the mutated module and the second
