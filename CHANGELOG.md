@@ -11,15 +11,7 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
-- Update the [`bytecode`](https://github.com/MatthieuDartiailh/bytecode) library to its
-  latest GitHub version.
-
-  Necessary to include a fix for a regression in that library, which was pointed out to
-  us in GitHub issue #42 (hopefully fixed by this library upgrade).
-- Adjust the header of generated test files; we now refer to Pynguin's
-  [website](https://www.pynguin.eu).
-
-## Unreleased
+## Pynguin 0.32.0
 
 - *Breaking:* Restructure the code
 
@@ -27,6 +19,13 @@ for the source-code artifacts of each version.
   resides in the `ga` package, where it fits much better.  All accompanying modules have
   also been moved to different places.  This might cause breakage if you have developed
   extensions for Pynguin that rely on the structure of the modules.
+- Update the [`bytecode`](https://github.com/MatthieuDartiailh/bytecode) library to its
+  latest GitHub version.
+
+  Necessary to include a fix for a regression in that library, which was pointed out to
+  us in GitHub issue #42 (hopefully fixed by this library upgrade).
+- Adjust the header of generated test files; we now refer to Pynguin's
+  [website](https://www.pynguin.eu).
 - Extend the usage of the `ruff` tool for code analysis.
 
 ## Pynguin 0.31.0
