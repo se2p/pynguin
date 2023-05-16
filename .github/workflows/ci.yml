@@ -43,8 +43,5 @@ jobs:
       - name: Linting with ruff
         run: poetry run ruff src/pynguin
 
-      - name: Linting with pylint
-        run: poetry run pylint src/pynguin
-
       - name: Run tests
         run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing tests/

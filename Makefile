@@ -94,10 +94,6 @@ test:
 mypy:
 	poetry run mypy
 
-.PHONY: pylint
-pylint:
-	poetry run pylint src/pynguin
-
 .PHONY: ruff
 ruff:
 	poetry run ruff src/pynguin
@@ -114,7 +110,7 @@ update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
-check: update-docs-requirements isort black mypy ruff pylint test
+check: update-docs-requirements isort black mypy ruff test
 
 .PHONY: lint
 lint: test check-safety check-style

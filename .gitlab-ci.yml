@@ -109,13 +109,6 @@ ruff:
     - poetry run ruff src/pynguin
   needs: ["isort", "black"]
 
-pylint:
-  stage: lint
-  image: python:3.10-bullseye
-  script:
-    - poetry run pylint src/pynguin
-  needs: ["isort", "black"]
-
 isort:
   stage: build
   image: python:3.10-bullseye
