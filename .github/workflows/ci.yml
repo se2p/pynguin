@@ -46,8 +46,5 @@ jobs:
       - name: Linting with pylint
         run: poetry run pylint src/pynguin
 
-      - name: Check docstrings with darglint
-        run: poetry run darglint2 -v 2 src/pynguin/**/*.py
-
       - name: Run tests
         run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing tests/

@@ -116,13 +116,6 @@ pylint:
     - poetry run pylint src/pynguin
   needs: ["isort", "black"]
 
-darglint:
-  stage: lint
-  image: python:3.10-bullseye
-  script:
-    - poetry run darglint2 -v 2 src/pynguin/**/*.py
-  needs: ["isort", "black"]
-
 isort:
   stage: build
   image: python:3.10-bullseye

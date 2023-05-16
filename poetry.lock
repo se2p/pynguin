@@ -350,18 +350,6 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
-name = "darglint2"
-version = "1.8.2"
-description = "A utility for ensuring Google-style docstrings stay up to date with the source code."
-category = "dev"
-optional = false
-python-versions = ">=3.6,<4.0"
-files = [
-    {file = "darglint2-1.8.2-py3-none-any.whl", hash = "sha256:8f950c9b5fab25dd54bf537bef1569c267073e5828cb5ab76428876df6d947af"},
-    {file = "darglint2-1.8.2.tar.gz", hash = "sha256:11e0fc9c999bf09e192f42b72d202d177cb82da258eba387b24c2f0f5943650f"},
-]
-
-[[package]]
 name = "dill"
 version = "0.3.6"
 description = "serialize all of python"
@@ -1885,4 +1873,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <3.11"
-content-hash = "18ac94c3426e0e38113195e40bcd8d7660151756117a9bce9dcba6030bd9c698"
+content-hash = "3607a4856192c101cbb9e15f3a35f4edbc4c09fe9c6977ade3ee510ff1f0d519"
