@@ -19,6 +19,15 @@ for the source-code artifacts of each version.
 - Adjust the header of generated test files; we now refer to Pynguin's
   [website](https://www.pynguin.eu).
 
+## Unreleased
+
+- *Breaking:* Restructure the code
+
+  Most of the code related to the generation algorithms has been moved.  The code now
+  resides in the `ga` package, where it fits much better.  All accompanying modules have
+  also been moved to different places.  This might cause breakage if you have developed
+  extensions for Pynguin that rely on the structure of the modules.
+
 ## Pynguin 0.31.0
 
 - Update literature references in documentation

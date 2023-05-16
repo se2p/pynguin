@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 import typing
 
-import pynguin.generation.searchobserver as so
+import pynguin.ga.searchobserver as so
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable

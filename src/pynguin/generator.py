@@ -36,9 +36,9 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
+import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.generation.generationalgorithmfactory as gaf
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.analyses.constants import ConstantProvider
@@ -48,10 +48,10 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.generation import export
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
+from pynguin.testcase import export
 from pynguin.testcase.execution import AssertionExecutionObserver
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
@@ -64,9 +64,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.generation.algorithms.testgenerationstrategy import (
-        TestGenerationStrategy,
-    )
+    from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
 
 @enum.unique
@@ -323,7 +321,7 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
 
 
 def _get_coverage_ff_from_algorithm(
-    algorithm: TestGenerationStrategy, function_type: type[ff.TestSuiteCoverageFunction]
+    algorithm: GenerationAlgorithm, function_type: type[ff.TestSuiteCoverageFunction]
 ) -> ff.TestSuiteCoverageFunction:
     """Retrieve the coverage function for a test suite of a given coverage type.
 
@@ -514,7 +512,7 @@ def _run() -> ReturnCode:
     if config.CoverageMetric.CHECKED in coverage_metrics:
         executor.add_observer(StatementSlicingObserver(executor.tracer))
 
-    algorithm: TestGenerationStrategy = _instantiate_test_generation_strategy(
+    algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
     )
     _LOGGER.info("Start generating test cases")
@@ -608,7 +606,7 @@ def _generate_assertions(executor, generation_result):
 
 
 def _track_search_metrics(
-    algorithm: TestGenerationStrategy,
+    algorithm: GenerationAlgorithm,
     generation_result: tsc.TestSuiteChromosome,
     coverage_metrics: list[config.CoverageMetric],
 ) -> None:
@@ -654,7 +652,7 @@ def _instantiate_test_generation_strategy(
     executor: TestCaseExecutor,
     test_cluster: ModuleTestCluster,
     constant_provider: ConstantProvider,
-) -> TestGenerationStrategy:
+) -> GenerationAlgorithm:
     factory = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster, constant_provider
     )
