@@ -20,10 +20,8 @@ from typing import TypeVar
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 
-from pynguin.ga.comparators.dominancecomparator import DominanceComparator
-from pynguin.ga.comparators.preferencesortingcomparator import (
-    PreferenceSortingComparator,
-)
+from pynguin.ga.operators.comparator import DominanceComparator
+from pynguin.ga.operators.comparator import PreferenceSortingComparator
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 

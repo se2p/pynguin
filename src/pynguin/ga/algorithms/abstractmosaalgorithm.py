@@ -17,7 +17,7 @@ import pynguin.ga.testcasechromosome as tcc
 
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
-from pynguin.ga.comparators.dominancecomparator import DominanceComparator
+from pynguin.ga.operators.comparator import DominanceComparator
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 

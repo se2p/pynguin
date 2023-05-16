@@ -3,14 +3,19 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.comparators.dominancecomparator as dc
 import pynguin.ga.computations as ff
+import pynguin.ga.operators.comparator as dc
 
 from pynguin.utils.orderedset import OrderedSet
 

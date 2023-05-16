@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides a comparator for dominance comparisons."""
+"""Provides comparators for the MOSA derivates."""
 from __future__ import annotations
 
 from typing import Generic
@@ -90,3 +90,46 @@ class DominanceComparator(Generic[C]):
         if dominate_1:
             return -1  # chromosome_1 dominates
         return 1  # chromosome_2 dominates
+
+
+class PreferenceSortingComparator(Generic[C]):
+    """A comparator for chromosomes based on the fitness value of two objects.
+
+    The comparator only considers the specified test goals.
+    """
+
+    def __init__(self, goal: ff.FitnessFunction) -> None:
+        """Initializes the comparator.
+
+        Args:
+            goal: The goal to respect for the comparison
+        """
+        self.__objective = goal
+
+    def compare(self, chromosome_1: C | None, chromosome_2: C | None) -> int:
+        """Compare the fitness value of two chromosomes focusing only on one goal.
+
+        Args:
+            chromosome_1: A chromosome
+            chromosome_2: A chromosome
+
+        Returns:
+            -1 if fitness of chromosome_1 is less than fitness of chromosome_2, 0 if the
+            fitness values of both solutions are equal, 1 otherwise
+        """
+        if chromosome_1 is None:
+            return 1
+        if chromosome_2 is None:
+            return -1
+
+        value_1 = chromosome_1.get_fitness_for(self.__objective)
+        value_2 = chromosome_2.get_fitness_for(self.__objective)
+        if value_1 < value_2:
+            return -1
+        if value_1 > value_2:
+            return 1
+        if chromosome_1.length() < chromosome_2.length():
+            return -1
+        if chromosome_1.length() > chromosome_2.length():
+            return 1
+        return 0

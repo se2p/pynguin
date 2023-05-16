@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.chromosome as chrom
-import pynguin.ga.comparators.preferencesortingcomparator as pc
+import pynguin.ga.operators.comparator as pc
 
 
 @pytest.fixture
