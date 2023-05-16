@@ -49,7 +49,9 @@ class DominanceComparator(Generic[C]):
             self._objectives = None
 
     # pylint: disable=too-many-return-statements
-    def compare(self, chromosome_1: C | None, chromosome_2: C | None) -> int:
+    def compare(  # noqa: C901
+        self, chromosome_1: C | None, chromosome_2: C | None
+    ) -> int:
         """Compares two chromosomes regarding their dominance.
 
         Args:

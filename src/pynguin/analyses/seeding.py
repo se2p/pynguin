@@ -631,7 +631,7 @@ def create_stmt_from_collection(
     )
 
 
-def create_elements(
+def create_elements(  # noqa: C901
     elements: Any,
     testcase: tc.TestCase,
     objs_under_test: set[GenericCallableAccessibleObject],

@@ -110,7 +110,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         """
 
     # pylint:disable=too-many-branches
-    def _handle(
+    def _handle(  # noqa: C901
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
     ) -> None:
         """Actually handle the statement.

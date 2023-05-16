@@ -144,7 +144,7 @@ class DynamicSlicer:
         """
         self._known_code_objects = known_code_objects
 
-    def slice(  # pylint: disable=too-many-branches, too-many-locals
+    def slice(  # noqa: C901  # pylint: disable=too-many-branches, too-many-locals
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
@@ -522,7 +522,7 @@ class DynamicSlicer:
                 return node
         return None
 
-    def check_explicit_data_dependency(
+    def check_explicit_data_dependency(  # noqa: C901
         self,
         context: SlicingContext,
         unique_instr: UniqueInstruction,

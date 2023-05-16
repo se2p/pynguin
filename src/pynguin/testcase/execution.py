@@ -1781,7 +1781,7 @@ class ExecutionTracer:
         )
 
     @staticmethod
-    def attribute_lookup(object_type, attribute: str) -> int:
+    def attribute_lookup(object_type, attribute: str) -> int:  # noqa: C901
         """Check the dictionary of classes making up the MRO (_PyType_Lookup).
 
         The attribute must be a data descriptor to be prioritized here

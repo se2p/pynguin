@@ -105,7 +105,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self._test_case = offspring_test_case
             self.changed = True
 
-    def mutate(self) -> None:  # noqa: D102
+    def mutate(self) -> None:  # noqa: C901,D102
         changed = False
 
         if (

@@ -151,7 +151,7 @@ class _Context:
         return [node.id for node in name.elts if isinstance(node, ast.Name)]
 
     # pylint: disable=too-many-branches, too-many-return-statements
-    def __get_exception_name(self, raises: ast.Raise) -> str | list[str]:
+    def __get_exception_name(self, raises: ast.Raise) -> str | list[str]:  # noqa: C901
         if isinstance(raises, str):
             return raises
 

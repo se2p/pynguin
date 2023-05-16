@@ -1123,7 +1123,7 @@ class InferredSignature:
             )
         return None
 
-    def log_stats_and_guess_signature(
+    def log_stats_and_guess_signature(  # noqa: C901
         self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
     ) -> None:
         # pylint:disable=too-many-locals

@@ -178,11 +178,12 @@ target-version = "py310"
 line-length = 88
 src = ["src"]
 select = [
+  "C90",  # mccabe
   "D",  # pydocstyle
   "E",  # pycodestyle
   "F",  # pyflakes
   "UP",  # pyupgrade
-  "W",
+  "W",  # pycodestyle
   "T20",
 ]
 ignore = [
