@@ -27,6 +27,7 @@ for the source-code artifacts of each version.
   resides in the `ga` package, where it fits much better.  All accompanying modules have
   also been moved to different places.  This might cause breakage if you have developed
   extensions for Pynguin that rely on the structure of the modules.
+- Extend the usage of the `ruff` tool for code analysis.
 
 ## Pynguin 0.31.0
 
