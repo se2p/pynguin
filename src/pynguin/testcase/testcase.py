@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from pynguin.analyses.typesystem import ProperType
 
 
-# pylint: disable=too-many-public-methods
 class TestCase(metaclass=ABCMeta):
     """An abstract base implementation for a test case.
 

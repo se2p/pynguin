@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
 
-# pylint:disable=too-many-public-methods
 class DefaultTestCase(tc.TestCase):
     """A default implementation of a test case."""
 
@@ -141,7 +140,6 @@ class DefaultTestCase(tc.TestCase):
     def size(self) -> int:  # noqa: D102
         return len(self._statements)
 
-    # pylint: disable=too-many-return-statements
     def __eq__(self, other: Any) -> bool:
         if self is other:
             return True

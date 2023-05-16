@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking import RankingFunction
 
-C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+C = TypeVar("C", bound=chrom.Chromosome)
 
 
 class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
@@ -117,7 +117,6 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
         """
 
 
-# pylint: disable=unsubscriptable-object, too-few-public-methods
 class TestSuiteGenerationAlgorithmFactory(
     GenerationAlgorithmFactory[tsc.TestSuiteChromosome]
 ):

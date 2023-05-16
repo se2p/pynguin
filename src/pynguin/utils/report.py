@@ -116,7 +116,7 @@ class LineAnnotation:
 
 
 @dataclasses.dataclass
-class CoverageReport:  # pylint:disable=too-many-instance-attributes
+class CoverageReport:
     """All coverage related data required to create a coverage report."""
 
     module: str
@@ -143,7 +143,6 @@ class CoverageReport:  # pylint:disable=too-many-instance-attributes
     line_coverage: float | None = None
 
 
-# pylint:disable=too-many-locals
 def get_coverage_report(
     suite: tsc.TestSuiteChromosome,
     executor: TestCaseExecutor,

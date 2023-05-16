@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 # also create another subclass?
 
 
-# pylint: disable=too-few-public-methods
 class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
     """Implements a whole-suite test generation algorithm similar to EvoSuite."""
 

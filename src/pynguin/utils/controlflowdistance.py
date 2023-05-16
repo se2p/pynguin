@@ -58,7 +58,7 @@ class ControlFlowDistance:
 
     def __lt__(self, other: ControlFlowDistance) -> bool:
         if not isinstance(other, ControlFlowDistance):
-            raise TypeError(  # pylint: disable=raising-format-tuple
+            raise TypeError(
                 "'<' not supported between instances of "
                 "'ControlFlowDistance' and '%s'",
                 type(other),

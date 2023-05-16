@@ -37,12 +37,10 @@ if TYPE_CHECKING:
     from pynguin.ga.stoppingcondition import StoppingCondition
     from pynguin.testcase.execution import AbstractTestCaseExecutor
 
-A = TypeVar("A", bound=arch.Archive)  # pylint:disable=invalid-name
+A = TypeVar("A", bound=arch.Archive)
 
 
-class GenerationAlgorithm(
-    Generic[A]
-):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+class GenerationAlgorithm(Generic[A]):
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self) -> None:  # noqa: D107

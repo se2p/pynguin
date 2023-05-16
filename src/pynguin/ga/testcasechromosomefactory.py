@@ -24,9 +24,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
 
 
-class TestCaseChromosomeFactory(
-    cf.ChromosomeFactory[tcc.TestCaseChromosome]
-):  # pylint:disable=too-few-public-methods.
+class TestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):
     """A factory that creates test case chromosomes using the given test case factory.
 
     Also add the given fitness functions to the newly created test case chromosome.
@@ -63,7 +61,7 @@ class TestCaseChromosomeFactory(
 
 class ArchiveReuseTestCaseChromosomeFactory(
     cf.ChromosomeFactory[tcc.TestCaseChromosome]
-):  # pylint:disable=too-few-public-methods.
+):
     """Provides test case chromosomes from an archive with some probability.
 
     Otherwise, delegates to wrapped chromosome factory.

@@ -16,10 +16,9 @@ import pynguin.ga.computations as ff
 from pynguin.utils.orderedset import OrderedSet
 
 
-C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+C = TypeVar("C", bound=chrom.Chromosome)
 
 
-# pylint: disable=too-few-public-methods
 class DominanceComparator(Generic[C]):
     """Implements a comparator to compare chromosomes based on the dominance test."""
 
@@ -48,7 +47,6 @@ class DominanceComparator(Generic[C]):
         else:
             self._objectives = None
 
-    # pylint: disable=too-many-return-statements
     def compare(  # noqa: C901
         self, chromosome_1: C | None, chromosome_2: C | None
     ) -> int:

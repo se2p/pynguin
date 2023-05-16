@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
 
-# pylint: disable=too-few-public-methods
 class RandomTestSuiteSearchAlgorithm(GenerationAlgorithm):
     """Create random test suites."""
 

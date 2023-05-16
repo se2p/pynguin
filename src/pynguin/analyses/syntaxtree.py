@@ -58,7 +58,6 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
         super().__init__()
         self.in_function: bool = False
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
         if not self.in_function:
             self.in_function = True
@@ -67,14 +66,12 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
             )
         return ast.Pass()
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         if not self.in_function:
             self.in_function = True
             return getattr(super(), "visit_FunctionDef", super().generic_visit)(node)
         return ast.Pass()
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Lambda(self, node: ast.Lambda) -> ast.AST:
         if not self.in_function:
             self.in_function = True
@@ -150,7 +147,6 @@ class _Context:
             return name.id
         return [node.id for node in name.elts if isinstance(node, ast.Name)]
 
-    # pylint: disable=too-many-branches, too-many-return-statements
     def __get_exception_name(self, raises: ast.Raise) -> str | list[str]:  # noqa: C901
         if isinstance(raises, str):
             return raises
@@ -314,7 +310,6 @@ class _RaiseVisitor(ast.NodeVisitor):
         """
         return self.contexts[-1]
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Raise(self, node: ast.Raise) -> ast.AST:
         bubbles = self.context.add_exception(node)
         if bubbles:
@@ -326,7 +321,6 @@ class _RaiseVisitor(ast.NodeVisitor):
 
         return self.generic_visit(node)
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Try(self, node: ast.Try) -> None:
         self.contexts.append(_Context())
         for child in node.body:
@@ -371,7 +365,6 @@ class _RaiseVisitor(ast.NodeVisitor):
         context = self.contexts.pop()
         self.context.extend(context)
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Assert(self, node: ast.Assert) -> ast.AST:
         # If we see an assert statement in the subject under test we expect that the
         # assertion can also be failing, thus it is legitimate to raise an
@@ -394,12 +387,10 @@ class _YieldVisitor(ast.NodeVisitor):
         super().__init__()
         self.yields: list[ast.Yield | ast.YieldFrom] = []
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Yield(self, node: ast.Yield) -> ast.AST:
         self.yields.append(node)
         return self.generic_visit(node)
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_YieldFrom(self, node: ast.YieldFrom) -> ast.AST:
         self.yields.append(node)
         return self.generic_visit(node)
@@ -412,7 +403,6 @@ class _ReturnVisitor(ast.NodeVisitor):
         super().__init__()
         self.returns: list[ast.Return | None] = []
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Return(self, node: ast.Return) -> ast.AST:
         self.returns.append(node)
         return self.generic_visit(node)
@@ -425,7 +415,6 @@ class _AssertVisitor(ast.NodeVisitor):
         super().__init__()
         self.asserts: list[ast.Assert] = []
 
-    # pylint: disable=invalid-name, missing-docstring
     def visit_Assert(self, node: ast.Assert) -> ast.AST:
         self.asserts.append(node)
         # Make sure that we also execute a visit_Assert method in another analysis
@@ -433,7 +422,6 @@ class _AssertVisitor(ast.NodeVisitor):
         return getattr(super(), "visit_Assert", super().generic_visit)(node)
 
 
-# pylint: disable=too-many-ancestors
 class FunctionAnalysisVisitor(
     _FunctionScopedVisitorMixin,  # needs to be first in order!
     _RaiseVisitor,
@@ -449,7 +437,7 @@ class FunctionAnalysisVisitor(
 
 
 @dataclasses.dataclass
-class FunctionDescription:  # pylint: disable=too-many-instance-attributes
+class FunctionDescription:
     """Describes a function or method in the subject under test.
 
     Attributes:

@@ -17,10 +17,9 @@ import pynguin.ga.chromosome as chrom
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
-C = TypeVar("C", bound=chrom.Chromosome)  # pylint: disable=invalid-name
+C = TypeVar("C", bound=chrom.Chromosome)
 
 
-# pylint: disable=too-few-public-methods
 class PreferenceSortingComparator(Generic[C]):
     """A comparator for chromosomes based on the fitness value of two objects.
 
@@ -30,7 +29,6 @@ class PreferenceSortingComparator(Generic[C]):
     def __init__(self, goal: ff.FitnessFunction) -> None:  # noqa: D107
         self._objective = goal
 
-    # pylint: disable=too-many-return-statements
     def compare(self, solution_1: C | None, solution_2: C | None) -> int:
         """Compare the fitness value of two chromosomes focusing only on one goal.
 

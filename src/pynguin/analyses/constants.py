@@ -122,7 +122,7 @@ class RestrictedConstantPool(ConstantPool):
             values.remove(values[0])
 
 
-class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
+class ConstantProvider(abc.ABC):
     """Provides constants."""
 
     @abc.abstractmethod
@@ -137,16 +137,14 @@ class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
         """
 
 
-class EmptyConstantProvider(ConstantProvider):  # pylint:disable=too-few-public-methods
+class EmptyConstantProvider(ConstantProvider):
     """Empty provider."""
 
     def get_constant_for(self, tp_: type[T]) -> T | None:  # noqa: D102
         return None
 
 
-class DelegatingConstantProvider(
-    ConstantProvider, ABC
-):  # pylint:disable=too-few-public-methods
+class DelegatingConstantProvider(ConstantProvider, ABC):
     """Either provides values from its own pool or delegates to another provider."""
 
     def __init__(
@@ -293,12 +291,11 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
             try:
                 tree = ast.parse(module_file.read())
                 collector.visit(tree)
-            except BaseException as exception:  # pylint: disable=broad-except
+            except BaseException as exception:
                 logger.exception("Cannot collect constants: %s", exception)
     return collector.constants
 
 
-# pylint: disable=invalid-name, missing-function-docstring
 class _ConstantCollector(ast.NodeVisitor):
     """AST visitor that collects constants."""
 

@@ -202,7 +202,7 @@ def save_module_to_file(
         if format_with_black:
             # Import of black might cause problems if it is a SUT dependency,
             # so we only import it if we need it.
-            import black  # pylint:disable=import-outside-toplevel
+            import black
 
             output = black.format_str(output, mode=black.FileMode())
         file.write(output)

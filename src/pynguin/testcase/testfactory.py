@@ -118,7 +118,6 @@ class TestFactory:
         else:
             raise ConstructionFailedException(f"Unknown statement type: {statement}")
 
-    # pylint: disable=too-many-arguments
     def append_generic_accessible(
         self,
         test_case: tc.TestCase,
@@ -184,7 +183,6 @@ class TestFactory:
             )
         raise ConstructionFailedException(f"Unknown accessible type: {accessible}")
 
-    # pylint: disable=too-many-arguments
     def add_constructor(
         self,
         test_case: tc.TestCase,
@@ -245,7 +243,6 @@ class TestFactory:
                 f"Failed to add constructor for {constructor}"
             ) from exception
 
-    # pylint: disable=too-many-arguments
     def add_method(
         self,
         test_case: tc.TestCase,
@@ -401,7 +398,6 @@ class TestFactory:
         statement = stmt.EnumPrimitiveStatement(test_case, enum_)
         return test_case.add_variable_creating_statement(statement, position)
 
-    # pylint: disable=too-many-arguments
     def add_function(
         self,
         test_case: tc.TestCase,
@@ -920,7 +916,6 @@ class TestFactory:
                 return False
         return True
 
-    # pylint: disable=too-many-arguments, assignment-from-none
     def satisfy_parameters(
         self,
         test_case: tc.TestCase,
@@ -1065,7 +1060,6 @@ class TestFactory:
         )
         return reference
 
-    # pylint: disable=too-many-arguments, unused-argument, too-many-return-statements
     def _create_or_reuse_variable(
         self,
         test_case: tc.TestCase,
@@ -1092,7 +1086,6 @@ class TestFactory:
             test_case, parameter_type, position, recursion_depth, allow_none
         )
 
-    # pylint: disable=too-many-arguments
     def _attempt_generation(
         self,
         test_case: tc.TestCase,

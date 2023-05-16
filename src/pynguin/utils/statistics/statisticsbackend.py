@@ -21,7 +21,7 @@ from typing import TypeVar
 import pynguin.configuration as config
 
 
-T = TypeVar("T")  # pylint: disable=invalid-name
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,6 @@ class OutputVariable(Generic[T]):
     value: T
 
 
-# pylint: disable=too-few-public-methods
 class AbstractStatisticsBackend(metaclass=ABCMeta):
     """An interface for a statistics writer."""
 
@@ -45,7 +44,6 @@ class AbstractStatisticsBackend(metaclass=ABCMeta):
         """
 
 
-# pylint: disable=too-few-public-methods
 class CSVStatisticsBackend(AbstractStatisticsBackend):
     """A statistics backend writing all (selected) output variables to a CSV file."""
 
@@ -72,7 +70,6 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
             logging.exception("Error while writing statistics: %s", error)
 
 
-# pylint: disable=too-few-public-methods
 class ConsoleStatisticsBackend(AbstractStatisticsBackend):
     """Simple dummy backend that just outputs all output variables to the console."""
 

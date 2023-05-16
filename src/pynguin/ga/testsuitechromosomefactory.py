@@ -21,9 +21,7 @@ if TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
 
-class TestSuiteChromosomeFactory(
-    cf.ChromosomeFactory[tsc.TestSuiteChromosome]
-):  # pylint:disable=too-few-public-methods.
+class TestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome]):
     """A factory that provides new test suite chromosomes of random length."""
 
     def __init__(

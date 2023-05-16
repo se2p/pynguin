@@ -54,7 +54,7 @@ class SlicingCriterion:
 
 
 @dataclass
-class SlicingContext:  # pylint: disable=too-many-instance-attributes
+class SlicingContext:
     """Stores the slicing context.
 
     The context consists of all defined and used variables, as well as instructions used
@@ -83,7 +83,7 @@ class SlicingContext:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class SlicingState:  # pylint: disable=too-many-instance-attributes
+class SlicingState:
     """Holds the configuration and state of the dynamic slicing process.
 
     The state is tracked for each analysed instruction.
@@ -144,7 +144,7 @@ class DynamicSlicer:
         """
         self._known_code_objects = known_code_objects
 
-    def slice(  # noqa: C901  # pylint: disable=too-many-branches, too-many-locals
+    def slice(  # noqa: C901
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
@@ -282,7 +282,7 @@ class DynamicSlicer:
         self._update_stack_effects(last_state, last_unique_instr, slc)
         return prev_import_back_call
 
-    def _trace_housekeeping(  # pylint: disable=too-many-arguments
+    def _trace_housekeeping(
         self, criterion_in_slice, include_use, last_traced_instr, last_unique_instr, slc
     ):
         # Add instruction to slice
@@ -411,7 +411,7 @@ class DynamicSlicer:
 
         raise InstructionNotFoundException
 
-    def create_unique_instruction(  # pylint: disable=too-many-arguments
+    def create_unique_instruction(
         self, file: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         """Creates and returns a unique instruction object from an instruction.
@@ -827,7 +827,6 @@ class DynamicSlicer:
         return line_ids
 
 
-# pylint:disable=too-few-public-methods
 class AssertionSlicer:
     """Holds all logic of slicing traced assertions.
 

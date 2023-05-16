@@ -236,24 +236,18 @@ class _ObjectProxyMethods:
 
     @property
     def __module__(self):
-        return (  # pylint:disable=no-member
-            self.__wrapped__.__module__  # type: ignore[attr-defined]
-        )
+        return self.__wrapped__.__module__  # type: ignore[attr-defined]
 
     @__module__.setter
     def __module__(self, value):
-        # pylint:disable=no-member
         self.__wrapped__.__module__ = value  # type: ignore[attr-defined]
 
     @property
     def __doc__(self):
-        return (  # pylint:disable=no-member
-            self.__wrapped__.__doc__  # type: ignore[attr-defined]
-        )
+        return self.__wrapped__.__doc__  # type: ignore[attr-defined]
 
     @__doc__.setter
     def __doc__(self, value):
-        # pylint:disable=no-member
         self.__wrapped__.__doc__ = value  # type: ignore[attr-defined]
 
     # We similar use a property for __dict__. We need __dict__ to be
@@ -261,9 +255,7 @@ class _ObjectProxyMethods:
 
     @property
     def __dict__(self):
-        return (  # pylint:disable=no-member
-            self.__wrapped__.__dict__  # type: ignore[attr-defined]
-        )
+        return self.__wrapped__.__dict__  # type: ignore[attr-defined]
 
     # Need to also propagate the special __weakref__ attribute for case
     # where decorating classes which will define this. If do not define
@@ -272,9 +264,7 @@ class _ObjectProxyMethods:
 
     @property
     def __weakref__(self):
-        return (  # pylint:disable=no-member
-            self.__wrapped__.__weakref__  # type: ignore[attr-defined]
-        )
+        return self.__wrapped__.__weakref__  # type: ignore[attr-defined]
 
 
 class _ObjectProxyMetaType(type):
@@ -390,7 +380,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     def __round__(self, *args):  # noqa: D105
         return round(self.__wrapped__, *args)  # type:ignore[has-type]
 
-    def __mro_entries__(self, bases):  # pylint:disable=unused-argument  # noqa: D105
+    def __mro_entries__(self, bases):
         return (self.__wrapped__,)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
@@ -626,7 +616,6 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
     @proxify(log_arg_types=True)
     def __itruediv__(self, other):  # type:ignore[misc]  # noqa: D105
-        # pylint:disable=attribute-defined-outside-init
         self.__wrapped__ = operator.itruediv(
             self.__wrapped__, other  # type: ignore[has-type]
         )
@@ -773,7 +762,6 @@ def shim_isinstance():
     orig_isinstance = builtins.isinstance
 
     def shim(inst, types):
-        # pylint:disable=unidiomatic-typecheck
         if type(inst) is ObjectProxy:
             if types is ObjectProxy or orig_isinstance(types, ObjectProxy):
                 return orig_isinstance(inst, types)

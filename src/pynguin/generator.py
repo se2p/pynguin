@@ -396,7 +396,6 @@ def _track_final_metrics(
     Returns:
         The set of tracked coverage metrics, including the ones that we optimised for.
     """
-    # pylint:disable=too-many-locals
     output_variables = config.configuration.statistics_output.output_variables
     # Alias for shorter lines
     cov_metrics = config.configuration.statistics_output.coverage_metrics
@@ -469,7 +468,6 @@ def _add_additional_metrics(
     output_variables,
     to_calculate,
 ):
-    # pylint:disable=too-many-arguments
     if (
         RuntimeVariable.FinalLineCoverage in output_variables
         and config.CoverageMetric.LINE not in cov_metrics

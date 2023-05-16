@@ -8,7 +8,6 @@
 import enum
 
 
-# pylint: disable=invalid-name
 @enum.unique
 class RuntimeVariable(str, enum.Enum):
     """Defines all runtime variables we want to store in the result CSV files.

@@ -35,12 +35,12 @@ from typing import TypeVar
 from typing import cast
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
-import pytest  # pylint:disable=unused-import # noqa: F401
+import pytest  # noqa: F401
 
 from bytecode import BasicBlock
 from bytecode import CellVar
 from bytecode import FreeVar
-from jellyfish import levenshtein_distance  # pylint: disable=no-name-in-module
+from jellyfish import levenshtein_distance
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -451,9 +451,7 @@ class ReturnTypeObserver(ExecutionObserver):
     Updates the return types of the called function with the observed types.
     """
 
-    class ReturnTypeLocalState(
-        threading.local
-    ):  # pylint:disable=too-few-public-methods
+    class ReturnTypeLocalState(threading.local):
         """Encapsulate observed return types."""
 
         def __init__(self):  # noqa: D107
@@ -545,7 +543,7 @@ class ReturnTypeObserver(ExecutionObserver):
             self._return_type_local_state.return_type_trace[position] = type(value)
             # TODO(fk) Hardcoded support for generics.
             # Try to guess generic arguments from elements.
-            # pylint:disable=unidiomatic-typecheck
+
             if type(value) in (set, list) and len(value) > 0:
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(next(iter(value))),
@@ -563,7 +561,7 @@ class ReturnTypeObserver(ExecutionObserver):
 
 
 @dataclass
-class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
+class ExecutionTrace:
     """Stores trace information about the execution."""
 
     _logger = logging.getLogger(__name__)
@@ -633,7 +631,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
             self.false_distances.get(predicate, inf), distance_false
         )
 
-    def add_instruction(  # pylint: disable=too-many-arguments
+    def add_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -657,7 +655,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_memory_instruction(  # pylint: disable=too-many-arguments
+    def add_memory_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -698,7 +696,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_attribute_instruction(  # pylint: disable=too-many-arguments
+    def add_attribute_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -739,7 +737,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_jump_instruction(  # pylint: disable=too-many-arguments
+    def add_jump_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -765,7 +763,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_call_instruction(  # pylint: disable=too-many-arguments
+    def add_call_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -792,7 +790,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
 
         self.executed_instructions.append(executed_instr)
 
-    def add_return_instruction(  # pylint: disable=too-many-arguments
+    def add_return_instruction(
         self,
         module: str,
         code_object_id: int,
@@ -818,7 +816,6 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         self.executed_instructions.append(executed_instr)
 
 
-# pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
 class ExecutionResult:
     """Result of an execution."""
@@ -995,7 +992,6 @@ class SubjectProperties:
     object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
 
 
-# pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
     """Tracks branch distances and covered statements during execution.
 
@@ -1004,7 +1000,7 @@ class ExecutionTracer:
 
     _logger = logging.getLogger(__name__)
 
-    class TracerLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    class TracerLocalState(threading.local):
         """Encapsulate state that is thread specific."""
 
         def __init__(self):  # noqa: D107
@@ -1399,7 +1395,7 @@ class ExecutionTracer:
             predicate=predicate,
         )
 
-    def track_generic(  # pylint: disable=too-many-arguments
+    def track_generic(
         self,
         module: str,
         code_object_id: int,
@@ -1438,7 +1434,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def track_memory_access(  # pylint: disable=too-many-arguments
+    def track_memory_access(
         self,
         module: str,
         code_object_id: int,
@@ -1514,7 +1510,7 @@ class ExecutionTracer:
             object_creation,
         )
 
-    def track_attribute_access(  # pylint: disable=too-many-arguments
+    def track_attribute_access(
         self,
         module: str,
         code_object_id: int,
@@ -1581,7 +1577,7 @@ class ExecutionTracer:
             mutable_type,
         )
 
-    def track_jump(  # pylint: disable=too-many-arguments
+    def track_jump(
         self,
         module: str,
         code_object_id: int,
@@ -1622,7 +1618,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
-    def track_call(  # pylint: disable=too-many-arguments
+    def track_call(
         self,
         module: str,
         code_object_id: int,
@@ -1663,7 +1659,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-    def track_return(  # pylint: disable=too-many-arguments
+    def track_return(
         self,
         module: str,
         code_object_id: int,
@@ -2114,7 +2110,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # Repeatedly opening/closing devnull caused problems.
         # This is closed when Pynguin terminates, since we don't need this output
         # anyway this is ok.
-        # pylint:disable=unspecified-encoding,consider-using-with
+
         self._null_file = open(os.devnull, mode="w")
 
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
@@ -2320,9 +2316,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             code = self._checked_transformer.instrument_module(code)
 
         try:
-            # pylint: disable=exec-used
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
-        except BaseException as err:  # pylint: disable=broad-except
+        except BaseException as err:
             failed_stmt = ast.unparse(ast_node)
             _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err
@@ -2405,9 +2400,7 @@ class TypeTracingObserver(ExecutionObserver):
     It wraps parameters in proxies in order to make better guesses on their type.
     """
 
-    class TypeTracingLocalState(
-        threading.local
-    ):  # pylint:disable=too-few-public-methods
+    class TypeTracingLocalState(threading.local):
         """Thread local data for type tracing."""
 
         def __init__(self):  # noqa: D107
@@ -2456,7 +2449,6 @@ class TypeTracingObserver(ExecutionObserver):
     def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
-        # pylint:disable=too-many-locals
         if isinstance(statement, stmt.ParametrizedStatement):
             modified_args = {}
             real_params = {}

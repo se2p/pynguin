@@ -13,7 +13,7 @@ from typing import TypeVar
 from pynguin.utils import randomness
 
 
-T = TypeVar("T")  # pylint:disable=invalid-name
+T = TypeVar("T")
 
 
 def alpha_exponent_insertion(

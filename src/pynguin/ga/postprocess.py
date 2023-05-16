@@ -158,7 +158,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         return self._deleted_statement_indexes
 
 
-# pylint:disable=too-few-public-methods
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
     """Removes unused primitive and collection statements."""
 

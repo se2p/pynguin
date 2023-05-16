@@ -161,7 +161,6 @@ class Selection(str, enum.Enum):
     """Tournament selection.  Use `tournament_size` to set size."""
 
 
-# pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
 class StatisticsOutputConfiguration:
     """Configuration related to output."""
@@ -259,7 +258,6 @@ class TestCaseOutputConfiguration:
     """Format the generated test cases using black."""
 
 
-# pylint:disable=too-many-instance-attributes
 @dataclasses.dataclass
 class SeedingConfiguration:
     """Configuration related to seeding."""
@@ -573,7 +571,6 @@ class StoppingConfiguration:
     (up to maximum_test_execution_timeout)."""
 
 
-# pylint: disable=too-many-instance-attributes, pointless-string-statement
 @dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""

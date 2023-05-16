@@ -15,11 +15,9 @@ import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
 
-# pylint: disable=invalid-name
 T = TypeVar("T", bound=chrom.Chromosome)
 
 
-# pylint: disable=too-few-public-methods
 class CrossOverFunction(Generic[T]):
     """Cross over two individuals."""
 
@@ -33,7 +31,6 @@ class CrossOverFunction(Generic[T]):
         """
 
 
-# pylint: disable=too-few-public-methods
 class SinglePointRelativeCrossOver(CrossOverFunction[T]):
     """Performs a single-point relative crossover of the two parents.
 

@@ -114,7 +114,6 @@ class InstrumentationFinder(MetaPathFinder):
 
     _logger = logging.getLogger(__name__)
 
-    # pylint:disable=too-many-arguments
     def __init__(
         self,
         original_pathfinder,

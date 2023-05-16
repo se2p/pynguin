@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
 
-# pylint: disable=too-many-instance-attributes
 class MOSAAlgorithm(AbstractMOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA."""
 

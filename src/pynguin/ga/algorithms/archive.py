@@ -194,7 +194,7 @@ class MIOPopulationPair:
     """A tuple of h-value and corresponding test case chromosome."""
 
     # The h-value as described in the MIO paper.
-    # pylint: disable=invalid-name
+
     h: float
 
     # The test case chromosome.
@@ -227,7 +227,6 @@ class MIOPopulation:
             and self._solutions[0].h == 1.0
         )
 
-    # pylint: disable=invalid-name
     def add_solution(
         self, h: float, test_case_chromosome: tcc.TestCaseChromosome
     ) -> bool:

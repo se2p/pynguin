@@ -29,7 +29,7 @@ class DependencyPair:
     recursion_level: int = dataclasses.field(compare=False, hash=False)
 
 
-class TestClusterGenerator:  # pylint: disable=too-few-public-methods
+class TestClusterGenerator:
     """Generate a new test cluster"""
 
     _logger = logging.getLogger(__name__)

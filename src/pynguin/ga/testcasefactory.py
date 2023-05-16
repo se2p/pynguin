@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
 
 
-# pylint:disable=too-few-public-methods
 class TestCaseFactory:
     """Abstract class for test case factories."""
 

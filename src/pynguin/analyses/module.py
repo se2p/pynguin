@@ -516,7 +516,6 @@ class ModuleTestCluster(TestCluster):
     dependencies.
     """
 
-    # pylint:disable=too-many-instance-attributes
     def __init__(self, linenos: int) -> None:  # noqa: D107
         self.__type_system = TypeSystem()
         self.__linenos = linenos
@@ -818,7 +817,6 @@ class ModuleTestCluster(TestCluster):
         ]
 
 
-# pylint:disable=too-many-public-methods
 class FilteredModuleTestCluster(TestCluster):
     """A test cluster wrapping another test cluster.
 
@@ -1074,7 +1072,7 @@ def __analyse_function(
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
 
 
-def __analyse_class(  # pylint: disable=too-many-arguments
+def __analyse_class(
     *,
     type_info: TypeInfo,
     type_inference_strategy: TypeInferenceStrategy,
@@ -1179,7 +1177,7 @@ def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> No
     type_info.attributes.difference_update(IGNORED_SYMBOLS)
 
 
-def __analyse_method(  # pylint: disable=too-many-arguments
+def __analyse_method(
     *,
     type_info: TypeInfo,
     method_name: str,

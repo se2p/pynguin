@@ -34,16 +34,14 @@ if TYPE_CHECKING:
 
 
 @dataclasses.dataclass(eq=False)
-class ChromosomeComputation(abc.ABC):  # pylint:disable=too-few-public-methods
+class ChromosomeComputation(abc.ABC):
     """An abstract computation on chromosomes."""
 
     _executor: AbstractTestCaseExecutor
     """Executor that will be used by the computation to execute chromosomes."""
 
 
-class TestCaseChromosomeComputation(
-    ChromosomeComputation, metaclass=abc.ABCMeta
-):  # pylint:disable=too-few-public-methods
+class TestCaseChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
     """A function that computes something on a test case chromosome."""
 
     def _run_test_case_chromosome(self, individual) -> ExecutionResult:
@@ -67,9 +65,7 @@ class TestCaseChromosomeComputation(
         return result
 
 
-class TestSuiteChromosomeComputation(
-    ChromosomeComputation, metaclass=abc.ABCMeta
-):  # pylint:disable=too-few-public-methods
+class TestSuiteChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
     """A function that computes something on a test suite chromosome."""
 
     def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
@@ -301,7 +297,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         return False
 
 
-class CoverageFunction:  # pylint:disable=too-few-public-methods
+class CoverageFunction:
     """Interface for a coverage function."""
 
     @abstractmethod
@@ -316,7 +312,6 @@ class CoverageFunction:  # pylint:disable=too-few-public-methods
         """
 
 
-# pylint: disable=too-few-public-methods
 class TestSuiteCoverageFunction(
     TestSuiteChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
 ):
@@ -325,7 +320,7 @@ class TestSuiteCoverageFunction(
 
 class TestCaseCoverageFunction(
     TestCaseChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
-):  # pylint: disable=too-few-public-methods
+):
     """Base class for all coverage functions that act on test case level."""
 
 
@@ -443,7 +438,7 @@ class ComputationCache:
         fitness_cache: dict[FitnessFunction, float] | None = None,
         is_covered_cache: dict[FitnessFunction, bool] | None = None,
         coverage_cache: dict[CoverageFunction, float] | None = None,
-    ):  # pylint:disable=too-many-arguments
+    ):
         self._chromosome = chromosome
         self._fitness_functions = fitness_functions if fitness_functions else []
         self._coverage_functions = coverage_functions if coverage_functions else []

@@ -29,7 +29,6 @@ class Random(random.Random):
         self._current_seed: int | None = None
         self.seed(x)
 
-    # pylint: disable=import-outside-toplevel
     def seed(self, a=None, version: int = 2) -> None:  # noqa: D102
         if a is None:
             import time
@@ -117,7 +116,7 @@ def next_gaussian() -> float:
     return RNG.gauss(0, 1)
 
 
-_T = TypeVar("_T")  # pylint:disable=invalid-name
+_T = TypeVar("_T")
 
 
 def choice(sequence: Sequence[_T]) -> _T:

@@ -31,7 +31,7 @@ class StatementSlicingObserver(ex.ExecutionObserver):
 
     _STORE_INSTRUCTION_OFFSET = 3
 
-    class SlicingLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    class SlicingLocalState(threading.local):
         """Stores thread-local slicing data."""
 
         def __init__(self):  # noqa: D107

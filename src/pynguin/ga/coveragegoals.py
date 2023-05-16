@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import SubjectProperties
 
 
-# pylint:disable=too-few-public-methods
 class AbstractCoverageGoal:
     """Abstract base class for coverage goals."""
 

@@ -101,7 +101,6 @@ class ArtificialInstr(Instr):
     """
 
 
-# pylint:disable=too-few-public-methods
 class InstrumentationAdapter:
     """Abstract base class for bytecode instrumentation adapters.
 
@@ -396,7 +395,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         block: BasicBlock,
         node: ProgramGraphNode,
     ) -> int:
-        # pylint:disable=too-many-arguments
         """Instrument a conditional jump.
 
         If it is based on a prior comparison, we track
@@ -692,7 +690,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         for_loop_exit = for_instr.arg  # type: ignore[union-attr]
         for_loop_body = basic_block.next_block
 
-        # pylint:disable=unbalanced-tuple-unpacking
         entered, not_entered = self._create_consecutive_blocks(
             cfg.bytecode_cfg(), basic_block, 2
         )
@@ -747,7 +744,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         return predicate_id
 
 
-# pylint:disable=too-few-public-methods
 class LineCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines.
 
@@ -836,7 +832,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
         self._tracer = tracer
 
-    def visit_node(  # pylint: disable=too-many-branches
+    def visit_node(
         self,
         cfg: CFG,
         code_object_id: int,
@@ -995,7 +991,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
-    def _instrument_generic(  # pylint: disable=too-many-arguments
+    def _instrument_generic(
         self,
         new_block_instructions: list[Instr],
         code_object_id: int,
@@ -1045,7 +1041,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_local_access(  # pylint: disable=too-many-arguments
+    def _instrument_local_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1108,7 +1104,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_attr_access(  # pylint: disable=too-many-arguments
+    def _instrument_attr_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1224,7 +1220,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # Original instruction: we need to load the attribute afterwards
             new_block_instructions.append(instr)
 
-    def _instrument_subscr_access(  # pylint: disable=too-many-arguments
+    def _instrument_subscr_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1318,7 +1314,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         if instr.opcode == op.BINARY_SUBSCR:
             new_block_instructions.append(instr)
 
-    def _instrument_name_access(  # pylint: disable=too-many-arguments
+    def _instrument_name_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1380,7 +1376,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_import_name_access(  # pylint: disable=too-many-arguments
+    def _instrument_import_name_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1441,7 +1437,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_global_access(  # pylint: disable=too-many-arguments
+    def _instrument_global_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1504,7 +1500,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_deref_access(  # pylint: disable=too-many-arguments
+    def _instrument_deref_access(
         self,
         code_object_id: int,
         node_id: int,
@@ -1580,7 +1576,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_jump(  # pylint: disable=too-many-arguments
+    def _instrument_jump(
         self,
         code_object_id: int,
         node_id: int,
@@ -1626,7 +1622,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_call(  # pylint: disable=too-many-arguments
+    def _instrument_call(
         self,
         code_object_id: int,
         node_id: int,
@@ -1671,7 +1667,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_return(  # pylint: disable=too-many-arguments
+    def _instrument_return(
         self,
         code_object_id: int,
         node_id: int,
@@ -1722,7 +1718,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         # (otherwise we do not reach instrumented code)
         new_block_instructions.append(instr)
 
-    # pylint: disable=too-many-arguments
     @staticmethod
     def _load_args(
         code_object_id: int,
@@ -1755,7 +1750,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         return instructions
 
-    # pylint: disable=too-many-arguments
     @staticmethod
     def _load_args_with_prop(
         code_object_id: int,
@@ -1797,7 +1791,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         return instructions
 
 
-# pylint:disable=too-few-public-methods
 class DynamicSeedingInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable dynamic constant seeding.
 

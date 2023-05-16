@@ -18,7 +18,6 @@ import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
 
-# pylint: disable=invalid-name
 T = TypeVar("T", bound=chrom.Chromosome)
 
 

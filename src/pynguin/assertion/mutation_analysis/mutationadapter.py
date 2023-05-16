@@ -26,7 +26,7 @@ from pynguin.utils.exceptions import ConfigurationException
 _LOGGER = logging.getLogger(__name__)
 
 
-class MutationAdapter:  # pylint: disable=too-few-public-methods
+class MutationAdapter:
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
     _strategies: dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {

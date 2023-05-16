@@ -25,7 +25,6 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.utils.orderedset import OrderedSet
 
 
-# pylint: disable=invalid-name
 TypesOfCallables = (
     FunctionType
     | BuiltinFunctionType
@@ -188,9 +187,7 @@ class GenericEnum(GenericAccessibleObject):
         return f"{self.__class__.__name__}({self.owner})"
 
 
-class GenericCallableAccessibleObject(
-    GenericAccessibleObject, metaclass=abc.ABCMeta
-):  # pylint: disable=W0223
+class GenericCallableAccessibleObject(GenericAccessibleObject, metaclass=abc.ABCMeta):
     """Abstract base class for something that can be called."""
 
     def __init__(
@@ -305,7 +302,6 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         owner: TypeInfo,

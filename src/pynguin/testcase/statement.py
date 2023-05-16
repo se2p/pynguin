@@ -40,7 +40,7 @@ from pynguin.utils.type_utils import is_optional_parameter
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
-T = TypeVar("T")  # pylint:disable=invalid-name
+T = TypeVar("T")
 
 
 class Statement(metaclass=ABCMeta):
@@ -978,15 +978,12 @@ class FieldStatement(VariableCreatingStatement):
         return hash((self._field, self.ret_val.structural_hash(memo)))
 
 
-class ParametrizedStatement(
-    VariableCreatingStatement, metaclass=ABCMeta
-):  # pylint: disable=W0223
+class ParametrizedStatement(VariableCreatingStatement, metaclass=ABCMeta):
     """An abstract statement that has parameters.
 
     Superclass for e.g., method or constructor statement.
     """
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         test_case: tc.TestCase,
@@ -1080,7 +1077,6 @@ class ParametrizedStatement(
         """
         return len(self.args)
 
-    # pylint: disable=unused-argument
     def _mutate_special_parameters(self, p_per_param: float) -> bool:
         """Overwrite this method to mutate any parameter.
 
@@ -1277,7 +1273,6 @@ class ConstructorStatement(ParametrizedStatement):
 class MethodStatement(ParametrizedStatement):
     """A statement that calls a method on an object."""
 
-    # pylint: disable=too-many-arguments
     def __init__(
         self,
         test_case: tc.TestCase,

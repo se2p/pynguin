@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
 
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-T = TypeVar("T", int, float)  # pylint: disable=invalid-name
+T = TypeVar("T", int, float)
 
 
 class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
@@ -149,7 +149,7 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
             return 0
         interval = config.configuration.statistics_output.timeline_interval
         preferred_time = interval * index
-        # pylint:disable=consider-using-enumerate
+
         for i in range(len(self._time_stamps)):
             # find the first stamp that is following the time we would like to get
             # the value for

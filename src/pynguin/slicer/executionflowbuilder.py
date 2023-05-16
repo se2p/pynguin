@@ -36,7 +36,7 @@ class UniqueInstruction(Instr):
     instruction in the disassembly.
     """
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         file: str,
         name: str,
@@ -154,7 +154,7 @@ class UniqueInstruction(Instr):
 
 
 @dataclass
-class LastInstrState:  # pylint: disable=too-many-instance-attributes
+class LastInstrState:
     """The state at the last instruction.
 
     When the execution flow is reconstructed with traced instructions there are some
@@ -179,7 +179,7 @@ class LastInstrState:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class ExecutionFlowBuilderState:  # pylint: disable=too-many-instance-attributes
+class ExecutionFlowBuilderState:
     """Holds the configuration and state of the execution flow builder."""
 
     bb_id: int
@@ -261,7 +261,7 @@ class ExecutionFlowBuilder:
             efb_state.offset,
         )
 
-    def get_last_instruction(  # pylint: disable=too-many-arguments
+    def get_last_instruction(
         self,
         file: str,
         instr: Instr,
@@ -356,7 +356,7 @@ class ExecutionFlowBuilder:
             import_back_call=efb_state.import_back_call,
         )
 
-    def _determine_last_instruction(  # pylint: disable=too-many-arguments
+    def _determine_last_instruction(
         self,
         efb_state: ExecutionFlowBuilderState,
         basic_block,
@@ -396,7 +396,7 @@ class ExecutionFlowBuilder:
                 last_instr = self._continue_at_last_basic_block(efb_state)
         return last_instr
 
-    def _handle_return_instructions(  # pylint: disable=too-many-arguments
+    def _handle_return_instructions(
         self,
         efb_state: ExecutionFlowBuilderState,
         instr,
@@ -488,7 +488,7 @@ class ExecutionFlowBuilder:
             efb_state.exception = True
         return last_instr
 
-    def _create_unique_instruction(  # pylint: disable=too-many-arguments
+    def _create_unique_instruction(
         self, module: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         code_meta = self.known_code_objects.get(code_object_id)

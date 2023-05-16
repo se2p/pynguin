@@ -41,7 +41,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
     Observes the execution of a test case and generates assertions from it.
     """
 
-    class AssertionLocalState(threading.local):  # pylint:disable=too-few-public-methods
+    class AssertionLocalState(threading.local):
         """Stores thread-local assertion data."""
 
         def __init__(self):  # noqa: D107
@@ -109,7 +109,6 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             result: Not used
         """
 
-    # pylint:disable=too-many-branches
     def _handle(  # noqa: C901
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
     ) -> None:
@@ -187,7 +186,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     trace,
                 )
 
-    def _check_reference(  # pylint: disable=too-many-arguments
+    def _check_reference(
         self,
         exec_ctx: ex.ExecutionContext,
         ref: vr.Reference,
@@ -231,7 +230,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             position, ass.CollectionLengthAssertion(ref, length)
                         )
                         return
-                    except BaseException:  # pylint: disable=broad-except
+                    except BaseException:
                         # Could not get len, so continue down.
                         pass
             if depth < max_depth and hasattr(value, "__dict__"):
@@ -264,9 +263,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 class AssertionVerificationObserver(ex.ExecutionObserver):
     """This observer is used to check if assertions hold."""
 
-    class AssertionExecutorLocalState(
-        threading.local
-    ):  # pylint:disable=too-few-public-methods
+    class AssertionExecutorLocalState(threading.local):
         """Local state for assertion executor."""
 
         def __init__(self):  # noqa: D107

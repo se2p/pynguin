@@ -306,30 +306,25 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
         self.right = right
 
     def visit_any_type(self, left: AnyType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         # Any is not guessed/recorded
         return None
 
     def visit_none_type(self, left: NoneType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         if isinstance(self.right, NoneType):
             return NONE_TYPE
         return None
 
     def visit_instance(self, left: Instance) -> ProperType | None:
-        # pylint:disable=missing-function-docstring
         if isinstance(self.right, Instance) and left.type == self.right.type:
             return Instance(left.type)
         return None
 
     def visit_tuple_type(self, left: TupleType) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         if isinstance(self.right, TupleType):
             return TupleType(())
         return None
 
     def visit_union_type(self, left: UnionType) -> ProperType | None:
-        # pylint:disable=missing-function-docstring
         matches: tuple[ProperType, ...] = tuple(
             elem
             for elem in (
@@ -343,7 +338,6 @@ class _PartialTypeMatch(TypeVisitor[ProperType | None]):
         return None
 
     def visit_unsupported_type(self, left: Unsupported) -> ProperType | None:
-        # pylint:disable=unused-argument,missing-function-docstring
         # Cannot compare.
         return None
 
@@ -466,11 +460,11 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         self.right = right
         self.sub_type_check = sub_type_check
 
-    def visit_any_type(self, left: AnyType) -> bool:  # pylint:disable=unused-argument
+    def visit_any_type(self, left: AnyType) -> bool:
         # Any wins always
         return True
 
-    def visit_none_type(self, left: NoneType) -> bool:  # pylint:disable=unused-argument
+    def visit_none_type(self, left: NoneType) -> bool:
         # None cannot be subtyped
         # TODO(fk) handle protocols, e.g., hashable.
         return isinstance(self.right, NoneType)
@@ -581,7 +575,6 @@ class _PrimitiveTypeVisitor(TypeVisitor[bool]):
 is_primitive_type = _PrimitiveTypeVisitor()
 
 
-# pylint:disable=too-many-instance-attributes
 class TypeInfo:
     """A small wrapper around type, i.e., classes.
 
@@ -792,7 +785,6 @@ class InferredSignature:
             # append current
             old.append(guessed)
 
-    # pylint:disable=too-many-return-statements
     def _guess_parameter_type(
         self, knowledge: tt.UsageTraceNode, kind
     ) -> ProperType | None:
@@ -870,7 +862,6 @@ class InferredSignature:
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
     _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
 
-    # pylint:disable=invalid-name
     # Similar to above, but these are not dunder methods but are called,
     # e.g., for 'append', we need to search for 'append.__call__(...)'
     _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
@@ -911,7 +902,6 @@ class InferredSignature:
             self.type_system.find_by_attribute(random_attribute)
         )
 
-    # pylint:disable=too-many-return-statements
     def _guess_parameter_type_from(
         self, knowledge: tt.UsageTraceNode, recursion_depth: int = 0
     ) -> ProperType | None:
@@ -1035,7 +1025,6 @@ class InferredSignature:
                 )
         return self.type_system.make_instance(randomness.choice(positive_types))
 
-    # pylint:disable-next=too-many-arguments
     def _guess_generic_arguments(
         self,
         knowledge: tt.UsageTraceNode,
@@ -1126,7 +1115,6 @@ class InferredSignature:
     def log_stats_and_guess_signature(  # noqa: C901
         self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
     ) -> None:
-        # pylint:disable=too-many-locals
         """Logs some statistics and creates a guessed signature.
 
         Parameters annotated with Any could not be guessed.
@@ -1214,7 +1202,7 @@ class InferredSignature:
                 )
 
 
-class TypeSystem:  # pylint:disable=too-many-public-methods
+class TypeSystem:
     """Implements Pynguin's internal type system.
 
     Provides a simple inheritance graph relating various classes using their subclass
@@ -1588,7 +1576,6 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         Returns:
             The inference result
         """
-        # pylint:disable=too-many-locals
         method_signature = inspect.signature(method)
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
@@ -1665,7 +1652,7 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
         """
         glob: dict[str, Any] = {}
         # Make sure typing constructs are available
-        # pylint: disable=exec-used
+
         exec("from typing import *", glob)  # nosec
         # Make globals from module available
         glob.update(globs)
@@ -1678,9 +1665,8 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             potential_import = potential_type.group(0).rpartition(".")[0]
             _LOGGER.info("Try to import %s", potential_import)
             try:
-                # pylint: disable=exec-used
                 exec("import " + potential_import, glob)  # nosec
-            except Exception:  # pylint:disable=broad-except
+            except Exception:
                 # Well...
                 pass
         # If a type cannot be build from this info, there is not much we can do.
@@ -1688,12 +1674,11 @@ class TypeSystem:  # pylint:disable=too-many-public-methods
             # (Ab)use typing module
             ref = ForwardRef(candidate)
             return self.convert_type_hint(_eval_type(ref, glob, glob))
-        except Exception:  # pylint:disable=broad-except
+        except Exception:
             # Give up?
             return ANY
 
     def convert_type_hint(self, hint: Any, unsupported: ProperType = ANY) -> ProperType:
-        # pylint:disable=too-many-return-statements
         """Converts a type hint to a proper type.
 
         Python's builtin functionality makes handling types during runtime really

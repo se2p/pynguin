@@ -158,7 +158,7 @@ class ProgramGraphNode:
         return f"ProgramGraphNode(index={self._index}, basic_block={self._basic_block})"
 
 
-N = TypeVar("N", bound=ProgramGraphNode)  # pylint: disable=invalid-name
+N = TypeVar("N", bound=ProgramGraphNode)
 
 
 class ProgramGraph(Generic[N]):
@@ -315,7 +315,7 @@ class ProgramGraph(Generic[N]):
         return "\n".join(graph)
 
 
-G = TypeVar("G", bound=ProgramGraph)  # pylint: disable=invalid-name
+G = TypeVar("G", bound=ProgramGraph)
 
 
 def filter_dead_code_nodes(graph: G, entry_node_index: int = 0) -> G:
@@ -425,7 +425,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
             The reversed control-flow graph
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
-        # pylint: disable=attribute-defined-outside-init
+
         reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
@@ -450,7 +450,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         copy = CFG(
             ControlFlowGraph()
         )  # TODO(fk) Cloning the bytecode cfg is complicated.
-        # pylint: disable=attribute-defined-outside-init
+
         copy._graph = cfg._graph.copy()
         return copy
 

@@ -246,7 +246,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
-        # pylint: disable=exec-used
+
         exec(code, module.__dict__)  # nosec
         return module
 

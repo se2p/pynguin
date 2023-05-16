@@ -129,7 +129,6 @@ def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
     }
 
 
-# pylint: disable=too-many-branches, too-many-return-statements
 def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C901
     # jump based operations
     if opcode == op.SETUP_WITH:
@@ -192,7 +191,6 @@ def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C
     raise ValueError(f"The opcode {opcode} isn't recognized.")
 
 
-# pylint:disable=too-few-public-methods.
 class StackEffect:
     """Utility class for all stack effect calculations."""
 

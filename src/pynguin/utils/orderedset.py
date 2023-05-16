@@ -49,7 +49,7 @@ from typing import overload
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
-# pylint:disable=invalid-name
+
 _TAbstractOrderedSet = TypeVar("_TAbstractOrderedSet", bound="_AbstractOrderedSet")
 
 
@@ -122,7 +122,6 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
             x == y for x, y in zip(self._items, other._items, strict=True)
         )
 
-    # pylint:disable-next=line-too-long, arguments-renamed
     def __or__(  # type: ignore[override]
         self: _TAbstractOrderedSet, other: Iterable[T]
     ) -> _TAbstractOrderedSet:
@@ -226,7 +225,6 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
             pass
         return all(item in self for item in other)
 
-    # pylint:disable-next=line-too-long, arguments-renamed
     def __xor__(  # type: ignore[override]
         self: _TAbstractOrderedSet, other: Iterable[T]
     ) -> _TAbstractOrderedSet:

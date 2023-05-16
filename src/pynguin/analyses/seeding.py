@@ -101,7 +101,7 @@ class InitialPopulationProvider:
                 logger.debug("No suitable test module found.")
                 stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
                 return None
-        except BaseException as exception:  # pylint: disable=broad-except
+        except BaseException as exception:
             logger.exception("Cannot read module: %s", exception)
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
             return None
@@ -338,7 +338,6 @@ def create_variable_references_from_call_args(
     return var_refs
 
 
-# pylint: disable=too-many-return-statements
 def create_stmt_from_constant(
     constant: ast.Constant, testcase: tc.TestCase, constant_provider: ConstantProvider
 ) -> stmt.VariableCreatingStatement | None:
@@ -855,7 +854,6 @@ def try_generating_specific_function(
     return None
 
 
-# pylint: disable=invalid-name, missing-function-docstring, too-many-instance-attributes
 class AstToTestCaseTransformer(ast.NodeVisitor):
     """Transforms a Python AST into our internal test-case representation."""
 
