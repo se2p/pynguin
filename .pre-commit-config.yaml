@@ -40,3 +40,8 @@ repos:
     rev: v1.1.2
     hooks:
       - id: reuse
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.267'
+    hooks:
+      - id: ruff
