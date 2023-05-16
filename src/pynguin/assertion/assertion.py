@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class Assertion:
     """Base class for assertions."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         # this makes an assertion stateful, but is required for caching in slicing
         self._checked_instructions: list[UniqueInstruction] = []
 
@@ -67,7 +67,7 @@ class Assertion:
 class ReferenceAssertion(Assertion, ABC):
     """An assertion on a single reference."""
 
-    def __init__(self, source: vr.Reference):
+    def __init__(self, source: vr.Reference):  # noqa: D107
         super().__init__()
         self._source = source
 
@@ -83,6 +83,7 @@ class ReferenceAssertion(Assertion, ABC):
 
 class TypeNameAssertion(ReferenceAssertion):
     """An assertion that a reference has a type with a certain name.
+
     We compare the string representation of the fully qualified name.
     Using an isinstance check would also be possible, but classes might not always
     be accessible, for example when nested inside a function.
@@ -92,7 +93,7 @@ class TypeNameAssertion(ReferenceAssertion):
         assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int"
     """
 
-    def __init__(self, source: vr.Reference, module: str, qualname: str):
+    def __init__(self, source: vr.Reference, module: str, qualname: str):  # noqa: D107
         super().__init__(source)
         self._module = module
         self._qualname = qualname
@@ -115,10 +116,10 @@ class TypeNameAssertion(ReferenceAssertion):
         """
         return self._qualname
 
-    def accept(self, visitor: AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_type_name_assertion(self)
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> TypeNameAssertion:
         return TypeNameAssertion(self._source.clone(memo), self._module, self._qualname)
@@ -145,7 +146,7 @@ class FloatAssertion(ReferenceAssertion):
         assert float_0 == pytest.approx(42, rel=0.01, abs=0.01)
     """
 
-    def __init__(self, source: vr.Reference, value: float):
+    def __init__(self, source: vr.Reference, value: float):  # noqa: D107
         super().__init__(source)
         self._value = value
 
@@ -158,10 +159,10 @@ class FloatAssertion(ReferenceAssertion):
         """
         return self._value
 
-    def accept(self, visitor: AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_float_assertion(self)
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> FloatAssertion:
         return FloatAssertion(self.source.clone(memo), self._value)
@@ -192,7 +193,7 @@ class ObjectAssertion(ReferenceAssertion):
         assert var_2 == "Foobar"
     """
 
-    def __init__(self, source: vr.Reference, value: Any):
+    def __init__(self, source: vr.Reference, value: Any):  # noqa: D107
         super().__init__(source)
         self._object = value
 
@@ -205,10 +206,10 @@ class ObjectAssertion(ReferenceAssertion):
         """
         return self._object
 
-    def accept(self, visitor: AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_object_assertion(self)
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> ObjectAssertion:
         return ObjectAssertion(self.source.clone(memo), self._object)
@@ -240,7 +241,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         assert len(var_0) == 42
     """
 
-    def __init__(self, source: vr.Reference, length: int):
+    def __init__(self, source: vr.Reference, length: int):  # noqa: D107
         super().__init__(source)
         self._length = length
 
@@ -253,10 +254,10 @@ class CollectionLengthAssertion(ReferenceAssertion):
         """
         return self._length
 
-    def accept(self, visitor: AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_collection_length_assertion(self)
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> CollectionLengthAssertion:
         return CollectionLengthAssertion(self.source.clone(memo), self._length)
@@ -292,10 +293,10 @@ class ExceptionAssertion(Assertion):
         # hold
         self._exception_type_name: str = exception_type_name
 
-    def accept(self, visitor: AssertionVisitor) -> None:
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_exception_assertion(self)
 
-    def clone(
+    def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> Assertion:
         return ExceptionAssertion(self._module, self._exception_type_name)

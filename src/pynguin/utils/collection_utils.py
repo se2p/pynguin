@@ -11,8 +11,7 @@ from typing import Any
 
 
 def dict_without_keys(dict_to_change: dict[Any, Any], keys: set[Any]) -> dict[Any, Any]:
-    """
-    Removes the given keys from the given dict.
+    """Removes the given keys from the given dict.
 
     Args:
         dict_to_change: The dict where the keys should be removed.

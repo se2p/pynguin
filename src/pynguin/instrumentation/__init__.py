@@ -4,3 +4,4 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Provides the byte-code instrumentation mechanisms."""

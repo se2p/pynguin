@@ -44,7 +44,7 @@ class SinglePointRelativeCrossOver(CrossOverFunction[T]):
     Therefore, the offspring d has n<=max(n1, n2)
     """
 
-    def cross_over(self, parent_1: T, parent_2: T) -> None:
+    def cross_over(self, parent_1: T, parent_2: T) -> None:  # noqa: D102
         if parent_1.size() < 2 or parent_2.size() < 2:
             return
 

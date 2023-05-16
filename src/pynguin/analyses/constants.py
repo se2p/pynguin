@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 class ConstantPool:
     """A pool of constants for various types."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._constants: dict[type[ConstantTypes], OrderedSet[ConstantTypes]] = {
             tp_: OrderedSet() for tp_ in typing.get_args(ConstantTypes)
         }
@@ -101,21 +101,21 @@ class ConstantPool:
 
 class RestrictedConstantPool(ConstantPool):
     """A constant pool that is restricted in its size.
+
     If the size limit is reached, the oldest values are purged.
     """
 
     def __init__(self, max_size: int = 50):
-        """Create a new restricted constant pool with the given max number of constants
-        per collected type.
+        """Create a new restricted constant pool.
 
         Args:
-            max_size: The maximum number of collected values.
+            max_size: The maximum number of collected values per type.
         """
         super().__init__()
         assert max_size > 0, "Size limit for constant pool must be positive."
         self._max_size = max_size
 
-    def add_constant(self, constant: ConstantTypes) -> None:
+    def add_constant(self, constant: ConstantTypes) -> None:  # noqa: D102
         values = self._constants[type(constant)]
         values.add(constant)
         if len(values) > self._max_size:
@@ -140,7 +140,7 @@ class ConstantProvider(abc.ABC):  # pylint:disable=too-few-public-methods
 class EmptyConstantProvider(ConstantProvider):  # pylint:disable=too-few-public-methods
     """Empty provider."""
 
-    def get_constant_for(self, tp_: type[T]) -> T | None:
+    def get_constant_for(self, tp_: type[T]) -> T | None:  # noqa: D102
         return None
 
 
@@ -164,7 +164,7 @@ class DelegatingConstantProvider(
         self._delegate = delegate
         self._probability = probability
 
-    def get_constant_for(self, tp_: type[T]) -> T | None:
+    def get_constant_for(self, tp_: type[T]) -> T | None:  # noqa: D102
         if (
             self._pool.has_constant_for(tp_)
             and randomness.next_float() < self._probability

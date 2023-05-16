@@ -477,6 +477,7 @@ class FunctionDescription:  # pylint: disable=too-many-instance-attributes
 
 def astroid_to_ast(astroid_in: AstroidFunctionDef) -> ASTFunctionDef:
     """Some part of the analysis only works with Pythons AST (for now).
+
     So it is necessary to convert astroid to AST.
 
     Args:

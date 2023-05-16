@@ -29,6 +29,18 @@ class DominanceComparator(Generic[C]):
         goal: ff.FitnessFunction | None = None,
         goals: OrderedSet[ff.FitnessFunction] | None = None,
     ) -> None:
+        """Instantiates the comparator.
+
+        Requires either one fitness function as a goal or a set of fitness functions as
+        goals for the comparison.  In case both parameters are given, the implementation
+        respects the set of fitness functions as the comparator objective; in case none
+        of the parameters is given, the implementation aims to retrieve the fitness
+        functions from the first given chromosome in the compare method.
+
+        Args:
+            goal: A single fitness function
+            goals: A set of fitness functions
+        """
         if goals is not None:
             self._objectives: OrderedSet[ff.FitnessFunction] | None = goals
         elif goal is not None:

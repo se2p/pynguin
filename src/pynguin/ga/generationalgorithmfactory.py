@@ -144,6 +144,13 @@ class TestSuiteGenerationAlgorithmFactory(
         test_cluster: ModuleTestCluster,
         constant_provider: ConstantProvider | None = None,
     ):
+        """Initializes the factory.
+
+        Args:
+            executor: The test case executor to be used
+            test_cluster: The test cluster
+            constant_provider: An optional constant provider from seeding
+        """
         if config.configuration.type_inference.type_tracing:
             executor = TypeTracingTestCaseExecutor(executor, test_cluster)
         self._executor = executor

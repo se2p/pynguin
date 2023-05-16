@@ -43,6 +43,14 @@ class ProgramGraphNode:
         basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
     ) -> None:
+        """Instantiates a node for a program graph.
+
+        Args:
+            index: The index of the node
+            offset: The offset of the first instruction of the node
+            basic_block: The basic block in the code
+            is_artificial: Whether the node is an artificial node
+        """
         self._index = index
         self._offset = offset
         self._basic_block = basic_block
@@ -87,17 +95,16 @@ class ProgramGraphNode:
 
     @property
     def is_artificial(self) -> bool:
-        """Whether or not a node is artificially inserted into the graph.
+        """Whether a node is artificially inserted into the graph.
 
         Returns:
-            Whether or not a node is artificially inserted into the graph
+            Whether a node is artificially inserted into the graph
         """
         return self._is_artificial
 
     @property
     def predicate_id(self) -> int | None:
-        """If this node creates a branch based on a predicate, than this stores the id
-        of this predicate.
+        """Provides the predicate ID of the node, if any.
 
         Returns:
             The predicate id assigned to this node, if any.
@@ -161,7 +168,7 @@ class ProgramGraph(Generic[N]):
     do all the operations on it.
     """
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         self._graph = nx.DiGraph()
 
     def add_node(self, node: N, **attr: Any) -> None:
@@ -275,8 +282,7 @@ class ProgramGraph(Generic[N]):
         return successors
 
     def get_least_common_ancestor(self, first: N, second: N) -> N:
-        """Calculates the least or lowest common ancestor node of two nodes of the
-        graph.
+        """Calculates the least or lowest common ancestor node of two nodes.
 
         Both nodes have to be part of the graph!
 
@@ -398,6 +404,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
 
     def bytecode_cfg(self) -> ControlFlowGraph:
         """Provide the raw control flow graph from the code object.
+
         Can be used to instrument the control flow.
 
         Returns:
@@ -407,8 +414,9 @@ class CFG(ProgramGraph[ProgramGraphNode]):
 
     @staticmethod
     def reverse(cfg: CFG) -> CFG:
-        """Reverses a control-flow graph, i.e., entry nodes become exit nodes and
-        vice versa.
+        """Reverses a control-flow graph.
+
+        Generates a copy of the original control-flow graph.
 
         Args:
             cfg: The control-flow graph to reverse

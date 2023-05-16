@@ -85,8 +85,9 @@ class AssertionGenerator(str, enum.Enum):
 
 
 class MutationStrategy(str, enum.Enum):
-    """Different strategies for creating mutants when using the MUTATION_ANALYSIS
-    approach for assertion generation.
+    """Different strategies for creating mutants.
+
+    Only respected when using the MUTATION_ANALYSIS approach for assertion generation.
     """
 
     FIRST_ORDER_MUTANTS = "FIRST_ORDER_MUTANTS"
@@ -543,6 +544,7 @@ class SearchAlgorithmConfiguration:
 @dataclasses.dataclass
 class StoppingConfiguration:
     """Configuration related to when Pynguin should stop.
+
     Note that these are mostly soft-limits rather than hard limits, because
     the search algorithms only check the condition at the start of each algorithm
     iteration.

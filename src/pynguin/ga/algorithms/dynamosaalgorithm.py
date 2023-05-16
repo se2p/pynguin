@@ -39,11 +39,11 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._goals_manager: _GoalsManager
 
-    def generate_tests(self) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._goals_manager = _GoalsManager(
             self._test_case_fitness_functions,  # type: ignore[arg-type]
@@ -264,9 +264,7 @@ class _BranchFitnessGraph:
 
     @property
     def root_branches(self) -> OrderedSet[bg.BranchCoverageTestFitness]:
-        """Return the root branches, i.e., the fitness functions that have
-        no preconditions.
-        """
+        """Return the root branches, i.e., the fitness functions without conditions."""
         return OrderedSet(self._root_branches)
 
     @staticmethod
@@ -290,8 +288,7 @@ class _BranchFitnessGraph:
     def get_structural_children(
         self, fitness_function: bg.BranchCoverageTestFitness
     ) -> OrderedSet[bg.BranchCoverageTestFitness]:
-        """Get the fitness functions that are structural children of the given
-        fitness function.
+        """Get the fitness functions that are structural children of the given one.
 
         Args:
             fitness_function: The fitness function whose structural children should be

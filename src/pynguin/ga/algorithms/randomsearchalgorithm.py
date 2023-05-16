@@ -24,9 +24,7 @@ class RandomTestSuiteSearchAlgorithm(GenerationAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(
-        self,
-    ) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         solution = self._chromosome_factory.get_chromosome()
         self.before_first_search_iteration(solution)
@@ -44,7 +42,7 @@ class RandomTestCaseSearchAlgorithm(GenerationAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(self) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         solution = self._chromosome_factory.get_chromosome()
         self._archive.update([solution])

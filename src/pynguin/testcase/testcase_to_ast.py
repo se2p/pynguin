@@ -51,7 +51,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._test_case_ast: list[stmt] = []
         self._is_failing_test: bool = False
 
-    def visit_default_test_case(self, test_case: dtc.DefaultTestCase) -> None:
+    def visit_default_test_case(  # noqa: D102
+        self, test_case: dtc.DefaultTestCase
+    ) -> None:
         self._test_case_ast = []
         return_type_trace = (
             None

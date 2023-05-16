@@ -27,7 +27,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], metaclass=ABCM
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1

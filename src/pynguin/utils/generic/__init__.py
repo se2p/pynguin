@@ -4,3 +4,4 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Provides a generic implementation of accessible objects."""

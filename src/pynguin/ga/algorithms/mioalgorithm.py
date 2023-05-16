@@ -54,16 +54,14 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self._solution: tcc.TestCaseChromosome | None = None
         self._parameters = Parameters()
         self._current_mutations = 0
         self._focused = False
 
-    def generate_tests(
-        self,
-    ) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         while (
             self.resources_left()

@@ -72,8 +72,7 @@ class LineAnnotation:
     lines: CoverageEntry
 
     def message(self):
-        """Compute the message that should be displayed as a tool tip
-        when hovering over this line number.
+        """Compute the message that should be displayed as a tool tip.
 
         Returns:
             The message for this line.

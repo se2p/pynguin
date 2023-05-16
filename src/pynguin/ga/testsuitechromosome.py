@@ -31,8 +31,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         | (cf.ChromosomeFactory[tcc.TestCaseChromosome]) = None,
         orig: TestSuiteChromosome | None = None,
     ):
-        """
-        Create new test suite chromosome.
+        """Create new test suite chromosome.
 
         Args:
             test_case_chromosome_factory: Factory that produces new test case
@@ -132,7 +131,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         """
         return len(self._test_case_chromosomes)
 
-    def length(self) -> int:
+    def length(self) -> int:  # noqa: D102
         return sum(test.length() for test in self._test_case_chromosomes)
 
     def cross_over(
@@ -193,7 +192,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         if changed:
             self.changed = True
 
-    def accept(self, visitor: cv.ChromosomeVisitor) -> None:
+    def accept(self, visitor: cv.ChromosomeVisitor) -> None:  # noqa: D102
         visitor.visit_test_suite_chromosome(self)
 
     def __eq__(self, other: Any) -> bool:

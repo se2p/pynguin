@@ -60,7 +60,7 @@ class InitialPopulationProvider:
         test_factory: tf.TestFactory,
         constant_provider: ConstantProvider,
     ):
-        """Create new population provider
+        """Create new population provider.
 
         Args:
             test_cluster: Test cluster used to construct test cases
@@ -74,7 +74,7 @@ class InitialPopulationProvider:
 
     @staticmethod
     def _get_ast_tree(module_path: AnyStr | os.PathLike[AnyStr]) -> ast.Module | None:
-        """Returns the ast tree from a module
+        """Returns the ast tree from a module.
 
         Args:
             module_path: The path to the project's root
@@ -269,7 +269,9 @@ def create_variable_references_from_call_args(
     gen_callable: GenericCallableAccessibleObject,
     ref_dict: dict[str, vr.VariableReference],
 ) -> dict[str, vr.VariableReference] | None:
-    """Takes the arguments of an ast.Call node and returns the variable references of
+    """Creates variable references from call arguments.
+
+    Takes the arguments of an ast.Call node and returns the variable references of
     the corresponding statements.
 
     Args:
@@ -280,7 +282,6 @@ def create_variable_references_from_call_args(
 
     Returns:
         The dict with the variable references of the call_args.
-
     """
     var_refs: dict[str, vr.VariableReference] = {}
     # We have to ignore the first parameter (usually 'self') for regular methods and
@@ -414,8 +415,10 @@ def create_stmt_from_call(
     ref_dict: dict[str, vr.VariableReference],
     constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
-    """Creates the corresponding statement from an ast.call node. Depending on the call,
-    this can be a GenericConstructor, GenericMethod or GenericFunction statement.
+    """Creates the corresponding statement from an ast.call node.
+
+    Depending on the call, this can be a GenericConstructor, GenericMethod, or
+    GenericFunction statement.
 
     Args:
         call: the ast.Call node
@@ -450,7 +453,9 @@ def find_gen_callable(
     objs_under_test: set,
     ref_dict: dict[str, vr.VariableReference],
 ) -> GenericConstructor | GenericMethod | GenericFunction | None:
-    """Traverses the accessible objects under test and returns the one matching with the
+    """Find a call object.
+
+    Traverses the accessible objects under test and returns the one matching with the
     ast.call object. Unfortunately, there is no possibility to clearly determine if the
     ast.call object is a constructor, method or function. Hence, the looping over all
     accessible objects is unavoidable. Then, by the name of the ast.call and by the
@@ -506,8 +511,7 @@ def assemble_stmt_from_gen_callable(
     call: ast.Call,
     ref_dict: dict[str, vr.VariableReference],
 ) -> stmt.ParametrizedStatement | None:
-    """Takes a generic callable and assembles the corresponding parametrized statement
-    from it.
+    """Takes a generic callable and assembles the corresponding parametrized statement.
 
     Args:
         testcase: the testcase of the statement
@@ -555,8 +559,9 @@ def create_stmt_from_collection(
     ref_dict: dict[str, vr.VariableReference],
     constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
-    """Creates the corresponding statement from an ast.List node. Lists contain other
-    statements.
+    """Creates the corresponding statement from an ast.List node.
+
+    Lists contain other statements.
 
     Args:
         coll_node: the ast node. It has the type of one of the collection types.
@@ -633,8 +638,9 @@ def create_elements(
     ref_dict: dict[str, vr.VariableReference],
     constant_provider: ConstantProvider,
 ) -> list[vr.VariableReference] | None:
-    """Creates the elements of a collection by calling the corresponding methods for
-    creation. This can be recursive.
+    """Creates the elements of a collection.
+
+    Calls the corresponding methods for creation. This can be recursive.
 
     Args:
         elements: The elements of the collection
@@ -698,8 +704,9 @@ def create_elements(
 
 
 def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
-    """Returns the type of a collection. If objects of multiple types are in the
-    collection, this function returns None.
+    """Returns the type of a collection.
+
+    If objects of multiple types are in the collection, this function returns None.
 
     Args:
         coll_elems: a list of variable references
@@ -755,7 +762,9 @@ def try_generating_specific_function(
     ref_dict: dict[str, vr.VariableReference],
     constant_provider: ConstantProvider,
 ) -> stmt.VariableCreatingStatement | None:
-    """Calls to creating a collection (list, set, tuple, dict) via their keywords and
+    """Aims to generate specific functions.
+
+    Calls to creating a collection (list, set, tuple, dict) via their keywords and
     not via literal syntax are considered as ast.Call statements. But for these calls,
     no accessible object under test is in the test_cluster. To parse them anyway, these
     method transforms them to the corresponding ast statement, for example a call of a
@@ -771,7 +780,6 @@ def try_generating_specific_function(
 
     Returns:
         The corresponding statement.
-
     """
     try:
         func_id = str(call.func.id)  # type: ignore[attr-defined]
@@ -849,10 +857,9 @@ def try_generating_specific_function(
 
 # pylint: disable=invalid-name, missing-function-docstring, too-many-instance-attributes
 class AstToTestCaseTransformer(ast.NodeVisitor):
-    """An AST NodeVisitor that tries to convert an AST into our internal
-    test case representation."""
+    """Transforms a Python AST into our internal test-case representation."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         test_cluster: ModuleTestCluster,
         create_assertions: bool,
@@ -867,7 +874,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         self._create_assertions = create_assertions
         self._constant_provider = constant_provider
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: D102
         self._number_found_testcases += 1
         self._current_testcase = dtc.DefaultTestCase(self._test_cluster)
         self._current_parsable = True
@@ -876,7 +883,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         if self._current_parsable:
             self._testcases.append(self._current_testcase)
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
+    def visit_Assign(self, node: ast.Assign) -> Any:  # noqa: D102
         if self._current_parsable:
             if (
                 result := create_assign_stmt(
@@ -893,7 +900,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
                 var_ref = self._current_testcase.add_variable_creating_statement(stm)
                 self._var_refs[ref_id] = var_ref
 
-    def visit_Assert(self, node: ast.Assert) -> Any:
+    def visit_Assert(self, node: ast.Assert) -> Any:  # noqa: D102
         if self._current_parsable and self._create_assertions:
             if (result := create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result
@@ -904,6 +911,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     @property
     def testcases(self) -> list[dtc.DefaultTestCase]:
         """Provides the testcases that could be generated from the given AST.
+
         It is possible that not every aspect of the AST could be transformed
         to our internal representation.
 

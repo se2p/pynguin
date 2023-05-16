@@ -43,8 +43,10 @@ if TYPE_CHECKING:
 # TODO split this monster!
 class TestFactory:
     """A factory for test-case generation.
+
     This factory does not generate test cases but provides all necessary means to
-    construct and modify test cases."""
+    construct and modify test cases.
+    """
 
     _logger = logging.getLogger(__name__)
 
@@ -53,6 +55,12 @@ class TestFactory:
         test_cluster: ModuleTestCluster,
         constant_provider: ConstantProvider | None = None,
     ):
+        """Initializes a new factory.
+
+        Args:
+            test_cluster: The underlying test cluster
+            constant_provider: An optional provider for seeded constant values.
+        """
         self._test_cluster = test_cluster
         if constant_provider is None:
             constant_provider = EmptyConstantProvider()
@@ -595,9 +603,7 @@ class TestFactory:
     def _select_random_variable_for_call(
         test_case: tc.TestCase, position: int
     ) -> vr.VariableReference | None:
-        """Randomly select one of the variables in the test defined up to
-        position to insert a call for.
-
+        """Randomly select one of the variables in the test defined.
 
         Args:
             test_case: The test case
@@ -700,8 +706,9 @@ class TestFactory:
 
     @staticmethod
     def delete_statement(test_case: tc.TestCase, position: int) -> bool:
-        """Delete the statement at position from the test case and remove all
-        references to it.
+        """Delete the statement at position from the test case.
+
+        Also removes all references to the statement.
 
         Args:
             test_case: The test case
@@ -870,10 +877,11 @@ class TestFactory:
         objects: list[vr.VariableReference],
         signature_memo: dict[InferredSignature, dict[str, ProperType]],
     ) -> list[gao.GenericAccessibleObject]:
-        """Retrieve all the replacement calls that can be inserted at this position
-         without changing the length.
+        """Retrieve all the replacement calls that can be inserted at this position.
 
-         Args:
+        This checks whether the insertion is possible without changing the length.
+
+        Args:
             return_type: The return type
             objects: The objects that are available as parameters.
             signature_memo: a memo to remember the chosen parameter types.
@@ -893,8 +901,7 @@ class TestFactory:
     def _dependencies_satisfied(
         self, dependencies: OrderedSet[ProperType], objects: list[vr.VariableReference]
     ) -> bool:
-        """Determine if the set of objects is sufficient to satisfy the set of
-        dependencies.
+        """Determine if the set of objects is sufficient to satisfy the dependencies.
 
         Args:
             dependencies: a set of types
@@ -995,7 +1002,6 @@ class TestFactory:
         Returns:
             A matching existing variable, if existing
         """
-
         objects = test_case.get_objects(parameter_type, position)
         probability: float = (
             config.configuration.test_creation.primitive_reuse_probability

@@ -81,7 +81,7 @@ class NamingScope(AbstractNamingScope):
         self._prefix = prefix
         self._new_name_callback = new_name_callback
 
-    def get_name(self, obj: Any) -> str:
+    def get_name(self, obj: Any) -> str:  # noqa: D102
         if obj in self._known_names:
             return self._known_names[obj]
 
@@ -91,14 +91,14 @@ class NamingScope(AbstractNamingScope):
             self._new_name_callback(obj, name)
         return name
 
-    def __len__(self):
+    def __len__(self):  # noqa: D105
         return len(self._known_names)
 
-    def __iter__(self):
+    def __iter__(self):  # noqa: D105
         for obj in self._known_names:
             yield obj, self.get_name(obj)
 
-    def is_known_name(self, obj) -> bool:
+    def is_known_name(self, obj) -> bool:  # noqa: D102
         return obj in self._known_names
 
 
@@ -111,12 +111,18 @@ class VariableTypeNamingScope(AbstractNamingScope):
         return_type_trace: dict[int, ProperType] | None = None,
         prefix: str = "var",
     ):
+        """Constructs the naming scope.
+
+        Args:
+            return_type_trace: A dictionary of return-type traces
+            prefix: The prefix for the variable names
+        """
         self._known_variable_names: dict[vr.VariableReference, str] = {}
         self._type_counter: dict[str, int] = defaultdict(int)
         self._prefix = prefix
         self._return_type_trace = return_type_trace
 
-    def get_name(self, obj: vr.VariableReference) -> str:
+    def get_name(self, obj: vr.VariableReference) -> str:  # noqa: D102
         if (name := self._known_variable_names.get(obj)) is not None:
             return name
 
@@ -142,13 +148,13 @@ class VariableTypeNamingScope(AbstractNamingScope):
         self._known_variable_names[obj] = name
         return name
 
-    def __len__(self):
+    def __len__(self):  # noqa: D105
         return len(self._known_variable_names)
 
-    def __iter__(self):
+    def __iter__(self):  # noqa: D105
         yield from self._known_variable_names.items()
 
-    def is_known_name(self, obj) -> bool:
+    def is_known_name(self, obj) -> bool:  # noqa: 102
         return obj in self._known_variable_names
 
 

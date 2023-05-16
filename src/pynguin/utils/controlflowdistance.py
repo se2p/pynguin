@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 """Provides a data class to track the control-flow distances."""
 from __future__ import annotations
@@ -29,6 +34,12 @@ class ControlFlowDistance:
     """Tracks control-flow distances."""
 
     def __init__(self, approach_level: int = 0, branch_distance: float = 0.0) -> None:
+        """Initializes the control-flow distance.
+
+        Args:
+            approach_level: The approach level
+            branch_distance: The branch distance
+        """
         assert (
             approach_level >= 0 and branch_distance >= 0.0
         ), "Expect approach_level and branch_distance to be non-negative"
@@ -113,8 +124,7 @@ class ControlFlowDistance:
 def get_root_control_flow_distance(
     result: ExecutionResult, code_object_id: int, tracer: ExecutionTracer
 ) -> ControlFlowDistance:
-    """Computes the control flow distance for a root branch, i.e., if the given
-    code object was executed.
+    """Computes the control flow distance for a root branch.
 
     Args:
         result: the execution result.

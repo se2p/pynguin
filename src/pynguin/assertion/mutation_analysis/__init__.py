@@ -4,3 +4,4 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Provides an adapter for MutPy's mutation analysis."""

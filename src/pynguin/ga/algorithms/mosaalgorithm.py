@@ -31,7 +31,7 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(self) -> tsc.TestSuiteChromosome:
+    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(

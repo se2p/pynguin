@@ -107,6 +107,7 @@ class AssertionVerificationTrace:
 
     def was_violated(self, stmt_idx: int, assertion_idx: int) -> bool:
         """Was the assertion at the given position violated?
+
         This may happen because the assertion failed or another error occurred.
 
         Args:

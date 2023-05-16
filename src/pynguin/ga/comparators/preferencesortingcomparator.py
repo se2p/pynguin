@@ -27,13 +27,12 @@ class PreferenceSortingComparator(Generic[C]):
     The comparator only considers the specified test goals.
     """
 
-    def __init__(self, goal: ff.FitnessFunction) -> None:
+    def __init__(self, goal: ff.FitnessFunction) -> None:  # noqa: D107
         self._objective = goal
 
     # pylint: disable=too-many-return-statements
     def compare(self, solution_1: C | None, solution_2: C | None) -> int:
-        """Compare the fitness value of two chromosome objects focusing only on one
-        goal.
+        """Compare the fitness value of two chromosomes focusing only on one goal.
 
         Args:
             solution_1: A chromosome

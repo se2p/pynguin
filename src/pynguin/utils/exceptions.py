@@ -32,12 +32,8 @@ class InstructionNotFoundException(BaseException):
 
 
 class TestTimeoutException(BaseException):
-    """A custom exception if the execution of a single test took
-    longer than the configured maximum duration.
-    """
+    """Raised, if the execution took longer than the configured maximum duration."""
 
 
 class SlicingTimeoutException(BaseException):
-    """A custom exception if slicing of a single test took longer
-    than the configured maximum duration.
-    """
+    """Raised, if slicing took longer than the configured maximum duration."""

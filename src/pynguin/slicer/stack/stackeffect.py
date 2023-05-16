@@ -14,8 +14,9 @@ import pynguin.utils.opcodes as op
 
 
 def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
-    """Initialize all unconditional opcode stack effects
-    that are shared between all used python versions of pynguin.
+    """Initialize all unconditional opcode stack effects.
+
+    These opcodes are shared between all used Python versions of Pynguin.
     """
     return {
         # OP NAME: (POP, PUSH)
@@ -199,7 +200,9 @@ class StackEffect:
 
     @staticmethod
     def stack_effect(opcode: int, arg, jump: bool = False) -> tuple[int, int]:
-        """Get the stack effect as a tuple of number of pops and number of pushes
+        """Get the stack effect.
+
+        The effect is represented as a tuple of number of pops and number of pushes
         for an opcode.
 
         Args:

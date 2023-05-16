@@ -39,6 +39,7 @@ CODE_OBJECT_ID_KEY = "code_object_id"
 @enum.unique
 class PynguinCompare(enum.IntEnum):
     """Enum of all compare operations.
+
     Previously we were able to use a similar enum from the bytecode library,
     because upto 3.8, there was only a single compare op. With 3.9+, there are now some
     separate compare ops, e.g., IS_OP or CONTAINS_OP. Therefore, we recreate the
@@ -93,8 +94,11 @@ class PredicateMetaData:
 
 
 class ArtificialInstr(Instr):
-    """Marker subclass to distinguish between original instructions
-    and instructions that were inserted by the instrumentation."""
+    """Marker subclass of an instruction.
+
+    Used to distinguish between original instructions and instructions that were
+    inserted by the instrumentation.
+    """
 
 
 # pylint:disable=too-few-public-methods
@@ -133,7 +137,7 @@ class InstrumentationAdapter:
         node: ProgramGraphNode,
         basic_block: BasicBlock,
     ) -> None:
-        """Called for each non-artificial node, i.e., nodes that have a basic block
+        """Called for each non-artificial node, i.e., nodes that have a basic block.
 
         Args:
             cfg: The control flow graph.
@@ -181,6 +185,7 @@ class InstrumentationAdapter:
     @staticmethod
     def _map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
         """Other instrumentations may add artificial instructions.
+
         Create a mapping that maps original locations to their locations.
 
         Args:
@@ -211,7 +216,7 @@ class InstrumentationTransformer:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         tracer: ExecutionTracer,
         instrumentation_adapters: list[InstrumentationAdapter],
@@ -308,7 +313,6 @@ class InstrumentationTransformer:
             cfg: The CFG that overlays the bytecode cfg.
             code_object_id: The id of the code object which contains this CFG.
         """
-
         for node in cfg.nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
@@ -322,8 +326,10 @@ class InstrumentationTransformer:
 
 
 class BranchCoverageInstrumentation(InstrumentationAdapter):
-    """Instruments code objects to enable tracking branch distances and thus
-    branch coverage."""
+    """Instruments code objects to enable tracking branch distances.
+
+    This results in branch coverage.
+    """
 
     # Jump operations are the last operation within a basic block
     _JUMP_OP_POS = -1
@@ -334,7 +340,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
         self._tracer = tracer
 
     def visit_node(
@@ -354,7 +360,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             node: The node that should be instrumented.
             basic_block: The basic block of the node that should be instrumented.
         """
-
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
         orig_instructions_positions = InstrumentationAdapter._map_instr_positions(
@@ -603,8 +608,10 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         return predicate_id
 
     def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
-        """Add instructions at the beginning of the given basic block which inform
-        the tracer, that the code object with the given id has been entered.
+        """Add instructions at the beginning of the given basic block.
+
+        The added instructions inform the tracer, that the code object with the given id
+        has been entered.
 
         Args:
             basic_block: The entry basic block of a code object, i.e. the first basic
@@ -639,6 +646,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         code_object_id: int,
     ) -> int:
         """Transform the for loop whose header is defined in the given node.
+
         We only transform the underlying bytecode cfg, by partially unrolling the first
         iteration. For this, we add two basic blocks after the loop header:
 
@@ -741,15 +749,17 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
 # pylint:disable=too-few-public-methods
 class LineCoverageInstrumentation(InstrumentationAdapter):
-    """Instruments code objects to enable tracking of executed lines and thus
-    line coverage."""
+    """Instruments code objects to enable tracking of executed lines.
+
+    This results in line coverage.
+    """
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
         self._tracer = tracer
 
-    def visit_node(
+    def visit_node(  # noqa: D102
         self,
         cfg: CFG,
         code_object_id: int,
@@ -815,13 +825,15 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
 
 class CheckedCoverageInstrumentation(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed instructions.
+
     Special instructions get instrumented differently to track information
     required to calculate the percentage of instructions in a backward slice for
-    an assertion, thus checked coverage."""
+    an assertion, thus checked coverage.
+    """
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:
+    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
         self._tracer = tracer
 
     def visit_node(  # pylint: disable=too-many-branches
@@ -832,6 +844,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block: BasicBlock,
     ) -> None:
         """Instrument a single node in the CFG.
+
         We instrument memory accesses, control flow instruction and
         attribute access instructions.
 
@@ -846,7 +859,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             node: The node in the control flow graph.
             basic_block: The basic block associated with the node.
         """
-
         assert len(basic_block) > 0, "Empty basic block in CFG."
         offset = node.offset
 
@@ -1797,8 +1809,9 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
     are added to the dynamic constant pool.
 
     The dynamic pool is implemented in the module constantseeding.py. The dynamicseeding
-    module containes methods for managing the dynamic pool during the algorithm
-    execution."""
+    module contains methods for managing the dynamic pool during the algorithm
+    execution.
+    """
 
     # Compare operations are only followed by one jump operation, hence they are on the
     # second to last position of the block.
@@ -1817,10 +1830,12 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, dynamic_constant_provider: DynamicConstantProvider):
+    def __init__(  # noqa: D107
+        self, dynamic_constant_provider: DynamicConstantProvider
+    ):
         self._dynamic_constant_provider = dynamic_constant_provider
 
-    def visit_node(
+    def visit_node(  # noqa: D102
         self,
         cfg: CFG,
         code_object_id: int,
@@ -1863,9 +1878,10 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             )
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:
-        """Instruments the startswith function in bytecode. Stores for the expression
-          'string1.startswith(string2)' the
-           value 'string2 + string1' in the _dynamic_pool.
+        """Instruments the startswith function in bytecode.
+
+        Stores for the expression 'string1.startswith(string2)' the value
+        'string2 + string1' in the _dynamic_pool.
 
         Args:
             block: The basic block where the new instructions are inserted.
@@ -1894,9 +1910,10 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         self._logger.info("Instrumented startswith function")
 
     def _instrument_endswith_function(self, block: BasicBlock) -> None:
-        """Instruments the endswith function in bytecode. Stores for the expression
-         'string1.startswith(string2)' the
-           value 'string1 + string2' in the _dynamic_pool.
+        """Instruments the endswith function in bytecode.
+
+        Stores for the expression 'string1.startswith(string2)' the value
+        'string1 + string2' in the _dynamic_pool.
 
         Args:
             block: The basic block where the new instructions are inserted.
@@ -1970,8 +1987,9 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             self._instrument_string_function_without_arg(block, function_name)
 
     def _instrument_compare_op(self, block: BasicBlock) -> None:
-        """Instruments the compare operations in bytecode. Stores the values extracted
-         at runtime.
+        """Instruments the compare operations in bytecode.
+
+        Stores the values extracted at runtime.
 
         Args:
             block: The containing basic block.

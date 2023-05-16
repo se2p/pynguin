@@ -86,8 +86,10 @@ _LOGGER = logging.getLogger(__name__)
 
 class ExecutionContext:
     """Contains information required in the context of an execution.
-    e.g. the used variables, modules and
-    the AST representation of the statements that should be executed."""
+
+    The context contains, e.g., the used variables, modules, and the AST representation
+    of the statements that should be executed.
+    """
 
     def __init__(self, module_provider: ModuleProvider) -> None:
         """Create a new execution context.
@@ -125,7 +127,7 @@ class ExecutionContext:
 
     @property
     def module_aliases(self) -> ns.NamingScope:
-        """The module aliases
+        """The module aliases.
 
         Returns:
             A naming scope that maps the used modules to their alias.
@@ -134,7 +136,7 @@ class ExecutionContext:
 
     @property
     def variable_names(self) -> ns.NamingScope:
-        """The module aliases
+        """The variable names.
 
         Returns:
             A naming scope that maps the used variables to their names.
@@ -236,7 +238,7 @@ class ExecutionContext:
         return ast.Module(body=[node], type_ignores=[])
 
     def add_new_module_alias(self, module_name: str, alias: str) -> None:
-        """Add a new module alias
+        """Add a new module alias.
 
         Args:
             module_name: The name of the module
@@ -280,9 +282,11 @@ class ExecutionObserver:
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        """Called after test case execution from inside the thread that executed
-        the test case. You should override this method to extract information from the
-        thread local storage to the execution result.
+        """Called after test case execution.
+
+        The call happens from inside the thread that executed the test case. You should
+        override this method to extract information from the thread local storage to the
+        execution result.
 
         Note: When a thread times out, then this method might not be called at all.
 
@@ -331,8 +335,7 @@ class ExecutionObserver:
         exec_ctx: ExecutionContext,
         exception: BaseException | None,
     ) -> None:
-        """
-        Called after a statement was executed.
+        """Called after a statement was executed.
 
         Args:
             statement: the statement that was executed.
@@ -343,31 +346,52 @@ class ExecutionObserver:
 
 
 class AssertionExecutionObserver(ExecutionObserver):
-    """An observer which executes the assertions of statements to enable slicing on
-    the recorded data."""
+    """An observer which executes the assertions of statements.
+
+    Enables slicing on the recorded data.
+    """
 
     def __init__(self, tracer: ExecutionTracer):
+        """Instantiates a new observer.
+
+        Args:
+            tracer: The execution tracer used for tracing
+        """
         self._tracer = tracer
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
+
+        Args:
+            test_case: not used
+        """
 
     def after_test_case_execution_inside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        pass
+        """Not used.
+
+        Args:
+            test_case: Not used
+            result: Not used
+        """
 
     def after_test_case_execution_outside_thread(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        pass
+        """Not used.
 
-    def before_statement_execution(
+        Args:
+            test_case: Not used
+            result: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
         return node
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: stmt.Statement,
         executor: TestCaseExecutor,
@@ -423,28 +447,39 @@ class AssertionExecutionObserver(ExecutionObserver):
 
 class ReturnTypeObserver(ExecutionObserver):
     """Observes the runtime types seen during execution.
-    Updates the return types of the called function with the observed types"""
+
+    Updates the return types of the called function with the observed types.
+    """
 
     class ReturnTypeLocalState(
         threading.local
     ):  # pylint:disable=too-few-public-methods
         """Encapsulate observed return types."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
             self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
 
     def __init__(self, test_cluster: module.TestCluster):
+        """Initializes the observer.
+
+        Args:
+            test_cluster: The test cluster that shall be updated
+        """
         self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
 
         # Non-local state
         self._test_cluster = test_cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
 
-    def after_test_case_execution_inside_thread(
+        Args:
+            test_case: Not used
+        """
+
+    def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         result.raw_return_types = dict(self._return_type_local_state.return_type_trace)
@@ -452,7 +487,7 @@ class ReturnTypeObserver(ExecutionObserver):
             self._return_type_local_state.return_type_generic_args
         )
 
-    def after_test_case_execution_outside_thread(
+    def after_test_case_execution_outside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         # We store the raw types, so we still need to convert them to proper types.
@@ -492,12 +527,12 @@ class ReturnTypeObserver(ExecutionObserver):
             )
         return proper
 
-    def before_statement_execution(
+    def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
         return node  # not relevant
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: stmt.Statement,
         executor: TestCaseExecutor,
@@ -676,8 +711,7 @@ class ExecutionTrace:  # pylint: disable=too-many-instance-attributes
         arg_address: int,
         is_mutable_type: bool,
     ) -> None:
-        """Creates a new ExecutedAttributeInstruction object and
-        adds it to the trace.
+        """Creates a new ExecutedAttributeInstruction object and adds it to the trace.
 
         Args:
             module: File name of the module containing the instruction
@@ -847,7 +881,9 @@ class ExecutionResult:
         return None
 
     def delete_statement_data(self, deleted_statements: set[int]) -> None:
-        """It may happen that the test case is modified after execution, for example,
+        """Delete statements at given indices.
+
+        It may happen that the test case is modified after execution, for example,
         by removing unused primitives. We have to update the execution result to reflect
         this, otherwise the indexes maybe wrong.
 
@@ -871,8 +907,9 @@ class ExecutionResult:
 
     @staticmethod
     def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
-        """Shifts the entries in the given dictionary by computing their new positions
-        after the given statements were deleted.
+        """Shifts the entries in the given dictionary.
+
+        Compute the entries' new positions after the given statements were deleted.
 
         Args:
             to_shift: The dict to shift
@@ -961,19 +998,21 @@ class SubjectProperties:
 # pylint: disable=too-many-public-methods, too-many-instance-attributes
 class ExecutionTracer:
     """Tracks branch distances and covered statements during execution.
-    The results are stored in an execution trace."""
+
+    The results are stored in an execution trace.
+    """
 
     _logger = logging.getLogger(__name__)
 
     class TracerLocalState(threading.local):  # pylint:disable=too-few-public-methods
         """Encapsulate state that is thread specific."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             self.enabled = True
             self.trace = ExecutionTrace()
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: D107
         self.subject_properties = SubjectProperties()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
@@ -995,8 +1034,9 @@ class ExecutionTracer:
 
     @current_thread_identifier.setter
     def current_thread_identifier(self, current: int) -> None:
-        """Set the current thread identifier. Tracing calls from any other thread
-        are ignored.
+        """Set the current thread identifier.
+
+        Tracing calls from any other thread are ignored.
 
         Args:
             current: the current thread
@@ -1742,7 +1782,8 @@ class ExecutionTracer:
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
-        """Check the dictionary of classes making up the MRO (_PyType_Lookup)
+        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
+
         The attribute must be a data descriptor to be prioritized here
 
         Args:
@@ -1752,7 +1793,6 @@ class ExecutionTracer:
         Returns:
             The id of the object type or the class if it has the attribute, -1 otherwise
         """
-
         for cls in type(object_type).__mro__:
             if attribute in cls.__dict__:
                 # Class in the MRO hierarchy has attribute
@@ -1800,7 +1840,7 @@ class ExecutionTracer:
 
 @dataclass
 class ExecutedAssertion:
-    """Data class for assertions of a testcase traced during execution for slicing"""
+    """Data class for assertions of a testcase traced during execution for slicing."""
 
     # the code object containing the executed assertion
     code_object_id: int
@@ -1813,7 +1853,7 @@ class ExecutedAssertion:
 
 
 def _eq(val1, val2) -> float:
-    """Distance computation for '=='
+    """Distance computation for '=='.
 
     Args:
         val1: the first value
@@ -1836,7 +1876,7 @@ def _eq(val1, val2) -> float:
 
 
 def _neq(val1, val2) -> float:
-    """Distance computation for '!='
+    """Distance computation for '!='.
 
     Args:
         val1: the first value
@@ -1851,7 +1891,7 @@ def _neq(val1, val2) -> float:
 
 
 def _lt(val1, val2) -> float:
-    """Distance computation for '<'
+    """Distance computation for '<'.
 
     Args:
         val1: the first value
@@ -1868,7 +1908,7 @@ def _lt(val1, val2) -> float:
 
 
 def _le(val1, val2) -> float:
-    """Distance computation for '<='
+    """Distance computation for '<='.
 
     Args:
         val1: the first value
@@ -1885,7 +1925,7 @@ def _le(val1, val2) -> float:
 
 
 def _in(val1, val2) -> float:
-    """Distance computation for 'in'
+    """Distance computation for 'in'.
 
     Args:
         val1: the first value
@@ -1900,12 +1940,12 @@ def _in(val1, val2) -> float:
     #  Check only if collection size is within some range,
     #  otherwise the check might take very long.
 
-    # Use smallest distance to any element.
+    # Use the shortest distance to any element.
     return min([_eq(val1, v) for v in val2] + [inf])
 
 
 def _nin(val1, val2) -> float:
-    """Distance computation for 'not in'
+    """Distance computation for 'not in'.
 
     Args:
         val1: the first value
@@ -1920,7 +1960,7 @@ def _nin(val1, val2) -> float:
 
 
 def _is(val1, val2) -> float:
-    """Distance computation for 'is'
+    """Distance computation for 'is'.
 
     Args:
         val1: the first value
@@ -1935,7 +1975,7 @@ def _is(val1, val2) -> float:
 
 
 def _isn(val1, val2) -> float:
-    """Distance computation for 'is not'
+    """Distance computation for 'is not'.
 
     Args:
         val1: the first value
@@ -1952,13 +1992,14 @@ def _isn(val1, val2) -> float:
 class ModuleProvider:
     """Class for providing modules."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self._mutated_module_aliases: dict[str, ModuleType] = {}
 
     def get_module(self, module_name: str) -> ModuleType:
-        """
-        Provides a module either from sys.modules or if a mutated version for the given
-        module name exists than the mutated version of the module will be returned.
+        """Provides a module.
+
+        Either from sys.modules or if a mutated version for the given module name exists
+        then the mutated version of the module will be returned.
 
         Args:
             module_name: string for the module alias, which should be loaded
@@ -1973,9 +2014,7 @@ class ModuleProvider:
         return sys.modules[module_name]
 
     def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
-        """
-        Adds a mutated version of a module to the collection of mutated alias of
-        normal modules.
+        """Adds a mutated version of a module to the collection of mutated modules.
 
         Args:
             module_name: for the module name of the module, which should be mutated.
@@ -1989,8 +2028,7 @@ class ModuleProvider:
 
     @staticmethod
     def reload_module(module_name: str) -> None:
-        """
-        Reloads the given module.
+        """Reloads the given module.
 
         Args:
             module_name: the module to reload.
@@ -2130,7 +2168,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._observers.clear()
 
     @contextlib.contextmanager
-    def temporarily_add_observer(self, observer: ExecutionObserver):
+    def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102
         self._observers.append(observer)
         yield
         self._observers.remove(observer)
@@ -2152,7 +2190,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         """
         self._instrument = instrument
 
-    def execute(
+    def execute(  # noqa: D102
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
@@ -2264,6 +2302,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         exec_ctx: ExecutionContext,
     ) -> BaseException | None:
         """Execute the given ast_node in the given context.
+
         You can use this in an observer if you also need to execute an AST Node.
 
         Args:
@@ -2313,31 +2352,39 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     """A test case executor that delegates to another executor.
+
     Every test case is executed twice, one time for the regular result
-    and one time with proxies in order to refine parameter types."""
+    and one time with proxies in order to refine parameter types.
+    """
 
     def __init__(
         self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster
     ):
+        """Initializes the executor.
+
+        Args:
+            delegate: The delegate
+            cluster: The test cluster
+        """
         self._delegate = delegate
         self._type_tracing_observer = TypeTracingObserver(cluster)
         self._return_type_observer = ReturnTypeObserver(cluster)
 
     @property
-    def module_provider(self) -> ModuleProvider:
+    def module_provider(self) -> ModuleProvider:  # noqa: D102
         return self._delegate.module_provider
 
-    def add_observer(self, observer: ExecutionObserver) -> None:
+    def add_observer(self, observer: ExecutionObserver) -> None:  # noqa: D102
         self._delegate.add_observer(observer)
 
-    def clear_observers(self) -> None:
+    def clear_observers(self) -> None:  # noqa: D102
         self._delegate.clear_observers()
 
     @property
-    def tracer(self) -> ExecutionTracer:
+    def tracer(self) -> ExecutionTracer:  # noqa: D102
         return self._delegate.tracer
 
-    def execute(self, test_case: tc.TestCase) -> ExecutionResult:
+    def execute(self, test_case: tc.TestCase) -> ExecutionResult:  # noqa: D102
         with self._delegate.temporarily_add_observer(self._return_type_observer):
             result = self._delegate.execute(test_case)
         if not result.timeout:
@@ -2353,27 +2400,38 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
 
 
 class TypeTracingObserver(ExecutionObserver):
-    """An execution observer which wraps parameters in proxies in order to make better
-    guesses on their type."""
+    """An execution observer used for type tracing.
+
+    It wraps parameters in proxies in order to make better guesses on their type.
+    """
 
     class TypeTracingLocalState(
         threading.local
     ):  # pylint:disable=too-few-public-methods
         """Thread local data for type tracing."""
 
-        def __init__(self):
+        def __init__(self):  # noqa: D107
             super().__init__()
             # Active proxies per statement position and argument name.
             self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
 
     def __init__(self, cluster: module.TestCluster):
+        """Initializes the observer.
+
+        Args:
+            cluster: The test cluster that shall be updated by the observer
+        """
         self._local_state = TypeTracingObserver.TypeTracingLocalState()
         self._cluster = cluster
 
     def before_test_case_execution(self, test_case: tc.TestCase):
-        pass
+        """Not used.
 
-    def after_test_case_execution_inside_thread(
+        Args:
+            test_case: Not used
+        """
+
+    def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
         for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
@@ -2381,7 +2439,7 @@ class TypeTracingObserver(ExecutionObserver):
                 tt.UsageTraceNode.from_proxy(proxy)
             )
 
-    def after_test_case_execution_outside_thread(
+    def after_test_case_execution_outside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
         for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
@@ -2395,7 +2453,7 @@ class TypeTracingObserver(ExecutionObserver):
                 knowledge,
             )
 
-    def before_statement_execution(
+    def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
         # pylint:disable=too-many-locals
@@ -2450,7 +2508,7 @@ class TypeTracingObserver(ExecutionObserver):
             return visitor.ast_node
         return node
 
-    def after_statement_execution(
+    def after_statement_execution(  # noqa: D102
         self,
         statement: stmt.Statement,
         executor: TestCaseExecutor,

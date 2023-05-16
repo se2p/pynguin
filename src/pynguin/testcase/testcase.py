@@ -85,8 +85,7 @@ class TestCase(metaclass=ABCMeta):
     def add_variable_creating_statement(
         self, statement: stmt.VariableCreatingStatement, position: int = -1
     ) -> vr.VariableReference:
-        """Overloaded version of add_statement that adds a statement
-        which creates a variable.
+        """Overloaded version of add_statement that adds a statement.
 
         Args:
             statement: The new statement
@@ -232,8 +231,7 @@ class TestCase(metaclass=ABCMeta):
     def get_objects(
         self, parameter_type: ProperType, position: int
     ) -> list[vr.VariableReference]:
-        """Provides a list of variable references satisfying a certain type before a
-        given position.
+        """Provides a list of variable references satisfying a certain type.
 
         If the position value is larger than the number of statements, only these
         statements will be considered.  Otherwise, the first `position` statements of

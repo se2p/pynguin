@@ -55,7 +55,7 @@ class FrameStack:
 class TraceStack:
     """Simulates the tracing on the stack."""
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         self.frame_stacks: list[FrameStack] = []
         self._reset()
         self._prepare_stack()
@@ -80,8 +80,9 @@ class TraceStack:
         self.frame_stacks.append(FrameStack(code_object_id, [BlockStack([])]))
 
     def push_artificial_stack(self) -> None:
-        """Add a frame stack for a non-existing code object id ,
-        signaling, this stack is artificial and not part of the byte code.
+        """Add a frame stack for a non-existing code object id.
+
+        Signaling, this stack is artificial and not part of the byte code.
         """
         self.push_stack(code_object_id=-1)
 
@@ -96,9 +97,9 @@ class TraceStack:
     def update_push_operations(
         self, num_pushes: int, returned: bool
     ) -> tuple[bool, bool]:
-        """
-        Simulate the push operations on the stack and return whether
-        implicit dependencies occur or uses are included.
+        """Simulate the push operations on the stack.
+
+        Returns whether implicit dependencies occur or uses are included.
 
         Args:
             num_pushes: number of pushes to pop from stack
@@ -152,9 +153,9 @@ class TraceStack:
     def update_pop_operations(
         self, num_pops: int, unique_instr: UniqueInstruction, in_slice: bool
     ) -> None:
-        """
-        Pushes a given number of instructions onto the stack and updates the
-        'in_slice' attribute of the instruction.
+        """Pushes a given number of instructions onto the stack.
+
+        Additionally, updates the 'in_slice' attribute of the instruction.
 
         Args:
             num_pops: number of pop operations
@@ -172,8 +173,10 @@ class TraceStack:
             curr_block_stack.push(unique_instr)
 
     def get_attribute_uses(self):
-        """Get the attribute uses of the top of the stack,
-        None if frame stacks are empty.
+        """Get the attribute uses of the top of the stack.
+
+        Returns:
+            The attribute uses of the top of the stack, none if frame stacks are empty.
         """
         return self.frame_stacks[-1].attribute_uses
 

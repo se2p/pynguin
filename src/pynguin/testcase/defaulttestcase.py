@@ -31,10 +31,10 @@ class DefaultTestCase(tc.TestCase):
 
     _logger = logging.getLogger(__name__)
 
-    def accept(self, visitor: tcv.TestCaseVisitor) -> None:
+    def accept(self, visitor: tcv.TestCaseVisitor) -> None:  # noqa: D102
         visitor.visit_default_test_case(self)
 
-    def add_statement(
+    def add_statement(  # noqa: D102
         self, statement: stmt.Statement, position: int = -1
     ) -> vr.VariableReference | None:
         if position == -1:
@@ -43,7 +43,7 @@ class DefaultTestCase(tc.TestCase):
             self._statements.insert(position, statement)
         return statement.ret_val
 
-    def add_variable_creating_statement(
+    def add_variable_creating_statement(  # noqa: D102
         self, statement: stmt.VariableCreatingStatement, position: int = -1
     ) -> vr.VariableReference:
         if position == -1:
@@ -52,10 +52,10 @@ class DefaultTestCase(tc.TestCase):
             self._statements.insert(position, statement)
         return statement.ret_val
 
-    def add_statements(self, statements: list[stmt.Statement]) -> None:
+    def add_statements(self, statements: list[stmt.Statement]) -> None:  # noqa: D102
         self._statements.extend(statements)
 
-    def append_test_case(self, test_case: tc.TestCase) -> None:
+    def append_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in test_case.statements:
             clone = statement.clone(self, memo)
@@ -65,38 +65,38 @@ class DefaultTestCase(tc.TestCase):
                 memo[statement.ret_val] = clone.ret_val  # type: ignore[assignment]
             self._statements.append(clone)
 
-    def remove(self, position: int) -> None:
+    def remove(self, position: int) -> None:  # noqa: D102
         self._logger.debug("Removing statement at position %d", position)
         if position >= self.size():
             return
         del self._statements[position]
 
-    def remove_statement(self, statement: stmt.Statement) -> None:
+    def remove_statement(self, statement: stmt.Statement) -> None:  # noqa: D102
         self._statements.remove(statement)
 
-    def chop(self, pos: int) -> None:
+    def chop(self, pos: int) -> None:  # noqa: D102
         assert pos >= 0
         while len(self._statements) > pos + 1:
             del self._statements[-1]
 
-    def contains(self, statement: stmt.Statement) -> bool:
+    def contains(self, statement: stmt.Statement) -> bool:  # noqa: D102
         return statement in self._statements
 
-    def get_statement(self, position: int) -> stmt.Statement:
+    def get_statement(self, position: int) -> stmt.Statement:  # noqa: D102
         assert 0 <= position < len(self._statements)
         return self._statements[position]
 
-    def set_statement(
+    def set_statement(  # noqa: D102
         self, statement: stmt.Statement, position: int
     ) -> vr.VariableReference | None:
         assert 0 <= position < len(self._statements)
         self._statements[position] = statement
         return statement.ret_val
 
-    def has_statement(self, position: int) -> bool:
+    def has_statement(self, position: int) -> bool:  # noqa: D102
         return 0 <= position < len(self._statements)
 
-    def clone(self, limit: int | None = None) -> tc.TestCase:
+    def clone(self, limit: int | None = None) -> tc.TestCase:  # noqa: D102
         test_case = DefaultTestCase(self.test_cluster)
         memo: dict[vr.VariableReference, vr.VariableReference] = {}
         for statement in islice(self._statements, limit):
@@ -109,7 +109,7 @@ class DefaultTestCase(tc.TestCase):
             copy.assertions = statement.copy_assertions(memo)
         return test_case
 
-    def get_dependencies(
+    def get_dependencies(  # noqa: D102
         self, var: vr.VariableReference
     ) -> OrderedSet[vr.VariableReference]:
         dependencies: OrderedSet[vr.VariableReference] = OrderedSet()
@@ -129,16 +129,16 @@ class DefaultTestCase(tc.TestCase):
 
         return dependencies
 
-    def get_assertions(self) -> list[ass.Assertion]:
+    def get_assertions(self) -> list[ass.Assertion]:  # noqa: D102
         assertions: list[ass.Assertion] = []
         for statement in self._statements:
             assertions.extend(statement.assertions)
         return assertions
 
-    def size_with_assertions(self) -> int:
+    def size_with_assertions(self) -> int:  # noqa: D102
         return self.size() + len(self.get_assertions())
 
-    def size(self) -> int:
+    def size(self) -> int:  # noqa: D102
         return len(self._statements)
 
     # pylint: disable=too-many-return-statements

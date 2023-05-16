@@ -179,11 +179,15 @@ target-version = "py310"
 line-length = 88
 src = ["src"]
 select = [
+  "D",  # pydocstyle
   "E",  # pycodestyle
   "F",  # pyflakes
   "UP",  # pyupgrade
   "W",
   "T20",
+]
+ignore = [
+  "D105",  # do not complain due to missing docstrings in magic methods
 ]
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -214,3 +218,6 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 [tool.ruff.mccabe]
 # Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
+
+[tool.ruff.pydocstyle]
+convention = "google"

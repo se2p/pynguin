@@ -4,3 +4,4 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Implements stopping conditions."""

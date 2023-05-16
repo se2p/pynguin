@@ -3,6 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+
+#  This file is part of Pynguin.
+#
+#
+#  SPDX-License-Identifier: MIT
 #
 """Provides capabilities to export chromosomes."""
 
@@ -51,6 +56,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
     @property
     def common_modules(self) -> set[str]:
         """Provides the common modules that were used when transforming all test cases.
+
         This is used, because common modules (e.g., math) should not be aliased.
 
         Returns:
@@ -58,11 +64,11 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         """
         return self._common_modules
 
-    def visit_test_suite_chromosome(self, chromosome) -> None:
+    def visit_test_suite_chromosome(self, chromosome) -> None:  # noqa: D102
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
-    def visit_test_case_chromosome(self, chromosome) -> None:
+    def visit_test_case_chromosome(self, chromosome) -> None:  # noqa: D102
         visitor = tc_to_ast.TestCaseToAstVisitor(
             module_aliases=self._module_aliases,
             common_modules=self._common_modules,
