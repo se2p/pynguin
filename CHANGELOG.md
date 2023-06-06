@@ -11,6 +11,10 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.33.0
+
+- Fix an issue with type-information retrieval (see GitHub issue #35)
+
 ## Pynguin 0.32.0
 
 - *Breaking:* Restructure the code
