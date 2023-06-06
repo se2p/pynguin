@@ -1556,7 +1556,7 @@ class TypeSystem:
             # The import used in the type hint could also be conditional on
             # typing.TYPE_CHECKING, e.g., to avoid circular imports, in which case this
             # also fails.
-        except NameError:
+        except (AttributeError, NameError):
             hints = {}
         return hints
 
