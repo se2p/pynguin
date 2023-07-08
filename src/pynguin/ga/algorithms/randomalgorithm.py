@@ -69,7 +69,7 @@ class RandomAlgorithm(GenerationAlgorithm):
                 )
             #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
             if minCov < 1.0:
-                if combined_chromosome.get_coverage() == coverageCache and coverageCache => minCov:
+                if combined_chromosome.get_coverage() == coverageCache and coverageCache >= minCov:
                     if coverageCounter >= minIter:
                         break
                     else:
