@@ -47,10 +47,24 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
         self._sort_population()
         suite = self._get_solution()
         self.before_first_search_iteration(suite)
+        coverageCache = 0
+        coverageCounter = 1
+        minCov = config.configuration.stopping.minimum_coverage_quick
+        minIter = config.configuration.stopping.minimum_iteration_quick
         while self.resources_left() and suite.get_fitness() != 0.0:
             self.evolve()
             suite = self._get_solution()
             self.after_search_iteration(suite)
+            #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
+            if minCov < 1.0:
+                if suite.get_coverage() == coverageCache and coverageCache => minCov:
+                    if coverageCounter >= minIter:
+                        break
+                    else:
+                        coverageCounter = coverageCounter +1
+                else:
+                    coverageCache = suite.get_coverage()
+                    coverageCounter = 1
         self.after_search_finish()
         return suite
 
