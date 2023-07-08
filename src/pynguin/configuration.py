@@ -570,6 +570,12 @@ class StoppingConfiguration:
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""
 
+    minimum_coverage_quick: float = 1.0
+    """Stops the algorithm if minimum coverage is reached and coverage doesn't change over minimum_iteration_quick (default=10) iterations"""
+
+    minimum_iteration_quick: int = 10
+    """Stops the algorithm if minimum coverage is reached and coverage doesn't change over 10 iterations"""
+
 
 @dataclasses.dataclass
 class Configuration:
