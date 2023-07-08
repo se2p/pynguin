@@ -57,7 +57,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
             self.after_search_iteration(suite)
             #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
             if minCov < 1.0:
-                if suite.get_coverage() == coverageCache and coverageCache => minCov:
+                if suite.get_coverage() == coverageCache and coverageCache >= minCov:
                     if coverageCounter >= minIter:
                         break
                     else:
