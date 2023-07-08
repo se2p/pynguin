@@ -39,7 +39,7 @@ class RandomTestSuiteSearchAlgorithm(GenerationAlgorithm):
             self.after_search_iteration(solution)
             #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
             if minCov < 1.0:
-                if solution.get_coverage() == coverageCache and coverageCache => minCov:
+                if solution.get_coverage() == coverageCache and coverageCache >= minCov:
                     if coverageCounter >= minIter:
                         break
                     else:
@@ -73,7 +73,7 @@ class RandomTestCaseSearchAlgorithm(GenerationAlgorithm):
             self.after_search_iteration(test_suite)
             #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
             if minCov < 1.0:
-                if test_suite.get_coverage() == coverageCache and coverageCache => minCov:
+                if test_suite.get_coverage() == coverageCache and coverageCache >= minCov:
                     if coverageCounter >= minIter:
                         break
                     else:
