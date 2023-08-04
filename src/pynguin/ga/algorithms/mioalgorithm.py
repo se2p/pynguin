@@ -61,10 +61,6 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
-        coverageCache = 0
-        coverageCounter = 1
-        minCov = config.configuration.stopping.minimum_coverage_quick
-        minIter = config.configuration.stopping.minimum_iteration_quick
         while (
             self.resources_left()
             and len(self._test_case_fitness_functions)
@@ -74,16 +70,6 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
             self.evolve()
             self._update_parameters()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
-            #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
-            if minCov < 1.0:
-                if self.create_test_suite(self._archive.solutions).get_coverage() == coverageCache and coverageCache >= minCov:
-                    if coverageCounter >= minIter:
-                        break
-                    else:
-                        coverageCounter = coverageCounter +1
-                else:
-                    coverageCache = self.create_test_suite(self._archive.solutions).get_coverage()
-                    coverageCounter = 1
         self.after_search_finish()
         return self.create_test_suite(self._archive.solutions)
 
