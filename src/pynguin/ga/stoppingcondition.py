@@ -162,6 +162,60 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         """Not used."""
 
 
+class MinimumCoverageStoppingCondition(StoppingCondition):
+    """A stopping condition that checks if coverage doesn't change over multiple iterations."""
+
+    def _init_(self, min_coverage: float, min_iterations: int):
+        """Create new MinimumCoverageStoppingCondition.
+
+        Args:
+            min_coverage: the minimum coverage after which the algorithm can stop when reached.
+            min_iterations: the minimum number of iterations the algorithm should check whether the coverage changes.
+        """
+        super()._init_()
+        self._num_iterations = 0 #Count up the iterations
+        self._current_coverage = 0.0 #Store current coverage
+        self._last_coverage = 0.0 #Cache the coverage from last iteration
+        assert min_coverage > 0.0
+        assert min_iterations > 0.0
+        self._min_iterations = min_iterations #Minimum iteration from the configuration
+        self._min_coverage = min_coverage #Minimum coverage from the configuration
+
+    def current_value(self) -> int:  # noqa: D102
+        return self._current_coverage
+
+    def limit(self) -> int:  # noqa: D102
+        return self._min_coverage
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return (
+            self._num_iterations >= self._min_iterations and 
+            self._current_coverage > self._min_coverage and 
+            self._current_coverage == self._last_coverage
+        )
+
+    def reset(self) -> None:  # noqa: D102
+        self._num_iterations = 0
+
+    def set_limit(self, limit: float) -> None:  # noqa: D102
+        self._min_coverage = limit
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self._num_iterations = 0
+
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
+        if best.get_coverage() > self._min_coverage:
+            if best.get_coverage() == self._last_coverage:
+                self._num_iterations += 1
+            self._last_coverage = self._current_coverage
+            self._current_coverage = best.get_coverage()
+
+    def _str_(self):
+        return f"Reached minimum coverage: {self.current_value()}/{self.limit()}"
+
+
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
