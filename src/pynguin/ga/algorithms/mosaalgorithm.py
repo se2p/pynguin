@@ -14,8 +14,6 @@ from typing import TYPE_CHECKING
 import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
 
-import pynguin.configuration as config
-
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
@@ -55,26 +53,12 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
         self.before_first_search_iteration(
             self.create_test_suite(self._archive.solutions)
         )
-        coverageCache = 0
-        coverageCounter = 1
-        minCov = config.configuration.stopping.minimum_coverage_quick
-        minIter = config.configuration.stopping.minimum_iteration_quick
         while (
             self.resources_left()
             and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
-            #The following checks if minimum coverage is reached, only if minimum-coverage-quick is below 1.0
-            if minCov < 1.0:
-                if self.create_test_suite(self._archive.solutions).get_coverage() == coverageCache and coverageCache >= minCov:
-                    if coverageCounter >= minIter:
-                        break
-                    else:
-                        coverageCounter = coverageCounter +1
-                else:
-                    coverageCache = self.create_test_suite(self._archive.solutions).get_coverage()
-                    coverageCounter = 1
 
         self.after_search_finish()
         return self.create_test_suite(
