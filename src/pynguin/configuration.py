@@ -571,10 +571,10 @@ class StoppingConfiguration:
     (up to maximum_test_execution_timeout)."""
 
     minimum_coverage_quick: float = 1.0
-    """Stops the algorithm if minimum coverage is reached and coverage doesn't change over minimum_iteration_quick (default=10) iterations"""
+    """If the coverage exceeds the specified minimum coverage (set here), the algorithm will stop if the coverage does not change over several iterations (specified in Minimum_iteration_quick with default = 10 iterations)."""
 
     minimum_iteration_quick: int = 10
-    """Stops the algorithm if minimum coverage is reached and coverage doesn't change over 10 iterations"""
+    """Combined with minimum_coverage_quick (must also be set). The algorithm stops when the coverage is above the specified minimum and does not change after several iterations specified here."""
 
 
 @dataclasses.dataclass
