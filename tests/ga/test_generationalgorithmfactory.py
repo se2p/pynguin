@@ -24,6 +24,7 @@ from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
@@ -66,6 +67,7 @@ def test_instantiate_strategy(algorithm, cls, algorithm_factory):
         ),
         pytest.param("maximum_search_time", MaxSearchTimeStoppingCondition),
         pytest.param("maximum_iterations", MaxIterationsStoppingCondition),
+        pytest.param("minimum_coverage_quick", MinimumCoverageStoppingCondition),
     ],
 )
 def test_stopping_condition(condition, cls, algorithm_factory):
