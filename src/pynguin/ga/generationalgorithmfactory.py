@@ -96,8 +96,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
             conditions.append(MaxTestExecutionsStoppingCondition(max_test_exec))
         if (max_search_time := stopping.maximum_search_time) >= 0:
             conditions.append(MaxSearchTimeStoppingCondition(max_search_time))
-        if (min_coverage := stopping.minimum_coverage_quick) < 1.0:
-            min_iterations = stopping.minimum_iteration_quick
+        if (min_coverage := stopping.minimum_coverage_quick) < 1.0 and (min_iterations := stopping.minimum_iteration_quick) > 0.0:
             conditions.append(MinimumCoverageStoppingCondition(min_coverage, min_iterations))
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")
