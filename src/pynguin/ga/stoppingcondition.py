@@ -181,10 +181,10 @@ class MinimumCoverageStoppingCondition(StoppingCondition):
         self._min_iterations = min_iterations  # Minimum iteration from the configuration
         self._min_coverage = min_coverage  # Minimum coverage from the configuration
 
-    def current_value(self) -> int:  # noqa: D102
+    def current_value(self) -> float:  # noqa: D102
         return self.__current_coverage
 
-    def limit(self) -> int:  # noqa: D102
+    def limit(self) -> float:  # noqa: D102
         return self._min_coverage
 
     def is_fulfilled(self) -> bool:  # noqa: D102
