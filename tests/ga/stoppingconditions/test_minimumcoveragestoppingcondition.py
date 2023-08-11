@@ -11,12 +11,12 @@ from pynguin.ga.stoppingcondition import MinimumCoverageStoppingCondition
 
 @pytest.fixture
 def stopping_condition():
-    return MinimumCoverageStoppingCondition(0.8, 10)
+    return MinimumCoverageStoppingCondition(0.7, 10)
 
 
 def test_set_get_limit(stopping_condition):
-    stopping_condition.set_limit(0.5)
-    assert stopping_condition.limit() == 0.5
+    stopping_condition.set_limit(0.9)
+    assert stopping_condition.limit() == 0.9
 
 
 def test_is_not_fulfilled(stopping_condition):
