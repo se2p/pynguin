@@ -154,7 +154,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
     def __iter__(self):  # noqa: D105
         yield from self._known_variable_names.items()
 
-    def is_known_name(self, obj) -> bool:  # noqa: 102
+    def is_known_name(self, obj) -> bool:  # noqa: D102
         return obj in self._known_variable_names
 
 

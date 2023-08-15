@@ -65,7 +65,7 @@ class SequenceStartTimeObserver(so.SearchObserver):
     ) -> None:
         pass
 
-    def after_search_finish(self) -> None:  # noqa: 102
+    def after_search_finish(self) -> None:  # noqa: D102
         stat.track_output_variable(
             RuntimeVariable.SearchTime, time.time_ns() - self._search_start_time_ns
         )

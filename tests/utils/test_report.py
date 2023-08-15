@@ -312,6 +312,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "*/\n",
             ".highlight .gd { color: #dc322f } /* Generic.Deleted */\n",
             ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
+            ".highlight .ges { color: #839496; font-weight: bold; font-style: italic } "
+            "/* Generic.EmphStrong */\n",
             ".highlight .gr { color: #dc322f } /* Generic.Error */\n",
             ".highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */\n",
             ".highlight .gi { color: #859900 } /* Generic.Inserted */\n",
