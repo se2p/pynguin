@@ -566,6 +566,9 @@ class StoppingConfiguration:
     maximum_test_execution_timeout: int = 5
     """The maximum time (in seconds) after which a test case times out."""
 
+    maximum_coverage: int = 100
+    """The maximum percentage of coverage after which the generation shall stop."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""

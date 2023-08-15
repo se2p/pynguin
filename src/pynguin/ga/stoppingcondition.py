@@ -162,6 +162,49 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta)
         """Not used."""
 
 
+class MaxCoverageStoppingCondition(StoppingCondition):
+    """A stopping condition that checks for the maximum coverage of the test suite."""
+
+    def __init__(self, max_coverage: int) -> None:
+        """Creates a new MaxCoverageStoppingCondition.
+
+        Args:
+            max_coverage: the maximum coverage to fulfil the condition
+        """
+        super().__init__()
+        assert 0 <= max_coverage <= 100
+        self.__max_coverage = max_coverage
+        self.__current_coverage: int = 0
+
+    def current_value(self) -> int:  # noqa: D102
+        return self.__current_coverage
+
+    def limit(self) -> int:  # noqa: D102
+        return self.__max_coverage
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return self.__current_coverage >= self.__max_coverage
+
+    def reset(self) -> None:  # noqa: D102
+        self.__current_coverage = 0
+
+    def set_limit(self, limit: int) -> None:  # noqa: D102
+        self.__max_coverage = limit
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self.__current_coverage = 0
+
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
+        self.__current_coverage = int(best.get_coverage() * 100)
+
+    def __str__(self) -> str:
+        return (
+            f"Achieved coverage: {self.__current_coverage / self.__max_coverage:.6f}%"
+        )
+
+
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
