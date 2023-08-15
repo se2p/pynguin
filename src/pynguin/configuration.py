@@ -569,6 +569,10 @@ class StoppingConfiguration:
     maximum_coverage: int = 100
     """The maximum percentage of coverage after which the generation shall stop."""
 
+    maximum_coverage_plateau: int = -1
+    """Maximum number of algorithm iterations without coverage change before the
+    algorithms stops."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""

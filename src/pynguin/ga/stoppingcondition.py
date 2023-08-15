@@ -205,6 +205,57 @@ class MaxCoverageStoppingCondition(StoppingCondition):
         )
 
 
+class CoveragePlateauStoppingCondition(StoppingCondition):
+    """Fulfilled if coverage does not change for a given number of iterations."""
+
+    def __init__(self, iterations: int) -> None:
+        """Creates a new CoveragePlateauStoppingCondition.
+
+        Args:
+            iterations: the number of iterations assumed for a plateau
+        """
+        super().__init__()
+        assert iterations > 0
+        self.__previous_coverage = 0.0
+        self.__unchanged_iterations = 0
+        self.__iterations = iterations
+
+    def current_value(self) -> int:  # noqa: D102
+        return self.__unchanged_iterations
+
+    def limit(self) -> int:  # noqa: D102
+        return self.__iterations
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return self.__unchanged_iterations >= self.__iterations
+
+    def reset(self) -> None:  # noqa: D102
+        self.__unchanged_iterations = 0
+        self.__previous_coverage = 0.0
+
+    def set_limit(self, limit: int) -> None:  # noqa: D102
+        self.__iterations = limit
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self.reset()
+
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
+        coverage = best.get_coverage()
+        if coverage > self.__previous_coverage:
+            self.__unchanged_iterations = 0
+            self.__previous_coverage = coverage
+        elif coverage == self.__previous_coverage:
+            self.__unchanged_iterations += 1
+
+    def __str__(self):
+        return (
+            f"Coverage did not change for {self.__unchanged_iterations} at "
+            f"{self.__previous_coverage:.6f}, maximum {self.__iterations}"
+        )
+
+
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 

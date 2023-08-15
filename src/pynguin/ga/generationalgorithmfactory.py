@@ -51,6 +51,7 @@ from pynguin.ga.operators.ranking import RankBasedPreferenceSorting
 from pynguin.ga.operators.selection import RankSelection
 from pynguin.ga.operators.selection import SelectionFunction
 from pynguin.ga.operators.selection import TournamentSelection
+from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
@@ -98,6 +99,8 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
             conditions.append(MaxSearchTimeStoppingCondition(max_search_time))
         if (max_coverage := stopping.maximum_coverage) < 100:
             conditions.append(MaxCoverageStoppingCondition(max_coverage))
+        if (iterations := stopping.maximum_coverage_plateau) >= 0:
+            conditions.append(CoveragePlateauStoppingCondition(iterations))
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")
             self._logger.info(
