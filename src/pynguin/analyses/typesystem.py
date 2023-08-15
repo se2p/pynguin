@@ -484,7 +484,9 @@ class _SubtypeVisitor(TypeVisitor[bool]):
                 return all(
                     self.sub_type_check(left_elem, right_elem)
                     and self.sub_type_check(right_elem, left_elem)
-                    for left_elem, right_elem in zip(left.args, self.right.args)
+                    for left_elem, right_elem in zip(
+                        left.args, self.right.args, strict=True
+                    )
                 )
             return True
         return False
@@ -496,7 +498,9 @@ class _SubtypeVisitor(TypeVisitor[bool]):
                 return False
             return all(
                 self.sub_type_check(left_elem, right_elem)
-                for left_elem, right_elem in zip(left.args, self.right.args)
+                for left_elem, right_elem in zip(
+                    left.args, self.right.args, strict=True
+                )
             )
         return False
 

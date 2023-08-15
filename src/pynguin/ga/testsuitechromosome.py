@@ -203,7 +203,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         if self.size() != other.size():
             return False
         for test, other_test in zip(
-            self._test_case_chromosomes, other._test_case_chromosomes
+            self._test_case_chromosomes, other._test_case_chromosomes, strict=True
         ):
             if test != other_test:
                 return False

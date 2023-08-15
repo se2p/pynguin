@@ -2056,6 +2056,7 @@ class AbstractTestCaseExecutor(abc.ABC):
     def clear_observers(self) -> None:
         """Remove all existing observers."""
 
+    @abstractmethod
     def temporarily_add_observer(self, observer: ExecutionObserver):
         """Temporarily add the given observer.
 
@@ -2392,6 +2393,9 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
                     #  Make use of type errors?
                     self._delegate.execute(test_case)
         return result
+
+    def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102
+        pass
 
 
 class TypeTracingObserver(ExecutionObserver):

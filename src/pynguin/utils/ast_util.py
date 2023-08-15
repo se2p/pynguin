@@ -39,7 +39,7 @@ def create_full_name(
     # First has to be ast.Name
     res: ast.Name | ast.Attribute = create_ast_name(names[0], not loads[0])
     # Remaining are ast.Attribute
-    for name, loa in zip(names[1:], loads[1:]):
+    for name, loa in zip(names[1:], loads[1:], strict=True):
         res = create_ast_attribute(name, res, not loa)
     return res
 

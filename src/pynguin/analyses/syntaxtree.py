@@ -158,9 +158,9 @@ class _Context:
             return name
         if isinstance(raises.exc, ast.Call):
             if hasattr(raises.exc.func, "id"):
-                return getattr(raises.exc.func, "id")
+                return raises.exc.func.id
             if hasattr(raises.exc.func, "attr"):
-                return getattr(raises.exc.func, "attr")
+                return raises.exc.func.attr
             _LOGGER.debug(
                 "Raises function call has neither id nor attr, has only %s",
                 str(dir(raises.exc.func)),
@@ -170,10 +170,10 @@ class _Context:
         elif isinstance(raises.exc, ast.Subscript):
             id_repr = ""
             if hasattr(raises.exc.value, "id"):
-                id_repr = getattr(raises.exc.value, "id")
+                id_repr = raises.exc.value.id
             n_repr = ""
             if hasattr(raises.exc.slice, "value"):
-                value = getattr(raises.exc.slice, "value")
+                value = raises.exc.slice.value
                 if hasattr(value, "n"):
                     n_repr = value.n
             return f"{id_repr}[{n_repr}]"

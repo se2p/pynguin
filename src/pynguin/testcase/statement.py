@@ -660,7 +660,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
             and all(
                 {
                     left.structural_eq(right, memo)
-                    for left, right in zip(self._elements, other._elements)
+                    for left, right in zip(self._elements, other._elements, strict=True)
                 }
             )
         )
@@ -856,7 +856,9 @@ class DictStatement(
             and all(
                 {
                     lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
-                    for (lk, lv), (rk, rv) in zip(self._elements, other._elements)
+                    for (lk, lv), (rk, rv) in zip(
+                        self._elements, other._elements, strict=True
+                    )
                 }
             )
         )

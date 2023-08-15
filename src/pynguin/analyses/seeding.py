@@ -292,7 +292,10 @@ def create_variable_references_from_call_args(
     shift_by = 1 if gen_callable.is_method() or gen_callable.is_constructor() else 0
 
     # Handle positional arguments.
-    for (name, param), call_arg in zip(
+    # TODO(sl) check for the zip, it sometimes gets lists of different lengths, where it
+    #  silently swallows the rest of the longer list—the strict parameter would prevent
+    #  this but causes failures in our test suite; needs investigation...
+    for (name, param), call_arg in zip(  # noqa: B905
         list(gen_callable.inferred_signature.signature.parameters.items())[shift_by:],
         call_args,
     ):
@@ -431,7 +434,7 @@ def create_stmt_from_call(
         The corresponding statement.
     """
     try:
-        call.func.attr  # type: ignore[attr-defined]
+        call.func.attr  # type: ignore[attr-defined]  # noqa: B018
     except AttributeError:
         return try_generating_specific_function(
             call,
@@ -601,7 +604,7 @@ def create_stmt_from_collection(
             testcase.test_cluster.type_system.to_type_info(dict),
             (get_collection_type(keys), get_collection_type(values)),
         )
-        coll_elems = list(zip(keys, values))
+        coll_elems = list(zip(keys, values, strict=True))
     else:
         elements = coll_node.elts
         coll_elems = create_elements(

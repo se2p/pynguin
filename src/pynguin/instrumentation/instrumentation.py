@@ -236,7 +236,7 @@ class InstrumentationTransformer:
             if isinstance(const, str) and CODE_OBJECT_ID_KEY in const:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
-                assert False, "Tried to instrument already instrumented module."
+                raise AssertionError("Tried to instrument already instrumented module.")
         return self._instrument_code_recursive(module_code)
 
     def _instrument_code_recursive(

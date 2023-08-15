@@ -1105,7 +1105,7 @@ def __analyse_class(
         generic = GenericConstructor(
             type_info,
             test_cluster.type_system.infer_type_info(
-                getattr(type_info.raw_type, "__init__"),
+                type_info.raw_type.__init__,
                 type4py_data=find_predicted_signature(
                     type4py_data, type_info.qualname + ".__init__", type_info.qualname
                 ),

@@ -176,6 +176,7 @@ target-version = "py310"
 line-length = 88
 src = ["src"]
 select = [
+  "B",  # bugbear
   "C90",  # mccabe
   "D",  # pydocstyle
   "E",  # pycodestyle
@@ -185,6 +186,7 @@ select = [
   "T20",
 ]
 ignore = [
+  "B019",  # do not complain that  functools.lru_cache might cause memory leaks
   "D105",  # do not complain due to missing docstrings in magic methods
 ]
 # Exclude a variety of commonly ignored directories.
