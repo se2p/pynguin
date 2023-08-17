@@ -544,7 +544,7 @@ class ComputationCache:
         for fitness_func in self._fitness_functions if only is None else (only,):
             if fitness_func not in self._fitness_cache:
                 new_value = fitness_func.compute_fitness(self._chromosome)
-                assert (
+                assert (  # noqa: PT018
                     not math.isnan(new_value)
                     and not math.isinf(new_value)
                     and new_value >= 0
@@ -564,7 +564,7 @@ class ComputationCache:
         for coverage_func in self._coverage_functions if only is None else (only,):
             if coverage_func not in self._coverage_cache:
                 new_value = coverage_func.compute_coverage(self._chromosome)
-                assert (
+                assert (  # noqa: PT018
                     not math.isnan(new_value)
                     and not math.isinf(new_value)
                     and (0 <= new_value <= 1)

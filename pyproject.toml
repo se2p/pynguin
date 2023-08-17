@@ -195,6 +195,7 @@ select = [
   "ISC",  # flake8-implicit-str-concat
   "PERF",  # perflint
   "PIE",  # flake8-pie
+  "PT",  # flake8-pytest-style
   "Q",  # flake8-quotesa
   "RSE",  # flake8-raise
   "S",  # flake8-bandit

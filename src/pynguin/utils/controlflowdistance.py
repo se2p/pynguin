@@ -40,7 +40,7 @@ class ControlFlowDistance:
             approach_level: The approach level
             branch_distance: The branch distance
         """
-        assert (
+        assert (  # noqa: PT018
             approach_level >= 0 and branch_distance >= 0.0
         ), "Expect approach_level and branch_distance to be non-negative"
         self._approach_level = approach_level
