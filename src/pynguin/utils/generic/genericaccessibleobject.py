@@ -359,7 +359,7 @@ class GenericMethod(GenericCallableAccessibleObject):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}({self.owner},"
-            + f" {self._callable.__name__}, {self.inferred_signature})"
+            f" {self._callable.__name__}, {self.inferred_signature})"
         )
 
     def __str__(self):
@@ -413,7 +413,7 @@ class GenericFunction(GenericCallableAccessibleObject):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}({self._callable.__name__}, "
-            + f"{self.inferred_signature})"
+            f"{self.inferred_signature})"
         )
 
     def __str__(self):
@@ -491,7 +491,7 @@ class GenericField(GenericAbstractField):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}({self.owner}, {self._field},"
-            + f" {self._field_type})"
+            f" {self._field_type})"
         )
 
 
@@ -535,7 +535,7 @@ class GenericStaticField(GenericAbstractField):
     def __repr__(self):  # noqa: D105
         return (
             f"{self.__class__.__name__}({self.owner}, {self._field},"
-            + f" {self._field_type})"
+            f" {self._field_type})"
         )
 
 
@@ -585,5 +585,5 @@ class GenericStaticModuleField(GenericAbstractField):
     def __repr__(self):  # noqa: D105
         return (
             f"{self.__class__.__name__}({self._module}, {self._field},"
-            + f" {self._field_type})"
+            f" {self._field_type})"
         )

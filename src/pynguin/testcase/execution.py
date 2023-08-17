@@ -933,7 +933,7 @@ class ExecutionResult:
     def __str__(self) -> str:
         return (
             f"ExecutionResult(exceptions: {self.exceptions}, "
-            + f"trace: {self.execution_trace})"
+            f"trace: {self.execution_trace})"
         )
 
     def __repr__(self) -> str:

@@ -262,7 +262,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
         return f"{self._value} branch of predicate {self._predicate_id}"
 
     def __repr__(self) -> str:
-        return f"BranchGoal(predicate_id={self._predicate_id}, " f"value={self._value})"
+        return f"BranchGoal(predicate_id={self._predicate_id}, value={self._value})"
 
     def __hash__(self) -> int:
         prime = 31
@@ -411,9 +411,7 @@ class LineCoverageTestFitness(ff.TestCaseFitnessFunction):
         return f"LineCoverageTestFitness for {self._goal}"
 
     def __repr__(self) -> str:
-        return (
-            f"LineCoverageTestFitness(executor={self._executor}, " f"goal={self._goal})"
-        )
+        return f"LineCoverageTestFitness(executor={self._executor}, goal={self._goal})"
 
 
 class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):

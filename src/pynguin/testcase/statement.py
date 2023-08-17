@@ -1261,7 +1261,7 @@ class ConstructorStatement(ParametrizedStatement):
     def __repr__(self) -> str:
         return (
             f"ConstructorStatement({self._test_case}, "
-            + f"{self._generic_callable}(args={self._args})"
+            f"{self._generic_callable}(args={self._args})"
         )
 
     def __str__(self) -> str:
@@ -1498,8 +1498,7 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
 
     def __repr__(self) -> str:
         return (
-            f"PrimitiveStatement({self._test_case}, {self.ret_val}, "
-            + f"{self._value})"
+            f"PrimitiveStatement({self._test_case}, {self.ret_val}, " f"{self._value})"
         )
 
     def __str__(self) -> str:

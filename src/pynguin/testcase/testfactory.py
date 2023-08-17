@@ -973,7 +973,7 @@ class TestFactory:
                 raise ConstructionFailedException(
                     (
                         f"Failed to create variable for type {parameter_type} "
-                        + f"at position {position}"
+                        f"at position {position}"
                     ),
                 )
 
