@@ -2464,11 +2464,11 @@ class TypeTracingObserver(ExecutionObserver):
                 real_params[(name, mod_param)] = param
 
             # We must rewrite calls as follows:
-            # foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)
+            # `foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)`
             # where
-            #   n_arg1 = Proxy(arg1)
-            #   n_arg2 = Proxy(arg2)
-            #   n_arg3 = Proxy(arg2)
+            #   `n_arg1 = Proxy(arg1)`
+            #   `n_arg2 = Proxy(arg2)`
+            #   `n_arg3 = Proxy(arg2)`
             # In other words, each argument is wrapped in its own proxy, even if they
             # point to the same variable.
             modified = cast(

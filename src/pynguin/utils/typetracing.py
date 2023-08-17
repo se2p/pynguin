@@ -732,10 +732,12 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
     # These do not give us any hint.
     # def __copy__(self):
-    #     raise NotImplementedError('object proxy must define __copy__()')
+    #     raise NotImplementedError(
+    #             'object proxy must define __copy__()')
     #
     # def __deepcopy__(self, memo):
-    #     raise NotImplementedError('object proxy must define __deepcopy__()')
+    #     raise NotImplementedError(
+    #             'object proxy must define __deepcopy__()')
     #
     # def __reduce__(self):
     #     raise NotImplementedError(

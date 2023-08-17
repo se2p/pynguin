@@ -184,6 +184,7 @@ select = [
   "C90",  # mccabe
   "D",  # pydocstyle
   "E",  # pycodestyle
+  "ERA",  # flake8-eradicate
   "F",  # pyflakes
   "FA",  # flake8-future-annotations
   "FIX",  # flake8-fixme

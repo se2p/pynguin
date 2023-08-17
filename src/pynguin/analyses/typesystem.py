@@ -1717,13 +1717,13 @@ class TypeSystem:
             #  But ... (ellipsis) is not a type.
             return TupleType((ANY,), unknown_size=True)
         if get_origin(hint) is tuple:
-            # tuple[int, str] or typing.Tuple[int, str] or typing.Tuple
+            # Type is `tuple[int, str]` or `typing.Tuple[int, str]` or `typing.Tuple`
             args = self.__convert_args_if_exists(hint, unsupported=unsupported)
             if not args:
                 return TupleType((ANY,), unknown_size=True)
             return TupleType(args)
         if is_union_type(hint) or isinstance(hint, types.UnionType):
-            # int | str or typing.Union[int, str]
+            # Type is `int | str` or `typing.Union[int, str]`
             # TODO(fk) don't make a union including Any.
             return UnionType(
                 tuple(
@@ -1731,7 +1731,7 @@ class TypeSystem:
                 )
             )
         if isinstance(hint, _BaseGenericAlias | types.GenericAlias):
-            # list[int, str] or List[int, str] or Dict[int, str] or set[str]
+            # `list[int, str]` or `List[int, str]` or `Dict[int, str]` or `set[str]`
             result = Instance(
                 self.to_type_info(hint.__origin__),
                 self.__convert_args_if_exists(hint, unsupported=unsupported),
@@ -1741,7 +1741,7 @@ class TypeSystem:
             return self._fixup_known_generics(result)
 
         if isinstance(hint, type):
-            # int or str or MyClass
+            # `int` or `str` or `MyClass`
             return self._fixup_known_generics(Instance(self.to_type_info(hint)))
         # TODO(fk) log unknown hints to so we can better understand what
         #  we should add next
