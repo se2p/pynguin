@@ -715,7 +715,7 @@ class TestFactory:
         """
         to_delete: set[int] = set()
         TestFactory._recursive_delete_inclusion(test_case, to_delete, position)
-        for index in sorted(list(to_delete), reverse=True):
+        for index in sorted(to_delete, reverse=True):
             test_case.remove(index)
         return True
 

@@ -658,10 +658,8 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)
             and all(
-                {
-                    left.structural_eq(right, memo)
-                    for left, right in zip(self._elements, other._elements, strict=True)
-                }
+                left.structural_eq(right, memo)
+                for left, right in zip(self._elements, other._elements, strict=True)
             )
         )
 
@@ -854,12 +852,10 @@ class DictStatement(
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)
             and all(
-                {
-                    lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
-                    for (lk, lv), (rk, rv) in zip(
-                        self._elements, other._elements, strict=True
-                    )
-                }
+                lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
+                for (lk, lv), (rk, rv) in zip(
+                    self._elements, other._elements, strict=True
+                )
             )
         )
 
@@ -1234,7 +1230,7 @@ class ParametrizedStatement(VariableCreatingStatement, metaclass=ABCMeta):
             and self._generic_callable == other._generic_callable
             and self._args.keys() == other._args.keys()
             and all(
-                {v.structural_eq(other._args[k], memo) for k, v in self._args.items()}
+                v.structural_eq(other._args[k], memo) for k, v in self._args.items()
             )
         )
 

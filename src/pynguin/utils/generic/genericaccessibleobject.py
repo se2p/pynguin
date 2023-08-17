@@ -144,14 +144,12 @@ class GenericEnum(GenericAccessibleObject):
         """
         super().__init__(owner)
         self._generated_type = Instance(owner)
-        self._names = list(
-            map(
-                lambda e: e.name,
-                typing.cast(
-                    list[enum.Enum], list(typing.cast(type[enum.Enum], owner.raw_type))
-                ),
+        self._names = [
+            e.name
+            for e in typing.cast(
+                list[enum.Enum], list(typing.cast(type[enum.Enum], owner.raw_type))
             )
-        )
+        ]
 
     def generated_type(self) -> ProperType:  # noqa: D102
         return self._generated_type

@@ -180,6 +180,7 @@ select = [
   "B",  # bugbear
   "BLE",  # flake8-blind-except
   "CPY",  # flake8-ccopyright
+  "C4",  # flake8-comprehensions
   "C90",  # mccabe
   "D",  # pydocstyle
   "E",  # pycodestyle

@@ -110,7 +110,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             if idx in result.assertion_verification_trace.error:
                 to_delete.update(result.assertion_verification_trace.error[idx])
 
-            for pos in sorted(list(to_delete), reverse=True):
+            for pos in sorted(to_delete, reverse=True):
                 statement.assertions.remove(pos_to_key[pos])
 
     def _add_assertions_for(self, test_case: tc.TestCase, result: ex.ExecutionResult):
@@ -386,5 +386,5 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         _LOGGER.info(
             "Number of Surviving Mutant(s): %i (Mutants: %s)",
             len(survived),
-            ", ".join(map(lambda x: str(x.mut_num), survived)),
+            ", ".join(str(x.mut_num) for x in survived),
         )
