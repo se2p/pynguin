@@ -178,10 +178,19 @@ src = ["src"]
 select = [
   "A",  # flake8-builtins
   "B",  # bugbear
+  "CPY",  # flake8-ccopyright
   "C90",  # mccabe
   "D",  # pydocstyle
   "E",  # pycodestyle
   "F",  # pyflakes
+  "FA",  # flake8-future-annotations
+  "FLY",  # flynt
+  "ICN",  # flake8-import-conventions
+  "INT",  # flake8-gettext
+  "PIE",  # flake8-pie
+  "Q",  # flake8-quotesa
+  "RSE",  # flake8-raise
+  "TID",  # flake8-tidy-imports
   "UP",  # pyupgrade
   "W",  # pycodestyle
   "T20",
