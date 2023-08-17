@@ -429,7 +429,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
-    def reversed(self) -> CFG:
+    def reversed(self) -> CFG:  # noqa: A003
         """Provides the reversed graph of this graph.
 
         Returns:

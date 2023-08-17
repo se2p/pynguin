@@ -44,7 +44,7 @@ class Reference(metaclass=ABCMeta):
         self._type = typ
 
     @property
-    def type(self) -> ProperType:
+    def type(self) -> ProperType:  # noqa: A003
         """Provides the type of this reference.
 
         Returns:
@@ -280,7 +280,7 @@ class CallBasedVariableReference(VariableReference):
         self._callable = generic_callable
 
     @property
-    def type(self) -> ProperType:  # noqa: D102
+    def type(self) -> ProperType:  # noqa: A003, D102
         # Dynamically look up type instead of using fixed type given at
         # construction time.
         return self._callable.generated_type()

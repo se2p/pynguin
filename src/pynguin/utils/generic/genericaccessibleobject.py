@@ -232,7 +232,7 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, metaclass=abc.ABC
         return self._raised_exceptions
 
     @property
-    def callable(
+    def callable(  # noqa: A003
         self,
     ) -> TypesOfCallables:
         """Provides the callable.

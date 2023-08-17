@@ -176,6 +176,7 @@ target-version = "py310"
 line-length = 88
 src = ["src"]
 select = [
+  "A",  # flake8-builtins
   "B",  # bugbear
   "C90",  # mccabe
   "D",  # pydocstyle
