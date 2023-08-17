@@ -1657,7 +1657,7 @@ class TypeSystem:
         glob: dict[str, Any] = {}
         # Make sure typing constructs are available
 
-        exec("from typing import *", glob)  # nosec
+        exec("from typing import *", glob)  # noqa: S102
         # Make globals from module available
         glob.update(globs)
         # Import any prefixes
@@ -1668,11 +1668,10 @@ class TypeSystem:
             potential_import = potential_type.group(0).rpartition(".")[0]
             _LOGGER.info("Try to import %s", potential_import)
             try:
-                exec("import " + potential_import, glob)  # nosec
-            except Exception:  # noqa: BLE001
-                # Well...
-                pass
-        # If a type cannot be build from this info, there is not much we can do.
+                exec("import " + potential_import, glob)  # noqa: S102
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(err)
+        # If a type cannot be built from this info, there is not much we can do.
         try:
             # (Ab)use typing module
             ref = ForwardRef(candidate)

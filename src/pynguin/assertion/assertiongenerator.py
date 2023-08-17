@@ -247,7 +247,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         module = types.ModuleType(module_name)
         module.__dict__.update(module_dict or {})
 
-        exec(code, module.__dict__)  # nosec
+        exec(code, module.__dict__)  # noqa: S102
         return module
 
     def __init__(self, plain_executor: ex.TestCaseExecutor, testing: bool = False):

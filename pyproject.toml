@@ -192,6 +192,7 @@ select = [
   "PIE",  # flake8-pie
   "Q",  # flake8-quotesa
   "RSE",  # flake8-raise
+  "S",  # flake8-bandit
   "TID",  # flake8-tidy-imports
   "UP",  # pyupgrade
   "W",  # pycodestyle
@@ -201,6 +202,7 @@ ignore = [
   "B019",  # do not complain that  functools.lru_cache might cause memory leaks
   "D105",  # do not complain due to missing docstrings in magic methods
   "FIX002",  # do not complain about valid TODO comments
+  "S101",  # do not complain about using assert statements
 ]
 # Exclude a variety of commonly ignored directories.
 exclude = [

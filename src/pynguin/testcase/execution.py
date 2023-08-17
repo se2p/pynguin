@@ -2317,7 +2317,9 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             code = self._checked_transformer.instrument_module(code)
 
         try:
-            exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
+            exec(  # noqa: S102
+                code, exec_ctx.global_namespace, exec_ctx.local_namespace
+            )
         except BaseException as err:  # noqa: BLE001
             failed_stmt = ast.unparse(ast_node)
             _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)

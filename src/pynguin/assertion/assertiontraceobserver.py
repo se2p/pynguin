@@ -230,9 +230,9 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             position, ass.CollectionLengthAssertion(ref, length)
                         )
                         return
-                    except BaseException:  # noqa: BLE001
+                    except BaseException as err:  # noqa: BLE001
                         # Could not get len, so continue down.
-                        pass
+                        _LOGGER.debug(err)
             if depth < max_depth and hasattr(value, "__dict__"):
                 # Reference is a complex object.
                 # Try to assert something on its fields.
