@@ -1662,8 +1662,7 @@ class TypeSystem:
         glob.update(globs)
         # Import any prefixes
 
-        # TODO(fk) properly implement
-        # Hacky way find potential imports:
+        # TODO(fk) properly implement this way to find potential imports:
         for potential_type in self._FIND_DOT_SEPARATED_IDENTIFIERS.finditer(candidate):
             # try to import everything left of last dot
             potential_import = potential_type.group(0).rpartition(".")[0]
