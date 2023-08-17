@@ -182,10 +182,9 @@ def _setup_report_dir() -> bool:
         try:
             report_dir.mkdir(parents=True, exist_ok=True)
         except (OSError, FileNotFoundError):
-            _LOGGER.error(
+            _LOGGER.exception(
                 "Cannot create report dir %s",
                 config.configuration.statistics_output.report_dir,
-                exc_info=True,
             )
             return False
     return True
@@ -438,7 +437,7 @@ def _track_final_metrics(
     # set value for each newly calculated variable
     for runtime_variable, coverage_ff in to_calculate:
         generation_result.add_coverage_function(coverage_ff)
-        _LOGGER.info(f"Calculating resulting {runtime_variable.value}")
+        _LOGGER.info(f"Calculating resulting {runtime_variable.value}")  # noqa: G004
         stat.track_output_variable(
             runtime_variable, generation_result.get_coverage_for(coverage_ff)
         )

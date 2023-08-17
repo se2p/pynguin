@@ -189,6 +189,7 @@ select = [
   "FA",  # flake8-future-annotations
   "FIX",  # flake8-fixme
   "FLY",  # flynt
+  "G",  # flake8-logging-format
   "ICN",  # flake8-import-conventions
   "INT",  # flake8-gettext
   "PIE",  # flake8-pie

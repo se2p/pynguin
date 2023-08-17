@@ -83,7 +83,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
             test_case_chromosome.accept(self)
 
         self._logger.debug(
-            f"Removed {len(self._deleted_assertions)} assertion(s) from "
+            f"Removed {len(self._deleted_assertions)} assertion(s) from "  # noqa: G004
             f"test suite that do not increase checked coverage",
         )
 

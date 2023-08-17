@@ -259,7 +259,8 @@ def parse_module(module_name: str, query_type4py: bool = False) -> _ModuleParseR
 
     except (TypeError, OSError) as error:
         LOGGER.debug(
-            f"Could not retrieve source code for module {module_name} ({error}). "
+            f"Could not retrieve source code for module {module_name} "  # noqa: G004
+            f"({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
 
