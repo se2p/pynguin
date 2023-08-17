@@ -2318,7 +2318,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
         try:
             exec(code, exec_ctx.global_namespace, exec_ctx.local_namespace)  # nosec
-        except BaseException as err:
+        except BaseException as err:  # noqa: BLE001
             failed_stmt = ast.unparse(ast_node)
             _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
             return err

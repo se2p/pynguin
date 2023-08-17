@@ -178,6 +178,7 @@ src = ["src"]
 select = [
   "A",  # flake8-builtins
   "B",  # bugbear
+  "BLE",  # flake8-blind-except
   "CPY",  # flake8-ccopyright
   "C90",  # mccabe
   "D",  # pydocstyle

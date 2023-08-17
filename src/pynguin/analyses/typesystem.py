@@ -1670,7 +1670,7 @@ class TypeSystem:
             _LOGGER.info("Try to import %s", potential_import)
             try:
                 exec("import " + potential_import, glob)  # nosec
-            except Exception:
+            except Exception:  # noqa: BLE001
                 # Well...
                 pass
         # If a type cannot be build from this info, there is not much we can do.
@@ -1678,7 +1678,7 @@ class TypeSystem:
             # (Ab)use typing module
             ref = ForwardRef(candidate)
             return self.convert_type_hint(_eval_type(ref, glob, glob))
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Give up?
             return ANY
 

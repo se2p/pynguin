@@ -230,7 +230,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             position, ass.CollectionLengthAssertion(ref, length)
                         )
                         return
-                    except BaseException:
+                    except BaseException:  # noqa: BLE001
                         # Could not get len, so continue down.
                         pass
             if depth < max_depth and hasattr(value, "__dict__"):

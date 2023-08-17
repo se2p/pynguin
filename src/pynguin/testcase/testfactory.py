@@ -238,7 +238,7 @@ class TestFactory:
                 args=parameters,
             )
             return test_case.add_variable_creating_statement(statement, position)
-        except BaseException as exception:
+        except BaseException as exception:  # noqa: BLE001
             raise ConstructionFailedException(
                 f"Failed to add constructor for {constructor}"
             ) from exception
