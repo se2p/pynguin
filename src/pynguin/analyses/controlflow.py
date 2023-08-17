@@ -303,8 +303,7 @@ class ProgramGraph(Generic[N]):
             The DOT representation of this graph
         """
         graph = ["strict digraph  {"]
-        for node in self._graph.nodes:
-            graph.append(f'"{node}";')
+        graph.extend(f'"{node}";' for node in self._graph.nodes)
         for source, target, edge_data in self._graph.edges(data=True):
             if edge_data == {}:
                 graph.append(f'"{source}" -> "{target}";')

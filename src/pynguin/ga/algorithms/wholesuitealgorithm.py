@@ -183,7 +183,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
         Returns:
             A list of the best chromosomes
         """
-        elite = []
-        for idx in range(config.configuration.search_algorithm.elite):
-            elite.append(self._population[idx].clone())
-        return elite
+        return [
+            self._population[idx].clone()
+            for idx in range(config.configuration.search_algorithm.elite)
+        ]

@@ -887,11 +887,11 @@ class TestFactory:
         """
         calls: list[gao.GenericAccessibleObject] = []
         all_calls, _ = self._test_cluster.get_generators_for(return_type)
-        for i in all_calls:
-            if self._dependencies_satisfied(
-                i.get_dependencies(signature_memo), objects
-            ):
-                calls.append(i)
+        calls.extend(
+            i
+            for i in all_calls
+            if self._dependencies_satisfied(i.get_dependencies(signature_memo), objects)
+        )
         return calls
 
     def _dependencies_satisfied(

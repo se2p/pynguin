@@ -216,7 +216,7 @@ def get_non_root_control_flow_distance(
                 node.predicate_id, trace.true_distances
             ) + _predicate_fitness(node.predicate_id, trace.false_distances)
             distance = min(distance, candidate)
-        except nx.NetworkXNoPath:
+        except nx.NetworkXNoPath:  # noqa: PERF203
             # No path from node to target.
             pass
 

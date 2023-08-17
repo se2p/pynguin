@@ -590,15 +590,15 @@ class ExecutionTrace:
         self.checked_lines.update(other.checked_lines)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
-        for executed_assertion in other.executed_assertions:
-            self.executed_assertions.append(
-                ExecutedAssertion(
-                    executed_assertion.code_object_id,
-                    executed_assertion.node_id,
-                    executed_assertion.trace_position + shift,
-                    executed_assertion.assertion,
-                )
+        self.executed_assertions.extend(
+            ExecutedAssertion(
+                executed_assertion.code_object_id,
+                executed_assertion.node_id,
+                executed_assertion.trace_position + shift,
+                executed_assertion.assertion,
             )
+            for executed_assertion in other.executed_assertions
+        )
 
     @staticmethod
     def _merge_min(target: dict[int, float], source: dict[int, float]) -> None:

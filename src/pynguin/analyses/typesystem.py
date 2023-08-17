@@ -1166,7 +1166,7 @@ class InferredSignature:
             for item in top_n_guesses + self.type4py_parameter_types_for_statistics.get(
                 param_name, []
             ):
-                compute_partial_matches_for.append(
+                compute_partial_matches_for.append(  # noqa: PERF401
                     (item, self.parameters_for_statistics[param_name])
                 )
             parameter_types[param_name] = [str(t) for t in top_n_guesses]
@@ -1179,7 +1179,7 @@ class InferredSignature:
             (self.return_type, self.return_type_for_statistics)
         )
         for type4py_return_type in self.type4py_return_types_for_statistics:
-            compute_partial_matches_for.append(
+            compute_partial_matches_for.append(  # noqa: PERF401
                 (type4py_return_type, self.return_type_for_statistics)
             )
 

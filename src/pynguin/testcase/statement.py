@@ -1497,9 +1497,7 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
         """Add a random delta to the value."""
 
     def __repr__(self) -> str:
-        return (
-            f"PrimitiveStatement({self._test_case}, {self.ret_val}, " f"{self._value})"
-        )
+        return f"PrimitiveStatement({self._test_case}, {self.ret_val}, {self._value})"
 
     def __str__(self) -> str:
         return f"{self._value}: {self.ret_val}"

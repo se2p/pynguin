@@ -85,8 +85,10 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
     ) -> list[ast.stmt]:
         imports: list[ast.stmt] = []
         if common_modules is not None:
-            for module in common_modules:
-                imports.append(ast.Import(names=[ast.alias(name=module, asname=None)]))
+            imports.extend(
+                ast.Import(names=[ast.alias(name=module, asname=None)])
+                for module in common_modules
+            )
         for module_name, alias in module_aliases:
             imports.append(
                 ast.Import(

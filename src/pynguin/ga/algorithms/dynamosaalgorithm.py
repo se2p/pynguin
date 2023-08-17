@@ -127,8 +127,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         if remain > 0 and len(front) != 0:
             fast_epsilon_dominance_assignment(front, self._goals_manager.current_goals)
             front.sort(key=lambda t: t.distance, reverse=True)
-            for k in range(remain):
-                self._population.append(front[k])
+            self._population.extend(front[k] for k in range(remain))
 
         self._goals_manager.update(self._population)
 

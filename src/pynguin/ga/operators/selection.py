@@ -48,10 +48,7 @@ class SelectionFunction(Generic[T]):
         Returns:
             A list of chromosomes that was selected
         """
-        offspring: list[T] = []
-        for _ in range(number):
-            offspring.append(population[self.get_index(population)])
-        return offspring
+        return [population[self.get_index(population)] for _ in range(number)]
 
     @property
     def maximize(self):
