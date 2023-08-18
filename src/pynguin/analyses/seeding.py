@@ -501,9 +501,8 @@ def find_gen_callable(
                 var_type = ref_dict[obj_from_ast].type
                 if isinstance(var_type, Instance) and var_type.type == obj.owner:
                     return obj
-        elif isinstance(obj, GenericFunction):
-            if call_name == obj.function_name:
-                return obj
+        elif isinstance(obj, GenericFunction) and call_name == obj.function_name:
+            return obj
     return None
 
 
@@ -720,7 +719,7 @@ def get_collection_type(coll_elems: list[vr.VariableReference]) -> ProperType:
         return ANY
     coll_type = coll_elems[0].type
     for elem in coll_elems:
-        if not elem.type == coll_type:
+        if elem.type != coll_type:
             coll_type = ANY
             break
     return coll_type
@@ -902,7 +901,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
                 self._var_refs[ref_id] = var_ref
 
     def visit_Assert(self, node: ast.Assert) -> Any:  # noqa: D102
-        if self._current_parsable and self._create_assertions:
+        if self._current_parsable and self._create_assertions:  # noqa: SIM102
             if (result := create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result
                 self._current_testcase.get_statement(

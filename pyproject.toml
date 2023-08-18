@@ -200,6 +200,7 @@ select = [
   "RET",  # flake8-return
   "RSE",  # flake8-raise
   "S",  # flake8-bandit
+  "SIM",  # flake8-simplify
   "TID",  # flake8-tidy-imports
   "UP",  # pyupgrade
   "W",  # pycodestyle

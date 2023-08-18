@@ -10,6 +10,7 @@ Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importh
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 
@@ -212,10 +213,8 @@ class ImportHookContextManager:
 
     def uninstall(self):
         """Remove the installed hook."""
-        try:
+        with contextlib.suppress(ValueError):  # suppress error if already removed
             sys.meta_path.remove(self.hook)
-        except ValueError:
-            pass  # already removed
 
 
 def install_import_hook(

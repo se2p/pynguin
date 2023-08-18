@@ -868,11 +868,7 @@ def compute_branch_coverage(
     covered += len([v for v in trace.true_distances.values() if v == 0.0])
     covered += len([v for v in trace.false_distances.values() if v == 0.0])
 
-    if existing == 0:
-        # Nothing to cover => everything is covered.
-        coverage = 1.0
-    else:
-        coverage = covered / existing
+    coverage = 1.0 if existing == 0 else covered / existing
     assert 0.0 <= coverage <= 1.0, "Coverage must be in [0,1]"
     return coverage
 
@@ -904,7 +900,7 @@ def compute_line_coverage(
 def _cleanse_included_implicit_return_none(
     subject_properties, statement_checked_lines, statement_slice
 ):
-    if (
+    if (  # noqa: SIM102
         # check if the last included instructions before the store
         # are a "return None"
         len(statement_slice) >= 3

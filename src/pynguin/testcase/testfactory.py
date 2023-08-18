@@ -7,6 +7,7 @@
 """Provides a factory for test-case generation."""
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from typing import TYPE_CHECKING
@@ -687,10 +688,8 @@ class TestFactory:
                     else variable.type
                 )
                 alternatives = test_case.get_objects(typ, i)
-                try:
+                with contextlib.suppress(ValueError):
                     alternatives.remove(variable)
-                except ValueError:
-                    pass
                 if len(alternatives) > 0:
                     statement = test_case.get_statement(i)
                     if statement.references(variable):

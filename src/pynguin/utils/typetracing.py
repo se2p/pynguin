@@ -330,19 +330,13 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
         # Python 3.2+ has the __qualname__ attribute, but it does not
         # allow it to be overridden using a property and it must instead
         # be an actual string object instead.
-
-        try:
+        with contextlib.suppress(AttributeError):
             object.__setattr__(self, "__qualname__", wrapped.__qualname__)
-        except AttributeError:
-            pass
 
         # Python 3.10 onwards also does not allow itself to be overridden
         # using a property and it must instead be set explicitly.
-
-        try:
+        with contextlib.suppress(AttributeError):
             object.__setattr__(self, "__annotations__", wrapped.__annotations__)
-        except AttributeError:
-            pass
 
     @property
     def __name__(self):  # noqa: A003, D105
@@ -420,28 +414,16 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
 
         elif name == "__wrapped__":
             object.__setattr__(self, name, value)
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__delattr__(self, "__qualname__")
-            except AttributeError:
-                pass
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__setattr__(self, "__qualname__", value.__qualname__)
-            except AttributeError:
-                pass
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__delattr__(self, "__annotations__")
-            except AttributeError:
-                pass
-            try:
+            with contextlib.suppress(AttributeError):
                 object.__setattr__(self, "__annotations__", value.__annotations__)
-            except AttributeError:
-                pass
 
-        elif name == "__qualname__":
-            setattr(self.__wrapped__, name, value)  # type:ignore[has-type]
-            object.__setattr__(self, name, value)
-
-        elif name == "__annotations__":
+        elif name == "__qualname__" or name == "__annotations__":
             setattr(self.__wrapped__, name, value)  # type:ignore[has-type]
             object.__setattr__(self, name, value)
 

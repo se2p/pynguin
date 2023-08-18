@@ -292,7 +292,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             items_as_set = set(other)
             items_to_remove |= items_as_set
         self._items = {
-            item: None for item in self._items.keys() if item not in items_to_remove
+            item: None for item in self._items if item not in items_to_remove
         }
 
     def intersection_update(self, other: Iterable[T]) -> None:
@@ -305,7 +305,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             other: The set to intersection update with.
         """
         other = set(other)
-        self._items = {item: None for item in self._items.keys() if item in other}
+        self._items = {item: None for item in self._items if item in other}
 
     def symmetric_difference_update(self, other: Iterable[T]) -> None:
         """Computes the symmetric difference inplace.
@@ -319,7 +319,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         items_to_add = [item for item in other if item not in self]
         items_to_remove = cast(set[T], set(other))
         self._items = {
-            item: None for item in self._items.keys() if item not in items_to_remove
+            item: None for item in self._items if item not in items_to_remove
         }
         for item in items_to_add:
             self._items[item] = None
@@ -338,6 +338,6 @@ class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[typ
     def __hash__(self) -> int:  # noqa: D105
         if self.__hash is None:
             self.__hash = 0
-            for item in self._items.keys():
+            for item in self._items:
                 self.__hash ^= hash(item)
         return self.__hash

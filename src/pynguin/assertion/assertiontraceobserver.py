@@ -223,16 +223,15 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                     ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
                 )
             if isinstance(value, Sized):
-                if isinstance(value, Sized):
-                    try:
-                        length = len(value)
-                        trace.add_entry(
-                            position, ass.CollectionLengthAssertion(ref, length)
-                        )
-                        return
-                    except BaseException as err:  # noqa: BLE001
-                        # Could not get len, so continue down.
-                        _LOGGER.debug(err)
+                try:
+                    length = len(value)
+                    trace.add_entry(
+                        position, ass.CollectionLengthAssertion(ref, length)
+                    )
+                    return
+                except BaseException as err:  # noqa: BLE001
+                    # Could not get len, so continue down.
+                    _LOGGER.debug(err)
             if depth < max_depth and hasattr(value, "__dict__"):
                 # Reference is a complex object.
                 # Try to assert something on its fields.

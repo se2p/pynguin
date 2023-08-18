@@ -123,23 +123,23 @@ class TestCaseChromosome(chrom.Chromosome):
         if (
             randomness.next_float()
             <= config.configuration.search_algorithm.test_delete_probability
+            and self._mutation_delete()
         ):
-            if self._mutation_delete():
-                changed = True
+            changed = True
 
         if (
             randomness.next_float()
             <= config.configuration.search_algorithm.test_change_probability
+            and self._mutation_change()
         ):
-            if self._mutation_change():
-                changed = True
+            changed = True
 
         if (
             randomness.next_float()
             <= config.configuration.search_algorithm.test_insert_probability
+            and self._mutation_insert()
         ):
-            if self._mutation_insert():
-                changed = True
+            changed = True
 
         assert self._test_factory, "Required for mutation"
         if not self._test_factory.has_call_on_sut(self._test_case):
@@ -301,7 +301,7 @@ class TestCaseChromosome(chrom.Chromosome):
         # This condition is playing with fire, but it is required to not lose coverage
         # information on flaky tests. For more information on this see #169.
         # Be careful when comparing TestCaseChromosomes!
-        if (left := self._last_execution_result) is not None and (
+        if (left := self._last_execution_result) is not None and (  # noqa: SIM102
             right := other._last_execution_result
         ) is not None:
             if left.execution_trace != right.execution_trace:

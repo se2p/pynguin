@@ -404,7 +404,7 @@ class ExecutionFlowBuilder:
         last_traced_instr,
         unique_instr,
     ):
-        if not instr.opcode == op.IMPORT_NAME:
+        if instr.opcode != op.IMPORT_NAME:
             # Coming back from a method call. If last_instr is a call, then the
             # method was called explicitly.
             # If last_instr is not a call, but is traced and does not match the

@@ -1475,9 +1475,8 @@ class ExecutionTracer:
         if self.is_disabled():
             return
 
-        if not arg:
-            if opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have an argument
-                raise ValueError("A memory access instruction must have an argument")
+        if not arg and opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have arguments
+            raise ValueError("A memory access instruction must have an argument")
         if isinstance(arg, CellVar | FreeVar):
             arg = arg.name
 
@@ -1789,22 +1788,29 @@ class ExecutionTracer:
             The id of the object type or the class if it has the attribute, -1 otherwise
         """
         for cls in type(object_type).__mro__:
-            if attribute in cls.__dict__:
+            if attribute in cls.__dict__ and inspect.isdatadescriptor(
+                cls.__dict__.get(attribute)
+            ):
                 # Class in the MRO hierarchy has attribute
-                if inspect.isdatadescriptor(cls.__dict__.get(attribute)):
-                    # Class has attribute and attribute is a data descriptor
-                    return id(cls)
+                # Class has attribute and attribute is a data descriptor
+                return id(cls)
 
         # This would lead to an infinite recursion and thus a crash of the program
         if attribute in ("__getattr__", "__getitem__"):
             return -1
         # Check if the dictionary of the object on which lookup is performed
-        if hasattr(object_type, "__dict__") and object_type.__dict__:
-            if attribute in object_type.__dict__:
-                return id(object_type)
-        if hasattr(object_type, "__slots__") and object_type.__slots__:
-            if attribute in object_type.__slots__:
-                return id(object_type)
+        if (
+            hasattr(object_type, "__dict__")
+            and object_type.__dict__
+            and attribute in object_type.__dict__
+        ):
+            return id(object_type)
+        if (
+            hasattr(object_type, "__slots__")
+            and object_type.__slots__
+            and attribute in object_type.__slots__
+        ):
+            return id(object_type)
 
         # Check if attribute in MRO hierarchy (no need for data descriptor)
         for cls in type(object_type).__mro__:
@@ -2109,9 +2115,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         """
         # Repeatedly opening/closing devnull caused problems.
         # This is closed when Pynguin terminates, since we don't need this output
-        # anyway this is ok.
-
-        self._null_file = open(os.devnull, mode="w")
+        # anyway this is acceptable.
+        self._null_file = open(os.devnull, mode="w")  # noqa: SIM115
 
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement
@@ -2190,34 +2195,34 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        with contextlib.redirect_stdout(self._null_file):
-            with contextlib.redirect_stderr(self._null_file):
-                return_queue: Queue[ExecutionResult] = Queue()
-                thread = threading.Thread(
-                    target=self._execute_test_case,
-                    args=(test_case, return_queue),
-                    daemon=True,
+        with contextlib.redirect_stdout(self._null_file), contextlib.redirect_stderr(
+            self._null_file
+        ):
+            return_queue: Queue[ExecutionResult] = Queue()
+            thread = threading.Thread(
+                target=self._execute_test_case,
+                args=(test_case, return_queue),
+                daemon=True,
+            )
+            thread.start()
+            thread.join(
+                timeout=min(
+                    self._maximum_test_execution_timeout,
+                    self._test_execution_time_per_statement * len(test_case.statements),
                 )
-                thread.start()
-                thread.join(
-                    timeout=min(
-                        self._maximum_test_execution_timeout,
-                        self._test_execution_time_per_statement
-                        * len(test_case.statements),
-                    )
-                )
-                if thread.is_alive():
-                    # Set thread ident to invalid value, such that the tracer
-                    # kills the thread
-                    self._tracer.current_thread_identifier = -1
-                    result = ExecutionResult(timeout=True)
-                    _LOGGER.warning("Experienced timeout from test-case execution")
-                else:
-                    try:
-                        result = return_queue.get(block=False)
-                    except Empty as ex:
-                        _LOGGER.error("Finished thread did not return a result.")
-                        raise RuntimeError("Bug in Pynguin!") from ex
+            )
+            if thread.is_alive():
+                # Set thread ident to invalid value, such that the tracer
+                # kills the thread
+                self._tracer.current_thread_identifier = -1
+                result = ExecutionResult(timeout=True)
+                _LOGGER.warning("Experienced timeout from test-case execution")
+            else:
+                try:
+                    result = return_queue.get(block=False)
+                except Empty as ex:
+                    _LOGGER.error("Finished thread did not return a result.")
+                    raise RuntimeError("Bug in Pynguin!") from ex
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
 
@@ -2387,12 +2392,13 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         if not result.timeout:
             # Only execute with proxies if the test case doesn't time out.
             # There is no need to stall another thread.
-            with self._delegate.temporarily_add_observer(self._type_tracing_observer):
-                with tt.shim_isinstance():
-                    # TODO(fk) Do we record wrong stuff, i.e., type checks from
-                    #  observers?
-                    #  Make use of type errors?
-                    self._delegate.execute(test_case)
+            with (
+                self._delegate.temporarily_add_observer(self._type_tracing_observer),
+                tt.shim_isinstance(),
+            ):
+                # TODO(fk) Do we record wrong stuff, i.e., type checks from observers?
+                #  Make use of type errors?
+                self._delegate.execute(test_case)
         return result
 
     def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102

@@ -332,7 +332,7 @@ class MIOPopulation:
     ) -> bool:
         current_result = current.get_last_execution_result()
         candidate_result = candidate.get_last_execution_result()
-        if current_result is not None and (
+        if current_result is not None and (  # noqa: SIM102
             current_result.timeout or current_result.has_test_exceptions()
         ):
             # If the current solution has a timeout or throws an exception then a
