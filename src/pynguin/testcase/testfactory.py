@@ -29,7 +29,6 @@ from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
 
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.utils.orderedset import OrderedSet
 
 
 # TODO(fk) find better name for this?

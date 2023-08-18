@@ -11,15 +11,16 @@ import typing
 
 from abc import abstractmethod
 from collections import defaultdict
-from collections.abc import Callable
 from typing import Any
-
-import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.typesystem import TypeVisitor
 
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import pynguin.testcase.variablereference as vr
+
     from pynguin.analyses.typesystem import AnyType
     from pynguin.analyses.typesystem import Instance
     from pynguin.analyses.typesystem import NoneType

@@ -7,10 +7,14 @@
 """Provides some mutation related utilities."""
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 from typing import TypeVar
 
 from pynguin.utils import randomness
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 T = TypeVar("T")

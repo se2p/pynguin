@@ -24,7 +24,6 @@ import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 import pynguin.utils.statistics.statistics as stat
 
-from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
@@ -45,6 +44,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testfactory as tf
     import pynguin.testcase.variablereference as vr
 
+    from pynguin.analyses.constants import ConstantProvider
     from pynguin.analyses.module import ModuleTestCluster
 
 

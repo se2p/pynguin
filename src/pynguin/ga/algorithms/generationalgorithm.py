@@ -10,7 +10,6 @@ from __future__ import annotations
 import time
 
 from abc import abstractmethod
-from collections.abc import Iterable
 from statistics import mean
 from typing import TYPE_CHECKING
 from typing import Generic
@@ -23,6 +22,8 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     import pynguin.ga.chromosomefactory as cf
     import pynguin.ga.computations as ff
     import pynguin.ga.coveragegoals as bg

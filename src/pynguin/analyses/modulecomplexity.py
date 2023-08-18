@@ -44,8 +44,12 @@ import ast
 from abc import ABCMeta
 from ast import iter_child_nodes
 from collections import defaultdict
-from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class _ASTVisitor(metaclass=ABCMeta):

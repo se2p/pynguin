@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
@@ -24,6 +23,7 @@ if TYPE_CHECKING:
 
     from pynguin.analyses.module import TestCluster
     from pynguin.analyses.typesystem import ProperType
+    from pynguin.utils.orderedset import OrderedSet
 
 
 class TestCase(metaclass=ABCMeta):

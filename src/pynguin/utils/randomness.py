@@ -10,9 +10,13 @@ from __future__ import annotations
 import random
 import string
 
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 class Random(random.Random):

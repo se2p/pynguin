@@ -11,12 +11,12 @@ line.
 """
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 import sys
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import simple_parsing
 
@@ -29,6 +29,10 @@ import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
+
+
+if TYPE_CHECKING:
+    import argparse
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:

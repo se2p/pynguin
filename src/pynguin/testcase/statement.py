@@ -24,7 +24,6 @@ import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 
-from pynguin.analyses import constants
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
@@ -39,6 +38,8 @@ from pynguin.utils.type_utils import is_optional_parameter
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
+
+    from pynguin.analyses import constants
 
 T = TypeVar("T")
 

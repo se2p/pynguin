@@ -14,7 +14,6 @@ import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
 
 from pynguin.utils import randomness
-from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
@@ -22,6 +21,8 @@ if TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.ga.testcasefactory as tcf
     import pynguin.testcase.testfactory as tf
+
+    from pynguin.utils.orderedset import OrderedSet
 
 
 class TestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):

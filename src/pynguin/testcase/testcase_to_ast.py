@@ -7,7 +7,6 @@
 """Provides a visitor that transforms test cases to asts."""
 from __future__ import annotations
 
-from ast import stmt
 from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertion as ass
@@ -20,6 +19,8 @@ from pynguin.testcase.testcasevisitor import TestCaseVisitor
 
 
 if TYPE_CHECKING:
+    from ast import stmt
+
     import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.execution as ex
 

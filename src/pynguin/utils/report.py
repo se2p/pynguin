@@ -15,8 +15,6 @@ import sys
 import typing
 import xml.etree.ElementTree as ET
 
-from pathlib import Path
-
 import pygments
 
 from jinja2 import Template
@@ -31,6 +29,8 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if typing.TYPE_CHECKING:
+    from pathlib import Path
+
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.testcase.execution import TestCaseExecutor

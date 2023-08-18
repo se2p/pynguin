@@ -18,8 +18,6 @@ from abc import ABC
 from abc import abstractmethod
 from collections import Counter
 from collections import defaultdict
-from collections.abc import Callable
-from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
@@ -41,7 +39,6 @@ from typing_inspect import is_union_type
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
-from pynguin.analyses.type4py_api import Type4pyFunctionData
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
@@ -50,7 +47,11 @@ from pynguin.utils.type_utils import PRIMITIVES
 
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Sequence
+
     from pynguin.analyses.module import TypeGuessingStats
+    from pynguin.analyses.type4py_api import Type4pyFunctionData
 
 _LOGGER = logging.getLogger(__name__)
 

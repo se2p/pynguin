@@ -21,7 +21,6 @@ import queue
 import typing
 
 from collections import defaultdict
-from collections.abc import Callable
 from types import BuiltinFunctionType
 from types import FunctionType
 from types import GenericAlias
@@ -76,6 +75,8 @@ from pynguin.utils.type_utils import get_class_that_defined_method
 
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
 

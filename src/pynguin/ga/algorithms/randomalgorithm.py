@@ -21,11 +21,12 @@ from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.exceptions import GenerationException
-from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
+
+    from pynguin.utils.orderedset import OrderedSet
 
 
 class RandomAlgorithm(GenerationAlgorithm):

@@ -16,7 +16,6 @@ import logging
 
 from abc import ABCMeta
 from abc import abstractmethod
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 from typing import Generic
 from typing import TypeVar
@@ -65,6 +64,8 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pynguin.ga.chromosomefactory as cf
 
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm

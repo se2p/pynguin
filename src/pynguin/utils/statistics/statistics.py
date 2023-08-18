@@ -11,7 +11,7 @@ import logging
 import queue
 import time
 
-from collections.abc import Generator
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pynguin.configuration as config
@@ -20,6 +20,10 @@ import pynguin.utils.statistics.outputvariablefactory as ovf
 import pynguin.utils.statistics.statisticsbackend as sb
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class _StatisticsTracker:

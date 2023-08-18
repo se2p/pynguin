@@ -17,13 +17,17 @@ import dataclasses
 import logging
 
 from collections import deque
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeAlias
 
 import astroid
 
 from astroid.nodes.as_string import to_code
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 _LOGGER = logging.getLogger(__name__)

@@ -12,7 +12,6 @@
 """Provides an interface for a stopping condition of the algorithm."""
 from __future__ import annotations
 
-import ast
 import time
 
 from abc import ABCMeta
@@ -25,6 +24,8 @@ from pynguin.testcase.execution import ExecutionObserver
 
 
 if TYPE_CHECKING:
+    import ast
+
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
