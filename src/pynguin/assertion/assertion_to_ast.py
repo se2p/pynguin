@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -75,7 +75,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
             assert (
                 len(self._assertion_nodes) == 0
             ), "An exception assertion was seen but there are other assertions?"
-        return [self._statement_node] + self._assertion_nodes
+        return [self._statement_node, *self._assertion_nodes]
 
     @property
     def assertion_nodes(self) -> list[ast.stmt]:

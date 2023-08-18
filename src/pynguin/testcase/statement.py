@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -188,7 +188,7 @@ class Statement(metaclass=ABCMeta):
             True, if there is only an exception assertion.
         """
         return len(self._assertions) == 1 and isinstance(
-            list(self._assertions)[0], ass.ExceptionAssertion
+            next(iter(self._assertions)), ass.ExceptionAssertion
         )
 
     @property
@@ -203,7 +203,7 @@ class Statement(metaclass=ABCMeta):
         return self._assertions
 
     @assertions.setter
-    def assertions(self, assertions: OrderedSet[ass.Assertion]) -> None:  # noqa: D102
+    def assertions(self, assertions: OrderedSet[ass.Assertion]) -> None:
         self._assertions = assertions
 
     @property
@@ -637,7 +637,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABC
     ) -> vr.VariableReference:
         # TODO(fk) what if the current type is not correct?
         return randomness.choice(
-            self.test_case.get_objects(element.type, self.get_position()) + [element]
+            [*self.test_case.get_objects(element.type, self.get_position()), element]
         )
 
     def structural_hash(  # noqa: D102
@@ -796,8 +796,12 @@ class DictStatement(
         new = list(element)
         # TODO(fk) what if the current type is not correct?
         new[change_idx] = randomness.choice(
-            self.test_case.get_objects(element[change_idx].type, self.get_position())
-            + [element[change_idx]]
+            [
+                *self.test_case.get_objects(
+                    element[change_idx].type, self.get_position()
+                ),
+                element[change_idx],
+            ]
         )
         assert len(new) == 2, "Tuple must consist of key and value"
         return new[0], new[1]
@@ -1013,7 +1017,7 @@ class ParametrizedStatement(VariableCreatingStatement, metaclass=ABCMeta):
         return self._args
 
     @args.setter
-    def args(self, args: dict[str, vr.VariableReference]):  # noqa: D102
+    def args(self, args: dict[str, vr.VariableReference]):
         self._args = args
 
     @property
@@ -1462,7 +1466,7 @@ class PrimitiveStatement(Generic[T], VariableCreatingStatement):
         return self._value
 
     @value.setter
-    def value(self, value: T) -> None:  # noqa: D102
+    def value(self, value: T) -> None:
         self._value = value
 
     def accessible_object(self) -> gao.GenericAccessibleObject | None:  # noqa: D102

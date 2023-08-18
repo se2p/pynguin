@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -25,6 +25,7 @@ from pynguin.utils.exceptions import ConfigurationException
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import ModuleType
+    from typing import ClassVar
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,7 +34,9 @@ _LOGGER = logging.getLogger(__name__)
 class MutationAdapter:
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
-    _strategies: dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]] = {
+    _strategies: ClassVar[
+        dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]]
+    ] = {
         config.MutationStrategy.FIRST_TO_LAST: mc.FirstToLastHOMStrategy,
         config.MutationStrategy.BETWEEN_OPERATORS: mc.BetweenOperatorsHOMStrategy,
         config.MutationStrategy.RANDOM: mc.RandomHOMStrategy,

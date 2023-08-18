@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -201,7 +201,7 @@ def fast_epsilon_dominance_assignment(
     It is named “epsilon-dominance-assignment” and was proposed by Köppen and Yoshida in
     M. Köppen and K. Yoshida, “Substitute Distance Assignments in NSGA-II for handling
     Many-objective Optimization Problems”, Evolutionary Multi-Criterion Optimization,
-    LNCS vol. 4403, 2007, pp. 727–741.
+    LNCS vol. 4403, 2007, pp. 727-741.
 
     Args:
         front: Front of non-dominated solutions/tests

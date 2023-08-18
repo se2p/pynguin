@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -298,7 +298,7 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
     ) -> ast.stmt:
         if statement.has_only_exception_assertion():
-            return exec_ctx.node_for_assertion(list(statement.assertions)[0], node)
+            return exec_ctx.node_for_assertion(next(iter(statement.assertions)), node)
         return node
 
     def after_statement_execution(  # noqa: D102

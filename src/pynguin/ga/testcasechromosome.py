@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -105,7 +105,7 @@ class TestCaseChromosome(chrom.Chromosome):
             self._test_case = offspring_test_case
             self.changed = True
 
-    def mutate(self) -> None:  # noqa: C901,D102
+    def mutate(self) -> None:  # noqa: D102
         changed = False
 
         if (

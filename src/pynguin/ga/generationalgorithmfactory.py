@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 
@@ -65,6 +65,7 @@ from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import ClassVar
 
     import pynguin.ga.chromosomefactory as cf
 
@@ -129,7 +130,7 @@ class TestSuiteGenerationAlgorithmFactory(
 ):
     """A factory for a search algorithm generating test-suites."""
 
-    _strategies: dict[config.Algorithm, Callable[[], GenerationAlgorithm]] = {
+    _strategies: ClassVar[dict[config.Algorithm, Callable[[], GenerationAlgorithm]]] = {
         config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSAAlgorithm,
@@ -139,7 +140,7 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Algorithm.WHOLE_SUITE: WholeSuiteAlgorithm,
     }
 
-    _selections: dict[config.Selection, Callable[[], SelectionFunction]] = {
+    _selections: ClassVar[dict[config.Selection, Callable[[], SelectionFunction]]] = {
         config.Selection.TOURNAMENT_SELECTION: TournamentSelection,
         config.Selection.RANK_SELECTION: RankSelection,
     }

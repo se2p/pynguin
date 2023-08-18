@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -335,7 +335,7 @@ class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[typ
         super().__init__(iterable)
         self.__hash: int | None = None
 
-    def __hash__(self) -> int:  # noqa: D105
+    def __hash__(self) -> int:
         if self.__hash is None:
             self.__hash = 0
             for item in self._items:

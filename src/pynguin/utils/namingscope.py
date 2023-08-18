@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -92,10 +92,10 @@ class NamingScope(AbstractNamingScope):
             self._new_name_callback(obj, name)
         return name
 
-    def __len__(self):  # noqa: D105
+    def __len__(self):
         return len(self._known_names)
 
-    def __iter__(self):  # noqa: D105
+    def __iter__(self):
         for obj in self._known_names:
             yield obj, self.get_name(obj)
 
@@ -149,10 +149,10 @@ class VariableTypeNamingScope(AbstractNamingScope):
         self._known_variable_names[obj] = name
         return name
 
-    def __len__(self):  # noqa: D105
+    def __len__(self):
         return len(self._known_variable_names)
 
-    def __iter__(self):  # noqa: D105
+    def __iter__(self):
         yield from self._known_variable_names.items()
 
     def is_known_name(self, obj) -> bool:  # noqa: D102

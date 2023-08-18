@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -183,5 +183,5 @@ class RuntimeVariable(str, enum.Enum):
     # they do not increase the resulting checked coverage
     DeletedAssertions = "DeletedAssertions"
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):
         return f"{self.name}"

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -339,76 +339,76 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             object.__setattr__(self, "__annotations__", wrapped.__annotations__)
 
     @property
-    def __name__(self):  # noqa: A003, D105
+    def __name__(self):  # noqa: A003
         return self.__wrapped__.__name__  # type:ignore[has-type]
 
     @__name__.setter
-    def __name__(self, value):  # noqa: A003, D105
+    def __name__(self, value):  # noqa: A003
         self.__wrapped__.__name__ = value  # type:ignore[has-type]
 
     @property
-    def __class__(self):  # noqa: D105
+    def __class__(self):
         return self.__wrapped__.__class__  # type:ignore[has-type]
 
     @__class__.setter
-    def __class__(self, value):  # noqa: F811  # noqa: D105
+    def __class__(self, value):
         self.__wrapped__.__class__ = value  # type:ignore[has-type]
 
-    def __dir__(self):  # noqa: D105
+    def __dir__(self):
         return dir(self.__wrapped__)  # type:ignore[has-type]
 
-    def __str__(self):  # noqa: D105
+    def __str__(self):
         return str(self.__wrapped__)  # type:ignore[has-type]
 
     @proxify(no_wrap_return=True)
-    def __bytes__(self):  # noqa: D105
+    def __bytes__(self):
         return bytes(self.__wrapped__)  # type:ignore[has-type]
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):
         return repr(self.__wrapped__)  # type:ignore[has-type]
 
-    def __reversed__(self):  # noqa: D105
+    def __reversed__(self):
         return reversed(self.__wrapped__)  # type:ignore[has-type]
 
     @proxify()
-    def __round__(self, *args):  # noqa: D105
+    def __round__(self, *args):
         return round(self.__wrapped__, *args)  # type:ignore[has-type]
 
     def __mro_entries__(self, bases):
         return (self.__wrapped__,)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __lt__(self, other):  # noqa: D105
+    def __lt__(self, other):
         return self.__wrapped__ < other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __le__(self, other):  # noqa: D105
+    def __le__(self, other):
         return self.__wrapped__ <= other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __eq__(self, other):  # noqa: D105
+    def __eq__(self, other):
         return self.__wrapped__ == other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __ne__(self, other):  # noqa: D105
+    def __ne__(self, other):
         return self.__wrapped__ != other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __gt__(self, other):  # noqa: D105
+    def __gt__(self, other):
         return self.__wrapped__ > other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
-    def __ge__(self, other):  # noqa: D105
+    def __ge__(self, other):
         return self.__wrapped__ >= other  # type:ignore[has-type]
 
-    def __hash__(self):  # noqa: D105
+    def __hash__(self):
         return hash(self.__wrapped__)  # type:ignore[has-type]
 
     @proxify(no_wrap_return=True)
-    def __bool__(self):  # noqa: D105
+    def __bool__(self):
         return bool(self.__wrapped__)  # type:ignore[has-type]
 
-    def __setattr__(self, name, value):  # noqa: D105
+    def __setattr__(self, name, value):
         if name.startswith("_self_"):
             object.__setattr__(self, name, value)
 
@@ -437,7 +437,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             assert accessed is not None
             setattr(self.__wrapped__, name, value)  # type:ignore[has-type]
 
-    def __getattr__(self, name):  # noqa: D105
+    def __getattr__(self, name):
         # If we are being asked to lookup '__wrapped__' then the
         # '__init__()' method cannot have been called.
         if name == "__wrapped__":
@@ -460,7 +460,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             usage_trace=child_node,
         )
 
-    def __delattr__(self, name):  # noqa: D105
+    def __delattr__(self, name):
         if name.startswith("_self_"):
             object.__delattr__(self, name)
 
@@ -478,231 +478,231 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             delattr(self.__wrapped__, name)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __add__(self, other):  # noqa: D105
+    def __add__(self, other):
         return self.__wrapped__ + other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __sub__(self, other):  # noqa: D105
+    def __sub__(self, other):
         return self.__wrapped__ - other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __mul__(self, other):  # noqa: D105
+    def __mul__(self, other):
         return self.__wrapped__ * other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __truediv__(self, other):  # noqa: D105
+    def __truediv__(self, other):
         return operator.truediv(self.__wrapped__, other)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __floordiv__(self, other):  # noqa: D105
+    def __floordiv__(self, other):
         return self.__wrapped__ // other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __mod__(self, other):  # noqa: D105
+    def __mod__(self, other):
         return self.__wrapped__ % other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __divmod__(self, other):  # noqa: D105
+    def __divmod__(self, other):
         return divmod(self.__wrapped__, other)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __pow__(self, other, *args):  # noqa: D105
+    def __pow__(self, other, *args):
         return pow(self.__wrapped__, other, *args)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __lshift__(self, other):  # noqa: D105
+    def __lshift__(self, other):
         return self.__wrapped__ << other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rshift__(self, other):  # noqa: D105
+    def __rshift__(self, other):
         return self.__wrapped__ >> other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __and__(self, other):  # noqa: D105
+    def __and__(self, other):
         return self.__wrapped__ & other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __xor__(self, other):  # noqa: D105
+    def __xor__(self, other):
         return self.__wrapped__ ^ other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __or__(self, other):  # noqa: D105
+    def __or__(self, other):
         return self.__wrapped__ | other  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __radd__(self, other):  # noqa: D105
+    def __radd__(self, other):
         return other + self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rsub__(self, other):  # noqa: D105
+    def __rsub__(self, other):
         return other - self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rmul__(self, other):  # noqa: D105
+    def __rmul__(self, other):
         return other * self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rtruediv__(self, other):  # noqa: D105
+    def __rtruediv__(self, other):
         return operator.truediv(other, self.__wrapped__)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rfloordiv__(self, other):  # noqa: D105
+    def __rfloordiv__(self, other):
         return other // self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rmod__(self, other):  # noqa: D105
+    def __rmod__(self, other):
         return other % self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rdivmod__(self, other):  # noqa: D105
+    def __rdivmod__(self, other):
         return divmod(other, self.__wrapped__)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rpow__(self, other, *args):  # noqa: D105
+    def __rpow__(self, other, *args):
         return pow(other, self.__wrapped__, *args)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rlshift__(self, other):  # noqa: D105
+    def __rlshift__(self, other):
         return other << self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rrshift__(self, other):  # noqa: D105
+    def __rrshift__(self, other):
         return other >> self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rand__(self, other):  # noqa: D105
+    def __rand__(self, other):
         return other & self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __rxor__(self, other):  # noqa: D105
+    def __rxor__(self, other):
         return other ^ self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __ror__(self, other):  # noqa: D105
+    def __ror__(self, other):
         return other | self.__wrapped__  # type:ignore[has-type]
 
     @proxify(log_arg_types=True)
-    def __iadd__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __iadd__(self, other):  # type:ignore[misc]
         self.__wrapped__ += other  # type:ignore[has-type]
         return self
 
     @proxify(log_arg_types=True)
-    def __isub__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __isub__(self, other):  # type:ignore[misc]
         self.__wrapped__ -= other  # type:ignore[has-type]
         return self
 
     @proxify(log_arg_types=True)
-    def __imul__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __imul__(self, other):  # type:ignore[misc]
         self.__wrapped__ *= other  # type:ignore[has-type]
         return self
 
     @proxify(log_arg_types=True)
-    def __itruediv__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __itruediv__(self, other):  # type:ignore[misc]
         self.__wrapped__ = operator.itruediv(
             self.__wrapped__, other  # type: ignore[has-type]
         )
         return self
 
     @proxify(log_arg_types=True)
-    def __ifloordiv__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __ifloordiv__(self, other):  # type:ignore[misc]
         self.__wrapped__ //= other
         return self
 
     @proxify(log_arg_types=True)
-    def __imod__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __imod__(self, other):  # type:ignore[misc]
         self.__wrapped__ %= other
         return self
 
     @proxify(log_arg_types=True)
-    def __ipow__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __ipow__(self, other):  # type:ignore[misc]
         self.__wrapped__ **= other
         return self
 
     @proxify(log_arg_types=True)
-    def __ilshift__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __ilshift__(self, other):  # type:ignore[misc]
         self.__wrapped__ <<= other
         return self
 
     @proxify(log_arg_types=True)
-    def __irshift__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __irshift__(self, other):  # type:ignore[misc]
         self.__wrapped__ >>= other
         return self
 
     @proxify(log_arg_types=True)
-    def __iand__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __iand__(self, other):  # type:ignore[misc]
         self.__wrapped__ &= other
         return self
 
     @proxify(log_arg_types=True)
-    def __ixor__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __ixor__(self, other):  # type:ignore[misc]
         self.__wrapped__ ^= other
         return self
 
     @proxify(log_arg_types=True)
-    def __ior__(self, other):  # type:ignore[misc]  # noqa: D105
+    def __ior__(self, other):  # type:ignore[misc]
         self.__wrapped__ |= other
         return self
 
     @proxify()
-    def __neg__(self):  # noqa: D105
+    def __neg__(self):
         return -self.__wrapped__
 
     @proxify()
-    def __pos__(self):  # noqa: D105
+    def __pos__(self):
         return +self.__wrapped__
 
     @proxify()
-    def __abs__(self):  # noqa: D105
+    def __abs__(self):
         return abs(self.__wrapped__)
 
     @proxify()
-    def __invert__(self):  # noqa: D105
+    def __invert__(self):
         return ~self.__wrapped__
 
     @proxify(no_wrap_return=True)
-    def __int__(self):  # noqa: D105
+    def __int__(self):
         return int(self.__wrapped__)
 
     @proxify(no_wrap_return=True)
-    def __float__(self):  # noqa: D105
+    def __float__(self):
         return float(self.__wrapped__)
 
     @proxify(no_wrap_return=True)
-    def __complex__(self):  # noqa: D105
+    def __complex__(self):
         return complex(self.__wrapped__)
 
     @proxify(no_wrap_return=True)
-    def __index__(self):  # noqa: D105
+    def __index__(self):
         return operator.index(self.__wrapped__)
 
     @proxify()
-    def __len__(self):  # noqa: D105
+    def __len__(self):
         # len turns result into an integer
         return len(self.__wrapped__)
 
     @proxify(log_arg_types=True)
-    def __contains__(self, value):  # noqa: D105
+    def __contains__(self, value):
         return value in self.__wrapped__
 
     @proxify(log_arg_types=True)
-    def __getitem__(self, key):  # noqa: D105
+    def __getitem__(self, key):
         return self.__wrapped__[key]
 
     @proxify(log_arg_types=True)
-    def __setitem__(self, key, value):  # noqa: D105
+    def __setitem__(self, key, value):
         self.__wrapped__[key] = value
 
     @proxify()
-    def __delitem__(self, key):  # noqa: D105
+    def __delitem__(self, key):
         del self.__wrapped__[key]
 
-    def __enter__(self):  # noqa: D105
+    def __enter__(self):
         return self.__wrapped__.__enter__()
 
-    def __exit__(self, *args, **kwargs):  # noqa: D105
+    def __exit__(self, *args, **kwargs):
         return self.__wrapped__.__exit__(*args, **kwargs)
 
-    def __iter__(self):  # noqa: D105
+    def __iter__(self):
         node = self._self_usage_trace_node
         nested_node = node.children["__iter__"]
         if node.depth >= _MAX_PROXY_NESTING:
@@ -730,7 +730,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
     #             'object proxy must define __reduce_ex__()')
 
     @proxify(log_arg_types=True)
-    def __call__(self, *args, **kwargs):  # noqa: D102,D105
+    def __call__(self, *args, **kwargs):  # noqa: D102
         return self.__wrapped__(*args, **kwargs)
 
 

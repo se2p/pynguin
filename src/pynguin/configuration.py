@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -262,7 +262,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: int = time.time_ns()
+    seed: int = time.time_ns()  # noqa: RUF009
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True

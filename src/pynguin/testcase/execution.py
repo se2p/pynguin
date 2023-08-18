@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -548,7 +548,7 @@ class ReturnTypeObserver(ExecutionObserver):
                     type(next(iter(value))),
                 )
             elif type(value) is dict and len(value) > 0:
-                first_item = list(value.items())[0]
+                first_item = next(iter(value.items()))
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(first_item[0]),
                     type(first_item[1]),
@@ -1730,7 +1730,7 @@ class ExecutionTracer:
                     code_object_id,
                     node_id,
                     error_call_position,
-                    list(statement.assertions)[0],
+                    next(iter(statement.assertions)),
                 )
             )
 
@@ -1775,7 +1775,7 @@ class ExecutionTracer:
         )
 
     @staticmethod
-    def attribute_lookup(object_type, attribute: str) -> int:  # noqa: C901
+    def attribute_lookup(object_type, attribute: str) -> int:
         """Check the dictionary of classes making up the MRO (_PyType_Lookup).
 
         The attribute must be a data descriptor to be prioritized here

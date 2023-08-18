@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -25,6 +25,12 @@ from pynguin.utils.orderedset import OrderedSet
 
 # Used for type hinting and for restricting stored types
 from pynguin.utils.typetracing import unwrap
+
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
+    from typing import ClassVar
 
 
 ConstantTypes = float | int | str | bytes | complex
@@ -199,7 +205,7 @@ class DynamicConstantProvider(DelegatingConstantProvider):
     # A map containing the names of all string functions which are instrumented.
     # Maps those names to a function producing a value that negates the functions
     # result.
-    STRING_FUNCTION_LOOKUP = {
+    STRING_FUNCTION_LOOKUP: ClassVar[dict[str, Callable[[Any], str]]] = {
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
         "islower": lambda value: value.upper() if value.islower() else value.lower(),
         "isupper": lambda value: value.lower() if value.isupper() else value.upper(),

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -49,6 +49,7 @@ from pynguin.utils.type_utils import PRIMITIVES
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Sequence
+    from typing import ClassVar
 
     from pynguin.analyses.module import TypeGuessingStats
     from pynguin.analyses.type4py_api import Type4pyFunctionData
@@ -401,7 +402,7 @@ class TypeStringVisitor(TypeVisitor[str]):
             return left.items[0].accept(self)
         return self._sequence_str(left.items, sep=" | ")
 
-    def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:  # noqa: D102
+    def _sequence_str(self, typs: Sequence[ProperType], sep=", ") -> str:
         return sep.join(t.accept(self) for t in typs)
 
     def visit_unsupported_type(self, left: Unsupported) -> str:  # noqa: D102
@@ -531,7 +532,8 @@ class _MaybeSubtypeVisitor(_SubtypeVisitor):
 
 
 class _CollectionTypeVisitor(TypeVisitor[bool]):
-    Collections = {dict, list, set}  # No tuple because it is a separate type.
+    # No tuple because it is a separate type.
+    Collections: ClassVar[set[type]] = {dict, list, set}
 
     def visit_any_type(self, left: AnyType) -> bool:
         return False
@@ -556,7 +558,7 @@ is_collection_type = _CollectionTypeVisitor()
 
 
 class _PrimitiveTypeVisitor(TypeVisitor[bool]):
-    Primitives = {int, str, bool, float, complex, bytes, type}
+    Primitives: ClassVar[set[type]] = {int, str, bool, float, complex, bytes, type}
 
     def visit_any_type(self, left: AnyType) -> bool:
         return False
@@ -869,14 +871,18 @@ class InferredSignature:
 
     # Similar to above, but these are not dunder methods but are called,
     # e.g., for 'append', we need to search for 'append.__call__(...)'
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[
+        tuple[str, ...]
+    ] = OrderedSet(  # noqa: RUF009
         [("append", "__call__"), ("remove", "__call__")]
     )
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[
+        tuple[str, ...]
+    ] = OrderedSet(  # noqa: RUF009
         [("add", "__call__"), ("remove", "__call__"), ("discard", "__call__")]
     )
     # Nothing for tuple and dict.
-    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
+    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()  # noqa: RUF009
 
     def _from_type_check(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         # Type checks is not empty here.
@@ -1202,9 +1208,7 @@ class InferredSignature:
     def _compute_partial_matches(compute_partial_matches_for, sig_info):
         for left, right in compute_partial_matches_for:
             if (match := _is_partial_type_match(left, right)) is not None:
-                sig_info.partial_type_matches[f"({str(left)}, {str(right)})"] = str(
-                    match
-                )
+                sig_info.partial_type_matches[f"({left!s}, {right!s})"] = str(match)
 
 
 class TypeSystem:
@@ -1709,7 +1713,7 @@ class TypeSystem:
         if hint is Any or hint is None:
             # typing.Any or empty
             return ANY
-        if hint is type(None):  # noqa: E721
+        if hint is type(None):
             # None
             return NONE_TYPE
         if hint is tuple:

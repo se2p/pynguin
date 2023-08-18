@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -524,7 +524,7 @@ class GenericStaticField(GenericAbstractField):
             return False
         return self._owner == other._owner and self._field == other._field
 
-    def __hash__(self):  # noqa: D105
+    def __hash__(self):
         return hash(
             (
                 self._owner,
@@ -532,7 +532,7 @@ class GenericStaticField(GenericAbstractField):
             )
         )
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):
         return (
             f"{self.__class__.__name__}({self.owner}, {self._field},"
             f" {self._field_type})"
@@ -572,17 +572,17 @@ class GenericStaticModuleField(GenericAbstractField):
         """
         return self._module
 
-    def __eq__(self, other):  # noqa: D105
+    def __eq__(self, other):
         if self is other:
             return True
         if not isinstance(other, GenericStaticModuleField):
             return False
         return self._module == other._module and self._field == other._field
 
-    def __hash__(self):  # noqa: D105
+    def __hash__(self):
         return hash((self._module, self._field))
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):
         return (
             f"{self.__class__.__name__}({self._module}, {self._field},"
             f" {self._field_type})"

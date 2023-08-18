@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -591,7 +591,7 @@ class ModuleTestCluster(TestCluster):
             items = old_type.items
             if len(items) >= max_size or new_type in items:
                 return old_type
-            new_type = UnionType(tuple(sorted(items + (new_type,))))
+            new_type = UnionType(tuple(sorted((*items, new_type))))
         elif old_type in (ANY, new_type):
             new_type = UnionType((new_type,))
         else:

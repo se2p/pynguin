@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -91,7 +91,7 @@ def is_none_type(typ: type | None) -> bool:
     Returns:
         Whether or not the given type is NoneType
     """
-    return typ is type(None)  # noqa: E721
+    return typ is type(None)
 
 
 def is_numeric(value: Any) -> bool:
