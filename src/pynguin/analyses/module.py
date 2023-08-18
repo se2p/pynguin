@@ -592,11 +592,10 @@ class ModuleTestCluster(TestCluster):
             if len(items) >= max_size or new_type in items:
                 return old_type
             new_type = UnionType(tuple(sorted(items + (new_type,))))
+        elif old_type in (ANY, new_type):
+            new_type = UnionType((new_type,))
         else:
-            if old_type in (ANY, new_type):
-                new_type = UnionType((new_type,))
-            else:
-                new_type = UnionType(tuple(sorted((old_type, new_type))))
+            new_type = UnionType(tuple(sorted((old_type, new_type))))
         return new_type
 
     def update_return_type(  # noqa: D102
@@ -1364,7 +1363,7 @@ def __analyse_included_classes(
                 #  Ignored for now.
                 #  Probably store Instance in graph instead of TypeInfo?
                 if isinstance(base, GenericAlias):
-                    base = base.__origin__
+                    base = base.__origin__  # noqa: PLW2901
 
                 base_info = test_cluster.type_system.to_type_info(base)
                 test_cluster.type_system.add_subclass_edge(

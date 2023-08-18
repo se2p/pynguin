@@ -423,7 +423,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             with contextlib.suppress(AttributeError):
                 object.__setattr__(self, "__annotations__", value.__annotations__)
 
-        elif name == "__qualname__" or name == "__annotations__":
+        elif name in {"__qualname__", "__annotations__"}:
             setattr(self.__wrapped__, name, value)  # type:ignore[has-type]
             object.__setattr__(self, name, value)
 

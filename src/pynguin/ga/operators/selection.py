@@ -111,12 +111,11 @@ class TournamentSelection(SelectionFunction[T]):
             new_num = randomness.next_int(lower_bound=0, upper_bound=len(population))
             selected = population[new_num]
 
-            if self._maximize:
-                if selected.get_fitness() > population[winner].get_fitness():
-                    winner = new_num
-            else:
-                if selected.get_fitness() < population[winner].get_fitness():
-                    winner = new_num
+            if (
+                self._maximize
+                and selected.get_fitness() > population[winner].get_fitness()
+            ) or selected.get_fitness() < population[winner].get_fitness():
+                winner = new_num
 
             tournament_round += 1
 

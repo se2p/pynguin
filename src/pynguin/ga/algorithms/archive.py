@@ -370,18 +370,18 @@ class MIOArchive(Archive):
         """Update the archive with the given solutions."""
         updated = False
         for solution in solutions:
-            solution = solution.clone()
+            solution_clone = solution.clone()
             for target in self._archive:
-                fitness_value = solution.get_fitness_for(target)
-                result = solution.get_last_execution_result()
+                fitness_value = solution_clone.get_fitness_for(target)
+                result = solution_clone.get_last_execution_result()
                 assert result is not None
                 if result.has_test_exceptions():
-                    chop_position = solution.get_last_mutatable_statement()
+                    chop_position = solution_clone.get_last_mutatable_statement()
                     assert chop_position is not None
-                    solution.test_case.chop(chop_position)
+                    solution_clone.test_case.chop(chop_position)
                 covered_before = self._archive[target].is_covered
                 updated |= self._archive[target].add_solution(
-                    1.0 - ff.normalise(fitness_value), solution
+                    1.0 - ff.normalise(fitness_value), solution_clone
                 )
                 # The goal was covered with this solution
                 # TODO(fk) replace with goal.is_covered?

@@ -195,6 +195,7 @@ select = [
   "ISC",  # flake8-implicit-str-concat
   "PERF",  # perflint
   "PIE",  # flake8-pie
+  "PL",  # pylint
   "PT",  # flake8-pytest-style
   "Q",  # flake8-quotes
   "RET",  # flake8-return
@@ -211,6 +212,10 @@ ignore = [
   "B019",  # do not complain that  functools.lru_cache might cause memory leaks
   "D105",  # do not complain due to missing docstrings in magic methods
   "FIX002",  # do not complain about valid TODO comments
+  "PLR0911",  # do not complain about too many return statements
+  "PLR0912",  # do not complain about too many branches
+  "PLR0913",  # do not complain about too many arguments to function call
+  "PLR2004",  # do not complain about magic values in comparisons
   "S101",  # do not complain about using assert statements
 ]
 # Exclude a variety of commonly ignored directories.

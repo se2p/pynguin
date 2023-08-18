@@ -684,10 +684,9 @@ class DynamicSlicer:
                 if argument == tup[0] and comp_op(tup[1], scope_id):
                     complete_cover = True
                     remove_tuples.add(tup)
-            else:
-                if argument == tup:
-                    complete_cover = True
-                    remove_tuples.add(tup)
+            elif argument == tup:
+                complete_cover = True
+                remove_tuples.add(tup)
         for tup in remove_tuples:
             context_scope.remove(tup)
 

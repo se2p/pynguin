@@ -1707,15 +1707,14 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
                 self._value = complex(
                     self._value.real, self._value.imag + +randomness.next_gaussian()
                 )
+        elif real_or_imag:
+            self._value = complex(
+                round(self._value.real, randomness.next_int(0, 7)), self._value.imag
+            )
         else:
-            if real_or_imag:
-                self._value = complex(
-                    round(self._value.real, randomness.next_int(0, 7)), self._value.imag
-                )
-            else:
-                self._value = complex(
-                    self._value.real, round(self._value.imag, randomness.next_int(0, 7))
-                )
+            self._value = complex(
+                self._value.real, round(self._value.imag, randomness.next_int(0, 7))
+            )
 
     def clone(  # noqa: D102
         self,

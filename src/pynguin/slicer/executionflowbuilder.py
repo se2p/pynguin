@@ -368,32 +368,29 @@ class ExecutionFlowBuilder:
             # Instruction has exactly one possible predecessor
             last_instr = basic_block[instr_index - 1]
             efb_state.offset -= 2
-        else:
+        elif unique_instr.is_jump_target:
             # Instruction is the last instruction in this basic block
             # -> decide what to do with this instruction
-            if unique_instr.is_jump_target:
-                # The instruction is a jump target, check if it was jumped to
-                if (
-                    last_traced_instr.is_jump()
-                    and last_traced_instr.argument == efb_state.bb_id
-                ):
-                    # It was jumped to this instruction,
-                    # continue with target basic block of last traced
-                    assert (
-                        efb_state.co_id == last_traced_instr.code_object_id
-                    ), "Jump to instruction must originate from same code object"
-                    last_instr = self._continue_at_last_traced(
-                        last_traced_instr, efb_state
-                    )
-                    efb_state.jump = True
-                else:
-                    # If this is not a jump target,
-                    # proceed with previous block (in case there is one)
-                    last_instr = self._continue_at_last_basic_block(efb_state)
+            # The instruction is a jump target, check if it was jumped to
+            if (
+                last_traced_instr.is_jump()
+                and last_traced_instr.argument == efb_state.bb_id
+            ):
+                # It was jumped to this instruction,
+                # continue with target basic block of last traced
+                assert (
+                    efb_state.co_id == last_traced_instr.code_object_id
+                ), "Jump to instruction must originate from same code object"
+                last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
+                efb_state.jump = True
             else:
                 # If this is not a jump target,
                 # proceed with previous block (in case there is one)
                 last_instr = self._continue_at_last_basic_block(efb_state)
+        else:
+            # If this is not a jump target,
+            # proceed with previous block (in case there is one)
+            last_instr = self._continue_at_last_basic_block(efb_state)
         return last_instr
 
     def _handle_return_instructions(
