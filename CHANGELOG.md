@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.34.0
+
+- Activate a larger selection of checkers for [ruff](https://github.com/astral-sh/ruff)
+- Implement various stopping conditions
+
 ## Pynguin 0.33.0
 
 - Fix an issue with type-information retrieval (see GitHub issue #35)
