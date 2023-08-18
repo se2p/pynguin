@@ -56,6 +56,7 @@ from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import MinimumCoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import StoppingCondition
 from pynguin.testcase.execution import AbstractTestCaseExecutor
 from pynguin.testcase.execution import TypeTracingTestCaseExecutor
@@ -83,7 +84,7 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
 
     _DEFAULT_MAX_SEARCH_TIME = 600
 
-    def get_stopping_conditions(self) -> list[StoppingCondition]:
+    def get_stopping_conditions(self) -> list[StoppingCondition]:  # noqa: C901
         """Instantiates the stopping conditions depending on the configuration settings.
 
         Returns:
@@ -103,6 +104,17 @@ class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
             conditions.append(MaxCoverageStoppingCondition(max_coverage))
         if (iterations := stopping.maximum_coverage_plateau) >= 0:
             conditions.append(CoveragePlateauStoppingCondition(iterations))
+        if (min_coverage := stopping.minimum_coverage) < 100:
+            if min_coverage <= 0:
+                raise AssertionError("Coverage has to be larger 0 but less than 100%")
+            plateau_iterations = stopping.minimum_plateau_iterations
+            if plateau_iterations <= 0:
+                raise AssertionError("Minimum Plateau Iterations has to be larger 0")
+            conditions.append(
+                MinimumCoveragePlateauStoppingCondition(
+                    min_coverage, plateau_iterations
+                )
+            )
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")
             self._logger.info(

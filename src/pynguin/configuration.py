@@ -573,6 +573,15 @@ class StoppingConfiguration:
     """Maximum number of algorithm iterations without coverage change before the
     algorithms stops."""
 
+    minimum_coverage: int = 100
+    """Minimum coverage for the plateau-based stopping condition.  Expects values larger
+    than 0 but less than 100 to activate the stopping condition; also requires the
+    setting of minimum_plateau_iterations."""
+
+    minimum_plateau_iterations: int = -1
+    """Minimum iterations without a coverage change to stop early.  Expects values
+    larger than 0; also requires the setting of minimum_coverage."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""

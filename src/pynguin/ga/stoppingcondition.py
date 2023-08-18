@@ -257,6 +257,67 @@ class CoveragePlateauStoppingCondition(StoppingCondition):
         )
 
 
+class MinimumCoveragePlateauStoppingCondition(StoppingCondition):
+    """Signals stop if minimum coverage does not change after iterations."""
+
+    def __init__(self, minimum_coverage: int, plateau_iterations: int) -> None:
+        """Instantiates a new stopping condition.
+
+        The condition signals hold if a minimum coverage value was reached but the
+        coverage did not change for a given number of algorithm iterations.
+
+
+        Args:
+            minimum_coverage: the minimum coverage values
+            plateau_iterations: the number of iterations
+        """
+        super().__init__()
+        assert 0 < minimum_coverage < 100
+        assert plateau_iterations > 0
+        self.__minimum_coverage = minimum_coverage
+        self.__plateau_iterations = plateau_iterations
+        self.__last_coverage = 0
+        self.__iterations = 0
+
+    def current_value(self) -> int:  # noqa: D102
+        return self.__last_coverage
+
+    def limit(self) -> int:  # noqa: D102
+        return self.__minimum_coverage
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return (
+            self.__iterations >= self.__plateau_iterations
+            and self.__last_coverage >= self.__minimum_coverage
+        )
+
+    def reset(self) -> None:  # noqa: D102
+        self.__last_coverage = 0
+        self.__iterations = 0
+
+    def set_limit(self, limit: int) -> None:  # noqa: D102
+        self.__minimum_coverage = limit
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self.reset()
+
+    def after_search_iteration(  # noqa: D102
+        self, best: tsc.TestSuiteChromosome
+    ) -> None:
+        coverage = int(best.get_coverage() * 100)
+        if self.__last_coverage == coverage:
+            self.__iterations += 1
+        else:
+            self.__last_coverage = coverage
+            self.__iterations = 0
+
+    def __str__(self):
+        return (
+            f"Coverage did not change for {self.__iterations} iterations while already "
+            f"exceeding minimum of {self.__minimum_coverage}%."
+        )
+
+
 class MaxIterationsStoppingCondition(StoppingCondition):
     """A stopping condition that checks the maximum number of test cases."""
 
