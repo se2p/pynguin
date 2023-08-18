@@ -13,7 +13,6 @@
 
 import ast
 import dataclasses
-import os
 
 from pathlib import Path
 
@@ -185,17 +184,16 @@ _PYNGUIN_FILE_HEADER = (
 
 
 def save_module_to_file(
-    module: ast.Module, path: str | os.PathLike, format_with_black: bool = True
+    module: ast.Module, target: Path, format_with_black: bool = True
 ) -> None:
     """Saves an AST module to a file.
 
     Args:
-        path: Destination file
+        target: Destination file
         module: The AST module
         format_with_black: ast.unparse is not PEP-8 compliant, so we apply black
             on the result.
     """
-    target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open(mode="w", encoding="UTF-8") as file:
         file.write(_PYNGUIN_FILE_HEADER)

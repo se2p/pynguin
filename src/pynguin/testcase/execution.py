@@ -2116,7 +2116,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # Repeatedly opening/closing devnull caused problems.
         # This is closed when Pynguin terminates, since we don't need this output
         # anyway this is acceptable.
-        self._null_file = open(os.devnull, mode="w")  # noqa: SIM115
+        self._null_file = open(os.devnull, mode="w")  # noqa: PTH123, SIM115
 
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement

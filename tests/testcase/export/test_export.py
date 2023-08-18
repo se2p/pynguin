@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -12,7 +12,7 @@ def test_export_sequence(exportable_test_case, tmp_path):
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case.accept(exporter)
     exportable_test_case.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), str(path))
+    export.save_module_to_file(exporter.to_module(), path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -46,7 +46,7 @@ def test_export_sequence_expected_exception(
     path = tmp_path / "generated_with_expected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_expected_exception.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), str(path))
+    export.save_module_to_file(exporter.to_module(), path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -68,7 +68,7 @@ def test_export_sequence_unexpected_exception(
     path = tmp_path / "generated_with_unexpected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_unexpected_exception.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), str(path))
+    export.save_module_to_file(exporter.to_module(), path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER

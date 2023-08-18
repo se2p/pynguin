@@ -292,8 +292,10 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
         A dict of type to set of constants
     """
     collector = _ConstantCollector()
+    path = Path(project_path).resolve()
     for module in _find_modules_with_constants(project_path):
-        with open(os.path.join(project_path, module), encoding="utf-8") as module_file:
+        module_path = path / module
+        with module_path.open(mode="r", encoding="utf-8") as module_file:
             try:
                 tree = ast.parse(module_file.read())
                 collector.visit(tree)

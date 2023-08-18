@@ -12,6 +12,7 @@ import inspect
 import logging
 import os
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import AnyStr
@@ -84,18 +85,19 @@ class InitialPopulationProvider:
         """
         module_name = config.configuration.module_name.rsplit(".", maxsplit=1)[-1]
         logger.debug("Module name: %s", module_name)
-        result: list[AnyStr] = []
+        result: list[Path] = []
         for root, _, files in os.walk(module_path):
+            root_path = Path(root).resolve()  # type: ignore[arg-type]
             for name in files:
                 assert isinstance(name, str)
                 if module_name in name and "test_" in name:
-                    result.append(os.path.join(root, name))
+                    result.append(root_path / name)
                     break
         try:
             if len(result) > 0:
                 logger.debug("Module name found: %s", result[0])
                 stat.track_output_variable(RuntimeVariable.SuitableTestModule, True)
-                with open(result[0], encoding="utf-8") as module_file:
+                with result[0].open(mode="r", encoding="utf-8") as module_file:
                     return ast.parse(module_file.read())
             else:
                 logger.debug("No suitable test module found.")

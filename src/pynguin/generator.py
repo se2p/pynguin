@@ -23,7 +23,6 @@ import enum
 import importlib
 import json
 import logging
-import os
 import sys
 import threading
 
@@ -132,7 +131,7 @@ def _setup_path() -> bool:
     Returns:
         An optional execution tracer, if loading was successful, None otherwise.
     """
-    if not os.path.isdir(config.configuration.project_path):
+    if not Path(config.configuration.project_path).is_dir():
         _LOGGER.error(
             "%s is not a valid project path", config.configuration.project_path
         )
@@ -694,12 +693,10 @@ def _export_chromosome(
     Returns:
         The name of the target file
     """
-    target_file = os.path.join(
-        config.configuration.test_case_output.output_path,
-        "test_"
-        + config.configuration.module_name.replace(".", "_")
-        + file_name_suffix
-        + ".py",
+    module_name = config.configuration.module_name.replace(".", "_")
+    target_file = (
+        Path(config.configuration.test_case_output.output_path).resolve()
+        / f"test_{module_name}{file_name_suffix}.py"
     )
     export_visitor = export.PyTestChromosomeToAstVisitor()
     chromosome.accept(export_visitor)
