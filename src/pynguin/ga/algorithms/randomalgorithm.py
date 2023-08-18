@@ -145,14 +145,13 @@ class RandomAlgorithm(GenerationAlgorithm):
     def _random_public_method(
         objects_under_test: OrderedSet[gao.GenericAccessibleObject],
     ) -> gao.GenericCallableAccessibleObject:
-        object_under_test = randomness.RNG.choice(
+        return randomness.RNG.choice(
             [
                 obj
                 for obj in objects_under_test
                 if isinstance(obj, gao.GenericCallableAccessibleObject)
             ]
         )
-        return object_under_test
 
     def _random_test_cases(self, test_cases: list[tc.TestCase]) -> list[tc.TestCase]:
         if config.configuration.random.max_sequence_length == 0:

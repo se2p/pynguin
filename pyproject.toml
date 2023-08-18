@@ -196,7 +196,8 @@ select = [
   "PERF",  # perflint
   "PIE",  # flake8-pie
   "PT",  # flake8-pytest-style
-  "Q",  # flake8-quotesa
+  "Q",  # flake8-quotes
+  "RET",  # flake8-return
   "RSE",  # flake8-raise
   "S",  # flake8-bandit
   "TID",  # flake8-tidy-imports

@@ -399,7 +399,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         # Insert dummy exit and entry nodes
         cfg = CFG._insert_dummy_exit_node(cfg)
         cfg = CFG._insert_dummy_entry_node(cfg)
-        return cfg
+        return cfg  # noqa: RET504
 
     def bytecode_cfg(self) -> ControlFlowGraph:
         """Provide the raw control flow graph from the code object.
@@ -714,7 +714,7 @@ class DominatorTree(ProgramGraph[ProgramGraphNode]):
             else:
                 intersection.intersection_update(predecessor_dominators)
         intersection = intersection.union(dominators)
-        return intersection
+        return intersection  # noqa: RET504
 
 
 class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):

@@ -125,7 +125,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         with_self_arg: bool,
         is_failing: bool,
     ) -> ast.FunctionDef:
-        function_node = ast.FunctionDef(
+        return ast.FunctionDef(
             name=f"test_{function_name}",
             args=ast.arguments(
                 args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],
@@ -142,7 +142,6 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             ),
             returns=None,
         )
-        return function_node
 
     @staticmethod
     def __create_decorator_list(is_failing: bool) -> list[ast.expr]:

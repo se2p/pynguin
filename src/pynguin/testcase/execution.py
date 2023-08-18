@@ -194,8 +194,7 @@ class ExecutionContext:
             self._module_aliases, self._variable_names
         )
         statement.accept(stmt_visitor)
-        ast_stmt = stmt_visitor.ast_node
-        return ast_stmt
+        return stmt_visitor.ast_node
 
     def node_for_assertion(
         self, assertion: ass.Assertion, statement_node: ast.stmt

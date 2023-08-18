@@ -269,7 +269,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
         result = 1
         result = prime * result + self._predicate_id
         result = prime * result + int(self._value)
-        return result
+        return result  # noqa: RET504
 
     def __eq__(self, other: Any) -> bool:
         if self is other:

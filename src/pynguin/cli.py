@@ -104,8 +104,7 @@ def _parse_comma_separated_option(arguments: list[str], option: str) -> list[str
     if "," not in arguments[index + 1]:
         return arguments
     variables = arguments[index + 1].split(",")
-    output = arguments[: index + 1] + variables + arguments[index + 2 :]
-    return output
+    return arguments[: index + 1] + variables + arguments[index + 2 :]
 
 
 def _setup_output_path(output_path: str) -> None:

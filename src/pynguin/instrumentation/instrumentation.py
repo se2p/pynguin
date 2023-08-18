@@ -1748,7 +1748,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("LOAD_CONST", arg, lineno=instr.lineno),
         ]
 
-        return instructions
+        return instructions  # noqa: RET504
 
     @staticmethod
     def _load_args_with_prop(
@@ -1788,7 +1788,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("ROT_TWO", lineno=instr.lineno),
         ]
 
-        return instructions
+        return instructions  # noqa: RET504
 
 
 class DynamicSeedingInstrumentation(InstrumentationAdapter):

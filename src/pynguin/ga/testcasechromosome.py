@@ -166,8 +166,7 @@ class TestCaseChromosome(chrom.Chromosome):
 
     def _delete_statement(self, idx: int) -> bool:
         assert self._test_factory, "Mutation requires a test factory."
-        modified = self._test_factory.delete_statement_gracefully(self._test_case, idx)
-        return modified
+        return self._test_factory.delete_statement_gracefully(self._test_case, idx)
 
     def _mutation_change(self) -> bool:
         last_mutatable_statement = self.get_last_mutatable_statement()

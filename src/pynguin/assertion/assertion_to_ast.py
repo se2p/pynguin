@@ -247,8 +247,7 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
             au.create_ast_keyword("abs", au.create_ast_constant(float_precision)),
             au.create_ast_keyword("rel", au.create_ast_constant(float_precision)),
         ]
-        comp_float = au.create_ast_call(func, [comp], keywords)
-        return comp_float
+        return au.create_ast_call(func, [comp], keywords)
 
     def _construct_enum_attr(self, value) -> ast.Attribute:
         module = self._module_aliases.get_name(value.__class__.__module__)

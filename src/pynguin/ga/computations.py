@@ -739,9 +739,9 @@ def compute_branch_distance_fitness(
             predicate_fitness += _predicate_fitness(
                 predicate, trace.false_distances, trace
             )
+
     assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
-    total_fitness = code_objects_missing + predicate_fitness
-    return total_fitness
+    return code_objects_missing + predicate_fitness
 
 
 def _predicate_fitness(

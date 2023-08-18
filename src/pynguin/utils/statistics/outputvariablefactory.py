@@ -172,8 +172,9 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
                 value_delta = float(self._values[i]) - float(self._values[i - 1])
                 ratio = value_delta / time_delta
                 diff = preferred_time - self._time_stamps[i - 1]
-                value = float(self._values[i - 1]) + (diff * ratio)
-                return value  # type: ignore[return-value]
+                return float(self._values[i - 1]) + (  # type: ignore[return-value]
+                    diff * ratio
+                )
 
         # no time stamp was higher, just use the last value seen
         return self._values[-1]
