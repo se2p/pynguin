@@ -74,6 +74,7 @@ ruff = "^0.0.284"
 sphinx = "^7.1.2"
 sphinx-autodoc-typehints = "^1.24"
 sphinx-hoverxref = "^1.3.0"
+sphinx-rtd-theme = "^1.3.0"
 sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
