@@ -134,7 +134,7 @@ class InitialPopulationProvider:
 
     def _mutate_testcases_initially(self):
         """Mutates the initial population."""
-        for _ in range(0, config.configuration.seeding.initial_population_mutations):
+        for _ in range(config.configuration.seeding.initial_population_mutations):
             for testcase in self._testcases:
                 testcase_wrapper = tcc.TestCaseChromosome(testcase, self._test_factory)
                 testcase_wrapper.mutate()

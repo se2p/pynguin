@@ -11,8 +11,8 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.12-slim-bullseye AS build
-MAINTAINER Stephan Lukasczyk <stephan@lukasczyk.me>
+FROM python:3.10.13-slim-bookworm AS build
+LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
 ENV POETRY_VERSION "1.5.1"
 
 WORKDIR /pynguin-build
@@ -37,7 +37,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.12-slim-bullseye AS execute
+FROM python:3.10.13-slim-bookworm AS execute
 
 # Set environment variables
 # Set the Pynguin version
@@ -67,7 +67,9 @@ WORKDIR /pynguin
 COPY --from=build /pynguin-build/dist/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl .
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
-RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl
+RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
+    typing_extensions==4.8.0 \
+    mypy==1.6.0
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []

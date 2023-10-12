@@ -547,7 +547,7 @@ class ReturnTypeObserver(ExecutionObserver):
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(next(iter(value))),
                 )
-            elif type(value) is dict and len(value) > 0:
+            elif isinstance(value, dict) and len(value) > 0:
                 first_item = next(iter(value.items()))
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(first_item[0]),

@@ -68,9 +68,9 @@ class TraceStack:
         # Since we do not exactly know what the stack state at the slicing criterion is
         # and because the behavior is reversed, we fill the stack with some frames
         # (having some block stacks inside them)
-        for _ in range(0, DEFAULT_STACK_HEIGHT):
+        for _ in range(DEFAULT_STACK_HEIGHT):
             frame_stack = FrameStack(-1, [])
-            for _ in range(0, DEFAULT_FRAME_HEIGHT):
+            for _ in range(DEFAULT_FRAME_HEIGHT):
                 block_stack = BlockStack([])
                 frame_stack.block_stacks.append(block_stack)
             self.frame_stacks.append(frame_stack)
@@ -123,7 +123,7 @@ class TraceStack:
                 imp_dependency = True
 
         # Handle push operations
-        for _ in range(0, num_pushes):
+        for _ in range(num_pushes):
             try:
                 tos_instr = curr_block_stack.pop()
             except IndexError:
@@ -171,7 +171,7 @@ class TraceStack:
             unique_instr.in_slice = True
 
         # Handle pop operations
-        for _ in range(0, num_pops):
+        for _ in range(num_pops):
             curr_block_stack.push(unique_instr)
 
     def get_attribute_uses(self):
