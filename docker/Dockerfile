@@ -11,7 +11,7 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.13-slim-bookworm AS build
+FROM python:3.10.13-slim-bullseye AS build
 LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
 ENV POETRY_VERSION "1.5.1"
 
@@ -37,7 +37,7 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.13-slim-bookworm AS execute
+FROM python:3.10.13-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
