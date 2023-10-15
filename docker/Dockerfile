@@ -68,7 +68,7 @@ COPY --from=build /pynguin-build/dist/pynguin-${PYNGUIN_VERSION}-py3-none-any.wh
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
-    typing_extensions==4.8.0 \
+    typing-extensions==4.8.0 \
     mypy==1.6.0
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
