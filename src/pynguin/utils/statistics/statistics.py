@@ -7,10 +7,13 @@
 """Provides tracking of statistics for various variables and types."""
 from __future__ import annotations
 
+import json
 import logging
+import pprint
 import queue
 import time
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -380,6 +383,21 @@ class _SearchStatistics:
         individual = self._best_individual
         output_variables_map = self._get_output_variables(individual)
         self._backend.write_data(output_variables_map)
+
+        if (
+            config.configuration.statistics_output.statistics_backend
+            == config.StatisticsBackend.CSV
+        ):
+            report_dir = Path(
+                config.configuration.statistics_output.report_dir
+            ).resolve()
+            if "SignatureInfos" in output_variables_map:
+                obj = json.loads(output_variables_map["SignatureInfos"].value)
+                output_file = report_dir / "signature-infos.json"
+                with output_file.open(mode="w") as f:
+                    json.dump(obj, f)
+            cfg_file = report_dir / "pynguin-config.txt"
+            cfg_file.write_text(pprint.pformat(repr(config.configuration)))
         return True
 
     class _ChromosomeLengthOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
