@@ -491,6 +491,26 @@ def test_exception_no_match_integrate():
     assert {0: 0.0} == tracer.get_trace().false_distances
 
 
+def test_jump_if_true_or_pop():
+    tracer = ExecutionTracer()
+
+    def func(string, inttype=int):
+        return ((
+                hasattr(string, "is_integer") or hasattr(string, "__array__")
+            )
+            or (
+                isinstance(string, (bytes, str))
+            )
+        )
+    
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    func.__code__ = transformer.instrument_module(func.__code__)
+
+    # FIXME execute func()
+    # FIXME add any appropriate exceptions
+
+
 def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
