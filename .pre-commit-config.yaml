@@ -25,13 +25,13 @@ repos:
         args: [--py310-plus]
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         args: [--profile, black]
 
   - repo: https://github.com/psf/black
-    rev: 23.9.1
+    rev: 23.12.1
     hooks:
       - id: black
         args: [--config, ./pyproject.toml]

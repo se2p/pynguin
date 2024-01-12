@@ -243,11 +243,11 @@ class _ObjectProxyMethods:
         self.__wrapped__.__module__ = value  # type: ignore[attr-defined]
 
     @property
-    def __doc__(self):  # noqa: A003
+    def __doc__(self):
         return self.__wrapped__.__doc__  # type: ignore[attr-defined]
 
     @__doc__.setter
-    def __doc__(self, value):  # noqa: A003
+    def __doc__(self, value):
         self.__wrapped__.__doc__ = value  # type: ignore[attr-defined]
 
     # We similar use a property for __dict__. We need __dict__ to be
@@ -339,11 +339,11 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):
             object.__setattr__(self, "__annotations__", wrapped.__annotations__)
 
     @property
-    def __name__(self):  # noqa: A003
+    def __name__(self):
         return self.__wrapped__.__name__  # type:ignore[has-type]
 
     @__name__.setter
-    def __name__(self, value):  # noqa: A003
+    def __name__(self, value):
         self.__wrapped__.__name__ = value  # type:ignore[has-type]
 
     @property

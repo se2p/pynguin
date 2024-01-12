@@ -144,7 +144,7 @@ class DynamicSlicer:
         """
         self._known_code_objects = known_code_objects
 
-    def slice(  # noqa: A003, C901
+    def slice(  # noqa: C901
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,

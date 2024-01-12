@@ -198,7 +198,7 @@ class ObjectAssertion(ReferenceAssertion):
         self._object = value
 
     @property
-    def object(self) -> Any:  # noqa: A003
+    def object(self) -> Any:
         """Provides the object used for comparison.
 
         Returns:
