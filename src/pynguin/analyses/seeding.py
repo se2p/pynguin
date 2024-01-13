@@ -96,16 +96,20 @@ class InitialPopulationProvider:
         try:
             if len(result) > 0:
                 logger.debug("Module name found: %s", result[0])
-                stat.track_output_variable(RuntimeVariable.SuitableTestModule, True)
+                stat.track_output_variable(
+                    RuntimeVariable.SuitableTestModule, value=True
+                )
                 with result[0].open(mode="r", encoding="utf-8") as module_file:
                     return ast.parse(module_file.read())
             else:
                 logger.debug("No suitable test module found.")
-                stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
+                stat.track_output_variable(
+                    RuntimeVariable.SuitableTestModule, value=False
+                )
                 return None
         except BaseException as exception:
             logger.exception("Cannot read module: %s", exception)
-            stat.track_output_variable(RuntimeVariable.SuitableTestModule, False)
+            stat.track_output_variable(RuntimeVariable.SuitableTestModule, value=False)
             return None
 
     def collect_testcases(self, module_path: AnyStr | os.PathLike[AnyStr]) -> None:
@@ -303,10 +307,10 @@ def create_variable_references_from_call_args(
     ):
         if (
             param.kind
-            in (
+            in {
                 inspect.Parameter.POSITIONAL_ONLY,
                 inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            )
+            }
         ) and isinstance(call_arg, ast.Name):
             reference = ref_dict.get(call_arg.id)
         elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
@@ -864,7 +868,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     def __init__(  # noqa: D107
         self,
         test_cluster: ModuleTestCluster,
-        create_assertions: bool,
+        create_assertions: bool,  # noqa: FBT001
         constant_provider: ConstantProvider,
     ):
         self._current_testcase: dtc.DefaultTestCase = dtc.DefaultTestCase(test_cluster)
@@ -876,7 +880,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         self._create_assertions = create_assertions
         self._constant_provider = constant_provider
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: D102
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: D102, N802
         self._number_found_testcases += 1
         self._current_testcase = dtc.DefaultTestCase(self._test_cluster)
         self._current_parsable = True
@@ -885,7 +889,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         if self._current_parsable:
             self._testcases.append(self._current_testcase)
 
-    def visit_Assign(self, node: ast.Assign) -> Any:  # noqa: D102
+    def visit_Assign(self, node: ast.Assign) -> Any:  # noqa: D102, N802
         if self._current_parsable:
             if (
                 result := create_assign_stmt(
@@ -902,7 +906,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
                 var_ref = self._current_testcase.add_variable_creating_statement(stm)
                 self._var_refs[ref_id] = var_ref
 
-    def visit_Assert(self, node: ast.Assert) -> Any:  # noqa: D102
+    def visit_Assert(self, node: ast.Assert) -> Any:  # noqa: D102, N802
         if self._current_parsable and self._create_assertions:  # noqa: SIM102
             if (result := create_assert_stmt(self._var_refs, node)) is not None:
                 assertion, var_ref = result

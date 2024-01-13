@@ -159,7 +159,9 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         for node in node_list:
             self.dispatch(node)
 
-    def visitFunctionDef(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+    def visitFunctionDef(  # noqa: N802
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
         """Visits a function-definition node.
 
         Args:
@@ -185,7 +187,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
             self.graphs[f"{self.class_name}{node.name}"] = self.graph
             self.reset()
 
-    visitAsyncFunctionDef = visitFunctionDef
+    visitAsyncFunctionDef = visitFunctionDef  # noqa: N815
 
     def __append_path_node(self, name: str) -> _PathNode | None:
         if not self.tail:
@@ -196,7 +198,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         self.tail = path_node
         return path_node
 
-    def visitSimpleStatement(self, node: ast.stmt) -> None:
+    def visitSimpleStatement(self, node: ast.stmt) -> None:  # noqa: N802
         """Visits a simple statement node of the AST.
 
         Args:
@@ -217,7 +219,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         else:
             super().default(node, *args)
 
-    def visitLoop(self, node: ast.AsyncFor | ast.For | ast.While) -> None:
+    def visitLoop(self, node: ast.AsyncFor | ast.For | ast.While) -> None:  # noqa: N802
         """Visits a loop node.
 
         Args:
@@ -226,9 +228,9 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         name = f"Loop {node.lineno}"
         self.__subgraph(node, name)
 
-    visitAsyncFor = visitFor = visitWhile = visitLoop
+    visitAsyncFor = visitFor = visitWhile = visitLoop  # noqa: N815
 
-    def visitIf(self, node: ast.If) -> None:
+    def visitIf(self, node: ast.If) -> None:  # noqa: N802
         """Visits an if expression node.
 
         Args:
@@ -285,7 +287,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
                 self.graph.connect(loose_end, bottom)
             self.tail = bottom
 
-    def visitTryExcept(self, node: ast.Try) -> None:
+    def visitTryExcept(self, node: ast.Try) -> None:  # noqa: N802
         """Visits a try-except AST node.
 
         Args:
@@ -294,9 +296,9 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         name = f"TryExcept {node.lineno}"
         self.__subgraph(node, name, extra_blocks=node.handlers)
 
-    visitTry = visitTryExcept
+    visitTry = visitTryExcept  # noqa: N815
 
-    def visitWith(self, node: ast.With | ast.AsyncWith) -> None:
+    def visitWith(self, node: ast.With | ast.AsyncWith) -> None:  # noqa: N802
         """Visits a with-block AST node.
 
         Args:
@@ -306,7 +308,7 @@ class _PathGraphingAstVisitor(_ASTVisitor):
         self.__append_path_node(name)
         self.dispatch_list(node.body)
 
-    visitAsyncWith = visitWith
+    visitAsyncWith = visitWith  # noqa: N815
 
 
 def mccabe_complexity(tree: ast.AST) -> int:

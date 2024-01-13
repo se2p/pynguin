@@ -276,18 +276,26 @@ def test_attempt_generation_for_unknown_type(default_test_case):
     default_test_case.test_cluster.type_system.enable_numeric_tower()
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        0,
-        0,
-        True,
+        test_case=default_test_case,
+        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            MagicMock
+        ),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
     )
     assert result is None
 
 
 def test_attempt_generation_for_none_type(default_test_case):
     factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(default_test_case, NoneType(), 0, 0, True)
+    result = factory._attempt_generation(
+        test_case=default_test_case,
+        parameter_type=NoneType(),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
+    )
     assert result.distance == 0
 
 
@@ -295,11 +303,13 @@ def test_attempt_generation_for_int_with_no_probability(default_test_case):
     config.configuration.test_creation.none_probability = 0.0
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
-        default_test_case,
-        default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        0,
-        0,
-        True,
+        test_case=default_test_case,
+        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            MagicMock
+        ),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
     )
     assert result is None
 
@@ -318,7 +328,13 @@ def test_attempt_generation_for_type_from_cluster(default_test_case):
     )  # pragma: no cover
     factory = tf.TestFactory(default_test_case.test_cluster)
     factory._attempt_generation_for_type = mock_method
-    factory._attempt_generation(default_test_case, NoneType(), 0, 0, True)
+    factory._attempt_generation(
+        test_case=default_test_case,
+        parameter_type=NoneType(),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
+    )
 
 
 def test__rollback_changes_mid(default_test_case):
@@ -719,10 +735,10 @@ def test_add_call_for_field(field_mock, variable_reference_mock, test_case_mock)
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "add_field") as add_field:
         assert test_factory.add_call_for(
-            test_case_mock, variable_reference_mock, field_mock, 0
+            test_case_mock, variable_reference_mock, field_mock, position=0
         )
         add_field.assert_called_with(
-            test_case_mock, field_mock, 0, callee=variable_reference_mock
+            test_case_mock, field_mock, position=0, callee=variable_reference_mock
         )
 
 
@@ -731,18 +747,18 @@ def test_add_call_for_method(method_mock, variable_reference_mock, test_case_moc
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "add_method") as add_field:
         assert test_factory.add_call_for(
-            test_case_mock, variable_reference_mock, method_mock, 0
+            test_case_mock, variable_reference_mock, method_mock, position=0
         )
         add_field.assert_called_with(
-            test_case_mock, method_mock, 0, callee=variable_reference_mock
+            test_case_mock, method_mock, position=0, callee=variable_reference_mock
         )
 
 
 def test_add_call_for_rollback(method_mock, variable_reference_mock, default_test_case):
-    def side_effect(tc, f, p, callee=None):
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+    def side_effect(tc, f, position, callee=None):
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
         raise ConstructionFailedException()
 
     int0 = stmt.IntPrimitiveStatement(default_test_case, 3)
@@ -752,7 +768,7 @@ def test_add_call_for_rollback(method_mock, variable_reference_mock, default_tes
     with mock.patch.object(test_factory, "add_method") as add_field:
         add_field.side_effect = side_effect
         assert not test_factory.add_call_for(
-            default_test_case, variable_reference_mock, method_mock, 0
+            default_test_case, variable_reference_mock, method_mock, position=0
         )
         assert default_test_case.statements == [int0]
 
@@ -822,15 +838,15 @@ def test_insert_random_call_success(test_case_mock):
     test_cluster.get_random_accessible.return_value = acc
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "append_generic_accessible") as append_mock:
-        assert test_factory.insert_random_call(test_case_mock, 0)
-        append_mock.assert_called_with(test_case_mock, acc, 0)
+        assert test_factory.insert_random_call(test_case_mock, position=0)
+        append_mock.assert_called_with(test_case_mock, acc, position=0)
 
 
 def test_insert_random_call_rollback(default_test_case):
-    def side_effect(tc, f, p, callee=None):
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=p)
+    def side_effect(tc, f, position, callee=None):
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
+        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
         raise ConstructionFailedException()
 
     int0 = stmt.IntPrimitiveStatement(default_test_case, 3)

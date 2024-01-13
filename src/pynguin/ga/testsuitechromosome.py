@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Any
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
@@ -42,15 +41,15 @@ class TestSuiteChromosome(chrom.Chromosome):
         super().__init__(orig=orig)
 
         if orig is None:
-            self._test_case_chromosome_factory: None | (
+            self.test_case_chromosome_factory: None | (
                 cf.ChromosomeFactory[tcc.TestCaseChromosome]
             ) = test_case_chromosome_factory
-            self._test_case_chromosomes: list[tcc.TestCaseChromosome] = []
+            self.test_case_chromosomes: list[tcc.TestCaseChromosome] = []
         else:
-            self._test_case_chromosomes = [
-                chromosome.clone() for chromosome in orig._test_case_chromosomes
+            self.test_case_chromosomes = [
+                chromosome.clone() for chromosome in orig.test_case_chromosomes
             ]
-            self._test_case_chromosome_factory = orig._test_case_chromosome_factory
+            self.test_case_chromosome_factory = orig.test_case_chromosome_factory
 
     def add_test_case_chromosome(self, test: tcc.TestCaseChromosome) -> None:
         """Adds a test case chromosome to the test suite.
@@ -58,7 +57,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         Args:
             test: the test case to be added
         """
-        self._test_case_chromosomes.append(test)
+        self.test_case_chromosomes.append(test)
         self.changed = True
 
     def delete_test_case_chromosome(self, test: tcc.TestCaseChromosome) -> None:
@@ -68,7 +67,7 @@ class TestSuiteChromosome(chrom.Chromosome):
             test: the test case chromosome to delete
         """
         try:
-            self._test_case_chromosomes.remove(test)
+            self.test_case_chromosomes.remove(test)
             self.changed = True
         except ValueError:
             pass
@@ -79,7 +78,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         Args:
             tests: A list of test case chromosomes to add
         """
-        self._test_case_chromosomes.extend(tests)
+        self.test_case_chromosomes.extend(tests)
         if tests:
             self.changed = True
 
@@ -100,16 +99,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         Returns:
             The test case chromosome at the given index
         """
-        return self._test_case_chromosomes[index]
-
-    @property
-    def test_case_chromosomes(self) -> list[tcc.TestCaseChromosome]:
-        """Provides all test chromosomes.
-
-        Returns:
-            The list of all test cases
-        """
-        return self._test_case_chromosomes
+        return self.test_case_chromosomes[index]
 
     def set_test_case_chromosome(
         self, index: int, test: tcc.TestCaseChromosome
@@ -120,7 +110,7 @@ class TestSuiteChromosome(chrom.Chromosome):
             index: the index to set the chromosome
             test: the test case to set
         """
-        self._test_case_chromosomes[index] = test
+        self.test_case_chromosomes[index] = test
         self.changed = True
 
     def size(self) -> int:
@@ -129,10 +119,10 @@ class TestSuiteChromosome(chrom.Chromosome):
         Returns:
             The size of the chromosome
         """
-        return len(self._test_case_chromosomes)
+        return len(self.test_case_chromosomes)
 
     def length(self) -> int:  # noqa: D102
-        return sum(test.length() for test in self._test_case_chromosomes)
+        return sum(test.length() for test in self.test_case_chromosomes)
 
     def cross_over(
         self, other: chrom.Chromosome, position1: int, position2: int
@@ -151,21 +141,21 @@ class TestSuiteChromosome(chrom.Chromosome):
             other, TestSuiteChromosome
         ), "Cannot perform crossover with " + str(type(other))
 
-        self._test_case_chromosomes = self._test_case_chromosomes[:position1] + [
-            test.clone() for test in other._test_case_chromosomes[position2:]
+        self.test_case_chromosomes = self.test_case_chromosomes[:position1] + [
+            test.clone() for test in other.test_case_chromosomes[position2:]
         ]
         self.changed = True
 
     def mutate(self) -> None:
         """Apply mutation at test suite level."""
         assert (
-            self._test_case_chromosome_factory is not None
+            self.test_case_chromosome_factory is not None
         ), "Mutation is not possibly without test case chromosome factory"
 
         changed = False
 
         # Mutate existing test cases.
-        for test in self._test_case_chromosomes:
+        for test in self.test_case_chromosomes:
             if randomness.next_float() < 1.0 / self.size():
                 test.mutate()
                 if test.changed:
@@ -179,14 +169,14 @@ class TestSuiteChromosome(chrom.Chromosome):
             and self.size() < config.configuration.test_creation.max_size
         ):
             self.add_test_case_chromosome(
-                self._test_case_chromosome_factory.get_chromosome()
+                self.test_case_chromosome_factory.get_chromosome()
             )
             exponent += 1
             changed = True
 
         # Remove any tests that have no more statements left.
-        self._test_case_chromosomes = [
-            t for t in self._test_case_chromosomes if t.size() > 0
+        self.test_case_chromosomes = [
+            t for t in self.test_case_chromosomes if t.size() > 0
         ]
 
         if changed:
@@ -195,7 +185,7 @@ class TestSuiteChromosome(chrom.Chromosome):
     def accept(self, visitor: cv.ChromosomeVisitor) -> None:  # noqa: D102
         visitor.visit_test_suite_chromosome(self)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, TestSuiteChromosome):
@@ -203,11 +193,11 @@ class TestSuiteChromosome(chrom.Chromosome):
         if self.size() != other.size():
             return False
         for test, other_test in zip(
-            self._test_case_chromosomes, other._test_case_chromosomes, strict=True
+            self.test_case_chromosomes, other.test_case_chromosomes, strict=True
         ):
             if test != other_test:
                 return False
         return True
 
     def __hash__(self) -> int:
-        return 31 + sum(17 * hash(t) for t in self._test_case_chromosomes)
+        return 31 + sum(17 * hash(t) for t in self.test_case_chromosomes)

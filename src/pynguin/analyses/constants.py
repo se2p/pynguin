@@ -311,21 +311,21 @@ class _ConstantCollector(ast.NodeVisitor):
         self._pool = ConstantPool()
         self._string_expressions: OrderedSet[str] = OrderedSet()
 
-    def visit_Constant(self, node: ast.Constant):
+    def visit_Constant(self, node: ast.Constant):  # noqa: N802
         if type(node.value) in typing.get_args(ConstantTypes):
             self._pool.add_constant(node.value)
         return self.generic_visit(node)
 
-    def visit_Module(self, node: ast.Module):
+    def visit_Module(self, node: ast.Module):  # noqa: N802
         return self._visit_doc_string(node)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef):
+    def visit_FunctionDef(self, node: ast.FunctionDef):  # noqa: N802
         return self._visit_doc_string(node)
 
-    def visit_ClassDef(self, node: ast.ClassDef):
+    def visit_ClassDef(self, node: ast.ClassDef):  # noqa: N802
         return self._visit_doc_string(node)
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):  # noqa: N802
         return self._visit_doc_string(node)
 
     def _visit_doc_string(

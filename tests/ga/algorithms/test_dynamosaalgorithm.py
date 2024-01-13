@@ -46,8 +46,8 @@ def test_fitness_graph_root_branches(subject_properties):
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, subject_properties)
     assert {br.goal for br in ffgraph.root_branches} == {
-        bg.BranchGoal(0, 3, False),
-        bg.BranchGoal(0, 3, True),
+        bg.BranchGoal(code_object_id=0, predicate_id=3, value=False),
+        bg.BranchGoal(code_object_id=0, predicate_id=3, value=True),
     }
 
 
@@ -55,10 +55,14 @@ def test_fitness_graph_structural_children(subject_properties):
     pool = bg.BranchGoalPool(subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, subject_properties)
-    target = [ff for ff in ffs if ff.goal == bg.BranchGoal(0, 2, True)][0]
+    target = [
+        ff
+        for ff in ffs
+        if ff.goal == bg.BranchGoal(code_object_id=0, predicate_id=2, value=True)
+    ][0]
     assert {ff.goal for ff in ffgraph.get_structural_children(target)} == {
-        bg.BranchGoal(0, 0, False),
-        bg.BranchGoal(0, 0, True),
+        bg.BranchGoal(code_object_id=0, predicate_id=0, value=False),
+        bg.BranchGoal(code_object_id=0, predicate_id=0, value=True),
     }
 
 
@@ -66,7 +70,11 @@ def test_fitness_graph_no_structural_children(subject_properties):
     pool = bg.BranchGoalPool(subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
     ffgraph = dyna._BranchFitnessGraph(ffs, subject_properties)
-    target = [ff for ff in ffs if ff.goal == bg.BranchGoal(0, 3, False)][0]
+    target = [
+        ff
+        for ff in ffs
+        if ff.goal == bg.BranchGoal(code_object_id=0, predicate_id=3, value=False)
+    ][0]
     assert {ff.goal for ff in ffgraph.get_structural_children(target)} == set()
 
 

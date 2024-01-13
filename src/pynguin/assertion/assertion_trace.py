@@ -26,7 +26,7 @@ class AssertionTrace:
     def __init__(self) -> None:
         """Create new assertion trace."""
         # One entry per statement, i.e., the assertions after executing that statement.
-        self._trace: dict[int, OrderedSet[ass.Assertion]] = defaultdict(OrderedSet)
+        self.trace: dict[int, OrderedSet[ass.Assertion]] = defaultdict(OrderedSet)
 
     def add_entry(self, position: int, assertion: ass.Assertion) -> None:
         """Add an entry to this trace.
@@ -36,7 +36,7 @@ class AssertionTrace:
                 state is observed.
             assertion: the made assertion.
         """
-        self._trace[position].add(assertion)
+        self.trace[position].add(assertion)
 
     def get_assertions(self, statement: stmt.Statement) -> OrderedSet[ass.Assertion]:
         """Get all assertions contained within this trace for the given statement.
@@ -49,8 +49,8 @@ class AssertionTrace:
             All assertions in this trace for the given statement.
         """
         position = statement.get_position()
-        if position in self._trace:
-            return OrderedSet(self._trace[position])
+        if position in self.trace:
+            return OrderedSet(self.trace[position])
         return OrderedSet()
 
     def get_all_assertions(self) -> dict[int, OrderedSet[ass.Assertion]]:
@@ -60,11 +60,11 @@ class AssertionTrace:
             A dict that maps every statement position to all recorded assertions.
 
         """
-        return dict(self._trace)
+        return dict(self.trace)
 
     def clear(self) -> None:
         """Clear this trace."""
-        self._trace.clear()
+        self.trace.clear()
 
     def clone(self) -> AssertionTrace:
         """Clone this trace.
@@ -73,10 +73,10 @@ class AssertionTrace:
             a clone of this trace.
         """
         copy: AssertionTrace = AssertionTrace()
-        for stmt_key, stmt_value in self._trace.items():
-            copy._trace[stmt_key] = OrderedSet()
+        for stmt_key, stmt_value in self.trace.items():
+            copy.trace[stmt_key] = OrderedSet()
             for entry in stmt_value:
-                copy._trace[stmt_key].add(entry)
+                copy.trace[stmt_key].add(entry)
         return copy
 
 

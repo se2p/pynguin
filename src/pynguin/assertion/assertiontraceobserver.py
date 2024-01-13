@@ -192,6 +192,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         ref: vr.Reference,
         position: int,
         trace: at.AssertionTrace,
+        *,
         depth: int = 0,
         max_depth: int = 1,
     ):
@@ -246,7 +247,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             ),
                             position,
                             trace,
-                            depth + 1,
+                            depth=depth + 1,
                         )
 
     @staticmethod

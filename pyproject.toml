@@ -175,53 +175,67 @@ build-backend = "poetry.core.masonry.api"
 # Assume Python 3.10.
 target-version = "py310"
 line-length = 88
-src = ["src"]
+preview = true
+src = ["src", "tests"]
 select = [
-  "A",  # flake8-builtins
-  "B",  # bugbear
-  "BLE",  # flake8-blind-except
-  "CPY",  # flake8-ccopyright
-  "C4",  # flake8-comprehensions
-  "C90",  # mccabe
-  "D",  # pydocstyle
-  "E",  # pycodestyle
-  "ERA",  # flake8-eradicate
-  "F",  # pyflakes
-  "FA",  # flake8-future-annotations
-  "FIX",  # flake8-fixme
-  "FLY",  # flynt
-  "G",  # flake8-logging-format
-  "ICN",  # flake8-import-conventions
-  "INT",  # flake8-gettext
-  "ISC",  # flake8-implicit-str-concat
-  "PERF",  # perflint
-  "PIE",  # flake8-pie
-  "PL",  # pylint
-  "PT",  # flake8-pytest-style
-  "PTH",  #  flake8-use-pathlib
-  "Q",  # flake8-quotes
-  "RET",  # flake8-return
-  "RSE",  # flake8-raise
-  "RUF",  # ruff
-  "S",  # flake8-bandit
-  "SIM",  # flake8-simplify
-  "TCH",  # flake8-type-checking
-  "TID",  # flake8-tidy-imports
-  "UP",  # pyupgrade
-  "W",  # pycodestyle
-  "T20",
+    "A",     # flake8-builtins
+    "ARG",   # flake8-unused-arguments
+    "B",     # bugbear
+    "BLE",   # flake8-blind-except
+    "CPY",   # flake8-copyright
+    "C4",    # flake8-comprehensions
+    "C90",   # mccabe
+    "D",     # pydocstyle
+    "DTZ",   # flake8-datetimez
+    "E",     # pycodestyle
+    "ERA",   # flake8-eradicate
+    "F",     # pyflakes
+    "FA",    # flake8-future-annotations
+    "FBT",   # flake8-boolean-trap
+    "FIX",   # flake8-fixme
+    "FLY",   # flynt
+    "FURB",  # refurb
+    "G",     # flake8-logging-format
+    "ICN",   # flake8-import-conventions
+    "INT",   # flake8-gettext
+    "ISC",   # flake8-implicit-str-concat
+    "LOG",   # flake8-logging
+    "N",     # flake8-naming
+    "NPY",   # numpy
+    "PERF",  # perflint
+    "PGH",   # pygrep-hooks
+    "PIE",   # flake8-pie
+    "PL",    # pylint
+    "PT",    # flake8-pytest-style
+    "PTH",   # flake8-use-pathlib
+    "PYI",   # flake8-pyi
+    "Q",     # flake8-quotes
+    "RET",   # flake8-return
+    "RSE",   # flake8-raise
+    "RUF",   # ruff
+    "S",     # flake8-bandig
+    "SIM",   # flake8-simplify
+    "SLF",   # flake8-self
+    "SLOT",  # flake8-slots
+    "TCH",   # flake8-type-checking
+    "TID",   # flake8-tidy-imports
+    "T20",   # flake8-print
+    "UP",    # pyupgrade
+    "W",     # pycodestyle
 ]
 ignore = [
-  "B019",  # do not complain that  functools.lru_cache might cause memory leaks
-  "D105",  # do not complain due to missing docstrings in magic methods
-  "FIX002",  # do not complain about valid TODO comments
-  "PLR0911",  # do not complain about too many return statements
-  "PLR0912",  # do not complain about too many branches
-  "PLR0913",  # do not complain about too many arguments to function call
-  "PLR2004",  # do not complain about magic values in comparisons
-  "S101",  # do not complain about using assert statements
+    "ARG002",   # unused method argument
+    "B019",     # functools.lru_cache might cause memory leaks
+    "CPY001",   # missing copyright notice at top of file
+    "D105",     # missing docstrings in magic methods
+    "FIX002",   # valid TODO comments
+    "PLR0911",  # do not complain about too many return statements
+    "PLR0912",  # do not complain about too many branches
+    "PLR0913",  # do not complain about too many arguments to function call
+    "PLR2004",  # magic values in comparisons
+    "PLR6301",  # method could be a function, class method, or static method
+    "S101",     # do not complain about using assert statements
 ]
-# Exclude a variety of commonly ignored directories.
 exclude = [
     ".bzr",
     ".direnv",
@@ -242,14 +256,19 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    "tests/fixtures/*.py",
+    "tests/fixtures/*.pyi",
 ]
-per-file-ignores = {}
-# Allow unused variables when underscore-prefixed.
+# Allow unused variables when underscore-prefixed:
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.mccabe]
-# Unlike Flake8, default to a complexity level of 10.
 max-complexity = 10
 
 [tool.ruff.pydocstyle]
 convention = "google"
+
+[tool.ruff.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",  # Use of `assert` detected
+]

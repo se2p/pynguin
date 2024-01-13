@@ -26,15 +26,15 @@ class Chromosome(metaclass=ABCMeta):
             orig: Original, if we clone an existing chromosome.
         """
         if orig is None:
-            self._computation_cache = ff.ComputationCache(self)
+            self.computation_cache = ff.ComputationCache(self)
             self.changed: bool = True
-            self._distance: float = -1
-            self._rank: int = -1
+            self.distance: float = -1
+            self.rank: int = -1
         else:
-            self._computation_cache = orig._computation_cache.clone(self)
+            self.computation_cache = orig.computation_cache.clone(self)
             self.changed = orig.changed
-            self._distance = orig._distance
-            self._rank = orig._rank
+            self.distance = orig.distance
+            self.rank = orig.rank
 
     @abstractmethod
     def size(self) -> int:
@@ -62,7 +62,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The list of currently configured fitness functions
         """
-        return self._computation_cache.get_fitness_functions()
+        return self.computation_cache.get_fitness_functions()
 
     def add_fitness_function(
         self,
@@ -73,7 +73,7 @@ class Chromosome(metaclass=ABCMeta):
         Args:
             fitness_function: A fitness function
         """
-        self._computation_cache.add_fitness_function(fitness_function)
+        self.computation_cache.add_fitness_function(fitness_function)
 
     def get_coverage_functions(self) -> list[ff.CoverageFunction]:
         """Provide the currently configured coverage functions of this chromosome.
@@ -81,7 +81,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The list of currently configured coverage functions.
         """
-        return self._computation_cache.get_coverage_functions()
+        return self.computation_cache.get_coverage_functions()
 
     def add_coverage_function(
         self,
@@ -92,11 +92,11 @@ class Chromosome(metaclass=ABCMeta):
         Args:
             coverage_function: A fitness function
         """
-        self._computation_cache.add_coverage_function(coverage_function)
+        self.computation_cache.add_coverage_function(coverage_function)
 
     def invalidate_cache(self) -> None:
         """Invalidate all cached computation values."""
-        self._computation_cache.invalidate_cache()
+        self.computation_cache.invalidate_cache()
 
     def get_fitness(self) -> float:
         """Provide a sum of the current fitness values.
@@ -104,7 +104,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The sum of the current fitness values
         """
-        return self._computation_cache.get_fitness()
+        return self.computation_cache.get_fitness()
 
     def get_fitness_for(self, fitness_function: ff.FitnessFunction) -> float:
         """Returns the fitness values of a specific fitness function.
@@ -115,7 +115,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             Its fitness value
         """
-        return self._computation_cache.get_fitness_for(fitness_function)
+        return self.computation_cache.get_fitness_for(fitness_function)
 
     def get_is_covered(self, fitness_function: ff.FitnessFunction) -> bool:
         """Check if the individual covers this fitness function.
@@ -126,7 +126,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             True, iff the individual covers the fitness function.
         """
-        return self._computation_cache.get_is_covered(fitness_function)
+        return self.computation_cache.get_is_covered(fitness_function)
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.
@@ -134,7 +134,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The mean coverage value
         """
-        return self._computation_cache.get_coverage()
+        return self.computation_cache.get_coverage()
 
     def get_coverage_for(self, coverage_function: ff.CoverageFunction) -> float:
         """Provides the coverage value for a certain coverage function.
@@ -146,7 +146,7 @@ class Chromosome(metaclass=ABCMeta):
         Returns:
             The coverage value for the fitness function
         """
-        return self._computation_cache.get_coverage_for(coverage_function)
+        return self.computation_cache.get_coverage_for(coverage_function)
 
     @abstractmethod
     def cross_over(self, other: Chromosome, position1: int, position2: int) -> None:
@@ -188,39 +188,3 @@ class Chromosome(metaclass=ABCMeta):
     @abstractmethod
     def __hash__(self):
         pass
-
-    @property
-    def distance(self) -> float:
-        """Provides the distance value of this chromosome.
-
-        Returns:
-            The distance value of this chromosome
-        """
-        return self._distance
-
-    @distance.setter
-    def distance(self, distance: float) -> None:
-        """Sets the distance value of this chromosome.
-
-        Args:
-            distance: The new distance value
-        """
-        self._distance = distance
-
-    @property
-    def rank(self) -> int:
-        """Provide the rank value of this chromosome.
-
-        Returns:
-            The rank value of this chromosome
-        """
-        return self._rank
-
-    @rank.setter
-    def rank(self, rank: int) -> None:
-        """Sets the rank value of this chromosome.
-
-        Args:
-            rank: The new rank value
-        """
-        self._rank = rank

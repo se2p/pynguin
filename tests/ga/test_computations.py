@@ -195,20 +195,20 @@ def test_run_test_suite_chromosome_cache():
     # Executed because it was changed.
     test_case0 = tcc.TestCaseChromosome(MagicMock())
     test_case0.changed = True
-    test_case0._computation_cache._fitness_cache = {"foo": "bar"}
+    test_case0.computation_cache._fitness_cache = {"foo": "bar"}
     # Executed because it has no result
     test_case1 = tcc.TestCaseChromosome(MagicMock())
     test_case1.changed = False
-    test_case1._computation_cache._fitness_cache = {"foo": "bar"}
+    test_case1.computation_cache._fitness_cache = {"foo": "bar"}
     # Not executed.
     test_case2 = tcc.TestCaseChromosome(MagicMock())
     test_case2.changed = False
-    test_case2._computation_cache._fitness_cache = {"foo": "bar"}
+    test_case2.computation_cache._fitness_cache = {"foo": "bar"}
     test_case2.set_last_execution_result(result2)
     indiv.add_test_case_chromosome(test_case0)
     indiv.add_test_case_chromosome(test_case1)
     indiv.add_test_case_chromosome(test_case2)
     assert func._run_test_suite_chromosome(indiv) == [result0, result1, result2]
-    assert test_case0._computation_cache._fitness_cache == {}
-    assert test_case1._computation_cache._fitness_cache == {}
-    assert test_case2._computation_cache._fitness_cache == {"foo": "bar"}
+    assert test_case0.computation_cache._fitness_cache == {}
+    assert test_case1.computation_cache._fitness_cache == {}
+    assert test_case2.computation_cache._fitness_cache == {"foo": "bar"}

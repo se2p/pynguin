@@ -227,7 +227,9 @@ class _ModuleParseResult:
     type4py_data: Type4pyData | None
 
 
-def parse_module(module_name: str, query_type4py: bool = False) -> _ModuleParseResult:
+def parse_module(
+    module_name: str, *, query_type4py: bool = False
+) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
     If the source code is not available it is not possible to build an AST.  In this
@@ -511,7 +513,7 @@ class TypeGuessingStats:
     )
 
 
-class ModuleTestCluster(TestCluster):
+class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     """A test cluster for a module.
 
     Contains all methods/constructors/functions and all required transitive
@@ -592,7 +594,7 @@ class ModuleTestCluster(TestCluster):
             if len(items) >= max_size or new_type in items:
                 return old_type
             new_type = UnionType(tuple(sorted((*items, new_type))))
-        elif old_type in (ANY, new_type):
+        elif old_type in {ANY, new_type}:
             new_type = UnionType((new_type,))
         else:
             new_type = UnionType(tuple(sorted((old_type, new_type))))
@@ -818,7 +820,7 @@ class ModuleTestCluster(TestCluster):
         ]
 
 
-class FilteredModuleTestCluster(TestCluster):
+class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     """A test cluster wrapping another test cluster.
 
     Delegates most methods to the wrapped delegate.  This cluster filters out
@@ -1237,7 +1239,7 @@ def __analyse_method(
 
 
 class _ParseResults(dict):
-    def __init__(self, query_type4py: bool):
+    def __init__(self, *, query_type4py: bool):
         super().__init__()
         self._query_type4py = query_type4py
 
@@ -1251,6 +1253,7 @@ def __resolve_dependencies(
     root_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
+    *,
     query_type4py: bool = False,
 ) -> None:
     parse_results: dict[str, _ModuleParseResult] = _ParseResults(
@@ -1402,6 +1405,7 @@ def __analyse_included_functions(
 def analyse_module(
     parsed_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    *,
     query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
@@ -1427,6 +1431,7 @@ def analyse_module(
 def generate_test_cluster(
     module_name: str,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
+    *,
     query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.

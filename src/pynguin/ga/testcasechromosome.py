@@ -53,11 +53,11 @@ class TestCaseChromosome(chrom.Chromosome):
             self._last_execution_result: ExecutionResult | None = None
             self._num_mutations = 0
         else:
-            self._test_case = orig._test_case.clone()
-            self._test_factory = orig._test_factory
+            self._test_case = orig._test_case.clone()  # noqa: SLF001
+            self._test_factory = orig._test_factory  # noqa: SLF001
             self.changed = orig.changed
-            self._last_execution_result = orig._last_execution_result
-            self._num_mutations = orig._num_mutations
+            self._last_execution_result = orig._last_execution_result  # noqa: SLF001
+            self._num_mutations = orig._num_mutations  # noqa: SLF001
 
     @property
     def test_case(self) -> tc.TestCase:

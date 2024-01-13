@@ -129,7 +129,7 @@ def _get_base_se_lookup() -> dict[int, tuple[int, int]]:
     }
 
 
-def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C901
+def _conditional_se(opcode: int, arg, *, jump: bool) -> tuple[int, int]:  # noqa: C901
     # jump based operations
     if opcode == op.SETUP_WITH:
         if not jump:
@@ -139,7 +139,7 @@ def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C
         if not jump:
             return 1, 2
         return 1, 0
-    if opcode in (op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP):
+    if opcode in {op.JUMP_IF_TRUE_OR_POP, op.JUMP_IF_FALSE_OR_POP}:
         if not jump:
             return 1, 0
         return 0, 0
@@ -152,7 +152,7 @@ def _conditional_se(opcode: int, arg, jump: bool) -> tuple[int, int]:  # noqa: C
         return 1, arg
     if opcode == op.UNPACK_EX:
         return 1, (arg & 0xFF) + (arg >> 8) + 1
-    if opcode in (op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING):
+    if opcode in {op.BUILD_TUPLE, op.BUILD_LIST, op.BUILD_SET, op.BUILD_STRING}:
         return arg, 1
     if opcode == op.BUILD_MAP:
         return (2 * arg), 1
@@ -197,7 +197,7 @@ class StackEffect:
     _se_lookup: dict[int, tuple[int, int]] = _get_base_se_lookup()
 
     @staticmethod
-    def stack_effect(opcode: int, arg, jump: bool = False) -> tuple[int, int]:
+    def stack_effect(opcode: int, arg, *, jump: bool = False) -> tuple[int, int]:
         """Get the stack effect.
 
         The effect is represented as a tuple of number of pops and number of pushes
@@ -218,4 +218,4 @@ class StackEffect:
         if opcode in StackEffect._se_lookup:
             return StackEffect._se_lookup[opcode]
 
-        return _conditional_se(opcode, arg, jump)
+        return _conditional_se(opcode, arg, jump=jump)

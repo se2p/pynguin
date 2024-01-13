@@ -71,6 +71,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         statement: stmt.Statement,
+        *,
         position: int = -1,
         allow_none: bool = True,
     ) -> None:
@@ -123,6 +124,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         accessible: gao.GenericAccessibleObject,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -188,6 +190,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         constructor: gao.GenericConstructor,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -248,6 +251,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         method: gao.GenericMethod,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -316,6 +320,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         field: gao.GenericField,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         callee: vr.VariableReference | None = None,
@@ -403,6 +408,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         function: gao.GenericFunction,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -585,11 +591,11 @@ class TestFactory:
         try:
             if accessible.is_method():
                 method = cast(gao.GenericMethod, accessible)
-                self.add_method(test_case, method, position, callee=callee)
+                self.add_method(test_case, method, position=position, callee=callee)
                 return True
             if accessible.is_field():
                 field = cast(gao.GenericField, accessible)
-                self.add_field(test_case, field, position, callee=callee)
+                self.add_field(test_case, field, position=position, callee=callee)
                 return True
             raise RuntimeError("Unknown accessible object")
         except ConstructionFailedException:
@@ -640,7 +646,7 @@ class TestFactory:
             return False
 
         try:
-            self.append_generic_accessible(test_case, accessible, position)
+            self.append_generic_accessible(test_case, accessible, position=position)
         except ConstructionFailedException:
             self._rollback_changes(test_case, previous_length, position)
             return False
@@ -919,6 +925,7 @@ class TestFactory:
         self,
         test_case: tc.TestCase,
         signature: InferredSignature,
+        *,
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
@@ -965,7 +972,7 @@ class TestFactory:
                 parameter_type,
                 position,
                 recursion_depth,
-                allow_none,
+                allow_none=allow_none,
             )
 
             if not var:
@@ -1014,6 +1021,7 @@ class TestFactory:
         parameter_type: ProperType,
         position: int,
         recursion_depth: int,
+        *,
         allow_none: bool,
     ) -> vr.VariableReference | None:
         """Best effort approach to return some kind of matching variable.
@@ -1065,6 +1073,7 @@ class TestFactory:
         parameter_type: ProperType,
         position: int,
         recursion_depth: int,
+        *,
         allow_none: bool,
     ) -> vr.VariableReference | None:
         if (
@@ -1077,12 +1086,12 @@ class TestFactory:
                 parameter_type,
                 position,
                 recursion_depth,
-                allow_none,
+                allow_none=allow_none,
             )
         ) is not None:
             return created_variable
         return self._get_variable_fallback(
-            test_case, parameter_type, position, recursion_depth, allow_none
+            test_case, parameter_type, position, recursion_depth, allow_none=allow_none
         )
 
     def _attempt_generation(
@@ -1091,6 +1100,7 @@ class TestFactory:
         parameter_type: ProperType,
         position: int,
         recursion_depth: int,
+        *,
         allow_none: bool,
     ) -> vr.VariableReference | None:
         # We only select a concrete type e.g. from a union, when we are forced to
@@ -1148,7 +1158,7 @@ class TestFactory:
         ret.distance = recursion_depth
         return ret
 
-    def _create_primitive(
+    def _create_primitive(  # noqa: PLR0917
         self,
         test_case: tc.TestCase,
         parameter_type: Instance,
@@ -1201,11 +1211,11 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         if isinstance(parameter_type, Instance):
-            if parameter_type.type.raw_type in (list, set):
+            if parameter_type.type.raw_type in {list, set}:
                 return self._create_list_or_set(
                     test_case, parameter_type, position, recursion_depth
                 )
-            if parameter_type.type.raw_type == dict:
+            if parameter_type.type.raw_type is dict:
                 return self._create_dict(
                     test_case, parameter_type, position, recursion_depth
                 )
@@ -1233,14 +1243,14 @@ class TestFactory:
         for _ in range(size):
             previous_length = test_case.size()
             var = self._create_or_reuse_variable(
-                test_case, element_type, position, recursion_depth + 1, True
+                test_case, element_type, position, recursion_depth + 1, allow_none=True
             )
             if var is not None:
                 elements.append(var)
             position += test_case.size() - previous_length
         collection_stmt = (
             stmt.ListStatement(test_case, parameter_type, elements)
-            if parameter_type.type.raw_type == list
+            if parameter_type.type.raw_type is list
             else stmt.SetStatement(test_case, parameter_type, elements)
         )
         ret = test_case.add_variable_creating_statement(collection_stmt, position)
@@ -1269,7 +1279,7 @@ class TestFactory:
         for arg_type in args:
             previous_length = test_case.size()
             var = self._create_or_reuse_variable(
-                test_case, arg_type, position, recursion_depth + 1, True
+                test_case, arg_type, position, recursion_depth + 1, allow_none=True
             )
             if var is not None:
                 elements.append(var)
@@ -1297,12 +1307,12 @@ class TestFactory:
         for _ in range(size):
             previous_length = test_case.size()
             key = self._create_or_reuse_variable(
-                test_case, key_type, position, recursion_depth + 1, True
+                test_case, key_type, position, recursion_depth + 1, allow_none=True
             )
             position += test_case.size() - previous_length
             previous_length = test_case.size()
             value = self._create_or_reuse_variable(
-                test_case, value_type, position, recursion_depth + 1, True
+                test_case, value_type, position, recursion_depth + 1, allow_none=True
             )
             position += test_case.size() - previous_length
             if key is not None and value is not None:

@@ -298,7 +298,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         owner: TypeInfo,
         method: TypesOfCallables,

@@ -41,12 +41,12 @@ def branchless_codeobject_goal():
 
 @pytest.fixture
 def branch_goal():
-    return bg.BranchGoal(0, 0, True)
+    return bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
 
 
 @pytest.fixture
 def statement_coverage_goal():
-    return bg.LineCoverageGoal(0, 42)
+    return bg.LineCoverageGoal(code_object_id=0, line_id=42)
 
 
 def test_root_branch_coverage_goal(branchless_codeobject_goal):
@@ -105,7 +105,7 @@ def test_root_eq_other(branchless_codeobject_goal):
 
 
 def test_non_root_eq_other(branch_goal):
-    other = bg.BranchGoal(0, 0, True)
+    other = bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
     assert branch_goal.__eq__(other)
 
 

@@ -62,7 +62,9 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
         super().__init__()
         self.in_function: bool = False
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AST:
+    def visit_AsyncFunctionDef(  # noqa: N802
+        self, node: ast.AsyncFunctionDef
+    ) -> ast.AST:
         if not self.in_function:
             self.in_function = True
             return getattr(super(), "visit_AsyncFunctionDef", super().generic_visit)(
@@ -70,13 +72,13 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
             )
         return ast.Pass()
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:  # noqa: N802
         if not self.in_function:
             self.in_function = True
             return getattr(super(), "visit_FunctionDef", super().generic_visit)(node)
         return ast.Pass()
 
-    def visit_Lambda(self, node: ast.Lambda) -> ast.AST:
+    def visit_Lambda(self, node: ast.Lambda) -> ast.AST:  # noqa: N802
         if not self.in_function:
             self.in_function = True
             return getattr(super(), "visit_Lambda", super().generic_visit)(node)
@@ -205,7 +207,7 @@ class _Context:
             A list of exceptions to be passed up to the parent context
         """
         name = self.__get_exception_name(node)
-        if name == "":
+        if not name:  # string `name` is empty
             if self.bare_handler_exceptions is not None:
                 return self.bare_handler_exceptions | self.exceptions
             if self.exceptions:
@@ -314,7 +316,7 @@ class _RaiseVisitor(ast.NodeVisitor):
         """
         return self.contexts[-1]
 
-    def visit_Raise(self, node: ast.Raise) -> ast.AST:
+    def visit_Raise(self, node: ast.Raise) -> ast.AST:  # noqa: N802
         bubbles = self.context.add_exception(node)
         if bubbles:
             assert len(self.contexts) > 1
@@ -325,7 +327,7 @@ class _RaiseVisitor(ast.NodeVisitor):
 
         return self.generic_visit(node)
 
-    def visit_Try(self, node: ast.Try) -> None:
+    def visit_Try(self, node: ast.Try) -> None:  # noqa: N802
         self.contexts.append(_Context())
         for child in node.body:
             self.visit(child)
@@ -369,7 +371,7 @@ class _RaiseVisitor(ast.NodeVisitor):
         context = self.contexts.pop()
         self.context.extend(context)
 
-    def visit_Assert(self, node: ast.Assert) -> ast.AST:
+    def visit_Assert(self, node: ast.Assert) -> ast.AST:  # noqa: N802
         # If we see an assert statement in the subject under test we expect that the
         # assertion can also be failing, thus it is legitimate to raise an
         # AssertionError.  Hence, we add the AssertionError to the set of raised
@@ -391,11 +393,11 @@ class _YieldVisitor(ast.NodeVisitor):
         super().__init__()
         self.yields: list[ast.Yield | ast.YieldFrom] = []
 
-    def visit_Yield(self, node: ast.Yield) -> ast.AST:
+    def visit_Yield(self, node: ast.Yield) -> ast.AST:  # noqa: N802
         self.yields.append(node)
         return self.generic_visit(node)
 
-    def visit_YieldFrom(self, node: ast.YieldFrom) -> ast.AST:
+    def visit_YieldFrom(self, node: ast.YieldFrom) -> ast.AST:  # noqa: N802
         self.yields.append(node)
         return self.generic_visit(node)
 
@@ -407,7 +409,7 @@ class _ReturnVisitor(ast.NodeVisitor):
         super().__init__()
         self.returns: list[ast.Return | None] = []
 
-    def visit_Return(self, node: ast.Return) -> ast.AST:
+    def visit_Return(self, node: ast.Return) -> ast.AST:  # noqa: N802
         self.returns.append(node)
         return self.generic_visit(node)
 
@@ -419,7 +421,7 @@ class _AssertVisitor(ast.NodeVisitor):
         super().__init__()
         self.asserts: list[ast.Assert] = []
 
-    def visit_Assert(self, node: ast.Assert) -> ast.AST:
+    def visit_Assert(self, node: ast.Assert) -> ast.AST:  # noqa: N802
         self.asserts.append(node)
         # Make sure that we also execute a visit_Assert method in another analysis
         # visitor class.

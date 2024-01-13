@@ -19,7 +19,7 @@ def assertion_trace():
 
 
 def test_empty(assertion_trace):
-    assert assertion_trace._trace == {}
+    assert assertion_trace.trace == {}
 
 
 def test_add_entry(assertion_trace):
@@ -27,29 +27,29 @@ def test_add_entry(assertion_trace):
     variable.get_statement_position.return_value = 42
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
-    assert assertion_trace._trace == {1337: OrderedSet([entry])}
+    assert assertion_trace.trace == {1337: OrderedSet([entry])}
 
 
 def test_add_entry_same_position(assertion_trace):
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
     assertion_trace.add_entry(1337, entry)
-    assert assertion_trace._trace == {1337: OrderedSet([entry])}
+    assert assertion_trace.trace == {1337: OrderedSet([entry])}
 
 
 def test_clear(assertion_trace):
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
     assertion_trace.clear()
-    assert assertion_trace._trace == {}
+    assert assertion_trace.trace == {}
 
 
 def test_clone(assertion_trace):
     entry = MagicMock()
     assertion_trace.add_entry(1337, entry)
     clone = assertion_trace.clone()
-    assert dict(clone._trace) == {1337: OrderedSet([entry])}
-    assert assertion_trace._trace is not clone._trace
+    assert dict(clone.trace) == {1337: OrderedSet([entry])}
+    assert assertion_trace.trace is not clone.trace
 
 
 def test_get_assertions_empty(assertion_trace):

@@ -1,11 +1,5 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
-#
-#  SPDX-License-Identifier: MIT
-
-#  This file is part of Pynguin.
-#
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -103,7 +97,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
 
     @staticmethod
     def __create_functions(
-        results: list[_AstConversionResult], with_self_arg: bool
+        results: list[_AstConversionResult], *, with_self_arg: bool
     ) -> list[ast.stmt]:
         functions: list[ast.stmt] = []
         for i, result in enumerate(results):
@@ -112,7 +106,10 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             if len(nodes) == 0:
                 nodes = [ast.Pass()]
             function_node = PyTestChromosomeToAstVisitor.__create_function_node(
-                function_name, nodes, with_self_arg, result.exception_status
+                function_name,
+                nodes,
+                with_self_arg=with_self_arg,
+                is_failing=result.exception_status,
             )
             functions.append(function_node)
         return functions
@@ -121,6 +118,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
     def __create_function_node(
         function_name: str,
         nodes: list[ast.stmt],
+        *,
         with_self_arg: bool,
         is_failing: bool,
     ) -> ast.FunctionDef:
@@ -143,7 +141,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         )
 
     @staticmethod
-    def __create_decorator_list(is_failing: bool) -> list[ast.expr]:
+    def __create_decorator_list(is_failing: bool) -> list[ast.expr]:  # noqa: FBT001
         if is_failing:
             return [
                 ast.Call(
@@ -173,7 +171,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
             self._module_aliases, self._common_modules
         )
-        functions = self.__create_functions(self._conversion_results, False)
+        functions = self.__create_functions(
+            self._conversion_results, with_self_arg=False
+        )
         return ast.Module(body=import_nodes + functions, type_ignores=[])
 
 
@@ -184,7 +184,7 @@ _PYNGUIN_FILE_HEADER = (
 
 
 def save_module_to_file(
-    module: ast.Module, target: Path, format_with_black: bool = True
+    module: ast.Module, target: Path, *, format_with_black: bool = True
 ) -> None:
     """Saves an AST module to a file.
 
@@ -201,7 +201,7 @@ def save_module_to_file(
         if format_with_black:
             # Import of black might cause problems if it is a SUT dependency,
             # so we only import it if we need it.
-            import black
+            import black  # noqa: PLC0415
 
             output = black.format_str(output, mode=black.FileMode())
         file.write(output)

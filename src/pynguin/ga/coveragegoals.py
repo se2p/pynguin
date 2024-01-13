@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING
-from typing import Any
 
 import pynguin.ga.computations as ff
 import pynguin.utils.controlflowdistance as cfd
@@ -84,7 +83,7 @@ class LineCoverageGoal(AbstractCoverageGoal):
     def __hash__(self) -> int:
         return 31 + self._line_id
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, LineCoverageGoal):
@@ -120,7 +119,7 @@ class CheckedCoverageGoal(AbstractCoverageGoal):
     def __hash__(self) -> int:
         return 31 + self._line_id
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, CheckedCoverageGoal):
@@ -134,6 +133,7 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
     def __init__(
         self,
         code_object_id: int,
+        *,
         is_branchless_code_object: bool = False,
         is_branch: bool = False,
     ):
@@ -207,7 +207,7 @@ class BranchlessCodeObjectGoal(AbstractBranchCoverageGoal):
     def __hash__(self) -> int:
         return 31 + self._code_object_id
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, BranchlessCodeObjectGoal):
@@ -219,7 +219,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
     """The true/false evaluation of a jump condition."""
 
     def __init__(  # noqa: D107
-        self, code_object_id: int, predicate_id: int, value: bool
+        self, code_object_id: int, predicate_id: int, *, value: bool
     ):
         super().__init__(code_object_id=code_object_id, is_branch=True)
         self._predicate_id = predicate_id
@@ -237,7 +237,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
         distances = trace.true_distances if self._value else trace.false_distances
         return (
             self._predicate_id in trace.executed_predicates
-            and distances[self._predicate_id] == 0.0
+            and abs(distances[self._predicate_id]) < 0.00001
         )
 
     @property
@@ -271,7 +271,7 @@ class BranchGoal(AbstractBranchCoverageGoal):
         result = prime * result + int(self._value)
         return result  # noqa: RET504
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, BranchGoal):
@@ -336,8 +336,12 @@ class BranchGoalPool:
         for predicate_id, meta in subject_properties.existing_predicates.items():
             entry: list[BranchGoal] = []
             goal_map[predicate_id] = entry
-            entry.append(BranchGoal(meta.code_object_id, predicate_id, True))
-            entry.append(BranchGoal(meta.code_object_id, predicate_id, False))
+            entry.extend(
+                (
+                    BranchGoal(meta.code_object_id, predicate_id, value=True),
+                    BranchGoal(meta.code_object_id, predicate_id, value=False),
+                )
+            )
         return goal_map
 
 

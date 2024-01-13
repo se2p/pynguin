@@ -290,7 +290,10 @@ class CallBasedVariableReference(VariableReference):
     ) -> bool:
         if not isinstance(other, self.__class__):
             return False
-        return super().structural_eq(other, memo) and self._callable == other._callable
+        return (
+            super().structural_eq(other, memo)
+            and self._callable == other._callable  # noqa: SLF001
+        )
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash((super().structural_hash(memo), self._callable))
@@ -347,8 +350,9 @@ class FieldReference(Reference):
     ) -> bool:
         if not isinstance(other, FieldReference):
             return False
-        return self._field == other._field and self._source.structural_eq(
-            other._source, memo
+        return (
+            self._field == other._field  # noqa: SLF001
+            and self._source.structural_eq(other._source, memo)  # noqa: SLF001
         )
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
@@ -417,7 +421,7 @@ class StaticFieldReference(Reference):
     ) -> bool:
         if not isinstance(other, StaticFieldReference):
             return False
-        return self._field == other._field
+        return self._field == other._field  # noqa: SLF001
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash(self._field)
@@ -477,7 +481,7 @@ class StaticModuleFieldReference(Reference):
     ) -> bool:
         if not isinstance(other, StaticModuleFieldReference):
             return False
-        return self._field == other._field
+        return self._field == other._field  # noqa: SLF001
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102
         return hash(self._field)

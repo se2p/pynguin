@@ -31,10 +31,10 @@ def chromosome():
     fitness_func = MagicMock(ff.FitnessFunction)
     fitness_func.is_maximisation_function.return_value = False
     chrom.add_fitness_function(fitness_func)
-    chrom._computation_cache._fitness_cache[fitness_func] = 0
+    chrom.computation_cache._fitness_cache[fitness_func] = 0
     coverage_func = MagicMock()
     chrom.add_coverage_function(coverage_func)
-    chrom._computation_cache._coverage_cache[coverage_func] = 0
+    chrom.computation_cache._coverage_cache[coverage_func] = 0
     chrom.changed = False
     return chrom
 

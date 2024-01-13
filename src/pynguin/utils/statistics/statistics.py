@@ -315,7 +315,7 @@ class _SearchStatistics:
         return self._output_variables
 
     def _get_output_variables(
-        self, individual, skip_missing: bool = True
+        self, individual, *, skip_missing: bool = True
     ) -> dict[str, sb.OutputVariable]:
         output_variables_map: dict[str, sb.OutputVariable] = {}
 

@@ -56,7 +56,7 @@ class Assertion:
         """
 
     @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         pass  # pragma: no cover
 
     @abstractmethod
@@ -124,7 +124,7 @@ class TypeNameAssertion(ReferenceAssertion):
     ) -> TypeNameAssertion:
         return TypeNameAssertion(self._source.clone(memo), self._module, self._qualname)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, TypeNameAssertion)
             and self._source == other._source
@@ -167,7 +167,7 @@ class FloatAssertion(ReferenceAssertion):
     ) -> FloatAssertion:
         return FloatAssertion(self.source.clone(memo), self._value)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, FloatAssertion)
             and self._source == other._source
@@ -214,7 +214,7 @@ class ObjectAssertion(ReferenceAssertion):
     ) -> ObjectAssertion:
         return ObjectAssertion(self.source.clone(memo), self._object)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:  # noqa: PYI032
         return (
             isinstance(other, ObjectAssertion)
             and self._source == other._source
@@ -262,7 +262,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
     ) -> CollectionLengthAssertion:
         return CollectionLengthAssertion(self.source.clone(memo), self._length)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, CollectionLengthAssertion)
             and self._source == other._source
@@ -319,7 +319,7 @@ class ExceptionAssertion(Assertion):
         """
         return self._module
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, ExceptionAssertion)
             and self._exception_type_name == other._exception_type_name

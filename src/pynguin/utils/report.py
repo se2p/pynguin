@@ -13,7 +13,7 @@ import importlib.resources
 import inspect
 import sys
 import typing
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # noqa: N817,S405
 
 import pygments
 
@@ -263,7 +263,7 @@ def render_coverage_report(
         )
 
 
-def render_xml_coverage_report(
+def render_xml_coverage_report(  # noqa: PLR0914
     cov_report: CoverageReport, report_path: Path, timestamp: datetime.datetime
 ) -> None:
     """Render the given coverage report to the given file using Cobertura XML style.

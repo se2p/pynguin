@@ -11,7 +11,6 @@ import logging
 
 from itertools import islice
 from typing import TYPE_CHECKING
-from typing import Any
 
 import pynguin.testcase.testcase as tc
 
@@ -104,7 +103,7 @@ class DefaultTestCase(tc.TestCase):
                 # If the original statement created a variable, then so does the clone
                 # Thus we know that clone.ret_val is not None
                 memo[statement.ret_val] = copy.ret_val  # type: ignore[assignment]
-            test_case._statements.append(copy)
+            test_case._statements.append(copy)  # noqa: SLF001
             copy.assertions = statement.copy_assertions(memo)
         return test_case
 
@@ -140,7 +139,7 @@ class DefaultTestCase(tc.TestCase):
     def size(self) -> int:  # noqa: D102
         return len(self._statements)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, DefaultTestCase):

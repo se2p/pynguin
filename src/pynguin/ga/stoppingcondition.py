@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
     """Provides an interface for a stopping condition of an algorithm."""
 
-    def __init__(self, observes_execution: bool = False):  # noqa: D107
+    def __init__(self, *, observes_execution: bool = False):  # noqa: D107
         self._observes_execution = observes_execution
 
     @abstractmethod

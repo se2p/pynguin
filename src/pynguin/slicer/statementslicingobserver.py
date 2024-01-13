@@ -76,12 +76,12 @@ class StatementSlicingObserver(ex.ExecutionObserver):
                 last_traced_instr.code_object_id
             ]
             slicing_instruction = UniqueInstruction(
-                last_traced_instr.file,
-                last_traced_instr.name,
-                last_traced_instr.code_object_id,
-                last_traced_instr.node_id,
-                code_object,
-                last_traced_instr.offset,
+                file=last_traced_instr.file,
+                name=last_traced_instr.name,
+                code_object_id=last_traced_instr.code_object_id,
+                node_id=last_traced_instr.node_id,
+                code_meta=code_object,
+                offset=last_traced_instr.offset,
                 arg=last_traced_instr.argument,
                 lineno=last_traced_instr.lineno,
             )

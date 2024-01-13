@@ -20,6 +20,7 @@ from collections import Counter
 from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
+from itertools import starmap
 from typing import Any
 from typing import Final
 from typing import ForwardRef
@@ -156,7 +157,7 @@ class TupleType(ProperType):
     """
 
     def __init__(  # noqa: D107
-        self, args: tuple[ProperType, ...], unknown_size: bool = False
+        self, args: tuple[ProperType, ...], *, unknown_size: bool = False
     ):
         self.args: Final[tuple[ProperType, ...]] = args
         self.unknown_size: Final[bool] = unknown_size
@@ -499,9 +500,8 @@ class _SubtypeVisitor(TypeVisitor[bool]):
                 # TODO(fk) Handle unknown size.
                 return False
             return all(
-                self.sub_type_check(left_elem, right_elem)
-                for left_elem, right_elem in zip(
-                    left.args, self.right.args, strict=True
+                starmap(
+                    self.sub_type_check, zip(left.args, self.right.args, strict=True)
                 )
             )
         return False
@@ -614,7 +614,7 @@ class TypeInfo:
         # TODO(fk) properly implement generics!
         # For now we just store the number of generic parameters for set, dict and list.
         self.num_hardcoded_generic_parameters: int | None = (
-            2 if raw_type is dict else 1 if raw_type in (set, list) else None
+            2 if raw_type is dict else 1 if raw_type in {set, list} else None
         )
 
     @staticmethod
@@ -1036,7 +1036,7 @@ class InferredSignature:
                 )
         return self.type_system.make_instance(randomness.choice(positive_types))
 
-    def _guess_generic_arguments(
+    def _guess_generic_arguments(  # noqa: PLR0917
         self,
         knowledge: tt.UsageTraceNode,
         recursion_depth: int,
@@ -1124,7 +1124,10 @@ class InferredSignature:
         return None
 
     def log_stats_and_guess_signature(  # noqa: C901
-        self, is_constructor: bool, callable_full_name: str, stats: TypeGuessingStats
+        self,
+        is_constructor: bool,  # noqa: FBT001
+        callable_full_name: str,
+        stats: TypeGuessingStats,
     ) -> None:
         """Logs some statistics and creates a guessed signature.
 
@@ -1211,7 +1214,7 @@ class InferredSignature:
                 sig_info.partial_type_matches[f"({left!s}, {right!s})"] = str(match)
 
 
-class TypeSystem:
+class TypeSystem:  # noqa: PLR0904
     """Implements Pynguin's internal type system.
 
     Provides a simple inheritance graph relating various classes using their subclass
