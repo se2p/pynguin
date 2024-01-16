@@ -40,20 +40,20 @@ from collections.abc import Iterable
 from collections.abc import Iterator
 from collections.abc import MutableSet
 from collections.abc import Sequence
-from collections.abc import Set
+from collections.abc import Set as AbstractSet
 from typing import Any
 from typing import TypeVar
 from typing import cast
 from typing import overload
 
+from typing_extensions import Self
+
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)
 
-_TAbstractOrderedSet = TypeVar("_TAbstractOrderedSet", bound="_AbstractOrderedSet")
 
-
-class _AbstractOrderedSet(Set[T], Sequence[T]):
+class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):  # noqa: PLW1641
     """Common functionality shared between OrderedSet and FrozenOrderedSet."""
 
     @overload
@@ -97,7 +97,7 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
     def __len__(self) -> int:
         return len(self._items)
 
-    def __copy__(self: _TAbstractOrderedSet) -> _TAbstractOrderedSet:
+    def __copy__(self) -> Self:
         return self.__class__(self)
 
     def __contains__(self, key: Any) -> bool:
@@ -115,19 +115,17 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
             return f"{name}()"
         return f"{name}({list(self)!r})"
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
         return len(self._items) == len(other._items) and all(
             x == y for x, y in zip(self._items, other._items, strict=True)
         )
 
-    def __or__(  # type: ignore[override]
-        self: _TAbstractOrderedSet, other: Iterable[T]
-    ) -> _TAbstractOrderedSet:
+    def __or__(self, other: Iterable[T]) -> Self:  # type: ignore[override]
         return self.union(other)
 
-    def union(self: _TAbstractOrderedSet, *others: Iterable[T]) -> _TAbstractOrderedSet:
+    def union(self, *others: Iterable[T]) -> Self:
         """Combines all unique items.
 
         Each item's order is defined by its first appearance # noqa: DAR201,DAR101.
@@ -151,13 +149,11 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
         merged_iterables = itertools.chain([cast(Iterable[T], self)], others)
         return self.__class__(itertools.chain.from_iterable(merged_iterables))
 
-    def __and__(self: _TAbstractOrderedSet, other: Iterable[T]) -> _TAbstractOrderedSet:
+    def __and__(self, other: Iterable[T]) -> Self:
         # The parent class's implementation of this is backwards.
         return self.intersection(other)
 
-    def intersection(
-        self: _TAbstractOrderedSet, *others: Iterable[T]
-    ) -> _TAbstractOrderedSet:
+    def intersection(self, *others: Iterable[T]) -> Self:
         """Returns elements in common between all sets.
 
         Order is defined only by the first set.
@@ -174,9 +170,7 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
         common = set.intersection(*(set(other) for other in others))
         return cls(item for item in self if item in common)
 
-    def difference(
-        self: _TAbstractOrderedSet, *others: Iterable[T]
-    ) -> _TAbstractOrderedSet:
+    def difference(self, *others: Iterable[T]) -> Self:
         """Returns all elements that are in this set but not the others.
 
         Args:
@@ -225,14 +219,10 @@ class _AbstractOrderedSet(Set[T], Sequence[T]):
             pass
         return all(item in self for item in other)
 
-    def __xor__(  # type: ignore[override]
-        self: _TAbstractOrderedSet, other: Iterable[T]
-    ) -> _TAbstractOrderedSet:
+    def __xor__(self, other: Iterable[T]) -> Self:  # type: ignore[override]
         return self.symmetric_difference(other)
 
-    def symmetric_difference(
-        self: _TAbstractOrderedSet, other: Iterable[T]
-    ) -> _TAbstractOrderedSet:
+    def symmetric_difference(self, other: Iterable[T]) -> Self:
         """Computes the symmetric difference.
 
         Return the symmetric difference of this OrderedSet and another set as a new

@@ -133,8 +133,13 @@ def test__track_one_coverage_while_optimising_for_other(
     ]
     algorithm = MagicMock(test_suite_coverage_functions=[existing(MagicMock())])
     to_calculate = []
-    gen._add_additional_metrics(
-        algorithm, {optimize}, MagicMock(), set(), track, to_calculate
+    gen.add_additional_metrics(
+        algorithm=algorithm,
+        cov_metrics={optimize},
+        executor=MagicMock(),
+        metrics_for_reinstrumentation=set(),
+        output_variables=track,
+        to_calculate=to_calculate,
     )
     assert [type(elem[1]) for elem in to_calculate] == added
 

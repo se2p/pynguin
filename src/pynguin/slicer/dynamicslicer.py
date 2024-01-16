@@ -144,7 +144,7 @@ class DynamicSlicer:
         """
         self._known_code_objects = known_code_objects
 
-    def slice(  # noqa: A003, C901
+    def slice(  # noqa: C901
         self,
         trace: ExecutionTrace,
         slicing_criterion: SlicingCriterion,
@@ -231,12 +231,12 @@ class DynamicSlicer:
                         prev_import_back_call.opcode, arg=None, jump=False
                     )[0]
                     slc.trace_stack.update_pop_operations(
-                        num_import_pops, prev_import_back_call, True
+                        num_import_pops, prev_import_back_call, in_slice=True
                     )
             # Implicit data dependency (over stack)
             if slc.stack_simulation:
                 stack_dep, include_use = slc.trace_stack.update_push_operations(
-                    slc.pushes, last_state.returned
+                    slc.pushes, returned=last_state.returned
                 )
                 if stack_dep:
                     imp_data_dep = True
@@ -282,7 +282,7 @@ class DynamicSlicer:
         self._update_stack_effects(last_state, last_unique_instr, slc)
         return prev_import_back_call
 
-    def _trace_housekeeping(
+    def _trace_housekeeping(  # noqa: PLR0917
         self, criterion_in_slice, include_use, last_traced_instr, last_unique_instr, slc
     ):
         # Add instruction to slice
@@ -299,7 +299,7 @@ class DynamicSlicer:
         # Add current instruction to the stack
         if slc.stack_simulation:
             slc.trace_stack.update_pop_operations(
-                slc.pops, last_unique_instr, criterion_in_slice
+                slc.pops, last_unique_instr, in_slice=criterion_in_slice
             )
 
     @staticmethod
@@ -411,7 +411,7 @@ class DynamicSlicer:
 
         raise InstructionNotFoundException
 
-    def create_unique_instruction(
+    def create_unique_instruction(  # noqa: PLR0917
         self, file: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         """Creates and returns a unique instruction object from an instruction.
@@ -428,14 +428,14 @@ class DynamicSlicer:
         """
         code_meta = self._known_code_objects[code_object_id]
         return UniqueInstruction(
-            file,
-            instr.name,
-            code_object_id,
-            node_id,
-            code_meta,
-            offset,
-            instr.arg,
-            instr.lineno,
+            file=file,
+            name=instr.name,
+            code_object_id=code_object_id,
+            node_id=node_id,
+            code_meta=code_meta,
+            offset=offset,
+            arg=instr.arg,
+            lineno=instr.lineno,
         )
 
     def check_control_dependency(
@@ -601,7 +601,7 @@ class DynamicSlicer:
         complete_cover = False
 
         # Check local variables
-        if traced_instr.opcode in (op.STORE_FAST, op.DELETE_FAST):
+        if traced_instr.opcode in {op.STORE_FAST, op.DELETE_FAST}:
             complete_cover = self._check_scope_for_def(
                 context.var_uses_local,
                 traced_instr.argument,
@@ -610,7 +610,7 @@ class DynamicSlicer:
             )
 
         # Check global variables (with *_NAME instructions)
-        elif traced_instr.opcode in (op.STORE_NAME, op.DELETE_NAME):
+        elif traced_instr.opcode in {op.STORE_NAME, op.DELETE_NAME}:
             if (
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id] is not None
@@ -634,7 +634,7 @@ class DynamicSlicer:
                 )
 
         # Check global variables
-        elif traced_instr.opcode in (op.STORE_GLOBAL, op.DELETE_GLOBAL):
+        elif traced_instr.opcode in {op.STORE_GLOBAL, op.DELETE_GLOBAL}:
             complete_cover = self._check_scope_for_def(
                 context.var_uses_global,
                 traced_instr.argument,
@@ -643,7 +643,7 @@ class DynamicSlicer:
             )
 
         # Check nonlocal variables
-        elif traced_instr.opcode in (op.STORE_DEREF, op.DELETE_DEREF):
+        elif traced_instr.opcode in {op.STORE_DEREF, op.DELETE_DEREF}:
             complete_cover = self._check_scope_for_def(
                 context.var_uses_nonlocal,
                 traced_instr.argument,
@@ -735,11 +735,11 @@ class DynamicSlicer:
         elif traced_instr.opcode == op.LOAD_GLOBAL:
             context.var_uses_global.add((traced_instr.argument, traced_instr.file))
         # Add nonlocal variables
-        elif traced_instr.opcode in [
+        elif traced_instr.opcode in {
             op.LOAD_CLOSURE,
             op.LOAD_DEREF,
             op.LOAD_CLASSDEREF,
-        ]:
+        }:
             variable_scope = set()
             current_code_object_id = traced_instr.code_object_id
             while True:
@@ -865,14 +865,14 @@ class AssertionSlicer:
         assert original_instr
 
         unique_instr = UniqueInstruction(
-            traced_instr.file,
-            traced_instr.name,
-            traced_instr.code_object_id,
-            traced_instr.node_id,
-            code_meta,
-            traced_instr.offset,
-            original_instr.arg,  # type: ignore[union-attr]
-            traced_instr.lineno,
+            file=traced_instr.file,
+            name=traced_instr.name,
+            code_object_id=traced_instr.code_object_id,
+            node_id=traced_instr.node_id,
+            code_meta=code_meta,
+            offset=traced_instr.offset,
+            arg=original_instr.arg,  # type: ignore[union-attr]
+            lineno=traced_instr.lineno,
         )
 
         return SlicingCriterion(unique_instr, assertion.trace_position - 1)

@@ -117,6 +117,7 @@ class InstrumentationFinder(MetaPathFinder):
 
     def __init__(
         self,
+        *,
         original_pathfinder,
         module_to_instrument: str,
         tracer: ExecutionTracer,
@@ -264,9 +265,9 @@ def install_import_hook(
         raise RuntimeError("Cannot find a PathFinder in sys.meta_path")
 
     hook = InstrumentationFinder(
-        to_wrap,
-        module_to_instrument,
-        tracer,
+        original_pathfinder=to_wrap,
+        module_to_instrument=module_to_instrument,
+        tracer=tracer,
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )

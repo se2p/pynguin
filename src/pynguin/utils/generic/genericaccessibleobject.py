@@ -230,9 +230,7 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, metaclass=abc.ABC
         return self._raised_exceptions
 
     @property
-    def callable(  # noqa: A003
-        self,
-    ) -> TypesOfCallables:
+    def callable(self) -> TypesOfCallables:
         """Provides the callable.
 
         Returns:
@@ -300,7 +298,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         owner: TypeInfo,
         method: TypesOfCallables,

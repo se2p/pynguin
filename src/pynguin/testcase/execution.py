@@ -514,7 +514,7 @@ class ReturnTypeObserver(ExecutionObserver):
                     for t in result.raw_return_type_generic_args[idx]
                 )
             )
-        if isinstance(proper, Instance) and proper.type.raw_type in (list, set, dict):
+        if isinstance(proper, Instance) and proper.type.raw_type in {list, set, dict}:
             return Instance(
                 proper.type,
                 tuple(
@@ -543,11 +543,11 @@ class ReturnTypeObserver(ExecutionObserver):
             # TODO(fk) Hardcoded support for generics.
             # Try to guess generic arguments from elements.
 
-            if type(value) in (set, list) and len(value) > 0:
+            if type(value) in {set, list} and len(value) > 0:
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(next(iter(value))),
                 )
-            elif type(value) is dict and len(value) > 0:
+            elif isinstance(value, dict) and len(value) > 0:
                 first_item = next(iter(value.items()))
                 self._return_type_local_state.return_type_generic_args[position] = (
                     type(first_item[0]),
@@ -630,7 +630,7 @@ class ExecutionTrace:
             self.false_distances.get(predicate, inf), distance_false
         )
 
-    def add_instruction(
+    def add_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -654,7 +654,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_memory_instruction(
+    def add_memory_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -664,8 +664,8 @@ class ExecutionTrace:
         offset: int,
         arg_name: str,
         arg_address: int,
-        is_mutable_type: bool,
-        object_creation: bool,
+        is_mutable_type: bool,  # noqa: FBT001
+        object_creation: bool,  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedMemoryInstruction object and adds it to the trace.
 
@@ -695,7 +695,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_attribute_instruction(
+    def add_attribute_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -706,7 +706,7 @@ class ExecutionTrace:
         attr_name: str,
         src_address: int,
         arg_address: int,
-        is_mutable_type: bool,
+        is_mutable_type: bool,  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedAttributeInstruction object and adds it to the trace.
 
@@ -736,7 +736,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_jump_instruction(
+    def add_jump_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -762,7 +762,7 @@ class ExecutionTrace:
         )
         self.executed_instructions.append(executed_instr)
 
-    def add_call_instruction(
+    def add_call_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -789,7 +789,7 @@ class ExecutionTrace:
 
         self.executed_instructions.append(executed_instr)
 
-    def add_return_instruction(
+    def add_return_instruction(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -936,7 +936,7 @@ class ExecutionResult:
         )
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
 
 @dataclass
@@ -957,7 +957,7 @@ class LineMetaData:
         # and line number are the unique identifiers
         return 31 + self.line_number + hash(self.file_name)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, LineMetaData):
@@ -991,7 +991,7 @@ class SubjectProperties:
     object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
 
 
-class ExecutionTracer:
+class ExecutionTracer:  # noqa: PLR0904
     """Tracks branch distances and covered statements during execution.
 
     The results are stored in an execution trace.
@@ -1394,7 +1394,7 @@ class ExecutionTracer:
             predicate=predicate,
         )
 
-    def track_generic(
+    def track_generic(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1433,7 +1433,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def track_memory_access(
+    def track_memory_access(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1508,7 +1508,7 @@ class ExecutionTracer:
             object_creation,
         )
 
-    def track_attribute_access(
+    def track_attribute_access(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1575,7 +1575,7 @@ class ExecutionTracer:
             mutable_type,
         )
 
-    def track_jump(
+    def track_jump(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1616,7 +1616,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
-    def track_call(
+    def track_call(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1657,7 +1657,7 @@ class ExecutionTracer:
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
-    def track_return(
+    def track_return(  # noqa: PLR0917
         self,
         module: str,
         code_object_id: int,
@@ -1796,7 +1796,7 @@ class ExecutionTracer:
                 return id(cls)
 
         # This would lead to an infinite recursion and thus a crash of the program
-        if attribute in ("__getattr__", "__getitem__"):
+        if attribute in {"__getattr__", "__getitem__"}:
             return -1
         # Check if the dictionary of the object on which lookup is performed
         if (
@@ -2116,7 +2116,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # Repeatedly opening/closing devnull caused problems.
         # This is closed when Pynguin terminates, since we don't need this output
         # anyway this is acceptable.
-        self._null_file = open(os.devnull, mode="w")  # noqa: PTH123, SIM115
+        self._null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
 
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement
@@ -2183,7 +2183,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         """
         return self._tracer
 
-    def set_instrument(self, instrument: bool) -> None:
+    def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
         """Set if the test is to be instrumented as well.
 
         Args:

@@ -68,9 +68,9 @@ class TraceStack:
         # Since we do not exactly know what the stack state at the slicing criterion is
         # and because the behavior is reversed, we fill the stack with some frames
         # (having some block stacks inside them)
-        for _ in range(0, DEFAULT_STACK_HEIGHT):
+        for _ in range(DEFAULT_STACK_HEIGHT):
             frame_stack = FrameStack(-1, [])
-            for _ in range(0, DEFAULT_FRAME_HEIGHT):
+            for _ in range(DEFAULT_FRAME_HEIGHT):
                 block_stack = BlockStack([])
                 frame_stack.block_stacks.append(block_stack)
             self.frame_stacks.append(frame_stack)
@@ -95,7 +95,7 @@ class TraceStack:
             assert len(frame.block_stacks) == 1, "More than one block on a popped stack"
 
     def update_push_operations(
-        self, num_pushes: int, returned: bool
+        self, num_pushes: int, *, returned: bool
     ) -> tuple[bool, bool]:
         """Simulate the push operations on the stack.
 
@@ -123,7 +123,7 @@ class TraceStack:
                 imp_dependency = True
 
         # Handle push operations
-        for _ in range(0, num_pushes):
+        for _ in range(num_pushes):
             try:
                 tos_instr = curr_block_stack.pop()
             except IndexError:
@@ -141,19 +141,19 @@ class TraceStack:
                 # not be searched for, since this would widen the scope of the search
                 # for complete objects rather than only for the attribute thereof.
                 if (
-                    tos_instr.opcode in (op.STORE_ATTR, op.STORE_SUBSCR)
+                    tos_instr.opcode in {op.STORE_ATTR, op.STORE_SUBSCR}
                     and len(curr_block_stack) > 0
                 ):
                     tos1_instr = curr_block_stack.peek()
                     if tos1_instr and tos1_instr.opcode == tos_instr.opcode:
                         include_use = False
-                if tos_instr.opcode in (op.LOAD_ATTR, op.DELETE_ATTR, op.IMPORT_FROM):
+                if tos_instr.opcode in {op.LOAD_ATTR, op.DELETE_ATTR, op.IMPORT_FROM}:
                     include_use = False
 
         return imp_dependency, include_use
 
     def update_pop_operations(
-        self, num_pops: int, unique_instr: UniqueInstruction, in_slice: bool
+        self, num_pops: int, unique_instr: UniqueInstruction, *, in_slice: bool
     ) -> None:
         """Pushes a given number of instructions onto the stack.
 
@@ -171,7 +171,7 @@ class TraceStack:
             unique_instr.in_slice = True
 
         # Handle pop operations
-        for _ in range(0, num_pops):
+        for _ in range(num_pops):
             curr_block_stack.push(unique_instr)
 
     def get_attribute_uses(self):

@@ -245,7 +245,7 @@ class _BranchFitnessGraph:
                 goal = bg.BranchGoal(
                     predicate_meta_data.code_object_id,
                     dependency.predicate_id,
-                    dependency.branch_value,
+                    value=dependency.branch_value,
                 )
                 dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)
                 self._graph.add_edge(dependent_ff, fitness)

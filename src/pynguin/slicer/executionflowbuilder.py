@@ -38,6 +38,7 @@ class UniqueInstruction(Instr):
 
     def __init__(
         self,
+        *,
         file: str,
         name: str,
         code_object_id: int,
@@ -261,7 +262,7 @@ class ExecutionFlowBuilder:
             efb_state.offset,
         )
 
-    def get_last_instruction(
+    def get_last_instruction(  # noqa: PLR0917
         self,
         file: str,
         instr: Instr,
@@ -356,7 +357,7 @@ class ExecutionFlowBuilder:
             import_back_call=efb_state.import_back_call,
         )
 
-    def _determine_last_instruction(
+    def _determine_last_instruction(  # noqa: PLR0917
         self,
         efb_state: ExecutionFlowBuilderState,
         basic_block,
@@ -393,7 +394,7 @@ class ExecutionFlowBuilder:
             last_instr = self._continue_at_last_basic_block(efb_state)
         return last_instr
 
-    def _handle_return_instructions(
+    def _handle_return_instructions(  # noqa: PLR0917
         self,
         efb_state: ExecutionFlowBuilderState,
         instr,
@@ -465,7 +466,7 @@ class ExecutionFlowBuilder:
         last_instr,
         last_traced_instr: ExecutedInstruction,
     ) -> Instr:
-        if last_instr.opcode in [op.YIELD_VALUE, op.YIELD_FROM]:
+        if last_instr.opcode in {op.YIELD_VALUE, op.YIELD_FROM}:
             # Generators produce an unusual execution flow: the interpreter handles
             # jumps to the respective yield statement internally and we can not see
             # this in the trace. So we assume that this unusual case (explained in
@@ -485,20 +486,20 @@ class ExecutionFlowBuilder:
             efb_state.exception = True
         return last_instr
 
-    def _create_unique_instruction(
+    def _create_unique_instruction(  # noqa: PLR0917
         self, module: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         code_meta = self.known_code_objects.get(code_object_id)
         assert code_meta, "Unknown code object id"
         return UniqueInstruction(
-            module,
-            instr.name,
-            code_object_id,
-            node_id,
-            code_meta,
-            offset,
-            instr.arg,
-            instr.lineno,
+            file=module,
+            name=instr.name,
+            code_object_id=code_object_id,
+            node_id=node_id,
+            code_meta=code_meta,
+            offset=offset,
+            arg=instr.arg,
+            lineno=instr.lineno,
         )
 
     def _continue_at_last_traced(

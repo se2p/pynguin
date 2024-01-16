@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 A = TypeVar("A", bound=arch.Archive)
 
 
-class GenerationAlgorithm(Generic[A]):
+class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
     """Provides an abstract base class for a test generation algorithm."""
 
     def __init__(self) -> None:  # noqa: D107

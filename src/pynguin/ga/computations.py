@@ -434,6 +434,7 @@ class ComputationCache:
     def __init__(  # noqa: D107
         self,
         chromosome,
+        *,
         fitness_functions: list[FitnessFunction] | None = None,
         coverage_functions: list[CoverageFunction] | None = None,
         fitness_cache: dict[FitnessFunction, float] | None = None,
@@ -464,11 +465,11 @@ class ComputationCache:
         """
         return ComputationCache(
             new_chromosome,
-            list(self._fitness_functions),
-            list(self._coverage_functions),
-            dict(self._fitness_cache),
-            dict(self._is_covered_cache),
-            dict(self._coverage_cache),
+            fitness_functions=list(self._fitness_functions),
+            coverage_functions=list(self._coverage_functions),
+            fitness_cache=dict(self._fitness_cache),
+            is_covered_cache=dict(self._is_covered_cache),
+            coverage_cache=dict(self._coverage_cache),
         )
 
     def get_fitness_functions(self) -> list[FitnessFunction]:

@@ -240,7 +240,7 @@ def test_avoid_duplicate_instrumentation(simple_module):
     ],
 )
 def test__map_instr_positions(block, expected):
-    assert InstrumentationAdapter._map_instr_positions(block) == expected
+    assert InstrumentationAdapter.map_instr_positions(block) == expected
 
 
 @pytest.mark.parametrize(

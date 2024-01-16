@@ -92,10 +92,9 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
                     if offspring.length() <= 2 * best_individual.length():
                         new_generation.append(offspring)
                     else:
-                        new_generation.append(randomness.choice([parent1, parent2]))
+                        new_generation.append(randomness.choice((parent1, parent2)))
             else:
-                new_generation.append(parent1)
-                new_generation.append(parent2)
+                new_generation.extend((parent1, parent2))
 
         self._population = new_generation
         self._update_archive()

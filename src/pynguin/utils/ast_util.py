@@ -20,6 +20,7 @@ def create_full_name(
     variable_names: ns.AbstractNamingScope,
     module_names: ns.AbstractNamingScope,
     var: vr.Reference,
+    *,
     load: bool,
 ) -> ast.Name | ast.Attribute:
     """Create a name node for the corresponding variable.
@@ -37,14 +38,14 @@ def create_full_name(
     loads = [True for _ in names[:-1]]
     loads.append(load)
     # First has to be ast.Name
-    res: ast.Name | ast.Attribute = create_ast_name(names[0], not loads[0])
+    res: ast.Name | ast.Attribute = create_ast_name(names[0], store=not loads[0])
     # Remaining are ast.Attribute
     for name, loa in zip(names[1:], loads[1:], strict=True):
-        res = create_ast_attribute(name, res, not loa)
+        res = create_ast_attribute(name, res, store=not loa)
     return res
 
 
-def create_ast_name(name_id: str, store: bool = False) -> ast.Name:
+def create_ast_name(name_id: str, *, store: bool = False) -> ast.Name:
     """Creates an AST name node.
 
     Args:
@@ -70,7 +71,7 @@ def create_ast_assign(target, value) -> ast.Assign:
     return ast.Assign(targets=[target], value=value)
 
 
-def create_ast_attribute(attr, value, store: bool = False) -> ast.Attribute:
+def create_ast_attribute(attr, value, *, store: bool = False) -> ast.Attribute:
     """Creates an AST attribute node.
 
     Args:
@@ -86,7 +87,7 @@ def create_ast_attribute(attr, value, store: bool = False) -> ast.Attribute:
     )
 
 
-def create_ast_list(elts, store: bool = False) -> ast.List:
+def create_ast_list(elts, *, store: bool = False) -> ast.List:
     """Creates an AST list node.
 
     Args:
@@ -124,7 +125,7 @@ def create_ast_set(elts) -> ast.Set:
     return ast.Set(elts=elts)
 
 
-def create_ast_tuple(elts, store: bool = False) -> ast.Tuple:
+def create_ast_tuple(elts, *, store: bool = False) -> ast.Tuple:
     """Creates an AST tuple node.
 
     Args:

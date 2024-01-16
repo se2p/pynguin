@@ -123,12 +123,12 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
 
     last_traced_instr = trace.executed_instructions[-1]
     slicing_instruction = UniqueInstruction(
-        last_traced_instr.file,
-        last_traced_instr.name,
-        last_traced_instr.code_object_id,
-        last_traced_instr.node_id,
-        known_code_objects.get(last_traced_instr.code_object_id),
-        last_traced_instr.offset,
+        file=last_traced_instr.file,
+        name=last_traced_instr.name,
+        code_object_id=last_traced_instr.code_object_id,
+        node_id=last_traced_instr.node_id,
+        code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+        offset=last_traced_instr.offset,
         lineno=last_traced_instr.lineno,
     )
     slicing_criterion = SlicingCriterion(
@@ -159,12 +159,12 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
         assert trace.executed_instructions
         last_traced_instr = trace.executed_instructions[-1]
         slicing_instruction = UniqueInstruction(
-            last_traced_instr.file,
-            last_traced_instr.name,
-            last_traced_instr.code_object_id,
-            last_traced_instr.node_id,
-            known_code_objects.get(last_traced_instr.code_object_id),
-            last_traced_instr.offset,
+            file=last_traced_instr.file,
+            name=last_traced_instr.name,
+            code_object_id=last_traced_instr.code_object_id,
+            node_id=last_traced_instr.node_id,
+            code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+            offset=last_traced_instr.offset,
             lineno=last_traced_instr.lineno,
         )
         slicing_criterion = SlicingCriterion(

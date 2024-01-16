@@ -223,12 +223,12 @@ class TestSuiteGenerationAlgorithmFactory(
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
             )
-        if config.configuration.algorithm in (
+        if config.configuration.algorithm in {
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
-        ):
+        }:
             return test_case_chromosome_factory
         return tscf.TestSuiteChromosomeFactory(
             test_case_chromosome_factory,
@@ -365,13 +365,13 @@ class TestSuiteGenerationAlgorithmFactory(
         Returns:
             A list of fitness functions
         """
-        if config.configuration.algorithm in (
+        if config.configuration.algorithm in {
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
-        ):
+        }:
             fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
             coverage_metrics = config.configuration.statistics_output.coverage_metrics
             if config.CoverageMetric.LINE in coverage_metrics:

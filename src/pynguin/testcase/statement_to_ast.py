@@ -54,6 +54,7 @@ class StatementToAstVisitor(StatementVisitor):
         self,
         module_aliases: ns.AbstractNamingScope,
         variable_names: ns.AbstractNamingScope,
+        *,
         store_call_return: bool = True,
     ) -> None:
         """Creates a new transformation visitor.
@@ -119,7 +120,7 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=ast.Attribute(
@@ -140,7 +141,7 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             # TODO(fk) think about nested classes, also for enums.
@@ -173,7 +174,10 @@ class StatementToAstVisitor(StatementVisitor):
             self._ast_node = ast.Assign(
                 targets=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                        self._variable_names,
+                        self._module_aliases,
+                        stmt.ret_val,
+                        load=False,
                     )
                 ],
                 value=call,
@@ -188,7 +192,7 @@ class StatementToAstVisitor(StatementVisitor):
                 attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
                 value=au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.callee, True
+                    self._variable_names, self._module_aliases, stmt.callee, load=True
                 ),
             ),
             args=args,
@@ -200,7 +204,10 @@ class StatementToAstVisitor(StatementVisitor):
             self._ast_node = ast.Assign(
                 targets=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                        self._variable_names,
+                        self._module_aliases,
+                        stmt.ret_val,
+                        load=False,
                     )
                 ],
                 value=call,
@@ -225,7 +232,10 @@ class StatementToAstVisitor(StatementVisitor):
             self._ast_node = ast.Assign(
                 targets=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, stmt.ret_val, False
+                        self._variable_names,
+                        self._module_aliases,
+                        stmt.ret_val,
+                        load=False,
                     )
                 ],
                 value=call,
@@ -243,7 +253,7 @@ class StatementToAstVisitor(StatementVisitor):
                 attr=stmt.field.field,
                 ctx=ast.Load(),
                 value=au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.source, True
+                    self._variable_names, self._module_aliases, stmt.source, load=True
                 ),
             ),
         )
@@ -254,11 +264,11 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.lhs, False
+                    self._variable_names, self._module_aliases, stmt.lhs, load=False
                 )
             ],
             value=au.create_full_name(
-                self._variable_names, self._module_aliases, stmt.rhs, True
+                self._variable_names, self._module_aliases, stmt.rhs, load=True
             ),
         )
 
@@ -266,13 +276,13 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=ast.List(
                 elts=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, x, True
+                        self._variable_names, self._module_aliases, x, load=True
                     )
                     for x in stmt.elements
                 ],
@@ -291,7 +301,7 @@ class StatementToAstVisitor(StatementVisitor):
             inner = ast.Set(
                 elts=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, x, True
+                        self._variable_names, self._module_aliases, x, load=True
                     )
                     for x in stmt.elements
                 ],
@@ -301,7 +311,7 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=inner,
@@ -311,13 +321,13 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=ast.Tuple(
                 elts=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, x, True
+                        self._variable_names, self._module_aliases, x, load=True
                     )
                     for x in stmt.elements
                 ],
@@ -329,19 +339,19 @@ class StatementToAstVisitor(StatementVisitor):
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=ast.Dict(
                 keys=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, x[0], True
+                        self._variable_names, self._module_aliases, x[0], load=True
                     )
                     for x in stmt.elements
                 ],
                 values=[
                     au.create_full_name(
-                        self._variable_names, self._module_aliases, x[1], True
+                        self._variable_names, self._module_aliases, x[1], load=True
                     )
                     for x in stmt.elements
                 ],
@@ -360,7 +370,7 @@ class StatementToAstVisitor(StatementVisitor):
         return ast.Assign(
             targets=[
                 au.create_full_name(
-                    self._variable_names, self._module_aliases, stmt.ret_val, False
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
             value=ast.Constant(value=stmt.value),
@@ -399,7 +409,7 @@ class StatementToAstVisitor(StatementVisitor):
                     self._variable_names,
                     self._module_aliases,
                     stmt.args[param_name],
-                    True,
+                    load=True,
                 )
                 match param.kind:
                     case Parameter.POSITIONAL_ONLY:

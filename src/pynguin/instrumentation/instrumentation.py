@@ -182,7 +182,7 @@ class InstrumentationAdapter:
         return tuple(nodes)
 
     @staticmethod
-    def _map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
+    def map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
         """Other instrumentations may add artificial instructions.
 
         Create a mapping that maps original locations to their locations.
@@ -361,7 +361,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         """
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
-        orig_instructions_positions = InstrumentationAdapter._map_instr_positions(
+        orig_instructions_positions = InstrumentationAdapter.map_instr_positions(
             basic_block
         )
         maybe_compare_idx: int | None = orig_instructions_positions.get(
@@ -387,7 +387,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             if predicate_id is not None:
                 node.predicate_id = predicate_id
 
-    def _instrument_cond_jump(
+    def _instrument_cond_jump(  # noqa: PLR0917
         self,
         code_object_id: int,
         maybe_compare_idx: int | None,
@@ -709,9 +709,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                     "executed_bool_predicate",
                     lineno=lineno,
                 ),
-                ArtificialInstr("LOAD_CONST", True, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", arg=True, lineno=lineno),
                 ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", arg=2, lineno=lineno),
                 ArtificialInstr("POP_TOP", lineno=lineno),
                 ArtificialInstr(
                     "JUMP_ABSOLUTE",
@@ -733,9 +733,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                     "executed_bool_predicate",
                     lineno=lineno,
                 ),
-                ArtificialInstr("LOAD_CONST", False, lineno=lineno),
+                ArtificialInstr("LOAD_CONST", arg=False, lineno=lineno),
                 ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-                ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
+                ArtificialInstr("CALL_METHOD", arg=2, lineno=lineno),
                 ArtificialInstr("POP_TOP", lineno=lineno),
                 ArtificialInstr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
             ]
@@ -991,7 +991,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
-    def _instrument_generic(
+    def _instrument_generic(  # noqa: PLR0917
         self,
         new_block_instructions: list[Instr],
         code_object_id: int,
@@ -1041,7 +1041,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_local_access(
+    def _instrument_local_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1050,7 +1050,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset: int,
         file_name: str,
     ) -> None:
-        if instr.opcode in (op.LOAD_FAST, op.STORE_FAST):
+        if instr.opcode in {op.LOAD_FAST, op.STORE_FAST}:
             # Original instruction before instrumentation
             new_block_instructions.append(instr)
 
@@ -1104,7 +1104,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_attr_access(
+    def _instrument_attr_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1113,12 +1113,12 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset: int,
         file_name: str,
     ) -> None:
-        if instr.opcode in (
+        if instr.opcode in {
             op.LOAD_ATTR,
             op.DELETE_ATTR,
             op.IMPORT_FROM,
             op.LOAD_METHOD,
-        ):
+        }:
             # Duplicate top of stack to access attribute
             new_block_instructions.append(
                 ArtificialInstr("DUP_TOP", lineno=instr.lineno)
@@ -1211,16 +1211,16 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-        if instr.opcode in (
+        if instr.opcode in {
             op.LOAD_ATTR,
             op.DELETE_ATTR,
             op.IMPORT_FROM,
             op.LOAD_METHOD,
-        ):
+        }:
             # Original instruction: we need to load the attribute afterwards
             new_block_instructions.append(instr)
 
-    def _instrument_subscr_access(
+    def _instrument_subscr_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1314,7 +1314,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         if instr.opcode == op.BINARY_SUBSCR:
             new_block_instructions.append(instr)
 
-    def _instrument_name_access(
+    def _instrument_name_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1323,7 +1323,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset: int,
         file_name: str,
     ) -> None:
-        if instr.opcode in [op.STORE_NAME, op.LOAD_NAME, op.IMPORT_NAME]:
+        if instr.opcode in {op.STORE_NAME, op.LOAD_NAME, op.IMPORT_NAME}:
             # Original instruction at before instrumentation
             new_block_instructions.append(instr)
 
@@ -1376,7 +1376,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_import_name_access(
+    def _instrument_import_name_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1437,7 +1437,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ]
         )
 
-    def _instrument_global_access(
+    def _instrument_global_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1446,7 +1446,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         offset: int,
         file_name: str,
     ) -> None:
-        if instr.opcode in [op.STORE_GLOBAL, op.LOAD_GLOBAL]:
+        if instr.opcode in {op.STORE_GLOBAL, op.LOAD_GLOBAL}:
             # Original instruction before instrumentation
             new_block_instructions.append(instr)
 
@@ -1500,7 +1500,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_deref_access(
+    def _instrument_deref_access(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1517,7 +1517,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         else:
             load_instr = ArtificialInstr("LOAD_DEREF", instr.arg, lineno=instr.lineno)
 
-        if instr.opcode in [op.STORE_DEREF, op.LOAD_DEREF, op.LOAD_CLASSDEREF]:
+        if instr.opcode in {op.STORE_DEREF, op.LOAD_DEREF, op.LOAD_CLASSDEREF}:
             # Original instruction before instrumentation
             new_block_instructions.append(instr)
 
@@ -1576,7 +1576,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             # (otherwise we can not read it anymore)
             new_block_instructions.append(instr)
 
-    def _instrument_jump(
+    def _instrument_jump(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1622,7 +1622,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_call(
+    def _instrument_call(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1667,7 +1667,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
         new_block_instructions.append(instr)
 
-    def _instrument_return(
+    def _instrument_return(  # noqa: PLR0917
         self,
         code_object_id: int,
         node_id: int,
@@ -1719,7 +1719,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         new_block_instructions.append(instr)
 
     @staticmethod
-    def _load_args(
+    def _load_args(  # noqa: PLR0917
         code_object_id: int,
         node_id: int,
         offset: int,
@@ -1751,7 +1751,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         return instructions  # noqa: RET504
 
     @staticmethod
-    def _load_args_with_prop(
+    def _load_args_with_prop(  # noqa: PLR0917
         code_object_id: int,
         node_id: int,
         offset: int,

@@ -401,13 +401,13 @@ def _track_final_metrics(
 
     to_calculate: list[tuple[RuntimeVariable, ff.TestSuiteCoverageFunction]] = []
 
-    _add_additional_metrics(
-        algorithm,
-        cov_metrics,
-        executor,
-        metrics_for_reinstrumenation,
-        output_variables,
-        to_calculate,
+    add_additional_metrics(
+        algorithm=algorithm,
+        cov_metrics=cov_metrics,
+        executor=executor,
+        metrics_for_reinstrumentation=metrics_for_reinstrumenation,
+        output_variables=output_variables,
+        to_calculate=to_calculate,
     )
 
     # Assertion Checked Coverage is special...
@@ -458,11 +458,12 @@ def _track_final_metrics(
     return metrics_for_reinstrumenation
 
 
-def _add_additional_metrics(
-    algortihm,
+def add_additional_metrics(  # noqa: D103
+    *,
+    algorithm,
     cov_metrics,
     executor,
-    metrics_for_reinstrumenation,
+    metrics_for_reinstrumentation,
     output_variables,
     to_calculate,
 ):
@@ -470,7 +471,7 @@ def _add_additional_metrics(
         RuntimeVariable.FinalLineCoverage in output_variables
         and config.CoverageMetric.LINE not in cov_metrics
     ):
-        metrics_for_reinstrumenation.add(config.CoverageMetric.LINE)
+        metrics_for_reinstrumentation.add(config.CoverageMetric.LINE)
         line_cov_ff = ff.TestSuiteLineCoverageFunction(executor)
         to_calculate.append((RuntimeVariable.FinalLineCoverage, line_cov_ff))
     elif config.CoverageMetric.LINE in cov_metrics:
@@ -479,7 +480,7 @@ def _add_additional_metrics(
             (
                 RuntimeVariable.FinalLineCoverage,
                 _get_coverage_ff_from_algorithm(
-                    algortihm, ff.TestSuiteLineCoverageFunction
+                    algorithm, ff.TestSuiteLineCoverageFunction
                 ),
             )
         )
@@ -487,7 +488,7 @@ def _add_additional_metrics(
         RuntimeVariable.FinalBranchCoverage in output_variables
         and config.CoverageMetric.BRANCH not in cov_metrics
     ):
-        metrics_for_reinstrumenation.add(config.CoverageMetric.BRANCH)
+        metrics_for_reinstrumentation.add(config.CoverageMetric.BRANCH)
         branch_cov_ff = ff.TestSuiteBranchCoverageFunction(executor)
         to_calculate.append((RuntimeVariable.FinalBranchCoverage, branch_cov_ff))
     elif config.CoverageMetric.BRANCH in cov_metrics:
@@ -496,7 +497,7 @@ def _add_additional_metrics(
             (
                 RuntimeVariable.FinalBranchCoverage,
                 _get_coverage_ff_from_algorithm(
-                    algortihm, ff.TestSuiteBranchCoverageFunction
+                    algorithm, ff.TestSuiteBranchCoverageFunction
                 ),
             )
         )
@@ -551,12 +552,12 @@ def _run() -> ReturnCode:
         render_coverage_report(
             coverage_report,
             Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
-            datetime.datetime.now(),
+            datetime.datetime.now(),  # noqa: DTZ005
         )
         render_xml_coverage_report(
             coverage_report,
             Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
-            datetime.datetime.now(),
+            datetime.datetime.now(),  # noqa: DTZ005
         )
     _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
@@ -703,6 +704,6 @@ def _export_chromosome(
     export.save_module_to_file(
         export_visitor.to_module(),
         target_file,
-        config.configuration.test_case_output.format_with_black,
+        format_with_black=config.configuration.test_case_output.format_with_black,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)

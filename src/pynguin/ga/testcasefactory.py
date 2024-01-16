@@ -33,7 +33,7 @@ class TestCaseFactory:
         Args:
             test_factory: The used test factory
         """
-        self._test_factory = test_factory
+        self.test_factory = test_factory
 
     @abstractmethod
     def get_test_case(self) -> tc.TestCase:
@@ -64,7 +64,7 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
             test_case.size() < size
             and attempts < config.configuration.test_creation.max_attempts
         ):
-            self._test_factory.insert_random_statement(test_case, test_case.size())
+            self.test_factory.insert_random_statement(test_case, test_case.size())
             attempts += 1
         return test_case
 
@@ -81,7 +81,7 @@ class SeededTestCaseFactory(TestCaseFactory):
     def __init__(  # noqa: D107
         self, delegate: TestCaseFactory, population_provider: InitialPopulationProvider
     ):
-        super().__init__(delegate._test_factory)
+        super().__init__(delegate.test_factory)
         self._delegate = delegate
         self._population_provider = population_provider
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 from functools import total_ordering
 from math import inf
 from typing import TYPE_CHECKING
-from typing import Any
 
 import networkx as nx
 
@@ -46,7 +45,7 @@ class ControlFlowDistance:
         self._approach_level = approach_level
         self._branch_distance = branch_distance
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if self is other:
             return True
         if not isinstance(other, ControlFlowDistance):
@@ -55,6 +54,9 @@ class ControlFlowDistance:
             other.approach_level,
             other.branch_distance,
         )
+
+    def __hash__(self) -> int:
+        return hash((self._approach_level, self._branch_distance))
 
     def __lt__(self, other: ControlFlowDistance) -> bool:
         if not isinstance(other, ControlFlowDistance):
@@ -146,7 +148,10 @@ def get_root_control_flow_distance(
 
 
 def get_non_root_control_flow_distance(
-    result: ExecutionResult, predicate_id: int, value: bool, tracer: ExecutionTracer
+    result: ExecutionResult,
+    predicate_id: int,
+    value: bool,  # noqa: FBT001
+    tracer: ExecutionTracer,
 ) -> ControlFlowDistance:
     """Computes the control flow distance for a predicate.
 

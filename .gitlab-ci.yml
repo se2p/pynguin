@@ -48,13 +48,13 @@ before_script:
 unit-tests:python-3.10:
   <<: *unit-tests
   variables:
-    PYTHON_VERSION: '3.10-bullseye'
+    PYTHON_VERSION: '3.10-bookworm'
 
 #unit-tests:python-3.11:
 #  <<: *unit-tests
 #  allow_failure: true
 #  variables:
-#    PYTHON_VERSION: '3.11-rc-bullseye'
+#    PYTHON_VERSION: '3.11-rc-bookworm'
 
 .nightly-tests:
   only:
@@ -73,19 +73,19 @@ unit-tests:python-3.10:
 nightly-tests:python-3.10:
   extends: .nightly-tests
   variables:
-    PYTHON_VERSION: '3.10-bullseye'
+    PYTHON_VERSION: '3.10-bookworm'
 
 #nightly-tests:python-3.11:
 #  extends: .nightly-tests
 #  allow_failure: true
 #  variables:
-#    PYTHON_VERSION: '3.11-rc-bullseye'
+#    PYTHON_VERSION: '3.11-rc-bookworm'
 
 memory-profile:
   only:
     - schedules
   stage: lint
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   before_script:
     - pip install poetry
     - poetry config virtualenvs.in-project true
@@ -97,33 +97,33 @@ memory-profile:
 
 mypy:
   stage: lint
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   script:
     - poetry run mypy
   needs: ["isort", "black"]
 
 ruff:
   stage: lint
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   script:
     - poetry run ruff src/pynguin
   needs: ["isort", "black"]
 
 isort:
   stage: build
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   script:
     - poetry run isort **/*.py -c -v --profile black
 
 black:
   stage: build
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   script:
     - poetry run black --check .
 
 sphinx:
   stage: build
-  image: python:3.10-bullseye
+  image: python:3.10-bookworm
   script:
     - poetry run sphinx-build docs docs/_build
   artifacts:

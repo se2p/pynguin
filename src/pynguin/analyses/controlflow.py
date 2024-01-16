@@ -39,6 +39,7 @@ class ProgramGraphNode:
     def __init__(
         self,
         index: int,
+        *,
         offset: int = 0,
         basic_block: BasicBlock | None = None,
         is_artificial: bool = False,
@@ -120,7 +121,7 @@ class ProgramGraphNode:
         """
         self._predicate_id = predicate_id
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ProgramGraphNode):
             return False
         if self is other:
@@ -148,7 +149,7 @@ class ProgramGraphNode:
                 else:
                     arg = repr(arg)
                 formatted = instr.name  # type: ignore[union-attr]
-                if arg != "":
+                if arg:
                     formatted += f" {arg}"
                 instructions.append(formatted)
             result += "\n" + "\n".join(instructions)
@@ -425,10 +426,10 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
 
-        reversed_cfg._graph = cfg._graph.reverse(copy=True)
+        reversed_cfg._graph = cfg._graph.reverse(copy=True)  # noqa: SLF001
         return reversed_cfg
 
-    def reversed(self) -> CFG:  # noqa: A003
+    def reversed(self) -> CFG:
         """Provides the reversed graph of this graph.
 
         Returns:
@@ -450,7 +451,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
             ControlFlowGraph()
         )  # TODO(fk) Cloning the bytecode cfg is complicated.
 
-        copy._graph = cfg._graph.copy()
+        copy._graph = cfg._graph.copy()  # noqa: SLF001
         return copy
 
     def copy(self) -> CFG:
@@ -486,16 +487,16 @@ class CFG(ProgramGraph[ProgramGraphNode]):
             if isinstance(last_instr, Instr) and (
                 last_instr.is_cond_jump() or last_instr.opcode == op.FOR_ITER
             ):
-                if last_instr.opcode in (op.POP_JUMP_IF_TRUE, op.JUMP_IF_TRUE_OR_POP):
+                if last_instr.opcode in {op.POP_JUMP_IF_TRUE, op.JUMP_IF_TRUE_OR_POP}:
                     # These jump to arg if ToS is True
                     true_branch = target_block
                     false_branch = next_block
-                elif last_instr.opcode in (
+                elif last_instr.opcode in {
                     op.POP_JUMP_IF_FALSE,
                     op.JUMP_IF_FALSE_OR_POP,
                     op.JUMP_IF_NOT_EXC_MATCH,
                     op.FOR_ITER,
-                ):
+                }:
                     # These jump to arg if ToS is False, is Empty or if Exc does
                     # not match.
                     true_branch = next_block
