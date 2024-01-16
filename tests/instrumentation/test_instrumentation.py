@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import contextlib
 import importlib
 import os
 import threading
@@ -495,20 +496,20 @@ def test_jump_if_true_or_pop():
     tracer = ExecutionTracer()
 
     def func(string, inttype=int):
-        return ((
-                hasattr(string, "is_integer") or hasattr(string, "__array__")
-            )
-            or (
-                isinstance(string, (bytes, str))
-            )
+        return (hasattr(string, "is_integer") or hasattr(string, "__array__")) or (
+            isinstance(string, (bytes, str))
         )
-    
+
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-
-    # FIXME execute func()
-    # FIXME add any appropriate exceptions
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with contextlib.nullcontext():
+        func("123")
+    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
+    assert {0: 1, 1: 1} == tracer.get_trace().executed_predicates
+    assert {0: 1.0, 1: 1.0} == tracer.get_trace().true_distances
+    assert {0: 0.0, 1: 0.0} == tracer.get_trace().false_distances
 
 
 def test_tracking_covered_statements_explicit_return(simple_module):

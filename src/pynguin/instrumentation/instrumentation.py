@@ -411,7 +411,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         Returns:
             The id that was assigned to the predicate.
         """
-        maybe_compare = None if maybe_compare_idx is None else block[maybe_compare_idx]  # type: ignore[index]
+        maybe_compare = None if maybe_compare_idx is None else block[maybe_compare_idx]
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
