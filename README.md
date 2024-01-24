@@ -40,6 +40,7 @@ and allows the automated generation of unit tests for Python programs.
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3989840.svg)](https://doi.org/10.5281/zenodo.3989840)
 [![REUSE status](https://api.reuse.software/badge/github.com/se2p/pynguin)](https://api.reuse.software/info/github.com/se2p/pynguin)
 [![Downloads](https://static.pepy.tech/personalized-badge/pynguin?period=total&units=international_system&left_color=grey&right_color=blue&left_text=Downloads)](https://pepy.tech/project/pynguin)
+[![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/se2p/pynguin/)](https://archive.softwareheritage.org/browse/origin/?origin_url=https://github.com/se2p/pynguin)
 
 
 ![Pynguin Logo](https://raw.githubusercontent.com/se2p/pynguin/master/docs/source/_static/pynguin-logo.png "Pynguin Logo")
