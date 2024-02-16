@@ -227,6 +227,42 @@ class _ModuleParseResult:
     type4py_data: Type4pyData | None
 
 
+def import_module(module_name: str) -> ModuleType:
+    """Imports a module by name.
+
+    Unlike the built-in :py:func:`importlib.import_module`, this function also supports
+    importing module aliases.
+
+    Args:
+        module_name: The fully-qualified name of the module
+
+    Returns:
+        The imported module
+    """
+    try:
+        return importlib.import_module(module_name)
+    except ModuleNotFoundError as error:
+        try:
+            package_name, submodule_name = module_name.rsplit(".", 1)
+        except ValueError as e:
+            raise error from e
+
+        try:
+            package = import_module(package_name)
+        except ModuleNotFoundError as e:
+            raise error from e
+
+        try:
+            submodule = getattr(package, submodule_name)
+        except AttributeError as e:
+            raise error from e
+
+        if not inspect.ismodule(submodule):
+            raise error
+
+        return submodule
+
+
 def parse_module(
     module_name: str, *, query_type4py: bool = False
 ) -> _ModuleParseResult:
@@ -244,7 +280,7 @@ def parse_module(
     Returns:
         A tuple of the imported module type and its optional AST
     """
-    module = importlib.import_module(module_name)
+    module = import_module(module_name)
     type4py_data: Type4pyData | None = None
     syntax_tree: astroid.Module | None = None
     linenos: int = -1
