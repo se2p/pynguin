@@ -2016,6 +2016,9 @@ class ModuleProvider:
             except AttributeError as e:
                 raise error from e
 
+            if not inspect.ismodule(submodule):
+                raise error
+
             return submodule
 
     def get_module(self, module_name: str) -> ModuleType:
