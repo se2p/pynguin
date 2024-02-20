@@ -1590,7 +1590,25 @@ class TypeSystem:  # noqa: PLR0904
         Returns:
             The inference result
         """
-        method_signature = inspect.signature(method)
+        try:
+            method_signature = inspect.signature(method)
+        except ValueError:
+            method_signature = inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="args",
+                        kind=inspect.Parameter.VAR_POSITIONAL,
+                        annotation=inspect.Signature.empty,
+                    ),
+                    inspect.Parameter(
+                        name="kwargs",
+                        kind=inspect.Parameter.VAR_KEYWORD,
+                        annotation=inspect.Signature.empty,
+                    ),
+                ],
+                return_annotation=inspect.Signature.empty,
+            )
+
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
         type4py_parameters: dict[str, list[ProperType]] = {}
