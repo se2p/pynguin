@@ -18,12 +18,12 @@ StatisticsBackend = config.StatisticsBackend
 TypeInferenceStrategy = config.TypeInferenceStrategy
 
 __all__ = [
-    "set_configuration",
-    "run_pynguin",
-    "Configuration",
-    "__version__",
     "Algorithm",
+    "Configuration",
     "ExportStrategy",
     "StatisticsBackend",
     "TypeInferenceStrategy",
+    "__version__",
+    "run_pynguin",
+    "set_configuration",
 ]

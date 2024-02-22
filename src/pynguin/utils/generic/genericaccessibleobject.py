@@ -38,7 +38,7 @@ if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import TypeInfo
 
 
-class GenericAccessibleObject(metaclass=abc.ABCMeta):
+class GenericAccessibleObject(abc.ABC):
     """Abstract base class for something that can be accessed."""
 
     def __init__(self, owner: TypeInfo | None):
@@ -185,7 +185,7 @@ class GenericEnum(GenericAccessibleObject):
         return f"{self.__class__.__name__}({self.owner})"
 
 
-class GenericCallableAccessibleObject(GenericAccessibleObject, metaclass=abc.ABCMeta):
+class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
     """Abstract base class for something that can be called."""
 
     def __init__(
@@ -298,7 +298,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
 class GenericMethod(GenericCallableAccessibleObject):
     """A method."""
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         owner: TypeInfo,
         method: TypesOfCallables,
@@ -418,7 +418,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         return f"{self._callable.__module__}.{self._callable.__qualname__}"
 
 
-class GenericAbstractField(GenericAccessibleObject, metaclass=abc.ABCMeta):
+class GenericAbstractField(GenericAccessibleObject, abc.ABC):
     """Abstract superclass for fields."""
 
     def __init__(

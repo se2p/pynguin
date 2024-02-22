@@ -357,7 +357,7 @@ class ExecutionFlowBuilder:
             import_back_call=efb_state.import_back_call,
         )
 
-    def _determine_last_instruction(  # noqa: PLR0917
+    def _determine_last_instruction(
         self,
         efb_state: ExecutionFlowBuilderState,
         basic_block,
@@ -394,7 +394,7 @@ class ExecutionFlowBuilder:
             last_instr = self._continue_at_last_basic_block(efb_state)
         return last_instr
 
-    def _handle_return_instructions(  # noqa: PLR0917
+    def _handle_return_instructions(
         self,
         efb_state: ExecutionFlowBuilderState,
         instr,
@@ -486,7 +486,7 @@ class ExecutionFlowBuilder:
             efb_state.exception = True
         return last_instr
 
-    def _create_unique_instruction(  # noqa: PLR0917
+    def _create_unique_instruction(
         self, module: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         code_meta = self.known_code_objects.get(code_object_id)

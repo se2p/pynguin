@@ -1158,7 +1158,7 @@ class TestFactory:
         ret.distance = recursion_depth
         return ret
 
-    def _create_primitive(  # noqa: PLR0917
+    def _create_primitive(
         self,
         test_case: tc.TestCase,
         parameter_type: Instance,

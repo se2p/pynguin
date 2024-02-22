@@ -11,7 +11,7 @@ import csv
 import ctypes
 import logging
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,7 +32,7 @@ class OutputVariable(Generic[T]):
     value: T
 
 
-class AbstractStatisticsBackend(metaclass=ABCMeta):
+class AbstractStatisticsBackend(ABC):
     """An interface for a statistics writer."""
 
     @abstractmethod

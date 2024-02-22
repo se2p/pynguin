@@ -7,14 +7,14 @@
 """Provides an abstract base class for chromosomes."""
 from __future__ import annotations
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 
 
-class Chromosome(metaclass=ABCMeta):
+class Chromosome(ABC):
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):

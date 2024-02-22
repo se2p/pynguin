@@ -266,9 +266,11 @@ def __extract_method_names(
     accessible_objects: OrderedSet[GenericAccessibleObject],
 ) -> set[str]:
     return {
-        f"{elem.owner.name}.{elem.callable.__name__}"
-        if isinstance(elem, GenericMethod)
-        else f"{elem.owner.name}.__init__"
+        (
+            f"{elem.owner.name}.{elem.callable.__name__}"
+            if isinstance(elem, GenericMethod)
+            else f"{elem.owner.name}.__init__"
+        )
         for elem in accessible_objects
     }
 

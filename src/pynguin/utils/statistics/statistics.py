@@ -168,9 +168,9 @@ class _SearchStatistics:
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._backend: None | (
-            sb.AbstractStatisticsBackend
-        ) = self._initialise_backend()
+        self._backend: None | (sb.AbstractStatisticsBackend) = (
+            self._initialise_backend()
+        )
         self._output_variables: dict[str, sb.OutputVariable] = {}
         self._variable_factories: dict[str, ovf.ChromosomeOutputVariableFactory] = {}
         self._sequence_output_variable_factories: dict[
@@ -195,26 +195,26 @@ class _SearchStatistics:
         return None
 
     def _init_factories(self) -> None:
-        self._variable_factories[
-            RuntimeVariable.Length.name
-        ] = self._ChromosomeLengthOutputVariableFactory()
-        self._variable_factories[
-            RuntimeVariable.Size.name
-        ] = self._ChromosomeSizeOutputVariableFactory()
-        self._variable_factories[
-            RuntimeVariable.Coverage.name
-        ] = self._ChromosomeCoverageOutputVariableFactory()
-        self._variable_factories[
-            RuntimeVariable.Fitness.name
-        ] = self._ChromosomeFitnessOutputVariableFactory()
+        self._variable_factories[RuntimeVariable.Length.name] = (
+            self._ChromosomeLengthOutputVariableFactory()
+        )
+        self._variable_factories[RuntimeVariable.Size.name] = (
+            self._ChromosomeSizeOutputVariableFactory()
+        )
+        self._variable_factories[RuntimeVariable.Coverage.name] = (
+            self._ChromosomeCoverageOutputVariableFactory()
+        )
+        self._variable_factories[RuntimeVariable.Fitness.name] = (
+            self._ChromosomeFitnessOutputVariableFactory()
+        )
 
     def _fill_sequence_output_variable_factories(self) -> None:
         self._sequence_output_variable_factories[
             RuntimeVariable.CoverageTimeline.name
         ] = self._CoverageSequenceOutputVariableFactory()
-        self._sequence_output_variable_factories[
-            RuntimeVariable.SizeTimeline.name
-        ] = self._SizeSequenceOutputVariableFactory()
+        self._sequence_output_variable_factories[RuntimeVariable.SizeTimeline.name] = (
+            self._SizeSequenceOutputVariableFactory()
+        )
         self._sequence_output_variable_factories[
             RuntimeVariable.LengthTimeline.name
         ] = self._LengthSequenceOutputVariableFactory()

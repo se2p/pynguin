@@ -313,16 +313,16 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
             usage_trace: An optional usage-trace node
             is_kwargs: Whether the proxy is passed as **kwargs
         """
-        object.__setattr__(self, "__wrapped__", wrapped)  # noqa: PLC2801
+        object.__setattr__(self, "__wrapped__", wrapped)
         # What does this proxy know?
-        object.__setattr__(  # noqa: PLC2801
+        object.__setattr__(
             self,
             "_self_usage_trace_node",
             UsageTraceNode(name="ROOT") if usage_trace is None else usage_trace,
         )
         # Is this proxy passed as **kwargs? If so, we can't return proxies from 'keys'
         # but must return the raw string objects.
-        object.__setattr__(  # noqa: PLC2801
+        object.__setattr__(
             self,
             "_self_is_kwargs",
             is_kwargs,
@@ -332,16 +332,12 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
         # allow it to be overridden using a property and it must instead
         # be an actual string object instead.
         with contextlib.suppress(AttributeError):
-            object.__setattr__(  # noqa: PLC2801
-                self, "__qualname__", wrapped.__qualname__
-            )
+            object.__setattr__(self, "__qualname__", wrapped.__qualname__)
 
         # Python 3.10 onwards also does not allow itself to be overridden
         # using a property and it must instead be set explicitly.
         with contextlib.suppress(AttributeError):
-            object.__setattr__(  # noqa: PLC2801
-                self, "__annotations__", wrapped.__annotations__
-            )
+            object.__setattr__(self, "__annotations__", wrapped.__annotations__)
 
     @property
     def __name__(self):  # noqa: PLW3201
@@ -379,7 +375,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
     def __round__(self, *args):
         return round(self.__wrapped__, *args)  # type:ignore[has-type]
 
-    def __mro_entries__(self, bases):  # noqa: PLW3201
+    def __mro_entries__(self, bases):
         return (self.__wrapped__,)  # type:ignore[has-type]
 
     @proxify(log_arg_types=True, no_wrap_return=True)
@@ -415,29 +411,25 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
 
     def __setattr__(self, name, value):
         if name.startswith("_self_"):
-            object.__setattr__(self, name, value)  # noqa: PLC2801
+            object.__setattr__(self, name, value)
 
         elif name == "__wrapped__":
-            object.__setattr__(self, name, value)  # noqa: PLC2801
+            object.__setattr__(self, name, value)
             with contextlib.suppress(AttributeError):
-                object.__delattr__(self, "__qualname__")  # noqa: PLC2801
+                object.__delattr__(self, "__qualname__")
             with contextlib.suppress(AttributeError):
-                object.__setattr__(  # noqa: PLC2801
-                    self, "__qualname__", value.__qualname__
-                )
+                object.__setattr__(self, "__qualname__", value.__qualname__)
             with contextlib.suppress(AttributeError):
-                object.__delattr__(self, "__annotations__")  # noqa: PLC2801
+                object.__delattr__(self, "__annotations__")
             with contextlib.suppress(AttributeError):
-                object.__setattr__(  # noqa: PLC2801
-                    self, "__annotations__", value.__annotations__
-                )
+                object.__setattr__(self, "__annotations__", value.__annotations__)
 
         elif name in {"__qualname__", "__annotations__"}:
             setattr(self.__wrapped__, name, value)  # type:ignore[has-type]
-            object.__setattr__(self, name, value)  # noqa: PLC2801
+            object.__setattr__(self, name, value)
 
         elif hasattr(type(self), name):
-            object.__setattr__(self, name, value)  # noqa: PLC2801
+            object.__setattr__(self, name, value)
 
         else:
             node = UsageTraceNode.from_proxy(self)
@@ -452,7 +444,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
         if name == "__wrapped__":
             raise ValueError("wrapper has not been initialised")
         if name.startswith("_self_"):
-            return object.__getattribute__(self, name)  # noqa: PLC2801
+            return object.__getattribute__(self, name)
 
         if name == "keys" and self._self_is_kwargs:
             # dict for **kwargs
@@ -471,17 +463,17 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
 
     def __delattr__(self, name):
         if name.startswith("_self_"):
-            object.__delattr__(self, name)  # noqa: PLC2801
+            object.__delattr__(self, name)
 
         elif name == "__wrapped__":
             raise TypeError("__wrapped__ must be an object")
 
         elif name == "__qualname__":
-            object.__delattr__(self, name)  # noqa: PLC2801
+            object.__delattr__(self, name)
             delattr(self.__wrapped__, name)  # type:ignore[has-type]
 
         elif hasattr(type(self), name):
-            object.__delattr__(self, name)  # noqa: PLC2801
+            object.__delattr__(self, name)
 
         else:
             delattr(self.__wrapped__, name)  # type:ignore[has-type]
@@ -706,7 +698,7 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
         del self.__wrapped__[key]
 
     def __enter__(self):
-        return self.__wrapped__.__enter__()  # noqa: PLC2801
+        return self.__wrapped__.__enter__()
 
     def __exit__(self, *args, **kwargs):
         return self.__wrapped__.__exit__(*args, **kwargs)

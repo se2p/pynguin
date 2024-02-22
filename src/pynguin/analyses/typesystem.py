@@ -26,8 +26,8 @@ from typing import Final
 from typing import ForwardRef
 from typing import Generic
 from typing import TypeVar
-from typing import _BaseGenericAlias  # type: ignore[attr-defined]
-from typing import _eval_type  # type: ignore[attr-defined]
+from typing import _BaseGenericAlias  # type: ignore[attr-defined]  # noqa: PLC2701
+from typing import _eval_type  # type: ignore[attr-defined]  # noqa: PLC2701
 from typing import cast
 from typing import get_origin
 from typing import get_type_hints
@@ -869,17 +869,19 @@ class InferredSignature:
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
     _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
 
+    # fmt: off
     # Similar to above, but these are not dunder methods but are called,
     # e.g., for 'append', we need to search for 'append.__call__(...)'
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[
-        tuple[str, ...]
-    ] = OrderedSet(  # noqa: RUF009
-        [("append", "__call__"), ("remove", "__call__")]
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = (
+        OrderedSet(  # noqa: RUF009
+            [("append", "__call__"), ("remove", "__call__")]
+        )
     )
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[
-        tuple[str, ...]
-    ] = OrderedSet(  # noqa: RUF009
-        [("add", "__call__"), ("remove", "__call__"), ("discard", "__call__")]
+    # fmt: on
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = (
+        OrderedSet(  # noqa: RUF009
+            [("add", "__call__"), ("remove", "__call__"), ("discard", "__call__")]
+        )
     )
     # Nothing for tuple and dict.
     _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()  # noqa: RUF009
@@ -958,9 +960,11 @@ class InferredSignature:
                         argument_idx=0,
                     )
                     args = (
-                        guessed_element_type
-                        if guessed_element_type
-                        else guessed_type.args[0],
+                        (
+                            guessed_element_type
+                            if guessed_element_type
+                            else guessed_type.args[0]
+                        ),
                     )
                 case "builtins.set":
                     guessed_element_type = self._guess_generic_arguments(
@@ -972,9 +976,11 @@ class InferredSignature:
                         argument_idx=0,
                     )
                     args = (
-                        guessed_element_type
-                        if guessed_element_type
-                        else guessed_type.args[0],
+                        (
+                            guessed_element_type
+                            if guessed_element_type
+                            else guessed_type.args[0]
+                        ),
                     )
                 case "builtins.dict":
                     guessed_key_type = self._guess_generic_arguments(
@@ -995,9 +1001,11 @@ class InferredSignature:
                     )
                     args = (
                         guessed_key_type if guessed_key_type else guessed_type.args[0],
-                        guessed_value_type
-                        if guessed_value_type
-                        else guessed_type.args[1],
+                        (
+                            guessed_value_type
+                            if guessed_value_type
+                            else guessed_type.args[1]
+                        ),
                     )
             guessed_type = Instance(guessed_type.type, args)
         elif isinstance(guessed_type, TupleType):

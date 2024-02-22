@@ -387,7 +387,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             if predicate_id is not None:
                 node.predicate_id = predicate_id
 
-    def _instrument_cond_jump(  # noqa: PLR0917
+    def _instrument_cond_jump(
         self,
         code_object_id: int,
         maybe_compare_idx: int | None,

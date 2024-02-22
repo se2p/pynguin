@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Generic
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 C = TypeVar("C", bound=chrom.Chromosome)
 
 
-class GenerationAlgorithmFactory(Generic[C], metaclass=ABCMeta):
+class GenerationAlgorithmFactory(Generic[C], ABC):
     """A generic generation algorithm factory."""
 
     _logger = logging.getLogger(__name__)

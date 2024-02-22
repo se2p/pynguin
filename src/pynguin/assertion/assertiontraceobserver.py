@@ -14,7 +14,7 @@ from collections.abc import Sized
 from types import ModuleType
 from typing import cast
 
-from _pytest.outcomes import Failed
+from _pytest.outcomes import Failed  # noqa: PLC2701
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at

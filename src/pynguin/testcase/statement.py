@@ -11,7 +11,6 @@ import abc
 import logging
 import math
 
-from abc import ABCMeta
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
-class Statement(metaclass=ABCMeta):
+class Statement(abc.ABC):
     """An abstract base class of a statement representation."""
 
     _logger = logging.getLogger(__name__)
@@ -247,7 +246,7 @@ class Statement(metaclass=ABCMeta):
         """
 
 
-class VariableCreatingStatement(Statement, metaclass=abc.ABCMeta):
+class VariableCreatingStatement(Statement, abc.ABC):
     """Abstract superclass for statements that create new variables."""
 
     def __init__(self, test_case: tc.TestCase, ret_val: vr.VariableReference):
@@ -261,7 +260,7 @@ class VariableCreatingStatement(Statement, metaclass=abc.ABCMeta):
         self.ret_val: vr.VariableReference = ret_val
 
 
-class StatementVisitor(metaclass=ABCMeta):
+class StatementVisitor(abc.ABC):
     """An abstract statement visitor."""
 
     @abstractmethod
@@ -619,7 +618,7 @@ class CollectionStatement(Generic[T], VariableCreatingStatement):
         return alpha_exponent_insertion(self._elements, self._insertion_supplier)
 
 
-class NonDictCollection(CollectionStatement[vr.VariableReference], metaclass=ABCMeta):
+class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
     """Abstract base class for collections that are not dicts.
 
     We have to handle dicts in a special way, because mutation can affect either
@@ -985,7 +984,7 @@ class FieldStatement(VariableCreatingStatement):
         return hash((self._field, self.ret_val.structural_hash(memo)))
 
 
-class ParametrizedStatement(VariableCreatingStatement, metaclass=ABCMeta):
+class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
     """An abstract statement that has parameters.
 
     Superclass for e.g., method or constructor statement.

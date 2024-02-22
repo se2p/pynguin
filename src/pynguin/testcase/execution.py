@@ -554,9 +554,9 @@ class ReturnTypeObserver(ExecutionObserver):
                     type(first_item[1]),
                 )
             elif type(value) is tuple:
-                self._return_type_local_state.return_type_generic_args[
-                    position
-                ] = tuple(type(v) for v in value)
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    tuple(type(v) for v in value)
+                )
 
 
 @dataclass
@@ -2195,8 +2195,9 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        with contextlib.redirect_stdout(self._null_file), contextlib.redirect_stderr(
-            self._null_file
+        with (
+            contextlib.redirect_stdout(self._null_file),
+            contextlib.redirect_stderr(self._null_file),
         ):
             return_queue: Queue[ExecutionResult] = Queue()
             thread = threading.Thread(

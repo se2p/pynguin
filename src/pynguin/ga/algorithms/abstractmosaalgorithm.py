@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from abc import ABCMeta
+from abc import ABC
 from typing import cast
 
 import pynguin.configuration as config
@@ -22,7 +22,7 @@ from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
 
-class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], metaclass=ABCMeta):
+class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
     """An abstract base implementation for MOSA and its derivatives."""
 
     _logger = logging.getLogger(__name__)

@@ -26,8 +26,9 @@ class TestSuiteChromosome(chrom.Chromosome):
 
     def __init__(
         self,
-        test_case_chromosome_factory: None
-        | (cf.ChromosomeFactory[tcc.TestCaseChromosome]) = None,
+        test_case_chromosome_factory: None | (
+            cf.ChromosomeFactory[tcc.TestCaseChromosome]
+        ) = None,
         orig: TestSuiteChromosome | None = None,
     ):
         """Create new test suite chromosome.

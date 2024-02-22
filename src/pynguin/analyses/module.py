@@ -523,17 +523,17 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def __init__(self, linenos: int) -> None:  # noqa: D107
         self.__type_system = TypeSystem()
         self.__linenos = linenos
-        self.__generators: dict[
-            ProperType, OrderedSet[GenericAccessibleObject]
-        ] = defaultdict(OrderedSet)
+        self.__generators: dict[ProperType, OrderedSet[GenericAccessibleObject]] = (
+            defaultdict(OrderedSet)
+        )
 
         # Modifier belong to a certain class, not type.
-        self.__modifiers: dict[
-            TypeInfo, OrderedSet[GenericAccessibleObject]
-        ] = defaultdict(OrderedSet)
-        self.__accessible_objects_under_test: OrderedSet[
-            GenericAccessibleObject
-        ] = OrderedSet()
+        self.__modifiers: dict[TypeInfo, OrderedSet[GenericAccessibleObject]] = (
+            defaultdict(OrderedSet)
+        )
+        self.__accessible_objects_under_test: OrderedSet[GenericAccessibleObject] = (
+            OrderedSet()
+        )
         self.__function_data_for_accessibles: dict[
             GenericAccessibleObject, _CallableData
         ] = {}

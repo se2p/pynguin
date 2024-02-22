@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import TestCaseExecutor
 
 
-class StoppingCondition(so.SearchObserver, ExecutionObserver, metaclass=ABCMeta):
+class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
     """Provides an interface for a stopping condition of an algorithm."""
 
     def __init__(self, *, observes_execution: bool = False):  # noqa: D107

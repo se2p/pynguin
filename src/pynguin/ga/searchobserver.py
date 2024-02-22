@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
 
-class SearchObserver(metaclass=ABCMeta):
+class SearchObserver(ABC):
     """Observes the execution of a search algorithm."""
 
     @abstractmethod

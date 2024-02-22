@@ -7,7 +7,7 @@
 """Provides a base implementation of a variable in a test case."""
 from __future__ import annotations
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from pynguin.analyses.typesystem import ProperType
 
 
-class Reference(metaclass=ABCMeta):
+class Reference(ABC):
     """Represents something that can be referenced in a test case.
 
     For example:

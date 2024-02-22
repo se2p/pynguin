@@ -41,7 +41,7 @@ from __future__ import annotations
 
 import ast
 
-from abc import ABCMeta
+from abc import ABC
 from ast import iter_child_nodes
 from collections import defaultdict
 from dataclasses import dataclass
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class _ASTVisitor(metaclass=ABCMeta):
+class _ASTVisitor(ABC):
     """Performs a depth-first walk of the AST."""
 
     def __init__(self):

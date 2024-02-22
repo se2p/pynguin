@@ -212,13 +212,13 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         "isdecimal": lambda value: "non_decimal" if value.isdecimal() else "0123456789",
         "isalpha": lambda value: f"{value}1" if value.isalpha() else "isalpha",
         "isdigit": lambda value: f"{value}_" if value.isdigit() else "0",
-        "isidentifier": lambda value: f"{value}!"
-        if value.isidentifier()
-        else "is_Identifier",
+        "isidentifier": lambda value: (
+            f"{value}!" if value.isidentifier() else "is_Identifier"
+        ),
         "isnumeric": lambda value: f"{value}A" if value.isnumeric() else "012345",
-        "isprintable": lambda value: f"{value}{os.linesep}"
-        if value.isprintable()
-        else "is_printable",
+        "isprintable": lambda value: (
+            f"{value}{os.linesep}" if value.isprintable() else "is_printable"
+        ),
         "isspace": lambda value: f"{value}a" if value.isspace() else "   ",
         "istitle": lambda value: f"{value} AAA" if value.istitle() else "Is Title",
     }

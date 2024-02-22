@@ -83,9 +83,9 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: list[
-            tcc.TestCaseChromosome
-        ] = self._breed_next_generation()
+        offspring_population: list[tcc.TestCaseChromosome] = (
+            self._breed_next_generation()
+        )
 
         # Create union of parents and offspring
         union: list[tcc.TestCaseChromosome] = []
@@ -144,16 +144,16 @@ class _GoalsManager:
         subject_properties: SubjectProperties,
     ) -> None:
         self._archive = archive
-        branch_fitness_functions: OrderedSet[
-            bg.BranchCoverageTestFitness
-        ] = OrderedSet()
+        branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = (
+            OrderedSet()
+        )
         for fit in fitness_functions:
             assert isinstance(fit, bg.BranchCoverageTestFitness)
             branch_fitness_functions.add(fit)
         self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
-        self._current_goals: OrderedSet[
-            bg.BranchCoverageTestFitness
-        ] = self._graph.root_branches
+        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = (
+            self._graph.root_branches
+        )
         self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property

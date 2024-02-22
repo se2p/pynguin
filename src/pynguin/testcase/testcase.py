@@ -7,7 +7,7 @@
 """Provides an implementation for a test case."""
 from __future__ import annotations
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from pynguin.utils.orderedset import OrderedSet
 
 
-class TestCase(metaclass=ABCMeta):  # noqa: PLR0904
+class TestCase(ABC):  # noqa: PLR0904
     """An abstract base implementation for a test case.
 
     Serves as an interface for test-case implementations

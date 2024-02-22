@@ -92,7 +92,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):  # noqa: PLW1641
         # NB: Dictionaries are ordered in Python 3.6+. While this was not formalized
         # until Python 3.7, Python 3.6 uses this behavior; Pants requires CPython 3.6+
         # to run, so this assumption is safe for us to rely on.
-        self._items: dict[T, None] = {v: None for v in iterable or ()}
+        self._items: dict[T, None] = dict.fromkeys(iterable or ())
 
     def __len__(self) -> int:
         return len(self._items)

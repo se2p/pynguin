@@ -282,7 +282,7 @@ class DynamicSlicer:
         self._update_stack_effects(last_state, last_unique_instr, slc)
         return prev_import_back_call
 
-    def _trace_housekeeping(  # noqa: PLR0917
+    def _trace_housekeeping(
         self, criterion_in_slice, include_use, last_traced_instr, last_unique_instr, slc
     ):
         # Add instruction to slice
@@ -411,7 +411,7 @@ class DynamicSlicer:
 
         raise InstructionNotFoundException
 
-    def create_unique_instruction(  # noqa: PLR0917
+    def create_unique_instruction(
         self, file: str, instr: Instr, code_object_id: int, node_id: int, offset: int
     ) -> UniqueInstruction:
         """Creates and returns a unique instruction object from an instruction.

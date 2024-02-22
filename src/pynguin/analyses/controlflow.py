@@ -636,9 +636,9 @@ class DominatorTree(ProgramGraph[ProgramGraphNode]):
         Returns:
             The dominance tree for the control-flow graph
         """
-        dominance: dict[
-            ProgramGraphNode, set[ProgramGraphNode]
-        ] = DominatorTree._calculate_dominance(graph)
+        dominance: dict[ProgramGraphNode, set[ProgramGraphNode]] = (
+            DominatorTree._calculate_dominance(graph)
+        )
         for dominance_node, nodes in dominance.items():
             nodes.discard(dominance_node)
         dominance_tree = DominatorTree()

@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 import typing
 
-from abc import ABCMeta
+from abc import ABC
 from abc import abstractmethod
 from typing import Generic
 from typing import TypeVar
@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 T = TypeVar("T", int, float)
 
 
-class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
+class ChromosomeOutputVariableFactory(Generic[T], ABC):
     """Factory to create an output variable when given a test suite chromosome."""
 
     def __init__(self, variable: RuntimeVariable) -> None:
@@ -65,7 +65,7 @@ class ChromosomeOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         )
 
 
-class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
+class SequenceOutputVariableFactory(Generic[T], ABC):
     """Creates an output variable that represents a sequence of values."""
 
     def __init__(self, variable: stat.RuntimeVariable) -> None:  # noqa: D107
@@ -103,12 +103,10 @@ class SequenceOutputVariableFactory(Generic[T], metaclass=ABCMeta):
         self._values.append(self.get_value(individual))
 
     @overload
-    def update_value(self, value: int) -> None:
-        ...
+    def update_value(self, value: int) -> None: ...
 
     @overload
-    def update_value(self, value: float) -> None:
-        ...
+    def update_value(self, value: float) -> None: ...
 
     def update_value(self, value) -> None:
         """Updates the value directly.

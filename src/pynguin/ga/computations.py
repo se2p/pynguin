@@ -42,7 +42,7 @@ class ChromosomeComputation(abc.ABC):
     """Executor that will be used by the computation to execute chromosomes."""
 
 
-class TestCaseChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
+class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test case chromosome."""
 
     def _run_test_case_chromosome(self, individual) -> ExecutionResult:
@@ -66,7 +66,7 @@ class TestCaseChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta
         return result
 
 
-class TestSuiteChromosomeComputation(ChromosomeComputation, metaclass=abc.ABCMeta):
+class TestSuiteChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test suite chromosome."""
 
     def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
@@ -137,9 +137,7 @@ class FitnessFunction:
         """
 
 
-class TestCaseFitnessFunction(
-    TestCaseChromosomeComputation, FitnessFunction, metaclass=abc.ABCMeta
-):
+class TestCaseFitnessFunction(TestCaseChromosomeComputation, FitnessFunction, abc.ABC):
     """Base class for test case fitness functions."""
 
     def __init__(self, executor, code_object_id: int):  # noqa: D107
@@ -182,7 +180,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
 
 
 class TestSuiteFitnessFunction(
-    TestSuiteChromosomeComputation, FitnessFunction, metaclass=abc.ABCMeta
+    TestSuiteChromosomeComputation, FitnessFunction, abc.ABC
 ):
     """Base class for test suite fitness functions."""
 
@@ -314,13 +312,13 @@ class CoverageFunction:
 
 
 class TestSuiteCoverageFunction(
-    TestSuiteChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
+    TestSuiteChromosomeComputation, CoverageFunction, abc.ABC
 ):
     """Base class for all coverage functions that act on test suite level."""
 
 
 class TestCaseCoverageFunction(
-    TestCaseChromosomeComputation, CoverageFunction, metaclass=abc.ABCMeta
+    TestCaseChromosomeComputation, CoverageFunction, abc.ABC
 ):
     """Base class for all coverage functions that act on test case level."""
 
