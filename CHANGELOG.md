@@ -11,6 +11,13 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.35.0
+
+- Fix `TypeError` bug in instrumentation of bytecode (see GitHub PR #51)
+- Add a dump method for type-information statistics
+- Fix handling of aliased modules (see GitHub issue #57)
+- Fix method-signature handling for C extensions (see GitHub issue #59)
+
 ## Pynguin 0.34.0
 
 - Activate a larger selection of checkers for [ruff](https://github.com/astral-sh/ruff)

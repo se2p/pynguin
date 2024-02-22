@@ -132,6 +132,8 @@ of the [University of Passau](https://www.uni-passau.de).
 Maintainer: [Stephan Lukasczyk](https://github.com/stephanlukasczyk)
 
 Contributors:
+- [Juan Altmayer Pizzorno](https://github.com/jaltmayerpizzorno)
+- [Lucas Berg](https://github.com/BergLucas)
 - [Tucker Blue](https://github.com/tuckcodes)
 - [Gordon Fraser](https://github.com/gofraser)
 - [Abdur-Rahmaan Janhangeer](https://github.com/Abdur-rahmaanJ)
