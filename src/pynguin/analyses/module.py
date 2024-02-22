@@ -21,6 +21,7 @@ import queue
 import typing
 
 from collections import defaultdict
+from pathlib import Path
 from types import BuiltinFunctionType
 from types import FunctionType
 from types import GenericAlias
@@ -1387,11 +1388,28 @@ def __analyse_included_classes(
 
         type_info = test_cluster.type_system.to_type_info(current)
 
+        # Skip if the class is _ObjectProxyMethods, as it is broken
+        # since __module__ is not well defined on it.
+        if isinstance(current.__module__, property):
+            LOGGER.info("Skipping class that has a property __module__: %s", current)
+            continue
+
+        # Skip some C-extension modules that are not publicly accessible.
+        try:
+            results = parse_results[current.__module__]
+        except ModuleNotFoundError as error:
+            if getattr(current, "__file__", None) is None or Path(
+                current.__file__
+            ).suffix in {".so", ".pyd"}:
+                LOGGER.info("C-extension module not found: %s", current.__module__)
+                continue
+            raise error
+
         __analyse_class(
             type_info=type_info,
             type_inference_strategy=type_inference_strategy,
-            module_tree=parse_results[current.__module__].syntax_tree,
-            type4py_data=parse_results[current.__module__].type4py_data,
+            module_tree=results.syntax_tree,
+            type4py_data=results.type4py_data,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
