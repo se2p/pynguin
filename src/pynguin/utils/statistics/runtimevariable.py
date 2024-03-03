@@ -44,9 +44,6 @@ class RuntimeVariable(str, enum.Enum):
     # Number of iterations of the test-generation algorithm
     AlgorithmIterations = "AlgorithmIterations"
 
-    # Execution results
-    ExecutionResults = "ExecutionResults"
-
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning
     RandomSeed = "RandomSeed"
