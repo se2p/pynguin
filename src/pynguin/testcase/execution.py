@@ -2560,7 +2560,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         result_queue: Queue
     ) -> None:
         tracer = ExecutionTracer()
-        tracer.subject_properties = subject_properties
+        tracer.subject_properties.branch_less_code_objects = subject_properties.branch_less_code_objects
+        tracer.subject_properties.existing_lines = subject_properties.existing_lines
+        tracer.subject_properties.existing_predicates = subject_properties.existing_predicates
+        tracer.subject_properties.object_addresses = subject_properties.object_addresses
 
         executor = TestCaseExecutor(
             tracer,
