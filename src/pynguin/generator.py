@@ -54,6 +54,7 @@ from pynguin.testcase import export
 from pynguin.testcase.execution import AssertionExecutionObserver
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
@@ -261,7 +262,7 @@ def _setup_and_check() -> (
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
-    executor = TestCaseExecutor(
+    executor = SubprocessTestCaseExecutor(
         tracer,
         maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
         test_execution_time_per_statement=stop.test_execution_time_per_statement,

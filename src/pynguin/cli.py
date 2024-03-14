@@ -196,4 +196,8 @@ to see why this happens and what you must do to prevent it."""
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    multiprocessing.set_start_method("spawn")
+
     sys.exit(main(sys.argv))

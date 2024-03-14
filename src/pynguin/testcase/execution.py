@@ -14,6 +14,7 @@ import copy
 import dataclasses
 import inspect
 import logging
+import multiprocessing as mp
 import os
 import sys
 import threading
@@ -34,6 +35,7 @@ from typing import Any
 from typing import TypeVar
 from typing import cast
 
+import cloudpickle
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
@@ -245,6 +247,26 @@ class ExecutionContext:
         """
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
+    def __getstate__(self):
+        new_global_namespace = self._global_namespace.copy()
+        new_global_namespace.pop("__builtins__", None)
+        return {
+            "module_provider": self._module_provider,
+            "local_namespace": self._local_namespace,
+            "variable_names": self._variable_names,
+            "module_aliases": self._module_aliases,
+            "global_namespace": new_global_namespace,
+            "has_builtins": "__builtins__" in self._global_namespace,
+        }
+
+    def __setstate__(self, state: dict):
+        self._module_provider = state["module_provider"]
+        self._local_namespace = state["local_namespace"]
+        self._variable_names = state["variable_names"]
+        self._module_aliases = state["module_aliases"]
+        self._global_namespace = state["global_namespace"]
+        if state["has_builtins"]:
+            self.add_new_module_alias("builtins", "__builtins__")
 
 class ExecutionObserver:
     """An Observer that can be used to observe the execution of a test case.
@@ -2376,6 +2398,255 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
             self._tracer.enable()
+
+
+class SubprocessTestCaseExecutor(TestCaseExecutor):
+    """An executor that executes the generated test cases in a subprocess."""
+
+    def __init__(
+        self,
+        tracer: ExecutionTracer,
+        module_provider: ModuleProvider | None = None,
+        maximum_test_execution_timeout: int = 5,
+        test_execution_time_per_statement: int = 1,
+    ) -> None:
+        """Create new subprocess test case executor.
+
+        Args:
+            tracer: the execution tracer
+            module_provider: The used module provider
+            maximum_test_execution_timeout: The minimum timeout time (in seconds)
+                before a test case execution times out.
+            test_execution_time_per_statement: The amount of time (in seconds) that is
+                added to the timeout per statement, up to minimum_test_execution_timeout
+        """
+        self._maximum_test_execution_timeout = maximum_test_execution_timeout
+        self._test_execution_time_per_statement = test_execution_time_per_statement
+
+        self._module_provider = (
+            module_provider if module_provider is not None else ModuleProvider()
+        )
+        self._tracer = tracer
+        self._observers: list[ExecutionObserver] = []
+        self._instrument = (
+            config.CoverageMetric.CHECKED
+            in config.configuration.statistics_output.coverage_metrics
+        )
+
+    @property
+    def module_provider(self) -> ModuleProvider:
+        """The module provider used by this executor.
+
+        Returns:
+            The used module provider
+        """
+        return self._module_provider
+
+    def add_observer(self, observer: ExecutionObserver) -> None:
+        """Add an execution observer.
+
+        Args:
+            observer: the observer to be added.
+        """
+        self._observers.append(observer)
+
+    def clear_observers(self) -> None:
+        """Remove all existing observers."""
+        self._observers.clear()
+
+    @contextlib.contextmanager
+    def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102
+        self._observers.append(observer)
+        yield
+        self._observers.remove(observer)
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+        return self._tracer
+
+    def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
+        """Set if the test is to be instrumented as well.
+
+        Args:
+            instrument: Whether to instrument the test and its assertions.
+        """
+        self._instrument = instrument
+
+    def execute(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+    ) -> ExecutionResult:
+        return_queue: mp.Queue[ExecutionResult] = mp.Queue(1)
+        sending_queue = mp.Queue(1)
+        receiving_queue = mp.Queue(1)
+
+        observer = SubprocessObserver(receiving_queue, sending_queue)
+
+        module_provider_str = cloudpickle.dumps(self._module_provider)
+
+        args = (
+            self._tracer.subject_properties,
+            module_provider_str,
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement,
+            test_case,
+            observer,
+            return_queue,
+        )
+
+        process = mp.Process(
+            target=self._execute_test_case,
+            args=args,
+            daemon=True,
+        )
+
+        def run_observer_server():
+            self.tracer.current_thread_identifier = threading.current_thread().ident
+            while process.is_alive():
+                command, pkl_args = receiving_queue.get()
+                args = cloudpickle.loads(pkl_args)
+                if command == "before_test_case_execution":
+                    self._before_test_case_execution(*args)
+                    sending_queue.put(cloudpickle.dumps(None))
+                elif command == "after_test_case_execution_inside_thread":
+                    self._after_test_case_execution_inside_thread(*args)
+                    sending_queue.put(cloudpickle.dumps(None))
+                elif command == "before_statement_execution":
+                    result = self._before_statement_execution(*args).body[0]
+                    sending_queue.put(cloudpickle.dumps(result))
+                elif command == "after_statement_execution":
+                    trace, module_provider, *args = args
+                    self._module_provider = module_provider
+                    self._tracer._thread_local_state.trace = trace
+                    self._after_statement_execution(*args)
+                    sending_queue.put(cloudpickle.dumps(None))
+
+        thread = threading.Thread(target=run_observer_server, daemon=True)
+
+        process.start()
+
+        thread.start()
+
+        process.join()
+
+        result = return_queue.get()
+
+        self._after_test_case_execution_outside_thread(test_case, result)
+
+        return_queue.close()
+        sending_queue.close()
+        receiving_queue.close()
+
+        return result
+
+    @staticmethod
+    def _execute_test_case(
+        subject_properties: SubjectProperties,
+        module_provider_str: str,
+        maximum_test_execution_timeout: int,
+        test_execution_time_per_statement: int,
+        test_case: tc.TestCase,
+        observer: SubprocessObserver,
+        result_queue: Queue
+    ) -> None:
+        tracer = ExecutionTracer()
+        tracer.subject_properties = subject_properties
+
+        executor = TestCaseExecutor(
+            tracer,
+            cloudpickle.loads(module_provider_str),
+            maximum_test_execution_timeout,
+            test_execution_time_per_statement,
+        )
+
+        executor.add_observer(observer)
+
+        tracer.current_thread_identifier = threading.current_thread().ident
+
+        result = executor.execute(test_case)
+
+        result_queue.put(result)
+
+    def execute_ast(
+        self,
+        ast_node: ast.Module,
+        exec_ctx: ExecutionContext,
+    ) -> BaseException | None:
+        """Execute the given ast_node in the given context.
+
+        You can use this in an observer if you also need to execute an AST Node.
+
+        Args:
+            ast_node: The node to execute.
+            exec_ctx: The execution context
+
+        Returns:
+            The raised exception, if any.
+        """
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug("Executing %s", ast.unparse(ast_node))
+
+        code = compile(ast_node, "<ast>", "exec")
+        if self._instrument:
+            code = self._checked_transformer.instrument_module(code)
+
+        try:
+            exec(  # noqa: S102
+                code, exec_ctx.global_namespace, exec_ctx.local_namespace
+            )
+        except BaseException as err:  # noqa: BLE001
+            failed_stmt = ast.unparse(ast_node)
+            _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
+            return err
+
+        return None
+
+
+class SubprocessObserver(ExecutionObserver):
+    """An observer that executes in a subprocess."""
+
+    def __init__(self, sending_queue: mp.Queue, receiving_queue: mp.Queue):
+        self._sending_queue = sending_queue
+        self._receiving_queue = receiving_queue
+
+    def before_test_case_execution(self, test_case: tc.TestCase) -> None:
+        self._sending_queue.put(("before_test_case_execution", cloudpickle.dumps((test_case,))))
+        return cloudpickle.loads(self._receiving_queue.get())
+
+    def after_test_case_execution_inside_thread(  # noqa: D102
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        self._sending_queue.put(("after_test_case_execution_inside_thread", cloudpickle.dumps((test_case, result))))
+        return cloudpickle.loads(self._receiving_queue.get())
+
+    def after_test_case_execution_outside_thread(  # noqa: D102
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        pass
+
+    def before_statement_execution(  # noqa: D102
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        self._sending_queue.put(("before_statement_execution", cloudpickle.dumps((statement, exec_ctx))))
+        m = self._receiving_queue.get()
+        return cloudpickle.loads(m)
+
+    def after_statement_execution(  # noqa: D102
+        self,
+        statement: stmt.Statement,
+        executor: AbstractTestCaseExecutor,
+        exec_ctx: ExecutionContext,
+        exception: BaseException | None,
+    ) -> None:
+        self._sending_queue.put(
+            ("after_statement_execution", cloudpickle.dumps((executor.tracer.get_trace(), executor.module_provider, statement, exec_ctx, exception)))
+        )
+        return cloudpickle.loads(self._receiving_queue.get())
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
