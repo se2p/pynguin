@@ -2481,7 +2481,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        return_queue: mp.Queue[ExecutionResult] = mp.Queue(1)
+        return_queue: mp.Queue[tuple[SubjectProperties, ExecutionResult]] = mp.Queue(1)
         sending_queue = mp.Queue(1)
         receiving_queue = mp.Queue(1)
 
@@ -2534,7 +2534,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.join()
 
-        result = return_queue.get()
+        subject_properties, result = return_queue.get()
+
+        self._tracer.subject_properties.branch_less_code_objects = subject_properties.branch_less_code_objects
+        self._tracer.subject_properties.existing_lines = subject_properties.existing_lines
+        self._tracer.subject_properties.existing_predicates = subject_properties.existing_predicates
+        self._tracer.subject_properties.object_addresses = subject_properties.object_addresses
 
         self._after_test_case_execution_outside_thread(test_case, result)
 
@@ -2570,7 +2575,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
-        result_queue.put(result)
+        result_queue.put((subject_properties, result))
 
     def execute_ast(
         self,
