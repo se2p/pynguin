@@ -14,7 +14,7 @@ import copy
 import dataclasses
 import inspect
 import logging
-import multiprocessing as mp
+import multiprocess as mp
 import os
 import sys
 import threading
@@ -35,7 +35,6 @@ from typing import Any
 from typing import TypeVar
 from typing import cast
 
-import cloudpickle
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
@@ -2506,11 +2505,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         observer = SubprocessObserver(receiving_queue, sending_queue)
 
-        module_provider_str = cloudpickle.dumps(self._module_provider)
-
         args = (
             self._tracer,
-            module_provider_str,
+            self._module_provider,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
             test_case,
@@ -2527,23 +2524,22 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         def run_observer_server():
             self.tracer.current_thread_identifier = threading.current_thread().ident
             while process.is_alive():
-                command, pkl_args = receiving_queue.get()
-                args = cloudpickle.loads(pkl_args)
+                command, args = receiving_queue.get()
                 if command == "before_test_case_execution":
                     self._before_test_case_execution(*args)
-                    sending_queue.put(cloudpickle.dumps(None))
+                    sending_queue.put(None)
                 elif command == "after_test_case_execution_inside_thread":
                     self._after_test_case_execution_inside_thread(*args)
-                    sending_queue.put(cloudpickle.dumps(None))
+                    sending_queue.put(None)
                 elif command == "before_statement_execution":
                     result = self._before_statement_execution(*args).body[0]
-                    sending_queue.put(cloudpickle.dumps(result))
+                    sending_queue.put(result)
                 elif command == "after_statement_execution":
                     trace, module_provider, *args = args
                     self._module_provider = module_provider
                     self._tracer._thread_local_state.trace = trace
                     self._after_statement_execution(*args)
-                    sending_queue.put(cloudpickle.dumps(None))
+                    sending_queue.put(None)
 
         thread = threading.Thread(target=run_observer_server, daemon=True)
 
@@ -2571,7 +2567,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     @staticmethod
     def _execute_test_case(
         tracer: ExecutionTracer,
-        module_provider_str: str,
+        module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
         test_case: tc.TestCase,
@@ -2580,7 +2576,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     ) -> None:
         executor = TestCaseExecutor(
             tracer,
-            cloudpickle.loads(module_provider_str),
+            module_provider,
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
         )
@@ -2602,14 +2598,14 @@ class SubprocessObserver(ExecutionObserver):
         self._receiving_queue = receiving_queue
 
     def before_test_case_execution(self, test_case: tc.TestCase) -> None:
-        self._sending_queue.put(("before_test_case_execution", cloudpickle.dumps((test_case,))))
-        return cloudpickle.loads(self._receiving_queue.get())
+        self._sending_queue.put(("before_test_case_execution", (test_case,)))
+        return self._receiving_queue.get()
 
     def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        self._sending_queue.put(("after_test_case_execution_inside_thread", cloudpickle.dumps((test_case, result))))
-        return cloudpickle.loads(self._receiving_queue.get())
+        self._sending_queue.put(("after_test_case_execution_inside_thread", (test_case, result)))
+        return self._receiving_queue.get()
 
     def after_test_case_execution_outside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
@@ -2619,8 +2615,8 @@ class SubprocessObserver(ExecutionObserver):
     def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
-        self._sending_queue.put(("before_statement_execution", cloudpickle.dumps((statement, exec_ctx)))) 
-        return cloudpickle.loads(self._receiving_queue.get())
+        self._sending_queue.put(("before_statement_execution", (statement, exec_ctx)))
+        return self._receiving_queue.get()
 
     def after_statement_execution(  # noqa: D102
         self,
@@ -2630,9 +2626,9 @@ class SubprocessObserver(ExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         self._sending_queue.put(
-            ("after_statement_execution", cloudpickle.dumps((executor.tracer.get_trace(), executor.module_provider, statement, exec_ctx, exception)))
+            ("after_statement_execution", (executor.tracer.get_trace(), executor.module_provider, statement, exec_ctx, exception))
         )
-        return cloudpickle.loads(self._receiving_queue.get())
+        return self._receiving_queue.get()
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
