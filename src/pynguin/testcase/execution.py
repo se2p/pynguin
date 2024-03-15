@@ -2619,9 +2619,8 @@ class SubprocessObserver(ExecutionObserver):
     def before_statement_execution(  # noqa: D102
         self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
-        self._sending_queue.put(("before_statement_execution", cloudpickle.dumps((statement, exec_ctx))))
-        m = self._receiving_queue.get()
-        return cloudpickle.loads(m)
+        self._sending_queue.put(("before_statement_execution", cloudpickle.dumps((statement, exec_ctx)))) 
+        return cloudpickle.loads(self._receiving_queue.get())
 
     def after_statement_execution(  # noqa: D102
         self,
