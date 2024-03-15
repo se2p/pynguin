@@ -1863,15 +1863,21 @@ class ExecutionTracer:  # noqa: PLR0904
     def __getstate__(self) -> dict:
         return {
             "subject_properties": self.subject_properties,
-            "_import_trace": self._import_trace,
-            "_current_thread_identifier": self._current_thread_identifier,
+            "import_trace": self._import_trace,
+            "current_thread_identifier": self._current_thread_identifier,
+            "thread_local_state": {
+                "enabled": self._thread_local_state.enabled,
+                "trace": self._thread_local_state.trace,
+            },
         }
 
     def __setstate__(self, state: dict) -> None:
         self.subject_properties = state["subject_properties"]
-        self._import_trace = state["_import_trace"]
-        self._current_thread_identifier = state["_current_thread_identifier"]
+        self._import_trace = state["import_trace"]
+        self._current_thread_identifier = state["current_thread_identifier"]
         self._thread_local_state = ExecutionTracer.TracerLocalState()
+        self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
+        self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
 
 @dataclass
