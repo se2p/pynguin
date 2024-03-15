@@ -1860,6 +1860,19 @@ class ExecutionTracer:  # noqa: PLR0904
             ]
         )
 
+    def __getstate__(self) -> dict:
+        return {
+            "subject_properties": self.subject_properties,
+            "_import_trace": self._import_trace,
+            "_current_thread_identifier": self._current_thread_identifier,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self.subject_properties = state["subject_properties"]
+        self._import_trace = state["_import_trace"]
+        self._current_thread_identifier = state["_current_thread_identifier"]
+        self._thread_local_state = ExecutionTracer.TracerLocalState()
+
 
 @dataclass
 class ExecutedAssertion:
@@ -2490,7 +2503,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         module_provider_str = cloudpickle.dumps(self._module_provider)
 
         args = (
-            self._tracer.subject_properties,
+            self._tracer,
             module_provider_str,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
@@ -2551,7 +2564,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _execute_test_case(
-        subject_properties: SubjectProperties,
+        tracer: ExecutionTracer,
         module_provider_str: str,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
@@ -2559,12 +2572,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         observer: SubprocessObserver,
         result_queue: Queue
     ) -> None:
-        tracer = ExecutionTracer()
-        tracer.subject_properties.branch_less_code_objects = subject_properties.branch_less_code_objects
-        tracer.subject_properties.existing_lines = subject_properties.existing_lines
-        tracer.subject_properties.existing_predicates = subject_properties.existing_predicates
-        tracer.subject_properties.object_addresses = subject_properties.object_addresses
-
         executor = TestCaseExecutor(
             tracer,
             cloudpickle.loads(module_provider_str),
@@ -2578,7 +2585,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
-        result_queue.put((subject_properties, result))
+        result_queue.put((tracer.subject_properties, result))
 
     def execute_ast(
         self,
