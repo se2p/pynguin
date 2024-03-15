@@ -2593,40 +2593,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result_queue.put((tracer.subject_properties, result))
 
-    def execute_ast(
-        self,
-        ast_node: ast.Module,
-        exec_ctx: ExecutionContext,
-    ) -> BaseException | None:
-        """Execute the given ast_node in the given context.
-
-        You can use this in an observer if you also need to execute an AST Node.
-
-        Args:
-            ast_node: The node to execute.
-            exec_ctx: The execution context
-
-        Returns:
-            The raised exception, if any.
-        """
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug("Executing %s", ast.unparse(ast_node))
-
-        code = compile(ast_node, "<ast>", "exec")
-        if self._instrument:
-            code = self._checked_transformer.instrument_module(code)
-
-        try:
-            exec(  # noqa: S102
-                code, exec_ctx.global_namespace, exec_ctx.local_namespace
-            )
-        except BaseException as err:  # noqa: BLE001
-            failed_stmt = ast.unparse(ast_node)
-            _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
-            return err
-
-        return None
-
 
 class SubprocessObserver(ExecutionObserver):
     """An observer that executes in a subprocess."""
