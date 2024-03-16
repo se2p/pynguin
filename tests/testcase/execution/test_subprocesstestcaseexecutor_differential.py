@@ -17,7 +17,7 @@ def test_simple_execution(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
 
     subprocess_tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
 
     with install_import_hook(config.configuration.module_name, tracer):
         module = importlib.import_module(config.configuration.module_name)
@@ -27,8 +27,12 @@ def test_simple_execution(short_test_case):
 
         result = executor.execute(short_test_case)
 
+    with install_import_hook(config.configuration.module_name, subprocess_tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+
         subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
 
         subprocess_result = subprocess_executor.execute(short_test_case)
 
-        assert result == subprocess_result
+    assert result == subprocess_result
