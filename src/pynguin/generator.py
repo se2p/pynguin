@@ -49,9 +49,9 @@ from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
+from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
-from pynguin.testcase.execution import AssertionExecutionObserver
+from pynguin.testcase.execution import RemoteAssertionExecutionObserver
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
@@ -415,7 +415,7 @@ def _track_final_metrics(
     if RuntimeVariable.AssertionCheckedCoverage in output_variables:
         metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
         executor.set_instrument(True)
-        executor.add_observer(AssertionExecutionObserver(executor.tracer))
+        executor.add_remote_observer(RemoteAssertionExecutionObserver())
         assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
             executor
         )
@@ -511,7 +511,7 @@ def _run() -> ReturnCode:
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        executor.add_observer(StatementSlicingObserver(executor.tracer))
+        executor.add_remote_observer(RemoteStatementSlicingObserver())
 
     algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
@@ -529,6 +529,7 @@ def _run() -> ReturnCode:
     # Executions that happen after this point should not influence the
     # search statistics
     executor.clear_observers()
+    executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)

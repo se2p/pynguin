@@ -12,6 +12,7 @@ import threading
 
 from collections.abc import Sized
 from types import ModuleType
+from typing import Any
 from typing import cast
 
 from _pytest.outcomes import Failed  # noqa: PLC2701
@@ -35,13 +36,13 @@ from pynguin.utils.type_utils import is_primitive_type
 _LOGGER = logging.getLogger(__name__)
 
 
-class AssertionTraceObserver(ex.ExecutionObserver):
-    """Observer that creates assertions.
+class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
+    """Remote observer that creates assertions.
 
     Observes the execution of a test case and generates assertions from it.
     """
 
-    class AssertionLocalState(threading.local):
+    class RemoteAssertionLocalState(threading.local):
         """Stores thread-local assertion data."""
 
         def __init__(self):  # noqa: D107
@@ -50,7 +51,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             self.watch_list: list[vr.VariableReference] = []
 
     def __init__(self) -> None:  # noqa: D107
-        self._assertion_local_state = AssertionTraceObserver.AssertionLocalState()
+        self._assertion_local_state = RemoteAssertionTraceObserver.RemoteAssertionLocalState()
 
     def get_trace(self) -> at.AssertionTrace:
         """Get a copy of the gathered trace.
@@ -94,20 +95,13 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             stmt = cast(st.VariableCreatingStatement, statement)
             self._handle(stmt, exec_ctx)
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: ex.TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
     ):
         result.assertion_trace = self.get_trace()
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ):
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """
 
     def _handle(  # noqa: C901
         self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
@@ -260,10 +254,10 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         )
 
 
-class AssertionVerificationObserver(ex.ExecutionObserver):
-    """This observer is used to check if assertions hold."""
+class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
+    """This remote observer is used to check if assertions hold."""
 
-    class AssertionExecutorLocalState(threading.local):
+    class RemoteAssertionExecutorLocalState(threading.local):
         """Local state for assertion executor."""
 
         def __init__(self):  # noqa: D107
@@ -271,7 +265,17 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             self.trace = at.AssertionVerificationTrace()
 
     def __init__(self):  # noqa: D107
-        self.state = AssertionVerificationObserver.AssertionExecutorLocalState()
+        self._state = RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
+
+    @property
+    def state(self) -> dict[str, Any]:
+        return dict(
+            trace=self._state.trace,
+        )
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._state.trace = state["trace"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -280,20 +284,13 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             test_case: Not used
         """
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: ex.TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
     ) -> None:
-        result.assertion_verification_trace = self.state.trace
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ) -> None:
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """
+        result.assertion_verification_trace = self._state.trace
 
     def before_statement_execution(  # noqa: D102
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
@@ -316,9 +313,9 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             # exception.
             if isinstance(exception, Failed):
                 # Failed indicates that the expected assertion was not raised
-                self.state.trace.failed[statement.get_position()].add(0)
+                self._state.trace.failed[statement.get_position()].add(0)
             else:
-                self.state.trace.error[statement.get_position()].add(0)
+                self._state.trace.error[statement.get_position()].add(0)
         else:
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
@@ -332,6 +329,6 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
                     continue
 
                 if isinstance(exc, AssertionError):
-                    self.state.trace.failed[statement.get_position()].add(idx)
+                    self._state.trace.failed[statement.get_position()].add(idx)
                 else:
-                    self.state.trace.error[statement.get_position()].add(idx)
+                    self._state.trace.error[statement.get_position()].add(idx)

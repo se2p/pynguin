@@ -80,15 +80,15 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         # First run of executions to add assertions
-        with self._plain_executor.temporarily_add_observer(
-            ato.AssertionTraceObserver()
+        with self._plain_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionTraceObserver()
         ):
             for test in test_cases:
                 self._add_assertions_for(test, self._plain_executor.execute(test))
 
         # Perform filtering executions to remove trivially flaky assertions.
-        with self._plain_executor.temporarily_add_observer(
-            ato.AssertionVerificationObserver()
+        with self._plain_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
         ):
             for _ in range(self._filtering_executions):
                 # Create a copy of the list that is shuffled.
@@ -265,7 +265,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             threading.current_thread().ident
         )
         self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer)
-        self._mutation_executor.add_observer(ato.AssertionVerificationObserver())
+        self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
 
         self._transformer = build_transformer(
             self._mutation_tracer,
@@ -288,8 +288,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             (test, []) for test in test_cases
         ]
 
-        with self._mutation_executor.temporarily_add_observer(
-            ato.AssertionVerificationObserver()
+        with self._mutation_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
         ):
             for idx, mutated_module in enumerate(self._mutated_modules):
                 self._logger.info(
