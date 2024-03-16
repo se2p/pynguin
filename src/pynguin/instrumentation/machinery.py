@@ -148,6 +148,15 @@ class InstrumentationFinder(MetaPathFinder):
         """
         return self._tracer
 
+    @tracer.setter
+    def tracer(self, tracer: ExecutionTracer) -> None:
+        """Set a new execution tracer.
+
+        Args:
+            tracer: The new execution tracer
+        """
+        self._tracer = tracer
+
     def update_instrumentation_metrics(
         self,
         tracer: ExecutionTracer,

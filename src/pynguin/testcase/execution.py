@@ -12,6 +12,7 @@ import ast
 import contextlib
 import copy
 import dataclasses
+import importlib
 import inspect
 import logging
 import multiprocess as mp
@@ -2507,6 +2508,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         observer = SubprocessObserver(receiving_queue, sending_queue)
 
         args = (
+            self._tracer,
             self._module_provider,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
@@ -2566,6 +2568,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _execute_test_case(
+        tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
@@ -2575,10 +2578,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     ) -> None:
         instrumentation_finder =  sys.meta_path[0]
 
-        if not isinstance(instrumentation_finder, InstrumentationFinder):
-            raise RuntimeError("InstrumentationFinder not found")
-
-        tracer = instrumentation_finder.tracer
+        if isinstance(instrumentation_finder, InstrumentationFinder):
+            instrumentation_finder.tracer = tracer
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(
             tracer,
