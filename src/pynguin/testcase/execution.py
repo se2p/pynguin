@@ -2576,6 +2576,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         observer: SubprocessObserver,
         result_queue: Queue
     ) -> None:
+        tracer.current_thread_identifier = threading.current_thread().ident
+
         instrumentation_finder =  sys.meta_path[0]
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
@@ -2591,8 +2593,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         executor.add_observer(observer)
-
-        tracer.current_thread_identifier = threading.current_thread().ident
 
         result = executor.execute(test_case)
 
