@@ -7,6 +7,8 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
+from pynguin.utils.orderedset import OrderedSet
+
 
 def test_simple_execution(short_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
@@ -25,10 +27,8 @@ def test_simple_execution(short_test_case):
 
         result = executor.execute(short_test_case)
 
-        print(result)
-
         subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
 
         subprocess_result = subprocess_executor.execute(short_test_case)
 
-        print(subprocess_result)
+        assert result == subprocess_result
