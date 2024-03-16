@@ -2549,9 +2549,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         thread.start()
 
-        process.join()
+        process.join(
+            timeout=10 * min(
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement * len(test_case.statements),
+            )
+        )
 
-        subject_properties, result = return_queue.get()
+        subject_properties, result = return_queue.get(block=False)
+
+        if process.exitcode != 0:
+            return ExecutionResult(timeout=True)
 
         self._tracer.subject_properties.branch_less_code_objects = subject_properties.branch_less_code_objects
         self._tracer.subject_properties.existing_lines = subject_properties.existing_lines
