@@ -66,6 +66,7 @@ from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
+from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
@@ -2506,7 +2507,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         observer = SubprocessObserver(receiving_queue, sending_queue)
 
         args = (
-            self._tracer,
             self._module_provider,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
@@ -2522,7 +2522,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         def run_observer_server():
-            self.tracer.current_thread_identifier = threading.current_thread().ident
+            self._tracer.current_thread_identifier = threading.current_thread().ident
             while process.is_alive():
                 command, args = receiving_queue.get()
                 if command == "before_test_case_execution":
@@ -2566,7 +2566,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _execute_test_case(
-        tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
@@ -2574,6 +2573,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         observer: SubprocessObserver,
         result_queue: Queue
     ) -> None:
+        instrumentation_finder =  sys.meta_path[0]
+
+        if not isinstance(instrumentation_finder, InstrumentationFinder):
+            raise RuntimeError("InstrumentationFinder not found")
+
+        tracer = instrumentation_finder.tracer
+
         executor = TestCaseExecutor(
             tracer,
             module_provider,

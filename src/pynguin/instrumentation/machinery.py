@@ -139,6 +139,15 @@ class InstrumentationFinder(MetaPathFinder):
         self._coverage_metrics = coverage_metrics
         self._dynamic_constant_provider = dynamic_constant_provider
 
+    @property
+    def tracer(self) -> ExecutionTracer:
+        """Provide access to the execution tracer.
+
+        Returns:
+            The execution tracer
+        """
+        return self._tracer
+
     def update_instrumentation_metrics(
         self,
         tracer: ExecutionTracer,
