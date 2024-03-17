@@ -2672,6 +2672,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 if exception not in exception_bad_items
             }
 
+        if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
+            _LOGGER.warning("Unpicklable assertion trace, final results might differ from classic execution with same seed: %s", assertion_trace_bad_items)
+            result.assertion_trace.clear()
+
+        if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
+            _LOGGER.warning("Unpicklable execution trace, final results might differ from classic execution with same seed: %s", execution_trace_bad_items)
+            result.execution_trace.executed_assertions.clear()
+
         if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
             _LOGGER.warning("Unpicklable proxy knowledge, final results might differ from classic execution with same seed: %s", proxy_knowledge_bad_items)
             result.proxy_knowledge.clear()
