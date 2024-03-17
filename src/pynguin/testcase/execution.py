@@ -38,6 +38,7 @@ from typing import Generator
 from typing import TypeVar
 from typing import cast
 
+import dill
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
@@ -2566,6 +2567,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
         )
+        self._max_transfer_time = 5
 
     def execute(  # noqa: D102
         self,
@@ -2598,7 +2600,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         try:
             new_remote_observers, subject_properties, result = return_queue.get(
                 block=True,
-                timeout=min(
+                timeout=self._max_transfer_time + min(
                     self._maximum_test_execution_timeout,
                     self._test_execution_time_per_statement * len(test_case.statements),
                 ),
@@ -2661,6 +2663,38 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             executor.add_remote_observer(remote_observer)
 
         result = executor.execute(test_case)
+
+        if exception_bad_items := dill.detect.baditems(result.exceptions):
+            _LOGGER.warning("Unpicklable exceptions, final results might differ from classic execution with same seed: %s", exception_bad_items)
+            result.exceptions = {
+                position: exception
+                for position, exception in result.exceptions.items()
+                if exception not in exception_bad_items
+            }
+
+        if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
+            _LOGGER.warning("Unpicklable proxy knowledge, final results might differ from classic execution with same seed: %s", proxy_knowledge_bad_items)
+            result.proxy_knowledge.clear()
+
+        if proper_return_type_trace_bad_items := dill.detect.baditems(result.proper_return_type_trace):
+            _LOGGER.warning("Unpicklable proper return type trace, final results might differ from classic execution with same seed: %s", proper_return_type_trace_bad_items)
+            result.proper_return_type_trace.clear()
+
+        if raw_return_type_generic_args_bad_items := dill.detect.baditems(result.raw_return_type_generic_args):
+            _LOGGER.warning("Unpicklable raw return type generic args, final results might differ from classic execution with same seed: %s", raw_return_type_generic_args_bad_items)
+            result.raw_return_type_generic_args = {
+                position: generic_args
+                for position, generic_args in result.raw_return_type_generic_args.items()
+                if all(type not in raw_return_type_generic_args_bad_items for type in generic_args)
+            }
+
+        if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
+            _LOGGER.warning("Unpicklable raw return types, final results might differ from classic execution with same seed: %s", raw_return_types_bad_items)
+            result.raw_return_types = {
+                position: type
+                for position, type in result.raw_return_types.items()
+                if type not in raw_return_types_bad_items
+            }
 
         result_queue.put(
             (remote_observers, tracer.subject_properties, result),
