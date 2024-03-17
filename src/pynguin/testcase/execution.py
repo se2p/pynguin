@@ -2595,21 +2595,27 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
-        process.join(
-            timeout=10 * min(
-                self._maximum_test_execution_timeout,
-                self._test_execution_time_per_statement * len(test_case.statements),
+        try:
+            new_remote_observers, subject_properties, result = return_queue.get(
+                block=True,
+                timeout=min(
+                    self._maximum_test_execution_timeout,
+                    self._test_execution_time_per_statement * len(test_case.statements),
+                ),
             )
-        )
+        except Empty as ex:
+            if process.exitcode == 0:
+                _LOGGER.error("Finished process did not return a result.")
+                raise RuntimeError("Bug in Pynguin!") from ex
 
-        if process.exitcode != 0:
+            if process.exitcode is None:
+                process.kill()
+
             return ExecutionResult(timeout=True)
 
-        try:
-            new_remote_observers, subject_properties, result = return_queue.get(block=False)
-        except Empty as ex:
-            _LOGGER.error("Finished process did not return a result.")
-            raise RuntimeError("Bug in Pynguin!") from ex
+        return_queue.close()
+
+        process.join()
 
         for remote_observer, new_remote_observer in zip(
             remote_observers, new_remote_observers
@@ -2622,8 +2628,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         self._tracer.subject_properties.object_addresses = subject_properties.object_addresses
 
         self._after_remote_test_case_execution(test_case, result)
-
-        return_queue.close()
 
         return result
 
@@ -2658,7 +2662,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
-        result_queue.put((remote_observers, tracer.subject_properties, result))
+        result_queue.put(
+            (remote_observers, tracer.subject_properties, result),
+            block=False,
+        )
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
