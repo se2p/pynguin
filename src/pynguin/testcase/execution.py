@@ -16,6 +16,7 @@ import importlib
 import inspect
 import logging
 import multiprocess as mp
+import multiprocess.connection as mp_conn
 import os
 import sys
 import threading
@@ -2567,7 +2568,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
         )
-        self._max_transfer_time = 5
 
     def execute(  # noqa: D102
         self,
@@ -2575,7 +2575,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     ) -> ExecutionResult:
         self._before_remote_test_case_execution(test_case)
 
-        return_queue: mp.Queue[tuple[tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult]] = mp.Queue(1)
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
 
         remote_observers = tuple(self._yield_remote_observers())
 
@@ -2586,7 +2586,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             self._test_execution_time_per_statement,
             remote_observers,
             test_case,
-            return_queue,
+            sending_connection,
         )
 
         process = mp.Process(
@@ -2597,25 +2597,31 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
-        try:
-            new_remote_observers, subject_properties, result = return_queue.get(
-                block=True,
-                timeout=self._max_transfer_time + min(
-                    self._maximum_test_execution_timeout,
-                    self._test_execution_time_per_statement * len(test_case.statements),
-                ),
-            )
-        except Empty as ex:
-            if process.exitcode == 0:
-                _LOGGER.error("Finished process did not return a result.")
-                raise RuntimeError("Bug in Pynguin!") from ex
+        has_results = receiving_connection.poll(
+            timeout=min(
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement * len(test_case.statements),
+            ),
+        )
 
+        if not has_results:
+            # Just kill the process in case of a timeout
             if process.exitcode is None:
                 process.kill()
+            # Raise an exception when the exit code is not 139 (SIGSEGV)
+            # because it indicates a bug in Pynguin
+            elif process.exitcode != 139:
+                _LOGGER.error("Finished process did not return a result.")
+                raise RuntimeError("Bug in Pynguin!")
 
             return ExecutionResult(timeout=True)
 
-        return_queue.close()
+        return_value: tuple[tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult] = receiving_connection.recv()
+
+        new_remote_observers, subject_properties, result = return_value
+
+        sending_connection.close()
+        receiving_connection.close()
 
         process.join()
 
@@ -2641,7 +2647,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_execution_time_per_statement: int,
         remote_observers: tuple[RemoteExecutionObserver, ...],
         test_case: tc.TestCase,
-        result_queue: Queue
+        sending_connection: mp_conn.Connection
     ) -> None:
         tracer.current_thread_identifier = threading.current_thread().ident
 
@@ -2704,9 +2710,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 if type not in raw_return_types_bad_items
             }
 
-        result_queue.put(
-            (remote_observers, tracer.subject_properties, result),
-            block=False,
+        sending_connection.send(
+            (remote_observers, tracer.subject_properties, result)
         )
 
 
