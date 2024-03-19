@@ -12,7 +12,6 @@ import ast
 import contextlib
 import copy
 import dataclasses
-import importlib
 import inspect
 import logging
 import multiprocess as mp
@@ -61,6 +60,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
+import pynguin.instrumentation.machinery as ma
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
@@ -72,7 +72,6 @@ from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
-from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
@@ -1964,6 +1963,124 @@ class ExecutionTracer:  # noqa: PLR0904
         self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
 
+class ExecutionTracerProxy(ExecutionTracer):
+
+    def __init__(self, tracer: ExecutionTracer):
+        self._tracer = tracer
+        super().__init__()
+
+    @property
+    def tracer(self) -> ExecutionTracer:
+        return self._tracer
+
+    @tracer.setter
+    def tracer(self, tracer: ExecutionTracer) -> None:
+        self._tracer = tracer
+
+    @property
+    def current_thread_identifier(self) -> int | None:
+        return self._tracer.current_thread_identifier
+
+    @property
+    def import_trace(self) -> ExecutionTrace:
+        return self._tracer.import_trace
+
+    def get_subject_properties(self) -> SubjectProperties:
+        return self._tracer.get_subject_properties()
+
+    def reset(self) -> None:
+        self._tracer.reset()
+
+    def store_import_trace(self) -> None:
+        self._tracer.store_import_trace()
+
+    def init_trace(self) -> None:
+        self._tracer.init_trace()
+
+    def is_disabled(self) -> bool:
+        return self._tracer.is_disabled()
+
+    def enable(self) -> None:
+        self._tracer.enable()
+
+    def disable(self) -> None:
+        self._tracer.disable()
+
+    def get_trace(self) -> ExecutionTrace:
+        return self._tracer.get_trace()
+
+    def register_code_object(self, meta: CodeObjectMetaData) -> int:
+        return self._tracer.register_code_object(meta)
+
+    def executed_code_object(self, code_object_id: int) -> None:
+        self._tracer.executed_code_object(code_object_id)
+
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        return self._tracer.register_predicate(meta)
+
+    def executed_compare_predicate(self, value1, value2, predicate: int, cmp_op: PynguinCompare) -> None:
+        self._tracer.executed_compare_predicate(value1, value2, predicate, cmp_op)
+
+    def executed_bool_predicate(self, value, predicate: int) -> None:
+        self._tracer.executed_bool_predicate(value, predicate)
+
+    def executed_exception_match(self, err, exc, predicate: int):
+        self._tracer.executed_exception_match(err, exc, predicate)
+
+    def track_line_visit(self, line_id: int) -> None:
+        self._tracer.track_line_visit(line_id)
+
+    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
+        return self._tracer.register_line(code_object_id, file_name, line_number)
+
+    def track_generic(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int,
+                      offset: int) -> None:
+        self._tracer.track_generic(module, code_object_id, node_id, opcode, lineno, offset)
+
+    def track_memory_access(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int, offset: int,
+                            arg: str | CellVar | FreeVar, arg_address: int, arg_type: type) -> None:
+        self._tracer.track_memory_access(module, code_object_id, node_id, opcode, lineno, offset, arg, arg_address, arg_type)
+
+    def track_attribute_access(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int,
+                               offset: int, attr_name: str, src_address: int, arg_address: int, arg_type: type) -> None:
+        self._tracer.track_attribute_access(module, code_object_id, node_id, opcode, lineno, offset, attr_name, src_address,
+                                       arg_address, arg_type)
+
+    def track_jump(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int, offset: int,
+                   target_id: int) -> None:
+        self._tracer.track_jump(module, code_object_id, node_id, opcode, lineno, offset, target_id)
+
+    def track_call(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int, offset: int,
+                   arg: int) -> None:
+        self._tracer.track_call(module, code_object_id, node_id, opcode, lineno, offset, arg)
+
+    def track_return(self, module: str, code_object_id: int, node_id: int, opcode: int, lineno: int,
+                     offset: int) -> None:
+        self._tracer.track_return(module, code_object_id, node_id, opcode, lineno, offset)
+
+    def register_exception_assertion(self, statement: stmt.Statement) -> None:
+        self._tracer.register_exception_assertion(statement)
+
+    def register_assertion_position(self, code_object_id: int, node_id: int, assertion: ass.Assertion) -> None:
+        self._tracer.register_assertion_position(code_object_id, node_id, assertion)
+
+    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
+        return self._tracer.lineids_to_linenos(line_ids)
+
+    def __repr__(self) -> str:
+        return "ExecutionTracerProxy"
+
+    def __getstate__(self) -> dict:
+        state = self._tracer.__getstate__()
+        state["tracer"] = self._tracer
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        tracer = state["tracer"]
+        self.__init__(tracer)
+        self._tracer.__setstate__(state)
+
+
 @dataclass
 class ExecutedAssertion:
     """Data class for assertions of a testcase traced during execution for slicing."""
@@ -2651,12 +2768,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     ) -> None:
         tracer.current_thread_identifier = threading.current_thread().ident
 
-        instrumentation_finder =  sys.meta_path[0]
+        instrumentation_finder = sys.meta_path[0]
 
-        if isinstance(instrumentation_finder, InstrumentationFinder):
-            instrumentation_finder.tracer = tracer
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
+        if isinstance(instrumentation_finder, ma.InstrumentationFinder):
+            instrumentation_finder.tracer.tracer = tracer
 
         executor = TestCaseExecutor(
             tracer,

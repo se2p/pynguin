@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.configuration as config
+import pynguin.testcase.execution as ex
 
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
@@ -37,7 +38,6 @@ from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import InstrumentationAdapter
-    from pynguin.testcase.execution import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):
@@ -47,7 +47,7 @@ class InstrumentationLoader(SourceFileLoader):
         self,
         fullname,
         path,
-        tracer: ExecutionTracer,
+        tracer: ex.ExecutionTracer,
         transformer: InstrumentationTransformer,
     ):
         super().__init__(fullname, path)
@@ -76,7 +76,7 @@ class InstrumentationLoader(SourceFileLoader):
 
 
 def build_transformer(
-    tracer: ExecutionTracer,
+    tracer: ex.ExecutionTracer,
     coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
@@ -120,7 +120,7 @@ class InstrumentationFinder(MetaPathFinder):
         *,
         original_pathfinder,
         module_to_instrument: str,
-        tracer: ExecutionTracer,
+        tracer: ex.ExecutionTracerProxy,
         coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
@@ -140,7 +140,7 @@ class InstrumentationFinder(MetaPathFinder):
         self._dynamic_constant_provider = dynamic_constant_provider
 
     @property
-    def tracer(self) -> ExecutionTracer:
+    def tracer(self) -> ex.ExecutionTracerProxy:
         """Provide access to the execution tracer.
 
         Returns:
@@ -148,18 +148,9 @@ class InstrumentationFinder(MetaPathFinder):
         """
         return self._tracer
 
-    @tracer.setter
-    def tracer(self, tracer: ExecutionTracer) -> None:
-        """Set a new execution tracer.
-
-        Args:
-            tracer: The new execution tracer
-        """
-        self._tracer = tracer
-
     def update_instrumentation_metrics(
         self,
-        tracer: ExecutionTracer,
+        tracer: ex.ExecutionTracerProxy,
         coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None,
     ) -> None:
@@ -238,7 +229,7 @@ class ImportHookContextManager:
 
 def install_import_hook(
     module_to_instrument: str,
-    tracer: ExecutionTracer,
+    tracer: ex.ExecutionTracer,
     coverage_metrics: set[config.CoverageMetric] | None = None,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
@@ -285,7 +276,7 @@ def install_import_hook(
     hook = InstrumentationFinder(
         original_pathfinder=to_wrap,
         module_to_instrument=module_to_instrument,
-        tracer=tracer,
+        tracer=ex.ExecutionTracerProxy(tracer),
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
