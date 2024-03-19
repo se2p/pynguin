@@ -550,6 +550,22 @@ class TypeGuessingStats:
     )
 
 
+def _serialize_helper(obj):
+    """Utility to deal with non-serializable types.
+
+    Args:
+        obj: The object to serialize
+
+    Returns:
+        A serializable object.
+    """
+    if isinstance(obj, set):
+        return list(obj)
+    if isinstance(obj, SignatureInfo):
+        return dataclasses.asdict(obj)
+    return obj
+
+
 class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     """A test cluster for a module.
 
@@ -586,21 +602,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                     accessible.is_constructor(), str(accessible), stats
                 )
 
-        def _serialize_helper(obj):
-            """Utility to deal with non-serializable types.
-
-            Args:
-                obj: The object to serialize
-
-            Returns:
-                A serializable object.
-            """
-            if isinstance(obj, set):
-                return list(obj)
-            if isinstance(obj, SignatureInfo):
-                return dataclasses.asdict(obj)
-            return obj
-
         stat.track_output_variable(
             RuntimeVariable.SignatureInfos,
             json.dumps(
@@ -611,6 +612,22 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         stat.track_output_variable(
             RuntimeVariable.NumberOfConstructors,
             str(stats.number_of_constructors),
+        )
+
+    def __log_type_evolution(self) -> None:
+        stats = TypeGuessingStats()
+        for accessible in self.__accessible_objects_under_test:
+            if isinstance(accessible, GenericCallableAccessibleObject):
+                accessible.inferred_signature.log_stats_and_guess_signature(
+                    accessible.is_constructor(), str(accessible), stats
+                )
+
+        stat.update_output_variable_for_runtime_variable(
+            RuntimeVariable.SignatureInfosTimeline,
+            json.dumps(
+                stats.signature_infos,
+                default=_serialize_helper,
+            ),
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
@@ -654,6 +671,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
+        self.__log_type_evolution()
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -663,6 +681,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         # Store new data
         accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
+        self.__log_type_evolution()
 
     @property
     def type_system(self) -> TypeSystem:
