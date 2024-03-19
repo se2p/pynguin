@@ -59,6 +59,8 @@ typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
 libcst = "^1.2.0"
 requests = "^2.31.0"
+multiprocess = "^0.70.16"
+dill = "^0.3.8"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
