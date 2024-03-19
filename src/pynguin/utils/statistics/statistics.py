@@ -226,6 +226,11 @@ class _SearchStatistics:
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             RuntimeVariable.TotalExceptionsTimeline
         )
+        self._sequence_output_variable_factories[
+            RuntimeVariable.SignatureInfosTimeline.name
+        ] = ovf.TypeEvolutionSequenceOutputVariableFactory(
+            RuntimeVariable.SignatureInfosTimeline, "{}"
+        )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
         """Set start time for sequence data.
