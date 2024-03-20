@@ -16,8 +16,6 @@ import types
 
 from typing import Any
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-
 
 def create_module(ast_node: ast.Module, module_name: str = "mutant", module_dict: dict[str, Any] | None = None):
     code = compile(ast_node, module_name, "exec")
