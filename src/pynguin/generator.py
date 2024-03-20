@@ -47,12 +47,12 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
-from pynguin.testcase.execution import ExecutionTracer, ExecutionTracerProxy
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils import randomness
@@ -358,7 +358,7 @@ def _reload_instrumentation_loader(
             break
     assert first_finder is not None
     first_finder.update_instrumentation_metrics(
-        tracer=ExecutionTracerProxy(tracer),
+        tracer=tracer,
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
