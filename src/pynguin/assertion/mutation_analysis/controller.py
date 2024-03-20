@@ -31,7 +31,7 @@ class MutationController:
         target_module: types.ModuleType,
         to_mutate: str | None,
         target_ast: ast.AST,
-    ) -> Generator[tuple[list[Mutation], types.ModuleType | None], None, None]:
+    ) -> Generator[tuple[types.ModuleType | None, list[Mutation]], None, None]:
         for mutations, mutant_ast in self.mutant_generator.mutate(
             target_ast,
             to_mutate,
