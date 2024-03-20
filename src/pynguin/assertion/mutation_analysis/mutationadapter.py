@@ -7,6 +7,7 @@
 """Provides an adapter for the MutPy mutation testing framework."""
 from __future__ import annotations
 
+import importlib
 import logging
 
 from typing import TYPE_CHECKING
@@ -14,7 +15,6 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.mutation_analysis.controller as mc
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.operators.loop as mol
-import pynguin.assertion.mutation_analysis.utils as mu
 
 import pynguin.configuration as config
 
@@ -42,9 +42,6 @@ class MutationAdapter:
         config.MutationStrategy.EACH_CHOICE: mc.EachChoiceHOMStrategy,
     }
 
-    def __init__(self):  # noqa: D107
-        self.target_loader: mu.ModulesLoader | None = None
-
     def mutate_module(self) -> list[tuple[ModuleType, list[mo.Mutation]]]:
         """Mutates the modules specified in the configuration.
 
@@ -58,32 +55,28 @@ class MutationAdapter:
 
         mutants = []
 
-        if self.target_loader is not None:
-            for target_module, to_mutate in self.target_loader.load():
-                _LOGGER.info("Build AST for %s", target_module.__name__)
-                target_ast = controller.create_target_ast(target_module)
-                _LOGGER.info("Mutate module %s", target_module.__name__)
-                mutant_modules = controller.mutate_module(
-                    target_module=target_module,
-                    to_mutate=to_mutate,
-                    target_ast=target_ast,
-                )
-                for mutant_module, mutations in mutant_modules:
-                    mutants.append((mutant_module, mutations))
+        target_module = importlib.import_module(config.configuration.module_name)
+        to_mutate = None
+
+        _LOGGER.info("Build AST for %s", target_module.__name__)
+        target_ast = controller.create_target_ast(target_module)
+        _LOGGER.info("Mutate module %s", target_module.__name__)
+        mutant_modules = controller.mutate_module(
+            target_module=target_module,
+            to_mutate=to_mutate,
+            target_ast=target_ast,
+        )
+
+        for mutant_module, mutations in mutant_modules:
+            mutants.append((mutant_module, mutations))
+
         _LOGGER.info("Generated %d mutants", len(mutants))
         return mutants
 
     def _build_mutation_controller(self) -> mc.MutationController:
         _LOGGER.info("Setup mutation controller")
         mutant_generator = self._get_mutant_generator()
-        self.target_loader = mu.ModulesLoader(
-            [config.configuration.module_name], config.configuration.project_path
-        )
-
-        return mc.MutationController(
-            target_loader=self.target_loader,
-            mutant_generator=mutant_generator,
-        )
+        return mc.MutationController(mutant_generator)
 
     def _get_mutant_generator(self) -> mc.FirstOrderMutator:
         operators_set = set()

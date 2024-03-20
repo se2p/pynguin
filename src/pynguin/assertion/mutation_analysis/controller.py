@@ -22,8 +22,7 @@ from pynguin.assertion.mutation_analysis.operators.base import Mutation, Mutatio
 
 class MutationController:
 
-    def __init__(self, target_loader: utils.ModulesLoader, mutant_generator: FirstOrderMutator) -> None:
-        self.target_loader = target_loader
+    def __init__(self, mutant_generator: FirstOrderMutator) -> None:
         self.mutant_generator = mutant_generator
 
     def mutate_module(
