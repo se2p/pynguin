@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
-    from pynguin.testcase.execution import ExecutionTracer
+    from pynguin.instrumentation.tracer import ExecutionTracer
     from pynguin.testcase.execution import SubjectProperties
 
 

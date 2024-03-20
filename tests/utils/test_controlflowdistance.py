@@ -20,8 +20,8 @@ from hypothesis import assume
 from hypothesis import given
 
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.utils.controlflowdistance import ControlFlowDistance
 from pynguin.utils.controlflowdistance import get_root_control_flow_distance
 

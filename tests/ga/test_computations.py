@@ -14,7 +14,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.testcase.execution import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 

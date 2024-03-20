@@ -23,7 +23,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 
 
 dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")

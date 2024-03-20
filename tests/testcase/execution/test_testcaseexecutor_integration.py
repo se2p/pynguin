@@ -19,7 +19,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement

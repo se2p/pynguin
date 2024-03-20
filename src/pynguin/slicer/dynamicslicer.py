@@ -40,8 +40,8 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
-    from pynguin.testcase.execution import ExecutedAssertion
-    from pynguin.testcase.execution import ExecutionTrace
+    from pynguin.instrumentation.tracer import ExecutedAssertion
+    from pynguin.instrumentation.tracer import ExecutionTrace
     from pynguin.testcase.execution import SubjectProperties
 
 

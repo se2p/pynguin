@@ -26,7 +26,7 @@ UNSET = object()
 if TYPE_CHECKING:
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
     from pynguin.slicer.executedinstruction import ExecutedInstruction
-    from pynguin.testcase.execution import ExecutionTrace
+    from pynguin.instrumentation.tracer import ExecutionTrace
 
 
 class UniqueInstruction(Instr):

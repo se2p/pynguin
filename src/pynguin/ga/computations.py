@@ -21,7 +21,7 @@ import pynguin.utils.opcodes as op
 
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
-from pynguin.testcase.execution import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutionTrace
 
 
 if TYPE_CHECKING:

@@ -16,7 +16,7 @@ import pynguin.utils.typetracing as tt
 
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import _le
 from pynguin.testcase.execution import _lt
 from pynguin.utils.orderedset import OrderedSet

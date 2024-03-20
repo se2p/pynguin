@@ -18,8 +18,8 @@ import pynguin.__version__ as ver
 import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import CoverageReport

@@ -31,7 +31,7 @@ from pynguin.instrumentation.instrumentation import PynguinCompare
 from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.utils.orderedset import OrderedSet
 
 

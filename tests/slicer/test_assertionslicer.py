@@ -24,7 +24,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.variablereference import FieldReference
 from pynguin.testcase.variablereference import StaticFieldReference

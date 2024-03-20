@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ControlDependenceGraph
     from pynguin.analyses.controlflow import ProgramGraphNode
     from pynguin.testcase.execution import ExecutionResult
-    from pynguin.testcase.execution import ExecutionTracer
+    from pynguin.instrumentation.tracer import ExecutionTracer
 
 
 @total_ordering
