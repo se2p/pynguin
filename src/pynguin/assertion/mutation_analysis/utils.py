@@ -89,7 +89,3 @@ def is_docstring(node: ast.AST) -> bool:
         and isinstance(def_node.body[0].value, ast.Str)
         and def_node.body[0].value == node
     )
-
-
-def sort_operators(operators: list[type[MutationOperator]]) -> list[type[MutationOperator]]:
-    return sorted(operators, key=lambda cls: cls.name())

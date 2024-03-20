@@ -63,68 +63,64 @@ class HOMStrategy:
         allow_same_operators: bool = True
     ) -> None:
         for mutation_to_apply in mutations_to_apply:
-            for available_mutation in available_mutations[:]:
-                if mutation_to_apply.node == available_mutation.node or \
-                        mutation_to_apply.node in available_mutation.node.children or \
-                        available_mutation.node in mutation_to_apply.node.children or \
-                        (not allow_same_operators and mutation_to_apply.operator == available_mutation.operator):
+            for available_mutation in available_mutations.copy():
+                if (
+                    mutation_to_apply.node == available_mutation.node
+                    or mutation_to_apply.node in getattr(available_mutation.node, "children")
+                    or available_mutation.node in getattr(mutation_to_apply.node, "children")
+                    or (
+                        not allow_same_operators
+                        and mutation_to_apply.operator == available_mutation.operator
+                    )
+                ):
                     available_mutations.remove(available_mutation)
 
 
 class FirstToLastHOMStrategy(HOMStrategy):
-    name = 'FIRST_TO_LAST'
 
     def generate(self, mutations: list[Mutation]) -> Generator[list[Mutation], None, None]:
-        mutations = mutations[:]
+        mutations = mutations.copy()
         while mutations:
             mutations_to_apply: list[Mutation] = []
             index = 0
-            available_mutations = mutations[:]
+            available_mutations = mutations.copy()
             while len(mutations_to_apply) < self.order and available_mutations:
-                try:
-                    mutation = available_mutations.pop(index)
-                    mutations_to_apply.append(mutation)
-                    mutations.remove(mutation)
-                    index = 0 if index == -1 else -1
-                except IndexError:
-                    break
+                mutation = available_mutations.pop(index)
+                mutations_to_apply.append(mutation)
+                mutations.remove(mutation)
+                index = 0 if index == -1 else -1
                 self.remove_bad_mutations(mutations_to_apply, available_mutations)
             yield mutations_to_apply
 
 
 class EachChoiceHOMStrategy(HOMStrategy):
-    name = 'EACH_CHOICE'
 
     def generate(self, mutations: list[Mutation]) -> Generator[list[Mutation], None, None]:
-        mutations = mutations[:]
+        mutations = mutations.copy()
         while mutations:
             mutations_to_apply: list[Mutation] = []
-            available_mutations = mutations[:]
+            available_mutations = mutations.copy()
             while len(mutations_to_apply) < self.order and available_mutations:
-                try:
-                    mutation = available_mutations.pop(0)
-                    mutations_to_apply.append(mutation)
-                    mutations.remove(mutation)
-                except IndexError:
-                    break
+                mutation = available_mutations.pop(0)
+                mutations_to_apply.append(mutation)
+                mutations.remove(mutation)
                 self.remove_bad_mutations(mutations_to_apply, available_mutations)
             yield mutations_to_apply
 
 
 class BetweenOperatorsHOMStrategy(HOMStrategy):
-    name = 'BETWEEN_OPERATORS'
 
     def generate(self, mutations: list[Mutation]) -> Generator[list[Mutation], None, None]:
         usage = {mutation: 0 for mutation in mutations}
-        not_used = mutations[:]
+        not_used = mutations.copy()
         while not_used:
             mutations_to_apply: list[Mutation] = []
-            available_mutations = mutations[:]
+            available_mutations = mutations.copy()
             available_mutations.sort(key=lambda x: usage[x])
             while len(mutations_to_apply) < self.order and available_mutations:
                 mutation = available_mutations.pop(0)
                 mutations_to_apply.append(mutation)
-                if not usage[mutation]:
+                if usage[mutation] == 0:
                     not_used.remove(mutation)
                 usage[mutation] += 1
                 self.remove_bad_mutations(mutations_to_apply, available_mutations, allow_same_operators=False)
@@ -132,35 +128,23 @@ class BetweenOperatorsHOMStrategy(HOMStrategy):
 
 
 class RandomHOMStrategy(HOMStrategy):
-    name = 'RANDOM'
 
     def __init__(self, order: int = 2, shuffler: Callable = random.shuffle) -> None:
         super().__init__(order)
         self.shuffler = shuffler
 
     def generate(self, mutations: list[Mutation]) -> Generator[list[Mutation], None, None]:
-        mutations = mutations[:]
+        mutations = mutations.copy()
         self.shuffler(mutations)
         while mutations:
-            mutations_to_apply = []
-            available_mutations = mutations[:]
+            mutations_to_apply: list[Mutation] = []
+            available_mutations = mutations.copy()
             while len(mutations_to_apply) < self.order and available_mutations:
-                try:
-                    mutation = available_mutations.pop(0)
-                    mutations_to_apply.append(mutation)
-                    mutations.remove(mutation)
-                except IndexError:
-                    break
+                mutation = available_mutations.pop(0)
+                mutations_to_apply.append(mutation)
+                mutations.remove(mutation)
                 self.remove_bad_mutations(mutations_to_apply, available_mutations)
             yield mutations_to_apply
-
-
-hom_strategies = [
-    BetweenOperatorsHOMStrategy,
-    EachChoiceHOMStrategy,
-    FirstToLastHOMStrategy,
-    RandomHOMStrategy,
-]
 
 
 class FirstOrderMutator:
@@ -174,7 +158,7 @@ class FirstOrderMutator:
         target_ast: ast.AST,
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.Module], None, None]:
-        for op in utils.sort_operators(self.operators):
+        for op in self.operators:
             for mutation, mutant in op().mutate(target_ast, self.sampler, module=module):
                 yield [mutation], mutant
 
@@ -222,7 +206,7 @@ class HighOrderMutator(FirstOrderMutator):
         target_ast: ast.AST,
     ) -> list[Mutation]:
         mutations: list[Mutation] = []
-        for op in utils.sort_operators(self.operators):
+        for op in self.operators:
             for mutation, _ in op().mutate(target_ast, None, module=module):
                 mutations.append(mutation)
         return mutations
