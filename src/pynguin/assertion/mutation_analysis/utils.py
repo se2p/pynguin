@@ -17,15 +17,17 @@ import os
 import pkgutil
 import random
 import sys
-import time
 import types
-from collections import defaultdict
 
 from importlib._bootstrap_external import EXTENSION_SUFFIXES, ExtensionFileLoader
+from typing import Any
+from typing import Generator
+
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
-def create_module(ast_node, module_name='mutant', module_dict=None):
-    code = compile(ast_node, module_name, 'exec')
+def create_module(ast_node: ast.Module, module_name: str = "mutant", module_dict: dict[str, Any] | None = None):
+    code = compile(ast_node, module_name, "exec")
     module = types.ModuleType(module_name)
     module.__dict__.update(module_dict or {})
     exec(code, module.__dict__)
@@ -37,7 +39,7 @@ def notmutate(sth):
 
 
 class ModulesLoaderException(Exception):
-    def __init__(self, name, exception):
+    def __init__(self, name: str, exception: Exception) -> None:
         self.name = name
         self.exception = exception
 
@@ -46,13 +48,17 @@ class ModulesLoaderException(Exception):
 
 
 class ModulesLoader:
-    def __init__(self, names, path):
+    def __init__(self, names: list[str], path: str | None) -> None:
         self.names = names
         self.path = path or '.'
         self.ensure_in_path(self.path)
 
-    def load(self, without_modules=None, exclude_c_extensions=True):
-        results = []
+    def load(
+        self,
+        without_modules: list[types.ModuleType] | None = None,
+        exclude_c_extensions: bool = True,
+    ) -> Generator[tuple[types.ModuleType, str | None], None, None]:
+        results: list[tuple[types.ModuleType, str | None]] = []
         without_modules = without_modules or []
         for name in self.names:
             results += self.load_single(name)
@@ -61,7 +67,7 @@ class ModulesLoader:
             if module not in without_modules and not (exclude_c_extensions and self._is_c_extension(module)):
                 yield module, to_mutate
 
-    def load_single(self, name):
+    def load_single(self, name: str) -> list[tuple[types.ModuleType, str | None]]:
         full_path = self.get_full_path(name)
         if os.path.exists(full_path):
             if self.is_file(full_path):
@@ -73,21 +79,21 @@ class ModulesLoader:
         else:
             return self.load_module(name)
 
-    def get_full_path(self, name):
+    def get_full_path(self, name: str) -> str:
         if os.path.isabs(name):
             return name
         return os.path.abspath(os.path.join(self.path, name))
 
     @staticmethod
-    def is_file(name):
+    def is_file(name: str) -> bool:
         return os.path.isfile(name)
 
     @staticmethod
-    def is_directory(name):
+    def is_directory(name: str) -> bool:
         return os.path.exists(name) and os.path.isdir(name)
 
     @staticmethod
-    def is_package(name):
+    def is_package(name: str) -> bool:
         try:
             module = importlib.import_module(name)
             return hasattr(module, '__file__') and module.__file__.endswith('__init__.py')
@@ -96,24 +102,25 @@ class ModulesLoader:
         finally:
             sys.path_importer_cache.clear()
 
-    def load_file(self, name):
+    def load_file(self, name: str) -> list[tuple[types.ModuleType, str | None]] | None:
         if name.endswith('.py'):
             dirname = os.path.dirname(name)
             self.ensure_in_path(dirname)
             module_name = self.get_filename_without_extension(name)
             return self.load_module(module_name)
+        return None
 
-    def ensure_in_path(self, directory):
+    def ensure_in_path(self, directory: str) -> None:
         if directory not in sys.path:
             sys.path.insert(0, directory)
 
     @staticmethod
-    def get_filename_without_extension(path):
+    def get_filename_without_extension(path: str) -> str:
         return os.path.basename(os.path.splitext(path)[0])
 
     @staticmethod
-    def load_package(name):
-        result = []
+    def load_package(name: str) -> list[tuple[types.ModuleType, str | None]]:
+        result: list[tuple[types.ModuleType, str | None]] = []
         try:
             package = importlib.import_module(name)
             for _, module_name, ispkg in pkgutil.walk_packages(package.__path__, package.__name__ + '.'):
@@ -127,7 +134,7 @@ class ModulesLoader:
             pass
         return result
 
-    def load_directory(self, name):
+    def load_directory(self, name: str) -> list[tuple[types.ModuleType, str | None]]:
         if os.path.isfile(os.path.join(name, '__init__.py')):
             parent_dir = self._get_parent_directory(name)
             self.ensure_in_path(parent_dir)
@@ -140,26 +147,25 @@ class ModulesLoader:
                     result += modules
             return result
 
-    def load_module(self, name):
+    def load_module(self, name: str) -> list[tuple[types.ModuleType, str | None]]:
         module, remainder_path, last_exception = self._split_by_module_and_remainder(name)
         if not self._module_has_member(module, remainder_path):
             raise ModulesLoaderException(name, last_exception)
         return [(module, '.'.join(remainder_path) if remainder_path else None)]
 
     @staticmethod
-    def _get_parent_directory(name):
-        parent_dir = os.path.abspath(os.path.join(name, os.pardir))
-        return parent_dir
+    def _get_parent_directory(name: str) -> str:
+        return os.path.abspath(os.path.join(name, os.pardir))
 
     @staticmethod
-    def _split_by_module_and_remainder(name):
+    def _split_by_module_and_remainder(name: str) -> tuple[types.ModuleType, list[str], ImportError | None]:
         """Takes a path string and returns the contained module and the remaining path after it.
 
         Example: "mymodule.mysubmodule.MyClass.my_func" -> mysubmodule, "MyClass.my_func"
         """
         module_path = name.split('.')
-        member_path = []
-        last_exception = None
+        member_path: list[str] = []
+        last_exception: ImportError | None = None
         while True:
             try:
                 module = importlib.import_module('.'.join(module_path))
@@ -172,7 +178,7 @@ class ModulesLoader:
         return module, member_path, last_exception
 
     @staticmethod
-    def _module_has_member(module, member_path):
+    def _module_has_member(module: types.ModuleType, member_path: str) -> bool:
         attr = module
         for part in member_path:
             if hasattr(attr, part):
@@ -182,7 +188,7 @@ class ModulesLoader:
         return True
 
     @staticmethod
-    def _is_c_extension(module):
+    def _is_c_extension(module: types.ModuleType) -> bool:
         if isinstance(getattr(module, '__loader__', None), ExtensionFileLoader):
             return True
         module_filename = inspect.getfile(module)
@@ -190,57 +196,20 @@ class ModulesLoader:
         return module_filetype in EXTENSION_SUFFIXES
 
 
-class Timer:
-    time_provider = time.time
-
-    def __init__(self):
-        self.duration = 0
-        self.start = self.time_provider()
-
-    def stop(self):
-        self.duration = self.time_provider() - self.start
-        return self.duration
-
-
-class TimeRegister:
-    executions = defaultdict(float)
-    timer_class = Timer
-    stack = []
-
-    def __init__(self, method):
-        self.method = method
-
-    def __get__(self, obj, ownerClass=None):
-        return types.MethodType(self, obj)
-
-    def __call__(self, *args, **kwargs):
-        if self.stack and self.stack[-1] == self.method:
-            return self.method(*args, **kwargs)
-
-        self.stack.append(self.method)
-        time_reg = self.timer_class()
-        result = self.method(*args, **kwargs)
-
-        self.executions[self.method.__name__] += time_reg.stop()
-        self.stack.pop()
-        return result
-
-    @classmethod
-    def clean(cls):
-        cls.executions.clear()
-        cls.stack = []
-
-
 class RandomSampler:
-    def __init__(self, percentage):
+    def __init__(self, percentage: int) -> None:
         self.percentage = percentage if 0 < percentage < 100 else 100
 
-    def is_mutation_time(self):
+    def is_mutation_time(self) -> bool:
         return random.randrange(100) < self.percentage
 
 
 class ParentNodeTransformer(ast.NodeTransformer):
-    def visit(self, node):
+    def __init__(self) -> None:
+        super().__init__()
+        self.parent = None
+
+    def visit(self, node: ast.AST) -> ast.AST:
         if getattr(node, 'parent', None):
             node = copy.copy(node)
             if hasattr(node, 'lineno'):
@@ -255,23 +224,20 @@ class ParentNodeTransformer(ast.NodeTransformer):
         return result_node
 
 
-def create_ast(code):
+def create_ast(code: str) -> ast.AST:
     return ParentNodeTransformer().visit(ast.parse(code))
 
 
-def is_docstring(node):
+def is_docstring(node: ast.AST) -> bool:
     def_node = node.parent.parent
-    return (isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module)) and def_node.body and
-            isinstance(def_node.body[0], ast.Expr) and isinstance(def_node.body[0].value, ast.Str) and
-            def_node.body[0].value == node)
+    return (
+        isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module))
+        and def_node.body
+        and isinstance(def_node.body[0], ast.Expr)
+        and isinstance(def_node.body[0].value, ast.Str)
+        and def_node.body[0].value == node
+    )
 
 
-def get_by_python_version(classes, python_version=sys.version_info):
-    candidates = [cls for cls in classes if cls.__python_version__ <= python_version]
-    if not candidates:
-        raise NotImplementedError('MutPy does not support Python {}.'.format(sys.version))
-    return max([candidate for candidate in candidates], key=lambda cls: cls.__python_version__)
-
-
-def sort_operators(operators):
+def sort_operators(operators: list[type[MutationOperator]]) -> list[type[MutationOperator]]:
     return sorted(operators, key=lambda cls: cls.name())

@@ -15,88 +15,88 @@ from pynguin.assertion.mutation_analysis.operators.base import MutationOperator,
 
 
 class ConditionalOperatorDeletion(AbstractUnaryOperatorDeletion):
-    def get_operator_type(self):
+    def get_operator_type(self) -> type:
         return ast.Not
 
-    def mutate_NotIn(self, node):
+    def mutate_NotIn(self, node: ast.NotIn) -> ast.In:
         return ast.In()
 
 
 class ConditionalOperatorInsertion(MutationOperator):
-    def negate_test(self, node):
+    def negate_test(self, node: ast.If | ast.While) -> ast.If | ast.While:
         not_node = ast.UnaryOp(op=ast.Not(), operand=node.test)
         node.test = not_node
         return node
 
     @copy_node
-    def mutate_While(self, node):
+    def mutate_While(self, node: ast.While) -> ast.While:
         return self.negate_test(node)
 
     @copy_node
-    def mutate_If(self, node):
+    def mutate_If(self, node: ast.If) -> ast.If:
         return self.negate_test(node)
 
-    def mutate_In(self, node):
+    def mutate_In(self, node: ast.In) -> ast.NotIn:
         return ast.NotIn()
 
 
 class LogicalConnectorReplacement(MutationOperator):
-    def mutate_And(self, node):
+    def mutate_And(self, node: ast.And) -> ast.Or:
         return ast.Or()
 
-    def mutate_Or(self, node):
+    def mutate_Or(self, node: ast.Or) -> ast.And:
         return ast.And()
 
 
 class LogicalOperatorDeletion(AbstractUnaryOperatorDeletion):
-    def get_operator_type(self):
+    def get_operator_type(self) -> type:
         return ast.Invert
 
 
 class LogicalOperatorReplacement(MutationOperator):
-    def mutate_BitAnd(self, node):
+    def mutate_BitAnd(self, node: ast.BitAnd) -> ast.BitOr:
         return ast.BitOr()
 
-    def mutate_BitOr(self, node):
+    def mutate_BitOr(self, node: ast.BitOr) -> ast.BitAnd:
         return ast.BitAnd()
 
-    def mutate_BitXor(self, node):
+    def mutate_BitXor(self, node: ast.BitXor) -> ast.BitAnd:
         return ast.BitAnd()
 
-    def mutate_LShift(self, node):
+    def mutate_LShift(self, node: ast.LShift) -> ast.RShift:
         return ast.RShift()
 
-    def mutate_RShift(self, node):
+    def mutate_RShift(self, node: ast.RShift) -> ast.LShift:
         return ast.LShift()
 
 
 class RelationalOperatorReplacement(MutationOperator):
-    def mutate_Lt(self, node):
+    def mutate_Lt(self, node: ast.Lt) -> ast.Gt:
         return ast.Gt()
 
-    def mutate_Lt_to_LtE(self, node):
+    def mutate_Lt_to_LtE(self, node: ast.Lt) -> ast.LtE:
         return ast.LtE()
 
-    def mutate_Gt(self, node):
+    def mutate_Gt(self, node: ast.Gt) -> ast.Lt:
         return ast.Lt()
 
-    def mutate_Gt_to_GtE(self, node):
+    def mutate_Gt_to_GtE(self, node: ast.Gt) -> ast.GtE:
         return ast.GtE()
 
-    def mutate_LtE(self, node):
+    def mutate_LtE(self, node: ast.LtE) -> ast.GtE:
         return ast.GtE()
 
-    def mutate_LtE_to_Lt(self, node):
+    def mutate_LtE_to_Lt(self, node: ast.LtE) -> ast.Lt:
         return ast.Lt()
 
-    def mutate_GtE(self, node):
+    def mutate_GtE(self, node: ast.GtE) -> ast.LtE:
         return ast.LtE()
 
-    def mutate_GtE_to_Gt(self, node):
+    def mutate_GtE_to_Gt(self, node: ast.GtE) -> ast.Gt:
         return ast.Gt()
 
-    def mutate_Eq(self, node):
+    def mutate_Eq(self, node: ast.Eq) -> ast.NotEq:
         return ast.NotEq()
 
-    def mutate_NotEq(self, node):
+    def mutate_NotEq(self, node: ast.NotEq) -> ast.Eq:
         return ast.Eq()

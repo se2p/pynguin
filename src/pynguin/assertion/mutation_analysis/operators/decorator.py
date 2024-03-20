@@ -16,7 +16,7 @@ from pynguin.assertion.mutation_analysis.operators.base import MutationOperator,
 
 class DecoratorDeletion(MutationOperator):
     @copy_node
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         if node.decorator_list:
             node.decorator_list = []
             return node
@@ -24,13 +24,13 @@ class DecoratorDeletion(MutationOperator):
             raise MutationResign()
 
     @classmethod
-    def name(cls):
-        return 'DDL'
+    def name(cls) -> str:
+        return "DDL"
 
 
 class AbstractMethodDecoratorInsertionMutationOperator(MutationOperator):
     @copy_node
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
         if not isinstance(node.parent, ast.ClassDef):
             raise MutationResign()
         for decorator in node.decorator_list:
@@ -51,15 +51,15 @@ class AbstractMethodDecoratorInsertionMutationOperator(MutationOperator):
         node.decorator_list.append(decorator)
         return node
 
-    def get_decorator_name(self):
+    def get_decorator_name(self) -> str:
         raise NotImplementedError()
 
 
 class ClassmethodDecoratorInsertion(AbstractMethodDecoratorInsertionMutationOperator):
-    def get_decorator_name(self):
-        return 'classmethod'
+    def get_decorator_name(self) -> str:
+        return "classmethod"
 
 
 class StaticmethodDecoratorInsertion(AbstractMethodDecoratorInsertionMutationOperator):
-    def get_decorator_name(self):
-        return 'staticmethod'
+    def get_decorator_name(self) -> str:
+        return "staticmethod"

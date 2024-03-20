@@ -17,7 +17,7 @@ from pynguin.assertion.mutation_analysis.operators.base import MutationResign, M
 
 
 class AbstractOverriddenElementModification(MutationOperator):
-    def is_overridden(self, node, name=None):
+    def is_overridden(self, node: ast.AST, name: str | None = None) -> bool:
         if not isinstance(node.parent, ast.ClassDef):
             raise MutationResign()
         if not name:
@@ -42,7 +42,7 @@ class AbstractOverriddenElementModification(MutationOperator):
 
 
 class HidingVariableDeletion(AbstractOverriddenElementModification):
-    def mutate_Assign(self, node):
+    def mutate_Assign(self, node: ast.Assign) -> ast.stmt:
         if len(node.targets) > 1:
             raise MutationResign()
         if isinstance(node.targets[0], ast.Name) and self.is_overridden(node, name=node.targets[0].id):
@@ -52,7 +52,7 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
         else:
             raise MutationResign()
 
-    def mutate_unpack(self, node):
+    def mutate_unpack(self, node: ast.Assign) -> ast.stmt:
         target = node.targets[0]
         value = node.value
         new_targets = []
@@ -75,21 +75,26 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
             return node
 
     @classmethod
-    def name(cls):
-        return 'IHD'
+    def name(cls) -> str:
+        return "IHD"
 
 
 class AbstractSuperCallingModification(MutationOperator):
-    def is_super_call(self, node, stmt):
-        return isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call) and \
-               isinstance(stmt.value.func, ast.Attribute) and isinstance(stmt.value.func.value, ast.Call) and \
-               isinstance(stmt.value.func.value.func, ast.Name) and stmt.value.func.value.func.id == 'super' and \
-               stmt.value.func.attr == node.name
+    def is_super_call(self, node: ast.AST, stmt: ast.stmt) -> bool:
+        return (
+            isinstance(stmt, ast.Expr)
+            and isinstance(stmt.value, ast.Call)
+            and isinstance(stmt.value.func, ast.Attribute)
+            and isinstance(stmt.value.func.value, ast.Call)
+            and isinstance(stmt.value.func.value.func, ast.Name)
+            and stmt.value.func.value.func.id == 'super'
+            and stmt.value.func.attr == node.name
+        )
 
-    def should_mutate(self, node):
+    def should_mutate(self, node: ast.AST) -> bool:
         return isinstance(node.parent, ast.ClassDef)
 
-    def get_super_call(self, node):
+    def get_super_call(self, node: ast.AST) -> tuple[int, ast.stmt] | tuple[None, None]:
         for index, stmt in enumerate(node.body):
             if self.is_super_call(node, stmt):
                 break
@@ -99,11 +104,11 @@ class AbstractSuperCallingModification(MutationOperator):
 
 
 class OverriddenMethodCallingPositionChange(AbstractSuperCallingModification):
-    def should_mutate(self, node):
+    def should_mutate(self, node: ast.AST) -> bool:
         return super().should_mutate(node) and len(node.body) > 1
 
     @copy_node
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         if not self.should_mutate(node):
             raise MutationResign()
         index, stmt = self.get_super_call(node)
@@ -122,24 +127,24 @@ class OverriddenMethodCallingPositionChange(AbstractSuperCallingModification):
         return node
 
     @classmethod
-    def name(cls):
-        return 'IOP'
+    def name(cls) -> str:
+        return "IOP"
 
 
 class OverridingMethodDeletion(AbstractOverriddenElementModification):
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.Pass:
         if self.is_overridden(node):
             return ast.Pass()
         raise MutationResign()
 
     @classmethod
-    def name(cls):
-        return 'IOD'
+    def name(cls) -> str:
+        return "IOD"
 
 
 class SuperCallingDeletion(AbstractSuperCallingModification):
     @copy_node
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         if not self.should_mutate(node):
             raise MutationResign()
         index, _ = self.get_super_call(node)
@@ -149,14 +154,13 @@ class SuperCallingDeletion(AbstractSuperCallingModification):
         return node
 
 
-class SuperCallingInsertPython27(AbstractSuperCallingModification, AbstractOverriddenElementModification):
-    __python_version__ = (2, 7)
+class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenElementModification):
 
-    def should_mutate(self, node):
+    def should_mutate(self, node: ast.AST) -> bool:
         return super().should_mutate(node) and self.is_overridden(node)
 
     @copy_node
-    def mutate_FunctionDef(self, node):
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         if not self.should_mutate(node):
             raise MutationResign()
         index, stmt = self.get_super_call(node)
@@ -167,7 +171,7 @@ class SuperCallingInsertPython27(AbstractSuperCallingModification, AbstractOverr
         return node
 
     @copy_node
-    def create_super_call(self, node):
+    def create_super_call(self, node: ast.FunctionDef) -> ast.Expr:
         super_call = utils.create_ast('super().{}()'.format(node.name)).body[0]
         for arg in node.args.args[1:-len(node.args.defaults) or None]:
             super_call.value.args.append(ast.Name(id=arg.arg, ctx=ast.Load()))
@@ -183,25 +187,13 @@ class SuperCallingInsertPython27(AbstractSuperCallingModification, AbstractOverr
         return super_call
 
     @staticmethod
-    def add_kwarg_to_super_call(super_call, kwarg):
-        super_call.value.kwargs = ast.Name(id=kwarg, ctx=ast.Load())
-
-    @staticmethod
-    def add_vararg_to_super_call(super_call, vararg):
-        super_call.value.starargs = ast.Name(id=vararg, ctx=ast.Load())
-
-    @classmethod
-    def name(cls):
-        return 'SCI'
-
-
-class SuperCallingInsertPython35(SuperCallingInsertPython27):
-    __python_version__ = (3, 5)
-
-    @staticmethod
-    def add_kwarg_to_super_call(super_call, kwarg):
+    def add_kwarg_to_super_call(super_call: ast.Expr, kwarg: ast.AST) -> None:
         super_call.value.keywords.append(ast.keyword(arg=None, value=ast.Name(id=kwarg.arg, ctx=ast.Load())))
 
     @staticmethod
-    def add_vararg_to_super_call(super_call, vararg):
+    def add_vararg_to_super_call(super_call: ast.Expr, vararg: ast.AST) -> None:
         super_call.value.args.append(ast.Starred(ctx=ast.Load(), value=ast.Name(id=vararg.arg, ctx=ast.Load())))
+
+    @classmethod
+    def name(cls) -> str:
+        return "SCI"

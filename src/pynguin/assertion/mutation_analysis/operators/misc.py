@@ -17,19 +17,19 @@ from pynguin.assertion.mutation_analysis.operators.base import MutationOperator,
 
 
 class AssignmentOperatorReplacement(AbstractArithmeticOperatorReplacement):
-    def should_mutate(self, node):
+    def should_mutate(self, node: ast.AST) -> bool:
         return isinstance(node.parent, ast.AugAssign)
 
     @classmethod
-    def name(cls):
-        return 'ASR'
+    def name(cls) -> str:
+        return "ASR"
 
 
 class BreakContinueReplacement(MutationOperator):
-    def mutate_Break(self, node):
+    def mutate_Break(self, node: ast.Break) -> ast.Continue:
         return ast.Continue()
 
-    def mutate_Continue(self, node):
+    def mutate_Continue(self, node: ast.Continue) -> ast.Break:
         return ast.Break()
 
 
@@ -37,7 +37,7 @@ class ConstantReplacement(MutationOperator):
     FIRST_CONST_STRING = 'mutpy'
     SECOND_CONST_STRING = 'python'
 
-    def help_str(self, node):
+    def help_str(self, node: ast.AST) -> str:
         if utils.is_docstring(node):
             raise MutationResign()
 
@@ -46,57 +46,57 @@ class ConstantReplacement(MutationOperator):
         else:
             return self.SECOND_CONST_STRING
 
-    def help_str_empty(self, node):
+    def help_str_empty(self, node: ast.AST) -> str:
         if not node.s or utils.is_docstring(node):
             raise MutationResign()
         return ''
 
-    def mutate_Constant_num(self, node):
+    def mutate_Constant_num(self, node: ast.Constant) -> ast.Constant:
         if isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
             return ast.Constant(n=node.n + 1)
         else:
             raise MutationResign()
 
-    def mutate_Constant_str(self, node):
+    def mutate_Constant_str(self, node: ast.Constant) -> ast.Constant:
         if isinstance(node.value, str):
             return ast.Constant(s=self.help_str(node))
         else:
             raise MutationResign()
 
-    def mutate_Constant_str_empty(self, node):
+    def mutate_Constant_str_empty(self, node: ast.Constant) -> ast.Constant:
         if isinstance(node.value, str):
             return ast.Constant(s=self.help_str_empty(node))
         else:
             raise MutationResign()
 
-    def mutate_Num(self, node):
+    def mutate_Num(self, node: ast.Num) -> ast.Num:
         return ast.Num(n=node.n + 1)
 
-    def mutate_Str(self, node):
+    def mutate_Str(self, node: ast.Str) -> ast.Str:
         return ast.Str(s=self.help_str(node))
 
-    def mutate_Str_empty(self, node):
+    def mutate_Str_empty(self, node: ast.Str) -> ast.Str:
         return ast.Str(s=self.help_str_empty(node))
 
     @classmethod
-    def name(cls):
-        return 'CRP'
+    def name(cls) -> str:
+        return "CRP"
 
 
 class SliceIndexRemove(MutationOperator):
-    def mutate_Slice_remove_lower(self, node):
+    def mutate_Slice_remove_lower(self, node: ast.Slice) -> ast.Slice:
         if not node.lower:
             raise MutationResign()
 
         return ast.Slice(lower=None, upper=node.upper, step=node.step)
 
-    def mutate_Slice_remove_upper(self, node):
+    def mutate_Slice_remove_upper(self, node: ast.Slice) -> ast.Slice:
         if not node.upper:
             raise MutationResign()
 
         return ast.Slice(lower=node.lower, upper=None, step=node.step)
 
-    def mutate_Slice_remove_step(self, node):
+    def mutate_Slice_remove_step(self, node: ast.Slice) -> ast.Slice:
         if not node.step:
             raise MutationResign()
 
@@ -104,7 +104,7 @@ class SliceIndexRemove(MutationOperator):
 
 
 class SelfVariableDeletion(MutationOperator):
-    def mutate_Attribute(self, node):
+    def mutate_Attribute(self, node: ast.Attribute) -> ast.Name:
         try:
             if node.value.id == 'self':
                 return ast.Name(id=node.attr, ctx=ast.Load())
@@ -115,17 +115,17 @@ class SelfVariableDeletion(MutationOperator):
 
 
 class StatementDeletion(MutationOperator):
-    def mutate_Assign(self, node):
+    def mutate_Assign(self, node: ast.Assign) -> ast.Pass:
         return ast.Pass()
 
-    def mutate_Return(self, node):
+    def mutate_Return(self, node: ast.Return) -> ast.Pass:
         return ast.Pass()
 
-    def mutate_Expr(self, node):
+    def mutate_Expr(self, node: ast.Expr) -> ast.Pass:
         if utils.is_docstring(node.value):
             raise MutationResign()
         return ast.Pass()
 
     @classmethod
-    def name(cls):
-        return 'SDL'
+    def name(cls) -> str:
+        return "SDL"
