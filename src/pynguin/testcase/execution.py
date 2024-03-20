@@ -65,9 +65,6 @@ from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils.mirror import Mirror
 
-
-immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
-
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
