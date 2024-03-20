@@ -27,15 +27,6 @@ def create_module(ast_node: ast.Module, module_name: str = "mutant", module_dict
     return module
 
 
-class ModulesLoaderException(Exception):
-    def __init__(self, name: str, exception: Exception) -> None:
-        self.name = name
-        self.exception = exception
-
-    def __str__(self):
-        return "can't load {}".format(self.name)
-
-
 class RandomSampler:
     def __init__(self, percentage: int) -> None:
         self.percentage = percentage if 0 < percentage < 100 else 100
