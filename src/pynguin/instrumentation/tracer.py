@@ -785,6 +785,51 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             RuntimeError: raised when called from another thread
         """
 
+    @classmethod
+    def attribute_lookup(cls, object_type, attribute: str) -> int:
+        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
+
+        The attribute must be a data descriptor to be prioritized here
+
+        Args:
+            object_type: The type object to check
+            attribute: the attribute to check for in the class
+
+        Returns:
+            The id of the object type or the class if it has the attribute, -1 otherwise
+        """
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__ and inspect.isdatadescriptor(
+                clss.__dict__.get(attribute)
+            ):
+                # Class in the MRO hierarchy has attribute
+                # Class has attribute and attribute is a data descriptor
+                return id(clss)
+
+        # This would lead to an infinite recursion and thus a crash of the program
+        if attribute in {"__getattr__", "__getitem__"}:
+            return -1
+        # Check if the dictionary of the object on which lookup is performed
+        if (
+            hasattr(object_type, "__dict__")
+            and object_type.__dict__
+            and attribute in object_type.__dict__
+        ):
+            return id(object_type)
+        if (
+            hasattr(object_type, "__slots__")
+            and object_type.__slots__
+            and attribute in object_type.__slots__
+        ):
+            return id(object_type)
+
+        # Check if attribute in MRO hierarchy (no need for data descriptor)
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__:
+                return id(clss)
+
+        return -1
+
     @abstractmethod
     def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
         """Convenience method to translate line ids to line numbers.
@@ -1464,40 +1509,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                 assertion,
             )
         )
-
-    @staticmethod
-    def attribute_lookup(object_type, attribute: str) -> int:
-        for cls in type(object_type).__mro__:
-            if attribute in cls.__dict__ and inspect.isdatadescriptor(
-                cls.__dict__.get(attribute)
-            ):
-                # Class in the MRO hierarchy has attribute
-                # Class has attribute and attribute is a data descriptor
-                return id(cls)
-
-        # This would lead to an infinite recursion and thus a crash of the program
-        if attribute in {"__getattr__", "__getitem__"}:
-            return -1
-        # Check if the dictionary of the object on which lookup is performed
-        if (
-            hasattr(object_type, "__dict__")
-            and object_type.__dict__
-            and attribute in object_type.__dict__
-        ):
-            return id(object_type)
-        if (
-            hasattr(object_type, "__slots__")
-            and object_type.__slots__
-            and attribute in object_type.__slots__
-        ):
-            return id(object_type)
-
-        # Check if attribute in MRO hierarchy (no need for data descriptor)
-        for cls in type(object_type).__mro__:
-            if attribute in cls.__dict__:
-                return id(cls)
-
-        return -1
 
     def __repr__(self) -> str:
         return "ExecutionTracer"
