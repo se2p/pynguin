@@ -11,6 +11,7 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py.
 from __future__ import annotations
 
 import ast
+import inspect
 import random
 import types
 
@@ -37,8 +38,8 @@ class MutationController:
             yield self.create_mutant_module(target_module, mutant_ast), mutations
 
     def create_target_ast(self, target_module: types.ModuleType) -> ast.AST:
-        with open(target_module.__file__) as target_file:
-            return utils.create_ast(target_file.read())
+        target_source_code = inspect.getsource(target_module)
+        return utils.create_ast(target_source_code)
 
     def create_mutant_module(self, target_module: types.ModuleType, mutant_ast: ast.Module) -> types.ModuleType | None:
         try:
