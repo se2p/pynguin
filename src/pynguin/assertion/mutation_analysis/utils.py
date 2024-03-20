@@ -38,20 +38,28 @@ class RandomSampler:
 class ParentNodeTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
-        self.parent = None
+        self.parent: ast.AST | None = None
 
     def visit(self, node: ast.AST) -> ast.AST:
-        if getattr(node, 'parent', None):
+        if getattr(node, "parent", None) is not None:
             node = copy.copy(node)
-            if hasattr(node, 'lineno'):
-                del node.lineno
-        node.parent = getattr(self, 'parent', None)
-        node.children = []
+            if hasattr(node, "lineno"):
+                delattr(node, "lineno")
+
+        setattr(node, "parent", self.parent)
+        setattr(node, "children", [])
+
         self.parent = node
+
         result_node = super().visit(node)
-        self.parent = node.parent
-        if self.parent:
-            self.parent.children += [node] + node.children
+
+        self.parent = getattr(node, "parent", None)
+
+        if self.parent is not None:
+            node_children = getattr(node, "children", [])
+            parent_children = getattr(self.parent, "children", [])
+            setattr(self.parent, "children", parent_children + [node] + node_children)
+
         return result_node
 
 
