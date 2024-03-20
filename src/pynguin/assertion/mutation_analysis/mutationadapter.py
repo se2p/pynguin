@@ -56,14 +56,12 @@ class MutationAdapter:
         mutants = []
 
         target_module = importlib.import_module(config.configuration.module_name)
-        to_mutate = None
 
         _LOGGER.info("Build AST for %s", target_module.__name__)
         target_ast = controller.create_target_ast(target_module)
         _LOGGER.info("Mutate module %s", target_module.__name__)
         mutant_modules = controller.mutate_module(
             target_module=target_module,
-            to_mutate=to_mutate,
             target_ast=target_ast,
         )
 

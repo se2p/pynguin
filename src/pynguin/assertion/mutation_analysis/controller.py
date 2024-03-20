@@ -28,12 +28,10 @@ class MutationController:
     def mutate_module(
         self,
         target_module: types.ModuleType,
-        to_mutate: str | None,
         target_ast: ast.AST,
     ) -> Generator[tuple[types.ModuleType | None, list[Mutation]], None, None]:
         for mutations, mutant_ast in self.mutant_generator.mutate(
             target_ast,
-            to_mutate,
             module=target_module,
         ):
             yield self.create_mutant_module(target_module, mutant_ast), mutations
@@ -173,11 +171,10 @@ class FirstOrderMutator:
     def mutate(
         self,
         target_ast: ast.AST,
-        to_mutate: str | None = None,
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.Module], None, None]:
         for op in utils.sort_operators(self.operators):
-            for mutation, mutant in op().mutate(target_ast, to_mutate, self.sampler, module=module):
+            for mutation, mutant in op().mutate(target_ast, self.sampler, module=module):
                 yield [mutation], mutant
 
 
@@ -195,10 +192,9 @@ class HighOrderMutator(FirstOrderMutator):
     def mutate(
         self,
         target_ast: ast.AST,
-        to_mutate: str | None = None,
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
-        mutations = self.generate_all_mutations(module, target_ast, to_mutate)
+        mutations = self.generate_all_mutations(module, target_ast)
         for mutations_to_apply in self.hom_strategy.generate(mutations):
             generators = []
             applied_mutations = []
@@ -206,7 +202,6 @@ class HighOrderMutator(FirstOrderMutator):
             for mutation in mutations_to_apply:
                 generator = mutation.operator().mutate(
                     mutant,
-                    to_mutate=to_mutate,
                     sampler=self.sampler,
                     module=module,
                     only_mutation=mutation,
@@ -224,11 +219,10 @@ class HighOrderMutator(FirstOrderMutator):
         self,
         module: types.ModuleType | None,
         target_ast: ast.AST,
-        to_mutate: str | None,
     ) -> list[Mutation]:
         mutations: list[Mutation] = []
         for op in utils.sort_operators(self.operators):
-            for mutation, _ in op().mutate(target_ast, to_mutate, None, module=module):
+            for mutation, _ in op().mutate(target_ast, None, module=module):
                 mutations.append(mutation)
         return mutations
 

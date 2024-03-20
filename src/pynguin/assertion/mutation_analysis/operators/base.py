@@ -46,12 +46,10 @@ class MutationOperator:
     def mutate(
         self,
         node: ast.AST,
-        to_mutate: str | None = None,
         sampler: utils.RandomSampler | None = None,
         module: types.ModuleType | None = None,
         only_mutation: Mutation | None = None
     ):
-        self.to_mutate = to_mutate
         self.sampler = sampler
         self.only_mutation = only_mutation
         self.module = module
