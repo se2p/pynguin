@@ -59,8 +59,6 @@ class MutationOperator:
             yield Mutation(operator=self.__class__, node=self.current_node, visitor=self.visitor), new_node
 
     def visit(self, node: ast.AST) -> Generator[ast.AST, None, None]:
-        if self.has_notmutate(node):
-            return
         if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
             return
         self.fix_lineno(node)
@@ -121,15 +119,6 @@ class MutationOperator:
                 setattr(node, field, new_node)
             yield
             setattr(node, field, old_value)
-
-    def has_notmutate(self, node: ast.AST) -> bool:
-        try:
-            for decorator in node.decorator_list:
-                if decorator.id == utils.notmutate.__name__:
-                    return True
-            return False
-        except AttributeError:
-            return False
 
     def fix_lineno(self, node: ast.AST) -> None:
         if not hasattr(node, 'lineno') and getattr(node, 'parent', None) is not None and hasattr(node.parent, 'lineno'):

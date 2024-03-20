@@ -34,10 +34,6 @@ def create_module(ast_node: ast.Module, module_name: str = "mutant", module_dict
     return module
 
 
-def notmutate(sth):
-    return sth
-
-
 class ModulesLoaderException(Exception):
     def __init__(self, name: str, exception: Exception) -> None:
         self.name = name
