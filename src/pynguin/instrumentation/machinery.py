@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.configuration as config
-import pynguin.testcase.execution as ex
 
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
@@ -34,6 +33,7 @@ from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentati
 from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
 
@@ -149,7 +149,7 @@ class InstrumentationFinder(MetaPathFinder):
 
     def update_instrumentation_metrics(
         self,
-        tracer: ex.ExecutionTracer,
+        tracer: ExecutionTracer,
         coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None,
     ) -> None:
@@ -227,7 +227,7 @@ class ImportHookContextManager:
 
 def install_import_hook(
     module_to_instrument: str,
-    tracer: ex.ExecutionTracer,
+    tracer: ExecutionTracer,
     coverage_metrics: set[config.CoverageMetric] | None = None,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
