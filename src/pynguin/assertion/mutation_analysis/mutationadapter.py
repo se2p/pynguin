@@ -11,11 +11,10 @@ import logging
 
 from typing import TYPE_CHECKING
 
-import mutpy.controller as mc
-import mutpy.operators as mo
-import mutpy.operators.loop as mol
-import mutpy.utils as mu
-import mutpy.views as mv
+import pynguin.assertion.mutation_analysis.controller as mc
+import pynguin.assertion.mutation_analysis.operators as mo
+import pynguin.assertion.mutation_analysis.operators.loop as mol
+import pynguin.assertion.mutation_analysis.utils as mu
 
 import pynguin.configuration as config
 
@@ -56,7 +55,6 @@ class MutationAdapter:
             part is a list of all the mutations operators applied.
         """
         controller = self._build_mutation_controller()
-        controller.score = mc.MutationScore()
 
         mutants = []
 
@@ -77,17 +75,13 @@ class MutationAdapter:
 
     def _build_mutation_controller(self) -> mc.MutationController:
         _LOGGER.info("Setup mutation controller")
-        built_views = self._get_views()
         mutant_generator = self._get_mutant_generator()
         self.target_loader = mu.ModulesLoader(
             [config.configuration.module_name], config.configuration.project_path
         )
 
         return mc.MutationController(
-            runner_cls=None,
             target_loader=self.target_loader,
-            test_loader=None,
-            views=built_views,
             mutant_generator=mutant_generator,
         )
 
@@ -118,8 +112,3 @@ class MutationAdapter:
             hom_strategy = self._strategies[mutation_strategy](order)
             return mc.HighOrderMutator(operators_set, percentage, hom_strategy)
         raise ConfigurationException("No suitable mutation strategy found.")
-
-    @staticmethod
-    def _get_views() -> list[mv.QuietTextView]:
-        # We do not want any output from MutPy here
-        return [mv.QuietTextView()]

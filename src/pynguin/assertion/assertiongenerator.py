@@ -15,7 +15,7 @@ import types
 
 from typing import TYPE_CHECKING
 
-import mutpy
+import pynguin.assertion.mutation_analysis.utils as mu
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
@@ -279,7 +279,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         adapter = ma.MutationAdapter()
 
         # Evil hack to change the way mutpy creates mutated modules.
-        mutpy.utils.create_module = self._create_module_with_instrumentation
+        mu.create_module = self._create_module_with_instrumentation
         self._mutated_modules = [x for x, _ in adapter.mutate_module()]
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
