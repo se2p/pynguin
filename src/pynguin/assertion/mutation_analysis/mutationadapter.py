@@ -16,6 +16,7 @@ import pynguin.assertion.mutation_analysis.controller as mc
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.operators.loop as mol
 import pynguin.assertion.mutation_analysis.stategies as ms
+import pynguin.assertion.mutation_analysis.mutators as mu
 
 import pynguin.configuration as config
 
@@ -77,7 +78,7 @@ class MutationAdapter:
         mutant_generator = self._get_mutant_generator()
         return mc.MutationController(mutant_generator)
 
-    def _get_mutant_generator(self) -> mc.FirstOrderMutator:
+    def _get_mutant_generator(self) -> mu.FirstOrderMutator:
         operators_set = set()
         operators_set |= mo.standard_operators
 
@@ -94,7 +95,7 @@ class MutationAdapter:
         mutation_strategy = config.configuration.test_case_output.mutation_strategy
 
         if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
-            return mc.FirstOrderMutator(operators_set, percentage)
+            return mu.FirstOrderMutator(operators_set, percentage)
 
         order = config.configuration.test_case_output.mutation_order
         if order <= 0:
@@ -102,5 +103,5 @@ class MutationAdapter:
 
         if mutation_strategy in self._strategies:
             hom_strategy = self._strategies[mutation_strategy](order)
-            return mc.HighOrderMutator(operators_set, percentage, hom_strategy)
+            return mu.HighOrderMutator(operators_set, percentage, hom_strategy)
         raise ConfigurationException("No suitable mutation strategy found.")
