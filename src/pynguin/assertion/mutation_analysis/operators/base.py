@@ -109,30 +109,24 @@ class MutationOperator:
             return
 
         for visitor in visitors:
-            if self.sampler and not self.sampler.is_mutation_time():
-                yield from self.generic_visit(node)
-                continue
-
             if (
-                self.only_mutation
-                and (
-                    self.only_mutation.node != node
-                    or self.only_mutation.visitor_name != visitor.__name__
+                (
+                    self.sampler is None
+                    or self.sampler.is_mutation_time()
                 )
+                and (
+                    self.only_mutation is None
+                    or (
+                        self.only_mutation.node == node
+                        and self.only_mutation.visitor_name == visitor.__name__
+                    )
+                )
+                and (mutated_node := visitor(node)) is not None
             ):
-                yield from self.generic_visit(node)
-                continue
+                fix_node_internals(node, mutated_node)
+                ast.fix_missing_locations(mutated_node)
 
-            mutated_node = visitor(node)
-
-            if mutated_node is None:
-                yield from self.generic_visit(node)
-                continue
-
-            fix_node_internals(node, mutated_node)
-            ast.fix_missing_locations(mutated_node)
-
-            yield node, mutated_node, visitor.__name__
+                yield node, mutated_node, visitor.__name__
 
             yield from self.generic_visit(node)
 
