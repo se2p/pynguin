@@ -9,16 +9,16 @@
 Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/__init__.py.
 """
 
-from .arithmetic import *
-from .base import *
-from .decorator import *
-from .exception import *
-from .inheritance import *
-from .logical import *
-from .loop import *
-from .misc import *
+from pynguin.assertion.mutation_analysis.operators.arithmetic import *
+from pynguin.assertion.mutation_analysis.operators.base import *
+from pynguin.assertion.mutation_analysis.operators.decorator import *
+from pynguin.assertion.mutation_analysis.operators.exception import *
+from pynguin.assertion.mutation_analysis.operators.inheritance import *
+from pynguin.assertion.mutation_analysis.operators.logical import *
+from pynguin.assertion.mutation_analysis.operators.loop import *
+from pynguin.assertion.mutation_analysis.operators.misc import *
 
-standard_operators = {
+standard_operators = [
     ArithmeticOperatorDeletion,
     ArithmeticOperatorReplacement,
     AssignmentOperatorReplacement,
@@ -39,10 +39,10 @@ standard_operators = {
     SliceIndexRemove,
     SuperCallingDeletion,
     SuperCallingInsert,
-}
+]
 
-experimental_operators = {
+experimental_operators = [
     OneIterationLoop,
     ReverseIterationLoop,
     ZeroIterationLoop,
-}
+]
