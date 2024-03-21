@@ -105,13 +105,7 @@ class MutationOperator:
 
         fix_lineno(node)
 
-        visitors = self.find_visitors(node)
-
-        if not visitors:
-            yield from self.generic_visit(node)
-            return
-
-        for visitor in visitors:
+        for visitor in self.find_visitors(node):
             if (
                 (
                     self.sampler is None
@@ -131,7 +125,7 @@ class MutationOperator:
 
                 yield node, mutated_node, visitor.__name__
 
-            yield from self.generic_visit(node)
+        yield from self.generic_visit(node)
 
     def generic_visit(self, node: ast.AST) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         for field, old_value in ast.iter_fields(node):
