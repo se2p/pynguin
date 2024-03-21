@@ -98,7 +98,9 @@ class MutationOperator:
         self.only_mutation = only_mutation
 
     def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
-        if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
+        node_children = getattr(node, "children")
+
+        if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node_children:
             return
 
         fix_lineno(node)
