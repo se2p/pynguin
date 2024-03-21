@@ -21,11 +21,38 @@ from typing import Generator, Callable, TypeVar
 from pynguin.assertion.mutation_analysis import utils
 
 
-class Mutation:
-    def __init__(self, node: ast.AST, operator: type[MutationOperator], visitor_name: str) -> None:
-        self.node = node
-        self.operator = operator
-        self.visitor_name = visitor_name
+def fix_lineno(node: ast.AST) -> None:
+    parent = getattr(node, "parent")
+    if not hasattr(node, "lineno") and parent is not None and hasattr(parent, "lineno"):
+        parent_lineno = getattr(parent, "lineno")
+        setattr(node, "lineno", parent_lineno)
+
+
+def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
+    if not hasattr(new_node, "parent"):
+        old_node_children = getattr(old_node, "children")
+        old_node_parent = getattr(old_node, "parent")
+        setattr(new_node, "children", old_node_children)
+        setattr(new_node, "parent", old_node_parent)
+
+    if not hasattr(new_node, "lineno") and hasattr(old_node, "lineno"):
+        old_node_lineno = getattr(old_node, "lineno")
+        setattr(new_node, "lineno", old_node_lineno)
+
+    if hasattr(old_node, "marker"):
+        old_node_marker = getattr(old_node, "marker")
+        setattr(new_node, "marker", old_node_marker)
+
+
+def set_lineno(node: ast.AST, lineno: int) -> None:
+    for child_node in ast.walk(node):
+        if hasattr(child_node, "lineno"):
+            setattr(child_node, "lineno", lineno)
+
+
+def shift_lines(nodes: list[ast.AST], shift_by: int = 1) -> None:
+    for node in nodes:
+        ast.increment_lineno(node, shift_by)
 
 
 def copy_node(mutate):
@@ -38,10 +65,18 @@ def copy_node(mutate):
     return f
 
 
+class Mutation:
+    def __init__(self, node: ast.AST, operator: type[MutationOperator], visitor_name: str) -> None:
+        self.node = node
+        self.operator = operator
+        self.visitor_name = visitor_name
+
+
 T = TypeVar("T", bound=ast.AST)
 
 
 class MutationOperator:
+
     @classmethod
     def mutate(
         cls,
@@ -69,7 +104,7 @@ class MutationOperator:
         if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
             return
 
-        self.fix_lineno(node)
+        fix_lineno(node)
 
         visitors = self.find_visitors(node)
 
@@ -98,7 +133,7 @@ class MutationOperator:
                 yield from self.generic_visit(node)
                 continue
 
-            self.fix_node_internals(node, mutated_node)
+            fix_node_internals(node, mutated_node)
             ast.fix_missing_locations(mutated_node)
 
             yield node, mutated_node, visitor.__name__
@@ -133,27 +168,6 @@ class MutationOperator:
 
         setattr(node, field, old_value)
 
-    def fix_lineno(self, node: ast.AST) -> None:
-        parent = getattr(node, "parent")
-        if not hasattr(node, "lineno") and parent is not None and hasattr(parent, "lineno"):
-            parent_lineno = getattr(parent, "lineno")
-            setattr(node, "lineno", parent_lineno)
-
-    def fix_node_internals(self, old_node: ast.AST, new_node: ast.AST) -> None:
-        if not hasattr(new_node, "parent"):
-            old_node_children = getattr(old_node, "children")
-            old_node_parent = getattr(old_node, "parent")
-            setattr(new_node, "children", old_node_children)
-            setattr(new_node, "parent", old_node_parent)
-
-        if not hasattr(new_node, "lineno") and hasattr(old_node, "lineno"):
-            old_node_lineno = getattr(old_node, "lineno")
-            setattr(new_node, "lineno", old_node_lineno)
-
-        if hasattr(old_node, "marker"):
-            old_node_marker = getattr(old_node, "marker")
-            setattr(new_node, "marker", old_node_marker)
-
     def find_visitors(self, node: T) -> list[Callable[[T], ast.AST | None]]:
         node_name = node.__class__.__name__
         method_prefix = f"mutate_{node_name}"
@@ -162,15 +176,6 @@ class MutationOperator:
             for attr in dir(self)
             if attr.startswith(method_prefix) and callable(visitor := getattr(self, attr))
         ]
-
-    def set_lineno(self, node: ast.AST, lineno: int) -> None:
-        for child_node in ast.walk(node):
-            if hasattr(child_node, "lineno"):
-                setattr(child_node, "lineno", lineno)
-
-    def shift_lines(self, nodes: list[ast.AST], shift_by: int = 1) -> None:
-        for node in nodes:
-            ast.increment_lineno(node, shift_by)
 
 
 class AbstractUnaryOperatorDeletion(abc.ABC, MutationOperator):

@@ -147,12 +147,12 @@ class OverriddenMethodCallingPositionChange(AbstractSuperCallingModification):
         del node.body[index]
 
         if index == 0:
-            self.set_lineno(statement, node.body[-1].lineno)
-            self.shift_lines(node.body, -1)
+            set_lineno(statement, node.body[-1].lineno)
+            shift_lines(node.body, -1)
             node.body.append(statement)
         else:
-            self.set_lineno(statement, node.body[0].lineno)
-            self.shift_lines(node.body, 1)
+            set_lineno(statement, node.body[0].lineno)
+            shift_lines(node.body, 1)
             node.body.insert(0, statement)
 
         return node
@@ -201,7 +201,7 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
             return None
 
         node.body.insert(0, self.create_super_call(node))
-        self.shift_lines(node.body[1:], 1)
+        shift_lines(node.body[1:], 1)
 
         return node
 
@@ -228,7 +228,7 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
         if node.args.kwarg is not None:
             self.add_kwarg_to_super_call(super_call_value, node.args.kwarg)
 
-        self.set_lineno(super_call, node.body[0].lineno)
+        set_lineno(super_call, node.body[0].lineno)
 
         return super_call
 
