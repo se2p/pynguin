@@ -79,11 +79,18 @@ def create_ast(code: str) -> ast.AST:
 
 
 def is_docstring(node: ast.AST) -> bool:
-    def_node = node.parent.parent
+    if not isinstance(node, ast.Str):
+        return False
+
+    expression_node = getattr(node, "parent")
+
+    if not isinstance(expression_node, ast.Expr):
+        return False
+
+    def_node = getattr(expression_node, "parent")
+
     return (
         isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module))
         and def_node.body
-        and isinstance(def_node.body[0], ast.Expr)
-        and isinstance(def_node.body[0].value, ast.Str)
-        and def_node.body[0].value == node
+        and def_node.body[0] == expression_node
     )
