@@ -12,7 +12,7 @@ import mutpy.controller
 import pynguin.assertion.mutation_analysis.controller as c
 
 
-class FooAdapter(c.MutationAdapter):
+class FooController(c.MutationController):
     pass
 
 
@@ -21,7 +21,7 @@ class FooMutController(mutpy.controller.MutationController):
 
 
 def test_mutate_module():
-    adapter = FooAdapter()
+    adapter = FooController()
     controller = FooMutController(
         MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
     )

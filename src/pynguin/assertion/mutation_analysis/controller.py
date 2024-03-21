@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class MutationAdapter:
+class MutationController:
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
     _strategies: ClassVar[

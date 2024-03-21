@@ -230,7 +230,7 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationAdapter):
+class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationController):
     """Uses mutation analysis to filter out less relevant assertions."""
 
     def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
