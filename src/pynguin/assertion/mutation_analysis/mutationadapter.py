@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.mutation_analysis.controller as mc
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.operators.loop as mol
+import pynguin.assertion.mutation_analysis.stategies as ms
 
 import pynguin.configuration as config
 
@@ -34,12 +35,12 @@ class MutationAdapter:
     """Adapter class for interactions with the MutPy mutation testing framework."""
 
     _strategies: ClassVar[
-        dict[config.MutationStrategy, Callable[[int], mc.HOMStrategy]]
+        dict[config.MutationStrategy, Callable[[int], ms.HOMStrategy]]
     ] = {
-        config.MutationStrategy.FIRST_TO_LAST: mc.FirstToLastHOMStrategy,
-        config.MutationStrategy.BETWEEN_OPERATORS: mc.BetweenOperatorsHOMStrategy,
-        config.MutationStrategy.RANDOM: mc.RandomHOMStrategy,
-        config.MutationStrategy.EACH_CHOICE: mc.EachChoiceHOMStrategy,
+        config.MutationStrategy.FIRST_TO_LAST: ms.FirstToLastHOMStrategy,
+        config.MutationStrategy.BETWEEN_OPERATORS: ms.BetweenOperatorsHOMStrategy,
+        config.MutationStrategy.RANDOM: ms.RandomHOMStrategy,
+        config.MutationStrategy.EACH_CHOICE: ms.EachChoiceHOMStrategy,
     }
 
     def mutate_module(self) -> list[tuple[ModuleType, list[mo.Mutation]]]:
