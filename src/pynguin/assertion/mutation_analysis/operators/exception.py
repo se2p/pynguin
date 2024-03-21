@@ -34,7 +34,3 @@ class ExceptionSwallowing(BaseExceptionHandlerOperator):
         if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
             raise MutationResign()
         return self._replace_exception_body(node, [ast.Pass(lineno=node.body[0].lineno)])
-
-    @classmethod
-    def name(cls) -> str:
-        return "EXS"

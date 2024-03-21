@@ -23,10 +23,6 @@ class DecoratorDeletion(MutationOperator):
         else:
             raise MutationResign()
 
-    @classmethod
-    def name(cls) -> str:
-        return "DDL"
-
 
 class AbstractMethodDecoratorInsertionMutationOperator(MutationOperator):
     @copy_node

@@ -74,10 +74,6 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
             value.elts = new_values
             return node
 
-    @classmethod
-    def name(cls) -> str:
-        return "IHD"
-
 
 class AbstractSuperCallingModification(MutationOperator):
     def is_super_call(self, node: ast.AST, stmt: ast.stmt) -> bool:
@@ -126,20 +122,12 @@ class OverriddenMethodCallingPositionChange(AbstractSuperCallingModification):
             node.body.insert(0, super_call)
         return node
 
-    @classmethod
-    def name(cls) -> str:
-        return "IOP"
-
 
 class OverridingMethodDeletion(AbstractOverriddenElementModification):
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.Pass:
         if self.is_overridden(node):
             return ast.Pass()
         raise MutationResign()
-
-    @classmethod
-    def name(cls) -> str:
-        return "IOD"
 
 
 class SuperCallingDeletion(AbstractSuperCallingModification):
@@ -193,7 +181,3 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
     @staticmethod
     def add_vararg_to_super_call(super_call: ast.Expr, vararg: ast.AST) -> None:
         super_call.value.args.append(ast.Starred(ctx=ast.Load(), value=ast.Name(id=vararg.arg, ctx=ast.Load())))
-
-    @classmethod
-    def name(cls) -> str:
-        return "SCI"

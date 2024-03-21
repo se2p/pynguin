@@ -152,14 +152,6 @@ class MutationOperator:
         for node in nodes:
             ast.increment_lineno(node, shift_by)
 
-    @classmethod
-    def name(cls) -> str:
-        return "".join([c for c in cls.__name__ if str.isupper(c)])
-
-    @classmethod
-    def long_name(cls) -> str:
-        return " ".join(map(str.lower, (re.split('([A-Z][a-z]*)', cls.__name__)[1::2])))
-
 
 class AbstractUnaryOperatorDeletion(MutationOperator):
     def mutate_UnaryOp(self, node: ast.UnaryOp) -> ast.expr:

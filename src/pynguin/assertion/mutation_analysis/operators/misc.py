@@ -20,10 +20,6 @@ class AssignmentOperatorReplacement(AbstractArithmeticOperatorReplacement):
     def should_mutate(self, node: ast.AST) -> bool:
         return isinstance(node.parent, ast.AugAssign)
 
-    @classmethod
-    def name(cls) -> str:
-        return "ASR"
-
 
 class BreakContinueReplacement(MutationOperator):
     def mutate_Break(self, node: ast.Break) -> ast.Continue:
@@ -78,10 +74,6 @@ class ConstantReplacement(MutationOperator):
     def mutate_Str_empty(self, node: ast.Str) -> ast.Str:
         return ast.Str(s=self.help_str_empty(node))
 
-    @classmethod
-    def name(cls) -> str:
-        return "CRP"
-
 
 class SliceIndexRemove(MutationOperator):
     def mutate_Slice_remove_lower(self, node: ast.Slice) -> ast.Slice:
@@ -125,7 +117,3 @@ class StatementDeletion(MutationOperator):
         if utils.is_docstring(node.value):
             raise MutationResign()
         return ast.Pass()
-
-    @classmethod
-    def name(cls) -> str:
-        return "SDL"
