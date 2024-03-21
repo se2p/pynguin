@@ -7,16 +7,16 @@
 """Provides an adapter for the MutPy mutation testing framework."""
 from __future__ import annotations
 
+import inspect
 import importlib
 import logging
 
 from typing import TYPE_CHECKING
 
-import pynguin.assertion.mutation_analysis.controller as mc
 import pynguin.assertion.mutation_analysis.operators as mo
-import pynguin.assertion.mutation_analysis.operators.loop as mol
 import pynguin.assertion.mutation_analysis.stategies as ms
 import pynguin.assertion.mutation_analysis.mutators as mu
+import pynguin.assertion.mutation_analysis.utils as utils
 
 import pynguin.configuration as config
 
@@ -53,49 +53,43 @@ class MutationAdapter:
             A list of tuples where the first entry is the mutated module and the second
             part is a list of all the mutations operators applied.
         """
-        controller = self._build_mutation_controller()
+        _LOGGER.info("Setup mutation generator")
+        mutant_generator = self._get_mutant_generator()
 
-        mutants = []
-
+        _LOGGER.info("Import module %s", config.configuration.module_name)
         target_module = importlib.import_module(config.configuration.module_name)
 
         _LOGGER.info("Build AST for %s", target_module.__name__)
-        target_ast = controller.create_target_ast(target_module)
-        _LOGGER.info("Mutate module %s", target_module.__name__)
-        mutant_modules = controller.mutate_module(
-            target_module=target_module,
-            target_ast=target_ast,
-        )
+        target_source_code = inspect.getsource(target_module)
+        target_ast = utils.create_ast(target_source_code)
 
-        for mutant_module, mutations in mutant_modules:
-            mutants.append((mutant_module, mutations))
+        _LOGGER.info("Mutate module %s", target_module.__name__)
+        mutants = [
+            (utils.create_module(mutant_ast, target_module.__name__), mutations)
+            for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module)
+        ]
 
         _LOGGER.info("Generated %d mutants", len(mutants))
         return mutants
 
-    def _build_mutation_controller(self) -> mc.MutationController:
-        _LOGGER.info("Setup mutation controller")
-        mutant_generator = self._get_mutant_generator()
-        return mc.MutationController(mutant_generator)
-
     def _get_mutant_generator(self) -> mu.FirstOrderMutator:
-        operators_set = set()
-        operators_set |= mo.standard_operators
-        operators_set |= mo.experimental_operators
-
-        # percentage of the generated mutants (mutation sampling)
-        percentage = 100
+        operators = [
+            *mo.standard_operators,
+            *mo.experimental_operators,
+        ]
 
         mutation_strategy = config.configuration.test_case_output.mutation_strategy
 
         if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
-            return mu.FirstOrderMutator(operators_set, percentage)
+            return mu.FirstOrderMutator(operators)
 
         order = config.configuration.test_case_output.mutation_order
+
         if order <= 0:
             raise ConfigurationException("Mutation order should be > 0.")
 
         if mutation_strategy in self._strategies:
             hom_strategy = self._strategies[mutation_strategy](order)
-            return mu.HighOrderMutator(operators_set, percentage, hom_strategy)
+            return mu.HighOrderMutator(operators, hom_strategy=hom_strategy)
+
         raise ConfigurationException("No suitable mutation strategy found.")

@@ -14,13 +14,10 @@ import copy
 import random
 import types
 
-from typing import Any
 
-
-def create_module(ast_node: ast.Module, module_name: str = "mutant", module_dict: dict[str, Any] | None = None):
+def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
     code = compile(ast_node, module_name, "exec")
     module = types.ModuleType(module_name)
-    module.__dict__.update(module_dict or {})
     exec(code, module.__dict__)
     return module
 
