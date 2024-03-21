@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.stategies as ms
 import pynguin.assertion.mutation_analysis.mutators as mu
-import pynguin.assertion.mutation_analysis.utils as utils
 
 import pynguin.configuration as config
 
+from pynguin.assertion.mutation_analysis.utils import ParentNodeTransformer
 from pynguin.utils.exceptions import ConfigurationException
 
 
@@ -63,7 +63,7 @@ class MutationAdapter:
 
         _LOGGER.info("Build AST for %s", target_module.__name__)
         target_source_code = inspect.getsource(target_module)
-        target_ast = utils.create_ast(target_source_code)
+        target_ast = ParentNodeTransformer.create_ast(target_source_code)
 
         _LOGGER.info("Mutate module %s", target_module.__name__)
         mutants = [

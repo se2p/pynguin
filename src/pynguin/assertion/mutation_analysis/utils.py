@@ -14,6 +14,10 @@ import copy
 
 
 class ParentNodeTransformer(ast.NodeTransformer):
+    @classmethod
+    def create_ast(cls, code: str) -> ast.AST:
+        return cls().visit(ast.parse(code))
+
     def __init__(self) -> None:
         super().__init__()
         self.parent: ast.AST | None = None
@@ -52,7 +56,3 @@ class ParentNodeTransformer(ast.NodeTransformer):
             parent_children.update(node_children)
 
         return node
-
-
-def create_ast(code: str) -> ast.AST:
-    return ParentNodeTransformer().visit(ast.parse(code))
