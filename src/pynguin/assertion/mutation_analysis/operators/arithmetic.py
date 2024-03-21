@@ -11,7 +11,7 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/arith
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationResign, MutationOperator, AbstractUnaryOperatorDeletion
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, AbstractUnaryOperatorDeletion
 
 
 class ArithmeticOperatorDeletion(AbstractUnaryOperatorDeletion):
@@ -23,65 +23,77 @@ class AbstractArithmeticOperatorReplacement(MutationOperator):
     def should_mutate(self, node: ast.AST) -> bool:
         raise NotImplementedError()
 
-    def mutate_Add(self, node: ast.Add) -> ast.Sub:
-        if self.should_mutate(node):
-            return ast.Sub()
-        raise MutationResign()
+    def mutate_Add(self, node: ast.Add) -> ast.Sub | None:
+        if not self.should_mutate(node):
+            return None
 
-    def mutate_Sub(self, node: ast.Sub) -> ast.Add:
-        if self.should_mutate(node):
-            return ast.Add()
-        raise MutationResign()
+        return ast.Sub()
 
-    def mutate_Mult_to_Div(self, node: ast.Mult) -> ast.Div:
-        if self.should_mutate(node):
-            return ast.Div()
-        raise MutationResign()
+    def mutate_Sub(self, node: ast.Sub) -> ast.Add | None:
+        if not self.should_mutate(node):
+            return None
 
-    def mutate_Mult_to_FloorDiv(self, node: ast.Mult) -> ast.FloorDiv:
-        if self.should_mutate(node):
-            return ast.FloorDiv()
-        raise MutationResign()
+        return ast.Add()
 
-    def mutate_Mult_to_Pow(self, node: ast.Mult) -> ast.Pow:
-        if self.should_mutate(node):
-            return ast.Pow()
-        raise MutationResign()
+    def mutate_Mult_to_Div(self, node: ast.Mult) -> ast.Div | None:
+        if not self.should_mutate(node):
+            return None
 
-    def mutate_Div_to_Mult(self, node: ast.Div) -> ast.Mult:
-        if self.should_mutate(node):
-            return ast.Mult()
-        raise MutationResign()
+        return ast.Div()
 
-    def mutate_Div_to_FloorDiv(self, node: ast.Div) -> ast.FloorDiv:
-        if self.should_mutate(node):
-            return ast.FloorDiv()
-        raise MutationResign()
+    def mutate_Mult_to_FloorDiv(self, node: ast.Mult) -> ast.FloorDiv | None:
+        if not self.should_mutate(node):
+            return None
 
-    def mutate_FloorDiv_to_Div(self, node: ast.FloorDiv) -> ast.Div:
-        if self.should_mutate(node):
-            return ast.Div()
-        raise MutationResign()
+        return ast.FloorDiv()
 
-    def mutate_FloorDiv_to_Mult(self, node: ast.FloorDiv) -> ast.Mult:
-        if self.should_mutate(node):
-            return ast.Mult()
-        raise MutationResign()
+    def mutate_Mult_to_Pow(self, node: ast.Mult) -> ast.Pow | None:
+        if not self.should_mutate(node):
+            return None
 
-    def mutate_Mod(self, node: ast.Mod) -> ast.Mult:
-        if self.should_mutate(node):
-            return ast.Mult()
-        raise MutationResign()
+        return ast.Pow()
 
-    def mutate_Pow(self, node: ast.Pow) -> ast.Mult:
-        if self.should_mutate(node):
-            return ast.Mult()
-        raise MutationResign()
+    def mutate_Div_to_Mult(self, node: ast.Div) -> ast.Mult | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.Mult()
+
+    def mutate_Div_to_FloorDiv(self, node: ast.Div) -> ast.FloorDiv | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.FloorDiv()
+
+    def mutate_FloorDiv_to_Div(self, node: ast.FloorDiv) -> ast.Div | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.Div()
+
+    def mutate_FloorDiv_to_Mult(self, node: ast.FloorDiv) -> ast.Mult | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.Mult()
+
+    def mutate_Mod(self, node: ast.Mod) -> ast.Mult | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.Mult()
+
+    def mutate_Pow(self, node: ast.Pow) -> ast.Mult | None:
+        if not self.should_mutate(node):
+            return None
+
+        return ast.Mult()
 
 
 class ArithmeticOperatorReplacement(AbstractArithmeticOperatorReplacement):
     def should_mutate(self, node: ast.AST) -> bool:
-        return not isinstance(node.parent, ast.AugAssign)
+        parent = getattr(node, "parent")
+        return not isinstance(parent, ast.AugAssign)
 
     def mutate_USub(self, node: ast.USub) -> ast.UAdd:
         return ast.UAdd()

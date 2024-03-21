@@ -11,6 +11,7 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/base.
 """
 from __future__ import annotations
 
+import abc
 import ast
 import copy
 import re
@@ -19,10 +20,6 @@ import types
 from typing import Generator, Callable
 
 from pynguin.assertion.mutation_analysis import utils
-
-
-class MutationResign(Exception):
-    pass
 
 
 class Mutation:
@@ -60,29 +57,41 @@ class MutationOperator:
         if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
             return
         self.fix_lineno(node)
+
         visitors = self.find_visitors(node)
-        if visitors:
-            for visitor in visitors:
-                try:
-                    if self.sampler and not self.sampler.is_mutation_time():
-                        raise MutationResign
-                    if self.only_mutation and \
-                            (self.only_mutation.node != node or self.only_mutation.visitor != visitor.__name__):
-                        raise MutationResign
-                    new_node = visitor(node)
-                    self.visitor = visitor.__name__
-                    self.current_node = node
-                    self.fix_node_internals(node, new_node)
-                    ast.fix_missing_locations(new_node)
-                    yield new_node
-                except MutationResign:
-                    pass
-                finally:
-                    for new_node in self.generic_visit(node):
-                        yield new_node
-        else:
-            for new_node in self.generic_visit(node):
-                yield new_node
+
+        if not visitors:
+            yield from self.generic_visit(node)
+            return
+
+        for visitor in visitors:
+            if self.sampler and not self.sampler.is_mutation_time():
+                yield from self.generic_visit(node)
+                continue
+
+            if (
+                self.only_mutation
+                and (
+                    self.only_mutation.node != node
+                    or self.only_mutation.visitor != visitor.__name__
+                )
+            ):
+                yield from self.generic_visit(node)
+                continue
+
+            new_node = visitor(node)
+
+            if new_node is None:
+                yield from self.generic_visit(node)
+                continue
+
+            self.visitor = visitor.__name__
+            self.current_node = node
+            self.fix_node_internals(node, new_node)
+            ast.fix_missing_locations(new_node)
+            yield new_node
+
+            yield from self.generic_visit(node)
 
     def generic_visit(self, node: ast.AST) -> Generator[ast.AST, None, None]:
         for field, old_value in ast.iter_fields(node):
@@ -131,11 +140,11 @@ class MutationOperator:
         if hasattr(old_node, 'marker'):
             new_node.marker = old_node.marker
 
-    def find_visitors(self, node: ast.AST) -> list[Callable[[ast.AST], ast.AST]]:
+    def find_visitors(self, node: ast.AST) -> list[Callable[[ast.AST], ast.AST | None]]:
         method_prefix = 'mutate_' + node.__class__.__name__
         return self.getattrs_like(method_prefix)
 
-    def getattrs_like(self, attr_like: str) -> list[Callable[[ast.AST], ast.AST]]:
+    def getattrs_like(self, attr_like: str) -> list[Callable[[ast.AST], ast.AST | None]]:
         pattern = re.compile(attr_like + r"($|(_\w+)+$)")
         return [
             getattr(self, attr)
@@ -153,8 +162,13 @@ class MutationOperator:
             ast.increment_lineno(node, shift_by)
 
 
-class AbstractUnaryOperatorDeletion(MutationOperator):
-    def mutate_UnaryOp(self, node: ast.UnaryOp) -> ast.expr:
-        if isinstance(node.op, self.get_operator_type()):
-            return node.operand
-        raise MutationResign()
+class AbstractUnaryOperatorDeletion(abc.ABC, MutationOperator):
+    @abc.abstractmethod
+    def get_operator_type(self) -> type[ast.unaryop]:
+        pass
+
+    def mutate_UnaryOp(self, node: ast.UnaryOp) -> ast.expr | None:
+        if not isinstance(node.op, self.get_operator_type()):
+            return None
+
+        return node.operand

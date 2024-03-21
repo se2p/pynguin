@@ -10,22 +10,39 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/loop.
 """
 
 import ast
+import typing
 
 from pynguin.assertion.mutation_analysis.operators import copy_node, MutationOperator
 
 
+T = typing.TypeVar("T", ast.For, ast.While)
+
+
+def one_iteration(node: T) -> T | None:
+    if not node.body:
+        return None
+
+    node.body.append(ast.Break(lineno=node.body[-1].lineno + 1))
+    return node
+
+
+def zero_iteration(node: T) -> T | None:
+    if not node.body:
+        return None
+
+    node.body = [ast.Break(lineno=node.body[0].lineno)]
+    return node
+
+
 class OneIterationLoop(MutationOperator):
-    def one_iteration(self, node: ast.For | ast.While) -> ast.For | ast.While:
-        node.body.append(ast.Break(lineno=node.body[-1].lineno + 1))
-        return node
 
     @copy_node
-    def mutate_For(self, node: ast.For) -> ast.For:
-        return self.one_iteration(node)
+    def mutate_For(self, node: ast.For) -> ast.For | None:
+        return one_iteration(node)
 
     @copy_node
-    def mutate_While(self, node: ast.While) -> ast.While:
-        return self.one_iteration(node)
+    def mutate_While(self, node: ast.While) -> ast.While | None:
+        return one_iteration(node)
 
 
 class ReverseIterationLoop(MutationOperator):
@@ -43,14 +60,11 @@ class ReverseIterationLoop(MutationOperator):
 
 
 class ZeroIterationLoop(MutationOperator):
-    def zero_iteration(self, node: ast.For | ast.While) -> ast.For | ast.While:
-        node.body = [ast.Break(lineno=node.body[0].lineno)]
-        return node
 
     @copy_node
-    def mutate_For(self, node: ast.For) -> ast.For:
-        return self.zero_iteration(node)
+    def mutate_For(self, node: ast.For) -> ast.For | None:
+        return zero_iteration(node)
 
     @copy_node
-    def mutate_While(self, node: ast.While) -> ast.While:
-        return self.zero_iteration(node)
+    def mutate_While(self, node: ast.While) -> ast.While | None:
+        return zero_iteration(node)

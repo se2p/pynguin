@@ -11,26 +11,42 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/excep
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, MutationResign
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
-class BaseExceptionHandlerOperator(MutationOperator):
-
-    @staticmethod
-    def _replace_exception_body(exception_node: ast.ExceptHandler, body: list[ast.stmt]) -> ast.ExceptHandler:
-        return ast.ExceptHandler(type=exception_node.type, name=exception_node.name, lineno=exception_node.lineno,
-                                 body=body)
-
-
-class ExceptionHandlerDeletion(BaseExceptionHandlerOperator):
-    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler:
-        if node.body and isinstance(node.body[0], ast.Raise):
-            raise MutationResign()
-        return self._replace_exception_body(node, [ast.Raise(lineno=node.body[0].lineno)])
+def replace_exception_handler(
+    exception_handler: ast.ExceptHandler,
+    body: list[ast.stmt],
+) -> ast.ExceptHandler:
+    return ast.ExceptHandler(
+        type=exception_handler.type,
+        name=exception_handler.name,
+        lineno=exception_handler.lineno,
+        body=body,
+    )
 
 
-class ExceptionSwallowing(BaseExceptionHandlerOperator):
-    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler:
-        if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
-            raise MutationResign()
-        return self._replace_exception_body(node, [ast.Pass(lineno=node.body[0].lineno)])
+class ExceptionHandlerDeletion(MutationOperator):
+    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler | None:
+        if not node.body:
+            return None
+
+        first_statement = node.body[0]
+
+        if isinstance(first_statement, ast.Raise):
+            return None
+
+        return replace_exception_handler(node, [ast.Raise(lineno=first_statement.lineno)])
+
+
+class ExceptionSwallowing(MutationOperator):
+    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler | None:
+        if not node.body:
+            return None
+
+        first_statement = node.body[0]
+
+        if len(node.body) == 1 and isinstance(first_statement, ast.Pass):
+            return None
+
+        return replace_exception_handler(node, [ast.Pass(lineno=first_statement.lineno)])

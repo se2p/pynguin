@@ -11,14 +11,14 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/decor
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node, MutationResign
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
 
 
 class DecoratorDeletion(MutationOperator):
     @copy_node
-    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:
-        if node.decorator_list:
-            node.decorator_list = []
-            return node
-        else:
-            raise MutationResign()
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST | None:
+        if not node.decorator_list:
+            return None
+
+        node.decorator_list = []
+        return node
