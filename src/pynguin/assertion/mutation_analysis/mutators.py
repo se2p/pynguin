@@ -22,21 +22,21 @@ from pynguin.assertion.mutation_analysis.sampler import RandomSampler
 
 
 class Mutator(abc.ABC):
-        @abc.abstractmethod
-        def mutate(
-            self,
-            target_ast: ast.AST,
-            module: types.ModuleType | None = None,
-        ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
-            """Mutate the given AST.
+    @abc.abstractmethod
+    def mutate(
+        self,
+        target_ast: ast.AST,
+        module: types.ModuleType | None = None,
+    ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
+        """Mutate the given AST.
 
-            Args:
-                target_ast: The AST to mutate.
-                module: The module to mutate.
+        Args:
+            target_ast: The AST to mutate.
+            module: The module to mutate.
 
-            Returns:
-                A generator of mutations and the mutated AST.
-            """
+        Returns:
+            A generator of mutations and the mutated AST.
+        """
 
 
 class FirstOrderMutator(Mutator):
