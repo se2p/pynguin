@@ -12,7 +12,6 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/inher
 import ast
 import functools
 
-from pynguin.assertion.mutation_analysis import utils
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node, set_lineno, shift_lines
 
 

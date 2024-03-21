@@ -21,7 +21,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 
 import pynguin.configuration as config
 
-from pynguin.assertion.mutation_analysis.utils import ParentNodeTransformer
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.utils.exceptions import ConfigurationException
 
 
