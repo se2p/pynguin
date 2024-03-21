@@ -11,15 +11,6 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 
 import ast
 import copy
-import random
-
-
-class RandomSampler:
-    def __init__(self, percentage: int) -> None:
-        self.percentage = percentage if 0 < percentage < 100 else 100
-
-    def is_mutation_time(self) -> bool:
-        return random.randrange(100) < self.percentage
 
 
 class ParentNodeTransformer(ast.NodeTransformer):

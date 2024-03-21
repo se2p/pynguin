@@ -18,7 +18,7 @@ import types
 
 from typing import Generator, Callable, TypeVar
 
-from pynguin.assertion.mutation_analysis import utils
+from pynguin.assertion.mutation_analysis.sampler import RandomSampler
 
 
 def fix_lineno(node: ast.AST) -> None:
@@ -77,7 +77,7 @@ class MutationOperator:
     def mutate(
         cls,
         node: T,
-        sampler: utils.RandomSampler | None = None,
+        sampler: RandomSampler | None = None,
         module: types.ModuleType | None = None,
         only_mutation: Mutation | None = None
     ):
@@ -88,7 +88,7 @@ class MutationOperator:
 
     def __init__(
         self,
-        sampler: utils.RandomSampler | None,
+        sampler: RandomSampler | None,
         module: types.ModuleType | None,
         only_mutation: Mutation | None,
     ) -> None:

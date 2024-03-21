@@ -16,9 +16,9 @@ import types
 
 from typing import Generator
 
-from pynguin.assertion.mutation_analysis import utils
 from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
 from pynguin.assertion.mutation_analysis.stategies import HOMStrategy, FirstToLastHOMStrategy
+from pynguin.assertion.mutation_analysis.sampler import RandomSampler
 
 
 class Mutator(abc.ABC):
@@ -43,7 +43,7 @@ class FirstOrderMutator(Mutator):
 
     def __init__(self, operators: list[type[MutationOperator]], percentage: int = 100) -> None:
         self.operators = operators
-        self.sampler = utils.RandomSampler(percentage)
+        self.sampler = RandomSampler(percentage)
 
     def mutate(
         self,
