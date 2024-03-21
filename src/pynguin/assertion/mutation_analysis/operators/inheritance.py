@@ -13,6 +13,7 @@ import ast
 import functools
 
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node, set_lineno, shift_lines
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 
 
 class AbstractOverriddenElementModification(MutationOperator):
@@ -208,7 +209,7 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
         return mutated_node
 
     def create_super_call(self, node: ast.FunctionDef) -> ast.Expr:
-        function_def: ast.FunctionDef = utils.create_ast(f"super().{node.name}()")
+        function_def: ast.FunctionDef = ParentNodeTransformer.create_ast(f"super().{node.name}()")
 
         super_call: ast.Expr = function_def.body[0]
 
