@@ -65,21 +65,3 @@ class ParentNodeTransformer(ast.NodeTransformer):
 
 def create_ast(code: str) -> ast.AST:
     return ParentNodeTransformer().visit(ast.parse(code))
-
-
-def is_docstring(node: ast.AST) -> bool:
-    if not isinstance(node, ast.Str):
-        return False
-
-    expression_node = getattr(node, "parent")
-
-    if not isinstance(expression_node, ast.Expr):
-        return False
-
-    def_node = getattr(expression_node, "parent")
-
-    return (
-        isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module))
-        and def_node.body
-        and def_node.body[0] == expression_node
-    )

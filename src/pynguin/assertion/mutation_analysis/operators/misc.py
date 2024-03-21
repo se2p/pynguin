@@ -7,13 +7,31 @@
 """Provides classes for mutation testing.
 
 Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/misc.py.
+Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 """
 
 import ast
 
-from pynguin.assertion.mutation_analysis import utils
 from pynguin.assertion.mutation_analysis.operators.arithmetic import AbstractArithmeticOperatorReplacement
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+
+
+def is_docstring(node: ast.AST) -> bool:
+    if not isinstance(node, ast.Str):
+        return False
+
+    expression_node = getattr(node, "parent")
+
+    if not isinstance(expression_node, ast.Expr):
+        return False
+
+    def_node = getattr(expression_node, "parent")
+
+    return (
+        isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module))
+        and def_node.body
+        and def_node.body[0] == expression_node
+    )
 
 
 class AssignmentOperatorReplacement(AbstractArithmeticOperatorReplacement):
@@ -35,7 +53,7 @@ class ConstantReplacement(MutationOperator):
     SECOND_CONST_STRING = "python"
 
     def help_str(self, node: ast.Constant) -> str | None:
-        if utils.is_docstring(node):
+        if is_docstring(node):
             return None
 
         if node.value == self.FIRST_CONST_STRING:
@@ -45,7 +63,7 @@ class ConstantReplacement(MutationOperator):
 
     @staticmethod
     def help_str_empty(node: ast.Constant) -> str | None:
-        if not node.value or utils.is_docstring(node):
+        if not node.value or is_docstring(node):
             return None
 
         return ""
