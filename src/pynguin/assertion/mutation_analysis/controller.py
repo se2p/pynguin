@@ -78,10 +78,18 @@ class MutationController:
         target_ast: ast.Module,
         target_module: types.ModuleType,
     ) -> list[tuple[ModuleType, list[Mutation]]]:
-        return [
-            (self.create_module(mutant_ast, target_module.__name__), mutations)
-            for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module)
-        ]
+        mutants: list[tuple[ModuleType, list[Mutation]]] = []
+
+        for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module):
+            try:
+                mutant_module = self.create_module(mutant_ast, target_module.__name__)
+            except Exception as exception:
+                _LOGGER.debug("Error creating mutant: %s", exception)
+                continue
+
+            mutants.append((mutant_module, mutations))
+
+        return mutants
 
     def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
         code = compile(ast_node, module_name, "exec")
