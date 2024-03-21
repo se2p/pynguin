@@ -21,6 +21,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 
 import pynguin.configuration as config
 
+from pynguin.assertion.mutation_analysis.operators.base import Mutation
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -66,13 +67,21 @@ class MutationController:
         target_ast = ParentNodeTransformer.create_ast(target_source_code)
 
         _LOGGER.info("Mutate module %s", target_module.__name__)
-        mutants = [
-            (self.create_module(mutant_ast, target_module.__name__), mutations)
-            for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module)
-        ]
+        mutants = self.create_mutants(mutant_generator, target_ast, target_module)
 
         _LOGGER.info("Generated %d mutants", len(mutants))
         return mutants
+
+    def create_mutants(
+        self,
+        mutant_generator: mu.FirstOrderMutator,
+        target_ast: ast.Module,
+        target_module: types.ModuleType,
+    ) -> list[tuple[ModuleType, list[Mutation]]]:
+        return [
+            (self.create_module(mutant_ast, target_module.__name__), mutations)
+            for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module)
+        ]
 
     def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
         code = compile(ast_node, module_name, "exec")
