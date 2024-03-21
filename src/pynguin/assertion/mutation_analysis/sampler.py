@@ -8,7 +8,7 @@
 
 Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 """
-import random
+from pynguin.utils import randomness
 
 
 class RandomSampler:
@@ -16,4 +16,4 @@ class RandomSampler:
         self.percentage = percentage if 0 < percentage < 100 else 100
 
     def is_mutation_time(self) -> bool:
-        return random.randrange(100) < self.percentage
+        return randomness.next_int(0, 100) < self.percentage
