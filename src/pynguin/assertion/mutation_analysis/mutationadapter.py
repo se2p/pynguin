@@ -7,9 +7,11 @@
 """Provides an adapter for the MutPy mutation testing framework."""
 from __future__ import annotations
 
+import ast
 import inspect
 import importlib
 import logging
+import types
 
 from typing import TYPE_CHECKING
 
@@ -65,12 +67,18 @@ class MutationAdapter:
 
         _LOGGER.info("Mutate module %s", target_module.__name__)
         mutants = [
-            (utils.create_module(mutant_ast, target_module.__name__), mutations)
+            (self.create_module(mutant_ast, target_module.__name__), mutations)
             for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module)
         ]
 
         _LOGGER.info("Generated %d mutants", len(mutants))
         return mutants
+
+    def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
+        code = compile(ast_node, module_name, "exec")
+        module = types.ModuleType(module_name)
+        exec(code, module.__dict__)
+        return module
 
     def _get_mutant_generator(self) -> mu.FirstOrderMutator:
         operators = [

@@ -15,8 +15,6 @@ import types
 
 from typing import TYPE_CHECKING
 
-import pynguin.assertion.mutation_analysis.utils as mu
-
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
 import pynguin.assertion.assertiontraceobserver as ato
@@ -232,22 +230,16 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class MutationAnalysisAssertionGenerator(AssertionGenerator):
+class MutationAnalysisAssertionGenerator(AssertionGenerator, ma.MutationAdapter):
     """Uses mutation analysis to filter out less relevant assertions."""
 
-    def _create_module_with_instrumentation(
-        self, ast_node, module_name="mutant", module_dict=None
-    ):
-        # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
-        # module
+    def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
         code = compile(ast_node, module_name, "exec")
         if self._testing:
             self._testing_created_mutants.append(ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
-        module.__dict__.update(module_dict or {})
-
-        exec(code, module.__dict__)  # noqa: S102
+        exec(code, module.__dict__)
         return module
 
     def __init__(self, plain_executor: ex.TestCaseExecutor, *, testing: bool = False):
@@ -276,11 +268,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._testing = testing
         self._testing_created_mutants: list[str] = []
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
-        adapter = ma.MutationAdapter()
 
-        # Evil hack to change the way mutpy creates mutated modules.
-        mu.create_module = self._create_module_with_instrumentation
-        self._mutated_modules = [x for x, _ in adapter.mutate_module()]
+        self._mutated_modules = [
+            module
+            for module, _ in self.mutate_module()
+        ]
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)

@@ -12,14 +12,6 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 import ast
 import copy
 import random
-import types
-
-
-def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
-    code = compile(ast_node, module_name, "exec")
-    module = types.ModuleType(module_name)
-    exec(code, module.__dict__)
-    return module
 
 
 class RandomSampler:
