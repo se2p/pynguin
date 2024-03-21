@@ -81,13 +81,7 @@ class MutationAdapter:
     def _get_mutant_generator(self) -> mu.FirstOrderMutator:
         operators_set = set()
         operators_set |= mo.standard_operators
-
-        # Only use a selected set of the experimental operators.
-        operators_set |= {
-            mol.OneIterationLoop,
-            mol.ReverseIterationLoop,
-            mol.ZeroIterationLoop,
-        }
+        operators_set |= mo.experimental_operators
 
         # percentage of the generated mutants (mutation sampling)
         percentage = 100

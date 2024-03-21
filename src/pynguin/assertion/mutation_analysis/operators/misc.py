@@ -93,27 +93,3 @@ class SliceIndexRemove(MutationOperator):
             raise MutationResign()
 
         return ast.Slice(lower=node.lower, upper=node.upper, step=None)
-
-
-class SelfVariableDeletion(MutationOperator):
-    def mutate_Attribute(self, node: ast.Attribute) -> ast.Name:
-        try:
-            if node.value.id == 'self':
-                return ast.Name(id=node.attr, ctx=ast.Load())
-            else:
-                raise MutationResign()
-        except AttributeError:
-            raise MutationResign()
-
-
-class StatementDeletion(MutationOperator):
-    def mutate_Assign(self, node: ast.Assign) -> ast.Pass:
-        return ast.Pass()
-
-    def mutate_Return(self, node: ast.Return) -> ast.Pass:
-        return ast.Pass()
-
-    def mutate_Expr(self, node: ast.Expr) -> ast.Pass:
-        if utils.is_docstring(node.value):
-            raise MutationResign()
-        return ast.Pass()

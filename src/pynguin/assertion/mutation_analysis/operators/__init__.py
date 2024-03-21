@@ -42,11 +42,7 @@ standard_operators = {
 }
 
 experimental_operators = {
-    ClassmethodDecoratorInsertion,
     OneIterationLoop,
     ReverseIterationLoop,
-    SelfVariableDeletion,
-    StatementDeletion,
-    StaticmethodDecoratorInsertion,
     ZeroIterationLoop,
 }
