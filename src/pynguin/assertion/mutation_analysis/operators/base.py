@@ -16,6 +16,7 @@ import ast
 import copy
 import types
 
+from dataclasses import dataclass
 from typing import Generator, Callable, TypeVar
 
 from pynguin.assertion.mutation_analysis.sampler import RandomSampler
@@ -55,11 +56,11 @@ def shift_lines(nodes: list[ast.AST], shift_by: int = 1) -> None:
         ast.increment_lineno(node, shift_by)
 
 
+@dataclass
 class Mutation:
-    def __init__(self, node: ast.AST, operator: type[MutationOperator], visitor_name: str) -> None:
-        self.node = node
-        self.operator = operator
-        self.visitor_name = visitor_name
+    node: ast.AST
+    operator: type[MutationOperator]
+    visitor_name: str
 
 
 T = TypeVar("T", bound=ast.AST)
