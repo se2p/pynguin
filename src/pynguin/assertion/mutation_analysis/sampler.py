@@ -13,7 +13,8 @@ from pynguin.utils import randomness
 
 class RandomSampler:
     def __init__(self, percentage: int) -> None:
-        self.percentage = percentage if 0 < percentage < 100 else 100
+        assert 0 <= percentage and percentage <= 100
+        self.percentage = percentage
 
     def is_mutation_time(self) -> bool:
         return randomness.next_int(0, 100) < self.percentage
