@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
 import pynguin.assertion.assertiontraceobserver as ato
-import pynguin.assertion.mutation_analysis.mutationadapter as ma
+import pynguin.assertion.mutation_analysis.controller as c
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
@@ -230,7 +230,7 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class MutationAnalysisAssertionGenerator(AssertionGenerator, ma.MutationAdapter):
+class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationAdapter):
     """Uses mutation analysis to filter out less relevant assertions."""
 
     def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:

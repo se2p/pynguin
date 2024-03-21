@@ -9,10 +9,10 @@ from unittest.mock import MagicMock
 
 import mutpy.controller
 
-import pynguin.assertion.mutation_analysis.mutationadapter as ma
+import pynguin.assertion.mutation_analysis.controller as c
 
 
-class FooAdapter(ma.MutationAdapter):
+class FooAdapter(c.MutationAdapter):
     pass
 
 
