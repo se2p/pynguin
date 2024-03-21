@@ -22,10 +22,10 @@ from pynguin.assertion.mutation_analysis import utils
 
 
 class Mutation:
-    def __init__(self, operator: type[MutationOperator], node: ast.AST, visitor: Callable[[], None] | None = None):
-        self.operator = operator
+    def __init__(self, node: ast.AST, operator: type[MutationOperator], visitor_name: str) -> None:
         self.node = node
-        self.visitor = visitor
+        self.operator = operator
+        self.visitor_name = visitor_name
 
 
 def copy_node(mutate):
@@ -42,20 +42,30 @@ T = TypeVar("T", bound=ast.AST)
 
 
 class MutationOperator:
+    @classmethod
     def mutate(
-        self,
+        cls,
         node: T,
         sampler: utils.RandomSampler | None = None,
         module: types.ModuleType | None = None,
         only_mutation: Mutation | None = None
     ):
-        self.sampler = sampler
-        self.only_mutation = only_mutation
-        self.module = module
-        for new_node in self.visit(node):
-            yield Mutation(operator=self.__class__, node=self.current_node, visitor=self.visitor), new_node
+        operator = cls(sampler, module, only_mutation)
 
-    def visit(self, node: T) -> Generator[ast.AST, None, None]:
+        for current_node, mutated_node, visitor_name in operator.visit(node):
+            yield Mutation(current_node, cls, visitor_name), mutated_node
+
+    def __init__(
+        self,
+        sampler: utils.RandomSampler | None,
+        module: types.ModuleType | None,
+        only_mutation: Mutation | None,
+    ) -> None:
+        self.sampler = sampler
+        self.module = module
+        self.only_mutation = only_mutation
+
+    def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
             return
 
@@ -76,28 +86,26 @@ class MutationOperator:
                 self.only_mutation
                 and (
                     self.only_mutation.node != node
-                    or self.only_mutation.visitor != visitor.__name__
+                    or self.only_mutation.visitor_name != visitor.__name__
                 )
             ):
                 yield from self.generic_visit(node)
                 continue
 
-            new_node = visitor(node)
+            mutated_node = visitor(node)
 
-            if new_node is None:
+            if mutated_node is None:
                 yield from self.generic_visit(node)
                 continue
 
-            self.visitor = visitor.__name__
-            self.current_node = node
-            self.fix_node_internals(node, new_node)
-            ast.fix_missing_locations(new_node)
+            self.fix_node_internals(node, mutated_node)
+            ast.fix_missing_locations(mutated_node)
 
-            yield new_node
+            yield node, mutated_node, visitor.__name__
 
             yield from self.generic_visit(node)
 
-    def generic_visit(self, node: ast.AST) -> Generator[ast.AST, None, None]:
+    def generic_visit(self, node: ast.AST) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         for field, old_value in ast.iter_fields(node):
             if isinstance(old_value, list):
                 generator = self.generic_visit_list(old_value)
@@ -106,43 +114,45 @@ class MutationOperator:
             else:
                 generator = []
 
-            for _ in generator:
-                yield node
+            for current_node, visitor_name in generator:
+                yield current_node, node, visitor_name
 
-    def generic_visit_list(self, old_value: list[ast.AST | None]) -> Generator[None, None, None]:
-        old_values_copy = old_value[:]
-        for position, value in enumerate(old_values_copy):
+    def generic_visit_list(self, old_value: list) -> Generator[tuple[ast.AST, str], None, None]:
+        for position, value in enumerate(old_value.copy()):
             if isinstance(value, ast.AST):
-                for new_value in self.visit(value):
-                    if not isinstance(new_value, ast.AST):
-                        old_value[position:position + 1] = new_value
-                    else:
-                        old_value[position] = new_value
+                for current_node, mutated_node, visitor_name in self.visit(value):
+                    old_value[position] = mutated_node
+                    yield current_node, visitor_name
 
-                    yield
-                    old_value[:] = old_values_copy
+                old_value[position] = value
 
-    def generic_visit_real_node(self, node: ast.AST, field: str, old_value: ast.AST) -> Generator[None, None, None]:
-        for new_node in self.visit(old_value):
-            if new_node is None:
-                delattr(node, field)
-            else:
-                setattr(node, field, new_node)
-            yield
-            setattr(node, field, old_value)
+    def generic_visit_real_node(self, node: ast.AST, field: str, old_value: ast.AST) -> Generator[tuple[ast.AST, str], None, None]:
+        for current_node, mutated_node, visitor_name in self.visit(old_value):
+            setattr(node, field, mutated_node)
+            yield current_node, visitor_name
+
+        setattr(node, field, old_value)
 
     def fix_lineno(self, node: ast.AST) -> None:
-        if not hasattr(node, 'lineno') and getattr(node, 'parent', None) is not None and hasattr(node.parent, 'lineno'):
-            node.lineno = node.parent.lineno
+        parent = getattr(node, "parent")
+        if not hasattr(node, "lineno") and parent is not None and hasattr(parent, "lineno"):
+            parent_lineno = getattr(parent, "lineno")
+            setattr(node, "lineno", parent_lineno)
 
     def fix_node_internals(self, old_node: ast.AST, new_node: ast.AST) -> None:
-        if not hasattr(new_node, 'parent'):
-            new_node.children = old_node.children
-            new_node.parent = old_node.parent
-        if not hasattr(new_node, 'lineno') and hasattr(old_node, 'lineno'):
-            new_node.lineno = old_node.lineno
-        if hasattr(old_node, 'marker'):
-            new_node.marker = old_node.marker
+        if not hasattr(new_node, "parent"):
+            old_node_children = getattr(old_node, "children")
+            old_node_parent = getattr(old_node, "parent")
+            setattr(new_node, "children", old_node_children)
+            setattr(new_node, "parent", old_node_parent)
+
+        if not hasattr(new_node, "lineno") and hasattr(old_node, "lineno"):
+            old_node_lineno = getattr(old_node, "lineno")
+            setattr(new_node, "lineno", old_node_lineno)
+
+        if hasattr(old_node, "marker"):
+            old_node_marker = getattr(old_node, "marker")
+            setattr(new_node, "marker", old_node_marker)
 
     def find_visitors(self, node: T) -> list[Callable[[T], ast.AST | None]]:
         node_name = node.__class__.__name__
@@ -154,9 +164,9 @@ class MutationOperator:
         ]
 
     def set_lineno(self, node: ast.AST, lineno: int) -> None:
-        for n in ast.walk(node):
-            if hasattr(n, 'lineno'):
-                n.lineno = lineno
+        for child_node in ast.walk(node):
+            if hasattr(child_node, "lineno"):
+                setattr(child_node, "lineno", lineno)
 
     def shift_lines(self, nodes: list[ast.AST], shift_by: int = 1) -> None:
         for node in nodes:

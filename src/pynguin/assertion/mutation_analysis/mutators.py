@@ -51,7 +51,7 @@ class FirstOrderMutator(Mutator):
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.Module], None, None]:
         for op in self.operators:
-            for mutation, mutant in op().mutate(target_ast, self.sampler, module=module):
+            for mutation, mutant in op.mutate(target_ast, self.sampler, module=module):
                 yield [mutation], mutant
 
 
@@ -77,7 +77,7 @@ class HighOrderMutator(FirstOrderMutator):
             applied_mutations = []
             mutant = target_ast
             for mutation in mutations_to_apply:
-                generator = mutation.operator().mutate(
+                generator = mutation.operator.mutate(
                     mutant,
                     sampler=self.sampler,
                     module=module,
@@ -99,7 +99,7 @@ class HighOrderMutator(FirstOrderMutator):
     ) -> list[Mutation]:
         mutations: list[Mutation] = []
         for op in self.operators:
-            for mutation, _ in op().mutate(target_ast, None, module=module):
+            for mutation, _ in op.mutate(target_ast, None, module=module):
                 mutations.append(mutation)
         return mutations
 
