@@ -22,49 +22,45 @@ def one_iteration(node: T) -> T | None:
     if not node.body:
         return None
 
-    node.body.append(ast.Break(lineno=node.body[-1].lineno + 1))
-    return node
+    mutated_node = copy_node(node)
+    mutated_node.body.append(ast.Break(lineno=mutated_node.body[-1].lineno + 1))
+    return mutated_node
 
 
 def zero_iteration(node: T) -> T | None:
     if not node.body:
         return None
 
-    node.body = [ast.Break(lineno=node.body[0].lineno)]
-    return node
+    mutated_node = copy_node(node)
+    mutated_node.body = [ast.Break(lineno=mutated_node.body[0].lineno)]
+    return mutated_node
 
 
 class OneIterationLoop(MutationOperator):
-
-    @copy_node
     def mutate_For(self, node: ast.For) -> ast.For | None:
         return one_iteration(node)
 
-    @copy_node
     def mutate_While(self, node: ast.While) -> ast.While | None:
         return one_iteration(node)
 
 
 class ReverseIterationLoop(MutationOperator):
-    @copy_node
     def mutate_For(self, node: ast.For) -> ast.For:
-        old_iter = node.iter
-        node.iter = ast.Call(
+        mutated_node = copy_node(node)
+        old_iter = mutated_node.iter
+        mutated_node.iter = ast.Call(
             func=ast.Name(id=reversed.__name__, ctx=ast.Load()),
             args=[old_iter],
             keywords=[],
             starargs=None,
             kwargs=None,
         )
-        return node
+        return mutated_node
 
 
 class ZeroIterationLoop(MutationOperator):
-
-    @copy_node
     def mutate_For(self, node: ast.For) -> ast.For | None:
         return zero_iteration(node)
 
-    @copy_node
     def mutate_While(self, node: ast.While) -> ast.While | None:
         return zero_iteration(node)

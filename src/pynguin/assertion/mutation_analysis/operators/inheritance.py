@@ -13,7 +13,7 @@ import ast
 import functools
 
 from pynguin.assertion.mutation_analysis import utils
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node, set_lineno, shift_lines
 
 
 class AbstractOverriddenElementModification(MutationOperator):
@@ -132,30 +132,31 @@ class OverriddenMethodCallingPositionChange(AbstractSuperCallingModification):
     def should_mutate(self, node: ast.FunctionDef) -> bool:
         return super().should_mutate(node) and len(node.body) > 1
 
-    @copy_node
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef | None:
         if not self.should_mutate(node) or not node.body:
             return None
 
-        super_call = self.get_super_call(node)
+        mutated_node = copy_node(node)
+
+        super_call = self.get_super_call(mutated_node)
 
         if super_call is None:
             return None
 
         index, statement = super_call
 
-        del node.body[index]
+        del mutated_node.body[index]
 
         if index == 0:
-            set_lineno(statement, node.body[-1].lineno)
-            shift_lines(node.body, -1)
-            node.body.append(statement)
+            set_lineno(statement, mutated_node.body[-1].lineno)
+            shift_lines(mutated_node.body, -1)
+            mutated_node.body.append(statement)
         else:
-            set_lineno(statement, node.body[0].lineno)
-            shift_lines(node.body, 1)
-            node.body.insert(0, statement)
+            set_lineno(statement, mutated_node.body[0].lineno)
+            shift_lines(mutated_node.body, 1)
+            mutated_node.body.insert(0, statement)
 
-        return node
+        return mutated_node
 
 
 class OverridingMethodDeletion(AbstractOverriddenElementModification):
@@ -169,43 +170,44 @@ class OverridingMethodDeletion(AbstractOverriddenElementModification):
 
 
 class SuperCallingDeletion(AbstractSuperCallingModification):
-    @copy_node
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef | None:
         if not self.should_mutate(node) or not node.body:
             return None
 
-        super_call = self.get_super_call(node)
+        mutated_node = copy_node(node)
+
+        super_call = self.get_super_call(mutated_node)
 
         if super_call is None:
             return None
 
         index, _ = super_call
 
-        node.body[index] = ast.Pass(lineno=node.body[index].lineno)
+        mutated_node.body[index] = ast.Pass(lineno=mutated_node.body[index].lineno)
 
-        return node
+        return mutated_node
 
 
 class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenElementModification):
 
-    @copy_node
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef | None:
         overridden = self.is_overridden(node)
 
         if not self.should_mutate(node) or not node.body or overridden is None or not overridden:
             return None
 
-        super_call = self.get_super_call(node)
+        mutated_node = copy_node(node)
+
+        super_call = self.get_super_call(mutated_node)
 
         if super_call is not None:
             return None
 
-        node.body.insert(0, self.create_super_call(node))
-        shift_lines(node.body[1:], 1)
+        mutated_node.body.insert(0, self.create_super_call(mutated_node))
+        shift_lines(mutated_node.body[1:], 1)
 
-        return node
+        return mutated_node
 
-    @copy_node
     def create_super_call(self, node: ast.FunctionDef) -> ast.Expr:
         function_def: ast.FunctionDef = utils.create_ast(f"super().{node.name}()")
 

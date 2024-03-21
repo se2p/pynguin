@@ -55,16 +55,6 @@ def shift_lines(nodes: list[ast.AST], shift_by: int = 1) -> None:
         ast.increment_lineno(node, shift_by)
 
 
-def copy_node(mutate):
-    def f(self, node):
-        copied_node = copy.deepcopy(node, memo={
-            id(node.parent): node.parent,
-        })
-        return mutate(self, copied_node)
-
-    return f
-
-
 class Mutation:
     def __init__(self, node: ast.AST, operator: type[MutationOperator], visitor_name: str) -> None:
         self.node = node
@@ -75,8 +65,14 @@ class Mutation:
 T = TypeVar("T", bound=ast.AST)
 
 
-class MutationOperator:
+def copy_node(node: T) -> T:
+    parent = getattr(node, "parent")
+    return copy.deepcopy(node, memo={
+        id(parent): parent,
+    })
 
+
+class MutationOperator:
     @classmethod
     def mutate(
         cls,

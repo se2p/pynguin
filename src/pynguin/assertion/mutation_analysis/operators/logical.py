@@ -24,15 +24,14 @@ class ConditionalOperatorDeletion(AbstractUnaryOperatorDeletion):
 
 class ConditionalOperatorInsertion(MutationOperator):
     def negate_test(self, node: ast.If | ast.While) -> ast.If | ast.While:
-        not_node = ast.UnaryOp(op=ast.Not(), operand=node.test)
-        node.test = not_node
-        return node
+        mutated_node = copy_node(node)
+        not_node = ast.UnaryOp(op=ast.Not(), operand=mutated_node.test)
+        mutated_node.test = not_node
+        return mutated_node
 
-    @copy_node
     def mutate_While(self, node: ast.While) -> ast.While:
         return self.negate_test(node)
 
-    @copy_node
     def mutate_If(self, node: ast.If) -> ast.If:
         return self.negate_test(node)
 

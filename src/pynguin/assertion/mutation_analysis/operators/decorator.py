@@ -15,10 +15,10 @@ from pynguin.assertion.mutation_analysis.operators.base import MutationOperator,
 
 
 class DecoratorDeletion(MutationOperator):
-    @copy_node
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST | None:
         if not node.decorator_list:
             return None
 
-        node.decorator_list = []
-        return node
+        mutated_node = copy_node(node)
+        mutated_node.decorator_list = []
+        return mutated_node
