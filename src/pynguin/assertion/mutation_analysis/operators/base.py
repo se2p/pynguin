@@ -14,10 +14,9 @@ from __future__ import annotations
 import abc
 import ast
 import copy
-import re
 import types
 
-from typing import Generator, Callable
+from typing import Generator, Callable, TypeVar
 
 from pynguin.assertion.mutation_analysis import utils
 
@@ -39,10 +38,13 @@ def copy_node(mutate):
     return f
 
 
+T = TypeVar("T", bound=ast.AST)
+
+
 class MutationOperator:
     def mutate(
         self,
-        node: ast.AST,
+        node: T,
         sampler: utils.RandomSampler | None = None,
         module: types.ModuleType | None = None,
         only_mutation: Mutation | None = None
@@ -53,9 +55,10 @@ class MutationOperator:
         for new_node in self.visit(node):
             yield Mutation(operator=self.__class__, node=self.current_node, visitor=self.visitor), new_node
 
-    def visit(self, node: ast.AST) -> Generator[ast.AST, None, None]:
+    def visit(self, node: T) -> Generator[ast.AST, None, None]:
         if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node.children:
             return
+
         self.fix_lineno(node)
 
         visitors = self.find_visitors(node)
@@ -89,6 +92,7 @@ class MutationOperator:
             self.current_node = node
             self.fix_node_internals(node, new_node)
             ast.fix_missing_locations(new_node)
+
             yield new_node
 
             yield from self.generic_visit(node)
@@ -140,16 +144,13 @@ class MutationOperator:
         if hasattr(old_node, 'marker'):
             new_node.marker = old_node.marker
 
-    def find_visitors(self, node: ast.AST) -> list[Callable[[ast.AST], ast.AST | None]]:
-        method_prefix = 'mutate_' + node.__class__.__name__
-        return self.getattrs_like(method_prefix)
-
-    def getattrs_like(self, attr_like: str) -> list[Callable[[ast.AST], ast.AST | None]]:
-        pattern = re.compile(attr_like + r"($|(_\w+)+$)")
+    def find_visitors(self, node: T) -> list[Callable[[T], ast.AST | None]]:
+        node_name = node.__class__.__name__
+        method_prefix = f"mutate_{node_name}"
         return [
-            getattr(self, attr)
+            visitor
             for attr in dir(self)
-            if pattern.match(attr)
+            if attr.startswith(method_prefix) and callable(visitor := getattr(self, attr))
         ]
 
     def set_lineno(self, node: ast.AST, lineno: int) -> None:
