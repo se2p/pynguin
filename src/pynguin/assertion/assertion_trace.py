@@ -119,6 +119,4 @@ class AssertionVerificationTrace:
         """
         if stmt_idx in self.failed and assertion_idx in self.failed[stmt_idx]:
             return True
-        if stmt_idx in self.error and assertion_idx in self.error[stmt_idx]:
-            return True
-        return False
+        return bool(stmt_idx in self.error and assertion_idx in self.error[stmt_idx])

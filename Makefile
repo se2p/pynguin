@@ -96,7 +96,7 @@ mypy:
 
 .PHONY: ruff
 ruff:
-	poetry run ruff src/pynguin
+	poetry run ruff check src/pynguin
 
 .PHONY: isort
 isort:

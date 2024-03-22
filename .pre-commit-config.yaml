@@ -31,10 +31,15 @@ repos:
         args: [--profile, black]
 
   - repo: https://github.com/psf/black
-    rev: 24.2.0
+    rev: 24.3.0
     hooks:
       - id: black
         args: [--config, ./pyproject.toml]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.2
+    hooks:
+      - id: ruff
 
   - repo: https://github.com/fsfe/reuse-tool
     rev: v3.0.1
