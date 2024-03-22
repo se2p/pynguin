@@ -11,7 +11,10 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/arith
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, AbstractUnaryOperatorDeletion
+from pynguin.assertion.mutation_analysis.operators.base import (
+    AbstractUnaryOperatorDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
 class ArithmeticOperatorDeletion(AbstractUnaryOperatorDeletion):

@@ -12,7 +12,9 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.arithmetic import AbstractArithmeticOperatorReplacement
+from pynguin.assertion.mutation_analysis.operators.arithmetic import (
+    AbstractArithmeticOperatorReplacement,
+)
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
@@ -20,16 +22,16 @@ def is_docstring(node: ast.AST) -> bool:
     if not isinstance(node, ast.Str):
         return False
 
-    expression_node = getattr(node, "parent")
+    expression_node: ast.AST = getattr(node, "parent")
 
     if not isinstance(expression_node, ast.Expr):
         return False
 
-    def_node = getattr(expression_node, "parent")
+    def_node: ast.AST = getattr(expression_node, "parent")
 
     return (
         isinstance(def_node, (ast.FunctionDef, ast.ClassDef, ast.Module))
-        and def_node.body
+        and def_node.body  # type: ignore[return-value]
         and def_node.body[0] == expression_node
     )
 

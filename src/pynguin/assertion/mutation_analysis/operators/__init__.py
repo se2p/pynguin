@@ -9,14 +9,62 @@
 Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/__init__.py.
 """
 
-from pynguin.assertion.mutation_analysis.operators.arithmetic import *
-from pynguin.assertion.mutation_analysis.operators.base import *
-from pynguin.assertion.mutation_analysis.operators.decorator import *
-from pynguin.assertion.mutation_analysis.operators.exception import *
-from pynguin.assertion.mutation_analysis.operators.inheritance import *
-from pynguin.assertion.mutation_analysis.operators.logical import *
-from pynguin.assertion.mutation_analysis.operators.loop import *
-from pynguin.assertion.mutation_analysis.operators.misc import *
+from pynguin.assertion.mutation_analysis.operators.arithmetic import (
+    ArithmeticOperatorDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.arithmetic import (
+    ArithmeticOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.base import copy_node
+from pynguin.assertion.mutation_analysis.operators.base import set_lineno
+from pynguin.assertion.mutation_analysis.operators.base import shift_lines
+from pynguin.assertion.mutation_analysis.operators.decorator import DecoratorDeletion
+from pynguin.assertion.mutation_analysis.operators.exception import (
+    ExceptionHandlerDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.exception import ExceptionSwallowing
+from pynguin.assertion.mutation_analysis.operators.inheritance import (
+    HidingVariableDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.inheritance import (
+    OverriddenMethodCallingPositionChange,
+)
+from pynguin.assertion.mutation_analysis.operators.inheritance import (
+    OverridingMethodDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.inheritance import (
+    SuperCallingDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.inheritance import SuperCallingInsert
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    ConditionalOperatorDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    ConditionalOperatorInsertion,
+)
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    LogicalConnectorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    LogicalOperatorDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    LogicalOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.logical import (
+    RelationalOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.loop import OneIterationLoop
+from pynguin.assertion.mutation_analysis.operators.loop import ReverseIterationLoop
+from pynguin.assertion.mutation_analysis.operators.loop import ZeroIterationLoop
+from pynguin.assertion.mutation_analysis.operators.misc import (
+    AssignmentOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.misc import BreakContinueReplacement
+from pynguin.assertion.mutation_analysis.operators.misc import ConstantReplacement
+from pynguin.assertion.mutation_analysis.operators.misc import SliceIndexRemove
+
 
 standard_operators = [
     ArithmeticOperatorDeletion,

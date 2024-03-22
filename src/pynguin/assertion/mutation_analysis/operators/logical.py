@@ -11,7 +11,13 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/logic
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, AbstractUnaryOperatorDeletion, copy_node
+from typing import TypeVar
+
+from pynguin.assertion.mutation_analysis.operators.base import (
+    AbstractUnaryOperatorDeletion,
+)
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.base import copy_node
 
 
 class ConditionalOperatorDeletion(AbstractUnaryOperatorDeletion):
@@ -22,8 +28,11 @@ class ConditionalOperatorDeletion(AbstractUnaryOperatorDeletion):
         return ast.In()
 
 
+T = TypeVar("T", ast.If, ast.While)
+
+
 class ConditionalOperatorInsertion(MutationOperator):
-    def negate_test(self, node: ast.If | ast.While) -> ast.If | ast.While:
+    def negate_test(self, node: T) -> T:
         mutated_node = copy_node(node)
         not_node = ast.UnaryOp(op=ast.Not(), operand=mutated_node.test)
         mutated_node.test = not_node

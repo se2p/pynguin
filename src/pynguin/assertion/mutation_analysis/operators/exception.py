@@ -36,7 +36,9 @@ class ExceptionHandlerDeletion(MutationOperator):
         if isinstance(first_statement, ast.Raise):
             return None
 
-        return replace_exception_handler(node, [ast.Raise(lineno=first_statement.lineno)])
+        return replace_exception_handler(
+            node, [ast.Raise(lineno=first_statement.lineno)]
+        )
 
 
 class ExceptionSwallowing(MutationOperator):
@@ -49,4 +51,6 @@ class ExceptionSwallowing(MutationOperator):
         if len(node.body) == 1 and isinstance(first_statement, ast.Pass):
             return None
 
-        return replace_exception_handler(node, [ast.Pass(lineno=first_statement.lineno)])
+        return replace_exception_handler(
+            node, [ast.Pass(lineno=first_statement.lineno)]
+        )

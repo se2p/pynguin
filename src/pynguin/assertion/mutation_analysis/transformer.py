@@ -12,17 +12,22 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
 import ast
 import copy
 
+from typing import TypeVar
+
+
+T = TypeVar("T", bound=ast.AST)
+
 
 class ParentNodeTransformer(ast.NodeTransformer):
     @classmethod
-    def create_ast(cls, code: str) -> ast.AST:
+    def create_ast(cls, code: str) -> ast.Module:
         return cls().visit(ast.parse(code))
 
     def __init__(self) -> None:
         super().__init__()
         self.parent: ast.AST | None = None
 
-    def visit(self, node: ast.AST) -> ast.AST:
+    def visit(self, node: T) -> T:
         # Copy the node because an optimisation of the AST makes it
         # reuse the same node at multiple places in the tree to
         # improve memory usage. It would break our goal to create a

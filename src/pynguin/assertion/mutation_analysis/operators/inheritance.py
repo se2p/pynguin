@@ -12,7 +12,12 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/inher
 import ast
 import functools
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node, set_lineno, shift_lines
+from typing import cast
+
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.base import copy_node
+from pynguin.assertion.mutation_analysis.operators.base import set_lineno
+from pynguin.assertion.mutation_analysis.operators.base import shift_lines
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 
 
@@ -20,7 +25,9 @@ class AbstractOverriddenElementModification(MutationOperator):
     def is_overridden(self, node: ast.AST, name: str | None = None) -> bool | None:
         parent = getattr(node, "parent")
 
-        if not isinstance(parent, ast.ClassDef) or not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if not isinstance(parent, ast.ClassDef) or not isinstance(
+            node, (ast.FunctionDef, ast.AsyncFunctionDef)
+        ):
             return None
 
         if not name:
@@ -31,7 +38,9 @@ class AbstractOverriddenElementModification(MutationOperator):
         while parent is not None:
             if not isinstance(parent, ast.Module):
                 parent_names.append(parent.name)
-            if not isinstance(parent, ast.ClassDef) and not isinstance(parent, ast.Module):
+            if not isinstance(parent, ast.ClassDef) and not isinstance(
+                parent, ast.Module
+            ):
                 return None
             parent = getattr(parent, "parent")
 
@@ -63,7 +72,9 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
                 return None
 
             return ast.Pass()
-        elif isinstance(first_expression, ast.Tuple) and isinstance(node.value, ast.Tuple):
+        elif isinstance(first_expression, ast.Tuple) and isinstance(
+            node.value, ast.Tuple
+        ):
             return self.mutate_unpack(node)
         else:
             return None
@@ -72,13 +83,15 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
         if not node.targets:
             return None
 
-        target = node.targets[0]
-        value = node.value
+        target = cast(ast.List | ast.Tuple | ast.Set, node.targets[0])
+        value = cast(ast.List | ast.Tuple | ast.Set, node.value)
 
-        new_targets: list[ast.Name] = []
+        new_targets: list[ast.expr] = []
         new_values: list[ast.expr] = []
         for target_element, value_element in zip(target.elts, value.elts):
-            if not isinstance(target_element, ast.Name) or not isinstance(value_element, ast.expr):
+            if not isinstance(target_element, ast.Name) or not isinstance(
+                value_element, ast.expr
+            ):
                 continue
 
             overridden = self.is_overridden(node, target_element.id)
@@ -113,7 +126,7 @@ class AbstractSuperCallingModification(MutationOperator):
             and isinstance(stmt.value.func, ast.Attribute)
             and isinstance(stmt.value.func.value, ast.Call)
             and isinstance(stmt.value.func.value.func, ast.Name)
-            and stmt.value.func.value.func.id == 'super'
+            and stmt.value.func.value.func.id == "super"
             and stmt.value.func.attr == node.name
         )
 
@@ -188,12 +201,19 @@ class SuperCallingDeletion(AbstractSuperCallingModification):
         return mutated_node
 
 
-class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenElementModification):
+class SuperCallingInsert(
+    AbstractSuperCallingModification, AbstractOverriddenElementModification
+):
 
     def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef | None:
         overridden = self.is_overridden(node)
 
-        if not self.should_mutate(node) or not node.body or overridden is None or not overridden:
+        if (
+            not self.should_mutate(node)
+            or not node.body
+            or overridden is None
+            or not overridden
+        ):
             return None
 
         mutated_node = copy_node(node)
@@ -209,19 +229,27 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
         return mutated_node
 
     def create_super_call(self, node: ast.FunctionDef) -> ast.Expr:
-        function_def: ast.FunctionDef = ParentNodeTransformer.create_ast(f"super().{node.name}()")
+        module = ParentNodeTransformer.create_ast(f"super().{node.name}()")
 
-        super_call: ast.Expr = function_def.body[0]
+        assert module.body
 
-        super_call_value: ast.Call = super_call.value
+        super_call = module.body[0]
 
-        for arg in node.args.args[1:-len(node.args.defaults) or None]:
+        assert isinstance(super_call, ast.Expr)
+
+        super_call_value = super_call.value
+
+        assert isinstance(super_call_value, ast.Call)
+
+        for arg in node.args.args[1 : -len(node.args.defaults) or None]:
             super_call_value.args.append(ast.Name(id=arg.arg, ctx=ast.Load()))
 
-        for arg, default in zip(node.args.args[-len(node.args.defaults):], node.args.defaults):
+        for arg, default in zip(
+            node.args.args[-len(node.args.defaults) :], node.args.defaults
+        ):
             super_call_value.keywords.append(ast.keyword(arg=arg.arg, value=default))
 
-        for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+        for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults):  # type: ignore[assignment]
             super_call_value.keywords.append(ast.keyword(arg=arg.arg, value=default))
 
         if node.args.vararg is not None:
@@ -236,8 +264,12 @@ class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenEle
 
     @staticmethod
     def add_kwarg_to_super_call(super_call_value: ast.Call, kwarg: ast.arg) -> None:
-        super_call_value.keywords.append(ast.keyword(arg=None, value=ast.Name(id=kwarg.arg, ctx=ast.Load())))
+        super_call_value.keywords.append(
+            ast.keyword(arg=None, value=ast.Name(id=kwarg.arg, ctx=ast.Load()))
+        )
 
     @staticmethod
     def add_vararg_to_super_call(super_call_value: ast.Call, vararg: ast.arg) -> None:
-        super_call_value.args.append(ast.Starred(ctx=ast.Load(), value=ast.Name(id=vararg.arg, ctx=ast.Load())))
+        super_call_value.args.append(
+            ast.Starred(ctx=ast.Load(), value=ast.Name(id=vararg.arg, ctx=ast.Load()))
+        )

@@ -12,7 +12,8 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/loop.
 import ast
 import typing
 
-from pynguin.assertion.mutation_analysis.operators import copy_node, MutationOperator
+from pynguin.assertion.mutation_analysis.operators import MutationOperator
+from pynguin.assertion.mutation_analysis.operators import copy_node
 
 
 T = typing.TypeVar("T", ast.For, ast.While)

@@ -10,14 +10,16 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py.
 """
 from __future__ import annotations
 
-import ast
 import abc
+import ast
 import types
 
 from typing import Generator
 
-from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
-from pynguin.assertion.mutation_analysis.stategies import HOMStrategy, FirstToLastHOMStrategy
+from pynguin.assertion.mutation_analysis.operators.base import Mutation
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.stategies import FirstToLastHOMStrategy
+from pynguin.assertion.mutation_analysis.stategies import HOMStrategy
 
 
 class Mutator(abc.ABC):
@@ -47,7 +49,7 @@ class FirstOrderMutator(Mutator):
         self,
         target_ast: ast.AST,
         module: types.ModuleType | None = None,
-    ) -> Generator[tuple[list[Mutation], ast.Module], None, None]:
+    ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
         for op in self.operators:
             for mutation, mutant in op.mutate(target_ast, module):
                 yield [mutation], mutant
@@ -78,7 +80,7 @@ class HighOrderMutator(FirstOrderMutator):
                 try:
                     new_mutation, mutant = generator.__next__()
                 except StopIteration:
-                    assert False, 'no mutations!'
+                    assert False, "no mutations!"
                 applied_mutations.append(new_mutation)
                 generators.append(generator)
             yield applied_mutations, mutant
@@ -101,4 +103,4 @@ class HighOrderMutator(FirstOrderMutator):
                 generator.__next__()
             except StopIteration:
                 continue
-            assert False, 'too many mutations!'
+            assert False, "too many mutations!"

@@ -269,10 +269,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationControlle
         self._testing_created_mutants: list[str] = []
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
 
-        self._mutated_modules = [
-            module
-            for module, _ in self.mutate_module()
-        ]
+        self._mutated_modules = [module for module, _ in self.mutate_module()]
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)

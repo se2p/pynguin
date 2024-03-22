@@ -1,4 +1,3 @@
-
 #  This file is part of Pynguin.
 #
 #  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
@@ -17,7 +16,10 @@ import copy
 import types
 
 from dataclasses import dataclass
-from typing import Generator, Callable, TypeVar
+from typing import Callable
+from typing import Generator
+from typing import Iterable
+from typing import TypeVar
 
 
 def fix_lineno(node: ast.AST) -> None:
@@ -49,7 +51,10 @@ def set_lineno(node: ast.AST, lineno: int) -> None:
             setattr(child_node, "lineno", lineno)
 
 
-def shift_lines(nodes: list[ast.AST], shift_by: int = 1) -> None:
+T = TypeVar("T", bound=ast.AST)
+
+
+def shift_lines(nodes: list[T], shift_by: int = 1) -> None:
     for node in nodes:
         ast.increment_lineno(node, shift_by)
 
@@ -61,14 +66,14 @@ class Mutation:
     visitor_name: str
 
 
-T = TypeVar("T", bound=ast.AST)
-
-
 def copy_node(node: T) -> T:
     parent = getattr(node, "parent")
-    return copy.deepcopy(node, memo={
-        id(parent): parent,
-    })
+    return copy.deepcopy(
+        node,
+        memo={
+            id(parent): parent,
+        },
+    )
 
 
 class MutationOperator:
@@ -77,8 +82,8 @@ class MutationOperator:
         cls,
         node: T,
         module: types.ModuleType | None = None,
-        only_mutation: Mutation | None = None
-    ):
+        only_mutation: Mutation | None = None,
+    ) -> Generator[tuple[Mutation, ast.AST], None, None]:
         operator = cls(module, only_mutation)
 
         for current_node, mutated_node, visitor_name in operator.visit(node):
@@ -95,22 +100,23 @@ class MutationOperator:
     def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         node_children = getattr(node, "children")
 
-        if self.only_mutation and self.only_mutation.node != node and self.only_mutation.node not in node_children:
+        if (
+            self.only_mutation
+            and self.only_mutation.node != node
+            and self.only_mutation.node not in node_children
+        ):
             return
 
         fix_lineno(node)
 
         for visitor in self.find_visitors(node):
             if (
-                (
-                    self.only_mutation is None
-                    or (
-                        self.only_mutation.node == node
-                        and self.only_mutation.visitor_name == visitor.__name__
-                    )
+                self.only_mutation is None
+                or (
+                    self.only_mutation.node == node
+                    and self.only_mutation.visitor_name == visitor.__name__
                 )
-                and (mutated_node := visitor(node)) is not None
-            ):
+            ) and (mutated_node := visitor(node)) is not None:
                 fix_node_internals(node, mutated_node)
                 ast.fix_missing_locations(mutated_node)
 
@@ -118,19 +124,24 @@ class MutationOperator:
 
         yield from self.generic_visit(node)
 
-    def generic_visit(self, node: ast.AST) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+    def generic_visit(
+        self, node: ast.AST
+    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         for field, old_value in ast.iter_fields(node):
+            generator: Iterable[tuple[ast.AST, str]]
             if isinstance(old_value, list):
                 generator = self.generic_visit_list(old_value)
             elif isinstance(old_value, ast.AST):
                 generator = self.generic_visit_real_node(node, field, old_value)
             else:
-                generator = []
+                generator = ()
 
             for current_node, visitor_name in generator:
                 yield current_node, node, visitor_name
 
-    def generic_visit_list(self, old_value: list) -> Generator[tuple[ast.AST, str], None, None]:
+    def generic_visit_list(
+        self, old_value: list
+    ) -> Generator[tuple[ast.AST, str], None, None]:
         for position, value in enumerate(old_value.copy()):
             if isinstance(value, ast.AST):
                 for current_node, mutated_node, visitor_name in self.visit(value):
@@ -139,7 +150,9 @@ class MutationOperator:
 
                 old_value[position] = value
 
-    def generic_visit_real_node(self, node: ast.AST, field: str, old_value: ast.AST) -> Generator[tuple[ast.AST, str], None, None]:
+    def generic_visit_real_node(
+        self, node: ast.AST, field: str, old_value: ast.AST
+    ) -> Generator[tuple[ast.AST, str], None, None]:
         for current_node, mutated_node, visitor_name in self.visit(old_value):
             setattr(node, field, mutated_node)
             yield current_node, visitor_name
@@ -152,7 +165,8 @@ class MutationOperator:
         return [
             visitor
             for attr in dir(self)
-            if attr.startswith(method_prefix) and callable(visitor := getattr(self, attr))
+            if attr.startswith(method_prefix)
+            and callable(visitor := getattr(self, attr))
         ]
 
 

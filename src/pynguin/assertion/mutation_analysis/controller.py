@@ -8,17 +8,16 @@
 from __future__ import annotations
 
 import ast
-import inspect
 import importlib
+import inspect
 import logging
 import types
 
 from typing import TYPE_CHECKING
 
+import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.stategies as ms
-import pynguin.assertion.mutation_analysis.mutators as mu
-
 import pynguin.configuration as config
 
 from pynguin.assertion.mutation_analysis.operators.base import Mutation
@@ -47,7 +46,7 @@ class MutationController:
         config.MutationStrategy.EACH_CHOICE: ms.EachChoiceHOMStrategy,
     }
 
-    def mutate_module(self) -> list[tuple[ModuleType, list[mo.Mutation]]]:
+    def mutate_module(self) -> list[tuple[ModuleType, list[Mutation]]]:
         """Mutates the modules specified in the configuration.
 
         Uses MutPy's mutation procedure.
@@ -81,6 +80,8 @@ class MutationController:
         mutants: list[tuple[ModuleType, list[Mutation]]] = []
 
         for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module):
+            assert isinstance(mutant_ast, ast.Module)
+
             try:
                 mutant_module = self.create_module(mutant_ast, target_module.__name__)
             except Exception as exception:
