@@ -16,7 +16,17 @@ from pynguin.assertion.mutation_analysis.operators.base import copy_node
 
 
 class DecoratorDeletion(MutationOperator):
-    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST | None:
+    """A class that mutates decorators by deleting them."""
+
+    def mutate_FunctionDef(self, node: ast.FunctionDef) -> ast.AST | None:  # noqa: N802
+        """Mutate a function definition by deleting its decorators.
+
+        Args:
+            node: The function definition to mutate.
+
+        Returns:
+            The mutated node, or None if the decorators should not be mutated.
+        """
         if not node.decorator_list:
             return None
 

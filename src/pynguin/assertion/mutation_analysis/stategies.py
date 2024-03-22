@@ -11,27 +11,39 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py.
 from __future__ import annotations
 
 import abc
-import random
 
-from typing import Callable
-from typing import Generator
+from typing import TYPE_CHECKING
 
-from pynguin.assertion.mutation_analysis.operators.base import Mutation
+from pynguin.utils import randomness
+
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+    from pynguin.assertion.mutation_analysis.operators.base import Mutation
 
 
 def remove_bad_mutations(
     mutations_to_apply: list[Mutation],
     available_mutations: list[Mutation],
-    allow_same_operators: bool = True,
+    allow_same_operators: bool = True,  # noqa: FBT001, FBT002
 ) -> None:
+    """Remove bad mutations from the available mutations.
+
+    Args:
+        mutations_to_apply: The mutations that are already selected.
+        available_mutations: The mutations that are available.
+        allow_same_operators: Whether the same operator should be allowed.
+
+    Returns:
+        The list of available mutations without the bad mutations.
+    """
     for mutation_to_apply in mutations_to_apply:
         for available_mutation in available_mutations.copy():
             if (
                 mutation_to_apply.node == available_mutation.node
-                or mutation_to_apply.node
-                in getattr(available_mutation.node, "children")
-                or available_mutation.node
-                in getattr(mutation_to_apply.node, "children")
+                or mutation_to_apply.node in available_mutation.node.children  # type: ignore[attr-defined]
+                or available_mutation.node in mutation_to_apply.node.children  # type: ignore[attr-defined]
                 or (
                     not allow_same_operators
                     and mutation_to_apply.operator == available_mutation.operator
@@ -41,20 +53,34 @@ def remove_bad_mutations(
 
 
 class HOMStrategy(abc.ABC):
+    """A strategy for higher order mutations."""
 
     def __init__(self, order: int = 2) -> None:
+        """Initialize the strategy.
+
+        Args:
+            order: The order of the mutations.
+        """
         self.order = order
 
     @abc.abstractmethod
     def generate(
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
-        raise NotImplementedError
+        """Generate the mutations.
+
+        Args:
+            mutations: The mutations to generate from.
+
+        Returns:
+            A generator for the mutations.
+        """
 
 
 class FirstToLastHOMStrategy(HOMStrategy):
+    """A strategy that selects the first mutation and then the last one."""
 
-    def generate(
+    def generate(  # noqa: D102
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
         mutations = mutations.copy()
@@ -72,8 +98,9 @@ class FirstToLastHOMStrategy(HOMStrategy):
 
 
 class EachChoiceHOMStrategy(HOMStrategy):
+    """A strategy that selects the mutations in order."""
 
-    def generate(
+    def generate(  # noqa: D102
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
         mutations = mutations.copy()
@@ -89,11 +116,12 @@ class EachChoiceHOMStrategy(HOMStrategy):
 
 
 class BetweenOperatorsHOMStrategy(HOMStrategy):
+    """A strategy that selects mutations between different operators."""
 
-    def generate(
+    def generate(  # noqa: D102
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
-        usage = {mutation: 0 for mutation in mutations}
+        usage = dict.fromkeys(mutations, 0)
         not_used = mutations.copy()
         while not_used:
             mutations_to_apply: list[Mutation] = []
@@ -112,16 +140,21 @@ class BetweenOperatorsHOMStrategy(HOMStrategy):
 
 
 class RandomHOMStrategy(HOMStrategy):
+    """A strategy that selects mutations randomly."""
 
-    def __init__(self, order: int = 2, shuffler: Callable = random.shuffle) -> None:
+    def __init__(self, order: int = 2) -> None:
+        """Initialize the strategy.
+
+        Args:
+            order: The order of the mutations.
+        """
         super().__init__(order)
-        self.shuffler = shuffler
 
-    def generate(
+    def generate(  # noqa: D102
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
         mutations = mutations.copy()
-        self.shuffler(mutations)
+        randomness.shuffle(mutations)
         while mutations:
             mutations_to_apply: list[Mutation] = []
             available_mutations = mutations.copy()

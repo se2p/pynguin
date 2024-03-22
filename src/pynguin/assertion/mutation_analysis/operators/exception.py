@@ -18,6 +18,15 @@ def replace_exception_handler(
     exception_handler: ast.ExceptHandler,
     body: list[ast.stmt],
 ) -> ast.ExceptHandler:
+    """Replace an exception handler with a new body.
+
+    Args:
+        exception_handler: The exception handler to replace.
+        body: The new body.
+
+    Returns:
+        The new exception handler.
+    """
     return ast.ExceptHandler(
         type=exception_handler.type,
         name=exception_handler.name,
@@ -27,7 +36,19 @@ def replace_exception_handler(
 
 
 class ExceptionHandlerDeletion(MutationOperator):
-    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler | None:
+    """A class that mutates exception handlers by deleting them."""
+
+    def mutate_ExceptHandler(  # noqa: N802
+        self, node: ast.ExceptHandler
+    ) -> ast.ExceptHandler | None:
+        """Mutate an exception handler by deleting it.
+
+        Args:
+            node: The exception handler to mutate.
+
+        Returns:
+            The mutated node, or None if the exception handler should not be mutated.
+        """
         if not node.body:
             return None
 
@@ -42,7 +63,19 @@ class ExceptionHandlerDeletion(MutationOperator):
 
 
 class ExceptionSwallowing(MutationOperator):
-    def mutate_ExceptHandler(self, node: ast.ExceptHandler) -> ast.ExceptHandler | None:
+    """A class that mutates exception handlers by ignoring the caught exception."""
+
+    def mutate_ExceptHandler(  # noqa: N802
+        self, node: ast.ExceptHandler
+    ) -> ast.ExceptHandler | None:
+        """Mutate an exception handler by ignoring the caught exception.
+
+        Args:
+            node: The exception handler to mutate.
+
+        Returns:
+            The mutated node, or None if the exception handler should not be mutated.
+        """
         if not node.body:
             return None
 

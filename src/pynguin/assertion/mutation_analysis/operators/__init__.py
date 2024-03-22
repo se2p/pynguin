@@ -16,9 +16,6 @@ from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     ArithmeticOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.operators.base import copy_node
-from pynguin.assertion.mutation_analysis.operators.base import set_lineno
-from pynguin.assertion.mutation_analysis.operators.base import shift_lines
 from pynguin.assertion.mutation_analysis.operators.decorator import DecoratorDeletion
 from pynguin.assertion.mutation_analysis.operators.exception import (
     ExceptionHandlerDeletion,
@@ -66,7 +63,7 @@ from pynguin.assertion.mutation_analysis.operators.misc import ConstantReplaceme
 from pynguin.assertion.mutation_analysis.operators.misc import SliceIndexRemove
 
 
-standard_operators = [
+standard_operators: list[type[MutationOperator]] = [
     ArithmeticOperatorDeletion,
     ArithmeticOperatorReplacement,
     AssignmentOperatorReplacement,
@@ -89,7 +86,7 @@ standard_operators = [
     SuperCallingInsert,
 ]
 
-experimental_operators = [
+experimental_operators: list[type[MutationOperator]] = [
     OneIterationLoop,
     ReverseIterationLoop,
     ZeroIterationLoop,

@@ -11,18 +11,26 @@ Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py.
 from __future__ import annotations
 
 import abc
-import ast
-import types
 
-from typing import Generator
+from typing import TYPE_CHECKING
 
-from pynguin.assertion.mutation_analysis.operators.base import Mutation
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 from pynguin.assertion.mutation_analysis.stategies import FirstToLastHOMStrategy
 from pynguin.assertion.mutation_analysis.stategies import HOMStrategy
 
 
+if TYPE_CHECKING:
+    import ast
+    import types
+
+    from collections.abc import Generator
+
+    from pynguin.assertion.mutation_analysis.operators.base import Mutation
+    from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+
+
 class Mutator(abc.ABC):
+    """A mutator is responsible for mutating an AST."""
+
     @abc.abstractmethod
     def mutate(
         self,
@@ -35,17 +43,23 @@ class Mutator(abc.ABC):
             target_ast: The AST to mutate.
             module: The module to mutate.
 
-        Returns:
+        Yields:
             A generator of mutations and the mutated AST.
         """
 
 
 class FirstOrderMutator(Mutator):
+    """A mutator that applies first order mutations."""
 
     def __init__(self, operators: list[type[MutationOperator]]) -> None:
+        """Initialize the mutator.
+
+        Args:
+            operators: The operators to use for mutation.
+        """
         self.operators = operators
 
-    def mutate(
+    def mutate(  # noqa: D102
         self,
         target_ast: ast.AST,
         module: types.ModuleType | None = None,
@@ -56,37 +70,43 @@ class FirstOrderMutator(Mutator):
 
 
 class HighOrderMutator(FirstOrderMutator):
+    """A mutator that applies high order mutations."""
 
     def __init__(
         self,
         operators: list[type[MutationOperator]],
         hom_strategy: HOMStrategy | None = None,
     ) -> None:
+        """Initialize the mutator.
+
+        Args:
+            operators: The operators to use for mutation.
+            hom_strategy: The strategy to use for higher order mutations.
+        """
         super().__init__(operators)
         self.hom_strategy = hom_strategy or FirstToLastHOMStrategy()
 
-    def mutate(
+    def mutate(  # noqa: D102
         self,
         target_ast: ast.AST,
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
-        mutations = self.generate_all_mutations(module, target_ast)
+        mutations = self._generate_all_mutations(module, target_ast)
         for mutations_to_apply in self.hom_strategy.generate(mutations):
             generators = []
             applied_mutations = []
             mutant = target_ast
             for mutation in mutations_to_apply:
                 generator = mutation.operator.mutate(mutant, module, mutation)
-                try:
-                    new_mutation, mutant = generator.__next__()
-                except StopIteration:
-                    assert False, "no mutations!"
+                next_value = next(generator, None)
+                assert next_value is not None
+                new_mutation, mutant = next_value
                 applied_mutations.append(new_mutation)
                 generators.append(generator)
             yield applied_mutations, mutant
-            self.finish_generators(generators)
+            self._finish_generators(generators)
 
-    def generate_all_mutations(
+    def _generate_all_mutations(
         self,
         module: types.ModuleType | None,
         target_ast: ast.AST,
@@ -97,10 +117,8 @@ class HighOrderMutator(FirstOrderMutator):
                 mutations.append(mutation)
         return mutations
 
-    def finish_generators(self, generators: list[Generator]) -> None:
+    @staticmethod
+    def _finish_generators(generators: list[Generator]) -> None:
         for generator in reversed(generators):
-            try:
-                generator.__next__()
-            except StopIteration:
-                continue
-            assert False, "too many mutations!"
+            value = next(generator, None)
+            assert value is None, "too many mutations!"

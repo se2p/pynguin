@@ -233,13 +233,15 @@ class _MutationMetrics:
 class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationController):
     """Uses mutation analysis to filter out less relevant assertions."""
 
-    def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
+    def create_module(  # noqa: D102
+        self, ast_node: ast.Module, module_name: str
+    ) -> types.ModuleType:
         code = compile(ast_node, module_name, "exec")
         if self._testing:
             self._testing_created_mutants.append(ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
-        exec(code, module.__dict__)
+        exec(code, module.__dict__)  # noqa: S102
         return module
 
     def __init__(self, plain_executor: ex.TestCaseExecutor, *, testing: bool = False):

@@ -20,7 +20,6 @@ import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.stategies as ms
 import pynguin.configuration as config
 
-from pynguin.assertion.mutation_analysis.operators.base import Mutation
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.utils.exceptions import ConfigurationException
 
@@ -29,6 +28,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from types import ModuleType
     from typing import ClassVar
+
+    from pynguin.assertion.mutation_analysis.operators.base import Mutation
+    from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -48,8 +50,6 @@ class MutationController:
 
     def mutate_module(self) -> list[tuple[ModuleType, list[Mutation]]]:
         """Mutates the modules specified in the configuration.
-
-        Uses MutPy's mutation procedure.
 
         Returns:
             A list of tuples where the first entry is the mutated module and the second
@@ -77,6 +77,17 @@ class MutationController:
         target_ast: ast.Module,
         target_module: types.ModuleType,
     ) -> list[tuple[ModuleType, list[Mutation]]]:
+        """Creates mutants for the given module.
+
+        Args:
+            mutant_generator: The mutant generator.
+            target_ast: The AST of the target module.
+            target_module: The target module.
+
+        Returns:
+            A list of tuples where the first entry is the mutated module and the second
+            part is a list of all the mutations operators applied.
+        """
         mutants: list[tuple[ModuleType, list[Mutation]]] = []
 
         for mutations, mutant_ast in mutant_generator.mutate(target_ast, target_module):
@@ -84,7 +95,7 @@ class MutationController:
 
             try:
                 mutant_module = self.create_module(mutant_ast, target_module.__name__)
-            except Exception as exception:
+            except Exception as exception:  # noqa: BLE001
                 _LOGGER.debug("Error creating mutant: %s", exception)
                 continue
 
@@ -93,13 +104,22 @@ class MutationController:
         return mutants
 
     def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
+        """Creates a module from an AST node.
+
+        Args:
+            ast_node: The AST node.
+            module_name: The name of the module.
+
+        Returns:
+            The created module.
+        """
         code = compile(ast_node, module_name, "exec")
         module = types.ModuleType(module_name)
-        exec(code, module.__dict__)
+        exec(code, module.__dict__)  # noqa: S102
         return module
 
     def _get_mutant_generator(self) -> mu.FirstOrderMutator:
-        operators = [
+        operators: list[type[MutationOperator]] = [
             *mo.standard_operators,
             *mo.experimental_operators,
         ]
