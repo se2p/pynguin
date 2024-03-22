@@ -15,8 +15,8 @@ import abc
 
 from typing import TYPE_CHECKING
 
-from pynguin.assertion.mutation_analysis.stategies import FirstToLastHOMStrategy
-from pynguin.assertion.mutation_analysis.stategies import HOMStrategy
+from pynguin.assertion.mutation_analysis.strategies import FirstToLastHOMStrategy
+from pynguin.assertion.mutation_analysis.strategies import HOMStrategy
 
 
 if TYPE_CHECKING:

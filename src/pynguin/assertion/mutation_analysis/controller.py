@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
-import pynguin.assertion.mutation_analysis.stategies as ms
+import pynguin.assertion.mutation_analysis.strategies as ms
 import pynguin.configuration as config
 
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
