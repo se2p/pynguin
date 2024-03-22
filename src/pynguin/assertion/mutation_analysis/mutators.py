@@ -18,7 +18,6 @@ from typing import Generator
 
 from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
 from pynguin.assertion.mutation_analysis.stategies import HOMStrategy, FirstToLastHOMStrategy
-from pynguin.assertion.mutation_analysis.sampler import RandomSampler
 
 
 class Mutator(abc.ABC):
@@ -41,9 +40,8 @@ class Mutator(abc.ABC):
 
 class FirstOrderMutator(Mutator):
 
-    def __init__(self, operators: list[type[MutationOperator]], percentage: int = 100) -> None:
+    def __init__(self, operators: list[type[MutationOperator]]) -> None:
         self.operators = operators
-        self.sampler = RandomSampler(percentage)
 
     def mutate(
         self,
@@ -51,7 +49,7 @@ class FirstOrderMutator(Mutator):
         module: types.ModuleType | None = None,
     ) -> Generator[tuple[list[Mutation], ast.Module], None, None]:
         for op in self.operators:
-            for mutation, mutant in op.mutate(target_ast, self.sampler, module=module):
+            for mutation, mutant in op.mutate(target_ast, module):
                 yield [mutation], mutant
 
 
@@ -60,10 +58,9 @@ class HighOrderMutator(FirstOrderMutator):
     def __init__(
         self,
         operators: list[type[MutationOperator]],
-        percentage: int = 100,
         hom_strategy: HOMStrategy | None = None,
     ) -> None:
-        super().__init__(operators, percentage)
+        super().__init__(operators)
         self.hom_strategy = hom_strategy or FirstToLastHOMStrategy()
 
     def mutate(
@@ -77,12 +74,7 @@ class HighOrderMutator(FirstOrderMutator):
             applied_mutations = []
             mutant = target_ast
             for mutation in mutations_to_apply:
-                generator = mutation.operator.mutate(
-                    mutant,
-                    sampler=self.sampler,
-                    module=module,
-                    only_mutation=mutation,
-                )
+                generator = mutation.operator.mutate(mutant, module, mutation)
                 try:
                     new_mutation, mutant = generator.__next__()
                 except StopIteration:
@@ -99,7 +91,7 @@ class HighOrderMutator(FirstOrderMutator):
     ) -> list[Mutation]:
         mutations: list[Mutation] = []
         for op in self.operators:
-            for mutation, _ in op.mutate(target_ast, None, module=module):
+            for mutation, _ in op.mutate(target_ast, module):
                 mutations.append(mutation)
         return mutations
 

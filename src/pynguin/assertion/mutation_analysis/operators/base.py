@@ -19,8 +19,6 @@ import types
 from dataclasses import dataclass
 from typing import Generator, Callable, TypeVar
 
-from pynguin.assertion.mutation_analysis.sampler import RandomSampler
-
 
 def fix_lineno(node: ast.AST) -> None:
     parent = getattr(node, "parent")
@@ -78,22 +76,19 @@ class MutationOperator:
     def mutate(
         cls,
         node: T,
-        sampler: RandomSampler | None = None,
         module: types.ModuleType | None = None,
         only_mutation: Mutation | None = None
     ):
-        operator = cls(sampler, module, only_mutation)
+        operator = cls(module, only_mutation)
 
         for current_node, mutated_node, visitor_name in operator.visit(node):
             yield Mutation(current_node, cls, visitor_name), mutated_node
 
     def __init__(
         self,
-        sampler: RandomSampler | None,
         module: types.ModuleType | None,
         only_mutation: Mutation | None,
     ) -> None:
-        self.sampler = sampler
         self.module = module
         self.only_mutation = only_mutation
 
@@ -108,10 +103,6 @@ class MutationOperator:
         for visitor in self.find_visitors(node):
             if (
                 (
-                    self.sampler is None
-                    or self.sampler.is_mutation_time()
-                )
-                and (
                     self.only_mutation is None
                     or (
                         self.only_mutation.node == node
