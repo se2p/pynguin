@@ -4,32 +4,13 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from unittest import mock
-from unittest.mock import MagicMock
-
-import mutpy.controller
-
 import pynguin.assertion.mutation_analysis.controller as c
-
-
-class FooController(c.MutationController):
-    pass
-
-
-class FooMutController(mutpy.controller.MutationController):
-    pass
+import pynguin.configuration as config
 
 
 def test_mutate_module():
-    adapter = FooController()
-    controller = FooMutController(
-        MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
-    )
-    with mock.patch.object(controller, "mutate_module", MagicMock()) as mutated:
-        with mock.patch.object(
-            adapter, "_build_mutation_controller", mutated
-        ) as mock_obj:
-            adapter.target_loader = MagicMock()
-            adapter.mutate_module()
-            mock_obj.assert_called_once()
-            mutated.assert_called_once()
+    controller = c.MutationController()
+    config.configuration.module_name = "tests.fixtures.examples.triangle"
+    config.configuration.seeding.seed = 42
+    mutations = controller.mutate_module()
+    assert len(mutations) == 14
