@@ -379,18 +379,6 @@ class TypeInferenceConfiguration:
     type_tracing: bool = False
     """Trace usage of parameters with unknown types to improve type guesses."""
 
-    type4py: bool = False
-    """Get type information from Type4Py."""
-
-    type4py_uri: str = "https://type4py.com/"
-    """URI of the Type4Py server.
-    Currently only for the module under test.
-    For example: http://localhost:5001/
-    See https://github.com/saltudelft/type4py/wiki"""
-
-    type4py_timeout: int = 10
-    """Read timeout when requesting data from the Type4Py API."""
-
 
 @dataclasses.dataclass
 class TestCreationConfiguration:
