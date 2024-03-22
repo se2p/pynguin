@@ -94,7 +94,7 @@ def test_integration_post_domination(larger_control_flow_graph):
     post_dominator_tree = DominatorTree.compute_post_dominator_tree(
         larger_control_flow_graph
     )
-    node = [n for n in larger_control_flow_graph.nodes if n.index == 110][0]
+    node = next(n for n in larger_control_flow_graph.nodes if n.index == 110)
     successors = post_dominator_tree.get_transitive_successors(node)
     successor_indices = {n.index for n in successors}
     expected_indices = {

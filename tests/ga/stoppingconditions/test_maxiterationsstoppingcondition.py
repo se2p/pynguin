@@ -9,7 +9,7 @@ import pytest
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 
 
-@pytest.fixture
+@pytest.fixture()
 def stopping_condition():
     return MaxIterationsStoppingCondition(60)
 

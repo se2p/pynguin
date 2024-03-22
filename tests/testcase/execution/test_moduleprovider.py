@@ -11,7 +11,7 @@ import pytest
 import pynguin.testcase.execution as ex
 
 
-@pytest.fixture
+@pytest.fixture()
 def module_provider() -> ex.ModuleProvider:
     return ex.ModuleProvider()
 

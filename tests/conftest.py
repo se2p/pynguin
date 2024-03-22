@@ -52,8 +52,8 @@ from tests.fixtures.linecoverage.plus import Plus
 
 
 @pytest.fixture(autouse=True)
-def reset_configuration():
-    """Automatically reset the configuration singleton"""
+def reset_configuration():  # noqa: PT004
+    """Automatically reset the configuration singleton."""
     config.configuration = config.Configuration(
         algorithm=config.Algorithm.RANDOM,
         project_path="",
@@ -66,17 +66,17 @@ def reset_configuration():
     config.configuration.test_creation.use_random_object_for_call = 0.0
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def test_case_mock():
     return MagicMock(tc.TestCase)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def default_test_case():
     return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def variable_reference_mock():
     return MagicMock(vr.Reference)
 
@@ -90,8 +90,7 @@ def provide_imported_modules() -> dict[str, Any]:
         "tests.fixtures.examples.private_methods",
         "tests.fixtures.examples.triangle",
     ]
-    modules = {m.split(".")[-1]: importlib.import_module(m) for m in module_names}
-    return modules
+    return {m.split(".")[-1]: importlib.import_module(m) for m in module_names}
 
 
 @pytest.fixture(scope="session")
@@ -106,11 +105,10 @@ def provide_callables_from_fixtures_modules(
         )
 
     members = []
-    for _, module in provide_imported_modules.items():
+    for module in provide_imported_modules.values():
         for member in inspect.getmembers(module, inspect_member):
-            members.append(member)
-    callables_ = {k: v for (k, v) in members}
-    return callables_
+            members.append(member)  # noqa: PERF402
+    return dict(members)
 
 
 @pytest.fixture()
@@ -184,12 +182,12 @@ def field_mock() -> GenericField:
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def type_system():
     return TypeSystem()
 
 
-@pytest.fixture
+@pytest.fixture()
 def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
@@ -202,7 +200,7 @@ def short_test_case(constructor_mock):
 
 
 @pytest.fixture(autouse=True)
-def reset_statistics_tracker():
+def reset_statistics_tracker():  # noqa: PT004
     stat.reset()
 
 
@@ -210,7 +208,7 @@ def reset_statistics_tracker():
 def conditional_jump_example_bytecode() -> Bytecode:
     label_else = Label()
     label_print = Label()
-    byte_code = Bytecode(
+    return Bytecode(
         [
             Instr("LOAD_NAME", "print"),
             Instr("LOAD_NAME", "test"),
@@ -225,7 +223,6 @@ def conditional_jump_example_bytecode() -> Bytecode:
             Instr("RETURN_VALUE"),
         ]
     )
-    return byte_code
 
 
 @pytest.fixture(scope="module")
@@ -256,7 +253,7 @@ def small_control_flow_graph() -> CFG:
 
 
 @pytest.fixture(scope="module")
-def larger_control_flow_graph() -> CFG:
+def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     graph = CFG(MagicMock())
     entry = ProgramGraphNode(index=-sys.maxsize)
     n_1 = ProgramGraphNode(index=1)
@@ -322,15 +319,17 @@ def larger_control_flow_graph() -> CFG:
 
 @pytest.fixture()
 def plus_test_with_object_assertion() -> tc.TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(var_0)
-        assert int_1 == 46
+    """Generated testcase.
+
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(var_0)
+    assert int_1 == 46.
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -349,15 +348,17 @@ def plus_test_with_object_assertion() -> tc.TestCase:
 
 @pytest.fixture()
 def plus_test_with_float_assertion() -> tc.TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+    """Generated testcase.
+
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+    assert int_1 == pytest.approx(46, rel=0.01, abs=0.01).
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -376,15 +377,17 @@ def plus_test_with_float_assertion() -> tc.TestCase:
 
 @pytest.fixture()
 def plus_test_with_type_name_assertion() -> tc.TestCase:
-    """
-    Generated testcase:
-        int_0 = 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 is not None
+    """Generated testcase.
+
+    int_0 = 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+    assert int_1 is not None.
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -404,14 +407,16 @@ def plus_test_with_type_name_assertion() -> tc.TestCase:
 
 @pytest.fixture()
 def exception_test_with_except_assertion() -> tc.TestCase:
-    """
-    Generated testcase:
-        exception_test_0 = module_0.ExceptionTest()
-        with pytest.raises(RuntimeError):
-            var_0 = exception_test_0.throw()
+    """Generated testcase.
+
+    exception_test_0 = module_0.ExceptionTest()
+    with pytest.raises(RuntimeError):
+        var_0 = exception_test_0.throw().
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -433,13 +438,15 @@ def exception_test_with_except_assertion() -> tc.TestCase:
 
 @pytest.fixture()
 def list_test_with_len_assertion() -> tc.TestCase:
-    """
-    Generated testcase:
-        list_test_0 = module_0.ListTest()
-        assert len(list_test_0.attribute) == 3
+    """Generated testcase.
+
+    list_test_0 = module_0.ListTest()
+    assert len(list_test_0.attribute) == 3.
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -464,17 +471,19 @@ def list_test_with_len_assertion() -> tc.TestCase:
 
 @pytest.fixture()
 def plus_test_with_multiple_assertions():
-    """
-    Generated testcase:
-        int_0 = 42
-        assert int_0 == 42
-        plus_0 = module_0.Plus()
-        int_1 = plus_0.plus_four(int_0)
-        assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
-        assert plus_0.calculations == 1
+    """Generated testcase.
+
+    int_0 = 42
+    assert int_0 == 42
+    plus_0 = module_0.Plus()
+    int_1 = plus_0.plus_four(int_0)
+    assert int_1 == pytest.approx(46, rel=0.01, abs=0.01)
+    assert plus_0.calculations == 1.
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():

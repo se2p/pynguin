@@ -7,10 +7,13 @@
 
 import dis
 
+from itertools import starmap
+
 import pytest
 
 import pynguin.slicer.stack.stackeffect as se
-import pynguin.utils.opcodes as opcodes
+
+from pynguin.utils import opcodes
 
 
 @pytest.mark.parametrize(
@@ -31,20 +34,19 @@ def _conditional_combinations() -> list[tuple[int, int, bool]]:
     args = [0, 1]
     conditional_opcodes = range(90, 166)
 
-    # (opcode, argument, jump)
+    # (opcode, argument, jump)  # noqa: ERA001
     combinations: list[tuple[int, int, bool]] = []
     for op in conditional_opcodes:
         if op is opcodes.SETUP_ASYNC_WITH:
             continue  # async is not supported
         for arg in args:
-            combinations.append((op, arg, True))
-            combinations.append((op, arg, False))
+            combinations.extend(((op, arg, True), (op, arg, False)))
     return combinations
 
 
 @pytest.mark.parametrize(
     "op, arg, jump",
-    [pytest.param(op, arg, jump) for (op, arg, jump) in _conditional_combinations()],
+    list(starmap(pytest.param, _conditional_combinations())),
 )
 def test_conditional_opcodes(op, arg, jump):
     """Test opcodes with arguments and jumps."""

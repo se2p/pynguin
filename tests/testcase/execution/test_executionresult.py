@@ -9,7 +9,7 @@ import pytest
 from pynguin.testcase.execution import ExecutionResult
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_result():
     return ExecutionResult(timeout=True)
 

@@ -13,7 +13,7 @@ import pytest
 import pynguin.ga.computations as ff
 
 
-@pytest.fixture
+@pytest.fixture()
 def cache():
     return ff.ComputationCache(MagicMock())
 

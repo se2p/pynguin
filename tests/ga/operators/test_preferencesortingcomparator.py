@@ -12,7 +12,7 @@ import pynguin.ga.chromosome as chrom
 import pynguin.ga.operators.comparator as pc
 
 
-@pytest.fixture
+@pytest.fixture()
 def comparator():
     return pc.PreferenceSortingComparator(MagicMock())
 

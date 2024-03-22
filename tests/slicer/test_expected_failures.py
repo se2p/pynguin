@@ -6,7 +6,7 @@
 #
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
-
+# ruff: noqa: E501, ERA001
 import pytest
 
 from bytecode import BasicBlock
@@ -18,7 +18,7 @@ from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_data_dependency_composite():
     # Composite type dependencies, which are way too broad
     def func():
@@ -30,8 +30,7 @@ def test_data_dependency_composite():
         foo_list += [5]  # should not be included, but is
         foo_list[2:3] = [0, 0]  # should not be included, but is
 
-        result = foo_list[0]  # correctly included
-        return result  # correctly included
+        return foo_list[0]  # correctly included
 
     expected_instructions = [
         # foo_list = [1, 2, 3]
@@ -56,7 +55,7 @@ def test_data_dependency_composite():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_dunder_definition():
     def func():
         class NestedClass:
@@ -65,8 +64,7 @@ def test_dunder_definition():
             ):  # Definition of dunder methods wrongly excluded, these are not explicitly loaded
                 self.x = 1
 
-        result = NestedClass()
-        return result
+        return NestedClass()
 
     function_block = BasicBlock(
         [
@@ -126,14 +124,13 @@ def test_dunder_definition():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_mod_untraced_object():
     def func():
         lst = [("foo", "3"), ("bar", "1"), ("foobar", "2")]
         lst.sort()  # This is incorrectly excluded, since it is not known that the method modifies the list
 
-        result = lst
-        return result
+        return lst
 
     function_block = BasicBlock(
         [
@@ -166,7 +163,7 @@ def test_mod_untraced_object():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_call_unused_argument():
     # Call with two arguments, one of which is used in the callee
 
@@ -219,7 +216,7 @@ def test_call_unused_argument():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_exception():
     # Exception
     def func():
@@ -292,7 +289,7 @@ def test_exception():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail
+@pytest.mark.xfail()
 def test_data_dependency_6():
     def func() -> int:
         class Plus:
@@ -305,8 +302,7 @@ def test_data_dependency_6():
         plus_0 = Plus()
         int_0 = 42
         var_1 = plus_0.plus_four(int_0)
-        result = plus_0.plus_four(var_1)
-        return result
+        return plus_0.plus_four(var_1)
 
     sliced_instructions = slice_function_at_return(func)
     checked_lines = set()

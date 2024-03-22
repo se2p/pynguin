@@ -4,7 +4,9 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""The implementation of this module contains some code adopted from the ``mccabe``
+"""Analyses for the module complexity.
+
+The implementation of this module contains some code adopted from the ``mccabe``
 library (https://github.com/PyCQA/mccabe), which was released by Florent Xicluna,
 Tarek Ziade, and Ned Batchelder under Expad License.
 

@@ -32,7 +32,8 @@ html_theme = "sphinx_rtd_theme"
 
 _d = {}
 with open(
-    os.path.join(os.path.dirname(__file__), "..", "src", "pynguin", "__version__.py")
+    os.path.join(os.path.dirname(__file__), "..", "src", "pynguin", "__version__.py"),
+    encoding="locale",
 ) as f:
     exec(f.read(), _d)
     version = _d["__version__"]

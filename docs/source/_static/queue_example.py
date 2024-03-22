@@ -6,8 +6,6 @@
 #
 import array
 
-from typing import Optional
-
 
 class Queue:
     def __init__(self, size_max: int) -> None:

@@ -34,17 +34,17 @@ from pynguin.testcase.execution import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 
 
-@pytest.fixture
+@pytest.fixture()
 def branchless_codeobject_goal():
     return bg.BranchlessCodeObjectGoal(0)
 
 
-@pytest.fixture
+@pytest.fixture()
 def branch_goal():
     return bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
 
 
-@pytest.fixture
+@pytest.fixture()
 def statement_coverage_goal():
     return bg.LineCoverageGoal(code_object_id=0, line_id=42)
 
@@ -64,54 +64,54 @@ def test_statement_coverage_goal(statement_coverage_goal):
 
 
 def test_root_hash(branchless_codeobject_goal):
-    assert branchless_codeobject_goal.__hash__() != 0
+    assert (hash(branchless_codeobject_goal)) != 0
 
 
 def test_non_root_hash(branch_goal):
-    assert branch_goal.__hash__() != 0
+    assert (hash(branch_goal)) != 0
 
 
 def test_statement_coverage_hash(statement_coverage_goal):
-    assert statement_coverage_goal.__hash__() != 0
+    assert (hash(statement_coverage_goal)) != 0
 
 
 def test_root_eq_same(branchless_codeobject_goal):
-    assert branchless_codeobject_goal.__eq__(branchless_codeobject_goal)
+    assert branchless_codeobject_goal == branchless_codeobject_goal  # noqa: PLR0124
 
 
 def test_non_root_eq_same(branch_goal):
-    assert branch_goal.__eq__(branch_goal)
+    assert branch_goal == branch_goal  # noqa: PLR0124
 
 
 def test_statement_coverage_eq_same(statement_coverage_goal):
-    assert statement_coverage_goal.__eq__(statement_coverage_goal)
+    assert statement_coverage_goal == statement_coverage_goal  # noqa: PLR0124
 
 
 def test_root_eq_other_type(branchless_codeobject_goal):
-    assert not branchless_codeobject_goal.__eq__(MagicMock())
+    assert branchless_codeobject_goal != MagicMock()
 
 
 def test_non_root_eq_other_type(branch_goal):
-    assert not branch_goal.__eq__(MagicMock())
+    assert branch_goal != MagicMock()
 
 
 def test_statement_coverage_eq_other_type(statement_coverage_goal):
-    assert not statement_coverage_goal.__eq__(MagicMock())
+    assert statement_coverage_goal != MagicMock()
 
 
 def test_root_eq_other(branchless_codeobject_goal):
     other = bg.BranchlessCodeObjectGoal(0)
-    assert branchless_codeobject_goal.__eq__(other)
+    assert branchless_codeobject_goal == other
 
 
 def test_non_root_eq_other(branch_goal):
     other = bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
-    assert branch_goal.__eq__(other)
+    assert branch_goal == other
 
 
 def test_statement_coverage_eq_other(statement_coverage_goal):
     other = bg.LineCoverageGoal(0, 42)
-    assert statement_coverage_goal.__eq__(other)
+    assert statement_coverage_goal == other
 
 
 def test_root_get_distance(branchless_codeobject_goal, mocker):
@@ -134,7 +134,7 @@ def test_non_root_get_distance(branch_goal, mocker):
     mock.assert_called_once()
 
 
-@pytest.fixture
+@pytest.fixture()
 def empty_function():
     return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
@@ -261,7 +261,9 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
 
         cluster = generate_test_cluster(module_name)
 
-        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+        transformer = AstToTestCaseTransformer(
+            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        )
         transformer.visit(ast.parse(test_case))
         test_case = transformer.testcases[0]
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
@@ -277,7 +279,9 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
 def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
     cluster = generate_test_cluster(module_name)
 
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -308,7 +312,7 @@ def test_compute_fitness_values_statement_coverage_empty():
         assert fitness == 0
 
 
-def test_statement_coverage_goal_creation(subject_properties_mock, executor_mock):
+def test_statement_coverage_goal_creation(executor_mock):
     tracer = ExecutionTracer()
     tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
     executor_mock.tracer = tracer
@@ -318,9 +322,12 @@ def test_statement_coverage_goal_creation(subject_properties_mock, executor_mock
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
-    subject_properties_mock, executor_mock, trace_mock
+    executor_mock, trace_mock
 ):
-    """Create an empty test for a non-empty file, which results a fitness of 8, for every missing goal"""
+    """Create an empty test for a non-empty file.
+
+    Results a fitness of 8, for every missing goal.
+    """
     tracer = ExecutionTracer()
     tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
 
@@ -335,11 +342,11 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    subject_properties_mock, executor_mock, trace_mock, plus_test_with_object_assertion
+    executor_mock, trace_mock, plus_test_with_object_assertion
 ):
-    """
-    Test for a testcase for the plus module, which should cover 5 out of 8 goals,
-    which results in a fitness value of 8 - 5 = 3
+    """Test for a testcase for the plus module.
+
+    It should cover 5 out of 8 goals, which results in a fitness value of 8 - 5 = 3.
 
     Generated testcase:
         number = 42

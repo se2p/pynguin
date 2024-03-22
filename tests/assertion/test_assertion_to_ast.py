@@ -19,7 +19,7 @@ import pynguin.utils.ast_util as au
 from pynguin.utils.namingscope import NamingScope
 
 
-@pytest.fixture
+@pytest.fixture()
 def assertion_to_ast_ref() -> (
     tuple[ata.PyTestAssertionToAstVisitor, vr.VariableReference]
 ):
@@ -51,7 +51,8 @@ def test_type_name(assertion_to_ast_ref):
     assertion.accept(assertion_to_ast)
     assert (
         __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert f'{type(var_0).__module__}.{type(var_0).__qualname__}' == 'foo.bar'"
+        == "var_0 = 5\nassert f'{type(var_0).__module__}.{type(var_0).__qualname__}' "
+        "== 'foo.bar'"
     )
 
 
@@ -106,7 +107,7 @@ def test_collection_length(assertion_to_ast_ref, length, output):
 
 
 def test_raises_exception(assertion_to_ast_ref):
-    assertion_to_ast, ref = assertion_to_ast_ref
+    assertion_to_ast, _ref = assertion_to_ast_ref
     assertion = ass.ExceptionAssertion(
         module="builtins", exception_type_name="AssertionError"
     )

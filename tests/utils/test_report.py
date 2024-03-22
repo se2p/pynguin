@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import pynguin.__version__ as ver
+import pynguin.__version__ as ver  # noqa: PLC2701
 import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
@@ -269,7 +269,9 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
 
 def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
-    render_coverage_report(sample_report, report_path, datetime.datetime(1970, 1, 1))
+    render_coverage_report(
+        sample_report, report_path, datetime.datetime(1970, 1, 1)  # noqa: DTZ001
+    )
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()
         assert content == [
@@ -283,8 +285,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "pre { line-height: 125%; }\n",
             "td.linenos .normal { color: #586e75; background-color: #073642; "
             "padding-left: 5px; padding-right: 5px; }\n",
-            "span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; "
-            "padding-right: 5px; }\n",
+            "span.linenos { color: #586e75; background-color: #073642; padding-left: "
+            "5px; padding-right: 5px; }\n",
             "td.linenos .special { color: #000000; background-color: #ffffc0; "
             "padding-left: 5px; padding-right: 5px; }\n",
             "span.linenos.special { color: #000000; background-color: #ffffc0; "
@@ -292,7 +294,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .hll { background-color: #073642 }\n",
             ".highlight { background: #002b36; color: #839496 }\n",
             ".highlight .c { color: #586e75; font-style: italic } /* Comment */\n",
-            ".highlight .err { color: #839496; background-color: #dc322f } /* Error */\n",
+            ".highlight .err { color: #839496; background-color: #dc322f } "
+            "/* Error */\n",
             ".highlight .esc { color: #839496 } /* Escape */\n",
             ".highlight .g { color: #839496 } /* Generic */\n",
             ".highlight .k { color: #859900 } /* Keyword */\n",
@@ -303,23 +306,28 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .p { color: #839496 } /* Punctuation */\n",
             ".highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang "
             "*/\n",
-            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline "
-            "*/\n",
+            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline"
+            " */\n",
             ".highlight .cp { color: #d33682 } /* Comment.Preproc */\n",
             ".highlight .cpf { color: #586e75 } /* Comment.PreprocFile */\n",
-            ".highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */\n",
+            ".highlight .c1 { color: #586e75; font-style: italic } "
+            "/* Comment.Single */\n",
             ".highlight .cs { color: #586e75; font-style: italic } /* Comment.Special "
             "*/\n",
             ".highlight .gd { color: #dc322f } /* Generic.Deleted */\n",
-            ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
+            ".highlight .ge { color: #839496; font-style: italic } "
+            "/* Generic.Emph */\n",
             ".highlight .ges { color: #839496; font-weight: bold; font-style: italic } "
             "/* Generic.EmphStrong */\n",
             ".highlight .gr { color: #dc322f } /* Generic.Error */\n",
-            ".highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */\n",
+            ".highlight .gh { color: #839496; font-weight: bold } "
+            "/* Generic.Heading */\n",
             ".highlight .gi { color: #859900 } /* Generic.Inserted */\n",
             ".highlight .go { color: #839496 } /* Generic.Output */\n",
-            ".highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */\n",
-            ".highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */\n",
+            ".highlight .gp { color: #268bd2; font-weight: bold } "
+            "/* Generic.Prompt */\n",
+            ".highlight .gs { color: #839496; font-weight: bold } "
+            "/* Generic.Strong */\n",
             ".highlight .gu { color: #839496; text-decoration: underline } /* "
             "Generic.Subheading */\n",
             ".highlight .gt { color: #268bd2 } /* Generic.Traceback */\n",
@@ -428,8 +436,8 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             '                  <span class="notRelevant">8</span>\n',
             '                  <span class="notCovered" title="Line 9 not '
             'covered">9</span>\n',
-            '                  <span class="notCovered" title="0/2 branches covered; Line '
-            '10 not covered">10</span>\n',
+            '                  <span class="notCovered" title="0/2 branches covered;'
+            ' Line 10 not covered">10</span>\n',
             '                  <span class="notCovered" title="Line 11 not '
             'covered">11</span>\n',
             '                  <span class="notRelevant">12</span>\n',
@@ -474,7 +482,9 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
 def test_render_xml_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.xml"
     render_xml_coverage_report(
-        sample_report, report_path, datetime.datetime(year=1970, month=1, day=1)
+        sample_report,
+        report_path,
+        datetime.datetime(year=1970, month=1, day=1),  # noqa: DTZ001
     )
     expected = [
         '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE coverage SYSTEM '

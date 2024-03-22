@@ -13,7 +13,7 @@ import pynguin.testcase.statement as stmt
 from pynguin.analyses.module import ModuleTestCluster
 
 
-@pytest.fixture
+@pytest.fixture()
 def benchmark_test_case(constructor_mock, function_mock):
     """Create a test case with a moderately large structure."""
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
@@ -49,7 +49,7 @@ BENCHMARK_REPETITIONS = 2
 
 def test_benchmark_eq(benchmark_test_case):
     cloned = benchmark_test_case.clone()
-    res = all([benchmark_test_case == cloned for _ in range(BENCHMARK_REPETITIONS)])
+    res = all(benchmark_test_case == cloned for _ in range(BENCHMARK_REPETITIONS))
     assert res
 
 
@@ -59,6 +59,6 @@ def test_benchmark_hash(benchmark_test_case):
 
 def test_benchmark_clone(benchmark_test_case):
     cloned = benchmark_test_case.clone()
-    for i in range(BENCHMARK_REPETITIONS):
+    for _i in range(BENCHMARK_REPETITIONS):
         cloned = cloned.clone()
     assert cloned == benchmark_test_case

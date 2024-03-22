@@ -20,7 +20,7 @@ import pynguin.ga.operators.comparator as dc
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture
+@pytest.fixture()
 def comparator():
     return dc.DominanceComparator()
 

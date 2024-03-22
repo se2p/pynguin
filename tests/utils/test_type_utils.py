@@ -150,7 +150,7 @@ def test_is_enum():
     ],
 )
 def test_should_skip_parameter(param_name, result):
-    def inner_func(normal: str, *args, default="foo", **kwargs):
+    def inner_func(normal: str, *args, default="foo", **kwargs):  # noqa: ARG001
         pass  # pragma: no cover
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))

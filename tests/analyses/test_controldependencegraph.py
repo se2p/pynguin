@@ -39,10 +39,9 @@ def test_integration(small_control_flow_graph):
 def small_fixture(x, y):  # pragma: no cover
     if x <= y:
         if x == y:
-            print("Some output")
-        if x > 0:
-            if y == 17:
-                return True
+            pass
+        if x > 0 and y == 17:
+            return True
     return False
 
 
@@ -51,7 +50,7 @@ def small_fixture(x, y):  # pragma: no cover
     [
         pytest.param(
             ProgramGraphNode(index=5),
-            {ControlDependency(0, True)},
+            {ControlDependency(0, True)},  # noqa: FBT003
             id="return True depends on y == 17",
         ),
         pytest.param(ProgramGraphNode(index=0), set(), id="Entry has no dependency"),
@@ -71,7 +70,7 @@ def test_get_control_dependencies(node, deps):
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = list(tracer.get_subject_properties().existing_code_objects.values())[0].cdg
+    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     assert set(cdg.get_control_dependencies(node)) == deps
 
 
@@ -81,6 +80,6 @@ def test_get_control_dependencies_asserts(node):
     adapter = BranchCoverageInstrumentation(tracer)
     transformer = InstrumentationTransformer(tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = list(tracer.get_subject_properties().existing_code_objects.values())[0].cdg
+    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)

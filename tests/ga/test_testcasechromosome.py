@@ -20,12 +20,12 @@ from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_case_chromosome(default_test_case):
     return tcc.TestCaseChromosome(default_test_case)
 
 
-@pytest.fixture
+@pytest.fixture()
 def test_case_chromosome_with_test(default_test_case):
     return tcc.TestCaseChromosome(default_test_case), default_test_case
 
@@ -91,7 +91,7 @@ def test_mutation_insert_none(test_case_chromosome):
 def test_mutation_insert_two(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
-    def side_effect(tc, pos):
+    def side_effect(tc, _):
         tc.add_statement(IntPrimitiveStatement(tc, 5))
         return 0
 
@@ -110,7 +110,7 @@ def test_mutation_insert_two(default_test_case):
 def test_mutation_insert_twice_no_success(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
-    def side_effect(tc, pos):
+    def side_effect(_tc, _pos):
         return -1
 
     test_factory.insert_random_statement.side_effect = side_effect
@@ -128,7 +128,7 @@ def test_mutation_insert_twice_no_success(default_test_case):
 def test_mutation_insert_max_length(default_test_case):
     test_factory = MagicMock(tf.TestFactory)
 
-    def side_effect(tc, pos):
+    def side_effect(tc, _):
         tc.add_statement(IntPrimitiveStatement(tc, 5))
         return 0
 
@@ -225,7 +225,7 @@ def test_mutation_delete_skipping(default_test_case):
 def test_mutate_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
     chromosome.changed = False
-    for i in range(50):
+    for _i in range(50):
         test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     config.configuration.search_algorithm.test_insert_probability = 0.0
     config.configuration.search_algorithm.test_change_probability = 0.0
@@ -242,7 +242,7 @@ def test_mutate_chop(test_case_chromosome_with_test):
 
 def test_mutate_no_chop(test_case_chromosome_with_test):
     chromosome, test_case = test_case_chromosome_with_test
-    for i in range(50):
+    for _i in range(50):
         test_case.add_statement(IntPrimitiveStatement(test_case, 5))
     chromosome.changed = False
     config.configuration.search_algorithm.test_insert_probability = 0.0

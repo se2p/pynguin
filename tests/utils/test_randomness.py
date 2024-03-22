@@ -10,7 +10,7 @@ import hypothesis.strategies as st
 
 from hypothesis import given
 
-import pynguin.utils.randomness as randomness
+from pynguin.utils import randomness
 
 
 def test_next_char_printable():
@@ -28,7 +28,7 @@ def test_next_string_printable():
 
 def test_next_string_zero():
     rand = randomness.next_string(0)
-    assert rand == ""
+    assert not rand
 
 
 def test_next_int():
@@ -75,7 +75,7 @@ def test_next_bytes_valid_bytes():
 def test_choice():
     sequence = ["a", "b", "c"]
     result = randomness.choice(sequence)
-    assert result in ("a", "b", "c")
+    assert result in {"a", "b", "c"}
 
 
 def test_choices():
@@ -83,7 +83,7 @@ def test_choices():
     weights = [0.1, 0.5, 0.3]
     result = randomness.choices(sequence, weights)
     assert len(result) == 1
-    assert result[0] in ("a", "b", "c")
+    assert result[0] in {"a", "b", "c"}
 
 
 def test_get_seed():

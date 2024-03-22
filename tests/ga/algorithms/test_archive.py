@@ -19,14 +19,14 @@ from pynguin.ga.algorithms.archive import MIOPopulationPair
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture
+@pytest.fixture()
 def objectives() -> OrderedSet[ff.TestCaseFitnessFunction]:
     return OrderedSet(
         [MagicMock(ff.TestCaseFitnessFunction), MagicMock(ff.TestCaseFitnessFunction)]
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def short_chromosome() -> tcc.TestCaseChromosome:
     chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 2
@@ -34,7 +34,7 @@ def short_chromosome() -> tcc.TestCaseChromosome:
     return chromosome
 
 
-@pytest.fixture
+@pytest.fixture()
 def long_chromosome() -> tcc.TestCaseChromosome:
     chromosome = MagicMock(tcc.TestCaseChromosome)
     chromosome.size.return_value = 42
@@ -42,7 +42,7 @@ def long_chromosome() -> tcc.TestCaseChromosome:
     return chromosome
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosomes(short_chromosome, long_chromosome) -> list[tcc.TestCaseChromosome]:
     return [long_chromosome, short_chromosome]
 
@@ -75,7 +75,7 @@ def test_update_solution(objectives, chromosomes):
 
 def test_population_pair():
     pair = MIOPopulationPair(0.5, MagicMock())
-    assert pair == pair
+    assert pair == pair  # noqa: PLR0124
 
 
 def test_population_initial_counter():

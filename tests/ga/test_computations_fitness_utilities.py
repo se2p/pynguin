@@ -274,7 +274,7 @@ def test_statement_checked_coverage_half_covered(subject_properties_mock, trace_
     mock_instr_1.file = "foo"
     statement = MagicMock()
     statements = [statement]
-    with patch.object(DynamicSlicer, "slice") as slice_mock:
+    with patch.object(DynamicSlicer, "slice") as slice_mock:  # noqa: SIM117
         with patch.object(statement, "get_position") as position_mock:
             position_mock.return_value = 1
             slice_mock.return_value = [mock_instr_1]
@@ -299,7 +299,7 @@ def test_statement_checked_coverage_fully_covered(subject_properties_mock, trace
 
     statement = MagicMock()
     statements = [statement]
-    with patch.object(DynamicSlicer, "slice") as slice_mock:
+    with patch.object(DynamicSlicer, "slice") as slice_mock:  # noqa: SIM117
         with patch.object(statement, "get_position") as position_mock:
             position_mock.return_value = 1
             slice_mock.return_value = [mock_instr_1, mock_instr_2]

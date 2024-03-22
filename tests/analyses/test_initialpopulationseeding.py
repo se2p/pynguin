@@ -10,8 +10,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import os
-
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -31,30 +30,26 @@ from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFa
 
 @pytest.fixture()
 def seed_modules_path():
-    dummy_test_file = os.path.join(
-        os.path.dirname(__file__),
-        "",
-        "..",
-        "fixtures",
-        "seeding",
-        "initialpopulationseeding",
-        "seedmodules",
+    return (
+        Path(__file__).parent
+        / ".."
+        / "fixtures"
+        / "seeding"
+        / "initialpopulationseeding"
+        / "seedmodules"
     )
-    return dummy_test_file
 
 
 @pytest.fixture()
 def triangle_test_cluster() -> ModuleTestCluster:
-    test_cluster = generate_test_cluster("tests.fixtures.examples.triangle")
-    return test_cluster
+    return generate_test_cluster("tests.fixtures.examples.triangle")
 
 
 @pytest.fixture()
 def dummy_test_cluster() -> ModuleTestCluster:
-    test_cluster = generate_test_cluster(
+    return generate_test_cluster(
         "tests.fixtures.seeding.initialpopulationseeding.dummycontainer"
     )
-    return test_cluster
 
 
 @pytest.fixture()
@@ -113,7 +108,7 @@ def test_get_seeded_testcase(
     ],
 )
 @mock.patch("pynguin.utils.randomness.choice")
-def test_collect_different_types(
+def test_collect_different_types(  # noqa: PLR0917
     rand_mock,
     constant_provider,
     seed_modules_path,
@@ -148,7 +143,7 @@ def test_collect_different_types(
     ],
 )
 @mock.patch("pynguin.utils.randomness.choice")
-def test_create_assertion(
+def test_create_assertion(  # noqa: PLR0917
     rand_mock,
     constant_provider,
     seed_modules_path,

@@ -190,6 +190,7 @@ exclude = [
   "buck-out",
   "build",
   "dist",
+  "docs",
   "node_modules",
   "venv",
   "tests/fixtures/*.py",
@@ -254,6 +255,7 @@ ignore = [
     "PLR0913",  # do not complain about too many arguments to function call
     "PLR2004",  # magic values in comparisons
     "PLR6301",  # method could be a function, class method, or static method
+    "RUF003",   # comment contains ambiguous en dash
     "S101",     # do not complain about using assert statements
 ]
 # Allow unused variables when underscore-prefixed:
@@ -267,5 +269,12 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "S101",  # Use of `assert` detected
+    "D100",   # Missing docstring in public module
+    "D101",   # Missing docstring in public class
+    "D102",   # Missing docstring in public method
+    "D103",   # Missing docstring in public function
+    "D104",   # Missing docstring in public package
+    "PT006",  # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
+    "S101",   # Use of `assert` detected
+    "SLF001", # Private member accessed
 ]

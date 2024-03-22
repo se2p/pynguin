@@ -14,7 +14,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.testcase.statement import AssignmentStatement
 
 
-@pytest.fixture
+@pytest.fixture()
 def assignment_statement(test_case_mock) -> AssignmentStatement:
     lhs = vr.FieldReference(
         vr.VariableReference(test_case_mock, int),
@@ -47,13 +47,16 @@ def test_structural_hash_same(assignment_statement):
 
 
 def test_structural_eq_same(assignment_statement):
+    # fmt: off
     assert assignment_statement.structural_eq(
         assignment_statement,
         {
-            assignment_statement.lhs.get_variable_reference(): assignment_statement.lhs.get_variable_reference(),
+            assignment_statement.lhs.get_variable_reference(): assignment_statement.lhs
+            .get_variable_reference(),
             assignment_statement.rhs: assignment_statement.rhs,
         },
     )
+    # fmt: on
 
 
 def test_structural_eq_other_type(test_case_mock, variable_reference_mock):
@@ -98,11 +101,11 @@ def test_accessible_object(assignment_statement):
 
 
 def test_mutate(assignment_statement):
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017, PT011
         assignment_statement.mutate()
 
 
-def test_get_variable_references(test_case_mock, assignment_statement):
+def test_get_variable_references(assignment_statement):
     result = assignment_statement.get_variable_references()
     assert result == {
         assignment_statement.lhs.get_variable_reference(),

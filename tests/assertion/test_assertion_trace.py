@@ -13,7 +13,7 @@ import pynguin.assertion.assertion_trace as at
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture
+@pytest.fixture()
 def assertion_trace():
     return at.AssertionTrace()
 

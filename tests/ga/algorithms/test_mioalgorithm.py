@@ -22,10 +22,13 @@ def test_parameters_default():
         == config.configuration.mio.initial_config.number_of_tests_per_target
     )
     assert parameters.m == config.configuration.mio.initial_config.number_of_mutations
+    # fmt: off
     assert (
         parameters.Pr
-        == config.configuration.mio.initial_config.random_test_or_from_archive_probability
+        == config.configuration.mio.initial_config
+        .random_test_or_from_archive_probability
     )
+    # fmt: on
     parameters.is_valid()
 
 
@@ -44,10 +47,13 @@ def test_update_parameters_gradual():
             strategy._parameters.n
             == config.configuration.mio.focused_config.number_of_tests_per_target
         )
+        # fmt: off
         assert (
             strategy._parameters.Pr
-            == config.configuration.mio.focused_config.random_test_or_from_archive_probability
+            == config.configuration.mio.focused_config
+            .random_test_or_from_archive_probability
         )
+        # fmt: on
 
 
 def test_update_parameters_focused_phase():

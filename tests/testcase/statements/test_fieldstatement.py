@@ -35,7 +35,7 @@ def test_accessible_object(test_case_mock, variable_reference_mock, field_mock):
 
 def test_field_statement_eq_same(test_case_mock, variable_reference_mock, field_mock):
     statement = stmt.FieldStatement(test_case_mock, field_mock, variable_reference_mock)
-    assert statement.__eq__(statement)
+    assert statement == statement  # noqa: PLR0124
 
 
 def test_constructor_statement_accept(

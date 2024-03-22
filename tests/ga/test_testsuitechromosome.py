@@ -16,7 +16,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosome() -> tsc.TestSuiteChromosome:
     return tsc.TestSuiteChromosome()
 
@@ -66,15 +66,15 @@ def test_total_length_of_test_cases(chromosome):
 
 
 def test_hash(chromosome):
-    assert chromosome.__hash__() != 0
+    assert (hash(chromosome)) != 0
 
 
 def test_eq_self(chromosome):
-    assert chromosome.__eq__(chromosome)
+    assert chromosome == chromosome  # noqa: PLR0124
 
 
 def test_eq_other_type(chromosome):
-    assert not chromosome.__eq__(MagicMock(tc.TestCase))
+    assert chromosome != MagicMock(tc.TestCase)
 
 
 def test_eq_different_size(chromosome):
@@ -82,7 +82,7 @@ def test_eq_different_size(chromosome):
     other = tsc.TestSuiteChromosome()
     other.add_test_case_chromosome(MagicMock(tcc.TestCaseChromosome))
     other.add_test_case_chromosome(MagicMock(tcc.TestCaseChromosome))
-    assert not chromosome.__eq__(other)
+    assert chromosome != other
 
 
 def test_eq_different_tests(chromosome):
@@ -92,7 +92,7 @@ def test_eq_different_tests(chromosome):
     other = tsc.TestSuiteChromosome()
     chromosome.add_test_case_chromosomes([test_1, test_2])
     other.add_test_case_chromosomes([test_1, test_3])
-    assert not chromosome.__eq__(other)
+    assert chromosome != other
 
 
 def test_crossover_wrong_type(chromosome):
@@ -193,8 +193,8 @@ def test_mutate_remove_empty():
         float_mock.side_effect = [1.0, 1.0, 1.0]
         chromosome.mutate()
     assert chromosome.test_case_chromosomes == [test_1]
-    # A test case can only have a size of zero if it was mutated, but this already sets changed to True
-    # So this check is valid
+    # A test case can only have a size of zero if it was mutated, but this already sets
+    # changed to True; so, this check is valid
     assert not chromosome.changed
 
 

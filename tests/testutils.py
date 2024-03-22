@@ -13,8 +13,15 @@ from pynguin.analyses.typesystem import TypeSystem
 
 
 def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
-    """Small helper because TypeInfos need to be aligned, and we don't have one
-    large typesystem during testing but create them in various places."""
+    """Feeds the type system.
+
+    Small helper because TypeInfos need to be aligned, and we don't have one
+    large typesystem during testing but create them in various places.
+
+    Args:
+        system: the type system to feed
+        generic: an accessible to query
+    """
 
     # TODO(fk) think about making this less hacky.
     def feed(typ: ProperType):

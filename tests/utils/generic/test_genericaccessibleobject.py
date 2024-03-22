@@ -41,7 +41,7 @@ def test_no_params():
 
 
 def test_generic_constructor_eq_self(constructor_mock):
-    assert constructor_mock == constructor_mock
+    assert constructor_mock == constructor_mock  # noqa: PLR0124
 
 
 def test_generic_constructor_eq_modified(constructor_mock, type_system):
@@ -74,7 +74,7 @@ def test_generic_constructor_dependencies(constructor_mock, type_system):
 
 
 def test_generic_method_eq_self(method_mock):
-    assert method_mock == method_mock
+    assert method_mock == method_mock  # noqa: PLR0124
 
 
 def test_generic_method_eq_modified(method_mock, type_system):
@@ -105,7 +105,7 @@ def test_generic_method_dependencies(method_mock, type_system):
 
 
 def test_generic_function_eq_self(function_mock):
-    assert function_mock == function_mock
+    assert function_mock == function_mock  # noqa: PLR0124
 
 
 def test_generic_function_eq_modified(function_mock, type_system):
@@ -128,7 +128,7 @@ def test_generic_function_is_function(function_mock):
 
 
 def test_generic_field_eq_self(field_mock):
-    assert field_mock == field_mock
+    assert field_mock == field_mock  # noqa: PLR0124
 
 
 def test_generic_field_eq_modified(field_mock, type_system):

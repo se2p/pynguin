@@ -14,7 +14,7 @@ import pynguin.ga.computations as ff
 from pynguin.ga.chromosome import Chromosome
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosome():
     class DummyChromosome(chrom.Chromosome):
         def mutate(self):

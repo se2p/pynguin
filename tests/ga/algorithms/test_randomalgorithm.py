@@ -26,7 +26,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def executor():
     return MagicMock(TestCaseExecutor)
 
@@ -40,16 +40,16 @@ def test_generate_sequences(executor):
     ).get_search_algorithm()
     algorithm._logger = logger
     algorithm._find_objects_under_test = lambda x: x  # pragma: no cover
-    algorithm.generate_sequence = lambda t, f, e: None  # pragma: no cover
+    algorithm.generate_sequence = lambda _t, _f, _e: None  # pragma: no cover
     test_cases = algorithm.generate_tests()
     assert test_cases.size() == 0
 
 
 def test_generate_sequences_exception(executor):
-    def raise_exception(*args):
+    def raise_exception(*_):
         raise GenerationException("Exception Test")
 
-    def _combine_current_individual(*args):
+    def _combine_current_individual(*_):
         chromosome = MagicMock(tsc.TestSuiteChromosome)
         chromosome.get_fitness.return_value = 1.0
         return chromosome
@@ -115,7 +115,7 @@ def test_random_public_method(executor):
     outs = {out_0, out_1, out_2}
     assert isinstance(algorithm, RandomAlgorithm)
     result = algorithm._random_public_method(outs)
-    assert result == out_0 or result == out_2
+    assert result in {out_0, out_2}
 
 
 @pytest.mark.parametrize("has_exceptions", [pytest.param(True), pytest.param(False)])
@@ -129,9 +129,9 @@ def test_generate_sequence(has_exceptions, executor, default_test_case):
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
     ).get_search_algorithm()
-    algorithm._random_public_method = lambda x: None  # pragma: no cover
+    algorithm._random_public_method = lambda _: None  # pragma: no cover
     default_test_case.add_statement(MagicMock(stmt.Statement, ret_val=MagicMock()))
-    algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
+    algorithm._random_test_cases = lambda _: [default_test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomAlgorithm)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(
@@ -147,8 +147,8 @@ def test_generate_sequence_duplicate(executor, default_test_case):
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, test_cluster
     ).get_search_algorithm()
-    algorithm._random_public_method = lambda x: None  # pragma: no cover
-    algorithm._random_test_cases = lambda x: [default_test_case]  # pragma: no cover
+    algorithm._random_public_method = lambda _: None  # pragma: no cover
+    algorithm._random_test_cases = lambda _: [default_test_case]  # pragma: no cover
     assert isinstance(algorithm, RandomAlgorithm)
     with pytest.raises(GenerationException):
         algorithm.generate_sequence(

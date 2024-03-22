@@ -34,32 +34,28 @@ def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr])
     slice_copy = dynamic_slice.copy()
 
     for unique_instr in dynamic_slice:
-        if (
-            isinstance(unique_instr.arg, BasicBlock)
-            or isinstance(unique_instr.arg, CodeType)
-            or isinstance(unique_instr.arg, tuple)
-        ):
+        if isinstance(unique_instr.arg, BasicBlock | CodeType | tuple):
             # Don't distinguish arguments for basic blocks, code objects and tuples
             jump_instr = _contains_name_argtype(expected_copy, unique_instr)
             try:
                 expected_copy.remove(jump_instr)
                 slice_copy.remove(unique_instr)
-            except ValueError:  # pragma: no cover
+            except ValueError as err:  # pragma: no cover
                 msg = str(unique_instr) + " not in expected slice\n"
                 msg += "Remaining in expected: " + str(expected_copy) + "\n"
                 msg += "Remaining in computed: " + str(slice_copy)
-                raise ValueError(msg)
+                raise ValueError(msg) from err
         else:
             found_instr = _contains_name_arg(expected_slice, unique_instr)
             if found_instr:
                 try:
                     expected_copy.remove(found_instr)
                     slice_copy.remove(unique_instr)
-                except ValueError:  # pragma: no cover
+                except ValueError as err:  # pragma: no cover
                     msg = str(found_instr) + " not in expected slice\n"
                     msg += "Remaining in expected: " + str(expected_copy) + "\n"
                     msg += "Remaining in computed: " + str(slice_copy)
-                    raise ValueError(msg)
+                    raise ValueError(msg) from err
             else:  # pragma: no cover
                 msg = str(unique_instr) + " not in expected slice\n"
                 msg += "Remaining in expected: " + str(expected_copy) + "\n"
@@ -83,17 +79,15 @@ def _contains_name_arg(
 ) -> Instr | None:
     for instr in instr_list:
         if instr.name == unique_instr.name:
-            if isinstance(unique_instr.arg, BasicBlock) or isinstance(
-                unique_instr.arg, CodeType
-            ):
+            if isinstance(unique_instr.arg, BasicBlock | CodeType):
                 # Instruction is a jump to a basic block
                 return instr  # pragma: no cover
-            elif isinstance(unique_instr.arg, tuple) and isinstance(instr.arg, tuple):
+            if isinstance(unique_instr.arg, tuple) and isinstance(instr.arg, tuple):
                 for elem in unique_instr.arg:  # pragma: no cover
                     if elem not in instr.arg:
                         break
                 return instr  # pragma: no cover
-            elif instr.arg == unique_instr.arg:
+            if instr.arg == unique_instr.arg:
                 return instr
     return None  # pragma: no cover
 
@@ -102,9 +96,10 @@ def _contains_name_argtype(
     instr_list: list[Instr], unique_instr: UniqueInstruction
 ) -> Instr | None:
     for instr in instr_list:
-        if instr.name == unique_instr.name:
-            if isinstance(instr.arg, type(unique_instr.arg)):
-                return instr
+        if instr.name == unique_instr.name and isinstance(
+            instr.arg, type(unique_instr.arg)
+        ):
+            return instr
     return None  # pragma: no cover
 
 

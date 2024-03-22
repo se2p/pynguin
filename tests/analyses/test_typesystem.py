@@ -7,9 +7,6 @@
 import inspect
 
 from typing import Any
-from typing import List
-from typing import Set
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 from unittest import mock
@@ -28,7 +25,7 @@ from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
 from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import _is_partial_type_match
+from pynguin.analyses.typesystem import _is_partial_type_match  # noqa: PLC2701
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
@@ -38,7 +35,7 @@ from tests.fixtures.types.subtyping import Sub
 from tests.fixtures.types.subtyping import Super
 
 
-def __dummy(x: int, y: int) -> int:
+def __dummy(x: int, y: int) -> int:  # noqa: FURB118
     return x * y  # pragma: no cover
 
 
@@ -54,7 +51,9 @@ def __untyped_dummy(a, b, c):
     return f"int {a} float {b} any {c}"  # pragma: no cover
 
 
-def __union_dummy(a: int | float, b: int | float) -> int | float:
+def __union_dummy(  # noqa: FURB118
+    a: int | float, b: int | float  # noqa: PYI041
+) -> int | float:
     return a + b  # pragma: no cover
 
 
@@ -66,7 +65,7 @@ def __return_tuple_no_annotation():
     return 23, 42  # pragma: no cover
 
 
-class __TypedDummy:
+class __TypedDummy:  # noqa: N801
     def __init__(self, a: Any) -> None:
         self.__a = a  # pragma: no cover
 
@@ -74,7 +73,7 @@ class __TypedDummy:
         return self.__a  # pragma: no cover
 
 
-class __UntypedDummy:
+class __UntypedDummy:  # noqa: N801
     def __init__(self, a):
         self.__a = a  # pragma: no cover
 
@@ -82,12 +81,12 @@ class __UntypedDummy:
         return self.__a  # pragma: no cover
 
 
-@pytest.fixture
+@pytest.fixture()
 def signature():
     return inspect.signature(__dummy)
 
 
-@pytest.fixture
+@pytest.fixture()
 def inferred_signature(signature, type_system):
     return InferredSignature(
         signature=signature,
@@ -191,7 +190,6 @@ A = TypeVar("A")
             list[int],
             Instance(TypeInfo(list), (Instance(TypeInfo(int)),)),
         ),
-        (list[int], Instance(TypeInfo(list), (Instance(TypeInfo(int)),))),
         (
             set[int],
             Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
@@ -199,18 +197,6 @@ A = TypeVar("A")
         (
             set,
             Instance(TypeInfo(set), (AnyType(),)),
-        ),
-        (set[int], Instance(TypeInfo(set), (Instance(TypeInfo(int)),))),
-        (
-            set[int],
-            Instance(TypeInfo(set), (Instance(TypeInfo(int)),)),
-        ),
-        (
-            dict[int, str],
-            Instance(
-                TypeInfo(dict),
-                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
-            ),
         ),
         (
             dict[int, str],
@@ -226,21 +212,15 @@ A = TypeVar("A")
             ),
         ),
         (
-            Union[int, str],
+            Union[int, str],  # noqa: UP007
             UnionType(
                 (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
-            Union[int, type(None)],
+            Union[int, type(None)],  # noqa: UP007
             UnionType(
                 (NoneType(), Instance(TypeInfo(int))),
-            ),
-        ),
-        (
-            tuple[int, str],
-            TupleType(
-                (Instance(TypeInfo(int)), Instance(TypeInfo(str))),
             ),
         ),
         (
@@ -262,11 +242,6 @@ A = TypeVar("A")
             NoneType(),
         ),
         (A, AnyType()),
-        (
-            list,
-            Instance(TypeInfo(list), (AnyType(),)),
-        ),
-        (tuple, TupleType((AnyType(),), unknown_size=True)),
     ],
 )
 def test_convert_type_hints(hint, expected):
@@ -279,7 +254,7 @@ def test_convert_type_hints(hint, expected):
     "hint, expected",
     [(A, UNSUPPORTED), (list[A], Instance(TypeInfo(list), (UNSUPPORTED,)))],
 )
-def test_convert_type_hint_unsupported(hint, expected):
+def test_convert_type_hint_unsupported(hint, expected):  # noqa: ARG001
     ts = TypeSystem()
     ts.convert_type_hint(hint, unsupported=UNSUPPORTED)
 
@@ -303,7 +278,6 @@ def subtyping_cluster():
         (tuple, int, False, False),
         (int, type(None), False, False),
         (type(None), type(None), True, True),
-        (int, type(None), False, False),
         (type(None), int, False, False),
         (tuple[str], tuple[str, int], False, False),
         (tuple[int, str], tuple[int, str], True, True),
@@ -320,7 +294,7 @@ def subtyping_cluster():
         (int | str, int | str, True, True),
         (int | str | float, int | str, False, True),
         (int | str, int | str | float, True, True),
-        (int, Union[int, None], True, True),
+        (int, Union[int, None], True, True),  # noqa: UP007
         (Sub, Super, True, True),
         (Sub, Super | int, True, True),
         (Sub, Sub | int, True, True),

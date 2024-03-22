@@ -49,4 +49,4 @@ def test_write_data_console_backend(capsys):
     captured = capsys.readouterr()
     assert "foo" in captured.out
     assert "bar" in captured.out
-    assert captured.err == ""
+    assert not captured.err
