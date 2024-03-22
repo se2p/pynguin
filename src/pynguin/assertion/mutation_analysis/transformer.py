@@ -4,9 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides classes for mutation testing.
+"""Provides a transformer for modules ASTs.
 
-Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py.
+Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/utils.py
+and integrated in Pynguin.
 """
 
 import ast

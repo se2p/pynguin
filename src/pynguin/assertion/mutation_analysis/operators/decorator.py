@@ -4,9 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides classes for mutation testing.
+"""Provides decorators operators for mutation analysis.
 
-Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/decorator.py.
+Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/decorator.py
+and integrated in Pynguin.
 """
 
 import ast

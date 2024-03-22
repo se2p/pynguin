@@ -4,9 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides classes for mutation testing.
+"""Provides base classes for mutation operators.
 
-Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/base.py.
+Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/base.py
+and integrated in Pynguin.
 """
 from __future__ import annotations
 

@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides an adapter for the MutPy mutation testing framework."""
+"""Provides a controller for generating mutants."""
 from __future__ import annotations
 
 import ast

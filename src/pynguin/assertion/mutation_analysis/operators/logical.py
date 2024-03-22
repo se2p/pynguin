@@ -4,9 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides classes for mutation testing.
+"""Provides logical operators for mutation analysis.
 
-Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/logical.py.
+Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/logical.py
+and integrated in Pynguin.
 """
 
 import ast
