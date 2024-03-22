@@ -93,6 +93,7 @@ class Mutation:
     """Represents a mutation."""
 
     node: ast.AST
+    replacement_node: ast.AST
     operator: type[MutationOperator]
     visitor_name: str
 
@@ -137,8 +138,15 @@ class MutationOperator:
         """
         operator = cls(module, only_mutation)
 
-        for current_node, mutated_node, visitor_name in operator.visit(node):
-            yield Mutation(current_node, cls, visitor_name), mutated_node
+        for (
+            current_node,
+            replacement_node,
+            mutated_node,
+            visitor_name,
+        ) in operator.visit(node):
+            yield Mutation(
+                current_node, replacement_node, cls, visitor_name
+            ), mutated_node
 
     def __init__(
         self,
@@ -154,7 +162,9 @@ class MutationOperator:
         self.module = module
         self.only_mutation = only_mutation
 
-    def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+    def visit(
+        self, node: T
+    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str], None, None]:
         """Visit a node.
 
         Args:
@@ -185,15 +195,15 @@ class MutationOperator:
                 fix_node_internals(node, mutated_node)
                 ast.fix_missing_locations(mutated_node)
 
-                yield node, mutated_node, visitor.__name__
+                yield node, mutated_node, mutated_node, visitor.__name__
 
         yield from self._generic_visit(node)
 
     def _generic_visit(
         self, node: ast.AST
-    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str], None, None]:
         for field, old_value in ast.iter_fields(node):
-            generator: Iterable[tuple[ast.AST, str]]
+            generator: Iterable[tuple[ast.AST, ast.AST, str]]
             if isinstance(old_value, list):
                 generator = self._generic_visit_list(old_value)
             elif isinstance(old_value, ast.AST):
@@ -201,26 +211,33 @@ class MutationOperator:
             else:
                 generator = ()
 
-            for current_node, visitor_name in generator:
-                yield current_node, node, visitor_name
+            for current_node, replacement_node, visitor_name in generator:
+                yield current_node, replacement_node, node, visitor_name
 
     def _generic_visit_list(
         self, old_value: list
-    ) -> Generator[tuple[ast.AST, str], None, None]:
+    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
         for position, value in enumerate(old_value.copy()):
             if isinstance(value, ast.AST):
-                for current_node, mutated_node, visitor_name in self.visit(value):
+                for (
+                    current_node,
+                    replacement_node,
+                    mutated_node,
+                    visitor_name,
+                ) in self.visit(value):
                     old_value[position] = mutated_node
-                    yield current_node, visitor_name
+                    yield current_node, replacement_node, visitor_name
 
                 old_value[position] = value
 
     def _generic_visit_real_node(
         self, node: ast.AST, field: str, old_value: ast.AST
-    ) -> Generator[tuple[ast.AST, str], None, None]:
-        for current_node, mutated_node, visitor_name in self.visit(old_value):
+    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+        for current_node, replacement_node, mutated_node, visitor_name in self.visit(
+            old_value
+        ):
             setattr(node, field, mutated_node)
-            yield current_node, visitor_name
+            yield current_node, replacement_node, visitor_name
 
         setattr(node, field, old_value)
 
