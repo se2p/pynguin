@@ -9,7 +9,6 @@
 Comes from https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/inheritance.py.
 """
 
-import abc
 import ast
 import functools
 
@@ -190,10 +189,9 @@ def get_super_call(node: ast.FunctionDef) -> tuple[int, ast.stmt] | None:
     return None
 
 
-class AbstractSuperCallingModification(abc.ABC, MutationOperator):
-    """An abstract class that provides methods to mutate super calls."""
+class AbstractSuperCallingModification(MutationOperator):
+    """A class that provides methods to mutate super calls."""
 
-    @abc.abstractmethod
     def should_mutate(self, node: ast.FunctionDef) -> bool:
         """Check if the node should be mutated.
 
