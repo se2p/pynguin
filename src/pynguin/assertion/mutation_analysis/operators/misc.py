@@ -177,49 +177,6 @@ class ConstantReplacement(MutationOperator):
 
         return ast.Constant(new_value)
 
-    def mutate_Num(self, node: ast.Num) -> ast.Num:  # noqa: N802
-        """Mutate a numeric constant by adding 1.
-
-        Args:
-            node: The constant to mutate.
-
-        Returns:
-            The mutated constant.
-        """
-        return ast.Num(node.value + 1)
-
-    def mutate_Str(self, node: ast.Str) -> ast.Str | None:  # noqa: N802
-        """Mutate a string constant by replacing it.
-
-        Args:
-            node: The constant to mutate.
-
-        Returns:
-            The mutated constant, or None if the constant should not be mutated.
-        """
-        new_value = self.help_str(node)
-
-        if new_value is None:
-            return None
-
-        return ast.Str(new_value)
-
-    def mutate_Str_empty(self, node: ast.Str) -> ast.Str | None:  # noqa: N802
-        """Mutate an empty string constant by replacing it.
-
-        Args:
-            node: The constant to mutate.
-
-        Returns:
-            The mutated constant, or None if the constant should not be mutated.
-        """
-        new_value = self.help_str_empty(node)
-
-        if new_value is None:
-            return None
-
-        return ast.Str(new_value)
-
 
 class SliceIndexRemove(MutationOperator):
     """A class that mutates slice indices by removing them."""
