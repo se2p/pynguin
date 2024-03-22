@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
