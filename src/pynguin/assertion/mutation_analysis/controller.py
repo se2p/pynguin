@@ -11,7 +11,6 @@ import ast
 import importlib
 import inspect
 import logging
-import types
 
 from typing import TYPE_CHECKING
 
@@ -21,6 +20,7 @@ import pynguin.assertion.mutation_analysis.strategies as ms
 import pynguin.configuration as config
 
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+from pynguin.assertion.mutation_analysis.transformer import create_module
 from pynguin.utils.exceptions import ConfigurationException
 
 
@@ -75,7 +75,7 @@ class MutationController:
         self,
         mutant_generator: mu.FirstOrderMutator,
         target_ast: ast.Module,
-        target_module: types.ModuleType,
+        target_module: ModuleType,
     ) -> list[tuple[ModuleType, list[Mutation]]]:
         """Creates mutants for the given module.
 
@@ -103,7 +103,7 @@ class MutationController:
 
         return mutants
 
-    def create_module(self, ast_node: ast.Module, module_name: str) -> types.ModuleType:
+    def create_module(self, ast_node: ast.Module, module_name: str) -> ModuleType:
         """Creates a module from an AST node.
 
         Args:
@@ -113,10 +113,7 @@ class MutationController:
         Returns:
             The created module.
         """
-        code = compile(ast_node, module_name, "exec")
-        module = types.ModuleType(module_name)
-        exec(code, module.__dict__)  # noqa: S102
-        return module
+        return create_module(ast_node, module_name)
 
     def _get_mutant_generator(self) -> mu.FirstOrderMutator:
         operators: list[type[MutationOperator]] = [

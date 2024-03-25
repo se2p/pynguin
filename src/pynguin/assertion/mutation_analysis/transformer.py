@@ -12,8 +12,25 @@ and integrated in Pynguin.
 
 import ast
 import copy
+import types
 
 from typing import TypeVar
+
+
+def create_module(ast_node: ast.Module, module_name: str) -> types.ModuleType:
+    """Creates a module from an AST node.
+
+    Args:
+        ast_node: The AST node.
+        module_name: The name of the module.
+
+    Returns:
+        The created module.
+    """
+    code = compile(ast_node, module_name, "exec")
+    module = types.ModuleType(module_name)
+    exec(code, module.__dict__)  # noqa: S102
+    return module
 
 
 T = TypeVar("T", bound=ast.AST)
