@@ -36,7 +36,7 @@ class Mutator(abc.ABC):
     def mutate(
         self,
         target_ast: ast.AST,
-        module: types.ModuleType | None = None,
+        module: types.ModuleType,
     ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
         """Mutate the given AST.
 
@@ -63,7 +63,7 @@ class FirstOrderMutator(Mutator):
     def mutate(  # noqa: D102
         self,
         target_ast: ast.AST,
-        module: types.ModuleType | None = None,
+        module: types.ModuleType,
     ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
         for op in self.operators:
             for mutation, mutant in op.mutate(target_ast, module):
@@ -90,7 +90,7 @@ class HighOrderMutator(FirstOrderMutator):
     def mutate(  # noqa: D102
         self,
         target_ast: ast.AST,
-        module: types.ModuleType | None = None,
+        module: types.ModuleType,
     ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
         mutations = self._generate_all_mutations(module, target_ast)
         for mutations_to_apply in self.hom_strategy.generate(mutations):
@@ -109,7 +109,7 @@ class HighOrderMutator(FirstOrderMutator):
 
     def _generate_all_mutations(
         self,
-        module: types.ModuleType | None,
+        module: types.ModuleType,
         target_ast: ast.AST,
     ) -> list[Mutation]:
         mutations: list[Mutation] = []

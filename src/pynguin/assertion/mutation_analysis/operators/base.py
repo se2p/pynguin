@@ -123,7 +123,7 @@ class MutationOperator:
     def mutate(
         cls,
         node: T,
-        module: types.ModuleType | None = None,
+        module: types.ModuleType,
         only_mutation: Mutation | None = None,
     ) -> Generator[tuple[Mutation, ast.AST], None, None]:
         """Mutate a node.
@@ -150,7 +150,7 @@ class MutationOperator:
 
     def __init__(
         self,
-        module: types.ModuleType | None,
+        module: types.ModuleType,
         only_mutation: Mutation | None,
     ) -> None:
         """Initializes the operator.
