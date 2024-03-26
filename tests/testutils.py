@@ -89,6 +89,13 @@ def assert_mutation(
         not expected_mutants_processed_source_code
     ), f"Remaining mutants: {expected_mutants_processed_source_code}"
 
+    processed_source_code = ast.unparse(module_ast)
+    expected_source_code = ast.unparse(ast.parse(source_code))
+
+    assert (
+        expected_source_code == processed_source_code
+    ), f"Source code changed: {processed_source_code} != {expected_source_code}"
+
 
 def assert_mutator_mutation(
     mutator: FirstOrderMutator,
@@ -135,6 +142,13 @@ def assert_mutator_mutation(
     assert (
         not expected_mutants_processed_source_code
     ), f"Remaining mutants: {expected_mutants_processed_source_code}"
+
+    processed_source_code = ast.unparse(module_ast)
+    expected_source_code = ast.unparse(ast.parse(source_code))
+
+    assert (
+        expected_source_code == processed_source_code
+    ), f"Source code changed: {processed_source_code} != {expected_source_code}"
 
 
 def create_aor_mutation_on_substraction(node: ast.Sub | None = None) -> Mutation:

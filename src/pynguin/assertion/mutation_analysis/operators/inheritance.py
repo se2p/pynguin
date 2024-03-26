@@ -120,8 +120,10 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
         if not node.targets:
             return None
 
-        target = cast(ast.List | ast.Tuple | ast.Set, node.targets[0])
-        value = cast(ast.List | ast.Tuple | ast.Set, node.value)
+        mutated_node = copy_node(node)
+
+        target = cast(ast.List | ast.Tuple | ast.Set, mutated_node.targets[0])
+        value = cast(ast.List | ast.Tuple | ast.Set, mutated_node.value)
 
         new_targets: list[ast.expr] = []
         new_values: list[ast.expr] = []
@@ -131,7 +133,7 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
             ):
                 continue
 
-            overridden = self.is_overridden(node, target_element.id)
+            overridden = self.is_overridden(mutated_node, target_element.id)
 
             if overridden is None:
                 return None
@@ -146,12 +148,12 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
         if not new_targets:
             return ast.Pass()
         if len(new_targets) == 1 and len(new_values) == 1:
-            node.targets = new_targets
-            node.value = new_values[0]
-            return node
+            mutated_node.targets = new_targets
+            mutated_node.value = new_values[0]
+            return mutated_node
         target.elts = new_targets
         value.elts = new_values
-        return node
+        return mutated_node
 
 
 def is_super_call(node: ast.FunctionDef, stmt: ast.stmt) -> bool:
