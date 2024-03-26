@@ -14,6 +14,7 @@ from __future__ import annotations
 import abc
 import ast
 import copy
+import re
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -243,11 +244,11 @@ class MutationOperator:
 
     def _find_visitors(self, node: T) -> list[Callable[[T], ast.AST | None]]:
         node_name = node.__class__.__name__
-        method_prefix = f"mutate_{node_name}"
+        method_prefix_pattern = re.compile(f"^mutate_{node_name}(_\\w+)?$")
         return [
             visitor
             for attr in dir(self)
-            if attr.startswith(method_prefix)
+            if method_prefix_pattern.match(attr) is not None
             and callable(visitor := getattr(self, attr))
         ]
 
