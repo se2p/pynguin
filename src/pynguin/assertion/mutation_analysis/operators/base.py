@@ -98,6 +98,17 @@ class Mutation:
     operator: type[MutationOperator]
     visitor_name: str
 
+    def __post_init__(self):
+        """Initialize the mutation.
+
+        Raises:
+            ValueError: If the visitor is not found in the operator.
+        """
+        if self.visitor_name not in dir(self.operator):
+            raise ValueError(
+                f"Visitor {self.visitor_name} not found in operator {self.operator}"
+            )
+
 
 def copy_node(node: T) -> T:
     """Copy a node.
