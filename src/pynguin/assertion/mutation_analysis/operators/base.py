@@ -89,7 +89,7 @@ def shift_lines(nodes: list[T], shift_by: int = 1) -> None:
         ast.increment_lineno(node, shift_by)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Mutation:
     """Represents a mutation."""
 
