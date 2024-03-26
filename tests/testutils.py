@@ -12,6 +12,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
 from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     ArithmeticOperatorReplacement,
 )
@@ -47,13 +48,15 @@ def assert_mutation(
     operator: type[MutationOperator],
     source_code: str,
     expected_mutants_source_code: dict[str, tuple[str, type[ast.AST], type[ast.AST]]],
-):
+) -> None:
     module_ast = ParentNodeTransformer.create_ast(source_code)
     module = create_module(module_ast, "mutant")
 
     expected_mutants_processed_source_code = {
-        ast.unparse(ParentNodeTransformer.create_ast(mutant_source_code)): mutant_info
-        for mutant_source_code, mutant_info in expected_mutants_source_code.items()
+        ast.unparse(
+            ParentNodeTransformer.create_ast(expected_mutant_source_code)
+        ): expected_mutant_info
+        for expected_mutant_source_code, expected_mutant_info in expected_mutants_source_code.items()
     }
 
     for mutation, mutant_ast in operator.mutate(module_ast, module):
@@ -68,19 +71,65 @@ def assert_mutation(
             mutant_source_code in expected_mutants_processed_source_code
         ), f"{repr(mutant_source_code)} not in {expected_mutants_processed_source_code}"
 
-        visitor_name, node_type, replacement_node_type = (
-            expected_mutants_processed_source_code.pop(mutant_source_code)
+        expected_mutant_info = expected_mutants_processed_source_code.pop(
+            mutant_source_code
+        )
+
+        mutant_info = (
+            mutation.visitor_name,
+            type(mutation.node),
+            type(mutation.replacement_node),
         )
 
         assert (
-            mutation.visitor_name == visitor_name
-        ), f"{mutation.visitor_name} is not {visitor_name}"
-        assert isinstance(
-            mutation.node, node_type
-        ), f"{mutation.node} is not {node_type}"
-        assert isinstance(
-            mutation.replacement_node, replacement_node_type
-        ), f"{mutation.replacement_node} is not {replacement_node_type}"
+            expected_mutant_info == mutant_info
+        ), f"{expected_mutant_info} != {mutant_info}"
+
+    assert (
+        not expected_mutants_processed_source_code
+    ), f"Remaining mutants: {expected_mutants_processed_source_code}"
+
+
+def assert_mutator_mutation(
+    mutator: FirstOrderMutator,
+    source_code: str,
+    expected_mutants_source_code: dict[
+        str, set[tuple[str, type[ast.AST], type[ast.AST]]]
+    ],
+) -> None:
+    module_ast = ParentNodeTransformer.create_ast(source_code)
+    module = create_module(module_ast, "mutant")
+
+    expected_mutants_processed_source_code = {
+        ast.unparse(
+            ParentNodeTransformer.create_ast(expected_mutant_source_code)
+        ): expected_mutant_info
+        for expected_mutant_source_code, expected_mutant_info in expected_mutants_source_code.items()
+    }
+
+    for mutations, mutant_ast in mutator.mutate(module_ast, module):
+        mutant_source_code = ast.unparse(mutant_ast)
+
+        assert (
+            mutant_source_code in expected_mutants_processed_source_code
+        ), f"{repr(mutant_source_code)} not in {expected_mutants_processed_source_code}"
+
+        expected_mutant_info = expected_mutants_processed_source_code.pop(
+            mutant_source_code
+        )
+
+        mutant_info = {
+            (
+                mutation.visitor_name,
+                type(mutation.node),
+                type(mutation.replacement_node),
+            )
+            for mutation in mutations
+        }
+
+        assert (
+            expected_mutant_info == mutant_info
+        ), f"{expected_mutant_info} != {mutant_info}"
 
     assert (
         not expected_mutants_processed_source_code
