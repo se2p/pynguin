@@ -94,7 +94,7 @@ def assert_mutator_mutation(
     mutator: FirstOrderMutator,
     source_code: str,
     expected_mutants_source_code: dict[
-        str, set[tuple[str, type[ast.AST], type[ast.AST]]]
+        str, set[tuple[type[MutationOperator], str, type[ast.AST], type[ast.AST]]]
     ],
 ) -> None:
     module_ast = ParentNodeTransformer.create_ast(source_code)
@@ -120,6 +120,7 @@ def assert_mutator_mutation(
 
         mutant_info = {
             (
+                mutation.operator,
                 mutation.visitor_name,
                 type(mutation.node),
                 type(mutation.replacement_node),

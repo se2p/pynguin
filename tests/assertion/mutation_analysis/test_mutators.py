@@ -37,7 +37,7 @@ def test_first_order_mutator_generation():
                 z = 0
                 z -= x + y
                 """
-            ): {("mutate_Add", ast.Add, ast.Sub)},
+            ): {(AssignmentOperatorReplacement, "mutate_Add", ast.Add, ast.Sub)},
             inspect.cleandoc(
                 """
                 x = 1
@@ -45,6 +45,6 @@ def test_first_order_mutator_generation():
                 z = 0
                 z += x - y
                 """
-            ): {("mutate_Add", ast.Add, ast.Sub)},
+            ): {(ArithmeticOperatorReplacement, "mutate_Add", ast.Add, ast.Sub)},
         },
     )
