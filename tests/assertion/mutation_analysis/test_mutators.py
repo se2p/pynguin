@@ -130,8 +130,8 @@ def test_high_order_mutator_generation_with_multiple_visitors():
         ),
         {
             inspect.cleandoc(
-                """
-                x = 'mutpy'
+                f"""
+                x = '{ConstantReplacement.FIRST_CONST_STRING}'
                 """
             ): {
                 (
