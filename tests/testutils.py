@@ -12,7 +12,11 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeSystem
-from pynguin.assertion.mutation_analysis.operators import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.arithmetic import (
+    ArithmeticOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.operators.base import Mutation
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.assertion.mutation_analysis.transformer import create_module
 
@@ -81,3 +85,15 @@ def assert_mutation(
     assert (
         not expected_mutants_processed_source_code
     ), f"Remaining mutants: {expected_mutants_processed_source_code}"
+
+
+def create_aor_mutation_on_substraction(node: ast.Sub | None = None) -> Mutation:
+    if node is None:
+        node = ast.Sub(children=[])
+
+    return Mutation(
+        node=node,
+        replacement_node=ast.Add(children=[]),
+        operator=ArithmeticOperatorReplacement,
+        visitor_name="mutate_Sub",
+    )
