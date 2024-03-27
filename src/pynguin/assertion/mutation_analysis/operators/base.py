@@ -140,6 +140,10 @@ class MutationOperator:
     ) -> Generator[tuple[Mutation, ast.AST], None, None]:
         """Mutate a node.
 
+        This method will temporarily modify the node provided and yield itself modified
+        with the mutations. If you want to keep the original node while using the
+        generator, you should copy it before passing it to this method.
+
         Args:
             node: The node to mutate.
             module: The module to use.
@@ -179,11 +183,15 @@ class MutationOperator:
     ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str], None, None]:
         """Visit a node.
 
+        This method will temporarily modify the node provided and yield itself modified
+        with other information. If you want to keep the original node while using the
+        generator, you should copy it before passing it to this method.
+
         Args:
             node: The node to visit.
 
         Yields:
-            A tuple containing the current node, the mutated node, and the visitor name.
+            A tuple (current node, replacement node, mutated node, visitor name).
         """
         node_children = node.children  # type: ignore[attr-defined]
 
