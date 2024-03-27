@@ -189,12 +189,3 @@ def next_bytes(length: int) -> bytes:
         Random bytes of given length.
     """
     return bytes(next_byte() for _ in range(length))
-
-
-def shuffle(ls: list) -> None:
-    """Shuffle the given list.
-
-    Args:
-        ls: The list to shuffle.
-    """
-    RNG.shuffle(ls)

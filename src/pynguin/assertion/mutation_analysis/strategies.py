@@ -155,7 +155,7 @@ class RandomHOMStrategy(HOMStrategy):
         self, mutations: list[Mutation]
     ) -> Generator[list[Mutation], None, None]:
         mutations = mutations.copy()
-        randomness.shuffle(mutations)
+        randomness.RNG.shuffle(mutations)
         while mutations:
             mutations_to_apply: list[Mutation] = []
             available_mutations = mutations.copy()
