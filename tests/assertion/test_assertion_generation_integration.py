@@ -6,11 +6,14 @@
 #
 import ast
 import importlib
+import inspect
 import threading
 
 import pytest
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.mutation_analysis.mutators as mu
+import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -20,6 +23,7 @@ import pynguin.utils.namingscope as ns
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
@@ -54,7 +58,8 @@ def test_generate_mutation_assertions(generator, expected_result):
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
-        importlib.reload(importlib.import_module(module_name))
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
         transformer.visit(
@@ -73,7 +78,19 @@ def test_generate_mutation_assertions(generator, expected_result):
         suite = tsc.TestSuiteChromosome()
         suite.add_test_case_chromosome(chromosome)
 
-        gen = generator(TestCaseExecutor(tracer))
+        if generator is ag.MutationAnalysisAssertionGenerator:
+            mutant_generator = mu.FirstOrderMutator(
+                [*mo.standard_operators, *mo.experimental_operators]
+            )
+            module_source_code = inspect.getsource(module)
+            module_ast = ParentNodeTransformer.create_ast(module_source_code)
+            mutation_tracer = ExecutionTracer()
+            mutation_controller = ag.InstrumentedMutationController(
+                mutant_generator, module_ast, module, mutation_tracer
+            )
+            gen = generator(TestCaseExecutor(tracer), mutation_controller)
+        else:
+            gen = generator(TestCaseExecutor(tracer))
         suite.accept(gen)
 
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
@@ -265,7 +282,8 @@ def test_mutation_analysis_integration_full(
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
-        importlib.reload(importlib.import_module(module_name))
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
         transformer.visit(ast.parse(test_case_str))
@@ -275,8 +293,17 @@ def test_mutation_analysis_integration_full(
         suite = tsc.TestSuiteChromosome()
         suite.add_test_case_chromosome(chromosome)
 
+        mutant_generator = mu.FirstOrderMutator(
+            [*mo.standard_operators, *mo.experimental_operators]
+        )
+        module_source_code = inspect.getsource(module)
+        module_ast = ParentNodeTransformer.create_ast(module_source_code)
+        mutation_tracer = ExecutionTracer()
+        mutation_controller = ag.InstrumentedMutationController(
+            mutant_generator, module_ast, module, mutation_tracer, testing=True
+        )
         gen = ag.MutationAnalysisAssertionGenerator(
-            TestCaseExecutor(tracer), testing=True
+            TestCaseExecutor(tracer), mutation_controller, testing=True
         )
         suite.accept(gen)
 
@@ -292,7 +319,7 @@ def test_mutation_analysis_integration_full(
         )
 
         assert summary.get_metrics() == metrics
-        assert gen._testing_created_mutants == mutants
+        assert mutation_controller._testing_created_mutants == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(

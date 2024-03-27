@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
 import pynguin.assertion.assertiontraceobserver as ato
-import pynguin.assertion.mutation_analysis.controller as c
+import pynguin.assertion.mutation_analysis.controller as ct
+import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
@@ -230,12 +231,52 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationController):
-    """Uses mutation analysis to filter out less relevant assertions."""
+class InstrumentedMutationController(ct.MutationController):
+    """A controller that creates instrumented mutants."""
 
-    def create_module(  # noqa: D102
-        self, ast_node: ast.Module, module_name: str
-    ) -> types.ModuleType:
+    def __init__(
+        self,
+        mutant_generator: mu.Mutator,
+        module_ast: ast.Module,
+        module: types.ModuleType,
+        tracer: ex.ExecutionTracer,
+        *,
+        testing: bool = False,
+    ) -> None:
+        """Create new controller.
+
+        Args:
+            mutant_generator: The mutant generator.
+            module_ast: The module AST.
+            module: The module.
+            tracer: The execution tracer.
+            testing: Enable test mode, currently required for integration testing.
+        """
+        super().__init__(mutant_generator, module_ast, module)
+
+        self._tracer = tracer
+
+        self._transformer = build_transformer(
+            tracer,
+            {config.CoverageMetric.BRANCH},
+            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
+        )
+
+        # Some debug information
+        self._testing = testing
+        self._testing_created_mutants: list[str] = []
+
+    @property
+    def tracer(self) -> ex.ExecutionTracer:
+        """Provides the execution tracer.
+
+        Returns:
+            The execution tracer.
+        """
+        return self._tracer
+
+    def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
+        module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
             self._testing_created_mutants.append(ast.unparse(ast_node))
@@ -244,34 +285,49 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator, c.MutationControlle
         exec(code, module.__dict__)  # noqa: S102
         return module
 
-    def __init__(self, plain_executor: ex.TestCaseExecutor, *, testing: bool = False):
+
+class MutationAnalysisAssertionGenerator(AssertionGenerator):
+    """Uses mutation analysis to filter out less relevant assertions."""
+
+    def __init__(
+        self,
+        plain_executor: ex.TestCaseExecutor,
+        mutation_controller: InstrumentedMutationController,
+        *,
+        testing: bool = False,
+    ):
         """Initializes the generator.
 
         Args:
             plain_executor: Executor used for plain execution
+            mutation_controller: Controller for mutation analysis
             testing: Enable test mode, currently required for integration testing.
         """
         super().__init__(plain_executor)
 
         # We use a separate tracer and executor to execute tests on the mutants.
-        self._mutation_tracer = ex.ExecutionTracer()
-        self._mutation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
-        self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer)
+        self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
         self._mutation_executor.add_observer(ato.AssertionVerificationObserver())
 
-        self._transformer = build_transformer(
-            self._mutation_tracer,
-            {config.CoverageMetric.BRANCH},
-            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
+        mutation_controller.tracer.current_thread_identifier = (
+            threading.current_thread().ident
         )
+        self._mutated_modules = [
+            module for module, _ in mutation_controller.create_mutants()
+        ]
+
         # Some debug information
         self._testing = testing
-        self._testing_created_mutants: list[str] = []
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
 
-        self._mutated_modules = [module for module, _ in self.mutate_module()]
+    @property
+    def mutated_modules(self) -> list[types.ModuleType]:
+        """Provides the mutated modules.
+
+        Returns:
+            The mutated modules.
+        """
+        return self._mutated_modules
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
