@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import enum
 import importlib
+import inspect
 import json
 import logging
 import sys
@@ -31,6 +32,9 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.mutation_analysis.mutators as mu
+import pynguin.assertion.mutation_analysis.operators as mo
+import pynguin.assertion.mutation_analysis.strategies as ms
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.chromosomevisitor as cv
@@ -47,6 +51,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
@@ -55,6 +60,7 @@ from pynguin.testcase.execution import AssertionExecutionObserver
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -62,7 +68,10 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 
 
@@ -592,14 +601,70 @@ def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
     )
 
 
+_strategies: dict[config.MutationStrategy, Callable[[int], ms.HOMStrategy]] = {
+    config.MutationStrategy.FIRST_TO_LAST: ms.FirstToLastHOMStrategy,
+    config.MutationStrategy.BETWEEN_OPERATORS: ms.BetweenOperatorsHOMStrategy,
+    config.MutationStrategy.RANDOM: ms.RandomHOMStrategy,
+    config.MutationStrategy.EACH_CHOICE: ms.EachChoiceHOMStrategy,
+}
+
+
+def _setup_mutant_generator() -> mu.Mutator:
+    operators: list[type[MutationOperator]] = [
+        *mo.standard_operators,
+        *mo.experimental_operators,
+    ]
+
+    mutation_strategy = config.configuration.test_case_output.mutation_strategy
+
+    if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
+        return mu.FirstOrderMutator(operators)
+
+    order = config.configuration.test_case_output.mutation_order
+
+    if order <= 0:
+        raise ConfigurationException("Mutation order should be > 0.")
+
+    if mutation_strategy in _strategies:
+        hom_strategy = _strategies[mutation_strategy](order)
+        return mu.HighOrderMutator(operators, hom_strategy=hom_strategy)
+
+    raise ConfigurationException("No suitable mutation strategy found.")
+
+
+def _setup_mutation_analysis_assertion_generator(
+    executor: TestCaseExecutor,
+) -> ag.MutationAnalysisAssertionGenerator:
+    _LOGGER.info("Setup mutation generator")
+    mutant_generator = _setup_mutant_generator()
+
+    _LOGGER.info("Import module %s", config.configuration.module_name)
+    module = importlib.import_module(config.configuration.module_name)
+
+    _LOGGER.info("Build AST for %s", module.__name__)
+    module_source_code = inspect.getsource(module)
+    module_ast = ParentNodeTransformer.create_ast(module_source_code)
+
+    _LOGGER.info("Mutate module %s", module.__name__)
+    mutation_tracer = ExecutionTracer()
+    mutation_controller = ag.InstrumentedMutationController(
+        mutant_generator, module_ast, module, mutation_tracer
+    )
+    assertion_generator = ag.MutationAnalysisAssertionGenerator(
+        executor, mutation_controller
+    )
+
+    _LOGGER.info("Generated %d mutants", len(assertion_generator.mutated_modules))
+    return assertion_generator
+
+
 def _generate_assertions(executor, generation_result):
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen != config.AssertionGenerator.NONE:
         _LOGGER.info("Start generating assertions")
+        generator: cv.ChromosomeVisitor
         if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
-            generator: cv.ChromosomeVisitor = ag.MutationAnalysisAssertionGenerator(
-                executor
-            )
+            generator = _setup_mutation_analysis_assertion_generator(executor)
         else:
             generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)
