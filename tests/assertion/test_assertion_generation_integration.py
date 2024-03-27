@@ -282,8 +282,8 @@ def test_mutation_analysis_integration_full(
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        module_type = importlib.import_module(module_name)
+        importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
         transformer.visit(ast.parse(test_case_str))
@@ -296,11 +296,11 @@ def test_mutation_analysis_integration_full(
         mutant_generator = mu.FirstOrderMutator(
             [*mo.standard_operators, *mo.experimental_operators]
         )
-        module_source_code = inspect.getsource(module)
+        module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
         mutation_tracer = ExecutionTracer()
         mutation_controller = ag.InstrumentedMutationController(
-            mutant_generator, module_ast, module, mutation_tracer, testing=True
+            mutant_generator, module_ast, module_type, mutation_tracer, testing=True
         )
         gen = ag.MutationAnalysisAssertionGenerator(
             TestCaseExecutor(tracer), mutation_controller, testing=True
