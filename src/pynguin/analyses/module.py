@@ -32,6 +32,7 @@ from typing import Any
 
 import astroid
 
+import pynguin.configuration as config
 import pynguin.utils.statistics.statistics as stat
 import pynguin.utils.typetracing as tt
 
@@ -85,7 +86,8 @@ AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.Functi
 
 LOGGER = logging.getLogger(__name__)
 
-# A set of modules that shall be blacklisted from analysis (keep them sorted!!!):
+# A set of modules that shall be blacklisted from analysis (keep them sorted to ease
+# future manipulations or looking up module names of this set!!!):
 # The modules that are listed here are not prohibited from execution, but Pynguin will
 # not consider any classes or functions from these modules for generating inputs to
 # other routines
@@ -188,27 +190,30 @@ def _is_blacklisted(element: Any) -> bool:
     Returns:
         Is the element blacklisted?
     """
+    module_blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
+    method_blacklist = set(METHOD_BLACKLIST).union(config.configuration.ignore_methods)
+
     if inspect.ismodule(element):
-        return element.__name__ in MODULE_BLACKLIST
+        return element.__name__ in module_blacklist
     if inspect.isclass(element):
         if element.__module__ == "builtins" and (
             element in PRIMITIVES or element in COLLECTIONS
         ):
             # Allow some builtin types
             return False
-        return element.__module__ in MODULE_BLACKLIST
+        return element.__module__ in module_blacklist
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
         return (
-            element.__module__ in MODULE_BLACKLIST
+            element.__module__ in module_blacklist
             or element.__qualname__.startswith(
                 (
                     "main",
                     "test",
                 )
             )
-            or f"{element.__module__}.{element.__qualname__}" in METHOD_BLACKLIST
+            or f"{element.__module__}.{element.__qualname__}" in method_blacklist
         )
     # Something that is not supported yet.
     return False
