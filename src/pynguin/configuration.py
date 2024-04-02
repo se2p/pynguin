@@ -627,6 +627,12 @@ class Configuration:
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
 
+    ignore_modules: list[str] = dataclasses.field(default_factory=list)
+    """Ignore the modules specified here from the module analysis."""
+
+    ignore_methods: list[str] = dataclasses.field(default_factory=list)
+    """Ignore the methods specified here from the module analysis."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(
