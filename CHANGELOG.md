@@ -11,6 +11,13 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.36.0
+
+- Remove unused code
+- Fix `ruff` warnings
+- Add sequence variable for type-evolution tracking
+- Add CLI options to ignore methods and modules from analysis (see #62)
+
 ## Pynguin 0.35.0
 
 - Fix `TypeError` bug in instrumentation of bytecode (see GitHub PR #51)
