@@ -544,6 +544,16 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 cfg.add_edge(predecessor_node, successor_node, **attrs)
 
     @staticmethod
+    def _infinite_loop_nodes(cfg: CFG) -> set[ProgramGraphNode]:
+        nodes: set[ProgramGraphNode] = set()
+        exit_nodes = cfg.exit_nodes
+        for node in cfg.nodes:
+            successors = cfg.get_successors(node)
+            if node in successors and successors.isdisjoint(exit_nodes):
+                nodes.add(node)
+        return nodes
+
+    @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> CFG:
         dummy_entry_node = ProgramGraphNode(index=-1, is_artificial=True)
         # Search node with index 0. This block contains the instruction where
@@ -567,6 +577,8 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         cfg.add_node(dummy_exit_node)
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, dummy_exit_node)
+        for infinite_loop_node in CFG._infinite_loop_nodes(cfg):
+            cfg.add_edge(infinite_loop_node, dummy_exit_node)
         return cfg
 
     @property
