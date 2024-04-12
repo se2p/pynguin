@@ -40,6 +40,8 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.module import CallableData
+    from pynguin.analyses.module import SignatureInfo
+    from pynguin.analyses.module import TypeGuessingStats
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 
@@ -156,12 +158,13 @@ class _TypeExpansionVisitor(TypeVisitor[set[str]]):
         return {"<?>"}
 
 
-def convert_parameter(
+def convert_parameter(  # noqa: PLR0917
     file_name: str,
     function_node: AstroidFunctionDef,
     parameter_name: str,
     signature: InferredSignature,
     function_name: str,
+    signature_info: SignatureInfo | None,
 ) -> TypeEvalPySchemaParameter:
     """Converts the parameter type of a function's parameter.
 
@@ -171,6 +174,7 @@ def convert_parameter(
         parameter_name: the name of the parameter to convert
         signature: information about the type signature of the function
         function_name: name of the function/method
+        signature_info: signature info
 
     Returns:
         A schema function parameter object for the TypeEvalPy schema
@@ -200,6 +204,10 @@ def convert_parameter(
                     for guessed_type in guessed_types
                     for type_ in guessed_type.accept(visitor)
                 )
+            if signature_info is not None:
+                guessed = signature_info.guessed_parameter_types.get(param_name)
+                if guessed is not None:
+                    result.update(guessed)
         return sorted(result)
 
     parameter_node = find_parameter_node(function_node.args, parameter_name)
@@ -267,6 +275,7 @@ def provide_json(
     file_name: str,
     accessibles: OrderedSet[GenericAccessibleObject],
     function_data: dict[GenericAccessibleObject, CallableData],
+    stats: TypeGuessingStats,
 ) -> str:
     """Provide the JSON string representation for the callables in the SUT.
 
@@ -275,6 +284,7 @@ def provide_json(
         accessibles: the set of all accessibles from the SUT
         function_data: a map of accessibles and their respecitve information from the
                        analyses
+        stats: type guessing stats
 
     Returns:
         JSON string
@@ -300,8 +310,12 @@ def provide_json(
         if callable_data is not None and callable_data.tree is not None:
             signature = accessible.inferred_signature
             tree = callable_data.tree
+            name = f"{config.configuration.module_name}.{function_name}"
+            signature_info = stats.signature_infos.get(name)
             parameter_jsons = [
-                convert_parameter(file_name, tree, parameter, signature, function_name)
+                convert_parameter(
+                    file_name, tree, parameter, signature, function_name, signature_info
+                )
                 for parameter in signature.original_parameters
             ]
             schema_elements.extend(parameter_jsons)

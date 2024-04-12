@@ -598,6 +598,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                 f"{config.configuration.module_name.split('.')[-1]}.py",
                 self.__accessible_objects_under_test,
                 self.__function_data_for_accessibles,
+                stats,
             ),
             encoding="utf-8",
         )
