@@ -22,19 +22,6 @@ files = [
 ]
 
 [[package]]
-name = "astmonkey"
-version = "0.3.6"
-description = "astmonkey is a set of tools to play with Python AST."
-optional = false
-python-versions = "*"
-files = [
-    {file = "astmonkey-0.3.6.tar.gz", hash = "sha256:f82dbdd18a2d1810ef43782d3a29743bacd2b09422b8193a72a572b118c8cfb5"},
-]
-
-[package.dependencies]
-pydot = "*"
-
-[[package]]
 name = "astroid"
 version = "3.1.0"
 description = "An abstract syntax tree for Python with inference support."
@@ -783,26 +770,6 @@ files = [
 dill = ">=0.3.8"
 
 [[package]]
-name = "mutpy-pynguin"
-version = "0.7.1"
-description = "Mutation testing tool for Python 3.x source code."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "MutPy-Pynguin-0.7.1.tar.gz", hash = "sha256:31fe168eff221ece0129768b68375ca0d03c6514567caf19878ae7a618b9ab89"},
-    {file = "MutPy_Pynguin-0.7.1-py3-none-any.whl", hash = "sha256:9c6ce1afe1f818e97a16f498d0f3ecf65127d93ac74f70eea5ee7b0833122a4e"},
-]
-
-[package.dependencies]
-astmonkey = ">=0.3.6"
-Jinja2 = ">=2.7.1"
-PyYAML = ">=5.3.1"
-termcolor = ">=1.0.0"
-
-[package.extras]
-pytest = ["pytest (>=3.0)"]
-
-[[package]]
 name = "mypy"
 version = "1.9.0"
 description = "Optional static typing for Python"
@@ -963,25 +930,6 @@ pyyaml = ">=5.1"
 virtualenv = ">=20.10.0"
 
 [[package]]
-name = "pydot"
-version = "2.0.0"
-description = "Python interface to Graphviz's Dot"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "pydot-2.0.0-py3-none-any.whl", hash = "sha256:408a47913ea7bd5d2d34b274144880c1310c4aee901f353cf21fe2e526a4ea28"},
-    {file = "pydot-2.0.0.tar.gz", hash = "sha256:60246af215123fa062f21cd791be67dda23a6f280df09f68919e637a1e4f3235"},
-]
-
-[package.dependencies]
-pyparsing = ">=3"
-
-[package.extras]
-dev = ["black", "chardet"]
-release = ["zest.releaser[recommended]"]
-tests = ["black", "chardet", "tox"]
-
-[[package]]
 name = "pygments"
 version = "2.17.2"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -995,20 +943,6 @@ files = [
 [package.extras]
 plugins = ["importlib-metadata"]
 windows-terminal = ["colorama (>=0.4.6)"]
-
-[[package]]
-name = "pyparsing"
-version = "3.1.2"
-description = "pyparsing module - Classes and methods to define and execute parsing grammars"
-optional = false
-python-versions = ">=3.6.8"
-files = [
-    {file = "pyparsing-3.1.2-py3-none-any.whl", hash = "sha256:f9db75911801ed778fe61bb643079ff86601aca99fcae6345aa67292038fb742"},
-    {file = "pyparsing-3.1.2.tar.gz", hash = "sha256:a1bac0ce561155ecc3ed78ca94d3c9378656ad4c94c1270de543f621420f94ad"},
-]
-
-[package.extras]
-diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "pytest"
@@ -1609,4 +1543,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <3.11"
-content-hash = "7aa65631b75ac0c83bc1b98b7e93ad05b4cbaf6793d80852027580975f58da8b"
+content-hash = "c721853532e0e2a60c1e37e1374baf7ea3f52a57e2809f94b85a9f16e7e5be71"
