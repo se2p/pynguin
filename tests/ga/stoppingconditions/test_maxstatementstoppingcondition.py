@@ -4,10 +4,11 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from unittest.mock import MagicMock
+
 import pytest
 
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
-from unittest.mock import MagicMock
 
 
 @pytest.fixture()

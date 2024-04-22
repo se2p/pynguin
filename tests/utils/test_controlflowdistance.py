@@ -19,9 +19,9 @@ import pytest
 from hypothesis import assume
 from hypothesis import given
 
-from pynguin.testcase.execution import ExecutionResult
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.controlflowdistance import ControlFlowDistance
 from pynguin.utils.controlflowdistance import get_root_control_flow_distance
 

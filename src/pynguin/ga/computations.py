@@ -19,9 +19,9 @@ from typing import TypeVar
 
 import pynguin.utils.opcodes as op
 
+from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
-from pynguin.instrumentation.tracer import ExecutionTrace
 
 
 if TYPE_CHECKING:
@@ -440,17 +440,11 @@ class ComputationCache:
         coverage_cache: dict[CoverageFunction, float] | None = None,
     ):
         self._chromosome = chromosome
-        self._fitness_functions = fitness_functions if fitness_functions else []
-        self._coverage_functions = coverage_functions if coverage_functions else []
-        self._fitness_cache: dict[FitnessFunction, float] = (
-            fitness_cache if fitness_cache else {}
-        )
-        self._is_covered_cache: dict[FitnessFunction, bool] = (
-            is_covered_cache if is_covered_cache else {}
-        )
-        self._coverage_cache: dict[CoverageFunction, float] = (
-            coverage_cache if coverage_cache else {}
-        )
+        self._fitness_functions = fitness_functions or []
+        self._coverage_functions = coverage_functions or []
+        self._fitness_cache: dict[FitnessFunction, float] = fitness_cache or {}
+        self._is_covered_cache: dict[FitnessFunction, bool] = is_covered_cache or {}
+        self._coverage_cache: dict[CoverageFunction, float] = coverage_cache or {}
 
     def clone(self, new_chromosome) -> ComputationCache:
         """Create a deep copy of this cache.

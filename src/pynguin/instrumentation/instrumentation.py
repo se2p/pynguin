@@ -364,7 +364,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, instrumentation_tracer: tr.InstrumentationExecutionTracer) -> None:  # noqa: D107
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
         self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(
@@ -777,7 +779,9 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, instrumentation_tracer: tr.InstrumentationExecutionTracer) -> None:  # noqa: D107
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
         self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(  # noqa: D102
@@ -854,7 +858,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, instrumentation_tracer: tr.InstrumentationExecutionTracer) -> None:  # noqa: D107
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
         self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(

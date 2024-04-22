@@ -47,14 +47,14 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
-from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report

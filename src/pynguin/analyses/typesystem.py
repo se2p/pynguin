@@ -943,13 +943,7 @@ class InferredSignature:
                         InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
-                    args = (
-                        (
-                            guessed_element_type
-                            if guessed_element_type
-                            else guessed_type.args[0]
-                        ),
-                    )
+                    args = ((guessed_element_type or guessed_type.args[0]),)
                 case "builtins.set":
                     guessed_element_type = self._guess_generic_arguments(
                         knowledge,
@@ -959,13 +953,7 @@ class InferredSignature:
                         InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
-                    args = (
-                        (
-                            guessed_element_type
-                            if guessed_element_type
-                            else guessed_type.args[0]
-                        ),
-                    )
+                    args = ((guessed_element_type or guessed_type.args[0]),)
                 case "builtins.dict":
                     guessed_key_type = self._guess_generic_arguments(
                         knowledge,
@@ -984,12 +972,8 @@ class InferredSignature:
                         argument_idx=1,
                     )
                     args = (
-                        guessed_key_type if guessed_key_type else guessed_type.args[0],
-                        (
-                            guessed_value_type
-                            if guessed_value_type
-                            else guessed_type.args[1]
-                        ),
+                        guessed_key_type or guessed_type.args[0],
+                        (guessed_value_type or guessed_type.args[1]),
                     )
             guessed_type = Instance(guessed_type.type, args)
         elif isinstance(guessed_type, TupleType):
@@ -1748,7 +1732,7 @@ class TypeSystem:  # noqa: PLR0904
             args = tuple(result.args)
             if len(result.args) < result.type.num_hardcoded_generic_parameters:
                 # Fill with AnyType if to small
-                args = args + (ANY,) * (
+                args += (ANY,) * (
                     result.type.num_hardcoded_generic_parameters - len(args)
                 )
             elif len(result.args) > result.type.num_hardcoded_generic_parameters:

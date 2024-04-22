@@ -5,8 +5,8 @@ import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.orderedset import OrderedSet
 
 

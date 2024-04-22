@@ -19,9 +19,9 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
 
+    from pynguin.instrumentation.tracer import ExecutionTracer
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
-    from pynguin.instrumentation.tracer import ExecutionTracer
     from pynguin.testcase.execution import SubjectProperties
 
 

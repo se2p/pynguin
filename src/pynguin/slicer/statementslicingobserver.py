@@ -8,8 +8,6 @@
 import ast
 import threading
 
-from typing import Any
-
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
@@ -38,7 +36,9 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
 
     def __init__(self) -> None:
         """Initializes the observer."""
-        self._slicing_local_state = RemoteStatementSlicingObserver.RemoteSlicingLocalState()
+        self._slicing_local_state = (
+            RemoteStatementSlicingObserver.RemoteSlicingLocalState()
+        )
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -65,9 +65,11 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
             last_traced_instr = trace.executed_instructions[-2]
             assert last_traced_instr.opcode == op.STORE_NAME
 
-            code_object = executor.tracer.get_subject_properties().existing_code_objects[
-                last_traced_instr.code_object_id
-            ]
+            code_object = (
+                executor.tracer.get_subject_properties().existing_code_objects[
+                    last_traced_instr.code_object_id
+                ]
+            )
             slicing_instruction = UniqueInstruction(
                 file=last_traced_instr.file,
                 name=last_traced_instr.name,

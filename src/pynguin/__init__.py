@@ -7,11 +7,14 @@
 """Pynguin is an automated unit test generation framework for Python."""
 import copyreg
 
+from collections.abc import Callable
+
+from bytecode.instr import _UNSET  # noqa: PLC2701
+from bytecode.instr import InstrLocation
+
 import pynguin.configuration as config
 import pynguin.generator as gen
 
-from bytecode.instr import InstrLocation, _UNSET
-from typing import Callable, Optional
 
 set_configuration = gen.set_configuration
 run_pynguin = gen.run_pynguin
@@ -32,11 +35,12 @@ __all__ = [
     "set_configuration",
 ]
 
+
 def _pickle_instr_location(
-    instr_location: InstrLocation
+    instr_location: InstrLocation,
 ) -> tuple[
-    Callable[[Optional[int], Optional[int], Optional[int], Optional[int]], InstrLocation],
-    tuple[Optional[int], Optional[int], Optional[int], Optional[int]]
+    Callable[[int | None, int | None, int | None, int | None], InstrLocation],
+    tuple[int | None, int | None, int | None, int | None],
 ]:
     return InstrLocation, (
         instr_location.lineno,
@@ -45,12 +49,12 @@ def _pickle_instr_location(
         instr_location.end_col_offset,
     )
 
+
 copyreg.pickle(InstrLocation, _pickle_instr_location)
 
 
-def _pickle_unset(
-    unset: _UNSET
-) -> tuple[Callable[[], _UNSET], tuple]:
-    return _UNSET, tuple()
+def _pickle_unset(unset: _UNSET) -> tuple[Callable[[], _UNSET], tuple]:  # noqa: ARG001
+    return _UNSET, ()
+
 
 copyreg.pickle(_UNSET, _pickle_unset)

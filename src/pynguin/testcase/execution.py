@@ -14,8 +14,6 @@ import copy
 import dataclasses
 import inspect
 import logging
-import multiprocess as mp
-import multiprocess.connection as mp_conn
 import os
 import sys
 import threading
@@ -24,19 +22,17 @@ from abc import abstractmethod
 from importlib import reload
 from queue import Empty
 from queue import Queue
-from types import ModuleType
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import ContextManager
-from typing import Generator
 from typing import TypeVar
 from typing import cast
 
-import dill
+import dill  # noqa: S403
+import multiprocess as mp
+import multiprocess.connection as mp_conn
+
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
-
-from bytecode import BasicBlock
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -44,7 +40,6 @@ import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
-from pynguin.testcase.testcase import TestCase
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
@@ -65,10 +60,18 @@ from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils.mirror import Mirror
 
+
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from contextlib import AbstractContextManager
+    from types import ModuleType
+
+    from bytecode import BasicBlock
+
     import pynguin.testcase.testcase as tc
 
     from pynguin.analyses import module
+    from pynguin.testcase.testcase import TestCase
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -256,6 +259,7 @@ class ExecutionContext:
         if state["has_builtins"]:
             self.add_new_module_alias("builtins", "__builtins__")
 
+
 class RemoteExecutionObserver(abc.ABC):
     """A remote observer that can be used to observe the execution of a test case.
 
@@ -279,7 +283,7 @@ class RemoteExecutionObserver(abc.ABC):
     For more details, look at some implementations, e.g., AssertionTraceObserver.
     """
 
-    def __init__(self) -> None:
+    def __init__(self) -> None:  # noqa: B027
         """Initializes the remote observer."""
 
     @property
@@ -289,9 +293,9 @@ class RemoteExecutionObserver(abc.ABC):
         Returns:
             The state of the observer
         """
-        return dict()
+        return {}
 
-    @state.setter
+    @state.setter  # noqa: B027
     def state(self, state: dict[str, Any]) -> None:
         """Set the state of the observer.
 
@@ -364,7 +368,7 @@ class RemoteExecutionObserver(abc.ABC):
         return self.state
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        self.__init__()
+        self.__init__()  # type: ignore[misc]
         self.state = state
 
 
@@ -464,19 +468,19 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 )
                 executor.execute_ast(assertion_node, exec_ctx)
 
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(tracer)
-                tracer.register_assertion_position(
-                    code_object_id, node_id, assertion
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(
+                    tracer
                 )
+                tracer.register_assertion_position(code_object_id, node_id, assertion)
         finally:
             if enabled:
                 # Restore old state
                 tracer.disable()
 
-    def _get_assertion_node_and_code_object_ids(self, tracer: ExecutionTracer) -> tuple[int, int]:
-        existing_code_objects = (
-            tracer.get_subject_properties().existing_code_objects
-        )
+    def _get_assertion_node_and_code_object_ids(
+        self, tracer: ExecutionTracer
+    ) -> tuple[int, int]:
+        existing_code_objects = tracer.get_subject_properties().existing_code_objects
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None
@@ -506,19 +510,23 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
 
     def __init__(self):
         """Initializes the remote observer."""
-        self._return_type_local_state = RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
+        self._return_type_local_state = (
+            RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
+        )
 
     @property
     def state(self) -> dict[str, Any]:  # noqa: D102
-        return dict(
-            return_type_trace=self._return_type_local_state.return_type_trace,
-            return_type_generic_args=self._return_type_local_state.return_type_generic_args,
-        )
+        return {
+            "return_type_trace": self._return_type_local_state.return_type_trace,
+            "return_type_generic_args": self._return_type_local_state.return_type_generic_args,  # noqa: E501
+        }
 
     @state.setter
-    def state(self, state: dict[str, Any]):  # noqa: D102
+    def state(self, state: dict[str, Any]):  # noqa: RUF100
         self._return_type_local_state.return_type_trace = state["return_type_trace"]
-        self._return_type_local_state.return_type_generic_args = state["return_type_generic_args"]
+        self._return_type_local_state.return_type_generic_args = state[
+            "return_type_generic_args"
+        ]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -870,7 +878,7 @@ class AbstractTestCaseExecutor(abc.ABC):
     @abstractmethod
     def temporarily_add_observer(
         self, observer: ExecutionObserver
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         """Temporarily add the given observer.
 
         Args:
@@ -892,7 +900,7 @@ class AbstractTestCaseExecutor(abc.ABC):
     @abstractmethod
     def temporarily_add_remote_observer(
         self, remote_observer: RemoteExecutionObserver
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         """Temporarily add a remote observer.
 
         Args:
@@ -980,31 +988,33 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         threading.excepthook = log_thread_exception
 
     @property
-    def module_provider(self) -> ModuleProvider:
+    def module_provider(self) -> ModuleProvider:  # noqa: D102
         return self._module_provider
 
-    def add_observer(self, observer: ExecutionObserver) -> None:
+    def add_observer(self, observer: ExecutionObserver) -> None:  # noqa: D102
         self._observers.append(observer)
 
-    def clear_observers(self) -> None:
+    def clear_observers(self) -> None:  # noqa: D102
         self._observers.clear()
 
     @contextlib.contextmanager
-    def temporarily_add_observer(
+    def temporarily_add_observer(  # noqa: D102
         self, observer: ExecutionObserver
     ) -> Generator[None, None, None]:
         self._observers.append(observer)
         yield
         self._observers.remove(observer)
 
-    def add_remote_observer(self, remote_observer: RemoteExecutionObserver) -> None:
+    def add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> None:
         self._remote_observers.append(remote_observer)
 
-    def clear_remote_observers(self) -> None:
+    def clear_remote_observers(self) -> None:  # noqa: D102
         self._remote_observers.clear()
 
     @contextlib.contextmanager
-    def temporarily_add_remote_observer(
+    def temporarily_add_remote_observer(  # noqa: D102
         self, remote_observer: RemoteExecutionObserver
     ) -> Generator[None, None, None]:
         self._remote_observers.append(remote_observer)
@@ -1016,7 +1026,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         yield from (observer.remote_observer for observer in self._observers)
 
     @property
-    def tracer(self) -> ExecutionTracer:
+    def tracer(self) -> ExecutionTracer:  # noqa: D102
         return self._tracer
 
     def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
@@ -1247,7 +1257,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         process = mp.Process(
-            target=self._execute_test_case,
+            target=self._execute_test_case_in_thread,
             args=args,
             daemon=True,
         )
@@ -1273,7 +1283,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             return ExecutionResult(timeout=True)
 
-        return_value: tuple[tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult] = receiving_connection.recv()
+        return_value: tuple[
+            tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult
+        ] = receiving_connection.recv()
 
         new_remote_observers, subject_properties, result = return_value
 
@@ -1282,29 +1294,37 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.join()
 
-        for remote_observer, new_remote_observer in zip(
+        for remote_observer, new_remote_observer in zip(  # noqa: B905
             remote_observers, new_remote_observers
         ):
             remote_observer.state = new_remote_observer.state
 
-        self._tracer.subject_properties.branch_less_code_objects = subject_properties.branch_less_code_objects
-        self._tracer.subject_properties.existing_lines = subject_properties.existing_lines
-        self._tracer.subject_properties.existing_predicates = subject_properties.existing_predicates
-        self._tracer.subject_properties.object_addresses = subject_properties.object_addresses
+        self._tracer.subject_properties.branch_less_code_objects = (
+            subject_properties.branch_less_code_objects
+        )
+        self._tracer.subject_properties.existing_lines = (
+            subject_properties.existing_lines
+        )
+        self._tracer.subject_properties.existing_predicates = (
+            subject_properties.existing_predicates
+        )
+        self._tracer.subject_properties.object_addresses = (
+            subject_properties.object_addresses
+        )
 
         self._after_remote_test_case_execution(test_case, result)
 
         return result
 
     @staticmethod
-    def _execute_test_case(
+    def _execute_test_case_in_thread(  # noqa: PLR0917
         tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
         remote_observers: tuple[RemoteExecutionObserver, ...],
         test_case: tc.TestCase,
-        sending_connection: mp_conn.Connection
+        sending_connection: mp_conn.Connection,
     ) -> None:
         tracer.current_thread_identifier = threading.current_thread().ident
 
@@ -1326,7 +1346,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         result = executor.execute(test_case)
 
         if exception_bad_items := dill.detect.baditems(result.exceptions):
-            _LOGGER.warning("Unpicklable exceptions, final results might differ from classic execution with same seed: %s", exception_bad_items)
+            _LOGGER.warning(
+                "Unpicklable exceptions, final results might differ from classic"
+                " execution with same seed: %s",
+                exception_bad_items,
+            )
             result.exceptions = {
                 position: exception
                 for position, exception in result.exceptions.items()
@@ -1334,40 +1358,69 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             }
 
         if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
-            _LOGGER.warning("Unpicklable assertion trace, final results might differ from classic execution with same seed: %s", assertion_trace_bad_items)
+            _LOGGER.warning(
+                "Unpicklable assertion trace, final results might differ from classic"
+                " execution with same seed: %s",
+                assertion_trace_bad_items,
+            )
             result.assertion_trace.clear()
 
         if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
-            _LOGGER.warning("Unpicklable execution trace, final results might differ from classic execution with same seed: %s", execution_trace_bad_items)
+            _LOGGER.warning(
+                "Unpicklable execution trace, final results might differ from classic"
+                " execution with same seed: %s",
+                execution_trace_bad_items,
+            )
             result.execution_trace.executed_assertions.clear()
 
         if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
-            _LOGGER.warning("Unpicklable proxy knowledge, final results might differ from classic execution with same seed: %s", proxy_knowledge_bad_items)
+            _LOGGER.warning(
+                "Unpicklable proxy knowledge, final results might differ from classic"
+                " execution with same seed: %s",
+                proxy_knowledge_bad_items,
+            )
             result.proxy_knowledge.clear()
 
-        if proper_return_type_trace_bad_items := dill.detect.baditems(result.proper_return_type_trace):
-            _LOGGER.warning("Unpicklable proper return type trace, final results might differ from classic execution with same seed: %s", proper_return_type_trace_bad_items)
+        if proper_return_type_trace_bad_items := dill.detect.baditems(
+            result.proper_return_type_trace
+        ):
+            _LOGGER.warning(
+                "Unpicklable proper return type trace, final results might differ from"
+                " classic execution with same seed: %s",
+                proper_return_type_trace_bad_items,
+            )
             result.proper_return_type_trace.clear()
 
-        if raw_return_type_generic_args_bad_items := dill.detect.baditems(result.raw_return_type_generic_args):
-            _LOGGER.warning("Unpicklable raw return type generic args, final results might differ from classic execution with same seed: %s", raw_return_type_generic_args_bad_items)
+        if raw_return_type_generic_args_bad_items := dill.detect.baditems(
+            result.raw_return_type_generic_args
+        ):
+            _LOGGER.warning(
+                "Unpicklable raw return type generic args, final results might differ"
+                " from classic execution with same seed: %s",
+                raw_return_type_generic_args_bad_items,
+            )
             result.raw_return_type_generic_args = {
                 position: generic_args
-                for position, generic_args in result.raw_return_type_generic_args.items()
-                if all(type not in raw_return_type_generic_args_bad_items for type in generic_args)
+                for position, generic_args in result.raw_return_type_generic_args.items()  # noqa: E501
+                if all(
+                    type_ not in raw_return_type_generic_args_bad_items
+                    for type_ in generic_args
+                )
             }
 
         if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
-            _LOGGER.warning("Unpicklable raw return types, final results might differ from classic execution with same seed: %s", raw_return_types_bad_items)
+            _LOGGER.warning(
+                "Unpicklable raw return types, final results might differ from classic"
+                " execution with same seed: %s",
+                raw_return_types_bad_items,
+            )
             result.raw_return_types = {
-                position: type
-                for position, type in result.raw_return_types.items()
-                if type not in raw_return_types_bad_items
+                position: type_
+                for position, type_ in result.raw_return_types.items()
+                if type_ not in raw_return_types_bad_items
             }
 
-        sending_connection.send(
-            (remote_observers, tracer.subject_properties, result)
-        )
+        sending_connection.send((remote_observers, tracer.subject_properties, result))
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
@@ -1400,20 +1453,22 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     def clear_observers(self) -> None:  # noqa: D102
         self._delegate.clear_observers()
 
-    def temporarily_add_observer(
+    def temporarily_add_observer(  # noqa: D102
         self, observer: ExecutionObserver
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         return self._delegate.temporarily_add_observer(observer)
 
-    def add_remote_observer(self, remote_observer: RemoteExecutionObserver) -> None:
+    def add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> None:
         self._delegate.add_remote_observer(remote_observer)
 
     def clear_remote_observers(self) -> None:  # noqa: D102
         self._delegate.clear_remote_observers()
 
-    def temporarily_add_remote_observer(
+    def temporarily_add_remote_observer(  # noqa: D102
         self, remote_observer: RemoteExecutionObserver
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         return self._delegate.temporarily_add_remote_observer(remote_observer)
 
     @property
@@ -1452,8 +1507,8 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
         self._local_state = RemoteTypeTracingObserver.RemoteTypeTracingLocalState()
 
     @property
-    def state(self) -> dict[str, Any]:
-        return dict(
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return dict(  # noqa: C408
             proxies=self._local_state.proxies,
         )
 
@@ -1566,7 +1621,7 @@ class TypeTracingObserver(ExecutionObserver):
         self._remote_observer = RemoteTypeTracingObserver()
 
     @property
-    def remote_observer(self) -> RemoteTypeTracingObserver:
+    def remote_observer(self) -> RemoteTypeTracingObserver:  # noqa: D102
         return self._remote_observer
 
     def before_remote_test_case_execution(self, test_case: TestCase) -> None:

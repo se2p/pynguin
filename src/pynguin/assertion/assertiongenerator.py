@@ -29,6 +29,7 @@ import pynguin.utils.statistics.statistics as stat
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.instrumentation.machinery import InstrumentationExecutionTracer
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
@@ -260,12 +261,14 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         super().__init__(plain_executor)
 
         # We use a separate tracer and executor to execute tests on the mutants.
-        self._mutation_tracer = ex.ExecutionTracer()
+        self._mutation_tracer = InstrumentationExecutionTracer(ex.ExecutionTracer())
         self._mutation_tracer.current_thread_identifier = (
             threading.current_thread().ident
         )
-        self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer)
-        self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
+        self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer.tracer)
+        self._mutation_executor.add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
+        )
 
         self._transformer = build_transformer(
             self._mutation_tracer,

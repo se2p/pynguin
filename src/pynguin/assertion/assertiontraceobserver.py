@@ -51,7 +51,9 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             self.watch_list: list[vr.VariableReference] = []
 
     def __init__(self) -> None:  # noqa: D107
-        self._assertion_local_state = RemoteAssertionTraceObserver.RemoteAssertionLocalState()
+        self._assertion_local_state = (
+            RemoteAssertionTraceObserver.RemoteAssertionLocalState()
+        )
 
     def get_trace(self) -> at.AssertionTrace:
         """Get a copy of the gathered trace.
@@ -265,13 +267,15 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
             self.trace = at.AssertionVerificationTrace()
 
     def __init__(self):  # noqa: D107
-        self._state = RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
+        self._state = (
+            RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
+        )
 
     @property
-    def state(self) -> dict[str, Any]:
-        return dict(
-            trace=self._state.trace,
-        )
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "trace": self._state.trace,
+        }
 
     @state.setter
     def state(self, state: dict[str, Any]) -> None:

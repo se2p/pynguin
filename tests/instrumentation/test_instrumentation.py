@@ -28,10 +28,10 @@ from pynguin.instrumentation.instrumentation import InstrumentationAdapter
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import PynguinCompare
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
-from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.utils.orderedset import OrderedSet
 
 

@@ -6,9 +6,9 @@
 #
 from unittest.mock import MagicMock
 
-from pynguin.slicer.executedinstruction import ExecutedInstruction
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.slicer.executedinstruction import ExecutedInstruction
 
 
 def test_merge():
