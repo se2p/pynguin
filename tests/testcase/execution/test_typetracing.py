@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -39,7 +39,9 @@ from pynguin.utils.generic.genericaccessibleobject import (
 def test_type_reconstruction(test_func, return_type):
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.return_types")
     executor = TestCaseExecutor(ExecutionTracer())
-    visitor = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
+    visitor = AstToTestCaseTransformer(
+        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     visitor.visit(
         ast.parse("def test_case():\n   var_0 = module_0." + test_func + "()")
     )
@@ -54,7 +56,9 @@ def test_type_reconstruction(test_func, return_type):
 
 def test_type_tracing_observer_separate_proxies_for_args():
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.guess_params")
-    visitor = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
+    visitor = AstToTestCaseTransformer(
+        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     visitor.visit(
         ast.parse(
             "def test_case():\n"
@@ -74,7 +78,9 @@ def test_type_tracing_observer_separate_proxies_for_args():
 
 def test_type_tracing_test_case_executor_integration():
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.guess_params")
-    visitor = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
+    visitor = AstToTestCaseTransformer(
+        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     visitor.visit(
         ast.parse(
             "def test_case():\n"

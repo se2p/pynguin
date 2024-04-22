@@ -1,25 +1,20 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
-import os
+from pathlib import Path
 
 import pytest
 
 from pynguin.analyses.constants import collect_static_constants
 
 
-@pytest.fixture
+@pytest.fixture()
 def fixture_dir():
-    return os.path.join(
-        os.path.dirname(__file__),
-        "",
-        "..",
-        "fixtures",
-        "seeding",
-        "staticconstantseeding",
+    return (
+        Path(__file__).parent / ".." / "fixtures" / "seeding" / "staticconstantseeding"
     )
 
 

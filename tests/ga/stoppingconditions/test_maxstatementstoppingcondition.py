@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -10,7 +10,7 @@ from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from unittest.mock import MagicMock
 
 
-@pytest.fixture
+@pytest.fixture()
 def stopping_condition():
     return MaxStatementExecutionsStoppingCondition(10000)
 

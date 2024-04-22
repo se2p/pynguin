@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -18,7 +18,7 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 
 
-@pytest.fixture
+@pytest.fixture()
 def mosa_strategy():
     return MOSAAlgorithm()
 

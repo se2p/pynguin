@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -18,7 +18,7 @@ from pynguin.testcase.execution import ModuleProvider
 def test_get_reference_value():
     ctx = ExecutionContext(ModuleProvider())
     ref = vr.VariableReference(MagicMock(), int)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         ctx.get_reference_value(ref)
 
 

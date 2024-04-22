@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -76,7 +76,8 @@ def test_statement_to_ast_bytes(statement_to_ast_visitor, default_test_case):
 
 
 def test_statement_to_ast_bool(statement_to_ast_visitor, default_test_case):
-    bool_stmt = stmt.BooleanPrimitiveStatement(default_test_case, True)
+    bool_stmt = stmt.BooleanPrimitiveStatement(default_test_case, True)  # noqa: FBT003
+
     statement_to_ast_visitor.visit_boolean_primitive_statement(bool_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = True"
 
@@ -112,9 +113,7 @@ def test_statement_to_ast_enum(statement_to_ast_visitor, default_test_case):
     )
 
 
-def test_statement_to_ast_assignment(
-    variable_reference_mock, statement_to_ast_visitor, default_test_case
-):
+def test_statement_to_ast_assignment(statement_to_ast_visitor, default_test_case):
     string = stmt.StringPrimitiveStatement(default_test_case, "foo")
     field = gao.GenericField(
         default_test_case.test_cluster.type_system.to_type_info(str),
@@ -553,9 +552,7 @@ def test_statement_to_ast_function_no_store(
     )
 
 
-def test_statement_to_ast_list_single(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_list_single(statement_to_ast_visitor, default_test_case):
     list_stmt = stmt.ListStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(list[int]),
@@ -567,9 +564,7 @@ def test_statement_to_ast_list_single(
     )
 
 
-def test_statement_to_ast_list_empty(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_list_empty(statement_to_ast_visitor, default_test_case):
     list_stmt = stmt.ListStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(list[int]),
@@ -579,9 +574,7 @@ def test_statement_to_ast_list_empty(
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = []"
 
 
-def test_statement_to_ast_set_single(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_set_single(statement_to_ast_visitor, default_test_case):
     set_stmt = stmt.SetStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(set[int]),
@@ -593,9 +586,7 @@ def test_statement_to_ast_set_single(
     )
 
 
-def test_statement_to_ast_set_empty(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_set_empty(statement_to_ast_visitor, default_test_case):
     set_stmt = stmt.SetStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(set[int]),
@@ -607,9 +598,7 @@ def test_statement_to_ast_set_empty(
     )
 
 
-def test_statement_to_ast_tuple_single(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_tuple_single(statement_to_ast_visitor, default_test_case):
     tuple_stmt = stmt.TupleStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(tuple[int]),
@@ -622,9 +611,7 @@ def test_statement_to_ast_tuple_single(
     )
 
 
-def test_statement_to_ast_tuple_empty(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_tuple_empty(statement_to_ast_visitor, default_test_case):
     tuple_stmt = stmt.TupleStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(tuple),
@@ -634,9 +621,7 @@ def test_statement_to_ast_tuple_empty(
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = ()"
 
 
-def test_statement_to_ast_dict_single(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_dict_single(statement_to_ast_visitor, default_test_case):
     dict_stmt = stmt.DictStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(dict[int, int]),
@@ -654,9 +639,7 @@ def test_statement_to_ast_dict_single(
     )
 
 
-def test_statement_to_ast_dict_empty(
-    statement_to_ast_visitor, default_test_case, function_mock
-):
+def test_statement_to_ast_dict_empty(statement_to_ast_visitor, default_test_case):
     dict_stmt = stmt.DictStatement(
         default_test_case,
         default_test_case.test_cluster.type_system.convert_type_hint(dict[int, int]),

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -20,16 +20,12 @@ from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 
 
-def test_constructor_statement_no_args(
-    default_test_case, variable_reference_mock, constructor_mock
-):
+def test_constructor_statement_no_args(default_test_case, constructor_mock):
     statement = stmt.ConstructorStatement(default_test_case, constructor_mock)
     assert statement.args == {}
 
 
-def test_constructor_statement_args(
-    default_test_case, variable_reference_mock, constructor_mock
-):
+def test_constructor_statement_args(default_test_case, constructor_mock):
     statement = stmt.ConstructorStatement(default_test_case, constructor_mock)
     references = {
         "a": MagicMock(vr.VariableReference),
@@ -39,9 +35,7 @@ def test_constructor_statement_args(
     assert statement.args == references
 
 
-def test_constructor_statement_accept(
-    test_case_mock, variable_reference_mock, constructor_mock
-):
+def test_constructor_statement_accept(test_case_mock, constructor_mock):
     statement = stmt.ConstructorStatement(test_case_mock, constructor_mock)
     visitor = MagicMock(stmt.StatementVisitor)
     statement.accept(visitor)
@@ -191,9 +185,7 @@ def test_constructor_mutate_special_parameters(test_case_mock, constructor_mock)
     assert not const._mutate_special_parameters(1.0)
 
 
-def test_constructor_mutate_parameters_nothing(
-    test_case_mock, constructor_mock, variable_reference_mock
-):
+def test_constructor_mutate_parameters_nothing(test_case_mock, variable_reference_mock):
     const = stmt.ConstructorStatement(
         test_case_mock,
         MagicMock(inferred_signature=MagicMock(parameters={"a": float, "b": int})),
@@ -202,16 +194,16 @@ def test_constructor_mutate_parameters_nothing(
     assert not const._mutate_parameters(0.0)
 
 
-def test_constructor_mutate_parameters_args(
-    test_case_mock, constructor_mock, variable_reference_mock
-):
+def test_constructor_mutate_parameters_args(test_case_mock, variable_reference_mock):
     signature = MagicMock(original_parameters={"a": float, "b": int})
     const = stmt.ConstructorStatement(
         test_case_mock,
         MagicMock(inferred_signature=signature),
         {"a": variable_reference_mock, "b": variable_reference_mock},
     )
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+    with mock.patch(  # noqa: SIM117
+        "pynguin.utils.randomness.next_float"
+    ) as float_mock:
         with mock.patch.object(const, "_mutate_parameter") as mutate_parameter:
             mutate_parameter.return_value = True
             float_mock.side_effect = [0.0, 1.0]
@@ -233,21 +225,21 @@ def test_constructor_mutate_parameter_get_objects(constructor_mock, default_test
             "pynguin.testcase.statement.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
+            # fmt: off
             assert const._mutate_parameter(
                 "y",
                 InferredSignature(
                     signature=constructor_mock.inferred_signature.signature,
                     original_parameters={
-                        "y": default_test_case.test_cluster.type_system.convert_type_hint(
-                            float
-                        )
+                        "y": default_test_case.test_cluster.type_system
+                        .convert_type_hint(float)
                     },
-                    original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-                        None
-                    ),
+                    original_return_type=default_test_case.test_cluster.type_system
+                    .convert_type_hint(None),
                     type_system=default_test_case.test_cluster.type_system,
                 ),
             )
+            # fmt: on
             tc.get_objects.assert_called_with(float0.ret_val.type, const.get_position())
 
 
@@ -264,21 +256,21 @@ def test_constructor_mutate_parameter_not_included(constructor_mock, default_tes
             "pynguin.testcase.statement.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
+            # fmt: off
             assert const._mutate_parameter(
                 "y",
                 InferredSignature(
                     signature=constructor_mock.inferred_signature.signature,
                     original_parameters={
-                        "y": default_test_case.test_cluster.type_system.convert_type_hint(
-                            float
-                        )
+                        "y": default_test_case.test_cluster.type_system
+                        .convert_type_hint(float)
                     },
-                    original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-                        None
-                    ),
+                    original_return_type=default_test_case.test_cluster.type_system
+                    .convert_type_hint(None),
                     type_system=default_test_case.test_cluster.type_system,
                 ),
             )
+            # fmt: on
             get_objs.assert_called_with(float0.ret_val.type, 1)
             assert isinstance(
                 default_test_case.get_statement(
@@ -295,7 +287,9 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
     )
     default_test_case.add_statement(float0)
     default_test_case.add_statement(const)
-    with mock.patch.object(const, "_param_count_of_type") as param_count_of_type:
+    with mock.patch.object(  # noqa: SIM117
+        const, "_param_count_of_type"
+    ) as param_count_of_type:
         with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
             choice_mock.side_effect = lambda coll: coll[0]
             param_count_of_type.return_value = 5
@@ -303,21 +297,21 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
                 "pynguin.testcase.statement.is_optional_parameter"
             ) as optional_mock:
                 optional_mock.return_value = False
+                # fmt: off
                 assert const._mutate_parameter(
                     "y",
                     InferredSignature(
                         signature=constructor_mock.inferred_signature.signature,
                         original_parameters={
-                            "y": default_test_case.test_cluster.type_system.convert_type_hint(
-                                float
-                            )
+                            "y": default_test_case.test_cluster.type_system
+                            .convert_type_hint(float)
                         },
-                        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-                            None
-                        ),
+                        original_return_type=default_test_case.test_cluster.type_system
+                        .convert_type_hint(None),
                         type_system=default_test_case.test_cluster.type_system,
                     ),
                 )
+                # fmt: on
                 param_count_of_type.assert_called_with(float0.ret_val.type)
                 assert const.args["y"] != float0.ret_val
 
@@ -366,16 +360,17 @@ def test_constructor_mutate_parameter_choose_existing(
             "pynguin.testcase.testfactory.is_optional_parameter"
         ) as optional_mock:
             optional_mock.return_value = False
+            # fmt: off
             assert const._mutate_parameter(
                 "a",
                 MagicMock(
                     parameters={
-                        "a": default_test_case.test_cluster.type_system.convert_type_hint(
-                            float
-                        )
+                        "a": default_test_case.test_cluster.type_system
+                        .convert_type_hint(float)
                     }
                 ),
             )
+            # fmt: on
 
 
 def test_constructor_param_count_of_type_none(default_test_case, constructor_mock):

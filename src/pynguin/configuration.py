@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -379,18 +379,6 @@ class TypeInferenceConfiguration:
     type_tracing: bool = False
     """Trace usage of parameters with unknown types to improve type guesses."""
 
-    type4py: bool = False
-    """Get type information from Type4Py."""
-
-    type4py_uri: str = "https://type4py.com/"
-    """URI of the Type4Py server.
-    Currently only for the module under test.
-    For example: http://localhost:5001/
-    See https://github.com/saltudelft/type4py/wiki"""
-
-    type4py_timeout: int = 10
-    """Read timeout when requesting data from the Type4Py API."""
-
 
 @dataclasses.dataclass
 class TestCreationConfiguration:
@@ -638,6 +626,12 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    ignore_modules: list[str] = dataclasses.field(default_factory=list)
+    """Ignore the modules specified here from the module analysis."""
+
+    ignore_methods: list[str] = dataclasses.field(default_factory=list)
+    """Ignore the methods specified here from the module analysis."""
 
 
 # Singleton instance of the configuration.

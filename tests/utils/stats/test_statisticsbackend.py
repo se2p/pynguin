@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -49,4 +49,4 @@ def test_write_data_console_backend(capsys):
     captured = capsys.readouterr()
     assert "foo" in captured.out
     assert "bar" in captured.out
-    assert captured.err == ""
+    assert not captured.err

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -31,24 +31,24 @@ class _DummySequenceOutputVariableFactory(SequenceOutputVariableFactory):
         return 42
 
 
-@pytest.fixture
+@pytest.fixture()
 def factory():
     return DirectSequenceOutputVariableFactory(
         RuntimeVariable.TotalExceptionsTimeline, 0
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosome_factory():
     return _DummyChromosomeOutputVariableFactory(RuntimeVariable.Coverage)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sequence_factory():
     return _DummySequenceOutputVariableFactory(RuntimeVariable.CoverageTimeline)
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosome():
     return tsc.TestSuiteChromosome()
 
@@ -133,7 +133,7 @@ def test_get_time_line_value_interpolation(sequence_factory):
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]
-    sequence_factory._values = [i for i in range(3)]
+    sequence_factory._values = list(range(3))
     assert sequence_factory._get_time_line_value(start_time + 1) == 1.0
 
 
@@ -143,5 +143,5 @@ def test_get_time_line_value_no_interpolation(sequence_factory):
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [start_time + i for i in range(3)]
-    sequence_factory._values = [i for i in range(3)]
+    sequence_factory._values = list(range(3))
     assert sequence_factory._get_time_line_value(start_time + 1) == 0

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -33,8 +33,8 @@ from tests.testutils import feed_typesystem
 
 
 def test_append_statement_unknown_type(test_case_mock):
+    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
     with pytest.raises(ConstructionFailedException):
-        factory = tf.TestFactory(MagicMock(ModuleTestCluster))
         factory.append_statement(test_case_mock, MagicMock(Monkey))
 
 
@@ -67,7 +67,7 @@ def test_check_recursion_depth_guard(test_case_mock, method):
 def test_append_statement(test_case_mock, statement):
     called = False
 
-    def mock_method(t, s, position=0, allow_none=True):
+    def mock_method(_t, _s, position=0, allow_none=True):  # noqa: ARG001, FBT002
         nonlocal called
         called = True
 
@@ -93,10 +93,11 @@ def test_append_statement(test_case_mock, statement):
 def test_append_generic_statement(test_case_mock, statement):
     called = False
 
-    def mock_method(t, s, position=0, allow_none=True, recursion_depth=11):
+    def mock_method(
+        _t, _s, position=0, allow_none=True, recursion_depth=11  # noqa: ARG001, FBT002
+    ):
         nonlocal called
         called = True
-        return None
 
     factory = tf.TestFactory(MagicMock(ModuleTestCluster))
     factory.add_constructor = mock_method
@@ -159,6 +160,7 @@ def test_add_constructor(provide_callables_from_fixtures_modules, default_test_c
 def test_add_method(provide_callables_from_fixtures_modules, default_test_case):
     object_ = Monkey("foo")
     methods = inspect.getmembers(object_, inspect.ismethod)
+    # fmt: off
     generic_method = gao.GenericMethod(
         owner=default_test_case.test_cluster.type_system.to_type_info(
             provide_callables_from_fixtures_modules["Monkey"]
@@ -174,17 +176,18 @@ def test_add_method(provide_callables_from_fixtures_modules, default_test_case):
                     ),
                 ]
             ),
-            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
+            original_return_type=default_test_case.test_cluster.type_system
+            .convert_type_hint(
                 provide_callables_from_fixtures_modules["Monkey"]
             ),
             original_parameters={
-                "sentence": default_test_case.test_cluster.type_system.convert_type_hint(
-                    str
-                )
+                "sentence": default_test_case.test_cluster.type_system
+                .convert_type_hint(str)
             },
             type_system=default_test_case.test_cluster.type_system,
         ),
     )
+    # fmt: on
     factory = tf.TestFactory(default_test_case.test_cluster)
     config.configuration.test_creation.none_probability = 1.0
     result = factory.add_method(
@@ -323,7 +326,7 @@ def test_attempt_generation_for_type_from_cluster(default_test_case):
             type_generators, gao.GenericAccessibleObject
         )  # pragma: no cover
 
-    default_test_case.test_cluster.get_generators_for = lambda t: MagicMock(
+    default_test_case.test_cluster.get_generators_for = lambda _: MagicMock(
         gao.GenericAccessibleObject
     )  # pragma: no cover
     factory = tf.TestFactory(default_test_case.test_cluster)
@@ -428,7 +431,7 @@ def test__get_possible_calls_no_calls(type_system):
 
 def test__get_possible_calls_single_call(default_test_case, function_mock):
     cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda x: ({function_mock}, False)
+    cluster.get_generators_for = lambda _: ({function_mock}, False)
     assert tf.TestFactory(cluster)._get_possible_calls(
         cluster.type_system.convert_type_hint(float),
         [
@@ -442,7 +445,7 @@ def test__get_possible_calls_single_call(default_test_case, function_mock):
 
 def test__get_possible_calls_no_match(default_test_case, function_mock):
     cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda x: ({function_mock}, False)
+    cluster.get_generators_for = lambda _: ({function_mock}, False)
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
             cluster.type_system.convert_type_hint(float),
@@ -510,7 +513,7 @@ def test_delete_statement_single(sample_test_case):
 
 def test_delete_statement_reverse(test_case_mock):
     with mock.patch.object(tf.TestFactory, "_recursive_delete_inclusion") as rec_mock:
-        rec_mock.side_effect = lambda t, delete, position: delete.update({1, 2, 3})
+        rec_mock.side_effect = lambda _t, delete, _p: delete.update({1, 2, 3})
         tf.TestFactory.delete_statement(test_case_mock, 0)
         test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
 
@@ -600,7 +603,7 @@ def test_insert_random_statement_non_empty(default_test_case):
 
 
 def test_insert_random_statement_non_empty_multi_insert(default_test_case):
-    def side_effect(tc, pos):
+    def side_effect(tc, pos):  # noqa: ARG001
         tc.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
         tc.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
         return True
@@ -755,11 +758,11 @@ def test_add_call_for_method(method_mock, variable_reference_mock, test_case_moc
 
 
 def test_add_call_for_rollback(method_mock, variable_reference_mock, default_test_case):
-    def side_effect(tc, f, position, callee=None):
+    def side_effect(tc, f, position, callee=None):  # noqa: ARG001
         tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
         tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
         tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
-        raise ConstructionFailedException()
+        raise ConstructionFailedException
 
     int0 = stmt.IntPrimitiveStatement(default_test_case, 3)
     default_test_case.add_statement(int0)
@@ -773,7 +776,7 @@ def test_add_call_for_rollback(method_mock, variable_reference_mock, default_tes
         assert default_test_case.statements == [int0]
 
 
-def test_add_call_for_unknown(method_mock, variable_reference_mock, test_case_mock):
+def test_add_call_for_unknown(variable_reference_mock, test_case_mock):
     test_cluster = MagicMock(ModuleTestCluster)
     test_factory = tf.TestFactory(test_cluster)
     unknown = MagicMock(gao.GenericAccessibleObject)
@@ -807,9 +810,7 @@ def test_select_random_variable_for_call_one(
     )
 
 
-def test_select_random_variable_for_call_none(
-    constructor_mock, function_mock, default_test_case
-):
+def test_select_random_variable_for_call_none(function_mock, default_test_case):
     default_test_case.add_statement(stmt.NoneStatement(default_test_case))
     default_test_case.add_statement(
         stmt.FloatPrimitiveStatement(default_test_case, 5.0)
@@ -843,11 +844,11 @@ def test_insert_random_call_success(test_case_mock):
 
 
 def test_insert_random_call_rollback(default_test_case):
-    def side_effect(tc, f, position, callee=None):
+    def side_effect(tc, f, position, callee=None):  # noqa: ARG001
         tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
         tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
         tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
-        raise ConstructionFailedException()
+        raise ConstructionFailedException
 
     int0 = stmt.IntPrimitiveStatement(default_test_case, 3)
     default_test_case.add_statement(int0)
@@ -886,7 +887,7 @@ def test_delete_statement_gracefully_no_alternatives(function_mock, default_test
     assert default_test_case.size() == 0
 
 
-def test_delete_statement_gracefully_no_dependencies(function_mock, default_test_case):
+def test_delete_statement_gracefully_no_dependencies(default_test_case):
     float_prim0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     float_prim1 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
@@ -949,19 +950,23 @@ def test_change_random_call_success(
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "change_call") as change_mock:
         assert test_factory.change_random_call(default_test_case, float_function1)
+        # fmt: off
         change_mock.assert_called_with(
             default_test_case,
             float_function1,
             method_mock,
             {
-                function_mock.inferred_signature: function_mock.inferred_signature.get_parameter_types(
+                function_mock.inferred_signature: function_mock.inferred_signature
+                .get_parameter_types(
                     {}
                 ),
-                method_mock.inferred_signature: method_mock.inferred_signature.get_parameter_types(
+                method_mock.inferred_signature: method_mock.inferred_signature
+                .get_parameter_types(
                     {}
                 ),
             },
         )
+        # fmt: on
 
 
 def test_change_random_call_failed(
@@ -984,19 +989,23 @@ def test_change_random_call_failed(
     with mock.patch.object(test_factory, "change_call") as change_mock:
         change_mock.side_effect = ConstructionFailedException()
         assert not test_factory.change_random_call(default_test_case, float_function1)
+        # fmt: off
         change_mock.assert_called_with(
             default_test_case,
             float_function1,
             method_mock,
             {
-                function_mock.inferred_signature: function_mock.inferred_signature.get_parameter_types(
+                function_mock.inferred_signature: function_mock.inferred_signature
+                .get_parameter_types(
                     {}
                 ),
-                method_mock.inferred_signature: method_mock.inferred_signature.get_parameter_types(
+                method_mock.inferred_signature: method_mock.inferred_signature
+                .get_parameter_types(
                     {}
                 ),
             },
         )
+        # fmt: on
 
 
 def test_change_call_method(constructor_mock, method_mock, default_test_case):

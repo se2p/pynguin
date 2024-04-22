@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -13,7 +13,7 @@ import pynguin.assertion.assertion_trace as at
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture
+@pytest.fixture()
 def assertion_trace():
     return at.AssertionTrace()
 

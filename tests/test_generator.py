@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -147,7 +147,9 @@ def test__track_one_coverage_while_optimising_for_other(
 def test__reset_cache_for_result():
     test_case = MagicMock()
     result = MagicMock(test_case_chromosomes=[test_case])
-    with mock.patch.object(test_case, "invalidate_cache") as test_case_cache_mock:
+    with mock.patch.object(  # noqa: SIM117
+        test_case, "invalidate_cache"
+    ) as test_case_cache_mock:
         with mock.patch.object(
             test_case, "remove_last_execution_result"
         ) as test_case_result_mock:
@@ -201,7 +203,7 @@ def test_run(tmp_path):
 
 
 def test_integrate(tmp_path):
-    project_path = Path(".").absolute()
+    project_path = Path().absolute()
     if project_path.name == "tests":
         project_path /= ".."  # pragma: no cover
     project_path = project_path / "docs" / "source" / "_static"

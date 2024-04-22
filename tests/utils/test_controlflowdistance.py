@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 
@@ -32,22 +32,22 @@ def control_flow_distance() -> ControlFlowDistance:
 
 
 def test_eq_same(control_flow_distance):
-    assert control_flow_distance.__eq__(control_flow_distance)
+    assert control_flow_distance == control_flow_distance  # noqa: PLR0124
 
 
 def test_eq_other_type(control_flow_distance):
-    assert not control_flow_distance.__eq__(MagicMock())
+    assert control_flow_distance != MagicMock()
 
 
 def test_eq_other_value():
     control_flow_distance = ControlFlowDistance()
     other = ControlFlowDistance()
-    assert control_flow_distance.__eq__(other)
+    assert control_flow_distance == other
 
 
 def test_lt_other_type(control_flow_distance):
     with pytest.raises(TypeError):
-        control_flow_distance.__lt__(MagicMock())
+        control_flow_distance < MagicMock()  # noqa: B015
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -13,17 +13,17 @@ from pynguin.utils.exceptions import GenerationException
 
 def test_raise_test_generation_exception():
     with pytest.raises(GenerationException):
-        raise GenerationException()
+        raise GenerationException
 
 
 def test_raise_configuration_exception():
     with pytest.raises(ConfigurationException):
-        raise ConfigurationException()
+        raise ConfigurationException
 
 
 def test_raise_construction_failed_exception():
     with pytest.raises(ConstructionFailedException):
-        raise ConstructionFailedException()
+        raise ConstructionFailedException
 
 
 def test_raise_test_generation_exception_with_message():

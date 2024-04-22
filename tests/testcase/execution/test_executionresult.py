@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -9,7 +9,7 @@ import pytest
 from pynguin.testcase.execution import ExecutionResult
 
 
-@pytest.fixture
+@pytest.fixture()
 def execution_result():
     return ExecutionResult(timeout=True)
 

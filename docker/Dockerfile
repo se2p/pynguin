@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,9 +11,9 @@
 ###############################################################################
 
 # Build stage for Pynguin
-FROM python:3.10.13-slim-bullseye AS build
+FROM python:3.10.14-slim-bullseye AS build
 LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
-ENV POETRY_VERSION "1.7.1"
+ENV POETRY_VERSION "1.8.2"
 
 WORKDIR /pynguin-build
 
@@ -24,11 +24,6 @@ ENV PYTHONDONTWRITEBYTECODE 1
 # monitor the output in real time
 ENV PYTHONUNBUFFERED 1
 
-# Install git to pull in the latest version of the bytecode library from GitHub
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY . .
 
 RUN pip install poetry==$POETRY_VERSION \
@@ -37,11 +32,11 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.13-slim-bullseye AS execute
+FROM python:3.10.14-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.35.0"
+ENV PYNGUIN_VERSION "0.36.0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the
@@ -57,19 +52,14 @@ ENV PYTHONUNBUFFERED 1
 # Disable random hash seeding for reproducible runs
 ENV PYTHONHASHSEED 0
 
-# Install git to pull in the latest version of the bytecode library from GitHub
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /pynguin
 
 COPY --from=build /pynguin-build/dist/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl .
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
-    typing-extensions==4.8.0 \
-    mypy==1.6.0
+    typing-extensions==4.10.0 \
+    mypy==1.9.0
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []

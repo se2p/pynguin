@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -25,7 +25,9 @@ def test_mutate_module():
     controller = FooMutController(
         MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock()
     )
-    with mock.patch.object(controller, "mutate_module", MagicMock()) as mutated:
+    with mock.patch.object(  # noqa: SIM117
+        controller, "mutate_module", MagicMock()
+    ) as mutated:
         with mock.patch.object(
             adapter, "_build_mutation_controller", mutated
         ) as mock_obj:

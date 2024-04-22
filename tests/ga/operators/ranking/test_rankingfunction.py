@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -16,12 +16,12 @@ from pynguin.ga.operators.ranking import RankedFronts
 from pynguin.ga.operators.ranking import RankingFunction
 
 
-@pytest.fixture
+@pytest.fixture()
 def chromosome_mock():
     return MagicMock(chrom.Chromosome)
 
 
-@pytest.fixture
+@pytest.fixture()
 def ranking_function() -> RankingFunction:
     return RankBasedPreferenceSorting()
 

@@ -1,12 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
-
+# ruff: noqa: E501, ERA001
 
 from bytecode import BasicBlock
 from bytecode import CellVar
@@ -23,7 +23,7 @@ from tests.slicer.util import slice_module_at_return
 def test_simple_loop():
     def func():
         result = 0
-        for i in range(0, 3):
+        for i in range(0, 3):  # noqa: PIE808
             result += i
         return result
 
@@ -275,11 +275,11 @@ def test_generators():
 def test_with_extended_arg():
     def func():
         p = [1, 2, 3, 4, 5, 6]
-        unused = p  # noqa
-        q, r, *s, t = p  # With extended argument
+        unused = p  # noqa: F841
+        q, r, *s, t = p  # With extended argument  # noqa: F841
 
         result = q, r
-        return result
+        return result  # noqa: RET504
 
     module_block = BasicBlock(
         [
@@ -323,7 +323,7 @@ def test_nested_class():
         class_attr = NestedClass.y
 
         result = class_attr
-        return result
+        return result  # noqa: RET504
 
     freevar_x = FreeVar("x")
     cellvar_x = CellVar("x")
@@ -395,7 +395,7 @@ def test_nested_class_2():
         class_attr2 = Bar.Foo.y
 
         result = class_attr + class_attr2
-        return result
+        return result  # noqa: RET504
 
     freevar_x1 = FreeVar("x1")
     cellvar_x1 = CellVar("x1")
@@ -484,10 +484,10 @@ def test_nested_class_2():
 
 def test_lambda():
     def func():
-        x = lambda a: a + 10  # noqa
+        x = lambda a: a + 10  # noqa: E731
 
         result = x(1)
-        return result
+        return result  # noqa: RET504
 
     function_block = BasicBlock(
         [
@@ -534,7 +534,7 @@ def test_builtin_addresses():
         test_list.append(3)
 
         result = test_dict.get(1)
-        return result
+        return result  # noqa: RET504
 
     function_block = BasicBlock(
         [
@@ -616,7 +616,7 @@ def test_object_modification_call():
         ob.inc_x()
 
         result = ob.x
-        return result
+        return result  # noqa: RET504
 
     function_block = BasicBlock(
         [

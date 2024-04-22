@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -178,7 +178,6 @@ def test_remove_integration(constructor_mock):
         ("visit_string_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_boolean_primitive_statement", "_handle_collection_or_primitive"),
-        ("visit_bytes_primitive_statement", "_handle_collection_or_primitive"),
         ("visit_enum_statement", "_handle_collection_or_primitive"),
         ("visit_none_statement", "_handle_collection_or_primitive"),
         ("visit_constructor_statement", "_handle_remaining"),
@@ -192,9 +191,9 @@ def test_remove_integration(constructor_mock):
 )
 def test_all_statements(statement_type, func):
     visitor = pp.UnusedPrimitiveOrCollectionStatementVisitor()
-    with mock.patch.object(visitor, func) as func:
-        visitor.__getattribute__(statement_type)(MagicMock())
-        func.assert_called_once()
+    with mock.patch.object(visitor, func) as f:
+        visitor.__getattribute__(statement_type)(MagicMock())  # noqa: PLC2801
+        f.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -207,4 +206,4 @@ def test_all_statements(statement_type, func):
 def test_not_implemented_statements(statement_type):
     visitor = pp.UnusedPrimitiveOrCollectionStatementVisitor()
     with pytest.raises(NotImplementedError):
-        visitor.__getattribute__(statement_type)(MagicMock())
+        visitor.__getattribute__(statement_type)(MagicMock())  # noqa: PLC2801

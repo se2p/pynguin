@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -43,9 +43,6 @@ class RuntimeVariable(str, enum.Enum):
 
     # Number of iterations of the test-generation algorithm
     AlgorithmIterations = "AlgorithmIterations"
-
-    # Execution results
-    ExecutionResults = "ExecutionResults"
 
     # The random seed used during the search.
     # A random one was used if none was specified in the beginning
@@ -132,6 +129,9 @@ class RuntimeVariable(str, enum.Enum):
 
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
+
+    # Obtained type signatures at different points in time
+    SignatureInfosTimeline = "SignatureInfosTimeline"
 
     # ========= Values collected at the end of the search =========
 

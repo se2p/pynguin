@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -23,7 +23,7 @@ def test_hook():
 
 
 def test_module_instrumentation_integration():
-    """Small integration test, which tests the instrumentation for various function types."""
+    """Tests the instrumentation for various function types."""
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
@@ -42,7 +42,7 @@ def test_module_instrumentation_integration():
 
 
 async def run_async_generator(gen):
-    """Small helper to execute async generator"""
+    """Small helper to execute async generator."""
     the_sum = 0
     async for i in gen:
         the_sum += i
