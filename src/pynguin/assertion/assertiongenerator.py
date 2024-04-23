@@ -309,25 +309,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
         self._mutation_executor.add_observer(ato.AssertionVerificationObserver())
 
-        mutation_controller.tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
-        self._mutated_modules = [
-            module for module, _ in mutation_controller.create_mutants()
-        ]
+        self._mutation_controller = mutation_controller
 
         # Some debug information
         self._testing = testing
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
-
-    @property
-    def mutated_modules(self) -> list[types.ModuleType]:
-        """Provides the mutated modules.
-
-        Returns:
-            The mutated modules.
-        """
-        return self._mutated_modules
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
@@ -335,14 +321,21 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             (test, []) for test in test_cases
         ]
 
+        mutant_count = self._mutation_controller.mutant_count()
+
         with self._mutation_executor.temporarily_add_observer(
             ato.AssertionVerificationObserver()
         ):
-            for idx, mutated_module in enumerate(self._mutated_modules):
+            self._mutation_controller.tracer.current_thread_identifier = (
+                threading.current_thread().ident
+            )
+            for idx, (mutated_module, _) in enumerate(
+                self._mutation_controller.create_mutants(), start=1
+            ):
                 self._logger.info(
                     "Running tests on mutant %3i/%i",
-                    idx + 1,
-                    len(self._mutated_modules),
+                    idx,
+                    mutant_count,
                 )
                 self._mutation_executor.module_provider.add_mutated_version(
                     module_name=config.configuration.module_name,
@@ -351,9 +344,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 for test, results in tests_and_results:
                     results.append(self._mutation_executor.execute(test))
 
-        summary = self.__compute_mutation_summary(
-            len(self._mutated_modules), tests_and_results
-        )
+                self._mutation_controller.tracer.current_thread_identifier = (
+                    threading.current_thread().ident
+                )
+
+        summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
         self.__report_mutation_summary(summary)
         self.__remove_non_relevant_assertions(tests_and_results, summary)
 
