@@ -35,5 +35,5 @@ def test_create_mutants():
     mutation_controller.tracer.current_thread_identifier = (
         threading.current_thread().ident
     )
-    mutations = mutation_controller.create_mutants()
+    mutations = list(mutation_controller.create_mutants())
     assert len(mutations) == 14
