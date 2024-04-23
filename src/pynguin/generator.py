@@ -656,7 +656,7 @@ def _setup_mutation_analysis_assertion_generator(
         executor, mutation_controller
     )
 
-    _LOGGER.info("Generated %d mutants", len(assertion_generator.mutated_modules))
+    _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator
 
 

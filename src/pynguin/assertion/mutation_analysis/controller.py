@@ -11,6 +11,7 @@ import ast
 import logging
 
 from typing import TYPE_CHECKING
+from typing import Generator
 
 from pynguin.assertion.mutation_analysis.transformer import create_module
 
@@ -59,15 +60,16 @@ class MutationController:
         """
         return create_module(mutant_ast, self._module.__name__)
 
-    def create_mutants(self) -> list[tuple[ModuleType, list[Mutation]]]:
+    def create_mutants(
+        self,
+    ) -> Generator[tuple[ModuleType | None, list[Mutation]], None, None]:
         """Creates mutants for the module.
 
         Returns:
-            A list of tuples where the first entry is the mutated module and the second
-            part is a list of all the mutations operators applied.
+            A generator of tuples where the first entry is the mutated module or None
+            if the mutated module cannot be created and the second part is a list of
+            all the mutations operators applied.
         """
-        mutants: list[tuple[ModuleType, list[Mutation]]] = []
-
         for mutations, mutant_ast in self._mutant_generator.mutate(
             self._module_ast, self._module
         ):
@@ -77,8 +79,16 @@ class MutationController:
                 mutant_module = self.create_mutant(mutant_ast)
             except Exception as exception:  # noqa: BLE001
                 _LOGGER.debug("Error creating mutant: %s", exception)
-                continue
+                mutant_module = None
 
-            mutants.append((mutant_module, mutations))
+            yield mutant_module, mutations
 
-        return mutants
+    def mutant_count(self) -> int:
+        """Calculates the number of mutants that can be created.
+
+        Returns:
+            The number of mutants that can be created.
+        """
+        return sum(
+            1 for _ in self._mutant_generator.mutate(self._module_ast, self._module)
+        )
