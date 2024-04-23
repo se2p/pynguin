@@ -643,6 +643,7 @@ def _setup_mutation_analysis_assertion_generator(
     module = importlib.import_module(config.configuration.module_name)
 
     _LOGGER.info("Build AST for %s", module.__name__)
+    executor.tracer.current_thread_identifier = threading.current_thread().ident
     module_source_code = inspect.getsource(module)
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
 
