@@ -317,7 +317,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]] = [
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
             (test, []) for test in test_cases
         ]
 
@@ -339,6 +339,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                         idx,
                         mutant_count,
                     )
+                    for _, results in tests_and_results:
+                        results.append(None)
                     continue
 
                 self._logger.info(
@@ -363,7 +365,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
     @staticmethod
     def __remove_non_relevant_assertions(
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]],
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
         mutation_summary: _MutationSummary,
     ) -> None:
         for test, results in tests_and_results:
@@ -372,7 +374,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 results, mutation_summary.mutant_information, strict=True
             ):
                 # Ignore timed out executions
-                if len(mut.timed_out_by) == 0:
+                if result is not None and len(mut.timed_out_by) == 0:
                     merged.merge(result.assertion_verification_trace)
             for stmt_idx, statement in enumerate(test.statements):
                 for assertion_idx, assertion in reversed(
@@ -384,13 +386,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     @staticmethod
     def __compute_mutation_summary(
         number_of_mutants: int,
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]],
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
     ) -> _MutationSummary:
         mutation_info = [_MutantInfo(i) for i in range(number_of_mutants)]
         for test_num, (_, results) in enumerate(tests_and_results):
             # For each mutation, check if we had a violated assertion
             for info, result in zip(mutation_info, results, strict=True):
-                if info.timed_out_by:
+                if result is None or info.timed_out_by:
                     continue
                 if result.timeout:
                     # Mutant caused timeout
