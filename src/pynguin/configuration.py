@@ -225,6 +225,11 @@ class TestCaseOutputConfiguration:
     output_path: str
     """Path to an output folder for the generated test cases."""
 
+    crash_path: str = ""
+    """Path to an output folder for the generated test cases that caused a crash.
+    Only works when running in a subprocess.
+    """
+
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the
     generated tests should fit."""
@@ -632,6 +637,9 @@ class Configuration:
 
     ignore_methods: list[str] = dataclasses.field(default_factory=list)
     """Ignore the methods specified here from the module analysis."""
+
+    subprocess: bool = False
+    """Run the test generation in a subprocess."""
 
 
 # Singleton instance of the configuration.

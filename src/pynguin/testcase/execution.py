@@ -20,6 +20,7 @@ import threading
 
 from abc import abstractmethod
 from importlib import reload
+from pathlib import Path
 from queue import Empty
 from queue import Queue
 from typing import TYPE_CHECKING
@@ -58,6 +59,7 @@ from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.testcase import export
 from pynguin.utils.mirror import Mirror
 
 
@@ -1300,6 +1302,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 _LOGGER.error("Finished process did not return a result.")
                 raise RuntimeError("Bug in Pynguin!")
 
+            self._save_crash_tests(test_case)
             return ExecutionResult(timeout=True)
 
         return_value: tuple[
@@ -1334,6 +1337,23 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         self._after_remote_test_case_execution(test_case, result)
 
         return result
+
+    def _save_crash_tests(self, test_case: tc.TestCase) -> None:
+        execution_context = ExecutionContext(self._module_provider)
+
+        body = [
+            ast.fix_missing_locations(execution_context.node_for_statement(statement))
+            for statement in test_case.statements
+        ]
+
+        module = ast.Module(body=body, type_ignores=[])
+
+        target_file = (
+            Path(config.configuration.test_case_output.crash_path).resolve()
+            / f"crash_test_{hash(test_case)}.py"
+        )
+
+        export.save_module_to_file(module, target_file)
 
     @staticmethod
     def _execute_test_case_in_subprocess(  # noqa: PLR0917, C901
