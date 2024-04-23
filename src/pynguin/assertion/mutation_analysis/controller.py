@@ -11,7 +11,6 @@ import ast
 import logging
 
 from typing import TYPE_CHECKING
-from typing import Generator
 
 from pynguin.assertion.mutation_analysis.transformer import create_module
 
@@ -19,6 +18,7 @@ from pynguin.assertion.mutation_analysis.transformer import create_module
 if TYPE_CHECKING:
     import types
 
+    from collections.abc import Generator
     from types import ModuleType
 
     import pynguin.assertion.mutation_analysis.mutators as mu
