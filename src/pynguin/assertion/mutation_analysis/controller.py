@@ -81,3 +81,13 @@ class MutationController:
                 continue
 
             yield mutant_module, mutations
+
+    def mutant_count(self) -> int:
+        """Calculates the number of mutants that can be created.
+
+        Returns:
+            The number of mutants that can be created.
+        """
+        return sum(
+            1 for _ in self._mutant_generator.mutate(self._module_ast, self._module)
+        )
