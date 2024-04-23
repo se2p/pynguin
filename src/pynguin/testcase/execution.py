@@ -1257,7 +1257,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         process = mp.Process(
-            target=self._execute_test_case_in_thread,
+            target=self._execute_test_case_in_subprocess,
             args=args,
             daemon=True,
         )
@@ -1317,7 +1317,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return result
 
     @staticmethod
-    def _execute_test_case_in_thread(  # noqa: PLR0917
+    def _execute_test_case_in_subprocess(  # noqa: PLR0917
         tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
