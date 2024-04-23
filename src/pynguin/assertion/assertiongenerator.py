@@ -332,6 +332,15 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for idx, (mutated_module, _) in enumerate(
                 self._mutation_controller.create_mutants(), start=1
             ):
+                if mutated_module is None:
+                    self._logger.info(
+                        "Skipping mutant %3i/%i because "
+                        "it created an invalid module",
+                        idx,
+                        mutant_count,
+                    )
+                    continue
+
                 self._logger.info(
                     "Running tests on mutant %3i/%i",
                     idx,

@@ -62,12 +62,13 @@ class MutationController:
 
     def create_mutants(
         self,
-    ) -> Generator[tuple[ModuleType, list[Mutation]], None, None]:
+    ) -> Generator[tuple[ModuleType | None, list[Mutation]], None, None]:
         """Creates mutants for the module.
 
         Returns:
-            A generator of tuples where the first entry is the mutated module and the
-            second part is a list of all the mutations operators applied.
+            A generator of tuples where the first entry is the mutated module or None
+            if the mutated module cannot be created and the second part is a list of
+            all the mutations operators applied.
         """
         for mutations, mutant_ast in self._mutant_generator.mutate(
             self._module_ast, self._module
@@ -78,7 +79,7 @@ class MutationController:
                 mutant_module = self.create_mutant(mutant_ast)
             except Exception as exception:  # noqa: BLE001
                 _LOGGER.debug("Error creating mutant: %s", exception)
-                continue
+                mutant_module = None
 
             yield mutant_module, mutations
 
