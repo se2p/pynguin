@@ -783,7 +783,20 @@ class ModuleProvider:
     """Class for providing modules."""
 
     def __init__(self):  # noqa: D107
-        self._mutated_module_aliases: dict[str, ModuleType] = {}
+        self._mutated_module_aliases: dict[
+            str, tuple[ModuleType, InstrumentationTransformer]
+        ] = {}
+
+    @property
+    def mutated_module_aliases(
+        self,
+    ) -> dict[str, tuple[ModuleType, InstrumentationTransformer]]:
+        """The mutated module aliases.
+
+        Returns:
+            The mutated module aliases
+        """
+        return self._mutated_module_aliases.copy()
 
     @staticmethod
     def __get_sys_module(module_name: str) -> ModuleType:
@@ -823,19 +836,25 @@ class ModuleProvider:
             the module which should be loaded.
         """
         if (
-            mutated_module := self._mutated_module_aliases.get(module_name, None)
+            mutated_module_alias := self._mutated_module_aliases.get(module_name, None)
         ) is not None:
-            return mutated_module
+            return mutated_module_alias[0]
         return self.__get_sys_module(module_name)
 
-    def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
+    def add_mutated_version(
+        self,
+        module_name: str,
+        mutated_module: ModuleType,
+        transformer: InstrumentationTransformer,
+    ) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.
 
         Args:
             module_name: for the module name of the module, which should be mutated.
             mutated_module: the custom module, which should be used.
+            transformer: the transformer to be used for the mutated module.
         """
-        self._mutated_module_aliases[module_name] = mutated_module
+        self._mutated_module_aliases[module_name] = (mutated_module, transformer)
 
     def clear_mutated_modules(self):
         """Clear the existing aliases."""
@@ -1317,7 +1336,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return result
 
     @staticmethod
-    def _execute_test_case_in_subprocess(  # noqa: PLR0917
+    def _execute_test_case_in_subprocess(  # noqa: PLR0917, C901
         tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
@@ -1332,6 +1351,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
             instrumentation_finder.instrumentation_tracer.tracer = tracer
+
+        for _, mutant_transformer in module_provider.mutated_module_aliases.values():
+            mutant_transformer.instrumentation_tracer.tracer = tracer
 
         executor = TestCaseExecutor(
             tracer,

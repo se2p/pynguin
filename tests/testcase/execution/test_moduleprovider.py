@@ -23,17 +23,20 @@ def test_load_module_normal(module_provider):
 
 def test_load_module_custom(module_provider):
     module = MagicMock()
-    module_provider.add_mutated_version("sys", module)
+    transformer = MagicMock()
+    module_provider.add_mutated_version("sys", module, transformer)
     result = module_provider.get_module("sys")
     assert result == module
 
 
 def test_add_mutated_version(module_provider):
-    module_provider.add_mutated_version("foo", MagicMock())
+    transformer = MagicMock()
+    module_provider.add_mutated_version("foo", MagicMock(), transformer)
     assert module_provider._mutated_module_aliases.get("foo") is not None
 
 
 def test_clear_mutated_modules(module_provider):
-    module_provider.add_mutated_version("foo", MagicMock())
+    transformer = MagicMock()
+    module_provider.add_mutated_version("foo", MagicMock(), transformer)
     module_provider.clear_mutated_modules()
     assert len(module_provider._mutated_module_aliases) == 0

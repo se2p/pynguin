@@ -40,6 +40,8 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
 
+    from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -276,6 +278,15 @@ class InstrumentedMutationController(ct.MutationController):
         """
         return self._tracer
 
+    @property
+    def transformer(self) -> InstrumentationTransformer:
+        """Provides the instrumentation transformer.
+
+        Returns:
+            The instrumentation transformer.
+        """
+        return self._transformer
+
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
         module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
@@ -306,7 +317,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         """
         super().__init__(plain_executor)
 
-        self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
+        self._mutation_executor = ex.SubprocessTestCaseExecutor(
+            mutation_controller.tracer
+        )
         self._mutation_executor.add_remote_observer(
             ato.RemoteAssertionVerificationObserver()
         )
@@ -353,6 +366,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 self._mutation_executor.module_provider.add_mutated_version(
                     module_name=config.configuration.module_name,
                     mutated_module=mutated_module,
+                    transformer=self._mutation_controller.transformer,
                 )
                 for test, results in tests_and_results:
                     results.append(self._mutation_executor.execute(test))
