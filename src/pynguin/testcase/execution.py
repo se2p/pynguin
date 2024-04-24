@@ -39,6 +39,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
@@ -1420,21 +1421,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return results
 
     def _save_crash_tests(self, test_case: tc.TestCase) -> None:
-        execution_context = ExecutionContext(self._module_provider)
+        chromosome = tcc.TestCaseChromosome(test_case)
 
-        body = [
-            ast.fix_missing_locations(execution_context.node_for_statement(statement))
-            for statement in test_case.statements
-        ]
+        exporter = export.PyTestChromosomeToAstVisitor()
 
-        module_object = ast.Module(body=body, type_ignores=[])
+        chromosome.accept(exporter)
 
         target_file = (
             Path(config.configuration.test_case_output.crash_path).resolve()
             / f"crash_test_{hash(test_case)}.py"
         )
 
-        export.save_module_to_file(module_object, target_file)
+        export.save_module_to_file(exporter.to_module(), target_file)
 
     def _replace_subject_properties(
         self, new_subject_properties: SubjectProperties
