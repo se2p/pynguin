@@ -65,6 +65,7 @@ from pynguin.utils.mirror import Mirror
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from collections.abc import Iterable
     from contextlib import AbstractContextManager
     from types import ModuleType
 
@@ -951,6 +952,23 @@ class AbstractTestCaseExecutor(abc.ABC):
             Result of the execution
         """
 
+    def execute_multiple(
+        self, test_cases: Iterable[tc.TestCase]
+    ) -> Iterable[ExecutionResult]:
+        """Executes multiple test cases.
+
+        Args:
+            test_cases: The test cases that should be executed.
+
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
+        Yields:
+            The results of the execution
+        """
+        for test_case in test_cases:
+            yield self.execute(test_case)
+
 
 class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
@@ -1309,7 +1327,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult
         ] = receiving_connection.recv()
 
-        new_remote_observers, subject_properties, result = return_value
+        new_remote_observers, new_subject_properties, result = return_value
 
         sending_connection.close()
         receiving_connection.close()
@@ -1321,22 +1339,79 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         ):
             remote_observer.state = new_remote_observer.state
 
-        self._tracer.subject_properties.branch_less_code_objects = (
-            subject_properties.branch_less_code_objects
-        )
-        self._tracer.subject_properties.existing_lines = (
-            subject_properties.existing_lines
-        )
-        self._tracer.subject_properties.existing_predicates = (
-            subject_properties.existing_predicates
-        )
-        self._tracer.subject_properties.object_addresses = (
-            subject_properties.object_addresses
-        )
+        self._replace_subject_properties(new_subject_properties)
 
         self._after_remote_test_case_execution(test_case, result)
 
         return result
+
+    def execute_multiple(  # noqa: D102
+        self, test_cases: Iterable[tc.TestCase]
+    ) -> Iterable[ExecutionResult]:
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+
+        remote_observers = tuple(self._yield_remote_observers())
+
+        test_cases_tuple = tuple(test_cases)
+
+        args = (
+            self._tracer,
+            self._module_provider,
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement,
+            remote_observers,
+            test_cases_tuple,
+            sending_connection,
+        )
+
+        process = mp.Process(
+            target=self._execute_test_cases_in_subprocess,
+            args=args,
+            daemon=True,
+        )
+
+        process.start()
+
+        has_results = receiving_connection.poll(
+            timeout=min(
+                self._maximum_test_execution_timeout * len(test_cases_tuple),
+                sum(
+                    self._test_execution_time_per_statement * len(test_case.statements)
+                    for test_case in test_cases_tuple
+                ),
+            ),
+        )
+
+        if not has_results:
+            # Just kill the process in case of a timeout
+            if process.exitcode is None:
+                process.kill()
+
+            # Raise an exception when the exit code is not 139 (SIGSEGV)
+            # because it indicates a bug in Pynguin
+            elif process.exitcode != 139:
+                _LOGGER.error("Finished process did not return a result.")
+                raise RuntimeError("Bug in Pynguin!")
+
+            # Fallback to execute each test case in different processes in case
+            # of a SIGSEGV
+            return super().execute_multiple(test_cases)
+
+        return_value: tuple[
+            SubjectProperties,
+            tuple[ExecutionResult, ...],
+        ] = receiving_connection.recv()
+
+        new_subject_properties, results = return_value
+
+        sending_connection.close()
+        receiving_connection.close()
+
+        process.join()
+
+        self._replace_subject_properties(new_subject_properties)
+
+        return results
 
     def _save_crash_tests(self, test_case: tc.TestCase) -> None:
         execution_context = ExecutionContext(self._module_provider)
@@ -1346,17 +1421,33 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             for statement in test_case.statements
         ]
 
-        module = ast.Module(body=body, type_ignores=[])
+        module_object = ast.Module(body=body, type_ignores=[])
 
         target_file = (
             Path(config.configuration.test_case_output.crash_path).resolve()
             / f"crash_test_{hash(test_case)}.py"
         )
 
-        export.save_module_to_file(module, target_file)
+        export.save_module_to_file(module_object, target_file)
+
+    def _replace_subject_properties(
+        self, new_subject_properties: SubjectProperties
+    ) -> None:
+        self._tracer.subject_properties.branch_less_code_objects = (
+            new_subject_properties.branch_less_code_objects
+        )
+        self._tracer.subject_properties.existing_lines = (
+            new_subject_properties.existing_lines
+        )
+        self._tracer.subject_properties.existing_predicates = (
+            new_subject_properties.existing_predicates
+        )
+        self._tracer.subject_properties.object_addresses = (
+            new_subject_properties.object_addresses
+        )
 
     @staticmethod
-    def _execute_test_case_in_subprocess(  # noqa: PLR0917, C901
+    def _execute_test_case_in_subprocess(  # noqa: PLR0917
         tracer: ExecutionTracer,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
@@ -1365,15 +1456,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_case: tc.TestCase,
         sending_connection: mp_conn.Connection,
     ) -> None:
-        tracer.current_thread_identifier = threading.current_thread().ident
-
-        instrumentation_finder = sys.meta_path[0]
-
-        if isinstance(instrumentation_finder, InstrumentationFinder):
-            instrumentation_finder.instrumentation_tracer.tracer = tracer
-
-        for _, mutant_transformer in module_provider.mutated_module_aliases.values():
-            mutant_transformer.instrumentation_tracer.tracer = tracer
+        SubprocessTestCaseExecutor._replace_tracers(tracer, module_provider)
 
         executor = TestCaseExecutor(
             tracer,
@@ -1387,6 +1470,53 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
+        SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+
+        sending_connection.send((remote_observers, tracer.subject_properties, result))
+
+    @staticmethod
+    def _execute_test_cases_in_subprocess(  # noqa: PLR0917
+        tracer: ExecutionTracer,
+        module_provider: ModuleProvider,
+        maximum_test_execution_timeout: int,
+        test_execution_time_per_statement: int,
+        remote_observers: tuple[RemoteExecutionObserver, ...],
+        test_cases: tuple[tc.TestCase, ...],
+        sending_connection: mp_conn.Connection,
+    ) -> None:
+        SubprocessTestCaseExecutor._replace_tracers(tracer, module_provider)
+
+        executor = TestCaseExecutor(
+            tracer,
+            module_provider,
+            maximum_test_execution_timeout,
+            test_execution_time_per_statement,
+        )
+
+        for remote_observer in remote_observers:
+            executor.add_remote_observer(remote_observer)
+
+        results = tuple(executor.execute_multiple(test_cases))
+
+        for result in results:
+            SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+
+        sending_connection.send((tracer.subject_properties, results))
+
+    @staticmethod
+    def _replace_tracers(
+        tracer: ExecutionTracer, module_provider: ModuleProvider
+    ) -> None:
+        instrumentation_finder = sys.meta_path[0]
+
+        if isinstance(instrumentation_finder, InstrumentationFinder):
+            instrumentation_finder.instrumentation_tracer.tracer = tracer
+
+        for _, mutant_transformer in module_provider.mutated_module_aliases.values():
+            mutant_transformer.instrumentation_tracer.tracer = tracer
+
+    @staticmethod
+    def _fix_result_for_pickle(result: ExecutionResult) -> None:
         if exception_bad_items := dill.detect.baditems(result.exceptions):
             _LOGGER.warning(
                 "Unpicklable exceptions, final results might differ from classic"
@@ -1461,8 +1591,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 for position, type_ in result.raw_return_types.items()
                 if type_ not in raw_return_types_bad_items
             }
-
-        sending_connection.send((remote_observers, tracer.subject_properties, result))
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):

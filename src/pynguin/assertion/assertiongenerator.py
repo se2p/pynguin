@@ -288,6 +288,7 @@ class InstrumentedMutationController(ct.MutationController):
         return self._transformer
 
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
+        self._tracer.current_thread_identifier = threading.current_thread().ident
         module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
@@ -336,15 +337,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
-            (test, []) for test in test_cases
+        tests_mutants_results: list[list[ex.ExecutionResult | None]] = [
+            [] for _ in test_cases
         ]
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        self._mutation_controller.tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
         for idx, (mutated_module, _) in enumerate(
             self._mutation_controller.create_mutants(), start=1
         ):
@@ -354,8 +352,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     idx,
                     mutant_count,
                 )
-                for _, results in tests_and_results:
-                    results.append(None)
+                for test_mutants_results in tests_mutants_results:
+                    test_mutants_results.append(None)
                 continue
 
             self._logger.info(
@@ -368,23 +366,27 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 mutated_module=mutated_module,
                 transformer=self._mutation_controller.transformer,
             )
-            for test, results in tests_and_results:
-                results.append(self._mutation_executor.execute(test))
 
-            self._mutation_controller.tracer.current_thread_identifier = (
-                threading.current_thread().ident
-            )
+            tests_mutant_results = self._mutation_executor.execute_multiple(test_cases)
 
-        summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
+            for test_mutants_results, test_mutant_results in zip(
+                tests_mutants_results, tests_mutant_results, strict=True
+            ):
+                test_mutants_results.append(test_mutant_results)
+
+        summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
         self.__report_mutation_summary(summary)
-        self.__remove_non_relevant_assertions(tests_and_results, summary)
+        self.__remove_non_relevant_assertions(
+            test_cases, tests_mutants_results, summary
+        )
 
     @staticmethod
     def __remove_non_relevant_assertions(
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
+        test_cases: list[tc.TestCase],
+        tests_mutants_results: list[list[ex.ExecutionResult | None]],
         mutation_summary: _MutationSummary,
     ) -> None:
-        for test, results in tests_and_results:
+        for test, results in zip(test_cases, tests_mutants_results, strict=True):
             merged = at.AssertionVerificationTrace()
             for result, mut in zip(
                 results, mutation_summary.mutant_information, strict=True
@@ -402,12 +404,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     @staticmethod
     def __compute_mutation_summary(
         number_of_mutants: int,
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
+        tests_mutants_results: list[list[ex.ExecutionResult | None]],
     ) -> _MutationSummary:
         mutation_info = [_MutantInfo(i) for i in range(number_of_mutants)]
-        for test_num, (_, results) in enumerate(tests_and_results):
+        for test_num, test_mutants_results in enumerate(tests_mutants_results):
             # For each mutation, check if we had a violated assertion
-            for info, result in zip(mutation_info, results, strict=True):
+            for info, result in zip(mutation_info, test_mutants_results, strict=True):
                 if result is None or info.timed_out_by:
                     continue
                 if result.timeout:
