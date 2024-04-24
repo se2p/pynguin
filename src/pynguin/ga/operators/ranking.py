@@ -223,8 +223,7 @@ def fast_epsilon_dominance_assignment(
             elif value == minimum:
                 min_set.append(test)
 
-            if value > maximum:
-                maximum = value
+            maximum = max(value, maximum)
 
         if maximum == minimum:
             continue

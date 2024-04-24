@@ -58,7 +58,7 @@ class ExecutedMemoryInstruction(ExecutedInstruction):
     object_creation: bool
 
     def __str__(self) -> str:
-        arg_address = self.arg_address if self.arg_address else -1
+        arg_address = self.arg_address or -1
         return (
             f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
             f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
