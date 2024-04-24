@@ -257,8 +257,6 @@ class InstrumentedMutationController(ct.MutationController):
         """
         super().__init__(mutant_generator, module_ast, module)
 
-        self._tracer = tracer
-
         self._transformer = build_transformer(
             InstrumentationExecutionTracer(tracer),
             {config.CoverageMetric.BRANCH},
@@ -276,7 +274,7 @@ class InstrumentedMutationController(ct.MutationController):
         Returns:
             The execution tracer.
         """
-        return self._tracer
+        return self._transformer.instrumentation_tracer.tracer
 
     @property
     def transformer(self) -> InstrumentationTransformer:
@@ -288,7 +286,8 @@ class InstrumentedMutationController(ct.MutationController):
         return self._transformer
 
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
-        self._tracer.current_thread_identifier = threading.current_thread().ident
+        self.tracer.current_thread_identifier = threading.current_thread().ident
+        self.tracer.reset()
         module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
