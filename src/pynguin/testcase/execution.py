@@ -1320,6 +1320,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 _LOGGER.error("Finished process did not return a result.")
                 raise RuntimeError("Bug in Pynguin!")
 
+            _LOGGER.warning(
+                "Segmentation fault detected. Saving the test that caused the crash"
+                "and continuing as if a timeout occurred."
+            )
             self._save_crash_tests(test_case)
             return ExecutionResult(timeout=True)
 
@@ -1393,8 +1397,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 _LOGGER.error("Finished process did not return a result.")
                 raise RuntimeError("Bug in Pynguin!")
 
-            # Fallback to execute each test case in different processes in case
-            # of a SIGSEGV
+            _LOGGER.warning(
+                "Segmentation fault detected. Falling back to executing each"
+                "tests in different processes."
+            )
             return super().execute_multiple(test_cases)
 
         return_value: tuple[
