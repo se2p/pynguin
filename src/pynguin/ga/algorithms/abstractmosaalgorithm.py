@@ -32,7 +32,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
 
-    def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:
+    def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
         offspring_population: list[tcc.TestCaseChromosome] = []
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
@@ -52,12 +52,14 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
                     continue
 
             # Apply mutation on offspring_1
-            self._mutate(offspring_1)
+            for _ in range(config.configuration.search_algorithm.number_of_mutations):
+                self._mutate(offspring_1)
             if offspring_1.changed and offspring_1.size() > 0:
                 offspring_population.append(offspring_1)
 
             # Apply mutation on offspring_2
-            self._mutate(offspring_2)
+            for _ in range(config.configuration.search_algorithm.number_of_mutations):
+                self._mutate(offspring_2)
             if offspring_2.changed and offspring_2.size() > 0:
                 offspring_population.append(offspring_2)
 

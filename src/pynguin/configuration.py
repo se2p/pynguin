@@ -526,6 +526,9 @@ class SearchAlgorithmConfiguration:
     """Focus search by filtering out elements from the test cluster when
      they are fully covered."""
 
+    number_of_mutations: int = 1
+    """Number of mutations that should be applied in one breeding step."""
+
 
 @dataclasses.dataclass
 class StoppingConfiguration:
