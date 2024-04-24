@@ -342,42 +342,38 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        with self._mutation_executor.temporarily_add_remote_observer(
-            ato.RemoteAssertionVerificationObserver()
+        self._mutation_controller.tracer.current_thread_identifier = (
+            threading.current_thread().ident
+        )
+        for idx, (mutated_module, _) in enumerate(
+            self._mutation_controller.create_mutants(), start=1
         ):
-            self._mutation_controller.tracer.current_thread_identifier = (
-                threading.current_thread().ident
-            )
-            for idx, (mutated_module, _) in enumerate(
-                self._mutation_controller.create_mutants(), start=1
-            ):
-                if mutated_module is None:
-                    self._logger.info(
-                        "Skipping mutant %3i/%i because "
-                        "it created an invalid module",
-                        idx,
-                        mutant_count,
-                    )
-                    for _, results in tests_and_results:
-                        results.append(None)
-                    continue
-
+            if mutated_module is None:
                 self._logger.info(
-                    "Running tests on mutant %3i/%i",
+                    "Skipping mutant %3i/%i because it created an invalid module",
                     idx,
                     mutant_count,
                 )
-                self._mutation_executor.module_provider.add_mutated_version(
-                    module_name=config.configuration.module_name,
-                    mutated_module=mutated_module,
-                    transformer=self._mutation_controller.transformer,
-                )
-                for test, results in tests_and_results:
-                    results.append(self._mutation_executor.execute(test))
+                for _, results in tests_and_results:
+                    results.append(None)
+                continue
 
-                self._mutation_controller.tracer.current_thread_identifier = (
-                    threading.current_thread().ident
-                )
+            self._logger.info(
+                "Running tests on mutant %3i/%i",
+                idx,
+                mutant_count,
+            )
+            self._mutation_executor.module_provider.add_mutated_version(
+                module_name=config.configuration.module_name,
+                mutated_module=mutated_module,
+                transformer=self._mutation_controller.transformer,
+            )
+            for test, results in tests_and_results:
+                results.append(self._mutation_executor.execute(test))
+
+            self._mutation_controller.tracer.current_thread_identifier = (
+                threading.current_thread().ident
+            )
 
         summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
         self.__report_mutation_summary(summary)
