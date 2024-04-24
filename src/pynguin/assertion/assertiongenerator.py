@@ -295,6 +295,7 @@ class InstrumentedMutationController(ct.MutationController):
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         exec(code, module.__dict__)  # noqa: S102
+        self.tracer.store_import_trace()
         return module
 
 
