@@ -343,36 +343,41 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        for idx, (mutated_module, _) in enumerate(
-            self._mutation_controller.create_mutants(), start=1
+        with self._mutation_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
         ):
-            if mutated_module is None:
+            for idx, (mutated_module, _) in enumerate(
+                self._mutation_controller.create_mutants(), start=1
+            ):
+                if mutated_module is None:
+                    self._logger.info(
+                        "Skipping mutant %3i/%i because it created an invalid module",
+                        idx,
+                        mutant_count,
+                    )
+                    for test_mutants_results in tests_mutants_results:
+                        test_mutants_results.append(None)
+                    continue
+
                 self._logger.info(
-                    "Skipping mutant %3i/%i because it created an invalid module",
+                    "Running tests on mutant %3i/%i",
                     idx,
                     mutant_count,
                 )
-                for test_mutants_results in tests_mutants_results:
-                    test_mutants_results.append(None)
-                continue
+                self._mutation_executor.module_provider.add_mutated_version(
+                    module_name=config.configuration.module_name,
+                    mutated_module=mutated_module,
+                    transformer=self._mutation_controller.transformer,
+                )
 
-            self._logger.info(
-                "Running tests on mutant %3i/%i",
-                idx,
-                mutant_count,
-            )
-            self._mutation_executor.module_provider.add_mutated_version(
-                module_name=config.configuration.module_name,
-                mutated_module=mutated_module,
-                transformer=self._mutation_controller.transformer,
-            )
+                tests_mutant_results = self._mutation_executor.execute_multiple(
+                    test_cases
+                )
 
-            tests_mutant_results = self._mutation_executor.execute_multiple(test_cases)
-
-            for test_mutants_results, test_mutant_results in zip(
-                tests_mutants_results, tests_mutant_results, strict=True
-            ):
-                test_mutants_results.append(test_mutant_results)
+                for test_mutants_results, test_mutant_results in zip(
+                    tests_mutants_results, tests_mutant_results, strict=True
+                ):
+                    test_mutants_results.append(test_mutant_results)
 
         summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
         self.__report_mutation_summary(summary)
