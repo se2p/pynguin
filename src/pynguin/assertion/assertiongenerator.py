@@ -276,6 +276,8 @@ class InstrumentedMutationController(ct.MutationController):
         return self._tracer
 
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
+        self._tracer.current_thread_identifier = threading.current_thread().ident
+        self._tracer.reset()
         module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
@@ -283,6 +285,7 @@ class InstrumentedMutationController(ct.MutationController):
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         exec(code, module.__dict__)  # noqa: S102
+        self._tracer.store_import_trace()
         return module
 
 
@@ -326,9 +329,6 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         with self._mutation_executor.temporarily_add_observer(
             ato.AssertionVerificationObserver()
         ):
-            self._mutation_controller.tracer.current_thread_identifier = (
-                threading.current_thread().ident
-            )
             for idx, (mutated_module, _) in enumerate(
                 self._mutation_controller.create_mutants(), start=1
             ):
@@ -354,10 +354,6 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 )
                 for test, results in tests_and_results:
                     results.append(self._mutation_executor.execute(test))
-
-                self._mutation_controller.tracer.current_thread_identifier = (
-                    threading.current_thread().ident
-                )
 
         summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
         self.__report_mutation_summary(summary)
