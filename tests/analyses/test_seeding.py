@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -48,13 +48,14 @@ def test_case_0():
         + testcase_seed
     )
     test_cluster = generate_test_cluster("tests.fixtures.grammar.parameters")
-    transformer = AstToTestCaseTransformer(test_cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
     chromosome = tcc.TestCaseChromosome(transformer.testcases[0])
     exporter = export.PyTestChromosomeToAstVisitor()
     chromosome.accept(exporter)
     export.save_module_to_file(exporter.to_module(), export_path)
-    with open(export_path) as f:
-        content = f.read()
-        assert content == testcase_seed
+    content = export_path.read_text(encoding="locale")
+    assert content == testcase_seed

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -87,7 +87,7 @@ def test_observers(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
-    observer.before_statement_execution.side_effect = lambda x, y, z: y
+    observer.before_statement_execution.side_effect = lambda _x, y, _z: y
     executor.add_observer(observer)
     executor.execute(short_test_case)
     assert observer.before_test_case_execution.call_count == 1
@@ -97,7 +97,7 @@ def test_observers(short_test_case):
     assert observer.after_test_case_execution_outside_thread.call_count == 1
 
 
-def test_observers_clear(short_test_case):
+def test_observers_clear():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
@@ -129,7 +129,9 @@ def test_killing_endless_loop():
 
         executor = TestCaseExecutor(tracer)
         cluster = generate_test_cluster(module_name)
-        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+        transformer = AstToTestCaseTransformer(
+            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        )
         transformer.visit(
             ast.parse(
                 """def test_case_0():

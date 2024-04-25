@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -52,7 +52,7 @@ def dummy_reference():
 
 
 def test_type(dummy_reference):
-    assert dummy_reference.type == int
+    assert dummy_reference.type is int
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,7 @@ def test_var_get_position(test_case_mock):
 def test_var_get_position_no_statements(test_case_mock):
     ref = vr.VariableReference(test_case_mock, int)
     test_case_mock.statements = []
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017, PT011
         ref.get_statement_position()
 
 

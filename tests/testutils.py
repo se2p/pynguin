@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -23,8 +23,15 @@ from pynguin.assertion.mutation_analysis.transformer import create_module
 
 
 def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
-    """Small helper because TypeInfos need to be aligned, and we don't have one
-    large typesystem during testing but create them in various places."""
+    """Feeds the type system.
+
+    Small helper because TypeInfos need to be aligned, and we don't have one
+    large typesystem during testing but create them in various places.
+
+    Args:
+        system: the type system to feed
+        generic: an accessible to query
+    """
 
     # TODO(fk) think about making this less hacky.
     def feed(typ: ProperType):

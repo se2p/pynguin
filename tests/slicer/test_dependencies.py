@@ -1,12 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
-
+# ruff: noqa: E501, ERA001
 
 from bytecode import BasicBlock
 from bytecode import Compare
@@ -22,7 +22,7 @@ def test_data_dependency_1():
     # Implicit data dependency at return, explicit (full cover) for result
     def func() -> int:
         result = 1
-        return result
+        return result  # noqa: RET504
 
     expected_instructions = [
         # result = 1
@@ -39,10 +39,11 @@ def test_data_dependency_1():
 
 
 def test_data_dependency_2():
-    # Implicit data dependency at return, explicit (full cover) for result; foo must be excluded
+    # Implicit data dependency at return, explicit (full cover) for result;
+    # foo must be excluded
     def func() -> int:
         result = 1
-        foo = 2  # noqa
+        foo = 2  # noqa: F841
         return result
 
     expected_instructions = [
@@ -64,7 +65,7 @@ def test_data_dependency_3():
     def func() -> int:
         foo = 1
         result = 1 + foo
-        return result
+        return result  # noqa: RET504
 
     expected_instructions = [
         # foo = 1

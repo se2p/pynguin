@@ -1,10 +1,9 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
-from typing import Any
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -26,7 +25,7 @@ class FooReferenceAssertion(ass.ReferenceAssertion):
     ) -> Assertion:
         pass  # pragma: no cover
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         pass  # pragma: no cover
 
     def __hash__(self) -> int:
@@ -117,7 +116,7 @@ def test_assertion_clone(assertion):
     ],
 )
 def test_assertion_eq(assertion, different):
-    assert assertion == assertion
+    assert assertion == assertion  # noqa: PLR0124
     assert assertion != different
 
 

@@ -1,10 +1,11 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 import inspect
+import math
 import operator
 
 from builtins import isinstance as real_isinstance
@@ -19,14 +20,14 @@ from pynguin.utils.orderedset import OrderedSet
 
 def test_type_tracing_max_depth():
     proxy = tt.ObjectProxy(MagicMock())
-    for i in range(tt._MAX_PROXY_NESTING):
+    for _i in range(tt._MAX_PROXY_NESTING):
         proxy = proxy["foo"]
     assert isinstance(proxy, tt.ObjectProxy)
 
 
 def test_type_tracing_max_depth_after():
     proxy = tt.ObjectProxy(MagicMock())
-    for i in range(tt._MAX_PROXY_NESTING + 1):
+    for _i in range(tt._MAX_PROXY_NESTING + 1):
         proxy = proxy["foo"]
     assert not isinstance(proxy, tt.ObjectProxy)
 
@@ -35,7 +36,7 @@ def test_type_tracing_max_depth_get_attr():
     mock = MagicMock()
     mock.foo = mock
     proxy = tt.ObjectProxy(mock)
-    for i in range(tt._MAX_PROXY_NESTING):
+    for _i in range(tt._MAX_PROXY_NESTING):
         proxy = proxy.foo
     assert isinstance(proxy, tt.ObjectProxy)
 
@@ -44,7 +45,7 @@ def test_type_tracing_max_depth_after_get_attr():
     mock = MagicMock()
     mock.foo = mock
     proxy = tt.ObjectProxy(mock)
-    for i in range(tt._MAX_PROXY_NESTING + 1):
+    for _i in range(tt._MAX_PROXY_NESTING + 1):
         proxy = proxy.foo
     assert not isinstance(proxy, tt.ObjectProxy)
 
@@ -52,7 +53,7 @@ def test_type_tracing_max_depth_after_get_attr():
 def test_type_tracing_max_depth_iter():
     mock = [[[[[[[MagicMock()]]]]]]]
     proxy = tt.ObjectProxy(mock)
-    for i in range(tt._MAX_PROXY_NESTING):
+    for _i in range(tt._MAX_PROXY_NESTING):
         proxy = next(iter(proxy))
     assert isinstance(proxy, tt.ObjectProxy)
 
@@ -60,7 +61,7 @@ def test_type_tracing_max_depth_iter():
 def test_type_tracing_max_depth_after_iter():
     mock = [[[[[[[MagicMock()]]]]]]]
     proxy = tt.ObjectProxy(mock)
-    for i in range(tt._MAX_PROXY_NESTING + 1):
+    for _i in range(tt._MAX_PROXY_NESTING + 1):
         proxy = next(iter(proxy))
     assert not isinstance(proxy, tt.ObjectProxy)
 
@@ -93,7 +94,7 @@ def test_method_called():
 def test_loop_over_list():
     proxy = tt.ObjectProxy(["foo", "bar"])
     with tt.shim_isinstance():
-        for i, element in enumerate(proxy):
+        for element in proxy:
             assert isinstance(element, str)
     assert str in tt.UsageTraceNode.from_proxy(proxy).children["__iter__"].type_checks
 
@@ -114,24 +115,22 @@ def test_dont_record_objectproxy_instance_check():
 def test_dont_record_objectproxy_instance_check_2():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (tt.ObjectProxy, bytes))
+        assert isinstance(proxy, (tt.ObjectProxy, bytes))  # noqa: UP038
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 0
 
 
 def test_dont_record_objectproxy_instance_check_3():
     proxy = tt.ObjectProxy(42)
-    with tt.shim_isinstance():
-        with pytest.raises(TypeError):
-            assert isinstance(proxy, tt.ObjectProxy(int))
+    with tt.shim_isinstance(), pytest.raises(TypeError):
+        assert isinstance(proxy, tt.ObjectProxy(int))
     assert inspect.isbuiltin(isinstance)
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 0
 
 
 def test_dont_record_objectproxy_instance_check_4():
     proxy = tt.ObjectProxy(42)
-    with tt.shim_isinstance():
-        with pytest.raises(TypeError):
-            assert isinstance(proxy, (tt.ObjectProxy(int), float))
+    with tt.shim_isinstance(), pytest.raises(TypeError):
+        assert isinstance(proxy, (tt.ObjectProxy(int), float))  # noqa: UP038
     assert inspect.isbuiltin(isinstance)
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 0
 
@@ -139,7 +138,7 @@ def test_dont_record_objectproxy_instance_check_4():
 def test_objectproxy_instance_check():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (int, float))
+        assert isinstance(proxy, (int, float))  # noqa: UP038
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 2
 
 
@@ -169,7 +168,7 @@ def test_isinstance_check():
 def test_isinstance_check_2():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (int, str))
+        assert isinstance(proxy, (int, str))  # noqa: UP038
     assert int in tt.UsageTraceNode.from_proxy(proxy).type_checks
     assert str in tt.UsageTraceNode.from_proxy(proxy).type_checks
 
@@ -587,21 +586,21 @@ def test_ior():
 
 
 def test_neg():
-    value = 3.1415
+    value = math.pi
     proxy = tt.ObjectProxy(value)
     assert -value == -proxy
     assert tt.UsageTraceNode.from_proxy(proxy).children["__neg__"]
 
 
 def test_pos():
-    value = -3.1415
+    value = -math.pi
     proxy = tt.ObjectProxy(value)
     assert +value == +proxy
     assert tt.UsageTraceNode.from_proxy(proxy).children["__pos__"]
 
 
 def test_abs():
-    value = -3.1415
+    value = -math.pi
     proxy = tt.ObjectProxy(value)
     assert abs(value) == abs(proxy)
     assert tt.UsageTraceNode.from_proxy(proxy).children["__abs__"]
@@ -616,7 +615,7 @@ def test_invert():
 
 @pytest.mark.parametrize("func", [round, int, float, complex])
 def test_various_num_methods(func):
-    value = 3.1415
+    value = math.pi
     proxy = tt.ObjectProxy(value)
     assert func(value) == func(proxy)
 

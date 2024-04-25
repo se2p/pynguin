@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -63,7 +63,7 @@ def test_naming_scope_known_indices_has_name(naming_scope):
         (dict[int, str], "dict_0"),
         (list[str], "list_0"),
         (list, "list_0"),
-        (Union[int, str, bool], "var_0"),  # For a union we get var0
+        (Union[int, str, bool], "var_0"),  # For a union we get var0  # noqa: UP007
         (Iterable[int], "iterable_0"),
         (MagicMock, "magic_mock_0"),
     ],

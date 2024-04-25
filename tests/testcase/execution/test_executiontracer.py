@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -17,8 +17,8 @@ import pynguin.utils.typetracing as tt
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
 from pynguin.testcase.execution import ExecutionTracer
-from pynguin.testcase.execution import _le
-from pynguin.testcase.execution import _lt
+from pynguin.testcase.execution import _le  # noqa: PLC2701
+from pynguin.testcase.execution import _lt  # noqa: PLC2701
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -212,7 +212,7 @@ def test_unknown_comp():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017, PT011
         tracer.executed_compare_predicate(1, 1, 0, PynguinCompare.EXC_MATCH)
 
 
@@ -220,7 +220,7 @@ def test_passed_bool_predicate():
     tracer = ExecutionTracer()
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.executed_bool_predicate(True, 0)
+    tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
     assert (0, 1) in tracer.get_trace().executed_predicates.items()
 
 
@@ -295,11 +295,11 @@ def test_enable_disable_bool():
     assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer.disable()
-    tracer.executed_bool_predicate(True, 0)
+    tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
     assert len(tracer.get_trace().executed_predicates) == 0
 
     tracer.enable()
-    tracer.executed_bool_predicate(True, 0)
+    tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
     assert len(tracer.get_trace().executed_predicates) == 1
 
 

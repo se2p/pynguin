@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -16,12 +16,12 @@ import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 
 
-@pytest.fixture
+@pytest.fixture()
 def stopping_condition():
     return CoveragePlateauStoppingCondition(50)
 
 
-@pytest.fixture
+@pytest.fixture()
 def individual() -> tsc.TestSuiteChromosome:
     chromosome = MagicMock(tsc.TestSuiteChromosome)
     chromosome.get_coverage.return_value = 0.60

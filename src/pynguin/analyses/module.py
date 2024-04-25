@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -32,6 +32,7 @@ from typing import Any
 
 import astroid
 
+import pynguin.configuration as config
 import pynguin.utils.statistics.statistics as stat
 import pynguin.utils.typetracing as tt
 
@@ -41,9 +42,6 @@ from pynguin.analyses.syntaxtree import astroid_to_ast
 from pynguin.analyses.syntaxtree import get_class_node_from_ast
 from pynguin.analyses.syntaxtree import get_function_description
 from pynguin.analyses.syntaxtree import get_function_node_from_ast
-from pynguin.analyses.type4py_api import Type4pyData
-from pynguin.analyses.type4py_api import find_predicted_signature
-from pynguin.analyses.type4py_api import query_type4py_api
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import Instance
@@ -88,7 +86,8 @@ AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.Functi
 
 LOGGER = logging.getLogger(__name__)
 
-# A set of modules that shall be blacklisted from analysis (keep them sorted!!!):
+# A set of modules that shall be blacklisted from analysis (keep them sorted to ease
+# future manipulations or looking up module names of this set!!!):
 # The modules that are listed here are not prohibited from execution, but Pynguin will
 # not consider any classes or functions from these modules for generating inputs to
 # other routines
@@ -191,27 +190,30 @@ def _is_blacklisted(element: Any) -> bool:
     Returns:
         Is the element blacklisted?
     """
+    module_blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
+    method_blacklist = set(METHOD_BLACKLIST).union(config.configuration.ignore_methods)
+
     if inspect.ismodule(element):
-        return element.__name__ in MODULE_BLACKLIST
+        return element.__name__ in module_blacklist
     if inspect.isclass(element):
         if element.__module__ == "builtins" and (
             element in PRIMITIVES or element in COLLECTIONS
         ):
             # Allow some builtin types
             return False
-        return element.__module__ in MODULE_BLACKLIST
+        return element.__module__ in module_blacklist
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
         return (
-            element.__module__ in MODULE_BLACKLIST
+            element.__module__ in module_blacklist
             or element.__qualname__.startswith(
                 (
                     "main",
                     "test",
                 )
             )
-            or f"{element.__module__}.{element.__qualname__}" in METHOD_BLACKLIST
+            or f"{element.__module__}.{element.__qualname__}" in method_blacklist
         )
     # Something that is not supported yet.
     return False
@@ -225,7 +227,6 @@ class _ModuleParseResult:
     module_name: str
     module: ModuleType
     syntax_tree: astroid.Module | None
-    type4py_data: Type4pyData | None
 
 
 def import_module(module_name: str) -> ModuleType:
@@ -264,9 +265,7 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
-def parse_module(
-    module_name: str, *, query_type4py: bool = False
-) -> _ModuleParseResult:
+def parse_module(module_name: str) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
     If the source code is not available it is not possible to build an AST.  In this
@@ -276,13 +275,11 @@ def parse_module(
 
     Args:
         module_name: The fully-qualified name of the module
-        query_type4py: Query the configured type4py service for the given module.
 
     Returns:
         A tuple of the imported module type and its optional AST
     """
     module = import_module(module_name)
-    type4py_data: Type4pyData | None = None
     syntax_tree: astroid.Module | None = None
     linenos: int = -1
     try:
@@ -294,8 +291,6 @@ def parse_module(
             path=source_file if source_file is not None else "",
         )
         linenos = len(source_code.splitlines())
-        if query_type4py:
-            type4py_data = query_type4py_api(module_name, source_code)
 
     except (TypeError, OSError) as error:
         LOGGER.debug(
@@ -309,7 +304,6 @@ def parse_module(
         module_name=module_name,
         module=module,
         syntax_tree=syntax_tree,
-        type4py_data=type4py_data,
     )
 
 
@@ -515,11 +509,6 @@ class SignatureInfo:
         default_factory=dict
     )
 
-    # Similar to above, but retrieved from Type4Py.
-    type4py_parameter_types: dict[str, list[str]] = dataclasses.field(
-        default_factory=dict
-    )
-
     # Needed to compute top-n accuracy in the evaluation.
     # Elements are of form (A,B); A is a guess, B is an annotated type.
     # (A,B) is only present, when A is a base type match of B.
@@ -533,9 +522,6 @@ class SignatureInfo:
     # Recorded return type, if Any.
     recorded_return_type: str | None = None
 
-    # Type4Py return type
-    type4py_return_types: list[str] = dataclasses.field(default_factory=list)
-
 
 @dataclasses.dataclass
 class TypeGuessingStats:
@@ -548,6 +534,22 @@ class TypeGuessingStats:
     signature_infos: dict[str, SignatureInfo] = dataclasses.field(
         default_factory=lambda: defaultdict(SignatureInfo)
     )
+
+
+def _serialize_helper(obj):
+    """Utility to deal with non-serializable types.
+
+    Args:
+        obj: The object to serialize
+
+    Returns:
+        A serializable object.
+    """
+    if isinstance(obj, set):
+        return list(obj)
+    if isinstance(obj, SignatureInfo):
+        return dataclasses.asdict(obj)
+    return obj
 
 
 class ModuleTestCluster(TestCluster):  # noqa: PLR0904
@@ -586,21 +588,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                     accessible.is_constructor(), str(accessible), stats
                 )
 
-        def _serialize_helper(obj):
-            """Utility to deal with non-serializable types.
-
-            Args:
-                obj: The object to serialize
-
-            Returns:
-                A serializable object.
-            """
-            if isinstance(obj, set):
-                return list(obj)
-            if isinstance(obj, SignatureInfo):
-                return dataclasses.asdict(obj)
-            return obj
-
         stat.track_output_variable(
             RuntimeVariable.SignatureInfos,
             json.dumps(
@@ -611,6 +598,22 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         stat.track_output_variable(
             RuntimeVariable.NumberOfConstructors,
             str(stats.number_of_constructors),
+        )
+
+    def __log_type_evolution(self) -> None:
+        stats = TypeGuessingStats()
+        for accessible in self.__accessible_objects_under_test:
+            if isinstance(accessible, GenericCallableAccessibleObject):
+                accessible.inferred_signature.log_stats_and_guess_signature(
+                    accessible.is_constructor(), str(accessible), stats
+                )
+
+        stat.update_output_variable_for_runtime_variable(
+            RuntimeVariable.SignatureInfosTimeline,
+            json.dumps(
+                stats.signature_infos,
+                default=_serialize_helper,
+            ),
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
@@ -654,6 +657,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
+        self.__log_type_evolution()
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -663,6 +667,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         # Store new data
         accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
+        self.__log_type_evolution()
 
     @property
     def type_system(self) -> TypeSystem:
@@ -1074,7 +1079,6 @@ def __analyse_function(
     func: FunctionType,
     type_inference_strategy: TypeInferenceStrategy,
     module_tree: astroid.Module | None,
-    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1091,7 +1095,6 @@ def __analyse_function(
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         func,
-        type4py_data=find_predicted_signature(type4py_data, func_name),
         type_inference_strategy=type_inference_strategy,
     )
     func_ast = get_function_node_from_ast(module_tree, func_name)
@@ -1117,7 +1120,6 @@ def __analyse_class(
     type_info: TypeInfo,
     type_inference_strategy: TypeInferenceStrategy,
     module_tree: astroid.Module | None,
-    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1146,9 +1148,6 @@ def __analyse_class(
             type_info,
             test_cluster.type_system.infer_type_info(
                 type_info.raw_type.__init__,
-                type4py_data=find_predicted_signature(
-                    type4py_data, type_info.qualname + ".__init__", type_info.qualname
-                ),
                 type_inference_strategy=type_inference_strategy,
             ),
             raised_exceptions,
@@ -1183,7 +1182,6 @@ def __analyse_class(
             method=method,
             type_inference_strategy=type_inference_strategy,
             class_tree=class_ast,
-            type4py_data=type4py_data,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
         )
@@ -1229,7 +1227,6 @@ def __analyse_method(
     ),
     type_inference_strategy: TypeInferenceStrategy,
     class_tree: astroid.ClassDef | None,
-    type4py_data: Type4pyData | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1251,9 +1248,6 @@ def __analyse_method(
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         method,
-        type4py_data=find_predicted_signature(
-            type4py_data, type_info.qualname + "." + method_name, type_info.qualname
-        ),
         type_inference_strategy=type_inference_strategy,
     )
     method_ast = get_function_node_from_ast(class_tree, method_name)
@@ -1276,13 +1270,9 @@ def __analyse_method(
 
 
 class _ParseResults(dict):
-    def __init__(self, *, query_type4py: bool):
-        super().__init__()
-        self._query_type4py = query_type4py
-
     def __missing__(self, key):
         # Parse module on demand
-        res = self[key] = parse_module(key, query_type4py=self._query_type4py)
+        res = self[key] = parse_module(key)
         return res
 
 
@@ -1290,12 +1280,8 @@ def __resolve_dependencies(
     root_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
-    *,
-    query_type4py: bool = False,
 ) -> None:
-    parse_results: dict[str, _ModuleParseResult] = _ParseResults(
-        query_type4py=query_type4py
-    )
+    parse_results: dict[str, _ModuleParseResult] = _ParseResults()
     parse_results[root_module.module_name] = root_module
 
     # Provide a set of seen modules, classes and functions for fixed-point iteration
@@ -1409,7 +1395,6 @@ def __analyse_included_classes(
             type_info=type_info,
             type_inference_strategy=type_inference_strategy,
             module_tree=results.syntax_tree,
-            type4py_data=results.type4py_data,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1450,7 +1435,6 @@ def __analyse_included_functions(
             func=current,
             type_inference_strategy=type_inference_strategy,
             module_tree=parse_results[current.__module__].syntax_tree,
-            type4py_data=parse_results[current.__module__].type4py_data,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
@@ -1459,15 +1443,12 @@ def __analyse_included_functions(
 def analyse_module(
     parsed_module: _ModuleParseResult,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
-    *,
-    query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Analyses a module to build a test cluster.
 
     Args:
         parsed_module: The parsed module
         type_inference_strategy: The type inference strategy to use.
-        query_type4py: Query Type4Py for types.
 
     Returns:
         A test cluster for the module
@@ -1477,7 +1458,6 @@ def analyse_module(
         root_module=parsed_module,
         type_inference_strategy=type_inference_strategy,
         test_cluster=test_cluster,
-        query_type4py=query_type4py,
     )
     return test_cluster
 
@@ -1485,21 +1465,14 @@ def analyse_module(
 def generate_test_cluster(
     module_name: str,
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS,
-    *,
-    query_type4py: bool = False,
 ) -> ModuleTestCluster:
     """Generates a new test cluster from the given module.
 
     Args:
         module_name: The name of the root module
         type_inference_strategy: Which type-inference strategy to use
-        query_type4py: Query Type4Py for types.
 
     Returns:
         A new test cluster for the given module
     """
-    return analyse_module(
-        parse_module(module_name, query_type4py=query_type4py),
-        type_inference_strategy,
-        query_type4py=query_type4py,
-    )
+    return analyse_module(parse_module(module_name), type_inference_strategy)

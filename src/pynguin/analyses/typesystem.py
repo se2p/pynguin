@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -53,7 +53,6 @@ if typing.TYPE_CHECKING:
     from typing import ClassVar
 
     from pynguin.analyses.module import TypeGuessingStats
-    from pynguin.analyses.type4py_api import Type4pyFunctionData
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -682,21 +681,11 @@ class InferredSignature:
         init=False, default_factory=dict
     )
 
-    # Type4Py types, do not contain Any.
-    type4py_return_types: list[ProperType] = field(default_factory=list)
-    type4py_parameter_types: dict[str, list[ProperType]] = field(default_factory=dict)
-
     # Parameter types of each parameter, including unsupported types,
     # i.e., types that we currently cannot understand/parse. Purely used for statistics
     # purposes!
     parameters_for_statistics: dict[str, ProperType] = field(default_factory=dict)
     return_type_for_statistics: ProperType = ANY
-    # Type4Py types for statistics. Unresolved types are kept as Any to be able to
-    # compute Top-N accuracy.
-    type4py_return_types_for_statistics: list[ProperType] = field(default_factory=list)
-    type4py_parameter_types_for_statistics: dict[str, list[ProperType]] = field(
-        default_factory=dict
-    )
 
     def __post_init__(self):
         self.return_type = self.original_return_type
@@ -753,11 +742,6 @@ class InferredSignature:
                 # We have traced types
                 choices.append(UnionType(tuple(sorted(guessed))))
                 weights.append(test_conf.type_tracing_weight)
-
-            if type4py_types := self.type4py_parameter_types.get(param_name):
-                # We have types from Type4Py
-                choices.append(UnionType(tuple(sorted(type4py_types))))
-                weights.append(test_conf.type4py_weight)
 
             chosen = randomness.choices(choices, weights)[0]
 
@@ -1131,7 +1115,7 @@ class InferredSignature:
             )
         return None
 
-    def log_stats_and_guess_signature(  # noqa: C901
+    def log_stats_and_guess_signature(
         self,
         is_constructor: bool,  # noqa: FBT001
         callable_full_name: str,
@@ -1158,7 +1142,6 @@ class InferredSignature:
             stats.number_of_constructors += 1
 
         parameter_types: dict[str, list[str]] = {}
-        type4py_parameter_types: dict[str, list[str]] = {}
         # The pairs for which we need to compute partial matches.
         compute_partial_matches_for: list[tuple[ProperType, ProperType]] = []
         for param_name, param in self.signature.parameters.items():
@@ -1181,39 +1164,24 @@ class InferredSignature:
                 ):
                     top_n_guesses.append(typ)
 
-            for item in top_n_guesses + self.type4py_parameter_types_for_statistics.get(
-                param_name, []
-            ):
+            for item in top_n_guesses:
                 compute_partial_matches_for.append(  # noqa: PERF401
                     (item, self.parameters_for_statistics[param_name])
                 )
             parameter_types[param_name] = [str(t) for t in top_n_guesses]
-            type4py_parameter_types[param_name] = [
-                str(t)
-                for t in self.type4py_parameter_types_for_statistics.get(param_name, [])
-            ]
         # Also need to compute for return type(s).
         compute_partial_matches_for.append(
             (self.return_type, self.return_type_for_statistics)
         )
-        for type4py_return_type in self.type4py_return_types_for_statistics:
-            compute_partial_matches_for.append(  # noqa: PERF401
-                (type4py_return_type, self.return_type_for_statistics)
-            )
 
         # Need to compute which types are base type matches of others.
         # Otherwise, we need to parse the string again in the evaluation...
         self._compute_partial_matches(compute_partial_matches_for, sig_info)
 
         return_type = str(self.return_type)
-        if not is_constructor:
-            sig_info.type4py_return_types = [
-                str(s) for s in self.type4py_return_types_for_statistics
-            ]
-            if self.return_type != self.original_return_type:
-                sig_info.recorded_return_type = str(return_type)
+        if not is_constructor and self.return_type != self.original_return_type:
+            sig_info.recorded_return_type = str(return_type)
         sig_info.guessed_parameter_types = parameter_types
-        sig_info.type4py_parameter_types = type4py_parameter_types
 
     @staticmethod
     def _compute_partial_matches(compute_partial_matches_for, sig_info):
@@ -1514,15 +1482,12 @@ class TypeSystem:  # noqa: PLR0904
     def infer_type_info(
         self,
         method: Callable,
-        *,
-        type4py_data: Type4pyFunctionData | None = None,
         type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
-            type4py_data: Optional type4py data
             type_inference_strategy: Whether to incorporate type annotations
 
         Returns:
@@ -1534,13 +1499,9 @@ class TypeSystem:  # noqa: PLR0904
         """
         match type_inference_strategy:
             case config.TypeInferenceStrategy.TYPE_HINTS:
-                return self.infer_signature(
-                    method, type4py_data, self.type_hints_provider
-                )
+                return self.infer_signature(method, self.type_hints_provider)
             case config.TypeInferenceStrategy.NONE:
-                return self.infer_signature(
-                    method, type4py_data, self.no_type_hints_provider
-                )
+                return self.infer_signature(method, self.no_type_hints_provider)
             case _:
                 raise ConfigurationException(
                     f"Unknown type-inference strategy {type_inference_strategy}"
@@ -1585,14 +1546,12 @@ class TypeSystem:  # noqa: PLR0904
     def infer_signature(
         self,
         method: Callable,
-        type4py_data: Type4pyFunctionData | None,
         type_hint_provider: Callable[[Callable], dict],
     ) -> InferredSignature:
         """Infers the method signature using the given type hint provider.
 
         Args:
             method: The callable
-            type4py_data: Data from Type4Py
             type_hint_provider: A method that provides type hints for the given method.
 
         Returns:
@@ -1619,8 +1578,6 @@ class TypeSystem:  # noqa: PLR0904
 
         hints = type_hint_provider(method)
         parameters: dict[str, ProperType] = {}
-        type4py_parameters: dict[str, list[ProperType]] = {}
-        type4py_parameters_for_statistics: dict[str, list[ProperType]] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
         hints_for_statistics: dict = self.type_hints_provider(method)
@@ -1634,36 +1591,11 @@ class TypeSystem:  # noqa: PLR0904
             parameters_for_statistics[param_name] = self.convert_type_hint(
                 hints_for_statistics.get(param_name), unsupported=UNSUPPORTED
             )
-            if type4py_data is not None:
-                # Try to convert up to 10 predicted types
-                type4py_parameters_for_statistics[param_name] = [
-                    self.try_to_load_type(predicted_type, method.__globals__)
-                    for (predicted_type, _) in type4py_data["params_p"].get(
-                        param_name, []
-                    )[:10]
-                ]
-                type4py_parameters[param_name] = [
-                    typ
-                    for typ in type4py_parameters_for_statistics[param_name]
-                    if typ != ANY
-                ]
 
         return_type: ProperType = self.convert_type_hint(hints.get("return"))
         return_type_for_statistics: ProperType = self.convert_type_hint(
             hints_for_statistics.get("return"), unsupported=UNSUPPORTED
         )
-        type4py_return_types = []
-        type4py_return_types_for_statistics = []
-        if type4py_data is not None and "ret_type_p" in type4py_data:
-            type4py_return_types_for_statistics = [
-                self.try_to_load_type(predicted_type, method.__globals__)
-                for (predicted_type, _) in type4py_data["ret_type_p"][:10]
-            ]
-            # TODO(fk) how to use return type from Type4Py?
-            #  Combine with existing one?
-            type4py_return_types = [
-                typ for typ in type4py_return_types_for_statistics if typ != ANY
-            ]
 
         return InferredSignature(
             signature=method_signature,
@@ -1672,10 +1604,6 @@ class TypeSystem:  # noqa: PLR0904
             type_system=self,
             parameters_for_statistics=parameters_for_statistics,
             return_type_for_statistics=return_type_for_statistics,
-            type4py_parameter_types=type4py_parameters,
-            type4py_parameter_types_for_statistics=type4py_parameters_for_statistics,
-            type4py_return_types=type4py_return_types,
-            type4py_return_types_for_statistics=type4py_return_types_for_statistics,
         )
 
     _FIND_DOT_SEPARATED_IDENTIFIERS = re.compile(r"[.a-zA-Z0-9_]+\.[a-zA-Z0-9_]+")

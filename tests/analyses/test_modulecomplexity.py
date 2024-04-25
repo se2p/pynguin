@@ -1,10 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
-"""The implementation of this module contains some code adopted from the ``mccabe``
+"""Analyses for the module complexity.
+
+The implementation of this module contains some code adopted from the ``mccabe``
 library (https://github.com/PyCQA/mccabe), which was released by Florent Xicluna,
 Tarek Ziade, and Ned Batchelder under Expad License.
 

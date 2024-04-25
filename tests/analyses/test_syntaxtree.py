@@ -1,12 +1,15 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
-"""The implementation of this module contains some code adopted from the ``darglint``
+"""Analyses for the syntax tree.
+
+The implementation of this module contains some code adopted from the ``darglint``
 library (https://github.com/terrencepreilly/darglint), which was released by Terrence
-Reilly under MIT license."""
+Reilly under MIT license.
+"""
 import ast
 import importlib
 import inspect
@@ -28,16 +31,15 @@ def comments_tree() -> astroid.Module:
     return astroid.parse(inspect.getsource(module), path="comments.py")
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def function_analysis() -> FunctionAnalysisVisitor:
     return FunctionAnalysisVisitor()
 
 
 def __parse_ast(code: str) -> ast.Module:
-    tree = ast.parse(
+    return ast.parse(
         code, filename="dummy.py", type_comments=True, feature_version=(3, 8)
     )
-    return tree
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -77,7 +77,7 @@ def test_case_3():
         == "array.array"
     )
     assert len(queue_0.data) == 2423
-    none_type_0 = queue_0.dequeue()
+    queue_0.dequeue()
     bool_0 = queue_0.full()
     assert bool_0 is False
     with pytest.raises(AssertionError):
@@ -129,7 +129,7 @@ def test_case_4():
     assert bool_4 is True
     assert queue_1.tail == 2
     assert queue_1.size == 1
-    none_type_0 = queue_2.dequeue()
+    queue_2.dequeue()
 
 
 def test_case_5():
@@ -234,11 +234,11 @@ def test_case_6():
     assert len(queue_3.data) == 1
     bool_6 = queue_3.empty()
     assert bool_6 is False
-    bool_7 = queue_1.enqueue(bool_2)
+    queue_1.enqueue(bool_2)
     bool_8 = queue_1.empty()
     assert bool_8 is True
-    none_type_0 = queue_2.dequeue()
-    none_type_1 = queue_3.dequeue()
+    queue_2.dequeue()
+    queue_3.dequeue()
     queue_4 = module_0.Queue(bool_4)
     assert queue_4.head == 0
     assert queue_4.size == 0
@@ -249,7 +249,7 @@ def test_case_6():
     assert bool_10 is False
     bool_11 = queue_3.empty()
     assert bool_11 is False
-    bool_12 = queue_0.full()
+    queue_0.full()
     queue_5 = module_0.Queue(int_3)
     assert queue_5.head == 0
     assert queue_5.size == 0
@@ -259,19 +259,19 @@ def test_case_6():
     assert queue_0.size == 0
     bool_13 = queue_3.empty()
     assert bool_13 is False
-    none_type_2 = queue_4.dequeue()
+    queue_4.dequeue()
     int_5 = 481
     queue_6 = module_0.Queue(int_5)
     assert queue_6.head == 0
     assert queue_6.size == 0
-    none_type_3 = queue_3.dequeue()
-    bool_14 = queue_6.enqueue(bool_4)
+    queue_3.dequeue()
+    queue_6.enqueue(bool_4)
     assert queue_6.tail == 1
     assert queue_6.size == 1
-    none_type_4 = queue_3.dequeue()
+    queue_3.dequeue()
     bool_15 = queue_0.empty()
     assert bool_15 is False
-    bool_16 = queue_3.full()
+    queue_3.full()
 
 
 def test_case_7():

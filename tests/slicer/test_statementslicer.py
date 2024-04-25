@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -33,10 +33,12 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from tests.fixtures.linecoverage.setter_getter import SetterGetter
 
 
-@pytest.fixture
+@pytest.fixture()
 def plus_three_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -96,10 +98,12 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
         )
 
 
-@pytest.fixture
+@pytest.fixture()
 def setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -136,8 +140,6 @@ def setter_test():
 
 
 def test_only_void_function(setter_test):
-    """Test if implicit return nones are correctly filtered from the sliced
-    assignment to a none type for methods with none return type."""
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_test)
     config.configuration.statistics_output.coverage_metrics = [
@@ -160,10 +162,12 @@ def test_only_void_function(setter_test):
         )
 
 
-@pytest.fixture
+@pytest.fixture()
 def getter_setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -201,9 +205,6 @@ def getter_setter_test():
 
 
 def test_getter_before_setter(getter_setter_test):
-    """If the getter is before after the setter, the value retrieved by the getter
-    is not depending on the new set value. Therefore, the body of the setter should
-    npt be included in the slice."""
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=getter_setter_test)
     config.configuration.statistics_output.coverage_metrics = [
@@ -226,10 +227,12 @@ def test_getter_before_setter(getter_setter_test):
         )
 
 
-@pytest.fixture
+@pytest.fixture()
 def setter_getter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
-    transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())
+    transformer = AstToTestCaseTransformer(
+        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+    )
     transformer.visit(
         ast.parse(
             """def test_case_0():
@@ -283,9 +286,6 @@ def setter_getter_test():
 
 
 def test_getter_after_setter(setter_getter_test):
-    """If the getter is called after the setter, the value retrieved by the getter
-    is depending on the new set value. Therefore, all lines of the setter should be included
-    in the slice, but the initial setting of the class attribute is not included."""
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_getter_test)
     config.configuration.statistics_output.coverage_metrics = [
@@ -324,7 +324,7 @@ def test_get_line_id_by_instruction_throws_error():
         }
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         DynamicSlicer.get_line_id_by_instruction(
             instruction_mock, subject_properties_mock
         )

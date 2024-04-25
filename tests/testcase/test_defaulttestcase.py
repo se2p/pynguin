@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -18,7 +18,7 @@ from pynguin.analyses.typesystem import AnyType
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture
+@pytest.fixture()
 def default_test_case():
     # TODO what about the logger, should be a mock
     return dtc.DefaultTestCase(ModuleTestCluster(0))
@@ -140,7 +140,7 @@ def test_has_statement(default_test_case):
 
 
 def test_hash(default_test_case):
-    assert default_test_case.__hash__()
+    assert hash(default_test_case)
 
 
 @pytest.mark.parametrize(
@@ -151,11 +151,11 @@ def test_hash(default_test_case):
     ],
 )
 def test_eq_parameterized(test_case, other, result):
-    assert test_case.__eq__(other) == result
+    assert (test_case == other) == result
 
 
 def test_eq_same(default_test_case):
-    assert default_test_case == default_test_case
+    assert default_test_case == default_test_case  # noqa: PLR0124
 
 
 def test_eq_statements_1(default_test_case):
@@ -188,14 +188,14 @@ def test_eq_statements_4(default_test_case):
     default_test_case._statements = statements
     other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = statements
-    assert default_test_case.__eq__(other)
+    assert default_test_case == other
 
 
 def test_eq_statements_5(default_test_case):
     default_test_case._statements = []
     other = dtc.DefaultTestCase(ModuleTestCluster(0))
     other._statements = []
-    assert default_test_case.__eq__(other)
+    assert default_test_case == other
 
 
 def test_clone(default_test_case):
@@ -314,5 +314,5 @@ def test_get_assertions_multiple_statements(default_test_case_with_assertions):
 
 
 def test_get_size_with_assertions(default_test_case_with_assertions):
-    test_case, assertions = default_test_case_with_assertions
+    test_case, _assertions = default_test_case_with_assertions
     assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions

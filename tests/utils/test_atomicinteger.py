@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -9,12 +9,12 @@ import pytest
 from pynguin.utils.atomicinteger import AtomicInteger
 
 
-@pytest.fixture
+@pytest.fixture()
 def atomic_integer_null():
     return AtomicInteger()
 
 
-@pytest.fixture
+@pytest.fixture()
 def atomic_integer_nonnull():
     return AtomicInteger(value=42)
 

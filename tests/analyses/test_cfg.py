@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -134,13 +134,13 @@ RETURN_VALUE";
 
 def control_flow_labelling(foo):  # pragma: no cover
     if foo:
-        print("a")
+        print("a")  # noqa: T201
     elif foo == 42:
-        print("bar")
+        print("bar")  # noqa: T201
     for f in foo:
-        print(f)
+        print(f)  # noqa: T201
     if not foo:
-        print("foo")
+        print("foo")  # noqa: T201
 
 
 @pytest.mark.parametrize(

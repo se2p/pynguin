@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -14,32 +14,32 @@ from pynguin.analyses.controlflow import ProgramGraph
 from pynguin.analyses.controlflow import ProgramGraphNode
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_basic_block() -> BasicBlock:
     return MagicMock(BasicBlock)
 
 
-@pytest.fixture
+@pytest.fixture()
 def node() -> ProgramGraphNode:
     return ProgramGraphNode(index=42)
 
 
-@pytest.fixture
+@pytest.fixture()
 def second_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=23)
 
 
-@pytest.fixture
+@pytest.fixture()
 def third_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=21)
 
 
-@pytest.fixture
+@pytest.fixture()
 def fourth_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=24)
 
 
-@pytest.fixture
+@pytest.fixture()
 def graph() -> ProgramGraph:
     return ProgramGraph()
 
@@ -54,20 +54,20 @@ def test_node_basic_block(mock_basic_block):
 
 
 def test_node_hash(node):
-    assert node.__hash__() != 0
+    assert (hash(node)) != 0
 
 
 def test_node_equals_other(node):
-    assert not node.__eq__("foo")
+    assert node != "foo"
 
 
 def test_node_equals_self(node):
-    assert node.__eq__(node)
+    assert node == node  # noqa: PLR0124
 
 
 def test_node_equals_other_node(node):
     other = ProgramGraphNode(index=42)
-    assert node.__eq__(other)
+    assert node == other
 
 
 def test_add_graph(graph, node):
@@ -124,7 +124,7 @@ def test_to_dot(graph, node, second_node):
     graph.add_node(second_node)
     graph.add_edge(node, second_node)
     result = graph.dot
-    assert result != ""
+    assert result != ""  # noqa: PLC1901
 
 
 def test_get_predecessors(graph, node, second_node):

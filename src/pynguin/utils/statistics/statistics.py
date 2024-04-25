@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -225,6 +225,11 @@ class _SearchStatistics:
             RuntimeVariable.TotalExceptionsTimeline.name
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             RuntimeVariable.TotalExceptionsTimeline
+        )
+        self._sequence_output_variable_factories[
+            RuntimeVariable.SignatureInfosTimeline.name
+        ] = ovf.TypeEvolutionSequenceOutputVariableFactory(
+            RuntimeVariable.SignatureInfosTimeline, "{}"
         )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -58,7 +58,7 @@ def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
 
 
-@pytest.fixture
+@pytest.fixture()
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster(linenos=-1)
 
@@ -114,7 +114,7 @@ def test_add_generator_primitive(module_test_cluster):
     ) == (OrderedSet([]), True)
 
 
-def test_add_generator(module_test_cluster, type_system):
+def test_add_generator(module_test_cluster):
     generator = MagicMock(GenericMethod)
     generator.generated_type.return_value = (
         module_test_cluster.type_system.convert_type_hint(MagicMock)
@@ -226,7 +226,7 @@ def test_get_random_accessible_two(module_test_cluster):
     "type_, result",
     [
         pytest.param(bool, [bool]),
-        pytest.param(Union[int, float], [int, float]),
+        pytest.param(Union[int, float], [int, float]),  # noqa: UP007
     ],
 )
 def test_select_concrete_type_union_unary(type_, result, module_test_cluster):
@@ -347,8 +347,8 @@ def test_complex_dependencies():
 
 def test_inheritance_generator():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
-    from tests.fixtures.cluster.inheritance import Bar
-    from tests.fixtures.cluster.inheritance import Foo
+    from tests.fixtures.cluster.inheritance import Bar  # noqa: PLC0415
+    from tests.fixtures.cluster.inheritance import Foo  # noqa: PLC0415
 
     res_foo, only_any = cluster.get_generators_for(
         cluster.type_system.convert_type_hint(Foo)
@@ -393,8 +393,8 @@ def test_only_any_generator_3(module_test_cluster):
 
 def test_inheritance_modifier():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
-    from tests.fixtures.cluster.inheritance import Bar
-    from tests.fixtures.cluster.inheritance import Foo
+    from tests.fixtures.cluster.inheritance import Bar  # noqa: PLC0415
+    from tests.fixtures.cluster.inheritance import Foo  # noqa: PLC0415
 
     assert (
         len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Bar))) == 2
@@ -467,7 +467,7 @@ def test_enums():
     ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
 def test_analyse_async_function_or_method(module_name):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
 
 

@@ -1,10 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Some integration tests for the testcase/statements"""
+"""Some integration tests for the testcase/statements."""
+import math
+
 import pytest
 
 import pynguin.assertion.assertion as ass
@@ -65,7 +67,7 @@ def test_assignment_statement_clone(default_test_case):
     assert cloned.statements[2] is not assignment_stmt
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def simple_test_case(function_mock, default_test_case) -> dtc.DefaultTestCase:
     int_prim = st.IntPrimitiveStatement(default_test_case, 5)
     int_prim2 = st.IntPrimitiveStatement(default_test_case, 5)
@@ -73,7 +75,7 @@ def simple_test_case(function_mock, default_test_case) -> dtc.DefaultTestCase:
     func = st.FunctionStatement(
         default_test_case, function_mock, {"z": float_prim.ret_val}
     )
-    func.add_assertion(ass.ObjectAssertion(func.ret_val, 3.1415))
+    func.add_assertion(ass.ObjectAssertion(func.ret_val, math.pi))
     string_prim = st.StringPrimitiveStatement(default_test_case, "Test")
     string_prim.ret_val._type = (
         default_test_case.test_cluster.type_system.convert_type_hint(type(None))
@@ -158,7 +160,7 @@ def test_get_random_object_all(simple_test_case):
     assert simple_test_case.get_random_object(
         simple_test_case.test_cluster.type_system.convert_type_hint(int),
         simple_test_case.size(),
-    ) in [
+    ) in {
         simple_test_case.statements[0].ret_val,
         simple_test_case.statements[1].ret_val,
-    ]
+    }
