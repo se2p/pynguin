@@ -1404,16 +1404,22 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             return super().execute_multiple(test_cases)
 
         return_value: tuple[
+            tuple[RemoteExecutionObserver, ...],
             ExecutionTracer,
             tuple[ExecutionResult, ...],
         ] = receiving_connection.recv()
 
-        new_tracer, results = return_value
+        new_remote_observers, new_tracer, results = return_value
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
+
+        for remote_observer, new_remote_observer in zip(  # noqa: B905
+            remote_observers, new_remote_observers
+        ):
+            remote_observer.state = new_remote_observer.state
 
         self._tracer.state = new_tracer.state
 
@@ -1489,7 +1495,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((tracer, results))
+        sending_connection.send((remote_observers, tracer, results))
 
     @staticmethod
     def _replace_tracers(
