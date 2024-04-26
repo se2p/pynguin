@@ -594,22 +594,22 @@ class CFG(ProgramGraph[ProgramGraphNode]):
     def __getstate__(self):
         return {
             "nodes": tuple(
-                {
-                    "index": node.index,
-                    "offset": node.offset,
-                    "basic_block": node.basic_block,
-                    "is_artificial": node.is_artificial,
-                    "predicate_id": node.predicate_id,
-                    "data": data,
-                }
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
                 for node, data in self._graph.nodes(data=True)
             ),
             "edges": tuple(
-                {
-                    "source": source.index,
-                    "target": target.index,
-                    "data": data,
-                }
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
                 for source, target, data in self._graph.edges(data=True)
             ),
             "bytecode_cfg": self._bytecode_cfg,
@@ -619,21 +619,23 @@ class CFG(ProgramGraph[ProgramGraphNode]):
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
         nodes: dict[int, ProgramGraphNode] = {}
-        for node_state in state["nodes"]:
+        for index, offset, basic_block, is_artificial, predicate_id, data in state[
+            "nodes"
+        ]:
             node = ProgramGraphNode(
-                index=node_state["index"],
-                offset=node_state["offset"],
-                basic_block=node_state["basic_block"],
-                is_artificial=node_state["is_artificial"],
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
             )
-            if node_state["predicate_id"] is not None:
-                node.predicate_id = node_state["predicate_id"]
-            self.add_node(node, **node_state["data"])
-            nodes[node.index] = node
-        for edge_state in state["edges"]:
-            source = nodes[edge_state["source"]]
-            target = nodes[edge_state["target"]]
-            self.add_edge(source, target, **edge_state["data"])
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
         self._bytecode_cfg = state["bytecode_cfg"]
         self._diameter = state["diameter"]
 
@@ -883,22 +885,22 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
     def __getstate__(self):
         return {
             "nodes": tuple(
-                {
-                    "index": node.index,
-                    "offset": node.offset,
-                    "basic_block": node.basic_block,
-                    "is_artificial": node.is_artificial,
-                    "predicate_id": node.predicate_id,
-                    "data": data,
-                }
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
                 for node, data in self._graph.nodes(data=True)
             ),
             "edges": tuple(
-                {
-                    "source": source.index,
-                    "target": target.index,
-                    "data": data,
-                }
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
                 for source, target, data in self._graph.edges(data=True)
             ),
         }
@@ -906,21 +908,23 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
         nodes: dict[int, ProgramGraphNode] = {}
-        for node_state in state["nodes"]:
+        for index, offset, basic_block, is_artificial, predicate_id, data in state[
+            "nodes"
+        ]:
             node = ProgramGraphNode(
-                index=node_state["index"],
-                offset=node_state["offset"],
-                basic_block=node_state["basic_block"],
-                is_artificial=node_state["is_artificial"],
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
             )
-            if node_state["predicate_id"] is not None:
-                node.predicate_id = node_state["predicate_id"]
-            self.add_node(node, **node_state["data"])
-            nodes[node.index] = node
-        for edge_state in state["edges"]:
-            source = nodes[edge_state["source"]]
-            target = nodes[edge_state["target"]]
-            self.add_edge(source, target, **edge_state["data"])
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
 
     @staticmethod
     def _create_augmented_graph(graph: CFG) -> CFG:
