@@ -1344,7 +1344,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         ):
             remote_observer.state = new_remote_observer.state
 
-        self._replace_subject_properties(new_subject_properties)
+        self._tracer.subject_properties = new_subject_properties
 
         self._after_remote_test_case_execution(test_case, result)
 
@@ -1416,11 +1416,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.join()
 
-        self._replace_subject_properties(new_subject_properties)
+        self._tracer.subject_properties = new_subject_properties
 
         return results
 
-    def _save_crash_tests(self, test_case: tc.TestCase) -> None:
+    @staticmethod
+    def _save_crash_tests(test_case: tc.TestCase) -> None:
         chromosome = tcc.TestCaseChromosome(test_case)
 
         exporter = export.PyTestChromosomeToAstVisitor()
@@ -1433,22 +1434,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         export.save_module_to_file(exporter.to_module(), target_file)
-
-    def _replace_subject_properties(
-        self, new_subject_properties: SubjectProperties
-    ) -> None:
-        self._tracer.subject_properties.branch_less_code_objects = (
-            new_subject_properties.branch_less_code_objects
-        )
-        self._tracer.subject_properties.existing_lines = (
-            new_subject_properties.existing_lines
-        )
-        self._tracer.subject_properties.existing_predicates = (
-            new_subject_properties.existing_predicates
-        )
-        self._tracer.subject_properties.object_addresses = (
-            new_subject_properties.object_addresses
-        )
 
     @staticmethod
     def _execute_test_case_in_subprocess(  # noqa: PLR0917
