@@ -80,11 +80,11 @@ class CodeObjectMetaData:
 
     def __getstate__(self) -> dict:
         return {
-            "code_object": None,
+            "code_object": self.code_object,
             "parent_code_object_id": self.parent_code_object_id,
-            "cfg": None,
-            "original_cfg": None,
-            "cdg": None,
+            "cfg": self.cfg,
+            "original_cfg": self.original_cfg,
+            "cdg": self.cdg,
         }
 
     def __setstate__(self, state: dict) -> None:

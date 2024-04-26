@@ -591,6 +591,52 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 self._diameter = len(self._graph.edges)
         return self._diameter
 
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                {
+                    "index": node.index,
+                    "offset": node.offset,
+                    "basic_block": node.basic_block,
+                    "is_artificial": node.is_artificial,
+                    "predicate_id": node.predicate_id,
+                    "data": data,
+                }
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                {
+                    "source": source.index,
+                    "target": target.index,
+                    "data": data,
+                }
+                for source, target, data in self._graph.edges(data=True)
+            ),
+            "bytecode_cfg": self._bytecode_cfg,
+            "diameter": self._diameter,
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for node_state in state["nodes"]:
+            node = ProgramGraphNode(
+                index=node_state["index"],
+                offset=node_state["offset"],
+                basic_block=node_state["basic_block"],
+                is_artificial=node_state["is_artificial"],
+            )
+            if node_state["predicate_id"] is not None:
+                node.predicate_id = node_state["predicate_id"]
+            self.add_node(node, **node_state["data"])
+            nodes[node.index] = node
+        for edge_state in state["edges"]:
+            source = nodes[edge_state["source"]]
+            target = nodes[edge_state["target"]]
+            self.add_edge(source, target, **edge_state["data"])
+        self._bytecode_cfg = state["bytecode_cfg"]
+        self._diameter = state["diameter"]
+
 
 class DominatorTree(ProgramGraph[ProgramGraphNode]):
     """Implements a dominator tree."""
@@ -833,6 +879,48 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
             if self._is_control_dependent_on_root(pred, visited):
                 return True
         return False
+
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                {
+                    "index": node.index,
+                    "offset": node.offset,
+                    "basic_block": node.basic_block,
+                    "is_artificial": node.is_artificial,
+                    "predicate_id": node.predicate_id,
+                    "data": data,
+                }
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                {
+                    "source": source.index,
+                    "target": target.index,
+                    "data": data,
+                }
+                for source, target, data in self._graph.edges(data=True)
+            ),
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for node_state in state["nodes"]:
+            node = ProgramGraphNode(
+                index=node_state["index"],
+                offset=node_state["offset"],
+                basic_block=node_state["basic_block"],
+                is_artificial=node_state["is_artificial"],
+            )
+            if node_state["predicate_id"] is not None:
+                node.predicate_id = node_state["predicate_id"]
+            self.add_node(node, **node_state["data"])
+            nodes[node.index] = node
+        for edge_state in state["edges"]:
+            source = nodes[edge_state["source"]]
+            target = nodes[edge_state["target"]]
+            self.add_edge(source, target, **edge_state["data"])
 
     @staticmethod
     def _create_augmented_graph(graph: CFG) -> CFG:
