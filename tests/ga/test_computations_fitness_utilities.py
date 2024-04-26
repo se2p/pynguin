@@ -24,10 +24,10 @@ from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import LineMetaData
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
 
 

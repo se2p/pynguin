@@ -27,10 +27,10 @@ from pynguin.slicer.dynamicslicer import DynamicSlicer
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
-    from pynguin.testcase.execution import SubjectProperties
     from pynguin.testcase.statement import Statement
 
 

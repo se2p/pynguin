@@ -59,7 +59,6 @@ from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.utils.mirror import Mirror
 
@@ -1329,10 +1328,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             return ExecutionResult(timeout=True)
 
         return_value: tuple[
-            tuple[RemoteExecutionObserver, ...], SubjectProperties, ExecutionResult
+            tuple[RemoteExecutionObserver, ...], ExecutionTracer, ExecutionResult
         ] = receiving_connection.recv()
 
-        new_remote_observers, new_subject_properties, result = return_value
+        new_remote_observers, new_tracer, result = return_value
 
         sending_connection.close()
         receiving_connection.close()
@@ -1344,7 +1343,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         ):
             remote_observer.state = new_remote_observer.state
 
-        self._tracer.subject_properties = new_subject_properties
+        self._tracer.state = new_tracer.state
 
         self._after_remote_test_case_execution(test_case, result)
 
@@ -1405,18 +1404,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             return super().execute_multiple(test_cases)
 
         return_value: tuple[
-            SubjectProperties,
+            ExecutionTracer,
             tuple[ExecutionResult, ...],
         ] = receiving_connection.recv()
 
-        new_subject_properties, results = return_value
+        new_tracer, results = return_value
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
 
-        self._tracer.subject_properties = new_subject_properties
+        self._tracer.state = new_tracer.state
 
         return results
 
@@ -1461,7 +1460,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((remote_observers, tracer.subject_properties, result))
+        sending_connection.send((remote_observers, tracer, result))
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
@@ -1490,7 +1489,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((tracer.subject_properties, results))
+        sending_connection.send((tracer, results))
 
     @staticmethod
     def _replace_tracers(

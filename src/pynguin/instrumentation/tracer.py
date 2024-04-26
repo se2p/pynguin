@@ -1044,6 +1044,37 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
         return self.subject_properties
 
+    @property
+    def state(self) -> dict:
+        """Get the current state.
+
+        Returns:
+            The current state
+        """
+        return {
+            "subject_properties": self.subject_properties,
+            "import_trace": self._import_trace,
+            "current_thread_identifier": self._current_thread_identifier,
+            "thread_local_state": {
+                "enabled": self._thread_local_state.enabled,
+                "trace": self._thread_local_state.trace,
+            },
+        }
+
+    @state.setter
+    def state(self, state: dict) -> None:
+        """Set the current state.
+
+        Args:
+            state: The state to set
+        """
+        self.subject_properties = state["subject_properties"]
+        self._import_trace = state["import_trace"]
+        self._current_thread_identifier = state["current_thread_identifier"]
+        self._thread_local_state = ExecutionTracer.TracerLocalState()
+        self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
+        self._thread_local_state.trace = state["thread_local_state"]["trace"]
+
     def reset(self) -> None:  # noqa: D102
         self.subject_properties = SubjectProperties()
         self._import_trace = ExecutionTrace()
@@ -1331,10 +1362,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
         object_creation = False
-        if (
-            arg_address
-            and arg_address not in self.get_subject_properties().object_addresses
-        ):
+        if arg_address and arg_address not in self.subject_properties.object_addresses:
             object_creation = True
             self.subject_properties.object_addresses.add(arg_address)
 
@@ -1531,23 +1559,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         )
 
     def __getstate__(self) -> dict:
-        return {
-            "subject_properties": self.subject_properties,
-            "import_trace": self._import_trace,
-            "current_thread_identifier": self._current_thread_identifier,
-            "thread_local_state": {
-                "enabled": self._thread_local_state.enabled,
-                "trace": self._thread_local_state.trace,
-            },
-        }
+        return self.state
 
     def __setstate__(self, state: dict) -> None:
-        self.subject_properties = state["subject_properties"]
-        self._import_trace = state["import_trace"]
-        self._current_thread_identifier = state["current_thread_identifier"]
-        self._thread_local_state = ExecutionTracer.TracerLocalState()
-        self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
-        self._thread_local_state.trace = state["thread_local_state"]["trace"]
+        self.state = state
 
 
 class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904, D101

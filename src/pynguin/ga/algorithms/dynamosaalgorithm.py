@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.ga.algorithms.archive import CoverageArchive
-    from pynguin.testcase.execution import SubjectProperties
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 
 class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
