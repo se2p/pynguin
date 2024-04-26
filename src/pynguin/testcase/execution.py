@@ -1328,15 +1328,20 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             return ExecutionResult(timeout=True)
 
         return_value: tuple[
-            tuple[RemoteExecutionObserver, ...], ExecutionTracer, ExecutionResult
+            ExecutionTracer,
+            ModuleProvider,
+            tuple[RemoteExecutionObserver, ...],
+            ExecutionResult,
         ] = receiving_connection.recv()
 
-        new_remote_observers, new_tracer, result = return_value
+        new_tracer, new_module_provider, new_remote_observers, result = return_value
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
+
+        self._module_provider = new_module_provider
 
         for remote_observer, new_remote_observer in zip(  # noqa: B905
             remote_observers, new_remote_observers
@@ -1404,17 +1409,20 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             return super().execute_multiple(test_cases)
 
         return_value: tuple[
-            tuple[RemoteExecutionObserver, ...],
             ExecutionTracer,
+            ModuleProvider,
+            tuple[RemoteExecutionObserver, ...],
             tuple[ExecutionResult, ...],
         ] = receiving_connection.recv()
 
-        new_remote_observers, new_tracer, results = return_value
+        new_tracer, new_module_provider, new_remote_observers, results = return_value
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
+
+        self._module_provider = new_module_provider
 
         for remote_observer, new_remote_observer in zip(  # noqa: B905
             remote_observers, new_remote_observers
@@ -1450,7 +1458,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_case: tc.TestCase,
         sending_connection: mp_conn.Connection,
     ) -> None:
-        SubprocessTestCaseExecutor._replace_tracers(tracer, module_provider)
+        SubprocessTestCaseExecutor._replace_tracers(tracer)
 
         executor = TestCaseExecutor(
             tracer,
@@ -1466,7 +1474,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((remote_observers, tracer, result))
+        sending_connection.send((tracer, module_provider, remote_observers, result))
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
@@ -1478,7 +1486,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_cases: tuple[tc.TestCase, ...],
         sending_connection: mp_conn.Connection,
     ) -> None:
-        SubprocessTestCaseExecutor._replace_tracers(tracer, module_provider)
+        SubprocessTestCaseExecutor._replace_tracers(tracer)
 
         executor = TestCaseExecutor(
             tracer,
@@ -1495,19 +1503,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((remote_observers, tracer, results))
+        sending_connection.send((tracer, module_provider, remote_observers, results))
 
     @staticmethod
-    def _replace_tracers(
-        tracer: ExecutionTracer, module_provider: ModuleProvider
-    ) -> None:
+    def _replace_tracers(tracer: ExecutionTracer) -> None:
         instrumentation_finder = sys.meta_path[0]
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
             instrumentation_finder.instrumentation_tracer.tracer = tracer
-
-        for _, mutant_transformer in module_provider.mutated_module_aliases.values():
-            mutant_transformer.instrumentation_tracer.tracer = tracer
 
     @staticmethod
     def _fix_result_for_pickle(result: ExecutionResult) -> None:
