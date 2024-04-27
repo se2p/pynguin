@@ -1359,11 +1359,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def execute_multiple(  # noqa: D102
         self, test_cases: Iterable[tc.TestCase]
     ) -> Iterable[ExecutionResult]:
+        test_cases_tuple = tuple(test_cases)
+
+        if not test_cases_tuple:
+            return ()
+
         receiving_connection, sending_connection = mp.Pipe(duplex=False)
 
         remote_observers = tuple(self._yield_remote_observers())
-
-        test_cases_tuple = tuple(test_cases)
 
         args = (
             self._tracer,
