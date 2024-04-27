@@ -80,6 +80,9 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+SEGMENTATION_FAULT_EXIT_CODE = 139
+
+
 class ExecutionContext:
     """Contains information required in the context of an execution.
 
@@ -1311,20 +1314,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
-            # Just kill the process in case of a timeout
             if process.exitcode is None:
                 process.kill()
-            # Raise an exception when the exit code is not 139 (SIGSEGV)
-            # because it indicates a bug in Pynguin
-            elif process.exitcode != 139:
+                _LOGGER.warning("Experienced timeout from test-case execution")
+            elif process.exitcode == SEGMENTATION_FAULT_EXIT_CODE:
+                _LOGGER.warning(
+                    "Segmentation fault detected. Saving the test-case that caused the"
+                    " crash and continuing as if a timeout occurred."
+                )
+                self._save_crash_tests(test_case)
+            else:
                 _LOGGER.error("Finished process did not return a result.")
                 raise RuntimeError("Bug in Pynguin!")
 
-            _LOGGER.warning(
-                "Segmentation fault detected. Saving the test that caused the crash"
-                "and continuing as if a timeout occurred."
-            )
-            self._save_crash_tests(test_case)
             return ExecutionResult(timeout=True)
 
         return_value: tuple[
@@ -1392,20 +1394,21 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
-            # Just kill the process in case of a timeout
             if process.exitcode is None:
                 process.kill()
-
-            # Raise an exception when the exit code is not 139 (SIGSEGV)
-            # because it indicates a bug in Pynguin
-            elif process.exitcode != 139:
-                _LOGGER.error("Finished process did not return a result.")
+                _LOGGER.error(
+                    "Timeout occurred. Falling back to executing each test-case"
+                    " in a separate process."
+                )
+            elif process.exitcode == SEGMENTATION_FAULT_EXIT_CODE:
+                _LOGGER.warning(
+                    "Segmentation fault detected. Falling back to executing each"
+                    " test-case in a separate process."
+                )
+            else:
+                _LOGGER.error("Finished process did not return the results.")
                 raise RuntimeError("Bug in Pynguin!")
 
-            _LOGGER.warning(
-                "Segmentation fault detected. Falling back to executing each"
-                "tests in different processes."
-            )
             return super().execute_multiple(test_cases)
 
         return_value: tuple[
