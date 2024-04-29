@@ -1008,7 +1008,7 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
             vr.CallBasedVariableReference(test_case, generic_callable),
         )
         self._generic_callable = generic_callable
-        self._args = args if args else {}
+        self._args = args or {}
 
     @property
     def args(self) -> dict[str, vr.VariableReference]:
