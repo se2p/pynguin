@@ -36,6 +36,9 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from collections.abc import Iterable
+
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
@@ -335,6 +338,49 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._testing = testing
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
 
+    def _execute_test_case_on_mutant(
+        self,
+        test_cases: list[tc.TestCase],
+        mutated_module: types.ModuleType | None,
+        idx: int,
+        mutant_count: int,
+    ) -> Iterable[ex.ExecutionResult | None]:
+        if mutated_module is None:
+            self._logger.info(
+                "Skipping mutant %3i/%i because it created an invalid module",
+                idx,
+                mutant_count,
+            )
+            return (None for _ in range(len(test_cases)))
+
+        self._logger.info(
+            "Running tests on mutant %3i/%i",
+            idx,
+            mutant_count,
+        )
+        self._mutation_executor.module_provider.add_mutated_version(
+            module_name=config.configuration.module_name,
+            mutated_module=mutated_module,
+            transformer=self._mutation_controller.transformer,
+        )
+
+        return self._mutation_executor.execute_multiple(test_cases)
+
+    def _execute_test_case_on_mutants(
+        self,
+        test_cases: list[tc.TestCase],
+        mutant_count: int,
+    ) -> Generator[Iterable[ex.ExecutionResult | None], None, None]:
+        for idx, (mutated_module, _) in enumerate(
+            self._mutation_controller.create_mutants(), start=1
+        ):
+            yield self._execute_test_case_on_mutant(
+                test_cases,
+                mutated_module,
+                idx,
+                mutant_count,
+            )
+
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
         tests_mutants_results: list[list[ex.ExecutionResult | None]] = [
@@ -346,34 +392,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         with self._mutation_executor.temporarily_add_remote_observer(
             ato.RemoteAssertionVerificationObserver()
         ):
-            for idx, (mutated_module, _) in enumerate(
-                self._mutation_controller.create_mutants(), start=1
+            for tests_mutant_results in self._execute_test_case_on_mutants(
+                test_cases, mutant_count
             ):
-                if mutated_module is None:
-                    self._logger.info(
-                        "Skipping mutant %3i/%i because it created an invalid module",
-                        idx,
-                        mutant_count,
-                    )
-                    for test_mutants_results in tests_mutants_results:
-                        test_mutants_results.append(None)
-                    continue
-
-                self._logger.info(
-                    "Running tests on mutant %3i/%i",
-                    idx,
-                    mutant_count,
-                )
-                self._mutation_executor.module_provider.add_mutated_version(
-                    module_name=config.configuration.module_name,
-                    mutated_module=mutated_module,
-                    transformer=self._mutation_controller.transformer,
-                )
-
-                tests_mutant_results = self._mutation_executor.execute_multiple(
-                    test_cases
-                )
-
                 for test_mutants_results, test_mutant_results in zip(
                     tests_mutants_results, tests_mutant_results, strict=True
                 ):
