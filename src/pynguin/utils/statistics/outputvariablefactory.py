@@ -144,19 +144,20 @@ class SequenceOutputVariableFactory(Generic[T], ABC):
     @property
     def area_under_curve(self) -> float:
         """Provides the area under the curve using trapezoid approximation."""
-        time_stamps_values = [
-            (
-                int(output_variable.name.removeprefix(f"{self._variable.name}_T")),
-                output_variable.value,
-            )
-            for output_variable in self.get_output_variables()
-        ]
+        assert config.configuration.stopping.maximum_search_time is not None
+        time_stamps_values: list[tuple[int, float]] = list(
+            zip(self._time_stamps, self._values, strict=True)
+        )
+        max_time = config.configuration.stopping.maximum_search_time - 1
+        end_time = max_time * 1_000_000_000
+        if self._time_stamps[-1] < end_time:
+            time_stamps_values.append((end_time, 1.0))
 
         result = 0.0
         previous_value = 0.0
         previous_time_stamp = 0
         for time_stamp, value in time_stamps_values:
-            delta = time_stamp - previous_time_stamp
+            delta = (time_stamp - previous_time_stamp) / 1_000_000_000
             summand = (previous_value + value) / 2 * delta
             assert summand >= 0, "Sum must not be negative"
             result += summand
