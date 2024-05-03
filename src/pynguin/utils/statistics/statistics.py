@@ -226,11 +226,6 @@ class _SearchStatistics:
         ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
             RuntimeVariable.TotalExceptionsTimeline
         )
-        self._sequence_output_variable_factories[
-            RuntimeVariable.SignatureInfosTimeline.name
-        ] = ovf.TypeEvolutionSequenceOutputVariableFactory(
-            RuntimeVariable.SignatureInfosTimeline, "{}"
-        )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
         """Set start time for sequence data.
@@ -347,6 +342,12 @@ class _SearchStatistics:
                     variable_name
                 ].get_output_variables():
                     output_variables_map[var.name] = var
+
+                # For every time-series variable, we compute the area under curve, too
+                auc_variable = self._sequence_output_variable_factories[
+                    variable_name
+                ].area_under_curve_output_variable
+                output_variables_map[auc_variable.name] = auc_variable
             elif skip_missing:
                 # if variable does not exist, return an empty value instead
                 output_variables_map[variable_name] = sb.OutputVariable(

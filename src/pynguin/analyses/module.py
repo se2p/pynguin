@@ -600,22 +600,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             str(stats.number_of_constructors),
         )
 
-    def __log_type_evolution(self) -> None:
-        stats = TypeGuessingStats()
-        for accessible in self.__accessible_objects_under_test:
-            if isinstance(accessible, GenericCallableAccessibleObject):
-                accessible.inferred_signature.log_stats_and_guess_signature(
-                    accessible.is_constructor(), str(accessible), stats
-                )
-
-        stat.update_output_variable_for_runtime_variable(
-            RuntimeVariable.SignatureInfosTimeline,
-            json.dumps(
-                stats.signature_infos,
-                default=_serialize_helper,
-            ),
-        )
-
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
         if gens is None:
@@ -657,7 +641,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
-        self.__log_type_evolution()
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -667,7 +650,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         # Store new data
         accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
-        self.__log_type_evolution()
 
     @property
     def type_system(self) -> TypeSystem:

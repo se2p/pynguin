@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
 
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-T = TypeVar("T", int, float, str)
+T = TypeVar("T", int, float)
 
 
 class ChromosomeOutputVariableFactory(Generic[T], ABC):
@@ -141,10 +141,40 @@ class SequenceOutputVariableFactory(Generic[T], ABC):
             for variable_index, variable_name in self.get_variable_names_indices()
         ]
 
+    @property
+    def area_under_curve(self) -> float:
+        """Provides the area under the curve using trapezoid approximation."""
+        time_stamps_values = [
+            (
+                int(output_variable.name.removeprefix(f"{self._variable.name}_T")),
+                output_variable.value,
+            )
+            for output_variable in self.get_output_variables()
+        ]
+
+        result = 0.0
+        previous_value = 0.0
+        previous_time_stamp = 0
+        for time_stamp, value in time_stamps_values:
+            delta = time_stamp - previous_time_stamp
+            summand = (previous_value + value) / 2 * delta
+            assert summand >= 0, "Sum must not be negative"
+            result += summand
+            previous_time_stamp = time_stamp
+            previous_value = value
+        return result
+
+    @property
+    def area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
+        """Provides the output variable for area under curve."""
+        return sb.OutputVariable(
+            name=f"{self._variable.name}_AUC", value=self.area_under_curve
+        )
+
     def _get_time_line_value(self, index: int) -> T:
         if not self._time_stamps:
             # No data, if this is even possible.
-            return 0  # type: ignore[return-value]
+            return 0
         interval = config.configuration.statistics_output.timeline_interval
         preferred_time = interval * index
 
