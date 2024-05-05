@@ -60,6 +60,7 @@ from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
+from pynguin.utils import randomness
 from pynguin.utils.mirror import Mirror
 
 
@@ -1334,14 +1335,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             ModuleProvider,
             tuple[RemoteExecutionObserver, ...],
             ExecutionResult,
+            tuple[Any, ...],
         ] = receiving_connection.recv()
 
-        new_tracer, new_module_provider, new_remote_observers, result = return_value
+        new_tracer, new_module_provider, new_remote_observers, result, random_state = (
+            return_value
+        )
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
+
+        randomness.RNG.setstate(random_state)
 
         self._module_provider = new_module_provider
 
@@ -1419,14 +1425,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             ModuleProvider,
             tuple[RemoteExecutionObserver, ...],
             tuple[ExecutionResult, ...],
+            tuple[Any, ...],
         ] = receiving_connection.recv()
 
-        new_tracer, new_module_provider, new_remote_observers, results = return_value
+        new_tracer, new_module_provider, new_remote_observers, results, random_state = (
+            return_value
+        )
 
         sending_connection.close()
         receiving_connection.close()
 
         process.join()
+
+        randomness.RNG.setstate(random_state)
 
         self._module_provider = new_module_provider
 
@@ -1480,7 +1491,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((tracer, module_provider, remote_observers, result))
+        sending_connection.send(
+            (
+                tracer,
+                module_provider,
+                remote_observers,
+                result,
+                randomness.RNG.getstate(),
+            )
+        )
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
@@ -1509,7 +1528,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        sending_connection.send((tracer, module_provider, remote_observers, results))
+        sending_connection.send(
+            (
+                tracer,
+                module_provider,
+                remote_observers,
+                results,
+                randomness.RNG.getstate(),
+            )
+        )
 
     @staticmethod
     def _replace_tracers(tracer: ExecutionTracer) -> None:
