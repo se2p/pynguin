@@ -1336,16 +1336,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return_value: tuple[
             ExecutionTracer,
             ModuleProvider,
-            tuple[RemoteExecutionObserver, ...],
             ExecutionResult,
-            dict[int, vr.VariableReference],
+            dict[int, vr.VariableReference] | None,
             tuple[Any, ...],
         ] = receiving_connection.recv()
 
         (
             new_tracer,
             new_module_provider,
-            new_remote_observers,
             result,
             new_reference_bindings,
             random_state,
@@ -1360,14 +1358,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         self._module_provider = new_module_provider
 
-        for remote_observer, new_remote_observer in zip(  # noqa: B905
-            remote_observers, new_remote_observers
-        ):
-            remote_observer.state = new_remote_observer.state
-
-        self._fix_assertion_trace(
-            result.assertion_trace, reference_bindings, new_reference_bindings
-        )
+        if new_reference_bindings is not None:
+            self._fix_assertion_trace(
+                result.assertion_trace, reference_bindings, new_reference_bindings
+            )
 
         self._tracer.state = new_tracer.state
 
@@ -1441,16 +1435,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return_value: tuple[
             ExecutionTracer,
             ModuleProvider,
-            tuple[RemoteExecutionObserver, ...],
             tuple[ExecutionResult, ...],
-            tuple[dict[int, vr.VariableReference], ...],
+            tuple[dict[int, vr.VariableReference] | None, ...],
             tuple[Any, ...],
         ] = receiving_connection.recv()
 
         (
             new_tracer,
             new_module_provider,
-            new_remote_observers,
             results,
             new_references_bindings,
             random_state,
@@ -1465,17 +1457,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         self._module_provider = new_module_provider
 
-        for remote_observer, new_remote_observer in zip(  # noqa: B905
-            remote_observers, new_remote_observers
-        ):
-            remote_observer.state = new_remote_observer.state
-
         for result, reference_bindings, new_reference_bindings in zip(
             results, references_bindings, new_references_bindings, strict=True
         ):
-            self._fix_assertion_trace(
-                result.assertion_trace, reference_bindings, new_reference_bindings
-            )
+            if new_reference_bindings is not None:
+                self._fix_assertion_trace(
+                    result.assertion_trace, reference_bindings, new_reference_bindings
+                )
 
         self._tracer.state = new_tracer.state
 
@@ -1530,7 +1518,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
-        remote_observers: tuple[RemoteExecutionObserver, ...],
         test_case: tc.TestCase,
         reference_bindings: dict[int, vr.VariableReference],
         sending_connection: mp_conn.Connection,
@@ -1544,20 +1531,20 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             test_execution_time_per_statement,
         )
 
-        for remote_observer in remote_observers:
-            executor.add_remote_observer(remote_observer)
-
         result = executor.execute(test_case)
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+
+        new_reference_bindings = (
+            reference_bindings if result.assertion_trace.trace else None
+        )
 
         sending_connection.send(
             (
                 tracer,
                 module_provider,
-                remote_observers,
                 result,
-                reference_bindings if result.assertion_trace.trace else {},
+                new_reference_bindings,
                 randomness.RNG.getstate(),
             )
         )
@@ -1590,18 +1577,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
+        new_references_bindings = tuple(
+            reference_bindings if result.assertion_trace.trace else None
+            for result, reference_bindings in zip(
+                results, references_bindings, strict=True
+            )
+        )
+
         sending_connection.send(
             (
                 tracer,
                 module_provider,
-                remote_observers,
                 results,
-                [
-                    reference_bindings if result.assertion_trace.trace else {}
-                    for result, reference_bindings in zip(
-                        results, references_bindings, strict=True
-                    )
-                ],
+                new_references_bindings,
                 randomness.RNG.getstate(),
             )
         )
