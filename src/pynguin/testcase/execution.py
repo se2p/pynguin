@@ -1289,6 +1289,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         remote_observers = tuple(self._yield_remote_observers())
 
+        reference_bindings = self._create_variable_binding(test_case)
+
         args = (
             self._tracer,
             self._module_provider,
@@ -1296,6 +1298,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             self._test_execution_time_per_statement,
             remote_observers,
             test_case,
+            reference_bindings,
             sending_connection,
         )
 
@@ -1335,12 +1338,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             ModuleProvider,
             tuple[RemoteExecutionObserver, ...],
             ExecutionResult,
+            dict[int, vr.VariableReference],
             tuple[Any, ...],
         ] = receiving_connection.recv()
 
-        new_tracer, new_module_provider, new_remote_observers, result, random_state = (
-            return_value
-        )
+        (
+            new_tracer,
+            new_module_provider,
+            new_remote_observers,
+            result,
+            new_reference_bindings,
+            random_state,
+        ) = return_value
 
         sending_connection.close()
         receiving_connection.close()
@@ -1355,6 +1364,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             remote_observers, new_remote_observers
         ):
             remote_observer.state = new_remote_observer.state
+
+        self._fix_assertion_trace(
+            result.assertion_trace, reference_bindings, new_reference_bindings
+        )
 
         self._tracer.state = new_tracer.state
 
@@ -1374,6 +1387,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         remote_observers = tuple(self._yield_remote_observers())
 
+        references_bindings = tuple(
+            self._create_variable_binding(test_case) for test_case in test_cases_tuple
+        )
+
         args = (
             self._tracer,
             self._module_provider,
@@ -1381,6 +1398,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             self._test_execution_time_per_statement,
             remote_observers,
             test_cases_tuple,
+            references_bindings,
             sending_connection,
         )
 
@@ -1425,12 +1443,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             ModuleProvider,
             tuple[RemoteExecutionObserver, ...],
             tuple[ExecutionResult, ...],
+            tuple[dict[int, vr.VariableReference], ...],
             tuple[Any, ...],
         ] = receiving_connection.recv()
 
-        new_tracer, new_module_provider, new_remote_observers, results, random_state = (
-            return_value
-        )
+        (
+            new_tracer,
+            new_module_provider,
+            new_remote_observers,
+            results,
+            new_references_bindings,
+            random_state,
+        ) = return_value
 
         sending_connection.close()
         receiving_connection.close()
@@ -1445,6 +1469,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             remote_observers, new_remote_observers
         ):
             remote_observer.state = new_remote_observer.state
+
+        for result, reference_bindings, new_reference_bindings in zip(
+            results, references_bindings, new_references_bindings, strict=True
+        ):
+            self._fix_assertion_trace(
+                result.assertion_trace, reference_bindings, new_reference_bindings
+            )
 
         self._tracer.state = new_tracer.state
 
@@ -1466,6 +1497,34 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         export.save_module_to_file(exporter.to_module(), target_file)
 
     @staticmethod
+    def _create_variable_binding(
+        test_case: TestCase,
+    ) -> dict[int, vr.VariableReference]:
+        return {
+            position: reference
+            for position, statement in enumerate(test_case.statements)
+            if (reference := statement.ret_val) is not None
+            and not reference.is_none_type()
+        }
+
+    @staticmethod
+    def _fix_assertion_trace(
+        assertion_trace: at.AssertionTrace,
+        old_reference_bindings: dict[int, vr.VariableReference],
+        new_reference_bindings: dict[int, vr.VariableReference],
+    ) -> None:
+        memo = {
+            new_reference: old_reference_bindings[position]
+            for position, new_reference in new_reference_bindings.items()
+        }
+
+        all_assertions = assertion_trace.get_all_assertions()
+        assertion_trace.clear()
+        for position, assertions in all_assertions.items():
+            for assertion in assertions:
+                assertion_trace.add_entry(position, assertion.clone(memo))
+
+    @staticmethod
     def _execute_test_case_in_subprocess(  # noqa: PLR0917
         tracer: ExecutionTracer,
         module_provider: ModuleProvider,
@@ -1473,9 +1532,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_execution_time_per_statement: int,
         remote_observers: tuple[RemoteExecutionObserver, ...],
         test_case: tc.TestCase,
+        reference_bindings: dict[int, vr.VariableReference],
         sending_connection: mp_conn.Connection,
     ) -> None:
-        SubprocessTestCaseExecutor._replace_tracers(tracer)
+        SubprocessTestCaseExecutor._replace_tracer(tracer)
 
         executor = TestCaseExecutor(
             tracer,
@@ -1497,6 +1557,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 module_provider,
                 remote_observers,
                 result,
+                reference_bindings,
                 randomness.RNG.getstate(),
             )
         )
@@ -1509,9 +1570,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_execution_time_per_statement: int,
         remote_observers: tuple[RemoteExecutionObserver, ...],
         test_cases: tuple[tc.TestCase, ...],
+        references_bindings: tuple[dict[int, vr.VariableReference], ...],
         sending_connection: mp_conn.Connection,
     ) -> None:
-        SubprocessTestCaseExecutor._replace_tracers(tracer)
+        SubprocessTestCaseExecutor._replace_tracer(tracer)
 
         executor = TestCaseExecutor(
             tracer,
@@ -1534,12 +1596,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 module_provider,
                 remote_observers,
                 results,
+                references_bindings,
                 randomness.RNG.getstate(),
             )
         )
 
     @staticmethod
-    def _replace_tracers(tracer: ExecutionTracer) -> None:
+    def _replace_tracer(tracer: ExecutionTracer) -> None:
         instrumentation_finder = sys.meta_path[0]
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
