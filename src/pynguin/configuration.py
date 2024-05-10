@@ -580,6 +580,23 @@ class StoppingConfiguration:
 
 
 @dataclasses.dataclass
+class LLMConfiguration:
+    """Configuration for the LLM"""
+
+    api_key: str = ""
+    """The api key to call OpenAI LLM with"""
+
+    model_name: str = "gpt-3.5-turbo"
+    """The OpenAI Model to use for completions"""
+
+    temperature: float = 0.8
+    """The temperature to use when querying the model"""
+
+    max_query_token_length: float = 4000
+    """The maximum token length that a query should have"""
+
+
+@dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""
 
