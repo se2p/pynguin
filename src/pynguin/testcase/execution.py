@@ -1540,7 +1540,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
         new_reference_bindings = (
-            reference_bindings if result.assertion_trace.trace and not dill.detect.baditems(reference_bindings) else None
+            reference_bindings
+            if result.assertion_trace.trace
+            and not dill.detect.baditems(reference_bindings)
+            else None
         )
 
         sending_connection.send(
@@ -1582,7 +1585,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
         new_references_bindings = tuple(
-            reference_bindings if result.assertion_trace.trace and not dill.detect.baditems(reference_bindings) else None
+            (
+                reference_bindings
+                if result.assertion_trace.trace
+                and not dill.detect.baditems(reference_bindings)
+                else None
+            )
             for result, reference_bindings in zip(
                 results, references_bindings, strict=True
             )
