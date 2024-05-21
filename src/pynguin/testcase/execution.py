@@ -1440,7 +1440,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 _LOGGER.error("Finished process did not return the results.")
                 raise RuntimeError("Bug in Pynguin!")
 
-            return super().execute_multiple(test_cases)
+            return super().execute_multiple(test_cases_tuple)
 
         return_value: tuple[
             ExecutionTracer,
