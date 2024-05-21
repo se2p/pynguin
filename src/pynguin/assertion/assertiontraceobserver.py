@@ -82,17 +82,20 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         if exception is not None:
-            self._assertion_local_state.trace.add_entry(
-                statement.get_position(),
-                ass.ExceptionAssertion(
-                    module=type(exception).__module__,
-                    exception_type_name=type(exception).__name__,
-                ),
-            )
+            if self._is_module_exposed(
+                executor.module_provider, type(exception).__module__
+            ):
+                self._assertion_local_state.trace.add_entry(
+                    statement.get_position(),
+                    ass.ExceptionAssertion(
+                        module=type(exception).__module__,
+                        exception_type_name=type(exception).__name__,
+                    ),
+                )
             return
         if statement.affects_assertions:
             stmt = cast(st.VariableCreatingStatement, statement)
-            self._handle(stmt, exec_ctx)
+            self._handle(stmt, executor.module_provider, exec_ctx)
 
     def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ex.ExecutionResult
@@ -110,12 +113,16 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         """
 
     def _handle(  # noqa: C901
-        self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
+        self,
+        statement: st.VariableCreatingStatement,
+        module_provider: ex.ModuleProvider,
+        exec_ctx: ex.ExecutionContext,
     ) -> None:
         """Actually handle the statement.
 
         Args:
             exec_ctx: the execution context.
+            module_provider: the module provider.
             statement: the statement that is visited.
         """
         position = statement.get_position()
@@ -125,7 +132,9 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         if not statement.ret_val.is_none_type():
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
-                self._check_reference(exec_ctx, statement.ret_val, position, trace)
+                self._check_reference(
+                    module_provider, exec_ctx, statement.ret_val, position, trace
+                )
             elif (
                 type(exec_ctx.get_reference_value(statement.ret_val)).__module__
                 != "builtins"
@@ -134,7 +143,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
         for var in self._assertion_local_state.watch_list:
-            self._check_reference(exec_ctx, var, position, trace)
+            self._check_reference(module_provider, exec_ctx, var, position, trace)
 
         # Check all used modules.
         for module_name, alias in exec_ctx.module_aliases:
@@ -149,6 +158,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    module_provider,
                     exec_ctx,
                     vr.StaticModuleFieldReference(
                         # Type information is not used here, so use Any.
@@ -177,6 +187,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    module_provider,
                     exec_ctx,
                     vr.StaticFieldReference(
                         # Type information is not used here, so use Any.
@@ -188,6 +199,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 
     def _check_reference(
         self,
+        module_provider: ex.ModuleProvider,
         exec_ctx: ex.ExecutionContext,
         ref: vr.Reference,
         position: int,
@@ -202,6 +214,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         on the attributes of the given object.
 
         Args:
+            module_provider: The module provider.
             exec_ctx: The execution context.
             ref: The reference that should be checked.
             position: The position of the test case after which the assertions are made.
@@ -218,7 +231,11 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         else:
             # No precise assertion possible, so assert on type.
             typ = type(value)
-            if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
+            if (
+                hasattr(typ, "__module__")
+                and hasattr(typ, "__qualname__")
+                and self._is_module_exposed(module_provider, typ.__module__)
+            ):
                 trace.add_entry(
                     position,
                     ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
@@ -239,6 +256,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 for field, field_value in vars(value).items():
                     if not self._should_ignore(field, field_value):
                         self._check_reference(
+                            module_provider,
                             exec_ctx,
                             vr.FieldReference(
                                 ref,
@@ -249,6 +267,17 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                             trace,
                             depth=depth + 1,
                         )
+
+    @staticmethod
+    def _is_module_exposed(
+        module_provider: ex.ModuleProvider, module_name: str
+    ) -> bool:
+        try:
+            module_provider.get_module(module_name)
+        except KeyError:
+            return False
+
+        return True
 
     @staticmethod
     def _should_ignore(field, attr_value):
