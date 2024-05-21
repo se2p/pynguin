@@ -15,6 +15,7 @@ import dataclasses
 import inspect
 import logging
 import os
+import signal
 import sys
 import threading
 
@@ -79,9 +80,6 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
-
-
-SEGMENTATION_FAULT_EXIT_CODE = 139
 
 
 class ExecutionContext:
@@ -1321,10 +1319,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             if process.exitcode is None:
                 process.kill()
                 _LOGGER.warning("Experienced timeout from test-case execution")
-            elif process.exitcode == SEGMENTATION_FAULT_EXIT_CODE:
+            elif process.exitcode == -signal.SIGSEGV:
                 _LOGGER.warning(
-                    "Segmentation fault detected. Saving the test-case that caused the"
+                    "Segmentation fault detected. Saving the test case that caused the"
                     " crash and continuing as if a timeout occurred."
+                )
+                self._save_crash_tests(test_case)
+            elif process.exitcode == -signal.SIGKILL:
+                _LOGGER.warning(
+                    "Kill signal detected, most likely due to an out of memory."
+                    " Saving the test case that caused the crash and continuing as"
+                    " if a timeout occurred."
                 )
                 self._save_crash_tests(test_case)
             else:
@@ -1421,10 +1426,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Timeout occurred. Falling back to executing each test-case"
                     " in a separate process."
                 )
-            elif process.exitcode == SEGMENTATION_FAULT_EXIT_CODE:
+            elif process.exitcode == -signal.SIGSEGV:
                 _LOGGER.warning(
                     "Segmentation fault detected. Falling back to executing each"
-                    " test-case in a separate process."
+                    " test case in a separate process."
+                )
+            elif process.exitcode == -signal.SIGKILL:
+                _LOGGER.warning(
+                    "Kill signal detected, most likely due to an out of memory."
+                    " Falling back to executing each test case in a separate process."
                 )
             else:
                 _LOGGER.error("Finished process did not return the results.")
