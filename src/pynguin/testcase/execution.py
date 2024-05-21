@@ -1321,14 +1321,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 _LOGGER.warning("Experienced timeout from test-case execution")
             elif process.exitcode == -signal.SIGSEGV:
                 _LOGGER.warning(
-                    "Segmentation fault detected. Saving the test case that caused the"
+                    "Segmentation fault detected. Saving the test-case that caused the"
                     " crash and continuing as if a timeout occurred."
                 )
                 self._save_crash_tests(test_case)
             elif process.exitcode == -signal.SIGKILL:
                 _LOGGER.warning(
                     "Kill signal detected, most likely due to an out of memory."
-                    " Saving the test case that caused the crash and continuing as"
+                    " Saving the test-case that caused the crash and continuing as"
                     " if a timeout occurred."
                 )
                 self._save_crash_tests(test_case)
@@ -1429,12 +1429,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             elif process.exitcode == -signal.SIGSEGV:
                 _LOGGER.warning(
                     "Segmentation fault detected. Falling back to executing each"
-                    " test case in a separate process."
+                    " test-case in a separate process."
                 )
             elif process.exitcode == -signal.SIGKILL:
                 _LOGGER.warning(
                     "Kill signal detected, most likely due to an out of memory."
-                    " Falling back to executing each test case in a separate process."
+                    " Falling back to executing each test-case in a separate process."
                 )
             else:
                 _LOGGER.error("Finished process did not return the results.")
