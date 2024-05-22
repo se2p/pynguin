@@ -2238,6 +2238,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             # kills the thread
             self._tracer.current_thread_identifier = -1
             # Wait for the thread so that stdout/stderr is not redirected anymore
+            _LOGGER.debug("Waiting for thread to finish")
             thread.join()
             result = ExecutionResult(timeout=True)
             _LOGGER.warning("Experienced timeout from test-case execution")
