@@ -1083,35 +1083,34 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         test_case: tc.TestCase,
     ) -> ExecutionResult:
         self._before_remote_test_case_execution(test_case)
-        with (
-            contextlib.redirect_stdout(self._null_file),
-            contextlib.redirect_stderr(self._null_file),
-        ):
-            return_queue: Queue[ExecutionResult] = Queue()
-            thread = threading.Thread(
-                target=self._execute_test_case,
-                args=(test_case, return_queue),
-                daemon=True,
+        return_queue: Queue[ExecutionResult] = Queue()
+        thread = threading.Thread(
+            target=self._execute_test_case,
+            args=(test_case, return_queue),
+            daemon=True,
+        )
+        thread.start()
+        thread.join(
+            timeout=min(
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement * len(test_case.statements),
             )
-            thread.start()
-            thread.join(
-                timeout=min(
-                    self._maximum_test_execution_timeout,
-                    self._test_execution_time_per_statement * len(test_case.statements),
-                )
-            )
-            if thread.is_alive():
-                # Set thread ident to invalid value, such that the tracer
-                # kills the thread
-                self._tracer.current_thread_identifier = -1
-                result = ExecutionResult(timeout=True)
-                _LOGGER.warning("Experienced timeout from test-case execution")
-            else:
-                try:
-                    result = return_queue.get(block=False)
-                except Empty as ex:
-                    _LOGGER.error("Finished thread did not return a result.")
-                    raise RuntimeError("Bug in Pynguin!") from ex
+        )
+        if thread.is_alive():
+            # Set thread ident to invalid value, such that the tracer
+            # kills the thread
+            self._tracer.current_thread_identifier = -1
+            # Wait for the thread so that stdout/stderr is not redirected anymore
+            _LOGGER.debug("Waiting for thread to finish")
+            thread.join()
+            result = ExecutionResult(timeout=True)
+            _LOGGER.warning("Experienced timeout from test-case execution")
+        else:
+            try:
+                result = return_queue.get(block=False)
+            except Empty as ex:
+                _LOGGER.error("Finished thread did not return a result.")
+                raise RuntimeError("Bug in Pynguin!") from ex
         self._after_remote_test_case_execution(test_case, result)
         return result
 
@@ -1125,13 +1124,17 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
         self._tracer.current_thread_identifier = threading.current_thread().ident
-        for idx, statement in enumerate(test_case.statements):
-            ast_node = self._before_statement_execution(statement, exec_ctx)
-            exception = self.execute_ast(ast_node, exec_ctx)
-            self._after_statement_execution(statement, exec_ctx, exception)
-            if exception is not None:
-                result.report_new_thrown_exception(idx, exception)
-                break
+        with (
+            contextlib.redirect_stdout(self._null_file),
+            contextlib.redirect_stderr(self._null_file),
+        ):
+            for idx, statement in enumerate(test_case.statements):
+                ast_node = self._before_statement_execution(statement, exec_ctx)
+                exception = self.execute_ast(ast_node, exec_ctx)
+                self._after_statement_execution(statement, exec_ctx, exception)
+                if exception is not None:
+                    result.report_new_thrown_exception(idx, exception)
+                    break
         self._after_test_case_execution(test_case, result)
         result_queue.put(result)
 
