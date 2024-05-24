@@ -2062,6 +2062,36 @@ class ModuleProvider:
         reload(ModuleProvider.__get_sys_module(module_name))
 
 
+class OutputSuppressionContext:
+    """A context manager that suppress stdout and stderr."""
+
+    # Repeatedly opening/closing devnull caused problems.
+    # This is closed when Pynguin terminates, since we don't need this output
+    # anyway this is acceptable.
+    _null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
+
+    def __init__(self) -> None:
+        """Create a new context manager that suppress stdout and stderr."""
+        self._restored = False
+        self._restored_lock = threading.Lock()
+
+    def restore(self) -> None:
+        """Restore stdout and stderr."""
+        with self._restored_lock:
+            if self._restored:
+                return
+            self._restored = True
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+
+    def __enter__(self) -> None:
+        sys.stdout = self._null_file
+        sys.stderr = self._null_file
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.restore()
+
+
 class AbstractTestCaseExecutor(abc.ABC):
     """Interface for a test case executor."""
 
@@ -2138,11 +2168,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             test_execution_time_per_statement: The amount of time (in seconds) that is
                 added to the timeout per statement, up to minimum_test_execution_timeout
         """
-        # Repeatedly opening/closing devnull caused problems.
-        # This is closed when Pynguin terminates, since we don't need this output
-        # anyway this is acceptable.
-        self._null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
-
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement
 
@@ -2220,10 +2245,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
+        output_suppression_context = OutputSuppressionContext()
         return_queue: Queue[ExecutionResult] = Queue()
         thread = threading.Thread(
             target=self._execute_test_case,
-            args=(test_case, return_queue),
+            args=(test_case, output_suppression_context, return_queue),
             daemon=True,
         )
         thread.start()
@@ -2239,7 +2265,10 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._tracer.current_thread_identifier = -1
             # Wait for the thread so that stdout/stderr is not redirected anymore
             _LOGGER.debug("Waiting for thread to finish")
-            thread.join()
+            thread.join(timeout=self._maximum_test_execution_timeout)
+            # Restore stdout and stderr if it was not already done by the thread
+            _LOGGER.debug("Restoring stdout and stderr")
+            output_suppression_context.restore()
             result = ExecutionResult(timeout=True)
             _LOGGER.warning("Experienced timeout from test-case execution")
         else:
@@ -2256,15 +2285,17 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         for observer in self._observers:
             observer.before_test_case_execution(test_case)
 
-    def _execute_test_case(self, test_case: tc.TestCase, result_queue: Queue) -> None:
+    def _execute_test_case(
+        self,
+        test_case: tc.TestCase,
+        output_suppression_context: OutputSuppressionContext,
+        result_queue: Queue,
+    ) -> None:
         self._before_test_case_execution(test_case)
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
         self._tracer.current_thread_identifier = threading.current_thread().ident
-        with (
-            contextlib.redirect_stdout(self._null_file),
-            contextlib.redirect_stderr(self._null_file),
-        ):
+        with output_suppression_context:
             for idx, statement in enumerate(test_case.statements):
                 ast_node = self._before_statement_execution(statement, exec_ctx)
                 exception = self.execute_ast(ast_node, exec_ctx)
