@@ -1366,8 +1366,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     " if a timeout occurred."
                 )
                 self._save_crash_tests(test_case)
+            elif process.exitcode == -signal.SIGABRT:
+                _LOGGER.warning(
+                    "Abort signal detected. Saving the test-case that caused the crash"
+                    " and continuing as if a timeout occurred."
+                )
+                self._save_crash_tests(test_case)
             else:
-                _LOGGER.error("Finished process did not return a result.")
+                _LOGGER.error(
+                    "Finished process exited with code %s and did not return a result.",
+                    process.exitcode,
+                )
                 raise RuntimeError("Bug in Pynguin!")
 
             return ExecutionResult(timeout=True)
