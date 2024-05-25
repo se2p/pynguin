@@ -1479,8 +1479,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Kill signal detected, most likely due to an out of memory."
                     " Falling back to executing each test-case in a separate process."
                 )
+            elif process.exitcode == -signal.SIGABRT:
+                _LOGGER.warning(
+                    "Abort signal detected. Falling back to executing each test-case in"
+                    " a separate process."
+                )
             else:
-                _LOGGER.error("Finished process did not return the results.")
+                _LOGGER.error(
+                    "Finished process exited with code %s and"
+                    " did not return the results.",
+                    process.exitcode,
+                )
                 raise RuntimeError("Bug in Pynguin!")
 
             return super().execute_multiple(test_cases_tuple)
