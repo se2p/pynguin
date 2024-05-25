@@ -1284,6 +1284,16 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._tracer.enable()
 
 
+SUPPORTED_EXIT_CODE_MESSAGES = {
+    -signal.SIGILL: "Illegal instruction signal detected",
+    -signal.SIGABRT: "Abort signal detected",
+    -signal.SIGBUS: "Bus error signal detected",
+    -signal.SIGFPE: "Floating-point exception signal detected",
+    -signal.SIGKILL: "Kill signal detected, most likely due to an out of memory",
+    -signal.SIGSEGV: "Segmentation fault detected",
+}
+
+
 class SubprocessTestCaseExecutor(TestCaseExecutor):
     """An executor that executes the generated test cases in a subprocess."""
 
@@ -1353,23 +1363,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             if process.exitcode is None:
                 process.kill()
                 _LOGGER.warning("Experienced timeout from test-case execution")
-            elif process.exitcode == -signal.SIGSEGV:
+            elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
                 _LOGGER.warning(
-                    "Segmentation fault detected. Saving the test-case that caused the"
-                    " crash and continuing as if a timeout occurred."
-                )
-                self._save_crash_tests(test_case)
-            elif process.exitcode == -signal.SIGKILL:
-                _LOGGER.warning(
-                    "Kill signal detected, most likely due to an out of memory."
-                    " Saving the test-case that caused the crash and continuing as"
-                    " if a timeout occurred."
-                )
-                self._save_crash_tests(test_case)
-            elif process.exitcode == -signal.SIGABRT:
-                _LOGGER.warning(
-                    "Abort signal detected. Saving the test-case that caused the crash"
-                    " and continuing as if a timeout occurred."
+                    "%s. Saving the test-case that caused the crash and continuing as"
+                    " if a timeout occurred.",
+                    SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
                 )
                 self._save_crash_tests(test_case)
             else:
@@ -1465,24 +1463,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         if not has_results:
             if process.exitcode is None:
                 process.kill()
-                _LOGGER.error(
+                _LOGGER.warning(
                     "Timeout occurred. Falling back to executing each test-case"
                     " in a separate process."
                 )
-            elif process.exitcode == -signal.SIGSEGV:
+            elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
                 _LOGGER.warning(
-                    "Segmentation fault detected. Falling back to executing each"
-                    " test-case in a separate process."
-                )
-            elif process.exitcode == -signal.SIGKILL:
-                _LOGGER.warning(
-                    "Kill signal detected, most likely due to an out of memory."
-                    " Falling back to executing each test-case in a separate process."
-                )
-            elif process.exitcode == -signal.SIGABRT:
-                _LOGGER.warning(
-                    "Abort signal detected. Falling back to executing each test-case in"
-                    " a separate process."
+                    "%s. Falling back to executing each test-case"
+                    " in a separate process.",
+                    SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
                 )
             else:
                 _LOGGER.error(
