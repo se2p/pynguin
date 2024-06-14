@@ -5,4 +5,4 @@
 #  SPDX-License-Identifier: MIT
 #
 """Specifies the version of Pynguin."""
-__version__ = "0.37.0"
+__version__ = "0.38.0.dev"
