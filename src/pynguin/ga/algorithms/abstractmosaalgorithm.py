@@ -15,6 +15,8 @@ from typing import cast
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+from LLM.openaimodel import OpenAIModel, extract_test_cases_from_llm_output
+from LLM.parsing.deserializer import deserialize_code_to_testcases
 
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
@@ -32,6 +34,24 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         super().__init__()
         self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
+
+    def _generate_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
+        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
+        model = OpenAIModel()
+        llm_query_results = model.generate_tests_for_module_under_test()
+        llm_test_cases_str = extract_test_cases_from_llm_output(llm_query_results)
+        (
+            test_cases,
+            parsed_statements,
+            parsable_statements,
+        ) = deserialize_code_to_testcases(llm_test_cases_str, test_cluster=self.test_cluster)
+
+        for test_case in test_cases:
+            test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case, test_factory=self.test_factory)
+            for func in self.test_case_fitness_functions:
+                test_case_chromosome.add_fitness_function(func)
+            llm_test_case_chromosomes.append(test_case_chromosome)
+        return llm_test_case_chromosomes
 
     def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
         offspring_population: list[tcc.TestCaseChromosome] = []
@@ -116,6 +136,24 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
             population.append(chromosome)
+        return population
+
+    def _get_hybrid_population(self) -> list[tcc.TestCaseChromosome]:
+        population: list[tcc.TestCaseChromosome] = []
+        number_of_llm_test_cases = int(
+            config.LLMConfiguration.llm_test_case_percentage * config.configuration.search_algorithm.population)
+        llm_test_cases = self._generate_llm_test_cases()
+
+        if len(llm_test_cases) > number_of_llm_test_cases:
+            llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
+
+        population.extend(llm_test_cases)
+
+        num_random_cases = config.configuration.search_algorithm.population - len(population)
+        for _ in range(num_random_cases):
+            chromosome = self._chromosome_factory.get_chromosome()
+            population.append(chromosome)
+
         return population
 
     def _get_best_individuals(self) -> list[tcc.TestCaseChromosome]:
