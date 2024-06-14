@@ -99,12 +99,14 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
 
         Args:
             assertion: the assertion that is visited.
-
         """
+        # Convert the assertion value to a float primitive in case it is a subclass
+        # of it because Constant nodes in the AST only works with primitives
+        value = float(assertion.value)
         left = au.create_full_name(
             self._variable_names, self._module_aliases, assertion.source, load=True
         )
-        comp = self._construct_float_comparator(au.create_ast_constant(assertion.value))
+        comp = self._construct_float_comparator(au.create_ast_constant(value))
         self._assertion_nodes.append(
             au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
         )
