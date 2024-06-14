@@ -506,7 +506,7 @@ class AssignmentStatement(Statement):
         )
 
 
-class CollectionStatement(Generic[T], VariableCreatingStatement):
+class CollectionStatement(VariableCreatingStatement, Generic[T]):
     """Abstract base class for collection statements."""
 
     def __init__(
@@ -1436,7 +1436,7 @@ class FunctionStatement(ParametrizedStatement):
         )
 
 
-class PrimitiveStatement(Generic[T], VariableCreatingStatement):
+class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
     """Abstract primitive statement which holds a value."""
 
     def __init__(

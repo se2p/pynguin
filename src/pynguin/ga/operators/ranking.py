@@ -64,7 +64,7 @@ class RankedFronts(Generic[C]):
         return len(self.fronts)
 
 
-class RankingFunction(Generic[C], ABC):
+class RankingFunction(ABC, Generic[C]):
     """Interface for ranking algorithms."""
 
     @abstractmethod

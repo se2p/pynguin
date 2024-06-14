@@ -23,7 +23,6 @@ __all__ = [
     "ExportStrategy",
     "StatisticsBackend",
     "TypeInferenceStrategy",
-    "__version__",
     "run_pynguin",
     "set_configuration",
 ]

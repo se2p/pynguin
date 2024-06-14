@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 T = TypeVar("T", int, float)
 
 
-class ChromosomeOutputVariableFactory(Generic[T], ABC):
+class ChromosomeOutputVariableFactory(ABC, Generic[T]):
     """Factory to create an output variable when given a test suite chromosome."""
 
     def __init__(self, variable: RuntimeVariable) -> None:
@@ -65,7 +65,7 @@ class ChromosomeOutputVariableFactory(Generic[T], ABC):
         )
 
 
-class SequenceOutputVariableFactory(Generic[T], ABC):
+class SequenceOutputVariableFactory(ABC, Generic[T]):
     """Creates an output variable that represents a sequence of values."""
 
     def __init__(self, variable: stat.RuntimeVariable) -> None:  # noqa: D107
