@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a configuration interface for the test generator."""
-
 import dataclasses
 import enum
 import time
@@ -581,7 +580,7 @@ class StoppingConfiguration:
 
 @dataclasses.dataclass
 class LLMConfiguration:
-    """Configuration for the LLM."""
+    """Configuration for the large Langauge Model(LLM)"""
 
     api_key: str = ""
     """The api key to call OpenAI LLM with"""
@@ -589,14 +588,17 @@ class LLMConfiguration:
     model_name: str = "gpt-3.5-turbo"
     """The OpenAI Model to use for completions"""
 
-    temperature: float = 0.8
+    temperature: float = 0.1
     """The temperature to use when querying the model"""
 
     max_query_token_length: float = 4000
     """The maximum token length that a query should have"""
 
-    enable_response_caching: bool = True
-    """Whether to enable caching for responses of the model"""
+    hybrid_initial_population: bool = True
+    """Whether to include the LLM test cases in the initial population"""
+
+    llm_test_case_percentage: float = 0.5
+    """The maximum token length that a query should have"""
 
 
 @dataclasses.dataclass
@@ -620,15 +622,14 @@ class Configuration:
     )
     """Statistic Output configuration."""
 
-    stopping: StoppingConfiguration = dataclasses.field(default_factory=StoppingConfiguration)
+    stopping: StoppingConfiguration = dataclasses.field(
+        default_factory=StoppingConfiguration
+    )
     """Stopping configuration."""
 
-    large_language_model: LLMConfiguration = dataclasses.field(
-        default_factory=LLMConfiguration
+    seeding: SeedingConfiguration = dataclasses.field(
+        default_factory=SeedingConfiguration
     )
-    """Large Language Model(LLM) configuration."""
-
-    seeding: SeedingConfiguration = dataclasses.field(default_factory=SeedingConfiguration)
     """Seeding configuration."""
 
     type_inference: TypeInferenceConfiguration = dataclasses.field(
