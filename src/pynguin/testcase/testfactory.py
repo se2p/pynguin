@@ -243,7 +243,7 @@ class TestFactory:
                 args=parameters,
             )
             return test_case.add_variable_creating_statement(statement, position)
-        except BaseException as exception:
+        except ConstructionFailedException as exception:
             raise ConstructionFailedException(
                 f"Failed to add constructor for {constructor}"
             ) from exception

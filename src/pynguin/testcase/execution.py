@@ -1133,7 +1133,7 @@ class ExecutionTracer:  # noqa: PLR0904
         self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
-    def executed_compare_predicate(  # noqa: C901
+    def executed_compare_predicate(
         self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         """A predicate that is based on a comparison was executed.
