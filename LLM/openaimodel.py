@@ -1,9 +1,10 @@
 import os
+import pickle
 import re
 import time
-import pickle
 
 import openai
+
 import pynguin.configuration as config
 
 
