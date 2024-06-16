@@ -22,13 +22,15 @@ def extract_python_code_from_llm_output(llm_output: str) -> str:
 
 
 def get_module_path():
-    return os.path.join(config.configuration.project_path, config.configuration.module_name + ".py")
+    return os.path.join(
+        config.configuration.project_path, config.configuration.module_name + ".py"
+    )
 
 
 def get_module_source_code():
     full_path = get_module_path()
     try:
-        with open(full_path, 'r') as file:
+        with open(full_path, "r") as file:
             return file.read()
     except FileNotFoundError:
         return None
@@ -63,12 +65,7 @@ class OpenAIModel:
         """
         start_time = time.time()
         self.llm_calls_counter += 1
-        messages = [
-            {
-                "role": "user",
-                "content": prompt.build_prompt()
-            }
-        ]
+        messages = [{"role": "user", "content": prompt.build_prompt()}]
         response_text = None
 
         # Check cache first
@@ -81,7 +78,7 @@ class OpenAIModel:
                     model=self._model_name,
                     messages=messages,
                     max_tokens=max_tokens,
-                    temperature=self._temperature
+                    temperature=self._temperature,
                 )
                 response_text = response.choices[0].message.content
                 # Save response to cache
