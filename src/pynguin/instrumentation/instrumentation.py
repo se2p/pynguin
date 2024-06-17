@@ -837,7 +837,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
     def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
         self._tracer = tracer
 
-    def visit_node(
+    def visit_node(  # noqa: C901
         self,
         cfg: CFG,
         code_object_id: int,

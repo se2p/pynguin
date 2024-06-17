@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class _ASTVisitor(ABC):
+class _ASTVisitor(ABC):  # noqa: B024
     """Performs a depth-first walk of the AST."""
 
     def __init__(self):
