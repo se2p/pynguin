@@ -1,8 +1,8 @@
-#  This file is part of Pynguin.
+# This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
-#  SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT
 #
 """Provides the MOSA test-generation strategy."""
 from __future__ import annotations
@@ -16,6 +16,7 @@ import pynguin.utils.statistics.statistics as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
+from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -23,15 +24,17 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
-    from pynguin.utils.orderedset import OrderedSet
-
 
 class MOSAAlgorithm(AbstractMOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA."""
 
     _logger = logging.getLogger(__name__)
 
-    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
+    def __init__(self) -> None:
+        super().__init__()
+        self.current_iteration = 0
+
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(
@@ -116,3 +119,38 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
             self._population.extend(front[k] for k in range(remain))
 
         self._archive.update(self._population)
+
+        # Log after evolution
+        self.log_iteration()
+
+        self.current_iteration += 1
+
+    def log_iteration(self):
+        self.log_population("population", self._population)
+        self.log_goals()
+        self.log_archive()
+
+    def log_population(self, name, population):
+        current_population = f'\n"{name}": {{"iteration": {self.current_iteration}, "individuals": {self.population_log_string(population)}}}\n'
+        self._logger.info(current_population)
+
+    def log_goals(self):
+        goalsstr = f'\n"Goals": {{"iteration": {self.current_iteration}, "uncovered": {len(self._archive.uncovered_goals)}, "covered": {len(self._archive.covered_goals)}, "covered targets": ['
+        goalsstr += ", ".join([f'"{tff}"' for tff in self._archive.covered_goals])
+        goalsstr += '],\n"current targets": ['
+        goalsstr += ", ".join([f'"{tff}"' for tff in self._archive.current_goals])
+        goalsstr += ']}\n'
+        goalsstr += f'\n"Chromosome Goals": {{"iteration": {self.current_iteration}, "individuals": ['
+        for tc in self._population:
+            goalsstr += f'\n{{"id": "{tc.get_id()}", "goals": ['
+            goalsstr += ", ".join([f'{{"fitness": "{entry.value}", "goal": "{entry.key}"}}' for entry in tc.fitness_values.items()])
+            goalsstr += ']}\n},'
+        goalsstr = goalsstr.rstrip(',')  # Remove the trailing comma
+        goalsstr += '\n]}\n'
+        self._logger.info(goalsstr)
+
+    def log_archive(self):
+        archive_str = f'\n"Archive": {{"iteration": {self.current_iteration}, "solutions": ['
+        archive_str += ", ".join([f'"{tc.get_id()}"' for tc in self._archive.solutions])
+        archive_str += ']}}\n'
+        self._logger.info(archive_str)
