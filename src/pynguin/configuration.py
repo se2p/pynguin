@@ -581,7 +581,7 @@ class StoppingConfiguration:
 
 @dataclasses.dataclass
 class LLMConfiguration:
-    """Configuration for the LLM"""
+    """Configuration for the LLM."""
 
     api_key: str = ""
     """The api key to call OpenAI LLM with"""
