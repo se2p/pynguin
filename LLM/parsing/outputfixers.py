@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-
 import ast
 import logging
 from typing import Any, Dict, List, Optional, Set

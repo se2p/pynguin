@@ -1,5 +1,11 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
 """
-A class to deserialize AST nodes into Statements in a TestCase
+A class to deserialize AST nodes into Statements in a TestCase.
 """
 from __future__ import annotations
 

@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-
 import ast
 import copy
 from typing import Any, Callable, Dict, List, Set
