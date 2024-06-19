@@ -6,11 +6,19 @@ from __future__ import annotations
 import ast
 import inspect
 import logging
+
 from abc import ABCMeta
-from typing import Any, Dict, List, cast, Tuple
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.defaulttestcase as dtc
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
+from typing import cast
+
 from LLM.parsing import astscoping
+
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.testcase as tc
+
 from pynguin import configuration as config
 from pynguin.analyses.module import TestCluster
 from pynguin.assertion import assertion as ass
@@ -19,10 +27,10 @@ from pynguin.testcase import variablereference as vr
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
-    GenericConstructor,
-    GenericFunction,
-    GenericMethod,
 )
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
 
 
@@ -237,7 +245,7 @@ class _StatementDeserializer:
         # Handle positional arguments.
         for (name, param), call_arg in zip(
             list(gen_callable.inferred_signature.signature.parameters.items())[
-            shift_by:
+                shift_by:
             ],
             call_args,
         ):

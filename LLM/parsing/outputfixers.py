@@ -7,9 +7,15 @@
 
 import ast
 import logging
-from typing import Any, Dict, List, Optional, Set
+
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Set
 
 from pynguin import configuration as config
+
 
 logger = logging.getLogger()
 
@@ -715,11 +721,12 @@ def rewrite_tests(source: str) -> Dict[str, str]:
     for node in module_node.body:
         if isinstance(node, ast.ClassDef):
             for child_node in node.body:
-                if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith(
-                    "test_"
-                ):
+                if isinstance(
+                    child_node, ast.FunctionDef
+                ) and child_node.name.startswith("test_"):
                     test_module = ast.Module(
-                        body=[rewrite_test(child_node)], type_ignores=module_node.type_ignores
+                        body=[rewrite_test(child_node)],
+                        type_ignores=module_node.type_ignores,
                     )
                     test_module = ast.fix_missing_locations(test_module)
                     try:

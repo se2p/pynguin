@@ -3,13 +3,21 @@ from LLM.prompts.prompt import Prompt
 
 class TestCaseGenerationPrompt(Prompt):
     def build_prompt(self) -> str:
-        return f"""Write comprehensive unit tests for each method in the module located at the path `{self.module_path}`
-            Details:
-            - Include one test case per method.
-            - The goal of these test cases should mainly be focused on the coverage, no assertions needed.
-            - import any external dependency.
-            - Ensure each test verifies expected behaviors, edge cases, and error handling.
-            - Use meaningful test case names that clearly describe the test's purpose.
-            - The module code to be tested: `{self.module_code}\n`.
-            Can you provide this test file?
-            """
+
+        test_case_example = """
+        def test_method_x():
+            str0 = 'x'
+            str1 = 'z'
+            class_var = Example()
+            class_var.method_x(user0, str2)
+        """
+
+        return (
+            f"Write comprehensive unit tests to cover methods in the module located at the path `{self.module_path}\n"
+            "Guidelines:\n"
+            "- Create one test case for each method in the module.\n"
+            "- Cover standard inputs, edge cases, and error handling.\n"
+            "- Avoid assertions in these tests, focus mainly on the coverage.\n\n"
+            f"Example Test Case:\n{test_case_example}\n"
+            f"Module code:\n{self.module_code}"
+        )
