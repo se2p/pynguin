@@ -6,9 +6,15 @@
 #
 import ast
 import copy
-from typing import Any, Callable, Dict, List, Set
+
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Set
 
 import pynguin.testcase.variablereference as vr
+
 from pynguin.utils import randomness
 
 

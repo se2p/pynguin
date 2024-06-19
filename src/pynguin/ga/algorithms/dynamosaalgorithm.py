@@ -54,10 +54,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
-        if config.LLMConfiguration.hybrid_initial_population:
-            self._population = self._get_hybrid_population()
-        else:
-            self._population = self._get_random_population()
+        self._population = self._get_hybrid_population()
 
         self._goals_manager.update(self._population)
         # Calculate dominance ranks and crowding distance
