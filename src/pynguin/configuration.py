@@ -595,6 +595,9 @@ class LLMConfiguration:
     max_query_token_length: float = 4000
     """The maximum token length that a query should have"""
 
+    enable_response_caching: bool = True
+    """Whether to enable caching for responses of the model"""
+
 
 @dataclasses.dataclass
 class Configuration:
@@ -618,7 +621,11 @@ class Configuration:
     """Statistic Output configuration."""
 
     stopping: StoppingConfiguration = dataclasses.field(default_factory=StoppingConfiguration)
-    """Stopping configuration."""
+
+    large_language_model: LLMConfiguration = dataclasses.field(
+        default_factory=LLMConfiguration
+    )
+    """Large Language Model(LLM) configuration."""
 
     seeding: SeedingConfiguration = dataclasses.field(default_factory=SeedingConfiguration)
     """Seeding configuration."""
