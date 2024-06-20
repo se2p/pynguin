@@ -1,9 +1,3 @@
-#  This file is part of Pynguin.
-#
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
-#
-#  SPDX-License-Identifier: MIT
-#
 import logging
 
 import pytest
@@ -11,6 +5,7 @@ import pytest
 import pynguin.configuration as config
 
 from pynguin.large_language_model.openaimodel import OpenAIModel
+from pynguin.large_language_model.openaimodel import extract_python_code_from_llm_output
 from pynguin.large_language_model.openaimodel import is_api_key_present
 from pynguin.large_language_model.openaimodel import is_api_key_valid
 from pynguin.large_language_model.openaimodel import set_api_key
@@ -19,26 +14,27 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 )
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
+logger = logging.getLogger(__name__)
+
+
 def test_extract_python_code_from_llm_output_valid():
     llm_output = "Some text\n```python\nprint('Hello, world!')\n```"
     expected_code = "\nprint('Hello, world!')\n"
-    model = OpenAIModel()
-    assert model.extract_python_code_from_llm_output(llm_output) == expected_code
+    assert extract_python_code_from_llm_output(llm_output) == expected_code
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
+def test_extract_python_code_from_llm_output_no_code_block():
+    llm_output = "Some text without code block"
+    with pytest.raises(
+        ValueError, match="No Python code block found in the LLM output."
+    ):
+        extract_python_code_from_llm_output(llm_output)
+
+
 def test_extract_python_code_from_llm_output_multiple_blocks():
     llm_output = "Text\n```python\nprint('Hello')\n```\nMore text\n```python\nprint('World')\n```"
     expected_code = "\nprint('Hello')\n\n\nprint('World')\n"
-    model = OpenAIModel()
-    assert model.extract_python_code_from_llm_output(llm_output) == expected_code
+    assert extract_python_code_from_llm_output(llm_output) == expected_code
 
 
 def test_set_api_key_missing(monkeypatch):
@@ -72,10 +68,7 @@ def test_openai_model_query_success():
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
     model = OpenAIModel()
-    try:
-        model.clear_cache()
-    except Exception as e:
-        pass
+    model.clear_cache()
     response = model.query(prompt)
 
     assert response is not None
@@ -87,7 +80,7 @@ def test_openai_model_query_success():
     not is_api_key_present()
     or not is_api_key_valid()
     or not config.configuration.large_language_model.enable_response_caching,
-    reason="Cache is not enabled or the API key is invalid.",
+    reason="Cache is not enabled in the configuration.",
 )
 def test_openai_model_query_cache(mocker):
     module_code = "def example_function():\n    return 'Hello, World!'"
