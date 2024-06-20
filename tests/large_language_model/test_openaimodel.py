@@ -86,7 +86,7 @@ def test_openai_model_query_success():
     not is_api_key_present()
     or not is_api_key_valid()
     or not config.configuration.large_language_model.enable_response_caching,
-    reason="Cache is not enabled in the configuration.",
+    reason="Cache is not enabled or the API key is invalid.",
 )
 def test_openai_model_query_cache(mocker):
     module_code = "def example_function():\n    return 'Hello, World!'"
