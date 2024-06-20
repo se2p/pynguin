@@ -7,7 +7,6 @@
 """This module generates unit tests for a given module using OpenAI's language model."""
 import logging
 import pathlib
-import re
 import time
 
 import openai
@@ -19,30 +18,12 @@ import pynguin.configuration as config
 
 from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.prompts.prompt import Prompt
-
+from pynguin.large_language_model.prompts.testcasegenerationprompt import TestCaseGenerationPrompt
 
 logger = logging.getLogger(__name__)
 
 
-def extract_python_code_from_llm_output(llm_output: str) -> str:
-    """Extracts Python code blocks from the LLM output.
-
-    Args:
-        llm_output: The output from the LLM containing Python code.
-
-    Returns:
-        The extracted Python code.
-
-    Raises:
-        ValueError: If no Python code block is found in the LLM output.
-    """
-    code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
-    if not code_blocks:
-        raise ValueError("No Python code block found in the LLM output.")
-    return "\n".join(code_blocks)
-
-
-def get_module_path() -> pathlib.Path:
+def get_module_path() -> str:
     """Constructs the file path to the module to be tested.
 
     Returns:
@@ -171,14 +152,15 @@ class OpenAIModel:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionUserMessageParam(role="user", content=prompt_text)
+            ChatCompletionUserMessageParam(role="user", content=f"${prompt_text} . Only respond with code as plain "
+                                                                f"text without code block syntax around it.")
         ]
         try:
             response = openai.chat.completions.create(
                 model=self._model_name,
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=self._temperature,
+                temperature=1,
             )
             response_text = response.choices[0].message.content
             if (
@@ -196,3 +178,10 @@ class OpenAIModel:
     def clear_cache(self):
         """Clears all entries in the cache."""
         self.cache.clear()
+
+    def generate_tests_for_module_under_test(self):
+        module_code = get_module_source_code()
+        module_path = get_module_path()
+        prompt = TestCaseGenerationPrompt(module_code, module_path)
+        response = self.query(prompt)
+        return response

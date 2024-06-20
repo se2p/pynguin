@@ -13,9 +13,6 @@ import logging
 from abc import ABC
 from typing import cast
 
-from LLM.openaimodel import OpenAIModel
-from LLM.openaimodel import extract_test_cases_from_llm_output
-from LLM.parsing.deserializer import deserialize_code_to_testcases
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -23,6 +20,9 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.operators.comparator import DominanceComparator
+from pynguin.large_language_model.openaimodel import OpenAIModel
+from pynguin.large_language_model.parsing.deserializer import deserialize_code_to_testcases
+from pynguin.large_language_model.parsing.outputfixers import extract_test_cases_from_llm_output
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 

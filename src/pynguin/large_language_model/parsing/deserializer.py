@@ -20,7 +20,6 @@ from typing import List
 from typing import Tuple
 from typing import cast
 
-from LLM.parsing import astscoping
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc

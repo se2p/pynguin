@@ -28,7 +28,7 @@ class TestCaseGenerationPrompt(Prompt):
             "Guidelines:\n"
             "- Create one test case for each method in the module.\n"
             "- Cover standard inputs, edge cases, and error handling.\n"
-            "- Avoid assertions in these tests, focus mainly on the coverage.\n\n"
+            "- Please no assertions in these tests, focus mainly on the coverage.\n\n"
             f"Example Test Case:\n{test_case_example}\n"
             f"Module code:\n{self.module_code}"
         )

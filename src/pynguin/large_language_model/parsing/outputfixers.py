@@ -6,6 +6,7 @@
 #
 import ast
 import logging
+import re
 
 from typing import Any
 from typing import Dict
@@ -15,8 +16,33 @@ from typing import Set
 
 from pynguin import configuration as config
 
-
 logger = logging.getLogger()
+
+
+def extract_python_code_from_llm_output(llm_output: str) -> str:
+    """Extracts Python code blocks from the LLM output.
+
+    Args:
+        llm_output: The output from the LLM containing Python code.
+
+    Returns:
+        The extracted Python code.
+
+    Raises:
+        ValueError: If no Python code block is found in the LLM output.
+    """
+    # code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
+    # if not code_blocks:
+    #     raise ValueError("No Python code block found in the LLM output.")
+    # return "\n".join(code_blocks)
+    return llm_output
+
+
+def extract_test_cases_from_llm_output(llm_output):
+    python_code = extract_python_code_from_llm_output(llm_output)
+    generated_tests: Dict[str, str] = rewrite_tests(python_code)
+    str_test_cases = "\n\n".join(generated_tests.values())
+    return str_test_cases
 
 
 def is_expr_or_stmt(node: ast.AST):
@@ -700,46 +726,50 @@ def fixup_result(result):
             return fixup_result("\n".join(lines[:line_to_rm]))
 
 
-def rewrite_tests(source: str) -> Dict[str, str]:
-    """Rewrite the tests in `source` so that they can be parsed by
-    AstToTestCaseTransformer
-
-    Args:
-        source: the source to rewrite
-
-    Returns:
-        a dictionary mapping test function names to the rewritten source for
-        that test function
-    """
+def extract_function_defs(source: str) -> List[ast.FunctionDef]:
+    """Extract all FunctionDef nodes from the source code."""
     source = fixup_result(source)
     module_node: ast.Module = ast.parse(source)
     assert isinstance(module_node, ast.Module)
 
-    # Rewrite the tests
-    return_tests: Dict[str, str] = {}
+    function_defs = []
     for node in module_node.body:
-        if isinstance(node, ast.ClassDef):
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+            function_defs.append(node)
+        elif isinstance(node, ast.ClassDef):
             for child_node in node.body:
-                if isinstance(
-                    child_node, ast.FunctionDef
-                ) and child_node.name.startswith("test_"):
-                    test_module = ast.Module(
-                        body=[rewrite_test(child_node)],
-                        type_ignores=module_node.type_ignores,
-                    )
-                    test_module = ast.fix_missing_locations(test_module)
-                    try:
-                        return_tests[child_node.name] = ast.unparse(test_module) + "\n"
-                    except AttributeError as e:
-                        # Info until we don't need to replicate this
-                        logger.info(
-                            "Got error: %s\nwhen trying to unparse the transformation"
-                            " of %s from:\n%s",
-                            e,
-                            child_node.name,
-                            source,
-                        )
+                if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_"):
+                    function_defs.append(child_node)
+    return function_defs
+
+
+def process_function_defs(function_defs: List[ast.FunctionDef], module_node: ast.Module) -> Dict[str, str]:
+    """Process the extracted FunctionDef nodes and return rewritten tests."""
+    return_tests: Dict[str, str] = {}
+    for function_def in function_defs:
+        test_module = ast.Module(
+            body=[rewrite_test(function_def)],
+            type_ignores=module_node.type_ignores,
+        )
+        test_module = ast.fix_missing_locations(test_module)
+        try:
+            return_tests[function_def.name] = ast.unparse(test_module) + "\n"
+        except AttributeError as e:
+            logger.info(
+                "Got error: %s\nwhen trying to unparse the transformation"
+                " of %s from:\n%s",
+                e,
+                function_def.name,
+                ast.unparse(function_def),
+            )
     return return_tests
+
+
+def rewrite_tests(source: str) -> Dict[str, str]:
+    """Rewrite the tests in `source` so that they can be parsed by AstToTestCaseTransformer."""
+    module_node: ast.Module = ast.parse(source)
+    function_defs = extract_function_defs(source)
+    return process_function_defs(function_defs, module_node)
 
 
 def fixup_imports(test_case_str: str, node: Optional[ast.Module] = None):
