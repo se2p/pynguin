@@ -621,6 +621,7 @@ class Configuration:
     """Statistic Output configuration."""
 
     stopping: StoppingConfiguration = dataclasses.field(default_factory=StoppingConfiguration)
+    """Stopping configuration."""
 
     large_language_model: LLMConfiguration = dataclasses.field(
         default_factory=LLMConfiguration
