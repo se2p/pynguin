@@ -9,7 +9,7 @@ import logging
 import pathlib
 import re
 import time
-
+from pathlib import Path
 import openai
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -18,31 +18,17 @@ from openai.types.chat import ChatCompletionUserMessageParam
 import pynguin.configuration as config
 
 from pynguin.large_language_model.caching import Cache
+from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.large_language_model.prompts.prompt import Prompt
+from pynguin.large_language_model.prompts.testcasegenerationprompt import (
+    TestCaseGenerationPrompt,
+)
 
 
 logger = logging.getLogger(__name__)
 
 
-def extract_python_code_from_llm_output(llm_output: str) -> str:
-    """Extracts Python code blocks from the LLM output.
-
-    Args:
-        llm_output: The output from the LLM containing Python code.
-
-    Returns:
-        The extracted Python code.
-
-    Raises:
-        ValueError: If no Python code block is found in the LLM output.
-    """
-    code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
-    if not code_blocks:
-        raise ValueError("No Python code block found in the LLM output.")
-    return "\n".join(code_blocks)
-
-
-def get_module_path() -> pathlib.Path:
+def get_module_path() -> Path:
     """Constructs the file path to the module to be tested.
 
     Returns:
@@ -92,13 +78,8 @@ def set_api_key():
         raise ValueError("OpenAI API key is invalid.")
 
 
-def is_api_key_valid(
-    api_key: str = config.configuration.large_language_model.api_key,
-) -> bool:
+def is_api_key_valid() -> bool:
     """Checks if the provided OpenAI API key is valid.
-
-    Args:
-        api_key: The OpenAI API key to validate.
 
     Returns:
         bool: True if the API key is valid, False otherwise.
@@ -107,8 +88,8 @@ def is_api_key_valid(
         openai.OpenAIError: If the API key is invalid or another error occurs.
     """
     try:
-        openai.api_key = api_key
-        openai.models.list()  # This will raise an error if the API key is invalid
+        openai.api_key = config.configuration.large_language_model.api_key
+        openai.models.list()  # This would raise an error if the API key is invalid
         return True
     except openai.OpenAIError:
         return False
@@ -126,6 +107,7 @@ class OpenAIModel:
         self._temperature = config.configuration.large_language_model.temperature
         self._llm_calls_counter = 0
         self._llm_calls_timer = 0
+        self._llm_calls_with_no_python_code = 0
 
         if config.configuration.large_language_model.enable_response_caching:
             self.cache = Cache()
@@ -148,7 +130,16 @@ class OpenAIModel:
         Returns:
             The total time spent on LLM API calls.
         """
-        return self._llm_calls_timer
+        return self._llm_calls_timer / 1e9
+
+    @property
+    def llm_calls_with_no_python_code(self) -> int:
+        """Returns the number of LLM API calls that has no Python code.
+
+        Returns:
+            The number of LLM API calls that has no Python code.
+        """
+        return self._llm_calls_with_no_python_code
 
     def query(self, prompt: Prompt, max_tokens: int = 1000) -> str | None:
         """Sends a query to the OpenAI API and returns the response.
@@ -171,7 +162,7 @@ class OpenAIModel:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionUserMessageParam(role="user", content=prompt_text)
+            ChatCompletionUserMessageParam(role="user", content=f"${prompt_text}")
         ]
         try:
             response = openai.chat.completions.create(
@@ -187,14 +178,8 @@ class OpenAIModel:
             ):
                 self.cache.set(prompt_text, response_text)
             return response_text
-        except openai.APIConnectionError:
-            logger.error("The server could not be reached")
-        except openai.RateLimitError:
-            logger.error("A 429 status code was received; we should back off a bit.")
-        except openai.APIStatusError as e:
-            logger.error("Another non-200-range status code was received")
-            logger.error("Status code: %s", e.status_code)
-            logger.error("Response: %s", e.response)
+        except openai.OpenAIError as e:
+            logger.error("An error occurred while querying the OpenAI API: %s", e)
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
         return None
@@ -202,3 +187,46 @@ class OpenAIModel:
     def clear_cache(self):
         """Clears all entries in the cache."""
         self.cache.clear()
+
+    def generate_tests_for_module_under_test(self) -> str | None:
+        """Generates test cases for the module under test.
+
+        Returns:
+            The generated test cases as a string or
+            None if no test cases were generated.
+        """
+        module_code = get_module_source_code()
+        module_path = get_module_path()
+        prompt = TestCaseGenerationPrompt(module_code, str(module_path))
+        return self.query(prompt)
+
+    def extract_python_code_from_llm_output(self, llm_output: str) -> str:
+        """Extracts Python code blocks from the LLM output.
+
+        Args:
+            llm_output: The output from the LLM containing Python code.
+
+        Returns:
+            The extracted Python code.
+
+        Raises:
+            ValueError: If no Python code block is found in the LLM output.
+        """
+        code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
+        if not code_blocks:
+            self._llm_calls_with_no_python_code += 1
+            return llm_output
+        return "\n".join(code_blocks)
+
+    def extract_test_cases_from_llm_output(self, llm_output: str) -> str:
+        """Extracts test cases from the LLM output.
+
+        Args:
+            llm_output: The output from the LLM containing test cases.
+
+        Returns:
+            The extracted test cases.
+        """
+        python_code = self.extract_python_code_from_llm_output(llm_output)
+        generated_tests: dict[str, str] = rewrite_tests(python_code)
+        return "\n\n".join(generated_tests.values())

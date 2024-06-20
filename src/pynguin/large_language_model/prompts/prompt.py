@@ -16,7 +16,7 @@ class Prompt:
 
         Args:
             module_code: the module code to be passed to the prompt.
-            module_path: the module file path.
+            module_path: the module path to be passed to the prompt.
         """
         self.module_code = module_code
         self.module_path = module_path

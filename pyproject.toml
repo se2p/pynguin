@@ -4,7 +4,7 @@
 
 [tool.poetry]
 name = "pynguin"
-version = "0.38.0.dev"
+version = "0.40.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@pynguin.eu>"]
 license = "MIT"
@@ -49,7 +49,6 @@ black = "^24.4.2"
 bytecode = "^0.15.1"
 jellyfish = "^1.0.4"
 Jinja2 = "^3.1.4"
-MutPy-Pynguin = "^0.7.1"
 networkx = "^3.3"
 rich = "^13.7.1"
 Pygments = "^2.18.0"
@@ -69,8 +68,8 @@ ruff = "^0.4"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^7.3.7"
-sphinx-autodoc-typehints = "^2.1"
-sphinx-hoverxref = "^1.4.0"
+sphinx-autodoc-typehints = "^2.2"
+sphinx-hoverxref = "^1.3.0"
 sphinx-rtd-theme = "^2.0.0"
 sphinx-selective-exclude = "^1.0.3"
 

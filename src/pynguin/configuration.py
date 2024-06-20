@@ -583,19 +583,27 @@ class LLMConfiguration:
     """Configuration for the LLM."""
 
     api_key: str = ""
-    """The api key to call OpenAI LLM with"""
+    """The api key to call OpenAI LLM with."""
 
     model_name: str = "gpt-3.5-turbo"
-    """The OpenAI Model to use for completions"""
+    """The OpenAI Model to use for completions."""
 
-    temperature: float = 0.8
-    """The temperature to use when querying the model"""
+    temperature: float = 0.1
+    """The temperature to use when querying the model.
+    The value must be from [0.0, 1.0]."""
 
     max_query_token_length: float = 4000
-    """The maximum token length that a query should have"""
+    """The maximum token length that a query should have."""
 
-    enable_response_caching: bool = True
-    """Whether to enable caching for responses of the model"""
+    hybrid_initial_population: bool = False
+    """Whether to include the LLM test cases in the initial population."""
+
+    llm_test_case_percentage: float = 0.5
+    """The percentage of LLM test cases in on the initial population. The value must
+     be from [0.0, 1.0]."""
+
+    enable_response_caching: bool = False
+    """Whether to enable caching for responses of the model."""
 
 
 @dataclasses.dataclass
@@ -622,6 +630,7 @@ class Configuration:
     stopping: StoppingConfiguration = dataclasses.field(
         default_factory=StoppingConfiguration
     )
+    """Stopping configuration."""
 
     large_language_model: LLMConfiguration = dataclasses.field(
         default_factory=LLMConfiguration
