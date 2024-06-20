@@ -187,14 +187,8 @@ class OpenAIModel:
             ):
                 self.cache.set(prompt_text, response_text)
             return response_text
-        except openai.APIConnectionError:
-            logger.error("The server could not be reached")
-        except openai.RateLimitError:
-            logger.error("A 429 status code was received; we should back off a bit.")
-        except openai.APIStatusError as e:
-            logger.error("Another non-200-range status code was received")
-            logger.error("Status code: %s", e.status_code)
-            logger.error("Response: %s", e.response)
+        except openai.OpenAIError as e:
+            logger.error("An error occurred while querying the OpenAI API: %s", e)
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
         return None
