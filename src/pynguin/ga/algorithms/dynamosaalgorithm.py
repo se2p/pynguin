@@ -1,8 +1,8 @@
-#  This file is part of Pynguin.
+# This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
-#  SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT
 """Provides the DynaMOSA test-generation strategy."""
 from __future__ import annotations
 
@@ -39,14 +39,15 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self) -> None:  # noqa: D107
+    def __init__(self) -> None:
         super().__init__()
         self._goals_manager: _GoalsManager
+        self.current_iteration = 0
 
-    def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
+    def generate_tests(self) -> tsc.TestSuiteChromosome:
         self.before_search_start()
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,  # type: ignore[arg-type]
+            self._test_case_fitness_functions,
             self._archive,
             self.executor.tracer.get_subject_properties(),
         )
@@ -108,6 +109,9 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         index = 0
         self._population.clear()
 
+        # Log the offspring population
+        self.log_population("offspring population", offspring_population)
+
         # Obtain the first front
         front = fronts.get_sub_front(index)
 
@@ -130,6 +134,41 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             self._population.extend(front[k] for k in range(remain))
 
         self._goals_manager.update(self._population)
+
+        # Log after evolution
+        self.log_iteration()
+
+        self.current_iteration += 1
+
+    def log_iteration(self):
+        self.log_population("population", self._population)
+        self.log_goals()
+        self.log_archive()
+
+    def log_population(self, name, population):
+        current_population = f'\n"{name}": {{"iteration": {self.current_iteration}, "individuals": {self.population_log_string(population)}}}\n'
+        self._logger.info(current_population)
+
+    def log_goals(self):
+        goalsstr = f'\n"Goals": {{"iteration": {self.current_iteration}, "uncovered": {len(self._goals_manager.uncovered_goals)}, "covered": {len(self._goals_manager.covered_goals)}, "covered targets": ['
+        goalsstr += ", ".join([f'"{tff}"' for tff in self._goals_manager.covered_goals])
+        goalsstr += '],\n"current targets": ['
+        goalsstr += ", ".join([f'"{tff}"' for tff in self._goals_manager.current_goals])
+        goalsstr += ']}\n'
+        goalsstr += f'\n"Chromosome Goals": {{"iteration": {self.current_iteration}, "individuals": ['
+        for tc in self._population:
+            goalsstr += f'\n{{"id": "{tc.get_id()}", "goals": ['
+            goalsstr += ", ".join([f'{{"fitness": "{entry.value}", "goal": "{entry.key}"}}' for entry in tc.fitness_values.items()])
+            goalsstr += ']}\n},'
+        goalsstr = goalsstr.rstrip(',')  # Remove the trailing comma
+        goalsstr += '\n]}\n'
+        self._logger.info(goalsstr)
+
+    def log_archive(self):
+        archive_str = f'\n"Archive": {{"iteration": {self.current_iteration}, "solutions": ['
+        archive_str += ", ".join([f'"{tc.get_id()}"' for tc in self._archive.solutions])
+        archive_str += ']}}\n'
+        self._logger.info(archive_str)
 
 
 class _GoalsManager:
@@ -154,24 +193,13 @@ class _GoalsManager:
         self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = (
             self._graph.root_branches
         )
-        self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
+        self._archive.add_goals(self._current_goals)
 
     @property
     def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
-        """Provides the set of current goals.
-
-        Returns:
-            The set of current goals
-        """
-        return self._current_goals  # type: ignore[return-value]
+        return self._current_goals
 
     def update(self, solutions: list[tcc.TestCaseChromosome]) -> None:
-        """Updates the information on the current goals from the found solutions.
-
-        Args:
-            solutions: The previously found solutions
-        """
-        # We must keep iterating, as long as new goals are added.
         new_goals_added = True
         while new_goals_added:
             self._archive.update(solutions)
@@ -188,7 +216,7 @@ class _GoalsManager:
                 else:
                     new_goals.add(old_goal)
             self._current_goals = new_goals
-            self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
+            self._archive.add_goals(self._current_goals)
         self._logger.debug("current goals after update: %s", self._current_goals)
 
 
@@ -207,8 +235,6 @@ class _BranchFitnessGraph:
         subject_properties: SubjectProperties,
     ):
         self._graph = nx.DiGraph()
-        # Branch less code objects and branches that are not control dependent on other
-        # branches.
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
         self._build_graph(fitness_functions, subject_properties)
 
@@ -217,7 +243,6 @@ class _BranchFitnessGraph:
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
         subject_properties: SubjectProperties,
     ):
-        """Construct the actual graph from the given fitness functions."""
         for fitness in fitness_functions:
             self._graph.add_node(fitness)
 
@@ -250,35 +275,23 @@ class _BranchFitnessGraph:
                 dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)
                 self._graph.add_edge(dependent_ff, fitness)
 
-        # Sanity check
         assert {n for n in self._graph.nodes if self._graph.in_degree(n) == 0}.issubset(
             self._root_branches
         ), "Root branches cannot depend on other branches."
 
     @property
     def dot(self):
-        """Return DOT representation of this graph."""
         dot = to_pydot(self._graph)
         return dot.to_string()
 
     @property
     def root_branches(self) -> OrderedSet[bg.BranchCoverageTestFitness]:
-        """Return the root branches, i.e., the fitness functions without conditions."""
         return OrderedSet(self._root_branches)
 
     @staticmethod
     def _goal_to_fitness_function(
         search_in: OrderedSet[bg.BranchCoverageTestFitness], goal: bg.BranchGoal
     ) -> bg.BranchCoverageTestFitness:
-        """Little helper to find the fitness function associated with a certain goal.
-
-        Args:
-            search_in: The list to search in
-            goal: The goal to search for
-
-        Returns:
-            The found fitness function.
-        """
         for fitness in search_in:
             if fitness.goal == goal:
                 return fitness
@@ -287,13 +300,4 @@ class _BranchFitnessGraph:
     def get_structural_children(
         self, fitness_function: bg.BranchCoverageTestFitness
     ) -> OrderedSet[bg.BranchCoverageTestFitness]:
-        """Get the fitness functions that are structural children of the given one.
-
-        Args:
-            fitness_function: The fitness function whose structural children should be
-            returned.
-
-        Returns:
-            The structural children fitness functions of the given fitness function.
-        """
         return OrderedSet(self._graph.successors(fitness_function))
