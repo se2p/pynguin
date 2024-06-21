@@ -108,7 +108,7 @@ def is_api_key_valid(
     """
     try:
         openai.api_key = api_key
-        openai.models.list()  # This will raise an error if the API key is invalid
+        openai.models.list()  # This would raise an error if the API key is invalid
         return True
     except openai.OpenAIError:
         return False
