@@ -319,7 +319,7 @@ class _RaiseVisitor(ast.NodeVisitor):
     def visit_Raise(self, node: ast.Raise) -> ast.AST:  # noqa: N802
         bubbles = self.context.add_exception(node)
         if bubbles:
-            assert len(self.contexts) > 1
+            assert len(self.contexts) >= 1
             if len(self.contexts) < 2:
                 return self.generic_visit(node)
             parent_context = self.contexts[-2]
@@ -378,7 +378,11 @@ class _RaiseVisitor(ast.NodeVisitor):
         # exceptions.
         self.visit_Raise(
             ast.Raise(
-                exc=ast.Call(func=ast.Name(id="AssertionError", ctx=ast.Load())),
+                exc=ast.Call(
+                    func=ast.Name(id="AssertionError", ctx=ast.Load()),
+                    args=[],
+                    keywords=[],
+                ),
             )
         )
         # Make sure that we also execute a visit_Assert method in another analysis

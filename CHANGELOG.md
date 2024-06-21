@@ -11,6 +11,15 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+### Pynguin 0.37.0
+
+- Add possibility to control number of mutations in MOSA.
+- Compute the area under curve if Pynguin traces the overage over time; area under curve
+  can be interpreted as the integral over the coverage function, which is computed via
+  trapezoidal approximation.
+- Fix the assertion generation for `float`s (thanks to @BergLucas in #70)
+- Fix assertion and invalid function call (thanks to @BergLucas in #72)
+
 ## Pynguin 0.36.0
 
 - Remove unused code

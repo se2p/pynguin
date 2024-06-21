@@ -16,7 +16,6 @@ from unittest.mock import MagicMock
 import hypothesis.strategies as st
 import pytest
 
-from hypothesis import assume
 from hypothesis import given
 
 from pynguin.testcase.execution import ExecutionResult
@@ -71,16 +70,14 @@ def test_lt(
     assert (cfd_1 < cfd_2) == result
 
 
-@given(level=st.integers())
+@given(level=st.integers(min_value=0))
 def test_approach_level(level, control_flow_distance):
-    assume(level >= 0)
     control_flow_distance.approach_level = level
     assert control_flow_distance.approach_level == level
 
 
-@given(branch_distance=st.floats())
+@given(branch_distance=st.floats(min_value=0.0))
 def test_branch_distance(branch_distance, control_flow_distance):
-    assume(branch_distance >= 0)
     control_flow_distance.branch_distance = branch_distance
     assert control_flow_distance.branch_distance == branch_distance
 
@@ -105,18 +102,15 @@ def test_negative_branch_distance(control_flow_distance):
         control_flow_distance.branch_distance = -1
 
 
-@given(level=st.integers())
+@given(level=st.integers(min_value=0))
 def test_increase_approach_level(level, control_flow_distance):
-    assume(level >= 0)
     control_flow_distance.approach_level = level
     control_flow_distance.increase_approach_level()
     assert control_flow_distance.approach_level == level + 1
 
 
-@given(level=st.integers(), distance=st.floats())
+@given(level=st.integers(min_value=0), distance=st.floats(min_value=0.0))
 def test_get_resulting_branch_fitness(level, distance, control_flow_distance):
-    assume(level >= 0)
-    assume(distance >= 0.0)
     control_flow_distance.approach_level = level
     control_flow_distance.branch_distance = distance
 

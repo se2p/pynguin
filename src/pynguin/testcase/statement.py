@@ -506,7 +506,7 @@ class AssignmentStatement(Statement):
         )
 
 
-class CollectionStatement(Generic[T], VariableCreatingStatement):
+class CollectionStatement(VariableCreatingStatement, Generic[T]):
     """Abstract base class for collection statements."""
 
     def __init__(
@@ -1008,7 +1008,7 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
             vr.CallBasedVariableReference(test_case, generic_callable),
         )
         self._generic_callable = generic_callable
-        self._args = args if args else {}
+        self._args = args or {}
 
     @property
     def args(self) -> dict[str, vr.VariableReference]:
@@ -1436,7 +1436,7 @@ class FunctionStatement(ParametrizedStatement):
         )
 
 
-class PrimitiveStatement(Generic[T], VariableCreatingStatement):
+class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
     """Abstract primitive statement which holds a value."""
 
     def __init__(

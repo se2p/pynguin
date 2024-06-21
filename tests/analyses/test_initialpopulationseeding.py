@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 
+import operator
+
 #  This file is part of Pynguin.
 #
 #
@@ -126,7 +128,7 @@ def test_collect_different_types(  # noqa: PLR0917
         constant_provider,
     )
     provider.collect_testcases(seed_modules_path)
-    rand_mock.side_effect = lambda x: x[testcase_pos]
+    rand_mock.side_effect = operator.itemgetter(testcase_pos)
 
     seeded_testcase = provider.random_testcase()
     assert seeded_testcase is not None
@@ -159,7 +161,7 @@ def test_create_assertion(  # noqa: PLR0917
         constant_provider,
     )
     provider.collect_testcases(seed_modules_path)
-    rand_mock.side_effect = lambda x: x[testcase_pos]
+    rand_mock.side_effect = operator.itemgetter(testcase_pos)
 
     seeded_testcase = provider.random_testcase()
     assert len(seeded_testcase.statements[position].assertions) == num_assertions
@@ -192,7 +194,7 @@ def test_not_working_cases(
 def test_seeded_test_case_factory_no_delegation(
     rand_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
-    rand_mock.side_effect = lambda x: x[2]
+    rand_mock.side_effect = operator.itemgetter(2)
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster, test_factory, constant_provider
@@ -213,7 +215,7 @@ def test_seeded_test_case_factory_no_delegation(
 def test_seeded_test_case_factory_with_delegation(
     rand_mock, constant_provider, seed_modules_path, dummy_test_cluster
 ):
-    rand_mock.side_effect = lambda x: x[2]  # pragma: no cover
+    rand_mock.side_effect = operator.itemgetter(2)  # pragma: no cover
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster, test_factory, constant_provider

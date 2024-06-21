@@ -200,10 +200,7 @@ class ProgramGraph(Generic[N]):
         Returns:
             A set of direct predecessors of the node
         """
-        predecessors: set[N] = set()
-        for predecessor in self._graph.predecessors(node):
-            predecessors.add(predecessor)
-        return predecessors
+        return set(self._graph.predecessors(node))
 
     def get_successors(self, node: N) -> set[N]:
         """Provides a set of all direct successors of a node.
@@ -214,10 +211,7 @@ class ProgramGraph(Generic[N]):
         Returns:
             A set of direct successors of the node
         """
-        successors: set[N] = set()
-        for successor in self._graph.successors(node):
-            successors.add(successor)
-        return successors
+        return set(self._graph.successors(node))
 
     @property
     def nodes(self) -> set[N]:

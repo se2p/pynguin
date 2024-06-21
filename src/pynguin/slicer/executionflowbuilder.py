@@ -521,7 +521,7 @@ class ExecutionFlowBuilder:
         last_instr = None
 
         if efb_state.bb_id > 0:
-            efb_state.bb_id = efb_state.bb_id - 1
+            efb_state.bb_id -= 1
             last_instr = self._get_last_in_basic_block(efb_state.co_id, efb_state.bb_id)
             efb_state.offset -= 2
 

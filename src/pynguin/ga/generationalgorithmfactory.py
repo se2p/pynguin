@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 C = TypeVar("C", bound=chrom.Chromosome)
 
 
-class GenerationAlgorithmFactory(Generic[C], ABC):
+class GenerationAlgorithmFactory(ABC, Generic[C]):
     """A generic generation algorithm factory."""
 
     _logger = logging.getLogger(__name__)
