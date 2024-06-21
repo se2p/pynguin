@@ -15,12 +15,11 @@ import types
 
 from typing import TYPE_CHECKING
 
-import mutpy
-
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
 import pynguin.assertion.assertiontraceobserver as ato
-import pynguin.assertion.mutation_analysis.mutationadapter as ma
+import pynguin.assertion.mutation_analysis.controller as ct
+import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
@@ -232,70 +231,122 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class MutationAnalysisAssertionGenerator(AssertionGenerator):
-    """Uses mutation analysis to filter out less relevant assertions."""
+class InstrumentedMutationController(ct.MutationController):
+    """A controller that creates instrumented mutants."""
 
-    def _create_module_with_instrumentation(
-        self, ast_node, module_name="mutant", module_dict=None
-    ):
-        # Mimics mutpy.utils.create_module but adds instrumentation to the resulting
-        # module
+    def __init__(
+        self,
+        mutant_generator: mu.Mutator,
+        module_ast: ast.Module,
+        module: types.ModuleType,
+        tracer: ex.ExecutionTracer,
+        *,
+        testing: bool = False,
+    ) -> None:
+        """Create new controller.
+
+        Args:
+            mutant_generator: The mutant generator.
+            module_ast: The module AST.
+            module: The module.
+            tracer: The execution tracer.
+            testing: Enable test mode, currently required for integration testing.
+        """
+        super().__init__(mutant_generator, module_ast, module)
+
+        self._tracer = tracer
+
+        self._transformer = build_transformer(
+            tracer,
+            {config.CoverageMetric.BRANCH},
+            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
+        )
+
+        # Some debug information
+        self._testing = testing
+        self._testing_created_mutants: list[str] = []
+
+    @property
+    def tracer(self) -> ex.ExecutionTracer:
+        """Provides the execution tracer.
+
+        Returns:
+            The execution tracer.
+        """
+        return self._tracer
+
+    def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
+        self._tracer.current_thread_identifier = threading.current_thread().ident
+        self._tracer.reset()
+        module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
             self._testing_created_mutants.append(ast.unparse(ast_node))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
-        module.__dict__.update(module_dict or {})
-
         exec(code, module.__dict__)  # noqa: S102
+        self._tracer.store_import_trace()
         return module
 
-    def __init__(self, plain_executor: ex.TestCaseExecutor, *, testing: bool = False):
+
+class MutationAnalysisAssertionGenerator(AssertionGenerator):
+    """Uses mutation analysis to filter out less relevant assertions."""
+
+    def __init__(
+        self,
+        plain_executor: ex.TestCaseExecutor,
+        mutation_controller: InstrumentedMutationController,
+        *,
+        testing: bool = False,
+    ):
         """Initializes the generator.
 
         Args:
             plain_executor: Executor used for plain execution
+            mutation_controller: Controller for mutation analysis
             testing: Enable test mode, currently required for integration testing.
         """
         super().__init__(plain_executor)
 
         # We use a separate tracer and executor to execute tests on the mutants.
-        self._mutation_tracer = ex.ExecutionTracer()
-        self._mutation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
-        self._mutation_executor = ex.TestCaseExecutor(self._mutation_tracer)
+        self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
         self._mutation_executor.add_observer(ato.AssertionVerificationObserver())
 
-        self._transformer = build_transformer(
-            self._mutation_tracer,
-            {config.CoverageMetric.BRANCH},
-            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
-        )
+        self._mutation_controller = mutation_controller
+
         # Some debug information
         self._testing = testing
-        self._testing_created_mutants: list[str] = []
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
-        adapter = ma.MutationAdapter()
-
-        # Evil hack to change the way mutpy creates mutated modules.
-        mutpy.utils.create_module = self._create_module_with_instrumentation
-        self._mutated_modules = [x for x, _ in adapter.mutate_module()]
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]] = [
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
             (test, []) for test in test_cases
         ]
+
+        mutant_count = self._mutation_controller.mutant_count()
 
         with self._mutation_executor.temporarily_add_observer(
             ato.AssertionVerificationObserver()
         ):
-            for idx, mutated_module in enumerate(self._mutated_modules):
+            for idx, (mutated_module, _) in enumerate(
+                self._mutation_controller.create_mutants(), start=1
+            ):
+                if mutated_module is None:
+                    self._logger.info(
+                        "Skipping mutant %3i/%i because "
+                        "it created an invalid module",
+                        idx,
+                        mutant_count,
+                    )
+                    for _, results in tests_and_results:
+                        results.append(None)
+                    continue
+
                 self._logger.info(
                     "Running tests on mutant %3i/%i",
-                    idx + 1,
-                    len(self._mutated_modules),
+                    idx,
+                    mutant_count,
                 )
                 self._mutation_executor.module_provider.add_mutated_version(
                     module_name=config.configuration.module_name,
@@ -304,15 +355,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 for test, results in tests_and_results:
                     results.append(self._mutation_executor.execute(test))
 
-        summary = self.__compute_mutation_summary(
-            len(self._mutated_modules), tests_and_results
-        )
+        summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
         self.__report_mutation_summary(summary)
         self.__remove_non_relevant_assertions(tests_and_results, summary)
 
     @staticmethod
     def __remove_non_relevant_assertions(
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]],
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
         mutation_summary: _MutationSummary,
     ) -> None:
         for test, results in tests_and_results:
@@ -321,7 +370,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 results, mutation_summary.mutant_information, strict=True
             ):
                 # Ignore timed out executions
-                if len(mut.timed_out_by) == 0:
+                if result is not None and len(mut.timed_out_by) == 0:
                     merged.merge(result.assertion_verification_trace)
             for stmt_idx, statement in enumerate(test.statements):
                 for assertion_idx, assertion in reversed(
@@ -333,13 +382,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     @staticmethod
     def __compute_mutation_summary(
         number_of_mutants: int,
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult]]],
+        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
     ) -> _MutationSummary:
         mutation_info = [_MutantInfo(i) for i in range(number_of_mutants)]
         for test_num, (_, results) in enumerate(tests_and_results):
             # For each mutation, check if we had a violated assertion
             for info, result in zip(mutation_info, results, strict=True):
-                if info.timed_out_by:
+                if result is None or info.timed_out_by:
                     continue
                 if result.timeout:
                     # Mutant caused timeout
