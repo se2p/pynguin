@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+### Pynguin 0.39.0
+
+- Fix a bug in the handling of infinite loops in global scope (thanks to @BergLucas in
+  #65)
+
 ### Pynguin 0.38.0
 
 - Remove the dependency to our custom [MutPy fork](https://github.com/se2p/MutPy-Pynguin)
