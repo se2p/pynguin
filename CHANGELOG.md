@@ -11,6 +11,11 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+### Pynguin 0.38.0
+
+- Remove the dependency to our custom [MutPy fork](https://github.com/se2p/MutPy-Pynguin)
+  by integrating the relevant code into Pynguin directly (thanks to @BergLucas in #64)
+
 ### Pynguin 0.37.0
 
 - Add possibility to control number of mutations in MOSA.
