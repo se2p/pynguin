@@ -166,10 +166,26 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
         return result
 
     @property
+    def normalised_area_under_curve(self) -> float:
+        """Provides the normalised area under curve using trapezoid approximation."""
+        assert config.configuration.stopping.maximum_search_time is not None
+        max_value = config.configuration.stopping.maximum_search_time - 1
+        result = self.area_under_curve / max_value
+        assert 0.0 <= result <= 1.0, f"Normalised AuC out of range ({result})!"
+        return result
+
+    @property
     def area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
         """Provides the output variable for area under curve."""
         return sb.OutputVariable(
             name=f"{self._variable.name}_AUC", value=self.area_under_curve
+        )
+
+    @property
+    def normalised_area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
+        """Provides the output variable for normalised area under curve."""
+        return sb.OutputVariable(
+            name=f"{self._variable.name}_nAUC", value=self.normalised_area_under_curve
         )
 
     def _get_time_line_value(self, index: int) -> T:

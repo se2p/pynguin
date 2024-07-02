@@ -348,6 +348,11 @@ class _SearchStatistics:
                     variable_name
                 ].area_under_curve_output_variable
                 output_variables_map[auc_variable.name] = auc_variable
+                # Additionally, add a normalised version of the area under curve
+                norm_auc_variable = self._sequence_output_variable_factories[
+                    variable_name
+                ].normalised_area_under_curve_output_variable
+                output_variables_map[norm_auc_variable.name] = norm_auc_variable
             elif skip_missing:
                 # if variable does not exist, return an empty value instead
                 output_variables_map[variable_name] = sb.OutputVariable(
