@@ -567,7 +567,9 @@ class StmtRewriter(ast.NodeTransformer):
             new_generators.append(self.visit(comp))
         return new_generators
 
-    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.GeneratorExp:  # noqa: N802
+    def visit_GeneratorExp(
+        self, node: ast.GeneratorExp
+    ) -> ast.GeneratorExp:  # noqa: N802
         """Visit a generator expression node and transform its body.
 
         Args:

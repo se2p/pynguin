@@ -238,7 +238,7 @@ ignore = [
     "RUF003",   # comment contains ambiguous en dash
     "S101",     # do not complain about using assert statements
     "D415",     # forcing first comment line to have period, question mark, or exclamation point
-    "D205",      # forcing multi-line docstring to have blank space between them
+    "D205",     # forcing multi-line docstring to have blank space between them
     "PLR0904"   # Too many plubic methods!
 ]
 # Allow unused variables when underscore-prefixed:

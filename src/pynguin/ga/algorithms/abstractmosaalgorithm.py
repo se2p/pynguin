@@ -43,21 +43,18 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         model = OpenAIModel()
         llm_query_results = model.generate_tests_for_module_under_test()
         llm_calls_with_python_code = (
-            model.llm_calls_counter - model.llm_calls_with_no_python_code)
+            model.llm_calls_counter - model.llm_calls_with_no_python_code
+        )
         logging.info(
             "%d out of %d LLM responses have got Python code.",
             llm_calls_with_python_code,
-            model.llm_calls_counter
+            model.llm_calls_counter,
         )
-        logging.info(
-            "Total LLM call time is %s seconds",
-            model.llm_calls_timer
-        )
+        logging.info("Total LLM call time is %s seconds", model.llm_calls_timer)
         llm_test_cases_str = model.extract_test_cases_from_llm_output(llm_query_results)
 
         test_cases = deserialize_code_to_testcases(
-            llm_test_cases_str,
-            test_cluster=self.test_cluster
+            llm_test_cases_str, test_cluster=self.test_cluster
         )
 
         for test_case in test_cases:
@@ -180,7 +177,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         logging.info(
             "Merged %d out of %d LLM test cases into the population.",
             len(llm_test_cases),
-            total_llm_test_cases
+            total_llm_test_cases,
         )
         return population
 

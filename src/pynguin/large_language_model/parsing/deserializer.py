@@ -45,7 +45,9 @@ class StatementDeserializer:
     into TestCase objects.
     """
 
-    def __init__(self, test_cluster: TestCluster, *, uninterpreted_statements=False):  # noqa: D107
+    def __init__(
+        self, test_cluster: TestCluster, *, uninterpreted_statements=False
+    ):  # noqa: D107
         self._test_cluster = test_cluster
         self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
@@ -225,14 +227,17 @@ class StatementDeserializer:
         # Handle positional arguments.
         for (name, param), call_arg in zip(
             list(gen_callable.inferred_signature.signature.parameters.items())[
-            shift_by:
+                shift_by:
             ],
-            call_args, strict=False,
+            call_args,
+            strict=False,
         ):
             if (
                 param.kind
-                in {inspect.Parameter.POSITIONAL_ONLY,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD}
+                in {
+                    inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                }
             ) and isinstance(call_arg, ast.Name):
                 reference = self._ref_dict.get(call_arg.id)
             elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
@@ -482,7 +487,9 @@ class StatementDeserializer:
             coll_node, coll_elems_type, coll_elems
         )
 
-    def create_elements(self, elements: Any) -> list[vr.VariableReference] | None:  # noqa: C901
+    def create_elements(
+        self, elements: Any
+    ) -> list[vr.VariableReference] | None:  # noqa: C901
         """Creates the elements of a collection by calling the corresponding methods
         for creation. This can be recursive.
 
@@ -783,7 +790,7 @@ def deserialize_code_to_testcases(
     transformer = AstToTestCaseTransformer(
         test_cluster,
         create_assertions=config.configuration.test_case_output.assertion_generation
-                          != config.AssertionGenerator.NONE,
+        != config.AssertionGenerator.NONE,
         uninterpreted_statements=use_uninterpreted_statements,
     )
     transformer.visit(ast.parse(test_file_contents))

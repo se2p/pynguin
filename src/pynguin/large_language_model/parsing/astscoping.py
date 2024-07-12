@@ -379,6 +379,7 @@ class VariableRefAST:
         Returns:
             whether second is struturally equal to self w.r.t. memo
         """
+
         def value_equal_helper(first: Any, second: Any) -> bool:
             if type(first) != type(second):
                 return False
@@ -423,6 +424,7 @@ class VariableRefAST:
         Raises:
             ValueError: if there is a missing mapping in memo
         """
+
         def replace_var_ref(v: vr.VariableReference):
             return v.clone(memo)
 
