@@ -45,9 +45,9 @@ class StatementDeserializer:
     into TestCase objects.
     """
 
-    def __init__(
+    def __init__(  # noqa: D107
         self, test_cluster: TestCluster, *, uninterpreted_statements=False
-    ):  # noqa: D107
+    ):
         self._test_cluster = test_cluster
         self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
@@ -487,9 +487,9 @@ class StatementDeserializer:
             coll_node, coll_elems_type, coll_elems
         )
 
-    def create_elements(
+    def create_elements(  # noqa: C901
         self, elements: Any
-    ) -> list[vr.VariableReference] | None:  # noqa: C901
+    ) -> list[vr.VariableReference] | None:
         """Creates the elements of a collection by calling the corresponding methods
         for creation. This can be recursive.
 

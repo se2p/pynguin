@@ -543,7 +543,7 @@ def _serialize_helper(obj):
     return obj
 
 
-class ModuleTestCluster(TestCluster):  # noqa: PLR0904
+class ModuleTestCluster(TestCluster):
     """A test cluster for a module.
 
     Contains all methods/constructors/functions and all required transitive
@@ -817,7 +817,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         ]
 
 
-class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
+class FilteredModuleTestCluster(TestCluster):
     """A test cluster wrapping another test cluster.
 
     Delegates most methods to the wrapped delegate.  This cluster filters out

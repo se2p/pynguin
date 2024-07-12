@@ -286,7 +286,7 @@ def unwrap(obj):
     return obj
 
 
-class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
+class ObjectProxy(metaclass=_ObjectProxyMetaType):
     """A proxy for (almost) any Python object.
 
     Native types implemented in C might be problematic.

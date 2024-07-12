@@ -410,6 +410,8 @@ class VariableRefAST:
                     return False
             return True
 
+        return True
+
     def clone(
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> "VariableRefAST":
