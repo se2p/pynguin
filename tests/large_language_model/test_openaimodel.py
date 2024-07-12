@@ -67,6 +67,10 @@ def test_openai_model_query_success():
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
     model = OpenAIModel()
+    try:
+        model.clear_cache()
+    except Exception as e:
+        pass
     response = model.query(prompt)
 
     assert response is not None
