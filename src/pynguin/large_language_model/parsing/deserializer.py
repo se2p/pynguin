@@ -1,32 +1,27 @@
-#  This file is part of Pynguin.
+# This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
 #
-#  SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT
 #
-"""
-A class to deserialize AST nodes into Statements in a TestCase.
-"""
+"""A class to deserialize AST nodes into Statements in a TestCase."""
 from __future__ import annotations
 
 import ast
 import inspect
 import logging
 
-from abc import ABCMeta
-from typing import Any
-from typing import Dict
-from typing import List
-from typing import Tuple
+from abc import ABC
+from typing import Any, TYPE_CHECKING
 from typing import cast
-
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
 
 from pynguin import configuration as config
-from pynguin.analyses.module import TestCluster
 from pynguin.assertion import assertion as ass
+from pynguin.large_language_model.parsing import astscoping
+from pynguin.large_language_model.parsing.helpers import _count_all_statements
 from pynguin.testcase import statement as stmt
 from pynguin.testcase import variablereference as vr
 from pynguin.testcase.statement import VariableCreatingStatement
@@ -38,47 +33,26 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
 
+if TYPE_CHECKING:
+    from pynguin.analyses.module import TestCluster
+    from pynguin.testcase.defaulttestcase import DefaultTestCase
 
 logger = logging.getLogger(__name__)
 
 
-def _count_all_statements(node) -> int:
-    """Counts the number of statements in node and all blocks, not including `node`
-
-    Args:
-        node: node to count statements for
-
-    Returns:
-        the number of child statements to node
-
-    """
-    num_non_assert_statements = 0
-    for _, value in ast.iter_fields(node):
-        # For all blocks
-        if isinstance(value, list) and all(
-            isinstance(elem, ast.stmt) for elem in value
-        ):
-            for elem in value:
-                if isinstance(elem, ast.Assert):
-                    continue
-                num_non_assert_statements += 1
-                num_non_assert_statements += _count_all_statements(elem)
-    return num_non_assert_statements
-
-
-# pylint: disable=too-many-return-statements
-class _StatementDeserializer:
+class StatementDeserializer:
     """All the utilities to deserialize statements represented as AST nodes
-    into TestCase objects."""
+    into TestCase objects.
+    """
 
-    def __init__(self, test_cluster: TestCluster, uninterpreted_statements=False):
+    def __init__(self, test_cluster: TestCluster, *, uninterpreted_statements=False):  # noqa: D107
         self._test_cluster = test_cluster
-        self._ref_dict: Dict[str, vr.VariableReference] = {}
+        self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
         self._uninterpreted_statements = uninterpreted_statements
 
     def get_test_case(self) -> dtc.DefaultTestCase:
-        """Returns the parsed testcase
+        """Returns the parsed testcase.
 
         Returns:
             the parsed testcase
@@ -86,12 +60,12 @@ class _StatementDeserializer:
         return self._testcase
 
     def reset(self) -> None:
-        """Resets the state of the deserializer to parse a new test case"""
+        """Resets the state of the deserializer to parse a new test case."""
         self._ref_dict = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
 
     def add_assert_stmt(self, assert_: ast.Assert) -> bool:
-        """Tries to add the assert in `assert_` to the current test case
+        """Tries to add the assert in `assert_` to the current test case.
 
         Args:
             assert_: The ast.Assert node
@@ -109,7 +83,7 @@ class _StatementDeserializer:
         return True
 
     def add_assign_stmt(self, assign: ast.Assign) -> bool:
-        """Tries to add the assignment in `assign` to the current test case
+        """Tries to add the assignment in `assign` to the current test case.
 
         Args:
             assign: The ast.Assign node
@@ -147,7 +121,7 @@ class _StatementDeserializer:
             new_stmt = self.create_stmt_from_unaryop(value)
         elif isinstance(value, ast.Call):
             new_stmt = self.create_stmt_from_call(value)
-        elif isinstance(value, (ast.List, ast.Set, ast.Dict, ast.Tuple)):
+        elif isinstance(value, ast.List | ast.Set | ast.Dict | ast.Tuple):
             new_stmt = self.create_stmt_from_collection(value)
         elif self._uninterpreted_statements:
             new_stmt = self.create_ast_assign_stmt(value)
@@ -162,7 +136,7 @@ class _StatementDeserializer:
         return ref_id, new_stmt
 
     def create_ast_assign_stmt(self, rhs: ast.expr) -> ASTAssignStatement | None:
-        """Creates an ASTAssignStatement from the given rhs
+        """Creates an ASTAssignStatement from the given rhs.
 
         Args:
             rhs: right-hand side as an AST
@@ -171,8 +145,7 @@ class _StatementDeserializer:
             the corresponding ASTAssignStatement.
         """
         try:
-            assign_stmt = ASTAssignStatement(self._testcase, rhs, self._ref_dict)
-            return assign_stmt
+            return ASTAssignStatement(self._testcase, rhs, self._ref_dict)  # type: ignore[abstract]
         except ValueError:
             return None
 
@@ -185,22 +158,21 @@ class _StatementDeserializer:
             assert_node: the ast assert node.
 
         Returns:
-            The corresponding assert statement.
+            The corresponding to assert statement.
         """
         assertion: ass.Assertion | None = None
         try:
-            source = self._ref_dict[assert_node.test.left.id]  # type: ignore
-            val_elem = assert_node.test.comparators[0]  # type: ignore
-            operator = assert_node.test.ops[0]  # type: ignore
+            source = self._ref_dict[assert_node.test.left.id]  # type: ignore[attr-defined]
+            val_elem = assert_node.test.comparators[0]  # type: ignore[attr-defined]
+            operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
         except (KeyError, AttributeError):
             return None
-        if isinstance(operator, (ast.Is, ast.Eq)):
+        if isinstance(operator, ast.Is | ast.Eq):
             assertion = self.create_assertion(source, val_elem)
         if assertion is not None:
             return assertion, source
         return None
 
-    # pylint: disable=no-self-use
     def create_assertion(
         self,
         source: vr.VariableReference,
@@ -216,7 +188,7 @@ class _StatementDeserializer:
             The assertion.
         """
         if isinstance(val_elem, ast.UnaryOp):
-            val_elem = val_elem.operand  # type: ignore
+            val_elem = val_elem.operand  # type: ignore[assignment]
 
         if isinstance(val_elem, ast.Constant) and is_assertable(val_elem.value):
             return ass.ObjectAssertion(source, val_elem.value)
@@ -238,34 +210,35 @@ class _StatementDeserializer:
 
         Returns:
             The dict with the variable references of the call_args.
-
         """
         var_refs: dict[str, vr.VariableReference] = {}
-        # We have to ignore the first parameter (usually 'self') for regular methods and
-        # constructors because it is filled by the runtime.
-        # TODO(fk) also consider @classmethod, because their first argument is the
-        # class, which is also filled by the runtime.
-        shift_by = 1 if gen_callable.is_method() or gen_callable.is_constructor() else 0
+        shift_by = (
+            1
+            if (
+                gen_callable.is_method()
+                or gen_callable.is_constructor()
+                or gen_callable.is_classmethod()
+            )
+            else 0
+        )
 
         # Handle positional arguments.
         for (name, param), call_arg in zip(
             list(gen_callable.inferred_signature.signature.parameters.items())[
-                shift_by:
+            shift_by:
             ],
-            call_args,
+            call_args, strict=False,
         ):
             if (
                 param.kind
-                in (
-                    inspect.Parameter.POSITIONAL_ONLY,
-                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                )
+                in {inspect.Parameter.POSITIONAL_ONLY,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD}
             ) and isinstance(call_arg, ast.Name):
                 reference = self._ref_dict.get(call_arg.id)
             elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
                 call_arg, ast.Starred
             ):
-                reference = self._ref_dict.get(call_arg.value.id)  # type: ignore
+                reference = self._ref_dict.get(call_arg.value.id)  # type: ignore[attr-defined]
             else:
                 return None
             if reference is None:
@@ -298,7 +271,7 @@ class _StatementDeserializer:
     def create_stmt_from_constant(
         self, constant: ast.Constant
     ) -> stmt.VariableCreatingStatement | None:
-        """Creates a statement from an ast.constant node.
+        """Creates a statement from an ast.Constant node.
 
         Args:
             constant: the ast.Constant statement
@@ -307,7 +280,7 @@ class _StatementDeserializer:
             The corresponding statement.
         """
         if constant.value is None:
-            return stmt.NoneStatement(self._testcase, constant.value)
+            return stmt.NoneStatement(self._testcase)
 
         val = constant.value
         if isinstance(val, bool):
@@ -328,7 +301,7 @@ class _StatementDeserializer:
     def create_stmt_from_unaryop(
         self, unaryop: ast.UnaryOp
     ) -> stmt.VariableCreatingStatement | None:
-        """Creates a statement from an ast.unaryop node.
+        """Creates a statement from an ast.UnaryOp node.
 
         Args:
             unaryop: the ast.UnaryOp statement
@@ -362,16 +335,13 @@ class _StatementDeserializer:
         Returns:
             The corresponding statement.
         """
-
         gen_callable = self.find_gen_callable(call)
         if gen_callable is None:
             logger.debug("No such function found: %s", ast.unparse(call.func))
             return self.try_generating_specific_function(call)
-        # if config.configuration.seeding.allow_expandable_cluster:
-        #     self._test_cluster.promote_object(gen_callable)  # type: ignore
         return self.assemble_stmt_from_gen_callable(gen_callable, call)
 
-    def find_gen_callable(
+    def find_gen_callable(  # noqa: C901
         self, call: ast.Call
     ) -> GenericConstructor | GenericMethod | GenericFunction | None:
         """Traverses the accessible objects under test and returns the one matching
@@ -407,9 +377,9 @@ class _StatementDeserializer:
             logger.debug("Strange function call: %s", ast.unparse(call))
             return None
         try:
-            call_id = call.func.value.id  # type: ignore
+            call_id = call.func.value.id  # type: ignore[attr-defined]
         except AttributeError:
-            logger.debug("Can't get callid for %s", ast.unparse(call))
+            logger.debug("Can't get called for %s", ast.unparse(call))
             call_id = ""
 
         for obj in self._test_cluster.accessible_objects_under_test:
@@ -444,13 +414,13 @@ class _StatementDeserializer:
             The corresponding statement.
         """
         for arg in call.args:
-            if not isinstance(arg, (ast.Name, ast.Starred)):
+            if not isinstance(arg, ast.Name | ast.Starred):
                 return None
         for keyword in call.keywords:
             if not isinstance(keyword, ast.keyword):
                 return None
         var_refs = self.create_variable_references_from_call_args(
-            call.args, call.keywords, gen_callable  # type: ignore
+            call.args, call.keywords, gen_callable  # type: ignore[arg-type]
         )
         if var_refs is None:
             return None
@@ -462,13 +432,13 @@ class _StatementDeserializer:
             )
         if isinstance(gen_callable, GenericMethod):
             try:
-                self._ref_dict[call.func.value.id]  # type: ignore
+                self._ref_dict[call.func.value.id]  # type: ignore[attr-defined]
             except (KeyError, AttributeError):
                 return None
             return stmt.MethodStatement(
                 self._testcase,
                 gen_callable,
-                self._ref_dict[call.func.value.id],  # type: ignore
+                self._ref_dict[call.func.value.id],  # type: ignore[attr-defined]
                 var_refs,
             )
         if isinstance(gen_callable, GenericConstructor):
@@ -501,7 +471,7 @@ class _StatementDeserializer:
             if keys is None or values is None:
                 return None
             coll_elems_type = self.get_collection_type(values)
-            coll_elems = list(zip(keys, values))
+            coll_elems = list(zip(keys, values, strict=False))
         else:
             elements = coll_node.elts
             coll_elems = self.create_elements(elements)
@@ -512,7 +482,7 @@ class _StatementDeserializer:
             coll_node, coll_elems_type, coll_elems
         )
 
-    def create_elements(self, elements: Any) -> list[vr.VariableReference] | None:
+    def create_elements(self, elements: Any) -> list[vr.VariableReference] | None:  # noqa: C901
         """Creates the elements of a collection by calling the corresponding methods
         for creation. This can be recursive.
 
@@ -521,7 +491,7 @@ class _StatementDeserializer:
 
         Returns:
             A list of variable references or None if something goes wrong while
-            creating theelements.
+            creating the elements.
         """
         coll_elems: list[vr.VariableReference] = []
         for elem in elements:
@@ -547,7 +517,7 @@ class _StatementDeserializer:
                 coll_elems.append(
                     self._testcase.add_variable_creating_statement(statement)
                 )
-            elif isinstance(elem, (ast.List, ast.Tuple, ast.Set, ast.Dict)):
+            elif isinstance(elem, ast.List | ast.Tuple | ast.Set | ast.Dict):
                 statement = self.create_stmt_from_collection(elem)
                 if not statement:
                     return None
@@ -564,7 +534,7 @@ class _StatementDeserializer:
         return coll_elems
 
     def get_collection_type(self, coll_elems: list[vr.VariableReference]) -> Any:
-        """Returns the type of a collection. If objects of multiple types are in the
+        """Returns the type of collection. If objects of multiple types are in the
         collection, this function returns None.
 
         Args:
@@ -577,8 +547,8 @@ class _StatementDeserializer:
             return None
         coll_type = coll_elems[0].type
         for elem in coll_elems:
-            if not elem.type == coll_type:
-                coll_type = None
+            if elem.type != coll_type:
+                coll_type = None  # type: ignore[assignment]
                 break
         return coll_type
 
@@ -594,8 +564,6 @@ class _StatementDeserializer:
         | stmt.TupleStatement
     ):
         """Creates the corresponding collection statement from an ast node.
-
-        # noqa: DAR003
 
         Args:
             coll_node: the ast node
@@ -616,7 +584,7 @@ class _StatementDeserializer:
             return stmt.TupleStatement(self._testcase, coll_elems_type, coll_elems)
         return None
 
-    def try_generating_specific_function(
+    def try_generating_specific_function(  # noqa: C901
         self, call: ast.Call
     ) -> stmt.VariableCreatingStatement | None:
         """Calls to creating a collection (list, set, tuple, dict) via their keywords
@@ -630,10 +598,9 @@ class _StatementDeserializer:
 
         Returns:
             The corresponding statement.
-
         """
         try:
-            func_id = str(call.func.id)  # type: ignore
+            func_id = str(call.func.id)  # type: ignore[attr-defined]
         except AttributeError:
             return None
 
@@ -646,16 +613,6 @@ class _StatementDeserializer:
         if self._uninterpreted_statements and func_id in builtins_dict:
             return self.create_ast_assign_stmt(call)
 
-        # Note: the functionality below actually results in incorrect semantics,
-        # because the collection keywords are not equivalent to their concrete
-        # syntax; the keywords go through the iterable passed as argument as runtime.
-        # Example:
-        #     lst_0 = [0,1,2,3]
-        #     set_0 = set(lst_0)
-        #     set_1 = {lst_0}
-        # set_0 has 4 elements, the creation of set_1 will throw an exception because a
-        # list is not hashable.
-        # Maintaining the below for compatibility reasons.
         if func_id == "set":
             try:
                 set_node = ast.Set(
@@ -686,8 +643,8 @@ class _StatementDeserializer:
         if func_id == "dict":
             try:
                 dict_node = ast.Dict(
-                    keys=call.args[0].keys if call.args else [],  # type: ignore
-                    values=call.args[0].values if call.args else [],  # type: ignore
+                    keys=call.args[0].keys if call.args else [],  # type: ignore[attr-defined]
+                    values=call.args[0].values if call.args else [],  # type: ignore[attr-defined]
                     ctx=ast.Load(),
                 )
             except AttributeError:
@@ -696,19 +653,20 @@ class _StatementDeserializer:
         return None
 
 
-# pylint: disable=invalid-name, missing-function-docstring, too-many-instance-attributes
-class _AstToTestCaseTransformer(ast.NodeVisitor):
+class AstToTestCaseTransformer(ast.NodeVisitor):
     """An AST NodeVisitor that tries to convert an AST into our internal
-    test case representation."""
+    test case representation.
+    """
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         test_cluster: TestCluster,
+        *,
         create_assertions: bool,
         uninterpreted_statements: bool = False,
     ):
-        self._deserializer = _StatementDeserializer(
-            test_cluster, uninterpreted_statements
+        self._deserializer = StatementDeserializer(
+            test_cluster, uninterpreted_statements=uninterpreted_statements
         )
         self._current_parsable: bool = True
         self._testcases: list[dtc.DefaultTestCase] = []
@@ -719,8 +677,12 @@ class _AstToTestCaseTransformer(ast.NodeVisitor):
         self._current_parsed_statements = 0
         self._current_max_num_statements = 0
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        # Don't include non-test functions as tests.
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa:N802
+        """Visits a function definition node and processes it if it starts with 'test_'.
+
+        Args:
+            node: The function definition node.
+        """
         if not node.name.startswith("test_") and not node.name.startswith("seed_test_"):
             return
         self._number_found_testcases += 1
@@ -732,39 +694,28 @@ class _AstToTestCaseTransformer(ast.NodeVisitor):
         self.total_statements += self._current_max_num_statements
         self.total_parsed_statements += self._current_parsed_statements
         current_testcase = self._deserializer.get_test_case()
-        if self._current_parsable:
-            self._testcases.append(current_testcase)
-            logger.debug("Successfully imported %s.", node.name)
-        # else:
-        #     if (
-        #         self._current_parsed_statements > 0
-        #         and config.configuration.seeding.include_partially_parsable
-        #     ):
-        #         logger.debug(
-        #             "Partially parsed %s. Retrieved %s/%s statements.",
-        #             node.name,
-        #             self._current_parsed_statements,
-        #             self._current_max_num_statements,
-        #         )
-        #         self._testcases.append(current_testcase)
-        #     else:
-        #         logger.debug("Failed to parse %s.", node.name)
+        self._testcases.append(current_testcase)
+        logger.debug("Successfully imported %s.", node.name)
 
-    def visit_Assign(self, node: ast.Assign) -> Any:
-        if (
-            self._current_parsable
-            or config.configuration.seeding.include_partially_parsable
-        ):
+    def visit_Assign(self, node: ast.Assign) -> Any:  # noqa:N802
+        """Visits an assignment node and tries to add it to the current test case.
+
+        Args:
+            node: The assignment node.
+        """
+        if self._current_parsable:
             if self._deserializer.add_assign_stmt(node):
                 self._current_parsed_statements += 1
             else:
                 self._current_parsable = False
 
-    def visit_Assert(self, node: ast.Assert) -> Any:
-        if (
-            self._current_parsable
-            or config.configuration.seeding.include_partially_parsable
-        ) and self._create_assertions:
+    def visit_Assert(self, node: ast.Assert) -> Any:  # noqa:N802
+        """Visits an assert node and tries to add it to the current test case.
+
+        Args:
+            node: The assert node.
+        """
+        if self._current_parsable and self._create_assertions:
             self._deserializer.add_assert_stmt(node)
 
     @property
@@ -779,18 +730,28 @@ class _AstToTestCaseTransformer(ast.NodeVisitor):
         return self._testcases
 
 
-class ASTAssignStatement(VariableCreatingStatement, metaclass=ABCMeta):
+class ASTAssignStatement(VariableCreatingStatement, ABC):
     """A statement creating a variable on the LHS that has
     an uninterpreted AST node as its RHS. We cannot assure that
-    these statements execute successfully."""
+    these statements execute successfully.
+    """
 
     def __init__(
         self,
         test_case: tc.TestCase,
         rhs: ast.AST | astscoping.VariableRefAST,
-        ref_dict: Dict[str, vr.VariableReference],
+        ref_dict: dict[str, vr.VariableReference],
     ):
-        super().__init__(test_case, vr.VariableReference(test_case, None))
+        """Initializes the ASTAssignStatement.
+
+        Args:
+            test_case: The test case.
+            rhs: The right-hand side as an AST.
+            ref_dict: Dictionary of variable references.
+        """
+        super().__init__(
+            test_case, vr.VariableReference(test_case, None)  # type:ignore[arg-type]
+        )
         if isinstance(rhs, astscoping.VariableRefAST):
             self._rhs = rhs
         elif isinstance(rhs, ast.AST):
@@ -804,29 +765,26 @@ class ASTAssignStatement(VariableCreatingStatement, metaclass=ABCMeta):
 def deserialize_code_to_testcases(
     test_file_contents: str,
     test_cluster: TestCluster,
+    *,
     use_uninterpreted_statements: bool = False,
-) -> Tuple[List[dtc.DefaultTestCase], int, int]:
+) -> list[DefaultTestCase]:
     """Extracts as many TestCase objects as possible from the given code.
 
     Args:
         test_file_contents: code containing tests
         test_cluster: the TestCluster to deserialize with
-        use_uninterpreted_statements: whether or not to allow ASTAssignStatements
+        use_uninterpreted_statements: whether to allow ASTAssignStatements
 
     Returns:
         A tuple consisting of (1) a list of TestCase extracted from the given code
         (2) the number of parsable statements in the given code (3) the number
         of successfully parsed statements from that code
     """
-    transformer = _AstToTestCaseTransformer(
+    transformer = AstToTestCaseTransformer(
         test_cluster,
-        config.configuration.test_case_output.assertion_generation
-        != config.AssertionGenerator.NONE,
-        use_uninterpreted_statements,
+        create_assertions=config.configuration.test_case_output.assertion_generation
+                          != config.AssertionGenerator.NONE,
+        uninterpreted_statements=use_uninterpreted_statements,
     )
     transformer.visit(ast.parse(test_file_contents))
-    return (
-        transformer.testcases,
-        transformer.total_parsed_statements,
-        transformer.total_statements,
-    )
+    return transformer.testcases

@@ -21,8 +21,9 @@ from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.operators.comparator import DominanceComparator
 from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.parsing.deserializer import deserialize_code_to_testcases
-from pynguin.large_language_model.parsing.outputfixers import extract_test_cases_from_llm_output
+from pynguin.large_language_model.parsing.deserializer import (
+    deserialize_code_to_testcases,
+)
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
@@ -41,13 +42,22 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
         model = OpenAIModel()
         llm_query_results = model.generate_tests_for_module_under_test()
-        llm_test_cases_str = extract_test_cases_from_llm_output(llm_query_results)
-        (
-            test_cases,
-            parsed_statements,
-            parsable_statements,
-        ) = deserialize_code_to_testcases(
-            llm_test_cases_str, test_cluster=self.test_cluster
+        llm_calls_with_python_code = (
+            model.llm_calls_counter - model.llm_calls_with_no_python_code)
+        logging.info(
+            "%d out of %d LLM responses have got Python code.",
+            llm_calls_with_python_code,
+            model.llm_calls_counter
+        )
+        logging.info(
+            "Total LLM call time is %s seconds",
+            model.llm_calls_timer
+        )
+        llm_test_cases_str = model.extract_test_cases_from_llm_output(llm_query_results)
+
+        test_cases = deserialize_code_to_testcases(
+            llm_test_cases_str,
+            test_cluster=self.test_cluster
         )
 
         for test_case in test_cases:
@@ -138,6 +148,8 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         return next_front
 
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
+        if config.configuration.large_language_model.hybrid_initial_population:
+            return self._get_hybrid_population()
         population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
@@ -151,6 +163,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             * config.configuration.search_algorithm.population
         )
         llm_test_cases = self._generate_llm_test_cases()
+        total_llm_test_cases = len(llm_test_cases)
 
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
@@ -164,6 +177,11 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             chromosome = self._chromosome_factory.get_chromosome()
             population.append(chromosome)
 
+        logging.info(
+            "Merged %d out of %d LLM test cases into the population.",
+            len(llm_test_cases),
+            total_llm_test_cases
+        )
         return population
 
     def _get_best_individuals(self) -> list[tcc.TestCaseChromosome]:
