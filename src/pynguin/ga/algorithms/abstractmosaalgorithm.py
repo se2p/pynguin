@@ -20,10 +20,6 @@ import pynguin.ga.testcasechromosome as tcc
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.operators.comparator import DominanceComparator
-from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.parsing.deserializer import (
-    deserialize_code_to_testcases,
-)
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
@@ -37,38 +33,6 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         super().__init__()
         self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
-
-    def _generate_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
-        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-        model = OpenAIModel()
-        llm_query_results = model.generate_tests_for_module_under_test()
-        llm_calls_with_python_code = (
-            model.llm_calls_counter - model.llm_calls_with_no_python_code
-        )
-        logging.info(
-            "%d out of %d LLM responses have got Python code.",
-            llm_calls_with_python_code,
-            model.llm_calls_counter,
-        )
-        logging.info("Total LLM call time is %s seconds", model.llm_calls_timer)
-        if llm_query_results is not None:
-            llm_test_cases_str = model.extract_test_cases_from_llm_output(
-                llm_query_results
-            )
-
-            test_cases = deserialize_code_to_testcases(
-                llm_test_cases_str, test_cluster=self.test_cluster
-            )
-
-            for test_case in test_cases:
-                test_case_chromosome = tcc.TestCaseChromosome(
-                    test_case=test_case, test_factory=self.test_factory
-                )
-                for func in self.test_case_fitness_functions:
-                    test_case_chromosome.add_fitness_function(func)
-                llm_test_case_chromosomes.append(test_case_chromosome)
-            return llm_test_case_chromosomes
-        return []
 
     def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
         offspring_population: list[tcc.TestCaseChromosome] = []
