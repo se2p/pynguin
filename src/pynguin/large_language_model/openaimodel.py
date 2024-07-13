@@ -174,7 +174,7 @@ class OpenAIModel:
                 model=self._model_name,
                 messages=messages,
                 max_tokens=max_tokens,
-                temperature=1,
+                temperature=self._temperature,
             )
             response_text = response.choices[0].message.content
             if (
