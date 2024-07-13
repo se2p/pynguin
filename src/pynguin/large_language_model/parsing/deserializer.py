@@ -255,7 +255,6 @@ class StatementDeserializer:
         for call_keyword in call_keywords:
             keyword = call_keyword.arg
             if keyword is None:
-                # **kwargs has to be the last parameter?
                 keyword = list(
                     gen_callable.inferred_signature.signature.parameters.keys()
                 )[-1]
@@ -393,8 +392,6 @@ class StatementDeserializer:
                 if call_name == owner and call_id not in self._ref_dict:
                     return obj
             elif isinstance(obj, GenericMethod):
-                # test if the type of the calling object is equal to the type
-                # of the owner of the generic method
                 if call_name == obj.method_name and call_id in self._ref_dict:
                     obj_from_ast = str(call_id)
                     var_type = self._ref_dict[obj_from_ast].type
@@ -783,9 +780,7 @@ def deserialize_code_to_testcases(
         use_uninterpreted_statements: whether to allow ASTAssignStatements
 
     Returns:
-        A tuple consisting of (1) a list of TestCase extracted from the given code
-        (2) the number of parsable statements in the given code (3) the number
-        of successfully parsed statements from that code
+        extracted test cases
     """
     transformer = AstToTestCaseTransformer(
         test_cluster,

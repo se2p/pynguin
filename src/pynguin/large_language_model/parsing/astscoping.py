@@ -48,14 +48,15 @@ class VariableReferenceVisitor:
         return visitor(node)
 
     def generic_visit(self, node):  # noqa: C901
-        """Visits everything, copying the node `node`, except that `self._operator`
+        """Visits everything, copying the node `node`, except that `self._vr_operator`
         is applied to any children that are VariableReferences.
 
         Args:
             node: the ast.AST node to visit
 
         Returns:
-            a copy of the node, with `self._operator` applied to all VariableReferences
+            a copy of the node, with `self._vr_operator` applied
+            to all VariableReferences
         """
         if isinstance(node, vr.VariableReference):
             return self._vr_operator(node)
@@ -367,7 +368,6 @@ class VariableRefAST:
 
     def structural_eq(  # noqa:C901
         self,
-        other: "VariableRefAST",
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
         """Compares whether the two AST nodes are equal w.r.t. memo...
