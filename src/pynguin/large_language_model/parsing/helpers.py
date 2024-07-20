@@ -9,7 +9,9 @@ import ast
 
 
 def _count_all_statements(node) -> int:
-    """Counts the number of statements in node and all blocks, not including `node`
+    """Counts statements.
+
+    Counts the number of statements in node and all blocks, not including `node`
 
     Args:
         node: node to count statements for.
@@ -32,7 +34,7 @@ def _count_all_statements(node) -> int:
 
 
 def key_in_dict(value, d):
-    """Turns out that `True in {1: 2}` returns True! Let's get rid of that...
+    """Turns out that `True in {1: 2}` returns True!
 
     Args:
         value: a key
@@ -96,9 +98,10 @@ def has_call(node: ast.AST):
 
 
 def is_expr_or_stmt(node: ast.AST):
-    """Whether node is an expression or statement, i.e. whether
-    it potentially has useful children to recurse into.
-    this excludes constants like ast.Load, ast.Store.
+    """Whether node is an expression or statement.
+
+     i.e. whether it potentially has useful children to recurse into.
+     this excludes constants like ast.Load, ast.Store.
 
     Args:
         node: an ast Node

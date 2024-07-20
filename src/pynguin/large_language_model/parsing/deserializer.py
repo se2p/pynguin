@@ -41,9 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 class StatementDeserializer:
-    """All the utilities to deserialize statements represented as AST nodes
-    into TestCase objects.
-    """
+    """All the utilities to deserialize statements."""
 
     def __init__(  # noqa: D107
         self, test_cluster: TestCluster, *, uninterpreted_statements=False
@@ -202,8 +200,7 @@ class StatementDeserializer:
         call_keywords: list[ast.keyword],
         gen_callable: GenericCallableAccessibleObject,
     ) -> dict[str, vr.VariableReference] | None:
-        """Takes the arguments of an ast.Call node and returns the variable
-        references of the corresponding statements.
+        """Creates variable reference from call args.
 
         Args:
             call_args: the positional arguments
@@ -330,8 +327,10 @@ class StatementDeserializer:
     def create_stmt_from_call(
         self, call: ast.Call
     ) -> stmt.VariableCreatingStatement | None:
-        """Creates the corresponding statement from an ast.call. Depending on the call,
-        this can be a GenericConstructor, GenericMethod or GenericFunction statement.
+        """Creates the corresponding statement from an ast.call.
+
+        Depending on the call, this can be a GenericConstructor, GenericMethod
+        or GenericFunction statement.
 
         Args:
             call: the ast.Call node
@@ -348,23 +347,27 @@ class StatementDeserializer:
     def find_gen_callable(  # noqa: C901
         self, call: ast.Call
     ) -> GenericConstructor | GenericMethod | GenericFunction | None:
-        """Traverses the accessible objects under test and returns the one matching
-        with the ast.call object. Unfortunately, there is no possibility to clearly
-        determine if the ast.call object is a constructor, method or function. Hence,
-        the looping over all accessible objects is unavoidable. Then, by the name of
-        the ast.call and by the owner (functions do not have one, constructors and
-        methods have), it is possible to decide which accessible object to choose.
-        This should also be unique, because the name of a function should be unique in
-        a module. The name of a method should be unique inside one class. If two
-        classes in the same module have a method with an equal name, the right method
-        can be determined by the type of the object that is calling the method. This
-        object has the type of the class of which the method is called. To determine
-        between function names and method names, another thing needs to be considered.
-        If a method is called, it is called on an object. This object must have been
-        created before the function is called on that object. Thus, this object must
-        have been initialized before and have a variable reference in the ref_dict
-        where all created variable references are stored. So, by checking, if a
-        reference is found, it can be decided if it is a function or a method.
+        """Traverses the accessible objects under test.
+
+        Returns the one matching with the ast.call object. Unfortunately,
+        there is no possibility to clearly determine if the ast.call object
+        is a constructor, method or function. Hence, the looping over
+        all accessible objects is unavoidable. Then, by the name of the ast.call
+         and by the owner (functions do not have one, constructors and methods have),
+        it is possible to decide which accessible object to choose.
+
+        This should also be unique, because the name of a function should
+        be unique in a module. The name of a method should be unique inside one class.
+        If two classes in the same module have a method with an equal name, the right
+        method can be determined by the type of the object that is calling the method.
+        This object has the type of the class of which the method is called.
+        To determine between function names and method names, another thing
+        needs to be considered. If a method is called, it is called on an object.
+        This object must have been created before the function is called on
+        that object. Thus, this object must have been initialized before and have
+        a variable reference in the ref_dict where all created variable
+        references are stored. So, by checking, if a reference is found,
+         it can be decided if it is a function or a method.
 
         Args:
             call: the ast.Call node
@@ -405,8 +408,9 @@ class StatementDeserializer:
     def assemble_stmt_from_gen_callable(
         self, gen_callable: GenericCallableAccessibleObject, call: ast.Call
     ) -> stmt.ParametrizedStatement | None:
-        """Takes a generic callable and assembles the corresponding
-        parametrized statement from it.
+        """Takes a generic callable.
+
+        Also assembles the corresponding parametrized statement from it.
 
         Args:
             gen_callable: the corresponding callable of the cluster
@@ -455,6 +459,7 @@ class StatementDeserializer:
         self, coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple
     ) -> stmt.VariableCreatingStatement | None:
         """Creates the corresponding statement from an ast.List node.
+
         Lists contain other statements.
 
         Args:
@@ -487,7 +492,9 @@ class StatementDeserializer:
     def create_elements(  # noqa: C901
         self, elements: Any
     ) -> list[vr.VariableReference] | None:
-        """Creates the elements of a collection by calling the corresponding methods
+        """Creates the elements of a collection.
+
+        This is done by calling the corresponding methods
         for creation. This can be recursive.
 
         Args:
@@ -538,8 +545,9 @@ class StatementDeserializer:
         return coll_elems
 
     def get_collection_type(self, coll_elems: list[vr.VariableReference]) -> Any:
-        """Returns the type of collection. If objects of multiple types are in the
-        collection, this function returns None.
+        """Returns the type of collection.
+
+        If objects of multiple types are in the collection, this function returns None.
 
         Args:
             coll_elems: a list of variable references
@@ -591,7 +599,9 @@ class StatementDeserializer:
     def try_generating_specific_function(  # noqa: C901
         self, call: ast.Call
     ) -> stmt.VariableCreatingStatement | None:
-        """Calls to creating a collection (list, set, tuple, dict) via their keywords
+        """Calls to creating a collection.
+
+        The collection could be(list, set, tuple, dict) via their keywords
         and not via literal syntax are considered as ast.Call statements. But for these
         calls, no accessible object under test is in the test_cluster. To parse them
         anyway, these method transforms them to the corresponding ast statement, for
@@ -658,7 +668,9 @@ class StatementDeserializer:
 
 
 class AstToTestCaseTransformer(ast.NodeVisitor):
-    """An AST NodeVisitor that tries to convert an AST into our internal
+    """An AST NodeVisitor.
+
+    It tries to convert an AST into our internal
     test case representation.
     """
 
@@ -725,6 +737,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     @property
     def testcases(self) -> list[dtc.DefaultTestCase]:
         """Provides the testcases that could be generated from the given AST.
+
         It is possible that not every aspect of the AST could be transformed
         to our internal representation.
 
@@ -735,9 +748,10 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
 
 class ASTAssignStatement(VariableCreatingStatement, ABC):
-    """A statement creating a variable on the LHS that has
-    an uninterpreted AST node as its RHS. We cannot assure that
-    these statements execute successfully.
+    """A statement creating a variable on the LHS.
+
+    An LHS that has an uninterpreted AST node as its RHS.
+    We cannot assure that these statements execute successfully.
     """
 
     def __init__(

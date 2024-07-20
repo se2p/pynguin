@@ -4,8 +4,10 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""Modified python AST that contains Pynguin VariableReferences
-in place of variable names, used to support uninterpreted statements.
+"""Modified python AST that contains Pynguin VariableReferences.
+
+VariableReferences In place of variable names, used to support
+uninterpreted statements.
 """
 import ast
 import copy
@@ -19,8 +21,9 @@ from pynguin.utils import randomness
 
 
 class VariableReferenceVisitor:
-    """A class which visits an ast and returns a copied ast, with an operation
-    applied to all the instances of vr.VariableReferences.
+    """A class which visits an ast and returns a copied ast.
+
+    With an operation applied to all the instances of vr.VariableReferences.
     """
 
     def __init__(self, *, copy: bool, operation: Callable[[vr.VariableReference], Any]):
@@ -35,7 +38,7 @@ class VariableReferenceVisitor:
         self._vr_operator = operation
 
     def visit(self, node):
-        """Delegate to the appropriate visitor method, or generic_visit
+        """Delegate to the appropriate visitor method, or generic_visit.
 
         Args:
             node: the ast.AST node to visit
@@ -48,8 +51,10 @@ class VariableReferenceVisitor:
         return visitor(node)
 
     def generic_visit(self, node):  # noqa: C901
-        """Visits everything, copying the node `node`, except that `self._vr_operator`
-        is applied to any children that are VariableReferences.
+        """Visits everything, copying the node `node`.
+
+        Except that `self._vr_operator` is applied to any children
+        that are VariableReferences.
 
         Args:
             node: the ast.AST node to visit
@@ -100,8 +105,9 @@ class VariableReferenceVisitor:
 
 
 class FreeVariableOperator(VariableReferenceVisitor):
-    """A class which visits an ast and returns a copied ast, with an operation
-    applied to all the free variables
+    """A class which visits an ast and returns a copied ast.
+
+    With an operation applied to all the free variables
     """
 
     def __init__(self, operation: Callable[[ast.Name], Any]):  # noqa: D107
@@ -265,8 +271,9 @@ def operate_on_variable_references(
 def copy_and_operate_on_variable_references(
     node: ast.AST, operation: Callable[[vr.VariableReference], Any]
 ) -> ast.AST:
-    """Visits `node` and applies an operation on all the VariableReferences in `node`,
-    replacing any VariableReference v that is a free variable with the result of
+    """Visits `node` and applies an operation on all the VariableReferences in `node`.
+
+    Replacing any VariableReference v that is a free variable with the result of
     operation(v)
 
     Args:
@@ -282,8 +289,9 @@ def copy_and_operate_on_variable_references(
 def operate_on_free_variables(
     node: ast.AST, operation: Callable[[ast.Name], Any]
 ) -> ast.AST:
-    """Visits `node` and applies an operation on all the free variables in `node`,
-    replacing any `ast.Name` node n that is a free variable with the result of
+    """Visits `node` and applies an operation on all the free variables in `node`.
+
+    Replacing any `ast.Name` node n that is a free variable with the result of
     operation(n)
 
     Args:
@@ -297,8 +305,9 @@ def operate_on_free_variables(
 
 
 def _replace_with_var_refs(node: ast.AST, ref_dict: dict[str, vr.VariableReference]):
-    """Returns a new ast with all non-bound variables (ast.Name nodes) replaced
-    with the corresponding vr.VariableReference in ref_dict.
+    """Returns a new ast with all non-bound variables (ast.Name nodes).
+
+    Replaced with the corresponding vr.VariableReference in ref_dict.
 
     Args:
         node: the ast to analyze
@@ -322,7 +331,9 @@ def _replace_with_var_refs(node: ast.AST, ref_dict: dict[str, vr.VariableReferen
 
 
 class VariableRefAST:
-    """This class stores an AST, but where name nodes that belong to
+    """This class stores an AST.
+
+    But where name nodes that belong to
     a vr.VariableReference are replaced with that reference.
     """
 
@@ -370,14 +381,13 @@ class VariableRefAST:
         self,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
-        """Compares whether the two AST nodes are equal w.r.t. memo...
+        """Compares whether the two AST nodes are equal w.r.t. memo.
 
         Args:
-            other: the VarRefAST to compare to
             memo: the varref mapping
 
         Returns:
-            whether second is struturally equal to self w.r.t. memo
+            whether second is structurally equal to self w.r.t. memo
         """
 
         def value_equal_helper(first: Any, second: Any) -> bool:
@@ -461,7 +471,7 @@ class VariableRefAST:
         return num_refs
 
     def get_all_var_refs(self) -> set[vr.VariableReference]:
-        """Returns all the variable references that are used in node
+        """Returns all the variable references that are used in node.
 
         Returns:
             all the variable references that appear in self._node
@@ -476,8 +486,9 @@ class VariableRefAST:
         return var_refs
 
     def mutate_var_ref(self, var_refs: set[vr.VariableReference]) -> bool:
-        """Mutate one of the variable references in `self._node` so that it
-        points to some other variable reference in var_refs.
+        """Mutate one of the variable references in `self._node`.
+
+         So that it points to some other variable reference in var_refs.
 
         Args:
             var_refs: the variable references we can choose from
@@ -532,8 +543,9 @@ class VariableRefAST:
     def get_normal_ast(
         self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
     ) -> ast.AST:
-        """Gets a normal ast out of the stored AST in self._node, which has variable
-        references in places of names.
+        """Gets a normal ast out of the stored AST in self._node.
+
+         Which has variable references in places of names.
 
         Args:
             vr_replacer: the function that replaces vr.VariableReferences with ast.ASTs

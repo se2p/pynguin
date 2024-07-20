@@ -965,7 +965,7 @@ class SubjectProperties:
     object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
 
 
-class ExecutionTracer:
+class ExecutionTracer:  # noqa: PLR0904
     """Tracks branch distances and covered statements during execution.
 
     The results are stored in an execution trace.

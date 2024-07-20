@@ -28,6 +28,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.coveragegoals as bg
 import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
+import pynguin.ga.llmtestsuitechromosomefactory as ltscf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
@@ -213,6 +214,14 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             self._logger.info("Using archive seeding")
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
+            )
+        if config.configuration.large_language_model.hybrid_initial_population:
+            return ltscf.LLMTestSuiteChromosomeFactory(
+                test_case_chromosome_factory,
+                strategy.test_factory,
+                strategy.test_cluster,
+                strategy.test_suite_fitness_functions,
+                strategy.test_suite_coverage_functions,
             )
         if config.configuration.algorithm in {
             config.Algorithm.DYNAMOSA,

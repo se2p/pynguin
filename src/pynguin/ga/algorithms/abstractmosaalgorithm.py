@@ -16,6 +16,7 @@ from typing import cast
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
@@ -70,7 +71,12 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             )
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
-                tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
+                if config.configuration.large_language_model.hybrid_initial_population:
+                    tch: tcc.TestCaseChromosome = (
+                        self._chromosome_factory.test_case_chromosome_factory.get_chromosome())
+                else:
+                    tch: tcc.TestCaseChromosome = (
+                        self._chromosome_factory.get_chromosome())
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
@@ -114,39 +120,13 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
 
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
         if config.configuration.large_language_model.hybrid_initial_population:
-            return self._get_hybrid_population()
+            test_suite_chromosome: tsc.TestSuiteChromosome = (
+                self._chromosome_factory.get_chromosome())
+            return test_suite_chromosome.test_case_chromosomes
         population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
             chromosome = self._chromosome_factory.get_chromosome()
             population.append(chromosome)
-        return population
-
-    def _get_hybrid_population(self) -> list[tcc.TestCaseChromosome]:
-        population: list[tcc.TestCaseChromosome] = []
-        number_of_llm_test_cases = int(
-            config.LLMConfiguration.llm_test_case_percentage
-            * config.configuration.search_algorithm.population
-        )
-        llm_test_cases = self._generate_llm_test_cases()
-        total_llm_test_cases = len(llm_test_cases)
-
-        if len(llm_test_cases) > number_of_llm_test_cases:
-            llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
-
-        population.extend(llm_test_cases)
-
-        num_random_cases = config.configuration.search_algorithm.population - len(
-            population
-        )
-        for _ in range(num_random_cases):
-            chromosome = self._chromosome_factory.get_chromosome()
-            population.append(chromosome)
-
-        logging.info(
-            "Merged %d out of %d LLM test cases into the population.",
-            len(llm_test_cases),
-            total_llm_test_cases,
-        )
         return population
 
     def _get_best_individuals(self) -> list[tcc.TestCaseChromosome]:

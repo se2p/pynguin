@@ -18,12 +18,13 @@ from pynguin.large_language_model.parsing.helpers import key_in_dict
 logger = logging.getLogger(__name__)
 
 
-class StmtRewriter(ast.NodeTransformer):
-    """Rewrites a statement as much as possible:
-    - If it can be rewritten as an assignment statement, write it as an assignment
+class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
+    """Rewrites a statement as much as possible.
+
+    - If it can be rewritten as an assignment statement, write it as an assignment.
     - Each child expression of the expression on the statement's RHS is rewritten,
       so it is a variable reference, and a variable assignment is added defining
-      that variable to the correct expression
+      that variable to the correct expression.
 
     Exceptions:
         - Currently don't recurse into function definitions or lambdas.
@@ -58,7 +59,7 @@ class StmtRewriter(ast.NodeTransformer):
         """Get a fresh variable name in format var_X.
 
         Returns:
-            a new variable name
+            a new variable name.
         """
         new_varname = "var_" + str(self.var_counter)
         self.var_counter += 1
@@ -69,14 +70,15 @@ class StmtRewriter(ast.NodeTransformer):
         return new_varname
 
     def replace_with_varname(self, node):
-        """Returns an ast.Name node to replace `node` with, or no-op if `node`
-        is already a name.
+        """Returns an ast.Name node.
+
+         To replace `node` with, or no-op if `node` is already a name.
 
         Args:
-            node: an ast Node
+            node: an ast Node.
 
         Returns:
-            an ast.Name node to replace `node` with
+            an ast.Name node to replace `node` with.
         """
         if isinstance(node, ast.Name):
             return node
@@ -100,7 +102,7 @@ class StmtRewriter(ast.NodeTransformer):
         return ast.Name(varname, ctx=ast.Load())
 
     def enter_new_block_scope(self):
-        """Call when entering a new variable name scope"""
+        """Call when entering a new variable name scope."""
         self.used_varnames_stack.append(self.used_varnames)
         self.var_counter_stack.append(self.var_counter)
         self.constant_dict_stack.append(self.constant_dict)
@@ -109,7 +111,7 @@ class StmtRewriter(ast.NodeTransformer):
         self.constant_dict = {}
 
     def exit_block_scope(self):
-        """Call when exiting a new variable name scope"""
+        """Call when exiting a new variable name scope."""
         self.used_varnames = self.used_varnames_stack.pop()
         self.var_counter = self.var_counter_stack.pop()
         self.constant_dict = self.constant_dict_stack.pop()
@@ -129,7 +131,7 @@ class StmtRewriter(ast.NodeTransformer):
         """Get all the assignment statements that were created while visiting.
 
         Returns:
-            the statements that were added during the visit
+            the statements that were added during the visit.
         """
         return self.stmts_to_add
 
@@ -140,7 +142,7 @@ class StmtRewriter(ast.NodeTransformer):
             block: the body to visit.
 
         Returns:
-            a list of ast statements
+            a list of ast statements.
         """
         self.enter_new_block_scope()
         new_body = []
@@ -154,16 +156,19 @@ class StmtRewriter(ast.NodeTransformer):
         return new_body
 
     def generic_visit(self, node):
-        """Returns an ast node of the same type as `node`, but with any ast.AST
-        nodes replaced with ast.Name nodes. The core difference with the
-        standard generic_visitor is that nodes are replaced with var names
-        after visiting.
+        """A generic visit.
+
+        Returns an ast node of the same type as `node`, but with any ast.AST
+        nodes replaced with ast.Name nodes.
+
+        The core difference with the standard generic_visitor is that nodes
+        are replaced with var names after visiting.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         field_assign = {}
         for field, value in ast.iter_fields(node):
@@ -189,10 +194,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Same as above but only visits subnodes which contain function calls.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         field_assign = {}
         for field, value in ast.iter_fields(node):
@@ -215,14 +220,16 @@ class StmtRewriter(ast.NodeTransformer):
         return node.__class__(**field_assign)
 
     def visit_Call(self, call: ast.Call):  # noqa: N802
-        """When visiting a call expression, allow the callee to be
-        an ast.Attribute of one level, i.e. q.foo()
+        """Visit a call.
+
+        When visiting a call expression, allow the callee to be
+        an ast.Attribute of one level, i.e. q.foo().
 
         Args:
-            call: the call node to visit
+            call: the call node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         func = self.visit(call.func)
         if not isinstance(func, ast.Attribute):
@@ -243,15 +250,15 @@ class StmtRewriter(ast.NodeTransformer):
         return ast.Call(func=func, args=new_args, keywords=new_kwargs)
 
     def visit_Subscript(self, subscript: ast.Subscript):  # noqa: N802
-        """Subscripts can be both element accesses in a list/dict, or a
-        parameterization. Don't separate the LHS into its own variable
-        if it's an attribute reference.
+        """Subscripts can be both element accesses in a list, or a parameterization.
+
+        Don't separate the LHS into its own variable if it's an attribute reference.
 
         Args:
-            subscript: the subscript node to visit
+            subscript: the subscript node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if isinstance(subscript.slice, ast.Tuple):
             new_slice_elts = []
@@ -273,17 +280,18 @@ class StmtRewriter(ast.NodeTransformer):
         return ast.Subscript(value=new_value, slice=new_slice, ctx=subscript.ctx)
 
     def visit_UnaryOp(self, node):  # noqa: N802
-        """Visits unary op"""
+        """Visits unary op."""
         if isinstance(node.operand, ast.Constant):
             return node
         return self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:  # noqa: N802
-        """When visiting attribute nodes, keep repeated dereferences if they are
-        just attribute/field accesses, but separate calls into their own functions.
+        """When visiting attribute nodes, keep repeated dereferences.
 
-        This may get us into trouble with separating out field/property accesses, but
-        it saves us from stripping out modules into variables.
+         If they are just attribute/field accesses, but separate calls
+        into their own functions. This may get us into trouble with separating
+        out field/property accesses, but it saves us from stripping out modules
+        into variables.
 
         E.g.
             typed_ast._ast3.parse(var_0) should not be transformed
@@ -293,7 +301,7 @@ class StmtRewriter(ast.NodeTransformer):
             node: the attribute node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         value_visited = self.visit(node.value)
         if isinstance(node.value, ast.Attribute):
@@ -303,14 +311,16 @@ class StmtRewriter(ast.NodeTransformer):
         return node
 
     def visit_Assign(self, assign: ast.Assign):  # noqa: N802
-        """When visiting an assignment statement, the right hand side expression
-        does not need to become a variable reference.
+        """When visiting an assignment statement.
+
+         The right hand side expression does not need to become
+         a variable reference.
 
         Args:
-            assign: the assign node to visit
+            assign: the assign node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         for target in assign.targets:
             if isinstance(target, ast.Name):
@@ -321,29 +331,31 @@ class StmtRewriter(ast.NodeTransformer):
         )
 
     def visit_AnnAssign(self, node: ast.AnnAssign):  # noqa: N802
-        """Convert annotated assigns as well to the correct format, but stripping
-        their type annotations.
+        """Convert annotated assigns as well to the correct format.
+
+         but stripping their type annotations.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if node.value is not None:
             return self.visit(ast.Assign(targets=[node.target], value=node.value))
         return None
 
     def visit_AugAssign(self, node):  # noqa: N802
-        """Convert augmented assigns to regular assigns. Right now
-        `statement_deserializer` wouldn't support the operations on the RHS anyway,
-        but worth a try.
+        """Convert augmented assigns to regular assigns.
+
+        Right now `statement_deserializer` wouldn't support the
+        operations on the RHS anyway, but worth a try.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         new_aug_assign = self.generic_visit(node)
         rhs_binop = ast.BinOp(
@@ -355,26 +367,27 @@ class StmtRewriter(ast.NodeTransformer):
         """Transform walrus expressions to regular assigns + uses (x := 3).
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         rhs = self.visit(node.value)
         self.stmts_to_add.append(ast.Assign(targets=[node.target], value=rhs))
         return node.target
 
     def visit_Expr(self, expr: ast.Expr):  # noqa: N802
-        """A standalone ast.Expr node is an expression as statement. The value field
-        stores the actual expr object. Again, we don't want to replace that whole
-        expression with a variable reference, instead create an assignment statement
-        to contain the expr.
+        """A standalone ast.Expr node is an expression as statement.
+
+        The value field stores the actual expr object. Again,
+        we don't want to replace that whole expression with a variable reference,
+        instead create an assignment statement to contain the expr.
 
         Args:
-            expr: the node to visit
+            expr: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if isinstance(expr.value, ast.NamedExpr):
             rhs = self.visit(expr.value.value)
@@ -388,15 +401,15 @@ class StmtRewriter(ast.NodeTransformer):
         )
 
     def visit_Assert(self, assert_node: ast.Assert):  # noqa: N802
-        """We want the test's upper level comparators to remain, but extract the
+        """We want the test's upper level comparators to remain.
 
-        sub-expressions into variables when they contain calls.
+        But extract the sub-expressions into variables when they contain calls.
 
         Args:
-            assert_node: the node to visit
+            assert_node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if isinstance(assert_node.test, ast.Call):
             return self.generic_visit(assert_node)
@@ -404,15 +417,15 @@ class StmtRewriter(ast.NodeTransformer):
         return ast.Assert(new_test)
 
     def visit_FunctionDef(self, fn_def_node: ast.FunctionDef):  # noqa: N802
-        """Reformat the test in fn_def_node, so it can be parsed by
+        """Reformat the test in fn_def_node.
 
-        initial population seeding module.
+         so it can be parsed by initial population seeding module.
 
         Args:
-            fn_def_node: the node to visit
+            fn_def_node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if not fn_def_node.name.startswith("test_"):
             return fn_def_node
@@ -428,10 +441,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Transform the class by filtering and taking only test methods.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         if any(
             isinstance(stmt, ast.FunctionDef) and stmt.name.startswith("test_")
@@ -456,10 +469,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a for loop node and transform its body and orelse.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         node.body = self.visit_block_helper(node.body)
         node.orelse = self.visit_block_helper(node.orelse)
@@ -469,10 +482,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a while loop node and transform its body and orelse.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         node.body = self.visit_block_helper(node.body)
         node.orelse = self.visit_block_helper(node.orelse)
@@ -482,10 +495,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an if statement node and transform its body and orelse.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         node.body = self.visit_block_helper(node.body)
         node.orelse = self.visit_block_helper(node.orelse)
@@ -495,10 +508,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a with statement node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         node.body = self.visit_block_helper(node.body)
         return node
@@ -507,10 +520,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a try statement node and transform its body, orelse, and finalbody.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         node.body = self.visit_block_helper(node.body)
         node.orelse = self.visit_block_helper(node.orelse)
@@ -521,10 +534,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a lambda node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         self.enter_new_bound_scope()
         all_args: ast.arguments = node.args
@@ -543,10 +556,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Get the bound variables for a comprehension node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            a list of bound variable names
+            a list of bound variable names.
         """
         return [elem.id for elem in ast.walk(node.target) if isinstance(elem, ast.Name)]
 
@@ -554,10 +567,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Common logic for visiting comprehension generators.
 
         Args:
-            generators: a list of comprehension nodes
+            generators: a list of comprehension nodes.
 
         Returns:
-            a list of transformed comprehension nodes
+            a list of transformed comprehension nodes.
         """
         new_generators = []
         for comp in generators:
@@ -571,10 +584,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a generator expression node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         self.enter_new_bound_scope()
         new_generators = self._visit_generators_common(node.generators)
@@ -587,10 +600,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a list comprehension node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         self.enter_new_bound_scope()
         new_generators = self._visit_generators_common(node.generators)
@@ -603,10 +616,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a set comprehension node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         self.enter_new_bound_scope()
         new_generators = self._visit_generators_common(node.generators)
@@ -619,10 +632,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a dict comprehension node and transform its body.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the transformed node
+            the transformed node.
         """
         self.enter_new_bound_scope()
         new_generators = self._visit_generators_common(node.generators)
@@ -636,10 +649,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an import statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -647,10 +660,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an import from statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -658,10 +671,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an await statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -669,10 +682,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an async function definition node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -680,10 +693,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an async for statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -691,10 +704,10 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit an async with statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
@@ -702,18 +715,18 @@ class StmtRewriter(ast.NodeTransformer):
         """Visit a match statement node.
 
         Args:
-            node: the node to visit
+            node: the node to visit.
 
         Returns:
-            the original node
+            the original node.
         """
         return node
 
 
 def rewrite_tests(source: str) -> dict[str, str]:
-    """Rewrite the tests in `source` so that they can be parsed
+    """Rewrite the tests in `source` so that they can be parsed.
 
-    by AstToTestCaseTransformer.
+    By AstToTestCaseTransformer.
 
     Args:
         source: the source code containing tests.
@@ -732,7 +745,7 @@ def rewrite_tests(source: str) -> dict[str, str]:
 def rewrite_test(fn_def_node: ast.FunctionDef):
     """Reformat the test in fn_def_node.
 
-    so it can be parsed by AstToTestCaseTransformer.
+    So it can be parsed by AstToTestCaseTransformer.
 
     Args:
         fn_def_node: a function definition to rewrite.
@@ -749,10 +762,10 @@ def extract_function_defs(source: str) -> list[ast.FunctionDef]:
     """Extract all FunctionDef nodes from the source code.
 
     Args:
-        source: the source code to extract from
+        source: the source code to extract from.
 
     Returns:
-        a list of function definition nodes
+        a list of function definition nodes.
     """
     source = fixup_result(source)
     module_node: ast.Module = ast.parse(source)
@@ -780,11 +793,11 @@ def process_function_defs(
     """Process the extracted FunctionDef nodes and return rewritten tests.
 
     Args:
-        function_defs: a list of function definition nodes
-        module_node: the module node containing the function definitions
+        function_defs: a list of function definition nodes.
+        module_node: the module node containing the function definitions.
 
     Returns:
-        a dictionary with function names as keys and rewritten tests as values
+        a dictionary with function names as keys and rewritten tests as values.
     """
     return_tests: dict[str, str] = {}
     for function_def in function_defs:
@@ -807,15 +820,16 @@ def process_function_defs(
 
 
 def fixup_result(result):
-    """In case we aborted generation early (due to running out of tokens),
-    remove any lingering syntax errors that prevent parsing by the `ast` module.
+    """In case we aborted generation early (due to running out of tokens).
+
+    Remove any lingering syntax errors that prevent parsing by the `ast` module.
     There may still be syntax errors when actually running the code.
 
     Args:
         result: some natural language source code.
 
     Returns:
-        source code that parses with ast.parse
+        source code that parses with ast.parse.
     """
     try:
         ast.parse(result)

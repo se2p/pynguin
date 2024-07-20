@@ -7,7 +7,7 @@
 
 
 def triangle(x: int, y: int, z: int) -> str:
-    if x == y == z:
+    if x == y == z == 123324234234123123123:
         return "Equilateral triangle"
     if x in {y, z} or y == z:
         return "Isosceles triangle"

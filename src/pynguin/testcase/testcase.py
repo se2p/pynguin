@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from pynguin.utils.orderedset import OrderedSet
 
 
-class TestCase(ABC):
+class TestCase(ABC):  # noqa: PLR0904
     """An abstract base implementation for a test case.
 
     Serves as an interface for test-case implementations

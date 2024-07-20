@@ -1117,7 +1117,7 @@ class InferredSignature:
                 sig_info.partial_type_matches[f"({left!s}, {right!s})"] = str(match)
 
 
-class TypeSystem:
+class TypeSystem:  # noqa: PLR0904
     """Implements Pynguin's internal type system.
 
     Provides a simple inheritance graph relating various classes using their subclass
