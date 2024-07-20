@@ -20,6 +20,7 @@ from pynguin.large_language_model.parsing import deserializer
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
+    from pynguin.testcase.defaulttestcase import DefaultTestCase
     from pynguin.analyses.module import TestCluster
     from pynguin.utils.orderedset import OrderedSet
 
@@ -69,20 +70,19 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
     def get_chromosome(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         chromosome = tsc.TestSuiteChromosome(self._test_case_chromosome_factory)
 
-        test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-
         number_of_llm_test_cases = int(
             config.configuration.large_language_model.llm_test_case_percentage
             * config.configuration.search_algorithm.population
         )
 
-        llm_test_cases = self._generate_llm_test_cases()
+        llm_test_cases: list[tcc.TestCaseChromosome] = self._generate_llm_test_cases()
         total_llm_test_cases = len(llm_test_cases)
 
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
 
-        test_case_chromosomes.extend(llm_test_cases)
+        for test_case in llm_test_cases:
+            chromosome.add_test_case_chromosome(test_case)
 
         self._logger.info(
             "Merged %d out of %d LLM test cases into the population.",
@@ -90,8 +90,8 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             total_llm_test_cases,
         )
 
-        num_random_cases = config.configuration.search_algorithm.population - len(
-            test_case_chromosomes
+        num_random_cases = (
+            config.configuration.search_algorithm.population - total_llm_test_cases
         )
 
         for _ in range(num_random_cases):
@@ -127,8 +127,10 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
                 llm_query_results
             )
 
-            test_cases = deserializer.deserialize_code_to_testcases(
-                llm_test_cases_str, test_cluster=self._test_cluster
+            test_cases: list[DefaultTestCase] = (
+                deserializer.deserialize_code_to_testcases(
+                    llm_test_cases_str, test_cluster=self._test_cluster
+                )
             )
 
             for test_case in test_cases:
