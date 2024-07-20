@@ -73,14 +73,10 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 if config.configuration.large_language_model.hybrid_initial_population:
                     tch = (
-                        self._chromosome_factory  # type: ignore[attr-defined]
-                        .test_case_chromosome_factory
-                        .get_chromosome()
+                        self._chromosome_factory.test_case_chromosome_factory.get_chromosome()  # type: ignore[attr-defined]
                     )
                 else:
-                    tch = (
-                        self._chromosome_factory.get_chromosome()
-                    )
+                    tch = self._chromosome_factory.get_chromosome()
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
