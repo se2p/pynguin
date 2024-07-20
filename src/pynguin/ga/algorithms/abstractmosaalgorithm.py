@@ -73,10 +73,12 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 if config.configuration.large_language_model.hybrid_initial_population:
                     tch: tcc.TestCaseChromosome = (
-                        self._chromosome_factory.test_case_chromosome_factory.get_chromosome())
+                        self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
+                    )
                 else:
                     tch: tcc.TestCaseChromosome = (
-                        self._chromosome_factory.get_chromosome())
+                        self._chromosome_factory.get_chromosome()
+                    )
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
@@ -121,7 +123,8 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
         if config.configuration.large_language_model.hybrid_initial_population:
             test_suite_chromosome: tsc.TestSuiteChromosome = (
-                self._chromosome_factory.get_chromosome())
+                self._chromosome_factory.get_chromosome()
+            )
             return test_suite_chromosome.test_case_chromosomes
         population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
