@@ -19,9 +19,6 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 )
 
 
-logger = logging.getLogger(__name__)
-
-
 @pytest.mark.skipif(
     not is_api_key_present() or not is_api_key_valid(),
     reason="OpenAI API key is not provided in the configuration.",
