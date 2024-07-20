@@ -13,7 +13,6 @@ import logging
 from abc import ABC
 from typing import cast
 
-
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -70,13 +69,16 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
                 * config.configuration.search_algorithm.test_insertion_probability
             )
         ):
+            tch: tcc.TestCaseChromosome
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
                 if config.configuration.large_language_model.hybrid_initial_population:
-                    tch: tcc.TestCaseChromosome = (
-                        self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
+                    tch = (
+                        self._chromosome_factory  # type: ignore[attr-defined]
+                        .test_case_chromosome_factory
+                        .get_chromosome()
                     )
                 else:
-                    tch: tcc.TestCaseChromosome = (
+                    tch = (
                         self._chromosome_factory.get_chromosome()
                     )
             else:
