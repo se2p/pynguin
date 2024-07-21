@@ -35,7 +35,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         test_case_chromosome_factory: cf.ChromosomeFactory,
         test_factory: tf.TestFactory,
         test_cluster: TestCluster,
-        fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction],
+        fitness_functions: OrderedSet[ff.TestCaseFitnessFunction],
         coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction],
     ):
         """Instantiates a new factory.
@@ -98,10 +98,12 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             chromosome.add_test_case_chromosome(
                 self._test_case_chromosome_factory.get_chromosome()
             )
-        for fitness_function in self._fitness_functions:
-            chromosome.add_fitness_function(fitness_function)
-        for coverage_function in self._coverage_functions:
-            chromosome.add_coverage_function(coverage_function)
+        for ch in chromosome.test_case_chromosomes:
+            for fitness_function in self._fitness_functions:
+                ch.add_fitness_function(fitness_function)
+            for coverage_function in self._coverage_functions:
+                ch.add_coverage_function(coverage_function)
+
         return chromosome
 
     def _generate_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:

@@ -220,7 +220,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
                 test_case_chromosome_factory,
                 strategy.test_factory,
                 strategy.test_cluster,
-                strategy.test_suite_fitness_functions,
+                strategy.test_case_fitness_functions,
                 strategy.test_suite_coverage_functions,
             )
         if config.configuration.algorithm in {
