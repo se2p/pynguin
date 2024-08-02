@@ -57,6 +57,10 @@ WORKDIR /pynguin
 COPY --from=build /pynguin-build/dist/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl .
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
     typing-extensions==4.12.2 \
     mypy==1.10.0
