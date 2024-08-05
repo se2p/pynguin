@@ -61,6 +61,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         default=False,
         help="Don't use rich for nicer consoler output.",
     )
+    parser.add_argument(
+        "--log-file",
+        "--log_file",
+        help="Path to an optional log file.",
+        type=Path,
+    )
     parser.add_arguments(config.Configuration, dest="config")
 
     return parser
@@ -117,7 +123,11 @@ def _setup_output_path(output_path: str) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
 
-def _setup_logging(verbosity: int, no_rich: bool) -> Console | None:  # noqa: FBT001
+def _setup_logging(
+    verbosity: int,
+    no_rich: bool,  # noqa: FBT001
+    log_file: Path | None,
+) -> Console | None:
     level = logging.WARNING
     if verbosity == 1:
         level = logging.INFO
@@ -125,8 +135,10 @@ def _setup_logging(verbosity: int, no_rich: bool) -> Console | None:  # noqa: FB
         level = logging.DEBUG
 
     console = None
+    handlers: list[logging.Handler] = []
     if no_rich:
         handler: logging.Handler = logging.StreamHandler()
+        handlers.append(handler)
     else:
         install()
         console = Console(tab_size=4)
@@ -134,13 +146,18 @@ def _setup_logging(verbosity: int, no_rich: bool) -> Console | None:  # noqa: FB
             rich_tracebacks=True, log_time_format="[%X]", console=console
         )
         handler.setFormatter(logging.Formatter("%(message)s"))
+        handlers.append(handler)
+
+    if log_file is not None:
+        file_handler = logging.FileHandler(log_file)
+        handlers.append(file_handler)
 
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s]"
         "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
         datefmt="[%X]",
-        handlers=[handler],
+        handlers=handlers,
     )
     return console
 
@@ -185,7 +202,11 @@ to see why this happens and what you must do to prevent it."""
 
     _setup_output_path(parsed.config.test_case_output.output_path)
 
-    console = _setup_logging(parsed.verbosity, parsed.no_rich)
+    console = _setup_logging(
+        verbosity=parsed.verbosity,
+        no_rich=parsed.no_rich,
+        log_file=parsed.log_file,
+    )
 
     set_configuration(parsed.config)
     if console is not None:
