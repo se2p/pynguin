@@ -145,34 +145,36 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
     def area_under_curve(self) -> float:
         """Provides the area under the curve using trapezoid approximation."""
         assert config.configuration.stopping.maximum_search_time is not None
-        time_stamps_values: list[tuple[int, float]] = list(
-            zip(self._time_stamps, self._values, strict=True)
+        time_stamps_values: list[tuple[float, float]] = list(
+            zip(
+                (x / 1_000_000_000 for x in self._time_stamps),
+                self._values,
+                strict=True,
+            )
         )
-        max_time = config.configuration.stopping.maximum_search_time - 1
-        end_time = max_time * 1_000_000_000
-        if self._time_stamps[-1] < end_time:
-            time_stamps_values.append((end_time, 1.0))
 
-        result = 0.0
+        area = 0.0
         previous_value = 0.0
-        previous_time_stamp = 0
+        previous_time_stamp = 0.0
         for time_stamp, value in time_stamps_values:
-            delta = (time_stamp - previous_time_stamp) / 1_000_000_000
-            summand = (previous_value + value) / 2 * delta
-            assert summand >= 0, "Sum must not be negative"
-            result += summand
+            time_delta = time_stamp - previous_time_stamp
+            current_area = (previous_value + value) / 2 * time_delta
+            assert current_area >= 0, "Area must not be negative"
+            area += current_area
             previous_time_stamp = time_stamp
             previous_value = value
-        return result
+        return area
 
     @property
     def normalised_area_under_curve(self) -> float:
         """Provides the normalised area under curve using trapezoid approximation."""
         assert config.configuration.stopping.maximum_search_time is not None
-        max_value = config.configuration.stopping.maximum_search_time - 1
-        result = self.area_under_curve / max_value
-        assert 0.0 <= result <= 1.0, f"Normalised AuC out of range ({result})!"
-        return result
+        run_time = self._time_stamps[-1] / 1_000_000_000
+        normalised_area = self.area_under_curve / run_time
+        assert (
+            0.0 <= normalised_area <= 1.0
+        ), f"Normalised AuC out of range ({normalised_area})!"
+        return normalised_area
 
     @property
     def area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
