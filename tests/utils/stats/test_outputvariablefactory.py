@@ -156,7 +156,7 @@ def test_get_time_line_value_no_interpolation(sequence_factory):
     ],
 )
 def test_area_under_curve(sequence_factory, values, result):
-    config.configuration.stopping.maximum_search_time = 6
+    config.configuration.stopping.maximum_search_time = 5
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)]
@@ -173,9 +173,21 @@ def test_area_under_curve(sequence_factory, values, result):
     ],
 )
 def test_normalised_area_under_curve(sequence_factory, values, result):
-    config.configuration.stopping.maximum_search_time = 6
+    config.configuration.stopping.maximum_search_time = 5
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
     sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)]
     sequence_factory._values = values
     assert sequence_factory.normalised_area_under_curve == pytest.approx(result)
+
+
+def test_normalised_area_under_curve_outlier(sequence_factory):
+    config.configuration.stopping.maximum_search_time = 5
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)] + [
+        5_500_000_000
+    ]
+    sequence_factory._values = [0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 5 / 6, 6 / 7]
+    expected = 2987 / (840 * 5.5)
+    assert sequence_factory.normalised_area_under_curve == pytest.approx(expected)

@@ -146,31 +146,42 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
         """Provides the area under the curve using trapezoid approximation."""
         assert config.configuration.stopping.maximum_search_time is not None
         time_stamps_values: list[tuple[float, float]] = list(
-            zip(
-                (x / 1_000_000_000 for x in self._time_stamps),
-                self._values,
-                strict=True,
-            )
+            zip(self._time_stamps, self._values, strict=True)
         )
+        run_time = self._time_stamps[-1] / 1_000_000_000
 
         area = 0.0
         previous_value = 0.0
         previous_time_stamp = 0.0
         for time_stamp, value in time_stamps_values:
             time_delta = time_stamp - previous_time_stamp
-            current_area = (previous_value + value) / 2 * time_delta
-            assert current_area >= 0, "Area must not be negative"
+            # Taking the abs should actually not be necessary, because time_delta should
+            # always be >= 0, but to prevent issues with rounding, etc....
+            current_area = abs((previous_value + value) / 2 * time_delta)
             area += current_area
             previous_time_stamp = time_stamp
             previous_value = value
-        return area
+
+        if run_time < config.configuration.stopping.maximum_search_time:
+            area += (
+                config.configuration.stopping.maximum_search_time - run_time
+            ) * self._values[-1]
+
+        return area / 1_000_000_000
 
     @property
     def normalised_area_under_curve(self) -> float:
         """Provides the normalised area under curve using trapezoid approximation."""
         assert config.configuration.stopping.maximum_search_time is not None
         run_time = self._time_stamps[-1] / 1_000_000_000
-        normalised_area = self.area_under_curve / run_time
+        if run_time >= config.configuration.stopping.maximum_search_time:
+            normalised_area = self.area_under_curve / run_time
+        else:
+            last_value = self._values[-1]
+            time_delta = config.configuration.stopping.maximum_search_time - run_time
+            normalised_area = (
+                self.area_under_curve + last_value * time_delta
+            ) / config.configuration.stopping.maximum_search_time
         assert (
             0.0 <= normalised_area <= 1.0
         ), f"Normalised AuC out of range ({normalised_area})!"
