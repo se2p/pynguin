@@ -92,7 +92,7 @@ def test__setup_logging_log_file(tmp_path: Path):
     importlib.reload(logging)
     _setup_logging(verbosity=1, no_rich=False, log_file=log_file)
     logger = logging.getLogger("")
-    assert len(logger.handlers) == 2
+    assert len(logger.handlers) == 1
     logger.info("Test entry")
     assert re.match(
         r"\[[0-9]{2}:[0-9]{2}:[0-9]{2}\]\s\[INFO\]\(.+:"

@@ -129,16 +129,17 @@ def _setup_logging(
     log_file: Path | None,
 ) -> Console | None:
     level = logging.WARNING
+    if log_file is not None:
+        level = logging.INFO
     if verbosity == 1:
         level = logging.INFO
     if verbosity >= 2:
         level = logging.DEBUG
 
     console = None
-    handlers: list[logging.Handler] = []
+    handler: logging.Handler
     if no_rich:
-        handler: logging.Handler = logging.StreamHandler()
-        handlers.append(handler)
+        handler = logging.StreamHandler()
     else:
         install()
         console = Console(tab_size=4)
@@ -146,18 +147,16 @@ def _setup_logging(
             rich_tracebacks=True, log_time_format="[%X]", console=console
         )
         handler.setFormatter(logging.Formatter("%(message)s"))
-        handlers.append(handler)
 
     if log_file is not None:
-        file_handler = logging.FileHandler(log_file)
-        handlers.append(file_handler)
+        handler = logging.FileHandler(log_file)
 
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s]"
         "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
         datefmt="[%X]",
-        handlers=handlers,
+        handlers=[handler],
     )
     return console
 
