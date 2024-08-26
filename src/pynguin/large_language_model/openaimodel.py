@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: MIT
 #
 """This module generates unit tests for a given module using OpenAI's language model."""
+import importlib
+import inspect
 import logging
 import pathlib
 import re
@@ -16,6 +18,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat import ChatCompletionUserMessageParam
 
 import pynguin.configuration as config
+from pynguin.analyses.module import import_module
 
 from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
@@ -48,8 +51,9 @@ def get_module_source_code() -> str:
     Raises:
         FileNotFoundError: If the module file is not found.
     """
-    module_path = get_module_path()
-    return module_path.read_text()
+    module = import_module(config.configuration.module_name)
+    source_code = inspect.getsource(module)
+    return source_code
 
 
 def is_api_key_present() -> bool:
