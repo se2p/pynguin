@@ -7,6 +7,8 @@
 """Provides a Large Language Model (LLM) assertion generator."""
 
 import logging
+import re
+
 import pynguin.ga.chromosomevisitor as cv
 from pynguin.assertion.assertion import (
     ObjectAssertion,
@@ -28,16 +30,30 @@ from pynguin.utils.orderedset import OrderedSet
 _LOGGER = logging.getLogger(__name__)
 
 
-def indent_assertions(assertions_str: str) -> str:
-    """Indent each line of the given assertions string.
+def extract_assertions(input_str: str) -> list[str]:
+    """Extract assertions from the input string.
 
     Args:
-        assertions_str (str): The string containing assertions.
+        input_str (str): The input string containing multiple lines,
+        some of which may be assertions.
+
+    Returns:
+        list[str]: A list of strings, each containing an extracted assertion.
+    """
+    # Use regex to find all lines starting with 'assert' (ignoring leading whitespace)
+    return re.findall(r"^\s*assert.*", input_str, flags=re.MULTILINE)
+
+
+def indent_assertions(assertions_list: list[str]) -> str:
+    """Indent each line of the given assertions list.
+
+    Args:
+        assertions_list (list[str]): The list containing assertion strings.
 
     Returns:
         str: The indented assertions string.
     """
-    return "\n".join(["    " + line.strip() for line in assertions_str.split("\n")])
+    return "\n".join("    " + assertion.strip() for assertion in assertions_list)
 
 
 def copy_test_case_references(  # noqa: C901
@@ -131,7 +147,7 @@ def copy_test_case_references(  # noqa: C901
 
 
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
-    """A simple assertion generator using a Large Language Model (LLM).
+    """An assertion generator using a Large Language Model (LLM).
 
     This class generates regression assertions for test cases using an LLM.
     """
@@ -173,12 +189,14 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         for test_case in test_cases:  # noqa: PLR1702
             test_case_source_code = unparse_test_case(test_case)
             if test_case_source_code is not None:
-                assertions: str | None = self._model.generate_assertions_for_test_case(
+                python_code: str | None = self._model.generate_assertions_for_test_case(
                     test_case_source_code
                 )
-                if assertions is not None:
+                if python_code is not None:
+                    extracted_assertions = extract_assertions(python_code)
+                    indented_assertions = indent_assertions(extracted_assertions)
                     new_test_case_source_code = (
-                        test_case_source_code + indent_assertions(assertions)
+                        test_case_source_code + "\n" + indented_assertions
                     )
                     deserialized_test_cases = deserialize_code_to_testcases(
                         test_file_contents=new_test_case_source_code,
