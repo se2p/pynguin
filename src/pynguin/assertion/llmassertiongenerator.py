@@ -70,7 +70,6 @@ def copy_test_case_references(  # noqa: C901
     for target_statement in target.statements:
         original_statement = original.statements[target_statement.get_position()]
 
-        # Handle ret_val replacement
         if hasattr(target_statement, "ret_val") and hasattr(
             original_statement, "ret_val"
         ):
@@ -79,7 +78,6 @@ def copy_test_case_references(  # noqa: C901
             refs_replacement_dict[target_ret_val] = original_ret_val
             target_statement.ret_val = original_ret_val
 
-        # Handle callee replacement
         if hasattr(target_statement, "callee") and hasattr(
             original_statement, "callee"
         ):
@@ -93,7 +91,6 @@ def copy_test_case_references(  # noqa: C901
                 refs_replacement_dict[target_callee] = original_callee
                 target_statement.callee = original_callee
 
-        # Handle args replacement
         if hasattr(target_statement, "args") and hasattr(original_statement, "args"):
             for arg_key, target_arg_value in target_statement.args.items():
                 original_arg_value = original_statement.args.get(arg_key)
@@ -107,7 +104,6 @@ def copy_test_case_references(  # noqa: C901
                     refs_replacement_dict[target_arg_value] = original_arg_value
                     target_statement.args[arg_key] = original_arg_value
 
-        # Handle assertions
         if hasattr(target_statement, "assertions"):
             new_assertions: OrderedSet = OrderedSet()
             for target_assertion in target_statement.assertions:

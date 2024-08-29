@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pynguin.configuration as config
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
 import pynguin.testcase.statement as statmt
@@ -17,7 +18,6 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 
 from pynguin.testcase.testcasevisitor import TestCaseVisitor
-
 
 if TYPE_CHECKING:
     from ast import stmt
@@ -69,7 +69,13 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             ):
                 # If a statement causes an exception and defines a new name, we don't
                 # actually want to create that name, as it will not be stored anyway.
-                store_call_return = True
+                if (
+                    config.configuration.test_case_output.assertion_generation
+                    is config.AssertionGenerator.LLM
+                ):
+                    store_call_return = True
+                else:
+                    store_call_return = False
             statement_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases, variables, store_call_return=store_call_return
             )
