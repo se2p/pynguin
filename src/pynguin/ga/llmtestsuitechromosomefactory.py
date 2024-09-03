@@ -17,6 +17,8 @@ import pynguin.testcase.testfactory as tf
 import pynguin.ga.testcasechromosome as tcc
 from pynguin.large_language_model.openaimodel import OpenAIModel
 from pynguin.large_language_model.parsing import deserializer
+import pynguin.utils.statistics.statistics as stat
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
@@ -79,6 +81,10 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         llm_test_cases = self._generate_llm_test_cases()
         total_llm_test_cases = len(llm_test_cases)
 
+        stat.track_output_variable(
+            RuntimeVariable.TotalLTCs, total_llm_test_cases
+        )
+
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
 
@@ -122,8 +128,15 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             model.llm_calls_counter,
         )
         self._logger.info("Total LLM call time is %s seconds", model.llm_calls_timer)
+
+        stat.track_output_variable(
+            RuntimeVariable.TotalLLMCalls, model.llm_calls_counter
+        )
+        stat.track_output_variable(
+            RuntimeVariable.TotalLLMCallTime, model.llm_calls_timer
+        )
+
         if llm_query_results is not None:
-            print(llm_query_results)
             llm_test_cases_str = model.extract_test_cases_from_llm_output(
                 llm_query_results
             )
@@ -131,8 +144,6 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             test_cases = deserializer.deserialize_code_to_testcases(
                 llm_test_cases_str, test_cluster=self._test_cluster
             )
-
-            print(test_cases)
 
             for test_case in test_cases:
                 test_case_chromosome = tcc.TestCaseChromosome(

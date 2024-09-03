@@ -181,5 +181,14 @@ class RuntimeVariable(str, enum.Enum):
     # they do not increase the resulting checked coverage
     DeletedAssertions = "DeletedAssertions"
 
+    # Number of total LLM calls
+    TotalLLMCalls = "TotalLLMCalls"
+
+    # Number of seconds LLM calls took
+    TotalLLMCallTime = "TotalLLMCallTime"
+
+    # Total of LLM test cases tha are merged into the population
+    TotalLTCs = "TotalLTCs"
+
     def __repr__(self):
         return f"{self.name}"
