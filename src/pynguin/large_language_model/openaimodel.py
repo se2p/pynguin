@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: MIT
 #
 """This module generates unit tests for a given module using OpenAI's language model."""
-import importlib
 import inspect
 import logging
 import pathlib
@@ -52,8 +51,7 @@ def get_module_source_code() -> str:
         FileNotFoundError: If the module file is not found.
     """
     module = import_module(config.configuration.module_name)
-    source_code = inspect.getsource(module)
-    return source_code
+    return inspect.getsource(module)
 
 
 def is_api_key_present() -> bool:

@@ -81,9 +81,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         llm_test_cases = self._generate_llm_test_cases()
         total_llm_test_cases = len(llm_test_cases)
 
-        stat.track_output_variable(
-            RuntimeVariable.TotalLTCs, total_llm_test_cases
-        )
+        stat.track_output_variable(RuntimeVariable.TotalLTCs, total_llm_test_cases)
 
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
