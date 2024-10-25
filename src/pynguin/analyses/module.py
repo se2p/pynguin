@@ -591,7 +591,8 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
         # Dump the captured type information to types.json in the reports directory
         types_json = (
-            Path(config.configuration.statistics_output.report_dir) / "types.json"
+            Path(config.configuration.statistics_output.report_dir) /
+            f"{config.configuration.module_name.split('.')[-1]}_result.json"
         )
         types_json.write_text(
             provide_json(
