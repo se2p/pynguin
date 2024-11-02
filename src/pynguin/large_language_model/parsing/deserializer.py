@@ -12,8 +12,10 @@ import inspect
 import logging
 
 from abc import ABC
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Callable
 from typing import cast
+import pynguin.utils.generic.genericaccessibleobject as gao
+
 
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testcase as tc
@@ -24,7 +26,7 @@ from pynguin.large_language_model.parsing import astscoping
 from pynguin.large_language_model.parsing.helpers import _count_all_statements
 from pynguin.testcase import statement as stmt
 from pynguin.testcase import variablereference as vr
-from pynguin.testcase.statement import VariableCreatingStatement
+from pynguin.testcase.statement import VariableCreatingStatement, Statement, StatementVisitor
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -44,12 +46,11 @@ class StatementDeserializer:
     """All the utilities to deserialize statements."""
 
     def __init__(  # noqa: D107
-        self, test_cluster: TestCluster, *, uninterpreted_statements=False
+        self, test_cluster: TestCluster
     ):
         self._test_cluster = test_cluster
         self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
-        self._uninterpreted_statements = uninterpreted_statements
 
     def get_test_case(self) -> dtc.DefaultTestCase:
         """Returns the parsed testcase.
@@ -123,13 +124,8 @@ class StatementDeserializer:
             new_stmt = self.create_stmt_from_call(value)
         elif isinstance(value, ast.List | ast.Set | ast.Dict | ast.Tuple):
             new_stmt = self.create_stmt_from_collection(value)
-        elif self._uninterpreted_statements:
-            new_stmt = self.create_ast_assign_stmt(value)
         else:
-            logger.debug(
-                "Assign statement could not be parsed. (%s)", ast.unparse(assign)
-            )
-            new_stmt = None
+            new_stmt = self.create_ast_assign_stmt(value)
         if new_stmt is None:
             return None
         ref_id = str(assign.targets[0].id)
@@ -624,7 +620,7 @@ class StatementDeserializer:
             __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
         )
 
-        if self._uninterpreted_statements and func_id in builtins_dict:
+        if func_id in builtins_dict:
             return self.create_ast_assign_stmt(call)
 
         if func_id == "set":
@@ -679,10 +675,9 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         test_cluster: TestCluster,
         *,
         create_assertions: bool,
-        uninterpreted_statements: bool = False,
     ):
         self._deserializer = StatementDeserializer(
-            test_cluster, uninterpreted_statements=uninterpreted_statements
+            test_cluster
         )
         self._current_parsable: bool = True
         self._testcases: list[dtc.DefaultTestCase] = []
@@ -748,11 +743,9 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
 
 class ASTAssignStatement(VariableCreatingStatement, ABC):
-    """A statement creating a variable on the LHS.
-
-    An LHS that has an uninterpreted AST node as its RHS.
-    We cannot assure that these statements execute successfully.
-    """
+    """A statement creating a variable on the LHS that has
+    an uninterpreted AST node as its RHS. We cannot assure that
+    these statements execute successfully."""
 
     def __init__(
         self,
@@ -779,19 +772,79 @@ class ASTAssignStatement(VariableCreatingStatement, ABC):
                 f"Tried to create an ASTAssignStatement with a RHS of type {type(rhs)}"
             )
 
+    def clone(
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> Statement:
+        new_rhs = self._rhs.clone(memo)
+        return ASTAssignStatement(test_case, new_rhs, {})
+
+    def accept(self, visitor: StatementVisitor) -> None:
+        visitor.visit_assignment_statement(self)
+
+    def accessible_object(self) -> gao.GenericAccessibleObject | None:
+        return None
+
+    def mutate(self) -> bool:
+        return self._rhs.mutate_var_ref(
+            set(self._test_case.get_all_objects(self.get_position()))
+        )
+
+    def get_variable_references(self) -> set[vr.VariableReference]:
+        return self._rhs.get_all_var_refs()
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
+        self._rhs = self._rhs.replace_var_ref(old, new)
+
+    def structural_hash(self, memo) -> int:
+        return (
+            31
+            + 17 * self.ret_val.structural_hash(memo)
+            + 17 * hash(self._rhs.structural_hash())
+        )
+
+    def structural_eq(
+        self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, ASTAssignStatement):
+            return False
+        return self.ret_val.structural_eq(
+            other.ret_val, memo
+        ) and self._rhs.structural_eq(other._rhs)
+
+    def get_rhs_as_normal_ast(
+        self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
+    ) -> ast.AST:
+        """Gets a normal ast out of self._rhs.
+
+        Args:
+            vr_replacer: the function that replaces vr.VariableReferences with ast.ASTs
+
+        Returns:
+            an AST with all VariableReferences replaced by ast.Names or ast.Attributes,
+            as mandated by vr_replacer.
+        """
+        return self._rhs.get_normal_ast(vr_replacer)
+
+    def rhs_is_call(self):
+        """Returns true if _rhs is just a call
+
+        Returns:
+            true if the uninterpreted statement is just a call
+        """
+        return self._rhs.is_call()
+
 
 def deserialize_code_to_testcases(
     test_file_contents: str,
-    test_cluster: TestCluster,
-    *,
-    use_uninterpreted_statements: bool = False,
+    test_cluster: TestCluster
 ) -> list[DefaultTestCase]:
     """Extracts as many TestCase objects as possible from the given code.
 
     Args:
         test_file_contents: code containing tests
         test_cluster: the TestCluster to deserialize with
-        use_uninterpreted_statements: whether to allow ASTAssignStatements
 
     Returns:
         extracted test cases
@@ -799,8 +852,7 @@ def deserialize_code_to_testcases(
     transformer = AstToTestCaseTransformer(
         test_cluster,
         create_assertions=config.configuration.test_case_output.assertion_generation
-        != config.AssertionGenerator.NONE,
-        uninterpreted_statements=use_uninterpreted_statements,
+                          != config.AssertionGenerator.NONE,
     )
     transformer.visit(ast.parse(test_file_contents))
     return transformer.testcases
