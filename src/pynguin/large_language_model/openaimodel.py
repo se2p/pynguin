@@ -10,6 +10,7 @@ import logging
 import pathlib
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 import openai
 
@@ -26,8 +27,55 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
 
-
 logger = logging.getLogger(__name__)
+
+
+def save_prompt_info_to_file(prompt_message: str, full_response: str):
+    """
+    Append a prompt and its response, with a timestamp, to a log file.
+
+    Parameters:
+    - prompt_message: The prompt text.
+    - full_response: The response text.
+
+    Logs an error if writing to the file fails.
+    """
+    try:
+        output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / "prompt_info.txt"
+
+        with output_file.open(mode="a", encoding="utf-8") as file:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            file.write(f"==============\nDate and Time: {timestamp}\n==============\n")
+            file.write(f"Prompt:\n{prompt_message}\n")
+            file.write("==============\nFull Response\n==============\n")
+            file.write(full_response + "\n")
+            file.write("==============\n\n")
+    except OSError as error:
+        logging.exception("Error while writing prompt information to file: %s", error)
+
+
+def save_llm_tests_to_file(test_cases: str):
+    """
+    Save extracted test cases to a Python (.py) file.
+
+    Args:
+        test_cases: The test cases to save, formatted as Python code.
+    Raises:
+        OSError: If there is an issue writing to the file, logs the exception.
+    """
+    try:
+        output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_file = output_dir / "generated_llm_tests.py"
+        with output_file.open(mode="w", encoding="utf-8") as file:
+            file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
+            file.write("# Date and time: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+            file.write(test_cases)
+        logging.info("Test cases saved successfully to %s", output_file)
+    except OSError as error:
+        logging.exception("Error while saving LLM-generated test cases to file: %s", error)
 
 
 def get_module_path() -> Path:
@@ -178,6 +226,7 @@ class OpenAIModel:
                 and response_text is not None
             ):
                 self.cache.set(prompt_text, response_text)
+            save_prompt_info_to_file(prompt_text, response_text)
             return response_text
         except openai.OpenAIError as e:
             logger.error("An error occurred while querying the OpenAI API: %s", e)
@@ -231,5 +280,7 @@ class OpenAIModel:
         python_code = self.extract_python_code_from_llm_output(llm_output)
         logger.debug("Extracted Python code: %s.", python_code)
         generated_tests: dict[str, str] = rewrite_tests(python_code)
-        logger.debug("Rewritten tests: %s.", python_code)
-        return "\n\n".join(generated_tests.values())
+        tests_with_line_breaks = "\n\n".join(generated_tests.values())
+        logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
+        save_llm_tests_to_file(tests_with_line_breaks)
+        return tests_with_line_breaks

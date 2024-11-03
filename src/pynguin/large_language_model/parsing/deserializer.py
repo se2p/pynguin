@@ -886,7 +886,6 @@ def deserialize_code_to_testcases(
     )
     transformer.visit(ast.parse(test_file_contents))
     uninterpreted_statements = transformer.deserializer.uninterpreted_statements
-    logger.info(uninterpreted_statements)
     return (
         transformer.testcases,
         transformer.total_statements,
