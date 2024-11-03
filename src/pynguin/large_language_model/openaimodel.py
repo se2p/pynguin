@@ -143,12 +143,11 @@ class OpenAIModel:
         """
         return self._llm_calls_with_no_python_code
 
-    def query(self, prompt: Prompt, max_tokens: int = 1000) -> str | None:
+    def query(self, prompt: Prompt) -> str | None:
         """Sends a query to the OpenAI API and returns the response.
 
         Args:
             prompt: The prompt object to build the query.
-            max_tokens: The maximum number of tokens to generate in the response.
 
         Returns:
             The response from the OpenAI API, or None if the response is empty.
@@ -170,7 +169,7 @@ class OpenAIModel:
             response = openai.chat.completions.create(
                 model=self._model_name,
                 messages=messages,
-                max_tokens=max_tokens,
+                max_tokens=self._max_query_len,
                 temperature=self._temperature,
             )
             response_text = response.choices[0].message.content
@@ -230,5 +229,7 @@ class OpenAIModel:
             The extracted test cases.
         """
         python_code = self.extract_python_code_from_llm_output(llm_output)
+        logger.debug("Extracted Python code: %s.", python_code)
         generated_tests: dict[str, str] = rewrite_tests(python_code)
+        logger.debug("Rewritten tests: %s.", python_code)
         return "\n\n".join(generated_tests.values())

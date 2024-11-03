@@ -136,6 +136,10 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             RuntimeVariable.TotalLLMCallTime, model.llm_calls_timer
         )
 
+        stat.track_output_variable(
+            RuntimeVariable.TotalCodelessLLMResponses, model.llm_calls_with_no_python_code
+        )
+
         if llm_query_results is not None:
             llm_test_cases_str = model.extract_test_cases_from_llm_output(
                 llm_query_results
