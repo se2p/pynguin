@@ -51,6 +51,16 @@ class StatementDeserializer:
         self._test_cluster = test_cluster
         self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
+        self._uninterpreted_statements = 0
+
+    @property
+    def uninterpreted_statements(self) -> int:
+        """Provides the number of uninterpreted statements.
+
+        Returns:
+            The count of uninterpreted statements.
+        """
+        return self._uninterpreted_statements
 
     def get_test_case(self) -> dtc.DefaultTestCase:
         """Returns the parsed testcase.
@@ -141,6 +151,7 @@ class StatementDeserializer:
             the corresponding ASTAssignStatement.
         """
         try:
+            self._uninterpreted_statements += 1
             return ASTAssignStatement(self._testcase, rhs, self._ref_dict)  # type: ignore[abstract]
         except ValueError:
             return None
@@ -705,8 +716,22 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         self.total_statements += self._current_max_num_statements
         self.total_parsed_statements += self._current_parsed_statements
         current_testcase = self._deserializer.get_test_case()
-        self._testcases.append(current_testcase)
-        logger.debug("Successfully imported %s.", node.name)
+        if self._current_parsable:
+            self._testcases.append(current_testcase)
+            logger.debug("Successfully imported %s.", node.name)
+        else:
+            if (
+                self._current_parsed_statements > 0
+            ):
+                logger.debug(
+                    "Partially parsed %s. Retrieved %s/%s statements.",
+                    node.name,
+                    self._current_parsed_statements,
+                    self._current_max_num_statements,
+                )
+                self._testcases.append(current_testcase)
+            else:
+                logger.debug("Failed to parse %s.", node.name)
 
     def visit_Assign(self, node: ast.Assign) -> Any:  # noqa:N802
         """Visits an assignment node and tries to add it to the current test case.
@@ -718,6 +743,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
             if self._deserializer.add_assign_stmt(node):
                 self._current_parsed_statements += 1
             else:
+                logger.debug("Failed to parse %s.", node)
                 self._current_parsable = False
 
     def visit_Assert(self, node: ast.Assert) -> Any:  # noqa:N802
@@ -740,6 +766,10 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
             The generated testcases.
         """
         return self._testcases
+
+    @property
+    def deserializer(self):
+        return self._deserializer
 
 
 class ASTAssignStatement(VariableCreatingStatement, ABC):
@@ -839,7 +869,7 @@ class ASTAssignStatement(VariableCreatingStatement, ABC):
 def deserialize_code_to_testcases(
     test_file_contents: str,
     test_cluster: TestCluster
-) -> list[DefaultTestCase]:
+) -> tuple[list[dtc.DefaultTestCase], int, int, int]:
     """Extracts as many TestCase objects as possible from the given code.
 
     Args:
@@ -855,4 +885,11 @@ def deserialize_code_to_testcases(
                           != config.AssertionGenerator.NONE,
     )
     transformer.visit(ast.parse(test_file_contents))
-    return transformer.testcases
+    uninterpreted_statements = transformer.deserializer.uninterpreted_statements
+    logger.info(uninterpreted_statements)
+    return (
+        transformer.testcases,
+        transformer.total_statements,
+        transformer.total_parsed_statements,
+        uninterpreted_statements
+    )

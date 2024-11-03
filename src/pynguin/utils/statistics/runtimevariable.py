@@ -190,5 +190,14 @@ class RuntimeVariable(str, enum.Enum):
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
 
+    # Number of parsable statements from LLM output
+    LLMParsableStatements = "LLMParsableStatements"
+
+    # Total number of statements from LLM output
+    LLMTotalStatements = "LLMTotalStatements"
+
+    # Number of uninterpreted statements
+    LLMUninterpretedStatements = "LLMUninterpretedStatements"
+
     def __repr__(self):
         return f"{self.name}"
