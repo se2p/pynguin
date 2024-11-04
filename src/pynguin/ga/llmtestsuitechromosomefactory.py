@@ -133,7 +133,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             RuntimeVariable.TotalLLMCalls, model.llm_calls_counter
         )
         stat.track_output_variable(
-            RuntimeVariable.TotalLLMCallTime, model.llm_calls_timer
+            RuntimeVariable.LLMQueryTime, model.llm_calls_timer
         )
 
         stat.track_output_variable(

@@ -187,8 +187,8 @@ class RuntimeVariable(str, enum.Enum):
     # Number of LLM responses with no python code within them
     TotalCodelessLLMResponses = "TotalCodelessLLMResponses"
 
-    # Number of seconds LLM calls took
-    TotalLLMCallTime = "TotalLLMCallTime"
+    # Number of seconds LLM queries took
+    LLMQueryTime = "LLMQueryTime"
 
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
