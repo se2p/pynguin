@@ -346,7 +346,7 @@ class VariableRefAST:
         """
         self._node = _replace_with_var_refs(node, ref_dict)
 
-    def structural_hash(self):
+    def structural_hash(self,  memo: dict[vr.VariableReference, int]):
         """Compute a structural hash for this object.
 
         Uses structural_hash() for variable references.
@@ -359,7 +359,7 @@ class VariableRefAST:
             if isinstance(value, ast.AST):
                 current_hash += hash_ast_helper(current_hash, value)
             elif isinstance(value, vr.VariableReference):
-                current_hash += 17 * value.structural_hash()  # type: ignore[call-arg]
+                current_hash += 17 * value.structural_hash(memo)
             else:
                 current_hash += 17 * hash(value)
             return current_hash

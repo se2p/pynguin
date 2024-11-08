@@ -262,7 +262,7 @@ class OpenAIModel:
         Raises:
             ValueError: If no Python code block is found in the LLM output.
         """
-        code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
+        code_blocks = re.findall(r"```python([\s\S]+?)(?:```|$)", llm_output)
         if not code_blocks:
             self._llm_calls_with_no_python_code += 1
             return llm_output

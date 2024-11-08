@@ -193,8 +193,8 @@ class RuntimeVariable(str, enum.Enum):
     # Total of LLM test cases tha are merged into the population
     TotalLTCs = "TotalLTCs"
 
-    # Number of parsable statements from LLM output
-    LLMParsableStatements = "LLMParsableStatements"
+    # Number of parsed statements from LLM output
+    LLMTotalParsedStatements = "LLMTotalParsedStatements"
 
     # Total number of statements from LLM output
     LLMTotalStatements = "LLMTotalStatements"

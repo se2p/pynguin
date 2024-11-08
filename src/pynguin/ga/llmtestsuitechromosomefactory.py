@@ -22,7 +22,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
-    from pynguin.testcase.defaulttestcase import DefaultTestCase
     from pynguin.analyses.module import TestCluster
     from pynguin.utils.orderedset import OrderedSet
 
@@ -148,14 +147,14 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             (
                 test_cases,
                 total_statements,
-                parsable_statements,
+                parsed_statements,
                 uninterpreted_statements
             ) = deserializer.deserialize_code_to_testcases(
                 llm_test_cases_str, test_cluster=self._test_cluster
             )
 
             stat.track_output_variable(
-                RuntimeVariable.LLMParsableStatements, parsable_statements
+                RuntimeVariable.LLMTotalParsedStatements, parsed_statements
             )
             stat.track_output_variable(
                 RuntimeVariable.LLMTotalStatements, total_statements

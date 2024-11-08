@@ -11,22 +11,18 @@ import ast
 import inspect
 import logging
 
-from abc import ABC
-from typing import Any, TYPE_CHECKING, Callable
+from typing import Any, TYPE_CHECKING
 from typing import cast
-import pynguin.utils.generic.genericaccessibleobject as gao
-
 
 import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.testcase as tc
-
 from pynguin import configuration as config
+from pynguin.analyses.seeding import get_collection_type
+from pynguin.analyses.typesystem import TupleType, Instance, ProperType
 from pynguin.assertion import assertion as ass
-from pynguin.large_language_model.parsing import astscoping
 from pynguin.large_language_model.parsing.helpers import _count_all_statements
 from pynguin.testcase import statement as stmt
 from pynguin.testcase import variablereference as vr
-from pynguin.testcase.statement import VariableCreatingStatement, Statement, StatementVisitor
+from pynguin.testcase.statement import ASTAssignStatement
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -37,7 +33,6 @@ from pynguin.utils.type_utils import is_assertable
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster
-    from pynguin.testcase.defaulttestcase import DefaultTestCase
 
 logger = logging.getLogger(__name__)
 
@@ -398,7 +393,7 @@ class StatementDeserializer:
 
         for obj in self._test_cluster.accessible_objects_under_test:
             if isinstance(obj, GenericConstructor):
-                owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0]
+                owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0].rstrip(")")
                 if call_name == owner and call_id not in self._ref_dict:
                     return obj
             elif isinstance(obj, GenericMethod):
@@ -484,17 +479,21 @@ class StatementDeserializer:
             values = self.create_elements(coll_node.values)
             if keys is None or values is None:
                 return None
-            coll_elems_type = self.get_collection_type(values)
-            coll_elems = list(zip(keys, values, strict=False))
+            coll_elems_type: ProperType = Instance(
+                self._test_cluster.type_system.to_type_info(dict),
+                (get_collection_type(keys), get_collection_type(values)),
+            )
+            coll_elems = list(zip(keys, values, strict=True))
         else:
             elements = coll_node.elts
             coll_elems = self.create_elements(elements)
             if coll_elems is None:
                 return None
-            coll_elems_type = self.get_collection_type(coll_elems)
-        return self.create_specific_collection_stmt(
+            coll_elems_type = self.get_collection_type(coll_node, coll_elems)
+        a = self.create_specific_collection_stmt(
             coll_node, coll_elems_type, coll_elems
         )
+        return a
 
     def create_elements(  # noqa: C901
         self, elements: Any
@@ -551,25 +550,33 @@ class StatementDeserializer:
                 return None
         return coll_elems
 
-    def get_collection_type(self, coll_elems: list[vr.VariableReference]) -> Any:
+    def get_collection_type(self, coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple, coll_elems: list[vr.VariableReference]) -> Any:
         """Returns the type of collection.
 
         If objects of multiple types are in the collection, this function returns None.
 
         Args:
+            coll_node: the ast node. It has the type of one of the collection types.
             coll_elems: a list of variable references
 
         Returns:
             The type of the collection.
         """
-        if len(coll_elems) == 0:
+        if coll_elems is None:
             return None
-        coll_type = coll_elems[0].type
-        for elem in coll_elems:
-            if elem.type != coll_type:
-                coll_type = None  # type: ignore[assignment]
-                break
-        return coll_type
+        if isinstance(coll_node, ast.Tuple):
+            coll_elems_type = TupleType(tuple(tp.type for tp in coll_elems))
+        elif isinstance(coll_node, ast.List):
+            coll_elems_type = Instance(
+                self._test_cluster.type_system.to_type_info(list),
+                (get_collection_type(coll_elems),),
+            )
+        else:
+            coll_elems_type = Instance(
+                self._test_cluster.type_system.to_type_info(set),
+                (get_collection_type(coll_elems),),
+            )
+        return coll_elems_type
 
     def create_specific_collection_stmt(
         self,
@@ -739,12 +746,11 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         Args:
             node: The assignment node.
         """
-        if self._current_parsable:
-            if self._deserializer.add_assign_stmt(node):
-                self._current_parsed_statements += 1
-            else:
-                logger.debug("Failed to parse %s.", node)
-                self._current_parsable = False
+        if self._deserializer.add_assign_stmt(node):
+            self._current_parsed_statements += 1
+        else:
+            logger.debug("Failed to parse %s.", node)
+            self._current_parsable = False
 
     def visit_Assert(self, node: ast.Assert) -> Any:  # noqa:N802
         """Visits an assert node and tries to add it to the current test case.
@@ -752,7 +758,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         Args:
             node: The assert node.
         """
-        if self._current_parsable and self._create_assertions:
+        if self._create_assertions:
             self._deserializer.add_assert_stmt(node)
 
     @property
@@ -770,100 +776,6 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     @property
     def deserializer(self):
         return self._deserializer
-
-
-class ASTAssignStatement(VariableCreatingStatement, ABC):
-    """A statement creating a variable on the LHS that has
-    an uninterpreted AST node as its RHS. We cannot assure that
-    these statements execute successfully."""
-
-    def __init__(
-        self,
-        test_case: tc.TestCase,
-        rhs: ast.AST | astscoping.VariableRefAST,
-        ref_dict: dict[str, vr.VariableReference],
-    ):
-        """Initializes the ASTAssignStatement.
-
-        Args:
-            test_case: The test case.
-            rhs: The right-hand side as an AST.
-            ref_dict: Dictionary of variable references.
-        """
-        super().__init__(
-            test_case, vr.VariableReference(test_case, None)  # type:ignore[arg-type]
-        )
-        if isinstance(rhs, astscoping.VariableRefAST):
-            self._rhs = rhs
-        elif isinstance(rhs, ast.AST):
-            self._rhs = astscoping.VariableRefAST(rhs, ref_dict)
-        else:
-            raise ValueError(
-                f"Tried to create an ASTAssignStatement with a RHS of type {type(rhs)}"
-            )
-
-    def clone(
-        self,
-        test_case: tc.TestCase,
-        memo: dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
-        new_rhs = self._rhs.clone(memo)
-        return ASTAssignStatement(test_case, new_rhs, {})
-
-    def accept(self, visitor: StatementVisitor) -> None:
-        visitor.visit_assignment_statement(self)
-
-    def accessible_object(self) -> gao.GenericAccessibleObject | None:
-        return None
-
-    def mutate(self) -> bool:
-        return self._rhs.mutate_var_ref(
-            set(self._test_case.get_all_objects(self.get_position()))
-        )
-
-    def get_variable_references(self) -> set[vr.VariableReference]:
-        return self._rhs.get_all_var_refs()
-
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        self._rhs = self._rhs.replace_var_ref(old, new)
-
-    def structural_hash(self, memo) -> int:
-        return (
-            31
-            + 17 * self.ret_val.structural_hash(memo)
-            + 17 * hash(self._rhs.structural_hash())
-        )
-
-    def structural_eq(
-        self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> bool:
-        if not isinstance(other, ASTAssignStatement):
-            return False
-        return self.ret_val.structural_eq(
-            other.ret_val, memo
-        ) and self._rhs.structural_eq(other._rhs)
-
-    def get_rhs_as_normal_ast(
-        self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
-    ) -> ast.AST:
-        """Gets a normal ast out of self._rhs.
-
-        Args:
-            vr_replacer: the function that replaces vr.VariableReferences with ast.ASTs
-
-        Returns:
-            an AST with all VariableReferences replaced by ast.Names or ast.Attributes,
-            as mandated by vr_replacer.
-        """
-        return self._rhs.get_normal_ast(vr_replacer)
-
-    def rhs_is_call(self):
-        """Returns true if _rhs is just a call
-
-        Returns:
-            true if the uninterpreted statement is just a call
-        """
-        return self._rhs.is_call()
 
 
 def deserialize_code_to_testcases(
