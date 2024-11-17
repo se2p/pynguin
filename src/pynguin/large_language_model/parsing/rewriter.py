@@ -9,12 +9,14 @@
 import ast
 import logging
 import re
+
 from typing import Any
 
 from pynguin.large_language_model.parsing.helpers import has_bound_variables
 from pynguin.large_language_model.parsing.helpers import has_call
 from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
 from pynguin.large_language_model.parsing.helpers import key_in_dict
+
 
 logger = logging.getLogger(__name__)
 
@@ -434,7 +436,9 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         if not fn_def_node.name.startswith("test_"):
             return fn_def_node
 
-        fn_def_node.args.args = [arg for arg in fn_def_node.args.args if arg.arg != "self"]
+        fn_def_node.args.args = [
+            arg for arg in fn_def_node.args.args if arg.arg != "self"
+        ]
         # Visit the main body
         new_body = self.visit_block_helper(fn_def_node.body)
         fn_def_node.body = new_body
@@ -741,8 +745,7 @@ def rewrite_tests(source: str) -> dict[str, str]:
     """
     # Sometimes LLM returns function definition with only a comment inside which results in syntax error.
     empty_function_pattern = re.compile(
-        r"^\s*def\s+\w+\s*\(.*\):\s*\n\s*#.*?\n(?:\s*\n)*(?=^\s*def|\Z)",
-        re.MULTILINE
+        r"^\s*def\s+\w+\s*\(.*\):\s*\n\s*#.*?\n(?:\s*\n)*(?=^\s*def|\Z)", re.MULTILINE
     )
     source_without_empty_methods = re.sub(empty_function_pattern, "\n", source)
     source_fixed = fixup_result(source_without_empty_methods)
@@ -781,7 +784,9 @@ class TestClassRewriter(ast.NodeTransformer):
 
         # Transform each test function to replace `self` variables and remove `self` from method calls
         for child_node in node.body:
-            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_"):
+            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith(
+                "test_"
+            ):
                 self.transform_test_function(child_node)
 
         return node
@@ -791,15 +796,20 @@ class TestClassRewriter(ast.NodeTransformer):
         for stmt in set_up_node.body:
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
                 target = stmt.targets[0]
-                if isinstance(target, ast.Attribute) and isinstance(target.value,
-                                                                    ast.Name) and target.value.id == "self":
+                if (
+                    isinstance(target, ast.Attribute)
+                    and isinstance(target.value, ast.Name)
+                    and target.value.id == "self"
+                ):
                     # Map `self.<variable>` to a counter-based variable (e.g., var_0, var_1, etc.)
                     var_name = f"var_{self.counter}"
                     self.var_mapping[target.attr] = var_name
                     self.counter += 1
                     # Create a new assignment with the counter-based variable
                     new_target = ast.Name(id=var_name, ctx=ast.Store())
-                    self.set_up_vars.append(ast.Assign(targets=[new_target], value=stmt.value))
+                    self.set_up_vars.append(
+                        ast.Assign(targets=[new_target], value=stmt.value)
+                    )
 
     def transform_test_function(self, test_func_node: ast.FunctionDef):
         """Replace `self.<variable>` references with `var_<counter>` in test functions and remove `self` from method calls."""
@@ -825,7 +835,12 @@ class TestClassRewriter(ast.NodeTransformer):
         for field, value in ast.iter_fields(node):
             if isinstance(value, list):
                 new_values = [
-                    self.replace_self_references(item) if isinstance(item, ast.AST) else item for item in value
+                    (
+                        self.replace_self_references(item)
+                        if isinstance(item, ast.AST)
+                        else item
+                    )
+                    for item in value
                 ]
                 setattr(node, field, new_values)
             elif isinstance(value, ast.AST):
@@ -847,7 +862,9 @@ def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
     for node in module_node.body:
         if isinstance(node, ast.ClassDef):
             for child_node in node.body:
-                if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_"):
+                if isinstance(
+                    child_node, ast.FunctionDef
+                ) and child_node.name.startswith("test_"):
                     function_defs.append(child_node)
 
     return function_defs

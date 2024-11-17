@@ -11,13 +11,17 @@ import ast
 import inspect
 import logging
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
 import pynguin.testcase.defaulttestcase as dtc
+
 from pynguin import configuration as config
 from pynguin.analyses.seeding import get_collection_type
-from pynguin.analyses.typesystem import TupleType, Instance, ProperType
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
 from pynguin.assertion import assertion as ass
 from pynguin.large_language_model.parsing.helpers import _count_all_statements
 from pynguin.testcase import statement as stmt
@@ -31,6 +35,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
 
+
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster
 
@@ -40,9 +45,7 @@ logger = logging.getLogger(__name__)
 class StatementDeserializer:
     """All the utilities to deserialize statements."""
 
-    def __init__(  # noqa: D107
-        self, test_cluster: TestCluster
-    ):
+    def __init__(self, test_cluster: TestCluster):  # noqa: D107
         self._test_cluster = test_cluster
         self._ref_dict: dict[str, vr.VariableReference] = {}
         self._testcase = dtc.DefaultTestCase(self._test_cluster)
@@ -147,7 +150,7 @@ class StatementDeserializer:
         """
         try:
             self._uninterpreted_statements += 1
-            return ASTAssignStatement(self._testcase, rhs, self._ref_dict)  # type: ignore[abstract]
+            return ASTAssignStatement(self._testcase, rhs, self._ref_dict)
         except ValueError:
             return None
 
@@ -393,7 +396,9 @@ class StatementDeserializer:
 
         for obj in self._test_cluster.accessible_objects_under_test:
             if isinstance(obj, GenericConstructor):
-                owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0].rstrip(")")
+                owner = (
+                    str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0].rstrip(")")
+                )
                 if call_name == owner and call_id not in self._ref_dict:
                     return obj
             elif isinstance(obj, GenericMethod):
@@ -490,9 +495,7 @@ class StatementDeserializer:
             if coll_elems is None:
                 return None
             coll_elems_type = self.get_collection_type(coll_node, coll_elems)
-        a = self.create_specific_collection_stmt(
-            coll_node, coll_elems_type, coll_elems
-        )
+        a = self.create_specific_collection_stmt(coll_node, coll_elems_type, coll_elems)
         return a
 
     def create_elements(  # noqa: C901
@@ -550,7 +553,11 @@ class StatementDeserializer:
                 return None
         return coll_elems
 
-    def get_collection_type(self, coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple, coll_elems: list[vr.VariableReference]) -> Any:
+    def get_collection_type(
+        self,
+        coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
+        coll_elems: list[vr.VariableReference],
+    ) -> Any:
         """Returns the type of collection.
 
         If objects of multiple types are in the collection, this function returns None.
@@ -567,12 +574,12 @@ class StatementDeserializer:
         if isinstance(coll_node, ast.Tuple):
             coll_elems_type = TupleType(tuple(tp.type for tp in coll_elems))
         elif isinstance(coll_node, ast.List):
-            coll_elems_type = Instance(
+            coll_elems_type = Instance(  # type:ignore[assignment]
                 self._test_cluster.type_system.to_type_info(list),
                 (get_collection_type(coll_elems),),
             )
         else:
-            coll_elems_type = Instance(
+            coll_elems_type = Instance(  # type:ignore[assignment]
                 self._test_cluster.type_system.to_type_info(set),
                 (get_collection_type(coll_elems),),
             )
@@ -694,9 +701,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         *,
         create_assertions: bool,
     ):
-        self._deserializer = StatementDeserializer(
-            test_cluster
-        )
+        self._deserializer = StatementDeserializer(test_cluster)
         self._current_parsable: bool = True
         self._testcases: list[dtc.DefaultTestCase] = []
         self._number_found_testcases: int = 0
@@ -727,9 +732,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
             self._testcases.append(current_testcase)
             logger.debug("Successfully imported %s.", node.name)
         else:
-            if (
-                self._current_parsed_statements > 0
-            ):
+            if self._current_parsed_statements > 0:
                 logger.debug(
                     "Partially parsed %s. Retrieved %s/%s statements.",
                     node.name,
@@ -779,8 +782,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
 
 def deserialize_code_to_testcases(
-    test_file_contents: str,
-    test_cluster: TestCluster
+    test_file_contents: str, test_cluster: TestCluster
 ) -> tuple[list[dtc.DefaultTestCase], int, int, int]:
     """Extracts as many TestCase objects as possible from the given code.
 
@@ -794,7 +796,7 @@ def deserialize_code_to_testcases(
     transformer = AstToTestCaseTransformer(
         test_cluster,
         create_assertions=config.configuration.test_case_output.assertion_generation
-                          != config.AssertionGenerator.NONE,
+        != config.AssertionGenerator.NONE,
     )
     transformer.visit(ast.parse(test_file_contents))
     uninterpreted_statements = transformer.deserializer.uninterpreted_statements
@@ -802,5 +804,5 @@ def deserialize_code_to_testcases(
         transformer.testcases,
         transformer.total_statements,
         transformer.total_parsed_statements,
-        uninterpreted_statements
+        uninterpreted_statements,
     )

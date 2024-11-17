@@ -13,8 +13,9 @@ import logging
 import math
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 from typing import Any
+from typing import Callable
 from typing import Generic
 from typing import TypeVar
 from typing import cast
@@ -23,7 +24,6 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.large_language_model.parsing import astscoping
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
@@ -31,10 +31,12 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.large_language_model.parsing import astscoping
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
+
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
@@ -670,11 +672,11 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)  # noqa: SLF001
             and all(
-            left.structural_eq(right, memo)
-            for left, right in zip(
-                self._elements, other._elements, strict=True  # noqa: SLF001
+                left.structural_eq(right, memo)
+                for left, right in zip(
+                    self._elements, other._elements, strict=True  # noqa: SLF001
+                )
             )
-        )
         )
 
 
@@ -1248,9 +1250,9 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
             and self._generic_callable == other._generic_callable  # noqa: SLF001
             and self._args.keys() == other._args.keys()  # noqa: SLF001
             and all(
-            v.structural_eq(other._args[k], memo)  # noqa: SLF001
-            for k, v in self._args.items()
-        )
+                v.structural_eq(other._args[k], memo)  # noqa: SLF001
+                for k, v in self._args.items()
+            )
         )
 
 
@@ -2166,9 +2168,7 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
             rhs: The right-hand side as an AST.
             ref_dict: Dictionary of variable references.
         """
-        super().__init__(
-            test_case, vr.VariableReference(test_case, ANY)
-        )
+        super().__init__(test_case, vr.VariableReference(test_case, ANY))
         if isinstance(rhs, astscoping.VariableRefAST):
             self._rhs = rhs
         elif isinstance(rhs, ast.AST):

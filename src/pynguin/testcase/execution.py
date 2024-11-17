@@ -2177,11 +2177,12 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                     result = return_queue.get(block=False)
                 except Empty as ex:
                     _LOGGER.error("Finished thread did not return a result.")
-                    if config.configuration.large_language_model.api_key:  # Assuming that when api_key is defined,
+                    if (
+                        config.configuration.large_language_model.api_key
+                    ):  # Assuming that when api_key is defined,
                         # the LLM mode is enabled
                         # The run should not crash because of uninterpreted statements
-                        _LOGGER.info("Failed to run for this test case:\n%s",
-                                     test_case)
+                        _LOGGER.info("Failed to run for this test case:\n%s", test_case)
                         result = ExecutionResult(timeout=True)
                     else:
                         raise RuntimeError("Bug in Pynguin!") from ex

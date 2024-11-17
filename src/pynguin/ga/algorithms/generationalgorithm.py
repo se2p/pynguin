@@ -18,10 +18,11 @@ from typing import Generic
 from typing import TypeVar
 
 import pynguin.ga.algorithms.archive as arch
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.utils.orderedset import OrderedSet
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

@@ -25,9 +25,9 @@ import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.coveragegoals as bg
+import pynguin.ga.llmtestsuitechromosomefactory as ltscf
 import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
-import pynguin.ga.llmtestsuitechromosomefactory as ltscf
 import pynguin.ga.testcasefactory as tcf
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf

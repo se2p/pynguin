@@ -10,22 +10,25 @@ import logging
 import pathlib
 import re
 import time
+
 from datetime import datetime
 from pathlib import Path
+
 import openai
 
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat import ChatCompletionUserMessageParam
 
 import pynguin.configuration as config
-from pynguin.analyses.module import import_module
 
+from pynguin.analyses.module import import_module
 from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +74,17 @@ def save_llm_tests_to_file(test_cases: str):
         output_file = output_dir / "generated_llm_tests.py"
         with output_file.open(mode="w", encoding="utf-8") as file:
             file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
-            file.write("# Date and time: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n")
+            file.write(
+                "# Date and time: "
+                + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                + "\n\n"
+            )
             file.write(test_cases)
         logging.info("Test cases saved successfully to %s", output_file)
     except OSError as error:
-        logging.exception("Error while saving LLM-generated test cases to file: %s", error)
+        logging.exception(
+            "Error while saving LLM-generated test cases to file: %s", error
+        )
 
 
 def get_module_path() -> Path:

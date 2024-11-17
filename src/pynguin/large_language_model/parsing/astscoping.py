@@ -12,8 +12,8 @@ uninterpreted statements.
 import ast
 import copy
 
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 import pynguin.testcase.variablereference as vr
 
@@ -346,7 +346,7 @@ class VariableRefAST:
         """
         self._node = _replace_with_var_refs(node, ref_dict)
 
-    def structural_hash(self,  memo: dict[vr.VariableReference, int]):
+    def structural_hash(self, memo: dict[vr.VariableReference, int]):
         """Compute a structural hash for this object.
 
         Uses structural_hash() for variable references.

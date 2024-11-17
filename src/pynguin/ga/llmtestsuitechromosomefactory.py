@@ -8,20 +8,24 @@
 from __future__ import annotations
 
 import logging
+
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testfactory as tf
-import pynguin.ga.testcasechromosome as tcc
+import pynguin.utils.statistics.statistics as stat
+
 from pynguin.large_language_model.openaimodel import OpenAIModel
 from pynguin.large_language_model.parsing import deserializer
-import pynguin.utils.statistics.statistics as stat
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
+
     from pynguin.analyses.module import TestCluster
     from pynguin.utils.orderedset import OrderedSet
 
@@ -131,12 +135,11 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         stat.track_output_variable(
             RuntimeVariable.TotalLLMCalls, model.llm_calls_counter
         )
-        stat.track_output_variable(
-            RuntimeVariable.LLMQueryTime, model.llm_calls_timer
-        )
+        stat.track_output_variable(RuntimeVariable.LLMQueryTime, model.llm_calls_timer)
 
         stat.track_output_variable(
-            RuntimeVariable.TotalCodelessLLMResponses, model.llm_calls_with_no_python_code
+            RuntimeVariable.TotalCodelessLLMResponses,
+            model.llm_calls_with_no_python_code,
         )
 
         if llm_query_results is not None:
@@ -148,7 +151,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
                 test_cases,
                 total_statements,
                 parsed_statements,
-                uninterpreted_statements
+                uninterpreted_statements,
             ) = deserializer.deserialize_code_to_testcases(
                 llm_test_cases_str, test_cluster=self._test_cluster
             )
