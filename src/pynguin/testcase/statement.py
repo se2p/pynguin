@@ -15,7 +15,6 @@ import math
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
 from typing import Generic
 from typing import TypeVar
 from typing import cast
@@ -37,10 +36,9 @@ from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
-
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
-
+    from collections.abc import Callable
     from pynguin.analyses import constants
 
 T = TypeVar("T")
@@ -385,7 +383,6 @@ class StatementVisitor(abc.ABC):
         Args:
             stmt: the statement to visit
         """
-        pass
 
     @abstractmethod
     def visit_list_statement(self, stmt) -> None:
@@ -672,11 +669,11 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)  # noqa: SLF001
             and all(
-                left.structural_eq(right, memo)
-                for left, right in zip(
-                    self._elements, other._elements, strict=True  # noqa: SLF001
-                )
+            left.structural_eq(right, memo)
+            for left, right in zip(
+                self._elements, other._elements, strict=True  # noqa: SLF001
             )
+        )
         )
 
 
@@ -872,11 +869,11 @@ class DictStatement(
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)  # noqa: SLF001
             and all(
-                lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
-                for (lk, lv), (rk, rv) in zip(
-                    self._elements, other._elements, strict=True  # noqa: SLF001
-                )
+            lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
+            for (lk, lv), (rk, rv) in zip(
+                self._elements, other._elements, strict=True  # noqa: SLF001
             )
+        )
         )
 
 
@@ -1250,9 +1247,9 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
             and self._generic_callable == other._generic_callable  # noqa: SLF001
             and self._args.keys() == other._args.keys()  # noqa: SLF001
             and all(
-                v.structural_eq(other._args[k], memo)  # noqa: SLF001
-                for k, v in self._args.items()
-            )
+            v.structural_eq(other._args[k], memo)  # noqa: SLF001
+            for k, v in self._args.items()
+        )
         )
 
 
@@ -1329,7 +1326,7 @@ class MethodStatement(ParametrizedStatement):
             typ = (
                 ANY
                 if randomness.next_float()
-                < config.configuration.test_creation.use_random_object_for_call
+                   < config.configuration.test_creation.use_random_object_for_call
                 else callee.type
             )
             objects = self.test_case.get_objects(typ, self.get_position())
@@ -2151,9 +2148,11 @@ class NoneStatement(PrimitiveStatement[None]):
 
 
 class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
-    """A statement creating a variable on the LHS that has
-    an uninterpreted AST node as its RHS. We cannot assure that
-    these statements execute successfully."""
+    """A statement creating a variable on the LHS.
+
+    with an uninterpreted AST node as its RHS. These statements might
+    not execute successfully.
+    """
 
     def __init__(
         self,
@@ -2164,9 +2163,9 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
         """Initializes the ASTAssignStatement.
 
         Args:
-            test_case: The test case.
-            rhs: The right-hand side as an AST.
-            ref_dict: Dictionary of variable references.
+            test_case: The test case to which this statement belongs.
+            rhs: The right-hand side as an AST or VariableRefAST.
+            ref_dict: A dictionary of variable references.
         """
         super().__init__(test_case, vr.VariableReference(test_case, ANY))
         if isinstance(rhs, astscoping.VariableRefAST):
@@ -2178,65 +2177,80 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
                 f"Tried to create an ASTAssignStatement with a RHS of type {type(rhs)}"
             )
 
-    def clone(
-        self,
-        test_case: tc.TestCase,
-        memo: dict[vr.VariableReference, vr.VariableReference],
-    ) -> Statement:
-        new_rhs = self._rhs.clone(memo)
+    @property
+    def rhs(self):
+        """Provides access to the right-hand side (RHS) of the statement.
+
+        Returns:
+            astscoping.VariableRefAST: The RHS of the statement.
+        """
+        return self._rhs
+
+    @rhs.setter
+    def rhs(self, value: astscoping.VariableRefAST):
+        """Updates the right-hand side (RHS) of the statement.
+
+        Args:
+            value (astscoping.VariableRefAST): The new RHS value.
+        """
+        self._rhs = value
+
+    def clone(self, test_case: tc.TestCase,   # noqa: D102
+              memo: dict[vr.VariableReference, vr.VariableReference]) -> Statement:
+        new_rhs = self.rhs.clone(memo)
         return ASTAssignStatement(test_case, new_rhs, {})
 
-    def accept(self, visitor: StatementVisitor) -> None:
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
         visitor.visit_ast_assign_statement(self)
 
-    def accessible_object(self) -> gao.GenericAccessibleObject | None:
+    def accessible_object(self) -> gao.GenericAccessibleObject | None:  # noqa: D102
         return None
 
-    def mutate(self) -> bool:
-        return self._rhs.mutate_var_ref(
+    def mutate(self) -> bool:  # noqa: D102
+        return self.rhs.mutate_var_ref(
             set(self._test_case.get_all_objects(self.get_position()))
         )
 
-    def get_variable_references(self) -> set[vr.VariableReference]:
-        return self._rhs.get_all_var_refs()
+    def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
+        return self.rhs.get_all_var_refs()
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:
-        self._rhs = self._rhs.replace_var_ref(old, new)
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:  # noqa: D102
+        self.rhs = self.rhs.replace_var_ref(old, new)
 
-    def structural_hash(self, memo) -> int:
+    def structural_hash(self, memo) -> int:  # noqa: D102
         return (
             31
             + 17 * self.ret_val.structural_hash(memo)
-            + 17 * hash(self._rhs.structural_hash(memo))
+            + 17 * hash(self.rhs.structural_hash(memo))
         )
 
-    def structural_eq(
+    def structural_eq(  # noqa: D102
         self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> bool:
         if not isinstance(other, ASTAssignStatement):
             return False
         return self.ret_val.structural_eq(
             other.ret_val, memo
-        ) and self._rhs.structural_eq(other._rhs)
+        ) and self.rhs.structural_eq(other.rhs)
 
     def get_rhs_as_normal_ast(
         self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
     ) -> ast.AST:
-        """Gets a normal ast out of self._rhs.
+        """Converts the RHS into a standard AST.
 
         Args:
-            vr_replacer: the function that replaces vr.VariableReferences with ast.ASTs
+            vr_replacer: A function that replaces VariableReferences with ast.Names
+                         or ast.Attributes.
 
         Returns:
-            an AST with all VariableReferences replaced by ast.Names or ast.Attributes,
-            as mandated by vr_replacer.
+            ast.AST: The converted AST.
         """
-        return self._rhs.get_normal_ast(vr_replacer)
+        return self.rhs.get_normal_ast(vr_replacer)
 
-    def rhs_is_call(self):
-        """Returns true if _rhs is just a call
+    def rhs_is_call(self) -> bool:
+        """Checks if the RHS is a function call.
 
         Returns:
-            true if the uninterpreted statement is just a call
+            bool: True if the RHS represents a function call, otherwise False.
         """
-        return self._rhs.is_call()
+        return self.rhs.is_call()

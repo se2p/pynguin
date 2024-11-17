@@ -17,7 +17,6 @@ from pynguin.large_language_model.parsing.helpers import has_call
 from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
 from pynguin.large_language_model.parsing.helpers import key_in_dict
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -743,7 +742,8 @@ def rewrite_tests(source: str) -> dict[str, str]:
     Returns:
         a dictionary with function names as keys and rewritten tests as values.
     """
-    # Sometimes LLM returns function definition with only a comment inside which results in syntax error.
+    # Sometimes LLM returns function definition with only a comment inside
+    # which results in syntax error.
     empty_function_pattern = re.compile(
         r"^\s*def\s+\w+\s*\(.*\):\s*\n\s*#.*?\n(?:\s*\n)*(?=^\s*def|\Z)", re.MULTILINE
     )
@@ -771,28 +771,38 @@ def rewrite_test(fn_def_node: ast.FunctionDef):
 
 
 class TestClassRewriter(ast.NodeTransformer):
-    def __init__(self):
+    """A custom AST node transformer for rewriting test classes."""
+
+    def __init__(self):  # noqa: D107
         self.set_up_vars = []
         self.counter = 0
         self.var_mapping = {}
 
-    def visit_ClassDef(self, node: ast.ClassDef):
-        # Find and store all `setUp` variables in this class
+    def visit_ClassDef(self, node: ast.ClassDef):  # noqa:N802
+        """Processes a class definition, collecting `setUp` variables.
+
+        Args:
+            node (ast.ClassDef): The class definition node.
+
+        Returns:
+            ast.ClassDef: The transformed class node.
+        """
         for child_node in node.body:
             if isinstance(child_node, ast.FunctionDef) and child_node.name == "setUp":
                 self.collect_set_up_vars(child_node)
 
-        # Transform each test function to replace `self` variables and remove `self` from method calls
         for child_node in node.body:
-            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith(
-                "test_"
-            ):
+            if (isinstance(child_node, ast.FunctionDef)
+                and child_node.name.startswith("test_")):
                 self.transform_test_function(child_node)
 
         return node
 
     def collect_set_up_vars(self, set_up_node: ast.FunctionDef):
-        """Collects variables from `setUp` function, removes `self.` prefix, and stores them with unique var_<counter> names."""
+        """Collects variables from `setUp` function, removes `self.` prefix.
+
+        and stores them with unique var_<counter> names.
+        """
         for stmt in set_up_node.body:
             if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
                 target = stmt.targets[0]
@@ -801,7 +811,6 @@ class TestClassRewriter(ast.NodeTransformer):
                     and isinstance(target.value, ast.Name)
                     and target.value.id == "self"
                 ):
-                    # Map `self.<variable>` to a counter-based variable (e.g., var_0, var_1, etc.)
                     var_name = f"var_{self.counter}"
                     self.var_mapping[target.attr] = var_name
                     self.counter += 1
@@ -812,34 +821,51 @@ class TestClassRewriter(ast.NodeTransformer):
                     )
 
     def transform_test_function(self, test_func_node: ast.FunctionDef):
-        """Replace `self.<variable>` references with `var_<counter>` in test functions and remove `self` from method calls."""
+        """Transforms a test function by replacing `self.<variable>`.
+
+        references with `var_<counter>` and removing `self` from
+        method calls.
+
+        Adds the transformed `setUp` variables to the start of the
+        test function body.
+
+        Args:
+            test_func_node (ast.FunctionDef): The test function node
+            to transform.
+        """
         # Add the transformed `setUp` variables at the start of the test function
         test_func_node.body = self.set_up_vars + [
             self.replace_self_references(stmt) for stmt in test_func_node.body
         ]
 
     def replace_self_references(self, node):
-        """Replaces `self.<variable>` references and removes `self` from method calls."""
+        """Replaces `self.<variable>` references and removes `self` from method calls.
+
+        Args:
+            node (ast.AST): The current AST node to process.
+
+        Returns:
+            ast.AST: The modified AST node with `self` references replaced.
+        """
         # Handle `self.<variable>` replacement
-        if isinstance(node, ast.Attribute):
-            if isinstance(node.value, ast.Name) and node.value.id == "self":
-                # Check if it's a variable reference or a method call
-                if node.attr in self.var_mapping:
-                    # Replace `self.<variable>` with `var_<counter>`
-                    return ast.Name(id=self.var_mapping[node.attr], ctx=node.ctx)
-                else:
-                    # It's a method call, return the method name without `self`
-                    return ast.Name(id=node.attr, ctx=node.ctx)
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "self"
+        ):
+            # Check if it's a variable reference or a method call
+            return (
+                ast.Name(id=self.var_mapping[node.attr], ctx=node.ctx)
+                if node.attr in self.var_mapping
+                else ast.Name(id=node.attr, ctx=node.ctx)
+            )
 
         # Process any child nodes recursively
         for field, value in ast.iter_fields(node):
             if isinstance(value, list):
                 new_values = [
-                    (
-                        self.replace_self_references(item)
-                        if isinstance(item, ast.AST)
-                        else item
-                    )
+                    self.replace_self_references(item) if isinstance(item, ast.AST)
+                    else item
                     for item in value
                 ]
                 setattr(node, field, new_values)
@@ -851,23 +877,24 @@ class TestClassRewriter(ast.NodeTransformer):
 
 
 def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
-    """Extract test function definitions with updated `setUp` variables without `self` prefix."""
+    """Extract test function definitions with updated `setUp` variables.
+
+    without `self` prefix.
+    """
     assert isinstance(module_node, ast.Module)
 
     rewriter = TestClassRewriter()
     rewriter.visit(module_node)
 
-    # Collect all test functions
-    function_defs = []
-    for node in module_node.body:
-        if isinstance(node, ast.ClassDef):
-            for child_node in node.body:
-                if isinstance(
-                    child_node, ast.FunctionDef
-                ) and child_node.name.startswith("test_"):
-                    function_defs.append(child_node)
-
-    return function_defs
+    # Use a list comprehension to collect all test functions
+    return [
+        child_node
+        for node in module_node.body
+        if isinstance(node, ast.ClassDef)
+        for child_node in node.body
+        if isinstance(child_node, ast.FunctionDef)
+           and child_node.name.startswith("test_")
+    ]
 
 
 def process_function_defs(

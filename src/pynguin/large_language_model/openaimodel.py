@@ -11,7 +11,7 @@ import pathlib
 import re
 import time
 
-from datetime import datetime
+import datetime
 from pathlib import Path
 
 import openai
@@ -34,8 +34,7 @@ logger = logging.getLogger(__name__)
 
 
 def save_prompt_info_to_file(prompt_message: str, full_response: str):
-    """
-    Append a prompt and its response, with a timestamp, to a log file.
+    """Append a prompt and its response, with a timestamp, to a log file.
 
     Parameters:
     - prompt_message: The prompt text.
@@ -48,8 +47,9 @@ def save_prompt_info_to_file(prompt_message: str, full_response: str):
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "prompt_info.txt"
 
-        with output_file.open(mode="a", encoding="utf-8") as file:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with (output_file.open(mode="a", encoding="utf-8") as file):
+            timestamp = datetime.datetime.now(datetime.timezone.utc
+                                              ).strftime("%Y-%m-%d %H:%M:%S")
             file.write(f"==============\nDate and Time: {timestamp}\n==============\n")
             file.write(f"Prompt:\n{prompt_message}\n")
             file.write("==============\nFull Response\n==============\n")
@@ -60,11 +60,11 @@ def save_prompt_info_to_file(prompt_message: str, full_response: str):
 
 
 def save_llm_tests_to_file(test_cases: str):
-    """
-    Save extracted test cases to a Python (.py) file.
+    """Save extracted test cases to a Python (.py) file.
 
     Args:
         test_cases: The test cases to save, formatted as Python code.
+
     Raises:
         OSError: If there is an issue writing to the file, logs the exception.
     """
@@ -76,7 +76,8 @@ def save_llm_tests_to_file(test_cases: str):
             file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
             file.write(
                 "# Date and time: "
-                + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                + datetime.datetime.now(datetime.timezone.utc)
+                .strftime("%Y-%m-%d %H:%M:%S")
                 + "\n\n"
             )
             file.write(test_cases)

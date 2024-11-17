@@ -35,14 +35,13 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
 
-
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster
 
 logger = logging.getLogger(__name__)
 
 
-class StatementDeserializer:
+class StatementDeserializer:  # noqa: PLR0904
     """All the utilities to deserialize statements."""
 
     def __init__(self, test_cluster: TestCluster):  # noqa: D107
@@ -229,7 +228,7 @@ class StatementDeserializer:
         # Handle positional arguments.
         for (name, param), call_arg in zip(
             list(gen_callable.inferred_signature.signature.parameters.items())[
-                shift_by:
+            shift_by:
             ],
             call_args,
             strict=False,
@@ -495,8 +494,8 @@ class StatementDeserializer:
             if coll_elems is None:
                 return None
             coll_elems_type = self.get_collection_type(coll_node, coll_elems)
-        a = self.create_specific_collection_stmt(coll_node, coll_elems_type, coll_elems)
-        return a
+        return self.create_specific_collection_stmt(coll_node, coll_elems_type,
+                                                    coll_elems)
 
     def create_elements(  # noqa: C901
         self, elements: Any
@@ -731,17 +730,16 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
         if self._current_parsable:
             self._testcases.append(current_testcase)
             logger.debug("Successfully imported %s.", node.name)
+        elif self._current_parsed_statements > 0:
+            logger.debug(
+                "Partially parsed %s. Retrieved %s/%s statements.",
+                node.name,
+                self._current_parsed_statements,
+                self._current_max_num_statements,
+            )
+            self._testcases.append(current_testcase)
         else:
-            if self._current_parsed_statements > 0:
-                logger.debug(
-                    "Partially parsed %s. Retrieved %s/%s statements.",
-                    node.name,
-                    self._current_parsed_statements,
-                    self._current_max_num_statements,
-                )
-                self._testcases.append(current_testcase)
-            else:
-                logger.debug("Failed to parse %s.", node.name)
+            logger.debug("Failed to parse %s.", node.name)
 
     def visit_Assign(self, node: ast.Assign) -> Any:  # noqa:N802
         """Visits an assignment node and tries to add it to the current test case.
@@ -778,6 +776,7 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
 
     @property
     def deserializer(self):
+        """Returns the deserializer instance."""
         return self._deserializer
 
 
@@ -796,7 +795,7 @@ def deserialize_code_to_testcases(
     transformer = AstToTestCaseTransformer(
         test_cluster,
         create_assertions=config.configuration.test_case_output.assertion_generation
-        != config.AssertionGenerator.NONE,
+                          != config.AssertionGenerator.NONE,
     )
     transformer.visit(ast.parse(test_file_contents))
     uninterpreted_statements = transformer.deserializer.uninterpreted_statements

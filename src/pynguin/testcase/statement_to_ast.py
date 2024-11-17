@@ -21,7 +21,6 @@ from pynguin.testcase.statement import ASTAssignStatement
 from pynguin.testcase.statement import ClassPrimitiveStatement
 from pynguin.testcase.statement import StatementVisitor
 
-
 if TYPE_CHECKING:
     import pynguin.utils.namingscope as ns
 
@@ -49,7 +48,7 @@ if TYPE_CHECKING:
     )
 
 
-class StatementToAstVisitor(StatementVisitor):
+class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
     """Visitor that transforms statements into a list of AST nodes."""
 
     def __init__(
@@ -272,7 +271,7 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_ast_assign_statement(self, stmt: ASTAssignStatement) -> None:
+    def visit_ast_assign_statement(self, stmt: ASTAssignStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
