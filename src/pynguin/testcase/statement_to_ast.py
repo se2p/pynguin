@@ -17,7 +17,7 @@ from typing import cast
 
 import pynguin.utils.ast_util as au
 
-from pynguin.testcase.statement import ClassPrimitiveStatement
+from pynguin.testcase.statement import ClassPrimitiveStatement, ASTAssignStatement
 from pynguin.testcase.statement import StatementVisitor
 
 

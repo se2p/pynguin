@@ -2167,7 +2167,7 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
             ref_dict: Dictionary of variable references.
         """
         super().__init__(
-            test_case, vr.VariableReference(test_case, None)  # type:ignore[arg-type]
+            test_case, vr.VariableReference(test_case, ANY)
         )
         if isinstance(rhs, astscoping.VariableRefAST):
             self._rhs = rhs
