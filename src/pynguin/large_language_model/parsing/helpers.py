@@ -6,6 +6,14 @@
 #
 """Helper function for LLM parser."""
 import ast
+import logging
+
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.testcase_to_ast as tta
+import pynguin.utils.namingscope as ns
+
+
+logger = logging.getLogger(__name__)
 
 
 def _count_all_statements(node) -> int:
@@ -110,3 +118,48 @@ def is_expr_or_stmt(node: ast.AST):
         Whether node is an expression or statement
     """
     return isinstance(node, ast.expr | ast.stmt)
+
+
+def unparse_test_case(test_case: tc.TestCase) -> str | None:
+    """Convert a test case to its AST representation as a string.
+
+    Args:
+        test_case (tc.TestCase): The test case to convert.
+
+    Returns:
+        str | None: The Python code as a string, or None if an error occurs.
+    """
+    naming = ns.NamingScope("module")
+
+    visitor = tta.TestCaseToAstVisitor(module_aliases=naming, common_modules=set())
+    try:
+        test_case.accept(visitor)
+        test_case_ast = visitor.test_case_ast
+
+        func_def = ast.FunctionDef(
+            name="test_generated_function",
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            ),
+            body=test_case_ast,
+            decorator_list=[],
+        )
+
+        # Wrap the function definition in an ast.Module
+        module_node = ast.Module(body=[func_def], type_ignores=[])
+        ast.fix_missing_locations(module_node)
+
+        # Ensure the module node is valid
+        if not isinstance(module_node, ast.Module):
+            raise ValueError("The module node is not valid.")
+
+        return ast.unparse(module_node)
+    except BaseException as e:  # noqa: BLE001
+        logger.error("Error processing test case AST: %s", e)
+        return None

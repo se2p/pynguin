@@ -60,10 +60,11 @@ def save_prompt_info_to_file(prompt_message: str, full_response: str):
         logging.exception("Error while writing prompt information to file: %s", error)
 
 
-def save_llm_tests_to_file(test_cases: str):
+def save_llm_tests_to_file(test_cases: str, file_name: str):
     """Save extracted test cases to a Python (.py) file.
 
     Args:
+        file_name: the file name
         test_cases: The test cases to save, formatted as Python code.
 
     Raises:
@@ -72,7 +73,7 @@ def save_llm_tests_to_file(test_cases: str):
     try:
         output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / "generated_llm_tests.py"
+        output_file = output_dir / file_name
         with output_file.open(mode="w", encoding="utf-8") as file:
             file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
             file.write(
@@ -306,5 +307,5 @@ class OpenAIModel:
         generated_tests: dict[str, str] = rewrite_tests(python_code)
         tests_with_line_breaks = "\n\n".join(generated_tests.values())
         logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
-        save_llm_tests_to_file(tests_with_line_breaks)
+        save_llm_tests_to_file(tests_with_line_breaks, "rewritten_llm_test_cases.py")
         return tests_with_line_breaks

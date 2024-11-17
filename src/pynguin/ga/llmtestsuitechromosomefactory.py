@@ -19,7 +19,9 @@ import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.large_language_model.openaimodel import OpenAIModel
+from pynguin.large_language_model.openaimodel import save_llm_tests_to_file
 from pynguin.large_language_model.parsing import deserializer
+from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -155,6 +157,12 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             ) = deserializer.deserialize_code_to_testcases(
                 llm_test_cases_str, test_cluster=self._test_cluster
             )
+
+            tests_source_code = ""
+            for test_case in test_cases:
+                test_case_source_code = unparse_test_case(test_case) or ""
+                tests_source_code += test_case_source_code + "\n\n"
+            save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
 
             stat.track_output_variable(
                 RuntimeVariable.LLMTotalParsedStatements, parsed_statements
