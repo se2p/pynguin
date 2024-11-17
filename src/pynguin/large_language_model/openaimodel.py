@@ -5,13 +5,13 @@
 # SPDX-License-Identifier: MIT
 #
 """This module generates unit tests for a given module using OpenAI's language model."""
+import datetime
 import inspect
 import logging
 import pathlib
 import re
 import time
 
-import datetime
 from pathlib import Path
 
 import openai
@@ -47,9 +47,10 @@ def save_prompt_info_to_file(prompt_message: str, full_response: str):
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "prompt_info.txt"
 
-        with (output_file.open(mode="a", encoding="utf-8") as file):
-            timestamp = datetime.datetime.now(datetime.timezone.utc
-                                              ).strftime("%Y-%m-%d %H:%M:%S")
+        with output_file.open(mode="a", encoding="utf-8") as file:
+            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
             file.write(f"==============\nDate and Time: {timestamp}\n==============\n")
             file.write(f"Prompt:\n{prompt_message}\n")
             file.write("==============\nFull Response\n==============\n")
@@ -76,8 +77,9 @@ def save_llm_tests_to_file(test_cases: str):
             file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
             file.write(
                 "# Date and time: "
-                + datetime.datetime.now(datetime.timezone.utc)
-                .strftime("%Y-%m-%d %H:%M:%S")
+                + datetime.datetime.now(datetime.timezone.utc).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
                 + "\n\n"
             )
             file.write(test_cases)
@@ -221,8 +223,9 @@ class OpenAIModel:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionUserMessageParam(role="user", content=f"${prompt_text}")
+            ChatCompletionUserMessageParam(role="user", content=prompt_text)
         ]
+
         try:
             response = openai.chat.completions.create(
                 model=self._model_name,
@@ -231,17 +234,28 @@ class OpenAIModel:
                 temperature=self._temperature,
             )
             response_text = response.choices[0].message.content
+
             if (
                 config.configuration.large_language_model.enable_response_caching
                 and response_text is not None
             ):
                 self.cache.set(prompt_text, response_text)
-            save_prompt_info_to_file(prompt_text, response_text)
+
+            if response_text:
+                save_prompt_info_to_file(prompt_text, response_text)
             return response_text
+
         except openai.OpenAIError as e:
-            logger.error("An error occurred while querying the OpenAI API: %s", e)
+            logger.error(
+                "An error occurred while querying the OpenAI API. "
+                "Model: %s, Prompt: %s, Error: %s",
+                self._model_name,
+                prompt_text,
+                e,
+            )
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
+
         return None
 
     def clear_cache(self):

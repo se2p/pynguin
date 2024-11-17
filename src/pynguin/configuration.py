@@ -592,7 +592,7 @@ class LLMConfiguration:
     """The temperature to use when querying the model.
     The value must be from [0.0, 1.0]."""
 
-    max_query_token_length: float = 750
+    max_query_token_length: int = 750
     """The maximum token length that a query should have."""
 
     hybrid_initial_population: bool = False

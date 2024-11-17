@@ -17,6 +17,7 @@ from pynguin.large_language_model.parsing.helpers import has_call
 from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
 from pynguin.large_language_model.parsing.helpers import key_in_dict
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -792,8 +793,9 @@ class TestClassRewriter(ast.NodeTransformer):
                 self.collect_set_up_vars(child_node)
 
         for child_node in node.body:
-            if (isinstance(child_node, ast.FunctionDef)
-                and child_node.name.startswith("test_")):
+            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith(
+                "test_"
+            ):
                 self.transform_test_function(child_node)
 
         return node
@@ -864,8 +866,11 @@ class TestClassRewriter(ast.NodeTransformer):
         for field, value in ast.iter_fields(node):
             if isinstance(value, list):
                 new_values = [
-                    self.replace_self_references(item) if isinstance(item, ast.AST)
-                    else item
+                    (
+                        self.replace_self_references(item)
+                        if isinstance(item, ast.AST)
+                        else item
+                    )
                     for item in value
                 ]
                 setattr(node, field, new_values)
@@ -893,7 +898,7 @@ def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
         if isinstance(node, ast.ClassDef)
         for child_node in node.body
         if isinstance(child_node, ast.FunctionDef)
-           and child_node.name.startswith("test_")
+        and child_node.name.startswith("test_")
     ]
 
 

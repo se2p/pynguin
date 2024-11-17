@@ -36,9 +36,12 @@ from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
+
 if TYPE_CHECKING:
-    import pynguin.testcase.testcase as tc
     from collections.abc import Callable
+
+    import pynguin.testcase.testcase as tc
+
     from pynguin.analyses import constants
 
 T = TypeVar("T")
@@ -669,11 +672,11 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)  # noqa: SLF001
             and all(
-            left.structural_eq(right, memo)
-            for left, right in zip(
-                self._elements, other._elements, strict=True  # noqa: SLF001
+                left.structural_eq(right, memo)
+                for left, right in zip(
+                    self._elements, other._elements, strict=True  # noqa: SLF001
+                )
             )
-        )
         )
 
 
@@ -869,11 +872,11 @@ class DictStatement(
             self.ret_val.structural_eq(other.ret_val, memo)
             and len(self._elements) == len(other._elements)  # noqa: SLF001
             and all(
-            lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
-            for (lk, lv), (rk, rv) in zip(
-                self._elements, other._elements, strict=True  # noqa: SLF001
+                lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
+                for (lk, lv), (rk, rv) in zip(
+                    self._elements, other._elements, strict=True  # noqa: SLF001
+                )
             )
-        )
         )
 
 
@@ -1247,9 +1250,9 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
             and self._generic_callable == other._generic_callable  # noqa: SLF001
             and self._args.keys() == other._args.keys()  # noqa: SLF001
             and all(
-            v.structural_eq(other._args[k], memo)  # noqa: SLF001
-            for k, v in self._args.items()
-        )
+                v.structural_eq(other._args[k], memo)  # noqa: SLF001
+                for k, v in self._args.items()
+            )
         )
 
 
@@ -1326,7 +1329,7 @@ class MethodStatement(ParametrizedStatement):
             typ = (
                 ANY
                 if randomness.next_float()
-                   < config.configuration.test_creation.use_random_object_for_call
+                < config.configuration.test_creation.use_random_object_for_call
                 else callee.type
             )
             objects = self.test_case.get_objects(typ, self.get_position())
@@ -2195,8 +2198,11 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
         """
         self._rhs = value
 
-    def clone(self, test_case: tc.TestCase,   # noqa: D102
-              memo: dict[vr.VariableReference, vr.VariableReference]) -> Statement:
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> Statement:
         new_rhs = self.rhs.clone(memo)
         return ASTAssignStatement(test_case, new_rhs, {})
 
@@ -2214,7 +2220,9 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
     def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
         return self.rhs.get_all_var_refs()
 
-    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:  # noqa: D102
+    def replace(  # noqa: D102
+        self, old: vr.VariableReference, new: vr.VariableReference
+    ) -> None:
         self.rhs = self.rhs.replace_var_ref(old, new)
 
     def structural_hash(self, memo) -> int:  # noqa: D102

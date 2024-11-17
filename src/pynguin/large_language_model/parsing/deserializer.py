@@ -35,6 +35,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
 
+
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster
 
@@ -228,7 +229,7 @@ class StatementDeserializer:  # noqa: PLR0904
         # Handle positional arguments.
         for (name, param), call_arg in zip(
             list(gen_callable.inferred_signature.signature.parameters.items())[
-            shift_by:
+                shift_by:
             ],
             call_args,
             strict=False,
@@ -494,8 +495,9 @@ class StatementDeserializer:  # noqa: PLR0904
             if coll_elems is None:
                 return None
             coll_elems_type = self.get_collection_type(coll_node, coll_elems)
-        return self.create_specific_collection_stmt(coll_node, coll_elems_type,
-                                                    coll_elems)
+        return self.create_specific_collection_stmt(
+            coll_node, coll_elems_type, coll_elems
+        )
 
     def create_elements(  # noqa: C901
         self, elements: Any
@@ -795,7 +797,7 @@ def deserialize_code_to_testcases(
     transformer = AstToTestCaseTransformer(
         test_cluster,
         create_assertions=config.configuration.test_case_output.assertion_generation
-                          != config.AssertionGenerator.NONE,
+        != config.AssertionGenerator.NONE,
     )
     transformer.visit(ast.parse(test_file_contents))
     uninterpreted_statements = transformer.deserializer.uninterpreted_statements
