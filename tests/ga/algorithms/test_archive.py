@@ -21,12 +21,10 @@ from pynguin.utils.orderedset import OrderedSet
 
 @pytest.fixture
 def objectives() -> OrderedSet[ff.TestCaseFitnessFunction]:
-    return OrderedSet(
-        [
-            MagicMock(ff.TestCaseFitnessFunction),
-            MagicMock(ff.TestCaseFitnessFunction),
-        ]
-    )
+    return OrderedSet([
+        MagicMock(ff.TestCaseFitnessFunction),
+        MagicMock(ff.TestCaseFitnessFunction),
+    ])
 
 
 @pytest.fixture

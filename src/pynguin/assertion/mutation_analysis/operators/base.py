@@ -106,9 +106,7 @@ class Mutation:
             ValueError: If the visitor is not found in the operator.
         """
         if self.visitor_name not in dir(self.operator):
-            raise ValueError(
-                f"Visitor {self.visitor_name} not found in operator {self.operator}"
-            )
+            raise ValueError(f"Visitor {self.visitor_name} not found in operator {self.operator}")
 
 
 def copy_node(node: T) -> T:
@@ -219,9 +217,7 @@ class MutationOperator:
 
         yield from self._generic_visit(node)
 
-    def _generic_visit(
-        self, node: ast.AST
-    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
+    def _generic_visit(self, node: ast.AST) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
         for field, old_value in ast.iter_fields(node):
             generator: Iterable[tuple[ast.AST, ast.AST, str]]
             if isinstance(old_value, list):
@@ -234,9 +230,7 @@ class MutationOperator:
             for current_node, replacement_node, visitor_name in generator:
                 yield current_node, replacement_node, node, visitor_name
 
-    def _generic_visit_list(
-        self, old_value: list
-    ) -> Generator[tuple[ast.AST, ast.AST, str]]:
+    def _generic_visit_list(self, old_value: list) -> Generator[tuple[ast.AST, ast.AST, str]]:
         for position, value in enumerate(old_value.copy()):
             if isinstance(value, ast.AST):
                 for (
@@ -253,9 +247,7 @@ class MutationOperator:
     def _generic_visit_real_node(
         self, node: ast.AST, field: str, old_value: ast.AST
     ) -> Generator[tuple[ast.AST, ast.AST, str]]:
-        for current_node, replacement_node, mutated_node, visitor_name in self.visit(
-            old_value
-        ):
+        for current_node, replacement_node, mutated_node, visitor_name in self.visit(old_value):
             setattr(node, field, mutated_node)
             yield current_node, replacement_node, visitor_name
 

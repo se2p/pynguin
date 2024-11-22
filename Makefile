@@ -10,14 +10,12 @@ ifeq ($(STRICT), 1)
 	POETRY_COMMAND_FLAG =
 	PIP_COMMAND_FLAG =
 	SECRETS_COMMAND_FLAG =
-	BLACK_COMMAND_FLAG =
 	ISORT_COMMAND_FLAG =
 	MYPY_COMMAND_FLAG =
 else
 	POETRY_COMMAND_FLAG = -
 	PIP_COMMAND_FLAG = -
 	SECRETS_COMMAND_FLAG = -
-	BLACK_COMMAND_FLAG = -
 	ISORT_COMMAND_FLAG = -
 	MYPY_COMMAND_FLAG = -
 endif
@@ -38,12 +36,6 @@ ifeq ($(SECRETS_STRICT), 1)
 	SECRETS_COMMAND_FLAG =
 else ifeq ($(SECRETS_STRICT), 0)
 	SECRETS_COMMAND_FLAG = -
-endif
-
-ifeq ($(BLACK_STRICT), 1)
-	BLACK_COMMAND_FLAG =
-else ifeq ($(BLACK_STRICT), 0)
-	BLACK_COMMAND_FLAG = -
 endif
 
 ifeq ($(ISORT_STRICT), 1)
@@ -78,7 +70,6 @@ check-safety:
 
 .PHONY: check-style
 check-style:
-	$(BLACK_COMMAND_FLAG)poetry run black --diff --check ./
 	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
 	$(MYPY_COMMAND_FLAG)poetry run mypy
 
@@ -102,15 +93,15 @@ ruff:
 isort:
 	poetry run isort .
 
-.PHONY: black
-black:
-	poetry run black .
+.PHONY: ruff-format
+ruff-format:
+	poetry run ruff format .
 
 update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
-check: update-docs-requirements isort black mypy ruff test
+check: update-docs-requirements isort mypy ruff ruff-format test
 
 .PHONY: lint
 lint: test check-safety check-style

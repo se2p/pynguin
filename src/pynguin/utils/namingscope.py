@@ -134,11 +134,7 @@ class VariableTypeNamingScope(AbstractNamingScope):
         # Lookup runtime type if available from trace:
         if (
             self._return_type_trace is not None
-            and (
-                runtime_type := self._return_type_trace.get(
-                    obj.get_statement_position()
-                )
-            )
+            and (runtime_type := self._return_type_trace.get(obj.get_statement_position()))
             is not None
         ):
             type_ = runtime_type

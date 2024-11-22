@@ -68,9 +68,7 @@ class _FunctionScopedVisitorMixin(ast.NodeVisitor):
     ) -> ast.AST:
         if not self.in_function:
             self.in_function = True
-            return getattr(super(), "visit_AsyncFunctionDef", super().generic_visit)(
-                node
-            )
+            return getattr(super(), "visit_AsyncFunctionDef", super().generic_visit)(node)
         return ast.Pass()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:  # noqa: N802
@@ -138,8 +136,7 @@ class _Context:
                 return names
             else:
                 _LOGGER.error(
-                    "While getting ast.Attribute representation a node had an "
-                    "unexpected type %s",
+                    "While getting ast.Attribute representation a node had an unexpected type %s",
                     curr.__class__.__name__,
                 )
                 curr = None
@@ -511,9 +508,7 @@ def get_function_node_from_ast(
     return None
 
 
-def get_class_node_from_ast(
-    tree: astroid.Module | None, name: str
-) -> astroid.ClassDef | None:
+def get_class_node_from_ast(tree: astroid.Module | None, name: str) -> astroid.ClassDef | None:
     """Get the AST Node that represents the class with the given name.
 
     Args:

@@ -29,9 +29,7 @@ class DummyReference(vr.Reference):
     def clone(self, memo: dict[VariableReference, VariableReference]) -> Reference:
         pass  # pragma: no cover
 
-    def structural_eq(
-        self, other: Any, memo: dict[VariableReference, VariableReference]
-    ) -> bool:
+    def structural_eq(self, other: Any, memo: dict[VariableReference, VariableReference]) -> bool:
         pass  # pragma: no cover
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:
@@ -40,9 +38,7 @@ class DummyReference(vr.Reference):
     def get_variable_reference(self) -> VariableReference | None:
         pass  # pragma: no cover
 
-    def replace_variable_reference(
-        self, old: VariableReference, new: VariableReference
-    ) -> None:
+    def replace_variable_reference(self, old: VariableReference, new: VariableReference) -> None:
         pass  # pragma: no cover
 
 
@@ -301,9 +297,7 @@ def test_module_field_eq(static_module_field_mock):
 
 def test_module_field_eq_2(static_module_field_mock):
     ref = vr.StaticModuleFieldReference(static_module_field_mock)
-    ref_2 = vr.StaticModuleFieldReference(
-        gao.GenericStaticModuleField("moo", "bar", int)
-    )
+    ref_2 = vr.StaticModuleFieldReference(gao.GenericStaticModuleField("moo", "bar", int))
     assert ref != ref_2
 
 

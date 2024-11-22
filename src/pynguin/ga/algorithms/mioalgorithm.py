@@ -31,9 +31,7 @@ class Parameters:
     """Represents the parameters that are adjusted while running the algorithm."""
 
     # Probability for choosing creating a new test case or sampling an existing one.
-    Pr: float = (
-        config.configuration.mio.initial_config.random_test_or_from_archive_probability
-    )
+    Pr: float = config.configuration.mio.initial_config.random_test_or_from_archive_probability
 
     # The maximum size of the population kept in the archive per target
     n: int = config.configuration.mio.initial_config.number_of_tests_per_target
@@ -64,9 +62,7 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
         self.before_search_start()
         while (
             self.resources_left()
-            and len(self._test_case_fitness_functions)
-            - self._archive.num_covered_targets
-            != 0
+            and len(self._test_case_fitness_functions) - self._archive.num_covered_targets != 0
         ):
             self.evolve()
             self._update_parameters()
@@ -76,9 +72,7 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
 
     def _update_parameters(self):
         progress = self.progress()
-        progress_until_focused = (
-            progress / config.configuration.mio.exploitation_starts_at_percent
-        )
+        progress_until_focused = progress / config.configuration.mio.exploitation_starts_at_percent
 
         if self._focused:
             # Already in focused phase.
@@ -92,12 +86,8 @@ class MIOAlgorithm(GenerationAlgorithm[arch.MIOArchive]):
             self._parameters.Pr = (
                 config.configuration.mio.focused_config.random_test_or_from_archive_probability
             )
-            self._parameters.n = (
-                config.configuration.mio.focused_config.number_of_tests_per_target
-            )
-            self._parameters.m = (
-                config.configuration.mio.focused_config.number_of_mutations
-            )
+            self._parameters.n = config.configuration.mio.focused_config.number_of_tests_per_target
+            self._parameters.m = config.configuration.mio.focused_config.number_of_mutations
         else:
             self._parameters.Pr = MIOAlgorithm._scale(
                 config.configuration.mio.initial_config.random_test_or_from_archive_probability,

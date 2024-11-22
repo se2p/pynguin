@@ -90,9 +90,7 @@ class StatementSlicingObserver(ex.ExecutionObserver):
                 slicing_instruction,
                 len(trace.executed_instructions) - self._STORE_INSTRUCTION_OFFSET,
             )
-            self._slicing_local_state.slicing_criteria[statement.get_position()] = (
-                slicing_criterion
-            )
+            self._slicing_local_state.slicing_criteria[statement.get_position()] = slicing_criterion
 
     def after_test_case_execution_inside_thread(  # noqa: D102
         self, test_case: tc.TestCase, result: ex.ExecutionResult

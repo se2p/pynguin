@@ -45,9 +45,7 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         super().__init__(orig=orig)
         if orig is None:
-            assert (
-                test_case is not None
-            ), "Cannot create test case chromosome without test case"
+            assert test_case is not None, "Cannot create test case chromosome without test case"
             self._test_case: tc.TestCase = test_case
             self._test_factory: tf.TestFactory | None = test_factory
             self.changed = True
@@ -87,9 +85,9 @@ class TestCaseChromosome(chrom.Chromosome):
     def cross_over(  # noqa: D102
         self, other: chrom.Chromosome, position1: int, position2: int
     ) -> None:
-        assert isinstance(
-            other, TestCaseChromosome
-        ), "Cannot perform crossover with " + str(type(other))
+        assert isinstance(other, TestCaseChromosome), "Cannot perform crossover with " + str(
+            type(other)
+        )
         assert self._test_factory is not None, "Crossover requires a test factory."
 
         offspring_test_case = self.test_case.clone(position1)
@@ -99,10 +97,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 offspring_test_case, other.test_case.get_statement(j)
             )
 
-        if (
-            offspring_test_case.size()
-            < config.configuration.search_algorithm.chromosome_length
-        ):
+        if offspring_test_case.size() < config.configuration.search_algorithm.chromosome_length:
             self._test_case = offspring_test_case
             self.changed = True
 
@@ -122,22 +117,19 @@ class TestCaseChromosome(chrom.Chromosome):
         backup = self.test_case.clone()
 
         if (
-            randomness.next_float()
-            <= config.configuration.search_algorithm.test_delete_probability
+            randomness.next_float() <= config.configuration.search_algorithm.test_delete_probability
             and self._mutation_delete()
         ):
             changed = True
 
         if (
-            randomness.next_float()
-            <= config.configuration.search_algorithm.test_change_probability
+            randomness.next_float() <= config.configuration.search_algorithm.test_change_probability
             and self._mutation_change()
         ):
             changed = True
 
         if (
-            randomness.next_float()
-            <= config.configuration.search_algorithm.test_insert_probability
+            randomness.next_float() <= config.configuration.search_algorithm.test_insert_probability
             and self._mutation_insert()
         ):
             changed = True
@@ -224,9 +216,7 @@ class TestCaseChromosome(chrom.Chromosome):
                 # Also include the position after the last mutatable statement.
                 max_position += 1
 
-            position = self._test_factory.insert_random_statement(
-                self._test_case, max_position
-            )
+            position = self._test_factory.insert_random_statement(self._test_case, max_position)
             exponent += 1
             if 0 <= position < self.size():
                 changed = True

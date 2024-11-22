@@ -98,11 +98,7 @@ def provide_callables_from_fixtures_modules(
     provide_imported_modules,
 ) -> dict[str, Callable]:
     def inspect_member(member):
-        return (
-            inspect.isclass(member)
-            or inspect.ismethod(member)
-            or inspect.isfunction(member)
-        )
+        return inspect.isclass(member) or inspect.ismethod(member) or inspect.isfunction(member)
 
     members = []
     for module in provide_imported_modules.values():
@@ -177,9 +173,7 @@ def function_mock(type_system) -> GenericFunction:
 
 @pytest.fixture
 def field_mock() -> GenericField:
-    return GenericField(
-        owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float))
-    )
+    return GenericField(owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float)))
 
 
 @pytest.fixture
@@ -208,21 +202,19 @@ def reset_statistics_tracker():
 def conditional_jump_example_bytecode() -> Bytecode:
     label_else = Label()
     label_print = Label()
-    return Bytecode(
-        [
-            Instr("LOAD_NAME", "print"),
-            Instr("LOAD_NAME", "test"),
-            Instr("POP_JUMP_IF_FALSE", label_else),
-            Instr("LOAD_CONST", "yes"),
-            Instr("JUMP_FORWARD", label_print),
-            label_else,
-            Instr("LOAD_CONST", "no"),
-            label_print,
-            Instr("CALL_FUNCTION", 1),
-            Instr("LOAD_CONST", None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
+    return Bytecode([
+        Instr("LOAD_NAME", "print"),
+        Instr("LOAD_NAME", "test"),
+        Instr("POP_JUMP_IF_FALSE", label_else),
+        Instr("LOAD_CONST", "yes"),
+        Instr("JUMP_FORWARD", label_print),
+        label_else,
+        Instr("LOAD_CONST", "no"),
+        label_print,
+        Instr("CALL_FUNCTION", 1),
+        Instr("LOAD_CONST", None),
+        Instr("RETURN_VALUE"),
+    ])
 
 
 @pytest.fixture(scope="module")
@@ -373,9 +365,7 @@ def plus_test_with_float_assertion() -> tc.TestCase:
         )
     )
     test_case = transformer.testcases[0]
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
+    test_case.statements[-1].add_assertion(ass.FloatAssertion(test_case.statements[-1].ret_val, 46))
     return test_case
 
 
@@ -469,9 +459,7 @@ def list_test_with_len_assertion() -> tc.TestCase:
         ass.CollectionLengthAssertion(
             vr.FieldReference(
                 test_case.statements[-1].ret_val,
-                gao.GenericField(
-                    TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))
-                ),
+                gao.GenericField(TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))),
             ),
             3,
         )
@@ -507,19 +495,13 @@ def plus_test_with_multiple_assertions():
     )
     test_case = transformer.testcases[0]
 
-    test_case.statements[0].add_assertion(
-        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
-    )
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
+    test_case.statements[0].add_assertion(ass.ObjectAssertion(test_case.statements[0].ret_val, 42))
+    test_case.statements[-1].add_assertion(ass.FloatAssertion(test_case.statements[-1].ret_val, 46))
     test_case.statements[-1].add_assertion(
         ass.ObjectAssertion(
             vr.FieldReference(
                 test_case.statements[1].ret_val,
-                gao.GenericField(
-                    TypeInfo(Plus), "calculations", Instance(TypeInfo(int))
-                ),
+                gao.GenericField(TypeInfo(Plus), "calculations", Instance(TypeInfo(int))),
             ),
             1,
         )

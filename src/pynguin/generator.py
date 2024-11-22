@@ -141,9 +141,7 @@ def _setup_path() -> bool:
         An optional execution tracer, if loading was successful, None otherwise.
     """
     if not Path(config.configuration.project_path).is_dir():
-        _LOGGER.error(
-            "%s is not a valid project path", config.configuration.project_path
-        )
+        _LOGGER.error("%s is not a valid project path", config.configuration.project_path)
         return False
     _LOGGER.debug("Setting up path for %s", config.configuration.project_path)
     sys.path.insert(0, config.configuration.project_path)
@@ -182,8 +180,7 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
 def _setup_report_dir() -> bool:
     # Report dir only needs to be created when statistics or coverage report is enabled.
     if (
-        config.configuration.statistics_output.statistics_backend
-        != config.StatisticsBackend.NONE
+        config.configuration.statistics_output.statistics_backend != config.StatisticsBackend.NONE
         or config.configuration.statistics_output.create_coverage_report
     ):
         report_dir = Path(config.configuration.statistics_output.report_dir).absolute()
@@ -204,9 +201,7 @@ def _setup_random_number_generator() -> None:
     randomness.RNG.seed(config.configuration.seeding.seed)
 
 
-def _setup_constant_seeding() -> (
-    tuple[ConstantProvider, DynamicConstantProvider | None]
-):
+def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider | None]:
     """Collect constants from SUT, if enabled."""
     # Use empty provider by default.
     wrapped_provider: ConstantProvider = EmptyConstantProvider()
@@ -221,16 +216,12 @@ def _setup_constant_seeding() -> (
         else:
             _LOGGER.info("Constants found: %s", len(constant_pool))
             # Probability of 1.0 -> if a value is requested and available -> return it.
-            wrapped_provider = DelegatingConstantProvider(
-                constant_pool, wrapped_provider, 1.0
-            )
+            wrapped_provider = DelegatingConstantProvider(constant_pool, wrapped_provider, 1.0)
 
     if config.configuration.seeding.dynamic_constant_seeding:
         _LOGGER.info("Setting up runtime collection of constants")
         dynamic_constant_provider = DynamicConstantProvider(
-            RestrictedConstantPool(
-                max_size=config.configuration.seeding.max_dynamic_pool_size
-            ),
+            RestrictedConstantPool(max_size=config.configuration.seeding.max_dynamic_pool_size),
             wrapped_provider,
             config.configuration.seeding.seeded_dynamic_values_reuse_probability,
             config.configuration.seeding.max_dynamic_length,
@@ -240,9 +231,7 @@ def _setup_constant_seeding() -> (
     return wrapped_provider, dynamic_constant_provider
 
 
-def _setup_and_check() -> (
-    tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None
-):
+def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
     Perform setup and some sanity checks.
@@ -307,25 +296,15 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
         RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)
     )
     test_cluster.track_statistics_values(stat.track_output_variable)
-    if (
-        config.CoverageMetric.BRANCH
-        in config.configuration.statistics_output.coverage_metrics
-    ):
+    if config.CoverageMetric.BRANCH in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportBranchCoverage,
-            ff.compute_branch_coverage(
-                tracer.import_trace, tracer.get_subject_properties()
-            ),
+            ff.compute_branch_coverage(tracer.import_trace, tracer.get_subject_properties()),
         )
-    if (
-        config.CoverageMetric.LINE
-        in config.configuration.statistics_output.coverage_metrics
-    ):
+    if config.CoverageMetric.LINE in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportLineCoverage,
-            ff.compute_line_coverage(
-                tracer.import_trace, tracer.get_subject_properties()
-            ),
+            ff.compute_line_coverage(tracer.import_trace, tracer.get_subject_properties()),
         )
 
 
@@ -345,9 +324,7 @@ def _get_coverage_ff_from_algorithm(
     for coverage_func in algorithm.test_suite_coverage_functions:
         if isinstance(coverage_func, function_type):
             test_suite_coverage_func = coverage_func
-    assert (
-        test_suite_coverage_func
-    ), "The required coverage function was not initialised"
+    assert test_suite_coverage_func, "The required coverage function was not initialised"
     return test_suite_coverage_func
 
 
@@ -424,15 +401,11 @@ def _track_final_metrics(
         metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
         executor.set_instrument(True)
         executor.add_observer(AssertionExecutionObserver(executor.tracer))
-        assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(
-            executor
-        )
-        to_calculate.append(
-            (
-                RuntimeVariable.AssertionCheckedCoverage,
-                assertion_checked_coverage_ff,
-            )
-        )
+        assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(executor)
+        to_calculate.append((
+            RuntimeVariable.AssertionCheckedCoverage,
+            assertion_checked_coverage_ff,
+        ))
 
     # re-instrument the files
     dynamic_constant_provider = None
@@ -488,14 +461,10 @@ def add_additional_metrics(  # noqa: D103
         to_calculate.append((RuntimeVariable.FinalLineCoverage, line_cov_ff))
     elif config.CoverageMetric.LINE in cov_metrics:
         # If we optimised for lines, we still want to get the final line coverage.
-        to_calculate.append(
-            (
-                RuntimeVariable.FinalLineCoverage,
-                _get_coverage_ff_from_algorithm(
-                    algorithm, ff.TestSuiteLineCoverageFunction
-                ),
-            )
-        )
+        to_calculate.append((
+            RuntimeVariable.FinalLineCoverage,
+            _get_coverage_ff_from_algorithm(algorithm, ff.TestSuiteLineCoverageFunction),
+        ))
     if (
         RuntimeVariable.FinalBranchCoverage in output_variables
         and config.CoverageMetric.BRANCH not in cov_metrics
@@ -505,14 +474,10 @@ def add_additional_metrics(  # noqa: D103
         to_calculate.append((RuntimeVariable.FinalBranchCoverage, branch_cov_ff))
     elif config.CoverageMetric.BRANCH in cov_metrics:
         # If we optimised for branches, we still want to get the final branch coverage.
-        to_calculate.append(
-            (
-                RuntimeVariable.FinalBranchCoverage,
-                _get_coverage_ff_from_algorithm(
-                    algorithm, ff.TestSuiteBranchCoverageFunction
-                ),
-            )
-        )
+        to_calculate.append((
+            RuntimeVariable.FinalBranchCoverage,
+            _get_coverage_ff_from_algorithm(algorithm, ff.TestSuiteBranchCoverageFunction),
+        ))
 
 
 def _run() -> ReturnCode:
@@ -549,10 +514,7 @@ def _run() -> ReturnCode:
     )
 
     # Export the generated test suites
-    if (
-        config.configuration.test_case_output.export_strategy
-        == config.ExportStrategy.PY_TEST
-    ):
+    if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
@@ -584,9 +546,7 @@ def _remove_statements_after_exceptions(generation_result):
     truncation = pp.ExceptionTruncation()
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
-        unused_primitives_removal = pp.TestCasePostProcessor(
-            [pp.UnusedStatementsTestCaseVisitor()]
-        )
+        unused_primitives_removal = pp.TestCasePostProcessor([pp.UnusedStatementsTestCaseVisitor()])
         generation_result.accept(unused_primitives_removal)
         # TODO(fk) add more postprocessing stuff.
 
@@ -654,9 +614,7 @@ def _setup_mutation_analysis_assertion_generator(
     mutation_controller = ag.InstrumentedMutationController(
         mutant_generator, module_ast, module, mutation_tracer
     )
-    assertion_generator = ag.MutationAnalysisAssertionGenerator(
-        executor, mutation_controller
-    )
+    assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator
@@ -706,10 +664,8 @@ def _track_search_metrics(
         ),
     ]:
         if metric in coverage_metrics:
-            coverage_function: ff.TestSuiteCoverageFunction = (
-                _get_coverage_ff_from_algorithm(
-                    algorithm, cast(type[ff.TestSuiteCoverageFunction], fitness_type)
-                )
+            coverage_function: ff.TestSuiteCoverageFunction = _get_coverage_ff_from_algorithm(
+                algorithm, cast(type[ff.TestSuiteCoverageFunction], fitness_type)
             )
             stat.track_output_variable(
                 runtime, generation_result.get_coverage_for(coverage_function)
@@ -723,25 +679,19 @@ def _instantiate_test_generation_strategy(
     test_cluster: ModuleTestCluster,
     constant_provider: ConstantProvider,
 ) -> GenerationAlgorithm:
-    factory = gaf.TestSuiteGenerationAlgorithmFactory(
-        executor, test_cluster, constant_provider
-    )
+    factory = gaf.TestSuiteGenerationAlgorithmFactory(executor, test_cluster, constant_provider)
     return factory.get_search_algorithm()
 
 
 def _collect_miscellaneous_statistics(test_cluster: ModuleTestCluster) -> None:
     test_cluster.log_cluster_statistics()
-    stat.track_output_variable(
-        RuntimeVariable.TargetModule, config.configuration.module_name
-    )
+    stat.track_output_variable(RuntimeVariable.TargetModule, config.configuration.module_name)
     stat.track_output_variable(RuntimeVariable.RandomSeed, randomness.RNG.get_seed())
     stat.track_output_variable(
         RuntimeVariable.ConfigurationId,
         config.configuration.statistics_output.configuration_id,
     )
-    stat.track_output_variable(
-        RuntimeVariable.RunId, config.configuration.statistics_output.run_id
-    )
+    stat.track_output_variable(RuntimeVariable.RunId, config.configuration.statistics_output.run_id)
     stat.track_output_variable(
         RuntimeVariable.ProjectName, config.configuration.statistics_output.project_name
     )

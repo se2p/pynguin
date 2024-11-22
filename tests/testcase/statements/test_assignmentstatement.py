@@ -32,21 +32,17 @@ def test_rhs(test_case_mock, variable_reference_mock):
 
 def test_structural_hash(assignment_statement):
     assert (
-        assignment_statement.structural_hash(
-            {
-                assignment_statement.lhs.source: 0,
-                assignment_statement.rhs: 1,
-            }
-        )
+        assignment_statement.structural_hash({
+            assignment_statement.lhs.source: 0,
+            assignment_statement.rhs: 1,
+        })
         != 0
     )
 
 
 def test_structural_hash_same(assignment_statement):
     memo = {assignment_statement.lhs.source: 0, assignment_statement.rhs: 1}
-    assert assignment_statement.structural_hash(
-        memo
-    ) == assignment_statement.structural_hash(memo)
+    assert assignment_statement.structural_hash(memo) == assignment_statement.structural_hash(memo)
 
 
 def test_structural_eq_same(assignment_statement):

@@ -71,9 +71,7 @@ class MutationController:
             if the mutated module cannot be created and the second part is a list of
             all the mutations operators applied.
         """
-        for mutations, mutant_ast in self._mutant_generator.mutate(
-            self._module_ast, self._module
-        ):
+        for mutations, mutant_ast in self._mutant_generator.mutate(self._module_ast, self._module):
             assert isinstance(mutant_ast, ast.Module)
 
             try:
@@ -90,6 +88,4 @@ class MutationController:
         Returns:
             The number of mutants that can be created.
         """
-        return sum(
-            1 for _ in self._mutant_generator.mutate(self._module_ast, self._module)
-        )
+        return sum(1 for _ in self._mutant_generator.mutate(self._module_ast, self._module))

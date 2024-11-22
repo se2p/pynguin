@@ -45,9 +45,7 @@ class Assertion:
         """
 
     @abstractmethod
-    def clone(
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> Assertion:
+    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> Assertion:
         """Clone this assertion.
 
         Args:
@@ -365,9 +363,7 @@ class AssertionVisitor:
         """
 
     @abstractmethod
-    def visit_collection_length_assertion(
-        self, assertion: CollectionLengthAssertion
-    ) -> None:
+    def visit_collection_length_assertion(self, assertion: CollectionLengthAssertion) -> None:
         """Visit a collection length assertion.
 
         Args:

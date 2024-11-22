@@ -82,9 +82,7 @@ def test_branch_test_case_is_minimizing_function(executor_mock):
     assert not func.is_maximisation_function()
 
 
-def test_test_case_compute_fitness_values(
-    subject_properties_mock, executor_mock, trace_mock
-):
+def test_test_case_compute_fitness_values(subject_properties_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer

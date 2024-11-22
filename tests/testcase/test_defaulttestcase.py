@@ -229,9 +229,7 @@ def test_get_objects(default_test_case, type_system):
     vri_1 = vr.VariableReference(default_test_case, type_system.convert_type_hint(int))
     stmt_1.ret_val = vri_1
     stmt_2 = MagicMock(st.Statement)
-    vri_2 = vr.VariableReference(
-        default_test_case, type_system.convert_type_hint(float)
-    )
+    vri_2 = vr.VariableReference(default_test_case, type_system.convert_type_hint(float))
     stmt_2.ret_val = vri_2
     stmt_3 = MagicMock(st.Statement)
     vri_3 = vr.VariableReference(default_test_case, type_system.convert_type_hint(int))
@@ -274,9 +272,7 @@ def test_get_dependencies_chained(default_test_case, function_mock):
     float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
     default_test_case.add_statement(float0)
 
-    func0 = st.FunctionStatement(
-        default_test_case, function_mock, {"a": float0.ret_val}
-    )
+    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": float0.ret_val})
     default_test_case.add_statement(func0)
 
     func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})

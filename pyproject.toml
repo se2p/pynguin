@@ -83,28 +83,6 @@ pytest-sugar = "^1.0.0"
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
 
-[tool.black]
-line-length = 88
-target_version = ['py310']
-include = '\.pyi?$'
-exclude = '''
-
-(
-  /(
-      \.eggs          # exclude a few common directories in the
-    | \.git           # root of the project
-    | \.pytest_cache
-    | \.mypy_cache
-    | \.venv
-    | venv
-    | _build
-    | build
-    | dist
-    | pynguin.egg-info
-  )/
-)
-'''
-
 [tool.coverage.run]
 branch = true
 source = ["src/pynguin", "tests"]
@@ -168,7 +146,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.ruff]
 # Assume Python 3.10.
 target-version = "py310"
-line-length = 88
+line-length = 100
 preview = true
 src = ["src", "tests"]
 exclude = [
@@ -249,6 +227,7 @@ ignore = [
     "CPY001",   # missing copyright notice at top of file
     "D105",     # missing docstrings in magic methods
     "FIX002",   # valid TODO comments
+    "ISC001",   # conflicts with ruff-format
     "PLR0911",  # do not complain about too many return statements
     "PLR0912",  # do not complain about too many branches
     "PLR0913",  # do not complain about too many arguments to function call

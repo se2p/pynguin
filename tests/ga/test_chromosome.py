@@ -26,9 +26,7 @@ def chromosome():
         def clone(self) -> Chromosome:
             pass  # pragma: no cover
 
-        def cross_over(
-            self, other: chrom.Chromosome, position1: int, position2: int
-        ) -> None:
+        def cross_over(self, other: chrom.Chromosome, position1: int, position2: int) -> None:
             pass  # pragma: no cover
 
         def __hash__(self):

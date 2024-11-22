@@ -107,22 +107,15 @@ class UsageTraceNode:
         output = f"'{self.name}'"
         if len(self.type_checks) > 0:
             output += (
-                ", type_checks: {"
-                + ", ".join([check.__name__ for check in self.type_checks])
-                + "}"
+                ", type_checks: {" + ", ".join([check.__name__ for check in self.type_checks]) + "}"
             )
         if len(self.arg_types) > 0:
             output += (
                 ", arg_types: {"
-                + ", ".join(
-                    [
-                        str(idx)
-                        + ": {"
-                        + ", ".join([tp.__name__ for tp in types])
-                        + "}"
-                        for idx, types in self.arg_types.items()
-                    ]
-                )
+                + ", ".join([
+                    str(idx) + ": {" + ", ".join([tp.__name__ for tp in types]) + "}"
+                    for idx, types in self.arg_types.items()
+                ])
                 + "}"
             )
         return output
@@ -752,10 +745,7 @@ def shim_isinstance():
             if types is ObjectProxy or orig_isinstance(types, ObjectProxy):
                 return orig_isinstance(inst, types)
             if orig_isinstance(types, tuple):
-                if any(
-                    typ is ObjectProxy or orig_isinstance(typ, ObjectProxy)
-                    for typ in types
-                ):
+                if any(typ is ObjectProxy or orig_isinstance(typ, ObjectProxy) for typ in types):
                     return orig_isinstance(inst, types)
                 UsageTraceNode.from_proxy(inst).type_checks.update(types)
             else:

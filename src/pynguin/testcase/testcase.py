@@ -216,9 +216,7 @@ class TestCase(ABC):  # noqa: PLR0904
         """Get all assertions that exist for this test case."""
 
     @abstractmethod
-    def get_dependencies(
-        self, var: vr.VariableReference
-    ) -> OrderedSet[vr.VariableReference]:
+    def get_dependencies(self, var: vr.VariableReference) -> OrderedSet[vr.VariableReference]:
         """Provides all variables on which var depends.
 
         Args:
@@ -228,9 +226,7 @@ class TestCase(ABC):  # noqa: PLR0904
             a set of variables on which var depends on. # noqa: DAR202
         """
 
-    def get_objects(
-        self, parameter_type: ProperType, position: int
-    ) -> list[vr.VariableReference]:
+    def get_objects(self, parameter_type: ProperType, position: int) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type.
 
         If the position value is larger than the number of statements, only these
@@ -278,9 +274,7 @@ class TestCase(ABC):  # noqa: PLR0904
                 variables.append(var)
         return variables
 
-    def get_random_object(
-        self, parameter_type: ProperType, position: int
-    ) -> vr.VariableReference:
+    def get_random_object(self, parameter_type: ProperType, position: int) -> vr.VariableReference:
         """Get a random object of the given type up to the given position (exclusive).
 
         Args:

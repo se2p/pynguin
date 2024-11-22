@@ -139,14 +139,10 @@ def test_add_constructor(provide_callables_from_fixtures_modules, default_test_c
         inferred_signature=InferredSignature(
             signature=Signature(
                 parameters=[
-                    Parameter(
-                        name="foo", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
-                    ),
+                    Parameter(name="foo", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
                 ]
             ),
-            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-                None
-            ),
+            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
             original_parameters={
                 "foo": default_test_case.test_cluster.type_system.convert_type_hint(int)
             },
@@ -194,9 +190,7 @@ def test_add_method(provide_callables_from_fixtures_modules, default_test_case):
     # fmt: on
     factory = tf.TestFactory(default_test_case.test_cluster)
     config.configuration.test_creation.none_probability = 1.0
-    result = factory.add_method(
-        default_test_case, generic_method, position=0, callee=MagicMock()
-    )
+    result = factory.add_method(default_test_case, generic_method, position=0, callee=MagicMock())
     assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(
         provide_callables_from_fixtures_modules["Monkey"]
     )
@@ -212,20 +206,12 @@ def test_add_function(provide_callables_from_fixtures_modules, default_test_case
         inferred_signature=InferredSignature(
             signature=Signature(
                 parameters=[
-                    Parameter(
-                        name="x", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
-                    ),
-                    Parameter(
-                        name="y", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
-                    ),
-                    Parameter(
-                        name="z", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int
-                    ),
+                    Parameter(name="x", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
+                    Parameter(name="y", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
+                    Parameter(name="z", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
                 ]
             ),
-            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-                None
-            ),
+            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
             original_parameters={
                 "x": default_test_case.test_cluster.type_system.convert_type_hint(int),
                 "y": default_test_case.test_cluster.type_system.convert_type_hint(int),
@@ -242,16 +228,12 @@ def test_add_function(provide_callables_from_fixtures_modules, default_test_case
 
 def test_add_enum(default_test_case):
     enum_ = enum.Enum("Foo", "BAR")
-    generic_enum = gao.GenericEnum(
-        default_test_case.test_cluster.type_system.to_type_info(enum_)
-    )
+    generic_enum = gao.GenericEnum(default_test_case.test_cluster.type_system.to_type_info(enum_))
     cluster = MagicMock(ModuleTestCluster)
     factory = tf.TestFactory(cluster)
     result = factory.add_enum(default_test_case, generic_enum)
     assert default_test_case.statements[0].value_name == "BAR"
-    assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(
-        enum_
-    )
+    assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(enum_)
     assert default_test_case.size() == 1
 
 
@@ -284,9 +266,7 @@ def test_attempt_generation_for_unknown_type(default_test_case):
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
         test_case=default_test_case,
-        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(
-            MagicMock
-        ),
+        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
         position=0,
         recursion_depth=0,
         allow_none=True,
@@ -311,9 +291,7 @@ def test_attempt_generation_for_int_with_no_probability(default_test_case):
     factory = tf.TestFactory(default_test_case.test_cluster)
     result = factory._attempt_generation(
         test_case=default_test_case,
-        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(
-            MagicMock
-        ),
+        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
         position=0,
         recursion_depth=0,
         allow_none=True,
@@ -326,9 +304,7 @@ def test_attempt_generation_for_type_from_cluster(default_test_case):
         assert position == 0  # pragma: no cover
         assert recursion_depth == 0  # pragma: no cover
         assert allow_none  # pragma: no cover
-        assert isinstance(
-            type_generators, gao.GenericAccessibleObject
-        )  # pragma: no cover
+        assert isinstance(type_generators, gao.GenericAccessibleObject)  # pragma: no cover
 
     default_test_case.test_cluster.get_generators_for = lambda _: MagicMock(
         gao.GenericAccessibleObject
@@ -350,9 +326,7 @@ def test__rollback_changes_mid(default_test_case):
     default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 15))
 
     cloned = default_test_case.clone()
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 7.5), 1
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 7.5), 1)
     assert cloned != default_test_case
 
     tf.TestFactory._rollback_changes(default_test_case, cloned.size(), 1)
@@ -365,9 +339,7 @@ def test__rollback_changes_end(default_test_case):
     default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 15))
 
     cloned = default_test_case.clone()
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 7.5), 3
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 7.5), 3)
     assert cloned != default_test_case
 
     tf.TestFactory._rollback_changes(default_test_case, cloned.size(), 3)
@@ -410,12 +382,9 @@ def test__dependencies_satisfied(default_test_case, exist, req, result):
     ]
     assert (
         factory._dependencies_satisfied(
-            OrderedSet(
-                [
-                    default_test_case.test_cluster.type_system.convert_type_hint(re)
-                    for re in req
-                ]
-            ),
+            OrderedSet([
+                default_test_case.test_cluster.type_system.convert_type_hint(re) for re in req
+            ]),
             objects,
         )
         is result
@@ -426,9 +395,7 @@ def test__get_possible_calls_no_calls(type_system):
     cluster = MagicMock(ModuleTestCluster)
     cluster.get_generators_for.return_value = OrderedSet(), False
     assert (
-        tf.TestFactory(cluster)._get_possible_calls(
-            type_system.convert_type_hint(int), [], {}
-        )
+        tf.TestFactory(cluster)._get_possible_calls(type_system.convert_type_hint(int), [], {})
         == []
     )
 
@@ -438,11 +405,7 @@ def test__get_possible_calls_single_call(default_test_case, function_mock):
     cluster.get_generators_for = lambda _: ({function_mock}, False)
     assert tf.TestFactory(cluster)._get_possible_calls(
         cluster.type_system.convert_type_hint(float),
-        [
-            vr.VariableReference(
-                default_test_case, cluster.type_system.convert_type_hint(float)
-            )
-        ],
+        [vr.VariableReference(default_test_case, cluster.type_system.convert_type_hint(float))],
         {},
     ) == [function_mock]
 
@@ -453,11 +416,7 @@ def test__get_possible_calls_no_match(default_test_case, function_mock):
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
             cluster.type_system.convert_type_hint(float),
-            [
-                vr.VariableReference(
-                    default_test_case, cluster.type_system.convert_type_hint(int)
-                )
-            ],
+            [vr.VariableReference(default_test_case, cluster.type_system.convert_type_hint(int))],
             {},
         )
         == []
@@ -536,19 +495,15 @@ def test_get_reuse_parameters(default_test_case):
         original_parameters=params,
         signature=sign_mock,
         type_system=default_test_case.test_cluster.type_system,
-        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(
-            None
-        ),
+        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
     )
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 0.0
-        with mock.patch(
-            "pynguin.testcase.testfactory.is_optional_parameter"
-        ) as optional_mock:
+        with mock.patch("pynguin.testcase.testfactory.is_optional_parameter") as optional_mock:
             optional_mock.side_effect = [False, True]
-            assert tf.TestFactory._get_reuse_parameters(
-                default_test_case, inf_sig, 1, {}
-            ) == {"test0": float0.ret_val}
+            assert tf.TestFactory._get_reuse_parameters(default_test_case, inf_sig, 1, {}) == {
+                "test0": float0.ret_val
+            }
 
 
 def test_insert_random_statement_empty_call(default_test_case):
@@ -560,9 +515,7 @@ def test_insert_random_statement_empty_call(default_test_case):
         with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
             ins_mock.return_value = True
             assert (
-                test_factory.insert_random_statement(
-                    default_test_case, default_test_case.size()
-                )
+                test_factory.insert_random_statement(default_test_case, default_test_case.size())
                 == 0
             )
             ins_mock.assert_called_with(default_test_case, 0)
@@ -574,14 +527,10 @@ def test_insert_random_statement_empty_on_object(default_test_case):
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.return_value = 1.0
-        with mock.patch.object(
-            test_factory, "insert_random_call_on_object"
-        ) as ins_mock:
+        with mock.patch.object(test_factory, "insert_random_call_on_object") as ins_mock:
             ins_mock.return_value = True
             assert (
-                test_factory.insert_random_statement(
-                    default_test_case, default_test_case.size()
-                )
+                test_factory.insert_random_statement(default_test_case, default_test_case.size())
                 == 0
             )
             ins_mock.assert_called_with(default_test_case, 0)
@@ -601,9 +550,7 @@ def test_insert_random_statement_non_empty(default_test_case):
             assert test_factory.insert_random_statement(
                 default_test_case, default_test_case.size()
             ) in range(default_test_case.size() + 1)
-            assert ins_mock.call_args_list[0].args[1] in range(
-                default_test_case.size() + 1
-            )
+            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
 
 
 def test_insert_random_statement_non_empty_multi_insert(default_test_case):
@@ -625,9 +572,7 @@ def test_insert_random_statement_non_empty_multi_insert(default_test_case):
             assert test_factory.insert_random_statement(
                 default_test_case, default_test_case.size()
             ) in range(1, 1 + default_test_case.size() + 1)
-            assert ins_mock.call_args_list[0].args[1] in range(
-                default_test_case.size() + 1
-            )
+            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
 
 
 def test_insert_random_statement_no_success(default_test_case):
@@ -640,67 +585,47 @@ def test_insert_random_statement_no_success(default_test_case):
         with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
             ins_mock.return_value = False
             assert (
-                test_factory.insert_random_statement(
-                    default_test_case, default_test_case.size()
-                )
+                test_factory.insert_random_statement(default_test_case, default_test_case.size())
                 == -1
             )
-            assert ins_mock.call_args_list[0].args[1] in range(
-                default_test_case.size() + 1
-            )
+            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
 
 
 def test_insert_random_call_on_object_no_success(default_test_case):
     test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.num_accessible_objects_under_test.return_value = 0
     test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(
-        test_factory, "_select_random_variable_for_call"
-    ) as select_mock:
+    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
         select_mock.return_value = None
         assert not test_factory.insert_random_call_on_object(default_test_case, 0)
         select_mock.assert_called_with(default_test_case, 0)
 
 
-def test_insert_random_call_on_object_success(
-    variable_reference_mock, default_test_case
-):
+def test_insert_random_call_on_object_success(variable_reference_mock, default_test_case):
     test_cluster = MagicMock(ModuleTestCluster)
     test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(
-        test_factory, "_select_random_variable_for_call"
-    ) as select_mock:
+    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
         select_mock.return_value = variable_reference_mock
-        with mock.patch.object(
-            test_factory, "insert_random_call_on_object_at"
-        ) as insert_mock:
+        with mock.patch.object(test_factory, "insert_random_call_on_object_at") as insert_mock:
             insert_mock.return_value = True
             assert test_factory.insert_random_call_on_object(default_test_case, 0)
             select_mock.assert_called_with(default_test_case, 0)
-            insert_mock.assert_called_with(
-                default_test_case, variable_reference_mock, 0
-            )
+            insert_mock.assert_called_with(default_test_case, variable_reference_mock, 0)
 
 
 def test_insert_random_call_on_object_retry(variable_reference_mock, default_test_case):
     test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.num_accessible_objects_under_test.return_value = 1
     test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(
-        test_factory, "_select_random_variable_for_call"
-    ) as select_mock:
+    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
         select_mock.return_value = variable_reference_mock
         with mock.patch.object(
             test_factory, "insert_random_call_on_object_at"
         ) as insert_random_at_mock:
             insert_random_at_mock.return_value = False
-            with mock.patch.object(
-                test_factory, "insert_random_call"
-            ) as insert_random_mock:
+            with mock.patch.object(test_factory, "insert_random_call") as insert_random_mock:
                 insert_random_mock.return_value = False
-                assert not test_factory.insert_random_call_on_object(
-                    default_test_case, 0
-                )
+                assert not test_factory.insert_random_call_on_object(default_test_case, 0)
                 select_mock.assert_called_with(default_test_case, 0)
                 insert_random_at_mock.assert_called_with(
                     default_test_case, variable_reference_mock, 0
@@ -708,9 +633,7 @@ def test_insert_random_call_on_object_retry(variable_reference_mock, default_tes
                 insert_random_mock.assert_called_with(default_test_case, 0)
 
 
-def test_insert_random_call_on_object_at_no_accessible(
-    test_case_mock, variable_reference_mock
-):
+def test_insert_random_call_on_object_at_no_accessible(test_case_mock, variable_reference_mock):
     test_cluster = MagicMock(ModuleTestCluster)
     test_cluster.get_random_call_for.side_effect = ConstructionFailedException()
     test_factory = tf.TestFactory(test_cluster)
@@ -721,18 +644,14 @@ def test_insert_random_call_on_object_at_no_accessible(
 
 
 @pytest.mark.parametrize("result", [True, False])
-def test_insert_random_call_on_object_at_success(
-    test_case_mock, variable_reference_mock, result
-):
+def test_insert_random_call_on_object_at_success(test_case_mock, variable_reference_mock, result):
     test_cluster = MagicMock(ModuleTestCluster)
     test_factory = tf.TestFactory(test_cluster)
     variable_reference_mock.type = float
     with mock.patch.object(test_factory, "add_call_for") as call_mock:
         call_mock.return_value = result
         assert (
-            test_factory.insert_random_call_on_object_at(
-                test_case_mock, variable_reference_mock, 0
-            )
+            test_factory.insert_random_call_on_object_at(test_case_mock, variable_reference_mock, 0)
             == result
         )
 
@@ -790,42 +709,28 @@ def test_add_call_for_unknown(variable_reference_mock, test_case_mock):
         test_factory.add_call_for(test_case_mock, variable_reference_mock, unknown, 0)
 
 
-def test_select_random_variable_for_call_one(
-    constructor_mock, function_mock, default_test_case
-):
+def test_select_random_variable_for_call_one(constructor_mock, function_mock, default_test_case):
     default_test_case.add_statement(
         stmt.NoneStatement(
             default_test_case,
         )
     )
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    )
-    default_test_case.add_statement(
-        stmt.FunctionStatement(default_test_case, function_mock)
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 5.0))
+    default_test_case.add_statement(stmt.FunctionStatement(default_test_case, function_mock))
     const = stmt.ConstructorStatement(default_test_case, constructor_mock)
     default_test_case.add_statement(const)
     assert (
-        tf.TestFactory._select_random_variable_for_call(
-            default_test_case, default_test_case.size()
-        )
+        tf.TestFactory._select_random_variable_for_call(default_test_case, default_test_case.size())
         == const.ret_val
     )
 
 
 def test_select_random_variable_for_call_none(function_mock, default_test_case):
     default_test_case.add_statement(stmt.NoneStatement(default_test_case))
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    )
-    default_test_case.add_statement(
-        stmt.FunctionStatement(default_test_case, function_mock)
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 5.0))
+    default_test_case.add_statement(stmt.FunctionStatement(default_test_case, function_mock))
     assert (
-        tf.TestFactory._select_random_variable_for_call(
-            default_test_case, default_test_case.size()
-        )
+        tf.TestFactory._select_random_variable_for_call(default_test_case, default_test_case.size())
         is None
     )
 
@@ -858,9 +763,7 @@ def test_insert_random_call_rollback(default_test_case):
     default_test_case.add_statement(int0)
     test_cluster = MagicMock(ModuleTestCluster)
     test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(
-        test_factory, "append_generic_accessible"
-    ) as append_generic_mock:
+    with mock.patch.object(test_factory, "append_generic_accessible") as append_generic_mock:
         append_generic_mock.side_effect = side_effect
         assert not test_factory.insert_random_call(default_test_case, 0)
         assert default_test_case.statements == [int0]
@@ -973,9 +876,7 @@ def test_change_random_call_success(
         # fmt: on
 
 
-def test_change_random_call_failed(
-    function_mock, method_mock, constructor_mock, default_test_case
-):
+def test_change_random_call_failed(function_mock, method_mock, constructor_mock, default_test_case):
     float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     int0 = stmt.IntPrimitiveStatement(default_test_case, 2)
     float_function1 = stmt.FunctionStatement(
@@ -1013,9 +914,7 @@ def test_change_random_call_failed(
 
 
 def test_change_call_method(constructor_mock, method_mock, default_test_case):
-    default_test_case.add_statement(
-        stmt.ConstructorStatement(default_test_case, constructor_mock)
-    )
+    default_test_case.add_statement(stmt.ConstructorStatement(default_test_case, constructor_mock))
     default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 3))
     to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
@@ -1029,9 +928,7 @@ def test_change_call_method(constructor_mock, method_mock, default_test_case):
 
 
 def test_change_call_constructor(constructor_mock, default_test_case):
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 3.5)
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
     to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
@@ -1043,9 +940,7 @@ def test_change_call_constructor(constructor_mock, default_test_case):
 
 
 def test_change_call_function(function_mock, default_test_case):
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 3.5)
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
     to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster
@@ -1057,9 +952,7 @@ def test_change_call_function(function_mock, default_test_case):
 
 
 def test_change_call_unknown(default_test_case):
-    default_test_case.add_statement(
-        stmt.FloatPrimitiveStatement(default_test_case, 3.5)
-    )
+    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
     to_replace = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(to_replace)
     test_cluster = default_test_case.test_cluster

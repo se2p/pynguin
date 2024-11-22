@@ -20,9 +20,7 @@ class FooReferenceAssertion(ass.ReferenceAssertion):
     def accept(self, visitor: AssertionVisitor) -> None:
         pass  # pragma: no cover
 
-    def clone(
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> Assertion:
+    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> Assertion:
         pass  # pragma: no cover
 
     def __eq__(self, other: object) -> bool:
@@ -63,11 +61,7 @@ def test_assertion_accept(assertion, method):
 @pytest.mark.parametrize(
     "assertion",
     [
-        (
-            ass.TypeNameAssertion(
-                vr.VariableReference(MagicMock(), int), "builtins", "int"
-            )
-        ),
+        (ass.TypeNameAssertion(vr.VariableReference(MagicMock(), int), "builtins", "int")),
         (ass.FloatAssertion(vr.VariableReference(MagicMock(), int), 3.7)),
         (ass.ObjectAssertion(vr.VariableReference(MagicMock(), int), [1])),
         (ass.CollectionLengthAssertion(vr.VariableReference(MagicMock(), int), 5)),

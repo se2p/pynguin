@@ -85,10 +85,7 @@ def test_method_called():
     proxy = tt.ObjectProxy("foo")
     assert proxy.startswith("fo")
     assert "startswith" in tt.UsageTraceNode.from_proxy(proxy).children
-    assert (
-        "__call__"
-        in tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children
-    )
+    assert "__call__" in tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children
 
 
 def test_loop_over_list():
@@ -210,9 +207,7 @@ def test_compares_op(op, name):
 def test_contains():
     proxy = tt.ObjectProxy([42])
     assert 42 in proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__contains__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__contains__"].arg_types[0]
 
 
 def test_len():
@@ -244,10 +239,7 @@ def test_contains_proxy():
     proxy = tt.ObjectProxy([42])
     proxy2 = tt.ObjectProxy(42)
     assert proxy2 in proxy
-    assert (
-        len(tt.UsageTraceNode.from_proxy(proxy).children["__contains__"].arg_types[0])
-        == 0
-    )
+    assert len(tt.UsageTraceNode.from_proxy(proxy).children["__contains__"].arg_types[0]) == 0
 
 
 def test_bytes():
@@ -285,18 +277,14 @@ def test_truediv():
     value = 7
     proxy = tt.ObjectProxy(value)
     assert value / 2 == proxy / 2
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__truediv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__truediv__"].arg_types[0]
 
 
 def test_floordiv():
     value = 7
     proxy = tt.ObjectProxy(value)
     assert value // 2 == proxy // 2
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__floordiv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__floordiv__"].arg_types[0]
 
 
 def test_mod():
@@ -310,9 +298,7 @@ def test_divmod():
     value = 7
     proxy = tt.ObjectProxy(value)
     assert divmod(value, 3) == divmod(proxy, 3)
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__divmod__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__divmod__"].arg_types[0]
 
 
 def test_pow():
@@ -326,18 +312,14 @@ def test_lshift():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value << 3 == proxy << 3
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__lshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__lshift__"].arg_types[0]
 
 
 def test_rshift():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert value >> 3 == proxy >> 3
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__rshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rshift__"].arg_types[0]
 
 
 def test_and():
@@ -389,19 +371,14 @@ def test_rtruediv():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 7 / value == 7 / proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__rtruediv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rtruediv__"].arg_types[0]
 
 
 def test_rfloordiv():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 7 // value == 7 // proxy
-    assert (
-        int
-        in tt.UsageTraceNode.from_proxy(proxy).children["__rfloordiv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rfloordiv__"].arg_types[0]
 
 
 def test_rmod():
@@ -415,9 +392,7 @@ def test_rdivmod():
     value = 3
     proxy = tt.ObjectProxy(value)
     assert divmod(7, value) == divmod(7, proxy)
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__rdivmod__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rdivmod__"].arg_types[0]
 
 
 def test_rpow():
@@ -431,18 +406,14 @@ def test_rlshift():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 3 << value == 3 << proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__rlshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rlshift__"].arg_types[0]
 
 
 def test_rrshift():
     value = 2
     proxy = tt.ObjectProxy(value)
     assert 3 >> value == 3 >> proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__rrshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__rrshift__"].arg_types[0]
 
 
 def test_rand():
@@ -502,9 +473,7 @@ def test_itruediv():
     value /= 2
     proxy /= 2
     assert value == proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(copy).children["__itruediv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(copy).children["__itruediv__"].arg_types[0]
 
 
 def test_ifloordiv():
@@ -513,9 +482,7 @@ def test_ifloordiv():
     value //= 3
     proxy //= 3
     assert value == proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(copy).children["__ifloordiv__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(copy).children["__ifloordiv__"].arg_types[0]
 
 
 def test_imod():
@@ -542,9 +509,7 @@ def test_ilshift():
     value <<= 1
     proxy <<= 1
     assert value == proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(copy).children["__ilshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(copy).children["__ilshift__"].arg_types[0]
 
 
 def test_irshift():
@@ -553,9 +518,7 @@ def test_irshift():
     value >>= 1
     proxy >>= 1
     assert value == proxy
-    assert (
-        int in tt.UsageTraceNode.from_proxy(copy).children["__irshift__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(copy).children["__irshift__"].arg_types[0]
 
 
 def test_iand():
@@ -625,9 +588,7 @@ def test_getitem_list():
     element = proxy[0]
     assert element == "entry"
     assert isinstance(element, tt.ObjectProxy)
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
 
 
 def test_getitem_list_slice():
@@ -635,10 +596,7 @@ def test_getitem_list_slice():
     element = proxy[1:]
     assert element == ["b"]
     assert isinstance(element, tt.ObjectProxy)
-    assert (
-        slice
-        in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
-    )
+    assert slice in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
 
 
 def test_getitem_dict():
@@ -646,9 +604,7 @@ def test_getitem_dict():
     element = proxy["foo"]
     assert element == "entry"
     assert isinstance(element, tt.ObjectProxy)
-    assert (
-        str in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
-    )
+    assert str in tt.UsageTraceNode.from_proxy(proxy).children["__getitem__"].arg_types[0]
 
 
 def test_setitem_list():
@@ -657,9 +613,7 @@ def test_setitem_list():
     element = proxy[0]
     assert element == 42
     assert isinstance(element, tt.ObjectProxy)
-    assert (
-        int in tt.UsageTraceNode.from_proxy(proxy).children["__setitem__"].arg_types[0]
-    )
+    assert int in tt.UsageTraceNode.from_proxy(proxy).children["__setitem__"].arg_types[0]
 
 
 def test_unwrap():
@@ -676,10 +630,7 @@ def test_pretty():
     knowledge = tt.UsageTraceNode("ROOT")
     knowledge.children["foo"].arg_types[0].add(int)
     knowledge.type_checks.add(str)
-    assert (
-        knowledge.pretty()
-        == "['ROOT', type_checks: {str}]\n└──['foo', arg_types: {0: {int}}]"
-    )
+    assert knowledge.pretty() == "['ROOT', type_checks: {str}]\n└──['foo', arg_types: {0: {int}}]"
 
 
 def test_getattr():
@@ -691,12 +642,10 @@ def test_getattr():
 def test_has_path():
     proxy = tt.ObjectProxy([1])
     proxy.count(1)
-    count_call_knowledge = tt.UsageTraceNode.from_proxy(proxy).find_path(
-        (
-            "count",
-            "__call__",
-        )
-    )
+    count_call_knowledge = tt.UsageTraceNode.from_proxy(proxy).find_path((
+        "count",
+        "__call__",
+    ))
     assert count_call_knowledge.arg_types[0] == OrderedSet([int])
 
 

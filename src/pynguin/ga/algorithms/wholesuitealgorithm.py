@@ -67,10 +67,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
             offspring2 = parent2.clone()
 
             try:
-                if (
-                    randomness.next_float()
-                    <= config.configuration.search_algorithm.crossover_rate
-                ):
+                if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:
                     self._crossover_function.cross_over(offspring1, offspring2)
 
                 offspring1.mutate()
@@ -86,8 +83,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
             best_individual = self._get_best_individual()
 
             if (fitness_offspring < fitness_parents) or (
-                fitness_offspring == fitness_parents
-                and length_offspring <= length_parents
+                fitness_offspring == fitness_parents and length_offspring <= length_parents
             ):
                 for offspring in [offspring1, offspring2]:
                     if offspring.length() <= 2 * best_individual.length():

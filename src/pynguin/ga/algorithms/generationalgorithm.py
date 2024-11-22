@@ -55,15 +55,9 @@ class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
         self._stopping_conditions: list[StoppingCondition]
         self._crossover_function: CrossOverFunction
         self._ranking_function: RankingFunction
-        self._test_case_fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = (
-            OrderedSet()
-        )
-        self._test_suite_fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction] = (
-            OrderedSet()
-        )
-        self._test_suite_coverage_functions: OrderedSet[
-            ff.TestSuiteCoverageFunction
-        ] = OrderedSet()
+        self._test_case_fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
+        self._test_suite_fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction] = OrderedSet()
+        self._test_suite_coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction] = OrderedSet()
         self._branch_goal_pool: bg.BranchGoalPool
         self._search_observers: list[so.SearchObserver] = []
 

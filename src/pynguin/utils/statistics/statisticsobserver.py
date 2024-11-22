@@ -41,9 +41,7 @@ class IterationObserver(so.SearchObserver):
         self._iterations += 1
 
     def after_search_finish(self) -> None:  # noqa: D102
-        stat.track_output_variable(
-            RuntimeVariable.AlgorithmIterations, self._iterations
-        )
+        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, self._iterations)
 
 
 class SequenceStartTimeObserver(so.SearchObserver):

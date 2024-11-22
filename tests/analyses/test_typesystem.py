@@ -322,9 +322,7 @@ def subtyping_cluster():
         (Any, Any, True, True),
     ],
 )
-def test_is_subtype(
-    subtyping_cluster, left_hint, right_hint, subtype_result, maybe_subtype_result
-):
+def test_is_subtype(subtyping_cluster, left_hint, right_hint, subtype_result, maybe_subtype_result):
     type_system = subtyping_cluster.type_system
     left = type_system.convert_type_hint(left_hint)
     right = type_system.convert_type_hint(right_hint)
@@ -490,9 +488,9 @@ def test_is_collection_type(typ, result):
 def test_find_by_symbols(symbol, types):
     test_cluster = generate_test_cluster("tests.fixtures.types.symbols")
     tps = test_cluster.type_system
-    assert test_cluster.type_system.find_by_attribute(symbol) == OrderedSet(
-        [tps.find_type_info("" + t) for t in types]
-    )
+    assert test_cluster.type_system.find_by_attribute(symbol) == OrderedSet([
+        tps.find_type_info("" + t) for t in types
+    ])
 
 
 @pytest.mark.parametrize(
@@ -602,9 +600,7 @@ def test_union_single_element():
     [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_ATTRIBUTES]
     + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_ATTRIBUTES],
 )
-def test_guess_generic_types_list_set_from_elements(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_list_set_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
@@ -619,9 +615,7 @@ def test_guess_generic_types_list_set_from_elements(
     "symbol, typ, result",
     [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_ATTRIBUTES],
 )
-def test_guess_generic_types_dict_key_from_elements(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_dict_key_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
@@ -634,14 +628,9 @@ def test_guess_generic_types_dict_key_from_elements(
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [
-        (sym, dict, dict[int, Any])
-        for sym in InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES
-    ],
+    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES],
 )
-def test_guess_generic_types_dict_key_from_arguments(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_dict_key_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[0].add(int)
@@ -656,9 +645,7 @@ def test_guess_generic_types_dict_key_from_arguments(
     "symbol, typ, result",
     [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_ATTRIBUTES],
 )
-def test_guess_generic_types_dict_value_from_elements(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_dict_value_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
@@ -671,14 +658,9 @@ def test_guess_generic_types_dict_value_from_elements(
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [
-        (sym, dict, dict[Any, int])
-        for sym in InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES
-    ],
+    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES],
 )
-def test_guess_generic_types_dict_value_from_arguments(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_dict_value_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[1].add(int)
@@ -691,18 +673,10 @@ def test_guess_generic_types_dict_value_from_arguments(
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [
-        (sym, list, list[int])
-        for sym in InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES
-    ]
-    + [
-        (sym, set, set[int])
-        for sym in InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES
-    ],
+    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES]
+    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES],
 )
-def test_guess_generic_types_list_set_from_arguments(
-    inferred_signature, symbol, typ, result
-):
+def test_guess_generic_types_list_set_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[0].add(int)
@@ -740,9 +714,7 @@ def test_choose_type_or_negate_negate(inferred_signature):
 
 def test_choose_type_or_negate_empty_2(inferred_signature):
     config.configuration.test_creation.negate_type = 1.0
-    with mock.patch.object(
-        inferred_signature.type_system, "get_type_outside_of"
-    ) as outside_mock:
+    with mock.patch.object(inferred_signature.type_system, "get_type_outside_of") as outside_mock:
         outside_mock.return_value = OrderedSet()
         assert inferred_signature._choose_type_or_negate(
             OrderedSet((inferred_signature.type_system.to_type_info(object),))
@@ -755,21 +727,15 @@ def test_update_guess(inferred_signature):
 
 
 def test_update_guess_single(inferred_signature):
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(int)
-    )
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(int))
     assert inferred_signature.current_guessed_parameters["x"] == [
         inferred_signature.type_system.convert_type_hint(int)
     ]
 
 
 def test_update_guess_multi(inferred_signature):
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(int)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(int)
-    )
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(int))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(int))
     assert inferred_signature.current_guessed_parameters["x"] == [
         inferred_signature.type_system.convert_type_hint(int)
     ]
@@ -777,24 +743,12 @@ def test_update_guess_multi(inferred_signature):
 
 def test_update_guess_multi_drop(inferred_signature):
     config.configuration.test_creation.type_tracing_kept_guesses = 5
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(int)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(float)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(str)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(bytes)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(bool)
-    )
-    inferred_signature._update_guess(
-        "x", inferred_signature.type_system.convert_type_hint(complex)
-    )
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(int))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(float))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(str))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(bytes))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(bool))
+    inferred_signature._update_guess("x", inferred_signature.type_system.convert_type_hint(complex))
     assert inferred_signature.current_guessed_parameters["x"] == [
         inferred_signature.type_system.convert_type_hint(tp)
         for tp in [float, str, bytes, bool, complex]
@@ -816,9 +770,7 @@ def test__guess_parameter_type(inferred_signature, symbol, kind):
         guess.assert_called_with(knowledge.children[symbol])
 
 
-@pytest.mark.parametrize(
-    "kind", [inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL]
-)
+@pytest.mark.parametrize("kind", [inspect.Parameter.VAR_KEYWORD, inspect.Parameter.VAR_POSITIONAL])
 def test__guess_parameter_type_2(inferred_signature, kind):
     knowledge = UsageTraceNode("ROOT")
     assert inferred_signature._guess_parameter_type(knowledge, kind) is None

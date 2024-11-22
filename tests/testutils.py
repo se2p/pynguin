@@ -67,19 +67,17 @@ def assert_mutation(
 
     for mutation, mutant_ast in operator.mutate(module_ast, module):
         assert mutation.operator is operator, f"{mutation.operator} is not {operator}"
-        assert mutation.visitor_name in dir(
-            operator
-        ), f"{mutation.visitor_name} not in {dir(operator)}"
+        assert mutation.visitor_name in dir(operator), (
+            f"{mutation.visitor_name} not in {dir(operator)}"
+        )
 
         mutant_source_code = ast.unparse(mutant_ast)
 
-        assert (
-            mutant_source_code in expected_mutants_processed_source_code
-        ), f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
-
-        expected_mutant_info = expected_mutants_processed_source_code.pop(
-            mutant_source_code
+        assert mutant_source_code in expected_mutants_processed_source_code, (
+            f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
         )
+
+        expected_mutant_info = expected_mutants_processed_source_code.pop(mutant_source_code)
 
         mutant_info = (
             mutation.visitor_name,
@@ -87,20 +85,18 @@ def assert_mutation(
             type(mutation.replacement_node),
         )
 
-        assert (
-            expected_mutant_info == mutant_info
-        ), f"{expected_mutant_info} != {mutant_info}"
+        assert expected_mutant_info == mutant_info, f"{expected_mutant_info} != {mutant_info}"
 
-    assert (
-        not expected_mutants_processed_source_code
-    ), f"Remaining mutants: {expected_mutants_processed_source_code}"
+    assert not expected_mutants_processed_source_code, (
+        f"Remaining mutants: {expected_mutants_processed_source_code}"
+    )
 
     processed_source_code = ast.unparse(module_ast)
     expected_source_code = ast.unparse(ast.parse(source_code))
 
-    assert (
-        expected_source_code == processed_source_code
-    ), f"Source code changed: {processed_source_code} != {expected_source_code}"
+    assert expected_source_code == processed_source_code, (
+        f"Source code changed: {processed_source_code} != {expected_source_code}"
+    )
 
 
 def assert_mutator_mutation(
@@ -121,13 +117,11 @@ def assert_mutator_mutation(
     for mutations, mutant_ast in mutator.mutate(module_ast, module):
         mutant_source_code = ast.unparse(mutant_ast)
 
-        assert (
-            mutant_source_code in expected_mutants_processed_source_code
-        ), f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
-
-        expected_mutant_info = expected_mutants_processed_source_code.pop(
-            mutant_source_code
+        assert mutant_source_code in expected_mutants_processed_source_code, (
+            f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
         )
+
+        expected_mutant_info = expected_mutants_processed_source_code.pop(mutant_source_code)
 
         mutant_info = {
             (
@@ -139,20 +133,18 @@ def assert_mutator_mutation(
             for mutation in mutations
         }
 
-        assert (
-            expected_mutant_info == mutant_info
-        ), f"{expected_mutant_info} != {mutant_info}"
+        assert expected_mutant_info == mutant_info, f"{expected_mutant_info} != {mutant_info}"
 
-    assert (
-        not expected_mutants_processed_source_code
-    ), f"Remaining mutants: {expected_mutants_processed_source_code}"
+    assert not expected_mutants_processed_source_code, (
+        f"Remaining mutants: {expected_mutants_processed_source_code}"
+    )
 
     processed_source_code = ast.unparse(module_ast)
     expected_source_code = ast.unparse(ast.parse(source_code))
 
-    assert (
-        expected_source_code == processed_source_code
-    ), f"Source code changed: {processed_source_code} != {expected_source_code}"
+    assert expected_source_code == processed_source_code, (
+        f"Source code changed: {processed_source_code} != {expected_source_code}"
+    )
 
 
 def create_aor_mutation_on_substraction(node: ast.Sub | None = None) -> Mutation:

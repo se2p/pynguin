@@ -96,9 +96,7 @@ class TraceStack:
             # A non-dummy frame can only have one block_stack at the end of execution
             assert len(frame.block_stacks) == 1, "More than one block on a popped stack"
 
-    def update_push_operations(
-        self, num_pushes: int, *, returned: bool
-    ) -> tuple[bool, bool]:
+    def update_push_operations(self, num_pushes: int, *, returned: bool) -> tuple[bool, bool]:
         """Simulate the push operations on the stack.
 
         Returns whether implicit dependencies occur or uses are included.

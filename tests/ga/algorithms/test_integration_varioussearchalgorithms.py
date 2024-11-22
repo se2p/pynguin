@@ -108,9 +108,7 @@ def test_integrate_whole_suite_plus_archive(module_name: str):
     # Enable all features to get Whole Suite + Archive.
     config.configuration.search_algorithm.use_archive = True
     config.configuration.seeding.seed_from_archive = True
-    config.configuration.search_algorithm.filter_covered_targets_from_test_cluster = (
-        True
-    )
+    config.configuration.search_algorithm.filter_covered_targets_from_test_cluster = True
 
     logger = MagicMock(Logger)
     tracer = ExecutionTracer()

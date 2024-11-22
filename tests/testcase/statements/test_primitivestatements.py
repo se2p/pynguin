@@ -45,9 +45,7 @@ def test_primitive_statement_value(statement_type, default_test_case, value):
         (stmt.ComplexPrimitiveStatement, 4 + 3j),
     ],
 )
-def test_primitive_statement_value_from_seeding(
-    statement_type, default_test_case, value
-):
+def test_primitive_statement_value_from_seeding(statement_type, default_test_case, value):
     config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
     pool = ConstantPool()
     pool.add_constant(value)
@@ -87,9 +85,7 @@ def test_primitive_statement_value_none(statement_type, default_test_case):
         (stmt.ClassPrimitiveStatement, 0, 1),
     ],
 )
-def test_primitive_statement_set_value(
-    statement_type, default_test_case, value, new_value
-):
+def test_primitive_statement_set_value(statement_type, default_test_case, value, new_value):
     statement = statement_type(default_test_case, value)
     statement.value = new_value
     assert statement.value == new_value
@@ -177,9 +173,7 @@ def test_primitive_statement_clone(statement_type, default_test_case, value):
         ),
     ],
 )
-def test_primitive_statement_accept(
-    statement_type, default_test_case, value, visitor_method
-):
+def test_primitive_statement_accept(statement_type, default_test_case, value, visitor_method):
     stmt = statement_type(default_test_case, value)
     visitor = MagicMock()
     stmt.accept(visitor)
@@ -215,9 +209,7 @@ def test_primitive_statement_equals_same(statement_type, default_test_case, valu
         (stmt.ClassPrimitiveStatement, 0),
     ],
 )
-def test_primitive_statement_equals_other_type(
-    statement_type, default_test_case, value
-):
+def test_primitive_statement_equals_other_type(statement_type, default_test_case, value):
     statement = statement_type(default_test_case, value)
     assert not statement.structural_eq(default_test_case, {})
 
@@ -632,9 +624,9 @@ def test_enum_statement_hash(test_case_mock):
     enum_ = MagicMock(names=["FOO"])
     statement = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
     statement2 = stmt.EnumPrimitiveStatement(test_case_mock, enum_)
-    assert statement.structural_hash(
-        {statement.ret_val: 0}
-    ) == statement2.structural_hash({statement2.ret_val: 0})
+    assert statement.structural_hash({statement.ret_val: 0}) == statement2.structural_hash({
+        statement2.ret_val: 0
+    })
 
 
 def test_enum_statement_accept(test_case_mock):

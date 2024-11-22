@@ -61,9 +61,7 @@ class ChromosomeOutputVariableFactory(ABC, Generic[T]):
         Returns:
             The output variable for the individual
         """
-        return sb.OutputVariable(
-            name=self._variable.name, value=self.get_data(individual)
-        )
+        return sb.OutputVariable(name=self._variable.name, value=self.get_data(individual))
 
 
 class SequenceOutputVariableFactory(ABC, Generic[T]):
@@ -136,9 +134,7 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
             A list of output variables
         """
         return [
-            sb.OutputVariable(
-                name=variable_name, value=self._get_time_line_value(variable_index)
-            )
+            sb.OutputVariable(name=variable_name, value=self._get_time_line_value(variable_index))
             for variable_index, variable_name in self.get_variable_names_indices()
         ]
 
@@ -164,9 +160,9 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
             previous_value = value
 
         if run_time < config.configuration.stopping.maximum_search_time:
-            area += (
-                config.configuration.stopping.maximum_search_time - run_time
-            ) * self._values[-1]
+            area += (config.configuration.stopping.maximum_search_time - run_time) * self._values[
+                -1
+            ]
 
         return area / 1_000_000_000
 
@@ -183,17 +179,13 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
             normalised_area = (
                 self.area_under_curve + last_value * time_delta
             ) / config.configuration.stopping.maximum_search_time
-        assert (
-            0.0 <= normalised_area <= 1.0
-        ), f"Normalised AuC out of range ({normalised_area})!"
+        assert 0.0 <= normalised_area <= 1.0, f"Normalised AuC out of range ({normalised_area})!"
         return normalised_area
 
     @property
     def area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
         """Provides the output variable for area under curve."""
-        return sb.OutputVariable(
-            name=f"{self._variable.name}_AUC", value=self.area_under_curve
-        )
+        return sb.OutputVariable(name=f"{self._variable.name}_AUC", value=self.area_under_curve)
 
     @property
     def normalised_area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
@@ -294,9 +286,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
         return DirectSequenceOutputVariableFactory(variable, 0)
 
 
-class TypeEvolutionSequenceOutputVariableFactory(
-    DirectSequenceOutputVariableFactory, Generic[T]
-):
+class TypeEvolutionSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory, Generic[T]):
     """A sequence output variable for type-information evolution."""
 
     def __init__(self, variable: RuntimeVariable, start_value: T) -> None:  # noqa: D107

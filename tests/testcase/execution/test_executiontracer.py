@@ -192,9 +192,7 @@ def test_compare_ignores_proxy():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
-    tracer.executed_compare_predicate(
-        tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ
-    )
+    tracer.executed_compare_predicate(tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
     assert (0, 0) in tracer.get_trace().false_distances.items()
 

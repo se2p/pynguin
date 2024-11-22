@@ -15,9 +15,7 @@ from tests.testutils import feed_typesystem
 
 
 def test_field_statement(test_case_mock, variable_reference_mock, field_mock):
-    field_statement = stmt.FieldStatement(
-        test_case_mock, field_mock, variable_reference_mock
-    )
+    field_statement = stmt.FieldStatement(test_case_mock, field_mock, variable_reference_mock)
     assert field_statement.field == field_mock
 
 
@@ -38,9 +36,7 @@ def test_field_statement_eq_same(test_case_mock, variable_reference_mock, field_
     assert statement == statement  # noqa: PLR0124
 
 
-def test_constructor_statement_accept(
-    test_case_mock, variable_reference_mock, field_mock
-):
+def test_constructor_statement_accept(test_case_mock, variable_reference_mock, field_mock):
     statement = stmt.FieldStatement(test_case_mock, field_mock, variable_reference_mock)
     visitor = MagicMock(stmt.StatementVisitor)
     statement.accept(visitor)
@@ -119,12 +115,8 @@ def test_primitive_statement_replace_ignore(field_mock, default_test_case):
     assert statement.source == old
 
 
-def test_field_statement_eq_other_type(
-    default_test_case, variable_reference_mock, field_mock
-):
-    statement = stmt.FieldStatement(
-        default_test_case, field_mock, variable_reference_mock
-    )
+def test_field_statement_eq_other_type(default_test_case, variable_reference_mock, field_mock):
+    statement = stmt.FieldStatement(default_test_case, field_mock, variable_reference_mock)
     assert not statement.structural_eq(variable_reference_mock, {})
 
 
@@ -141,12 +133,8 @@ def test_field_statement_eq_clone(default_test_case, field_mock):
 
 
 def test_hash_same(default_test_case, variable_reference_mock, field_mock):
-    statement = stmt.FieldStatement(
-        default_test_case, field_mock, variable_reference_mock
-    )
-    statement2 = stmt.FieldStatement(
-        default_test_case, field_mock, variable_reference_mock
-    )
+    statement = stmt.FieldStatement(default_test_case, field_mock, variable_reference_mock)
+    statement2 = stmt.FieldStatement(default_test_case, field_mock, variable_reference_mock)
     memo = {variable_reference_mock: 0, statement.ret_val: 1}
     memo2 = {variable_reference_mock: 0, statement2.ret_val: 1}
     assert statement.structural_hash(memo) == statement2.structural_hash(memo2)

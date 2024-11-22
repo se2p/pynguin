@@ -82,9 +82,7 @@ def test_variable_type_conversion(variable_type_naming_scope, tp, name, type_sys
         (dict[int, str], "dict_0", "dict_1"),
     ],
 )
-def test_variable_type_counter(
-    variable_type_naming_scope, tp, name0, name1, type_system
-):
+def test_variable_type_counter(variable_type_naming_scope, tp, name0, name1, type_system):
     var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(tp))
     assert variable_type_naming_scope.get_name(var) == name0
     var = vr.VariableReference(MagicMock(), type_system.convert_type_hint(tp))
@@ -92,9 +90,7 @@ def test_variable_type_counter(
 
 
 def test_variable_type_runtime(type_system):
-    scope = ns.VariableTypeNamingScope(
-        return_type_trace={0: type_system.convert_type_hint(int)}
-    )
+    scope = ns.VariableTypeNamingScope(return_type_trace={0: type_system.convert_type_hint(int)})
     var = MagicMock(type=type_system.convert_type_hint(None))
     var.get_statement_position.return_value = 1
     assert scope.get_name(var) == "var_0"

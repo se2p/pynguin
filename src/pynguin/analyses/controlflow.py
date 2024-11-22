@@ -442,9 +442,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         Returns:
             The copied graph
         """
-        copy = CFG(
-            ControlFlowGraph()
-        )  # TODO(fk) Cloning the bytecode cfg is complicated.
+        copy = CFG(ControlFlowGraph())  # TODO(fk) Cloning the bytecode cfg is complicated.
 
         copy._graph = cfg._graph.copy()  # noqa: SLF001
         return copy
@@ -498,8 +496,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                     false_branch = target_block
                 else:
                     raise RuntimeError(
-                        "Unknown conditional Jump instruction in bytecode "
-                        + last_instr.name
+                        "Unknown conditional Jump instruction in bytecode " + last_instr.name
                     )
                 for next_branch, value in [(true_branch, True), (false_branch, False)]:
                     next_index = blocks.get_block_index(
@@ -507,12 +504,10 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                     )
                     # 'label' is also set to value, to get a nicer DOT representation,
                     # because 'label' is a keyword for labelling edges.
-                    edges[node_index].append(
-                        (
-                            next_index,
-                            {EDGE_DATA_BRANCH_VALUE: value, "label": value},
-                        )
-                    )
+                    edges[node_index].append((
+                        next_index,
+                        {EDGE_DATA_BRANCH_VALUE: value, "label": value},
+                    ))
             else:
                 if next_block:
                     next_index = blocks.get_block_index(next_block)
@@ -557,9 +552,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         # Search node with index 0. This block contains the instruction where
         # the execution of a code object begins.
         node_zero = [n for n in cfg.nodes if n.index == 0]
-        assert (
-            len(node_zero) == 1
-        ), "Execution has to start at exactly one node that has index 0."
+        assert len(node_zero) == 1, "Execution has to start at exactly one node that has index 0."
         entry_node = node_zero[0]
         cfg.add_node(dummy_entry_node)
         cfg.add_edge(dummy_entry_node, entry_node)
@@ -692,9 +685,7 @@ class DominatorTree(ProgramGraph[ProgramGraphNode]):
                 if node == entry:
                     continue
                 current_dominators = dominance_map.get(node)
-                new_dominators = DominatorTree._calculate_dominators(
-                    graph, dominance_map, node
-                )
+                new_dominators = DominatorTree._calculate_dominators(graph, dominance_map, node)
 
                 if current_dominators != new_dominators:
                     changed = True
@@ -756,14 +747,8 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
                 if source not in post_dominator_tree.get_transitive_successors(target):
                     # Store branching data from edge, i.e., which outcome of the
                     # branching node leads to this node.
-                    data = frozenset(
-                        augmented_cfg.graph.get_edge_data(source, target).items()
-                    )
-                    edges.add(
-                        ControlDependenceGraph._Edge(
-                            source=source, target=target, data=data
-                        )
-                    )
+                    data = frozenset(augmented_cfg.graph.get_edge_data(source, target).items())
+                    edges.add(ControlDependenceGraph._Edge(source=source, target=target, data=data))
 
         # Mark nodes in the PDT and construct edges for them.
         for edge in edges:
@@ -787,9 +772,7 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
 
         return filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
-    def get_control_dependencies(
-        self, node: ProgramGraphNode
-    ) -> OrderedSet[ControlDependency]:
+    def get_control_dependencies(self, node: ProgramGraphNode) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.
 
         Args:

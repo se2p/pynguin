@@ -56,9 +56,7 @@ def test_assignment_statement_clone(default_test_case):
     int_prim2 = st.IntPrimitiveStatement(default_test_case, 10)
     # TODO(fk) the assignment statement from EvoSuite might not be fitting for our case?
     # Because currently we can only overwrite existing values?
-    assignment_stmt = st.AssignmentStatement(
-        default_test_case, int_prim.ret_val, int_prim2.ret_val
-    )
+    assignment_stmt = st.AssignmentStatement(default_test_case, int_prim.ret_val, int_prim2.ret_val)
     default_test_case.add_statement(int_prim)
     default_test_case.add_statement(int_prim2)
     default_test_case.add_statement(assignment_stmt)
@@ -73,13 +71,11 @@ def simple_test_case(function_mock, default_test_case) -> dtc.DefaultTestCase:
     int_prim = st.IntPrimitiveStatement(default_test_case, 5)
     int_prim2 = st.IntPrimitiveStatement(default_test_case, 5)
     float_prim = st.FloatPrimitiveStatement(default_test_case, 5.5)
-    func = st.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
+    func = st.FunctionStatement(default_test_case, function_mock, {"z": float_prim.ret_val})
     func.add_assertion(ass.ObjectAssertion(func.ret_val, math.pi))
     string_prim = st.StringPrimitiveStatement(default_test_case, "Test")
-    string_prim.ret_val._type = (
-        default_test_case.test_cluster.type_system.convert_type_hint(type(None))
+    string_prim.ret_val._type = default_test_case.test_cluster.type_system.convert_type_hint(
+        type(None)
     )
     default_test_case.add_statement(int_prim)
     default_test_case.add_statement(int_prim2)
@@ -109,9 +105,7 @@ def test_test_case_equals_on_different_prim(
     )
     # Clone points to int at 1
     cloned.add_statement(
-        st.ConstructorStatement(
-            cloned, constructor_mock, {"y": cloned.statements[1].ret_val}
-        )
+        st.ConstructorStatement(cloned, constructor_mock, {"y": cloned.statements[1].ret_val})
     )
 
     # Even though they both point to an int, they are not equal

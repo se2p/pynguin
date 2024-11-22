@@ -42,9 +42,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         description="Pynguin is an automatic unit test generation framework for Python",
         fromfile_prefix_chars="@",
     )
-    parser.add_argument(
-        "--version", action="version", version="%(prog)s " + __version__
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument(
         "-v",
         "--verbose",
@@ -144,9 +142,7 @@ def _setup_logging(
     else:
         install()
         console = Console(tab_size=4)
-        handler = RichHandler(
-            rich_tracebacks=True, log_time_format="[%X]", console=console
-        )
+        handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]", console=console)
         handler.setFormatter(logging.Formatter("%(message)s"))
 
     if log_file is not None:
@@ -154,8 +150,7 @@ def _setup_logging(
 
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s]"
-        "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
+        format="%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s",
         datefmt="[%X]",
         handlers=[handler],
     )

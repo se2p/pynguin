@@ -169,9 +169,7 @@ def test_goal(executor_mock):
     assert func.goal == goal
 
 
-def test_compute_fitness_values_mocked(
-    subject_properties_mock, executor_mock, trace_mock
-):
+def test_compute_fitness_values_mocked(subject_properties_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
@@ -265,12 +263,8 @@ def _get_test_for_simple_nesting_outer_branch_covered(
 @pytest.mark.parametrize(
     "chrom_factory, expected_fitness",
     [
-        pytest.param(
-            _get_test_for_simple_nesting_no_branch_covered, 4.7272727272727275
-        ),
-        pytest.param(
-            _get_test_for_simple_nesting_outer_branch_covered, 1.4090909090909092
-        ),
+        pytest.param(_get_test_for_simple_nesting_no_branch_covered, 4.7272727272727275),
+        pytest.param(_get_test_for_simple_nesting_outer_branch_covered, 1.4090909090909092),
     ],
 )
 def test_fitness_simple_nesting(
@@ -475,17 +469,13 @@ def _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock):
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
     for line_id in range(len(lines)):
         line_goal = bg.LineCoverageGoal(0, line_id)
-        chromosome.add_fitness_function(
-            bg.LineCoverageTestFitness(executor_mock, line_goal)
-        )
+        chromosome.add_fitness_function(bg.LineCoverageTestFitness(executor_mock, line_goal))
 
 
 def _get_lines_data_for_plus_module():
     file_name = "../fixtures/linecoverage/plus.py"
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
-    return {
-        line_id: LineMetaData(0, file_name, line) for line_id, line in enumerate(lines)
-    }
+    return {line_id: LineMetaData(0, file_name, line) for line_id, line in enumerate(lines)}
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:

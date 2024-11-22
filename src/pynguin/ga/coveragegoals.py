@@ -146,9 +146,9 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
             is_branch: Whether this is an actual branch
         """
         super().__init__(code_object_id)
-        assert (
-            is_branchless_code_object ^ is_branch
-        ), "Must be either branch-less code object or branch."
+        assert is_branchless_code_object ^ is_branch, (
+            "Must be either branch-less code object or branch."
+        )
         self._is_branchless_code_object = is_branchless_code_object
         self._is_branch = is_branch
 
@@ -305,9 +305,7 @@ class BranchGoalPool:
         Returns:
             The goals for branches.
         """
-        return [
-            goal for goals in self._predicate_to_branch_goals.values() for goal in goals
-        ]
+        return [goal for goals in self._predicate_to_branch_goals.values() for goal in goals]
 
     @property
     def branch_coverage_goals(self) -> OrderedSet[AbstractBranchCoverageGoal]:
@@ -337,12 +335,10 @@ class BranchGoalPool:
         for predicate_id, meta in subject_properties.existing_predicates.items():
             entry: list[BranchGoal] = []
             goal_map[predicate_id] = entry
-            entry.extend(
-                (
-                    BranchGoal(meta.code_object_id, predicate_id, value=True),
-                    BranchGoal(meta.code_object_id, predicate_id, value=False),
-                )
-            )
+            entry.extend((
+                BranchGoal(meta.code_object_id, predicate_id, value=True),
+                BranchGoal(meta.code_object_id, predicate_id, value=False),
+            ))
         return goal_map
 
 
@@ -376,9 +372,7 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
         return f"BranchCoverageTestFitness for {self._goal}"
 
     def __repr__(self) -> str:
-        return (
-            f"BranchCoverageTestFitness(executor={self._executor}, goal={self._goal})"
-        )
+        return f"BranchCoverageTestFitness(executor={self._executor}, goal={self._goal})"
 
     @property
     def goal(self) -> AbstractBranchCoverageGoal:
@@ -443,9 +437,7 @@ class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
         return f"CheckedCoverageTestFitness for {self._goal}"
 
     def __repr__(self) -> str:
-        return (
-            f"CheckedCoverageTestFitness(executor={self._executor}, goal={self._goal})"
-        )
+        return f"CheckedCoverageTestFitness(executor={self._executor}, goal={self._goal})"
 
 
 def create_branch_coverage_fitness_functions(
@@ -460,12 +452,9 @@ def create_branch_coverage_fitness_functions(
     Returns:
         All branch coverage related fitness functions.
     """
-    return OrderedSet(
-        [
-            BranchCoverageTestFitness(executor, goal)
-            for goal in branch_goal_pool.branch_coverage_goals
-        ]
-    )
+    return OrderedSet([
+        BranchCoverageTestFitness(executor, goal) for goal in branch_goal_pool.branch_coverage_goals
+    ])
 
 
 def create_line_coverage_fitness_functions(
@@ -479,17 +468,13 @@ def create_line_coverage_fitness_functions(
     Returns:
         All line coverage related fitness functions.
     """
-    return OrderedSet(
-        [
-            LineCoverageTestFitness(
-                executor, LineCoverageGoal(line_meta.code_object_id, line_id)
-            )
-            for (
-                line_id,
-                line_meta,
-            ) in executor.tracer.get_subject_properties().existing_lines.items()
-        ]
-    )
+    return OrderedSet([
+        LineCoverageTestFitness(executor, LineCoverageGoal(line_meta.code_object_id, line_id))
+        for (
+            line_id,
+            line_meta,
+        ) in executor.tracer.get_subject_properties().existing_lines.items()
+    ])
 
 
 def create_checked_coverage_fitness_functions(
@@ -503,15 +488,13 @@ def create_checked_coverage_fitness_functions(
     Returns:
         All checked coverage related fitness functions.
     """
-    return OrderedSet(
-        [
-            StatementCheckedCoverageTestFitness(
-                executor,
-                CheckedCoverageGoal(line_meta.code_object_id, line_id),
-            )
-            for (
-                line_id,
-                line_meta,
-            ) in executor.tracer.get_subject_properties().existing_lines.items()
-        ]
-    )
+    return OrderedSet([
+        StatementCheckedCoverageTestFitness(
+            executor,
+            CheckedCoverageGoal(line_meta.code_object_id, line_id),
+        )
+        for (
+            line_id,
+            line_meta,
+        ) in executor.tracer.get_subject_properties().existing_lines.items()
+    ])

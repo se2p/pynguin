@@ -39,11 +39,7 @@ class ImportTransformer(cst.CSTTransformer):
 
     def leave_ImportFrom(  # noqa: D102, N802
         self, original_node: cst.ImportFrom, updated_node: cst.ImportFrom
-    ) -> (
-        cst.BaseSmallStatement
-        | cst.FlattenSentinel[cst.BaseSmallStatement]
-        | cst.RemovalSentinel
-    ):
+    ) -> cst.BaseSmallStatement | cst.FlattenSentinel[cst.BaseSmallStatement] | cst.RemovalSentinel:
         module = updated_node.module
         while isinstance(module, cst.Attribute):
             module = module.value  # type: ignore[assignment]
@@ -55,11 +51,7 @@ class ImportTransformer(cst.CSTTransformer):
 
     def leave_Import(  # noqa: D102, N802
         self, original_node: cst.Import, updated_node: cst.Import
-    ) -> (
-        cst.BaseSmallStatement
-        | cst.FlattenSentinel[cst.BaseSmallStatement]
-        | cst.RemovalSentinel
-    ):
+    ) -> cst.BaseSmallStatement | cst.FlattenSentinel[cst.BaseSmallStatement] | cst.RemovalSentinel:
         to_replace = []
         for name in updated_node.names:
             node = name.name
@@ -127,9 +119,7 @@ if __name__ == "__main__":
 
     print("Copying files from source to target")  # noqa: T201
     shutil.copytree(source_dir, target_package_dir)
-    transformer = ImportTransformer(
-        config.source_package_prefix, config.target_package_prefix
-    )
+    transformer = ImportTransformer(config.source_package_prefix, config.target_package_prefix)
     print("Adjusting imports in copied files")  # noqa: T201
     for python_file in target_package_dir.rglob("*.py"):
         # Rewrite imports to use new prefix.
@@ -139,8 +129,7 @@ if __name__ == "__main__":
         python_file.write_text(changed_imports.code, "UTF-8")
     print("Successfully adjusted all files.")  # noqa: T201
     print(  # noqa: T201
-        "You can now run pynguin on itself running a variation of the following "
-        "command:"
+        "You can now run pynguin on itself running a variation of the following command:"
     )
     print(  # noqa: T201
         f"PYTHONPATH=$PYTHONPATH:{target_dir}"

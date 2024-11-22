@@ -53,17 +53,13 @@ class TestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):
 
     def get_chromosome(self) -> tcc.TestCaseChromosome:  # noqa: D102
         test_case = self._test_case_factory.get_test_case()
-        chrom = tcc.TestCaseChromosome(
-            test_case=test_case, test_factory=self._test_factory
-        )
+        chrom = tcc.TestCaseChromosome(test_case=test_case, test_factory=self._test_factory)
         for func in self._fitness_functions:
             chrom.add_fitness_function(func)
         return chrom
 
 
-class ArchiveReuseTestCaseChromosomeFactory(
-    cf.ChromosomeFactory[tcc.TestCaseChromosome]
-):
+class ArchiveReuseTestCaseChromosomeFactory(cf.ChromosomeFactory[tcc.TestCaseChromosome]):
     """Provides test case chromosomes from an archive with some probability.
 
     Otherwise, delegates to wrapped chromosome factory.

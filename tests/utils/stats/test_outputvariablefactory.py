@@ -33,9 +33,7 @@ class _DummySequenceOutputVariableFactory(SequenceOutputVariableFactory):
 
 @pytest.fixture
 def factory():
-    return DirectSequenceOutputVariableFactory(
-        RuntimeVariable.TotalExceptionsTimeline, 0
-    )
+    return DirectSequenceOutputVariableFactory(RuntimeVariable.TotalExceptionsTimeline, 0)
 
 
 @pytest.fixture
@@ -103,10 +101,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
     sequence_factory.update(chromosome_2)
     time.sleep(0.05)
     variables = sequence_factory.get_output_variables()
-    [
-        check_result(var.name, var.value, index + 1)
-        for index, var in enumerate(variables)
-    ]
+    [check_result(var.name, var.value, index + 1) for index, var in enumerate(variables)]
     assert len(variables) >= 0
 
 
@@ -185,9 +180,7 @@ def test_normalised_area_under_curve_outlier(sequence_factory):
     config.configuration.stopping.maximum_search_time = 5
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
-    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)] + [
-        5_500_000_000
-    ]
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)] + [5_500_000_000]
     sequence_factory._values = [0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 5 / 6, 6 / 7]
     expected = 2987 / (840 * 5.5)
     assert sequence_factory.normalised_area_under_curve == pytest.approx(expected)

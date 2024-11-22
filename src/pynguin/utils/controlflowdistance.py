@@ -111,10 +111,7 @@ class ControlFlowDistance:
         return self._approach_level + ff.normalise(self._branch_distance)
 
     def __str__(self) -> str:
-        return (
-            f"approach = {self._approach_level}, branch distance ="
-            f" {self._branch_distance}"
-        )
+        return f"approach = {self._approach_level}, branch distance = {self._branch_distance}"
 
     def __repr__(self) -> str:
         return (
@@ -173,9 +170,7 @@ def get_non_root_control_flow_distance(
     # Code Object was not executed, simply use diameter as upper bound.
     if code_object_id not in trace.executed_code_objects:
         distance.approach_level = (
-            tracer.get_subject_properties()
-            .existing_code_objects[code_object_id]
-            .cfg.diameter
+            tracer.get_subject_properties().existing_code_objects[code_object_id].cfg.diameter
         )
         return distance
 
@@ -193,9 +188,7 @@ def get_non_root_control_flow_distance(
 
     # Choose diameter as upper bound
     distance.approach_level = (
-        tracer.get_subject_properties()
-        .existing_code_objects[code_object_id]
-        .cfg.diameter
+        tracer.get_subject_properties().existing_code_objects[code_object_id].cfg.diameter
     )
 
     # We check for the closest predicate that was executed and compute the approach
@@ -204,14 +197,11 @@ def get_non_root_control_flow_distance(
     for node in [
         node
         for node in cdg.nodes
-        if node.predicate_id is not None
-        and node.predicate_id in trace.executed_predicates
+        if node.predicate_id is not None and node.predicate_id in trace.executed_predicates
     ]:
         try:
             candidate = ControlFlowDistance()
-            candidate.approach_level = nx.shortest_path_length(
-                cdg.graph, node, target_node
-            )
+            candidate.approach_level = nx.shortest_path_length(cdg.graph, node, target_node)
             # Predicate was executed but did not lead to execution of desired predicate
             # So the remaining branch distance to the true or false branch is
             # the desired distance, right?
@@ -228,9 +218,7 @@ def get_non_root_control_flow_distance(
     return distance
 
 
-def _get_node_with_predicate_id(
-    cdg: ControlDependenceGraph, predicate_id: int
-) -> ProgramGraphNode:
+def _get_node_with_predicate_id(cdg: ControlDependenceGraph, predicate_id: int) -> ProgramGraphNode:
     cdg_nodes = [node for node in cdg.nodes if node.predicate_id == predicate_id]
     assert len(cdg_nodes) == 1
     return cdg_nodes.pop()

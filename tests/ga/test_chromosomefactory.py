@@ -38,9 +38,7 @@ def test_archive_reuse_case_factory_get_chromosome():
     clone_chromosome_from_archive = MagicMock()
     chromosome_from_archive.clone.return_value = clone_chromosome_from_archive
     archive.solutions = [chromosome_from_archive]
-    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
-        test_case_chromosome_factory, archive
-    )
+    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(test_case_chromosome_factory, archive)
     config.configuration.seeding.seed_from_archive_probability = 1.0
     sampled = factory.get_chromosome()
     assert sampled == clone_chromosome_from_archive
@@ -54,9 +52,7 @@ def test_archive_reuse_case_factory_get_chromosome_mutation_count():
     clone_chromosome_from_archive = MagicMock()
     chromosome_from_archive.clone.return_value = clone_chromosome_from_archive
     archive.solutions = [chromosome_from_archive]
-    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
-        test_case_chromosome_factory, archive
-    )
+    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(test_case_chromosome_factory, archive)
     config.configuration.seeding.seed_from_archive_probability = 1.0
     config.configuration.seeding.seed_from_archive_mutations = 42
     sampled = factory.get_chromosome()
@@ -70,9 +66,7 @@ def test_archive_reuse_case_factory_get_chromosome_empty_archive():
     chromosome_from_factory = MagicMock()
     archive.solutions = []
     test_case_chromosome_factory.get_chromosome.return_value = chromosome_from_factory
-    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
-        test_case_chromosome_factory, archive
-    )
+    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(test_case_chromosome_factory, archive)
     config.configuration.seeding.seed_from_archive_probability = 1.0
     sampled = factory.get_chromosome()
     assert sampled == chromosome_from_factory
@@ -84,9 +78,7 @@ def test_archive_reuse_case_factory_get_chromosome_no_reuse():
     chromosome_from_factory = MagicMock()
     archive.solutions = [MagicMock()]
     test_case_chromosome_factory.get_chromosome.return_value = chromosome_from_factory
-    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
-        test_case_chromosome_factory, archive
-    )
+    factory = tccf.ArchiveReuseTestCaseChromosomeFactory(test_case_chromosome_factory, archive)
     config.configuration.seeding.seed_from_archive_probability = 0.0
     sampled = factory.get_chromosome()
     assert sampled == chromosome_from_factory

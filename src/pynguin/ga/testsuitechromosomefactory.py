@@ -56,9 +56,7 @@ class TestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome]):
         )
 
         for _ in range(num_tests):
-            chromosome.add_test_case_chromosome(
-                self._test_case_chromosome_factory.get_chromosome()
-            )
+            chromosome.add_test_case_chromosome(self._test_case_chromosome_factory.get_chromosome())
         for fitness_function in self._fitness_functions:
             chromosome.add_fitness_function(fitness_function)
         for coverage_function in self._coverage_functions:

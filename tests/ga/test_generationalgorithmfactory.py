@@ -42,9 +42,7 @@ def algorithm_factory() -> gaf.TestSuiteGenerationAlgorithmFactory:
     "algorithm, cls",
     [
         pytest.param(config.Algorithm.MOSA, MOSAAlgorithm),
-        pytest.param(
-            config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchAlgorithm
-        ),
+        pytest.param(config.Algorithm.RANDOM_TEST_SUITE_SEARCH, RandomTestSuiteSearchAlgorithm),
         pytest.param(config.Algorithm.RANDOM, RandomAlgorithm),
         pytest.param(config.Algorithm.WHOLE_SUITE, WholeSuiteAlgorithm),
     ],

@@ -106,9 +106,7 @@ def test__setup_logging_log_file(tmp_path: Path):
 @pytest.mark.parametrize(
     "arguments, expected",
     [
-        pytest.param(
-            ["--foo", "bar", "--bar", "foo"], ["--foo", "bar", "--bar", "foo"]
-        ),
+        pytest.param(["--foo", "bar", "--bar", "foo"], ["--foo", "bar", "--bar", "foo"]),
         pytest.param(
             ["--foo", "bar", "--output_variables", "foo,bar,baz", "--bar", "foo"],
             ["--foo", "bar", "--output_variables", "foo", "bar", "baz", "--bar", "foo"],
@@ -258,19 +256,17 @@ def test_load_configuration_from_file(tmp_path):
         config_file /= "tests"  # pragma: no cover
     config_file = config_file / "fixtures" / "test.conf"
     parser = _create_argument_parser()
-    parsed = parser.parse_args(
-        [
-            f"@{config_file}",
-            "--module_name",
-            "hurz",
-            "--project_path",
-            str(tmp_path),
-            "--output_path",
-            str(tmp_path),
-            "--maximum_search_time",
-            "50",
-        ]
-    )
+    parsed = parser.parse_args([
+        f"@{config_file}",
+        "--module_name",
+        "hurz",
+        "--project_path",
+        str(tmp_path),
+        "--output_path",
+        str(tmp_path),
+        "--maximum_search_time",
+        "50",
+    ])
     configuration = parsed.config
     expected = config.Configuration(
         algorithm=config.Algorithm.MOSA,

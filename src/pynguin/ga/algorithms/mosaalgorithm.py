@@ -35,9 +35,7 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._number_of_goals = len(self._test_case_fitness_functions)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.Goals, self._number_of_goals
-        )
+        stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
         self._population = self._get_random_population()
         self._archive.update(self._population)
@@ -53,12 +51,9 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
                 self._archive.uncovered_goals,  # type: ignore[arg-type]
             )
 
-        self.before_first_search_iteration(
-            self.create_test_suite(self._archive.solutions)
-        )
+        self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while (
-            self.resources_left()
-            and self._number_of_goals - len(self._archive.covered_goals) != 0
+            self.resources_left() and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
@@ -72,9 +67,7 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: list[tcc.TestCaseChromosome] = (
-            self._breed_next_generation()
-        )
+        offspring_population: list[tcc.TestCaseChromosome] = self._breed_next_generation()
 
         # Create union of parents and offspring
         union: list[tcc.TestCaseChromosome] = []
@@ -86,9 +79,7 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))
         # Ranking the union using the best rank algorithm
-        fronts = self._ranking_function.compute_ranking_assignment(
-            union, uncovered_goals
-        )
+        fronts = self._ranking_function.compute_ranking_assignment(union, uncovered_goals)
 
         remain = len(self._population)
         index = 0

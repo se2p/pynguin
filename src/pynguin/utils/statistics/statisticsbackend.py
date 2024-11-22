@@ -55,9 +55,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
 
     def write_data(self, data: dict[str, OutputVariable]) -> None:  # noqa: D102
         try:
-            output_dir = Path(
-                config.configuration.statistics_output.report_dir
-            ).resolve()
+            output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
             output_file = output_dir / "statistics.csv"
             with output_file.open(mode="a") as csv_file:
                 field_names = [k for k, _ in data.items()]
