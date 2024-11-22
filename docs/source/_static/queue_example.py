@@ -17,7 +17,7 @@ class Queue:
         self.data = array.array("i", range(size_max))
 
     def empty(self) -> bool:
-        return self.size != 0
+        return self.size == 0
 
     def full(self) -> bool:
         return self.size == self.max
