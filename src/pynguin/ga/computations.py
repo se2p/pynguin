@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides classes for computations on chromosomes, e.g., fitness and coverage."""
+
 from __future__ import annotations
 
 import abc

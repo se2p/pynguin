@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a visitor that transforms statements to AST."""
+
 from __future__ import annotations
 
 import ast
@@ -298,7 +299,7 @@ class StatementToAstVisitor(StatementVisitor):
                 func=ast.Name(id="set", ctx=ast.Load()), args=[], keywords=[]
             )
         else:
-            inner = ast.Set(
+            inner = ast.Set(  # type: ignore[call-arg]
                 elts=[
                     au.create_full_name(
                         self._variable_names, self._module_aliases, x, load=True

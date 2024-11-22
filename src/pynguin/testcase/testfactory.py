@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a factory for test-case generation."""
+
 from __future__ import annotations
 
 import contextlib

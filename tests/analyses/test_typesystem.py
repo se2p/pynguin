@@ -53,7 +53,8 @@ def __untyped_dummy(a, b, c):
 
 
 def __union_dummy(  # noqa: FURB118
-    a: int | float, b: int | float  # noqa: PYI041
+    a: int | float,  # noqa: PYI041
+    b: int | float,  # noqa: PYI041
 ) -> int | float:
     return a + b  # pragma: no cover
 
@@ -82,12 +83,12 @@ class __UntypedDummy:  # noqa: N801
         return self.__a  # pragma: no cover
 
 
-@pytest.fixture()
+@pytest.fixture
 def signature():
     return inspect.signature(__dummy)
 
 
-@pytest.fixture()
+@pytest.fixture
 def inferred_signature(signature, type_system):
     return InferredSignature(
         signature=signature,

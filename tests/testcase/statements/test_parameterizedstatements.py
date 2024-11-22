@@ -468,7 +468,10 @@ def test_method_statement_eq(default_test_case, method_mock):
         statement2, {statement.ret_val: statement2.ret_val, var1: var1, var2: var2}
     )
     assert statement.structural_hash(
-        {var1: 0, statement.ret_val: 1}
+        {
+            var1: 0,
+            statement.ret_val: 1,
+        }
     ) == statement2.structural_hash({var1: 0, statement2.ret_val: 1})
 
 

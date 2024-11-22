@@ -8,6 +8,7 @@
 
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py.
 """
+
 from __future__ import annotations
 
 import contextlib

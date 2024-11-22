@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides analyses for a module's type information."""
+
 from __future__ import annotations
 
 import functools
@@ -1155,7 +1156,10 @@ class InferredSignature:
             parameter_types[param_name] = [str(t) for t in top_n_guesses]
         # Also need to compute for return type(s).
         compute_partial_matches_for.append(
-            (self.return_type, self.return_type_for_statistics)
+            (
+                self.return_type,
+                self.return_type_for_statistics,
+            )
         )
 
         # Need to compute which types are base type matches of others.
@@ -1425,7 +1429,12 @@ class TypeSystem:  # noqa: PLR0904
         object_info = self.find_type_info("builtins.object")
         assert object_info is not None
         object_info.attributes.difference_update(
-            {"__lt__", "__le__", "__gt__", "__ge__"}
+            {
+                "__lt__",
+                "__le__",
+                "__gt__",
+                "__ge__",
+            }
         )
 
         # Use fix point iteration with reach-in/out to push elements down.

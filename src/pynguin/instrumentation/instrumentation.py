@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides classes for various bytecode instrumentations."""
+
 from __future__ import annotations
 
 import builtins
@@ -462,7 +463,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST",
+                self._tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -540,7 +543,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         block[compare_idx:compare_idx] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST",
+                self._tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -588,7 +593,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         basic_block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST",
+                self._tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -622,7 +629,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # Insert instructions at the beginning.
         basic_block[0:0] = [
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST",
+                self._tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -700,7 +709,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         entered.extend(
             [
                 ArtificialInstr(
-                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=lineno,
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
@@ -724,7 +735,9 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         not_entered.extend(
             [
                 ArtificialInstr(
-                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                    "LOAD_CONST",
+                    self._tracer,  # type: ignore[arg-type]
+                    lineno=lineno,
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
@@ -771,7 +784,9 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             if basic_block[instr_index].lineno != lineno:  # type: ignore[union-attr]
                 lineno = basic_block[instr_index].lineno  # type: ignore[union-attr]
                 line_id = self._tracer.register_line(
-                    code_object_id, file_name, lineno  # type: ignore[arg-type]
+                    code_object_id,
+                    file_name,
+                    lineno,  # type: ignore[arg-type]
                 )
                 instr_index += (  # increment by the amount of instructions inserted
                     self.instrument_line(
@@ -801,7 +816,9 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         """
         inserted_instructions = [
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST",
+                self._tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -875,7 +892,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ):
                 lineno = instr.lineno  # type: ignore[union-attr]
                 self._tracer.register_line(
-                    code_object_id, file_name, lineno  # type: ignore[arg-type]
+                    code_object_id,
+                    file_name,
+                    lineno,  # type: ignore[arg-type]
                 )
 
             # Perform the actual instrumentation
@@ -1299,11 +1318,15 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
                 # No arg address
                 ArtificialInstr(
-                    "LOAD_CONST", None, lineno=instr.lineno  # type: ignore[arg-type]
+                    "LOAD_CONST",
+                    None,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
                 ),
                 # No arg type
                 ArtificialInstr(
-                    "LOAD_CONST", None, lineno=instr.lineno  # type: ignore[arg-type]
+                    "LOAD_CONST",
+                    None,  # type: ignore[arg-type]
+                    lineno=instr.lineno,
                 ),
                 # Call tracing method
                 ArtificialInstr("CALL_METHOD", 10, lineno=instr.lineno),
@@ -1859,7 +1882,8 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
             self._instrument_string_func(
-                basic_block, maybe_string_func.arg  # type: ignore[arg-type]
+                basic_block,
+                maybe_string_func.arg,  # type: ignore[arg-type]
             )
         if (
             isinstance(maybe_string_func_with_arg, Instr)
@@ -1867,7 +1891,8 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
             and maybe_string_func_with_arg.arg in {"startswith", "endswith"}
         ):
             self._instrument_string_func(
-                basic_block, maybe_string_func_with_arg.arg  # type: ignore[arg-type]
+                basic_block,
+                maybe_string_func_with_arg.arg,  # type: ignore[arg-type]
             )
 
     def _instrument_startswith_function(self, block: BasicBlock) -> None:

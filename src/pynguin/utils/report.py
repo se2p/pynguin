@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides capabilities to create a coverage report."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -13,7 +14,7 @@ import importlib.resources
 import inspect
 import sys
 import typing
-import xml.etree.ElementTree as ET  # noqa: N817,S405
+import xml.etree.ElementTree as ET  # noqa: S405
 
 import pygments
 

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a base class for assertions."""
+
 from __future__ import annotations
 
 from abc import ABC

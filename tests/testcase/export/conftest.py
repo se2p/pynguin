@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provide some fixtures for the export tests."""
+
 import pytest
 
 import pynguin.assertion.assertion as ass
@@ -18,7 +19,7 @@ from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 
 
-@pytest.fixture()
+@pytest.fixture
 def exportable_test_case(constructor_mock, function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = IntPrimitiveStatement(test_case, 5)
@@ -38,7 +39,7 @@ def exportable_test_case(constructor_mock, function_mock):
     return tcc.TestCaseChromosome(test_case)
 
 
-@pytest.fixture()
+@pytest.fixture
 def exportable_test_case_with_expected_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
@@ -52,7 +53,7 @@ def exportable_test_case_with_expected_exception(function_mock):
     return tcc.TestCaseChromosome(test_case)
 
 
-@pytest.fixture()
+@pytest.fixture
 def exportable_test_case_with_unexpected_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)

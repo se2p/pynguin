@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Utility methods for collections."""
+
 from __future__ import annotations
 
 from typing import Any

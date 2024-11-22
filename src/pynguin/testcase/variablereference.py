@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a base implementation of a variable in a test case."""
+
 from __future__ import annotations
 
 from abc import ABC

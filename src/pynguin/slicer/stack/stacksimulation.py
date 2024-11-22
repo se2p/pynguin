@@ -7,8 +7,10 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes to simulate the stack during dynamic slicing."""
+
 from __future__ import annotations
 
+from collections import UserList
 from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
@@ -23,7 +25,7 @@ DEFAULT_STACK_HEIGHT = 40
 DEFAULT_FRAME_HEIGHT = 40
 
 
-class BlockStack(list):
+class BlockStack(UserList):
     """Represents the stack for a block in a frame."""
 
     def push(self, instr: UniqueInstruction) -> None:

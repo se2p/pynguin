@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an interface for a stopping condition of the algorithm."""
+
 from __future__ import annotations
 
 import time

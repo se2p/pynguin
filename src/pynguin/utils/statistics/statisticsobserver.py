@@ -5,13 +5,14 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides some observers for statistics."""
+
 from __future__ import annotations
 
 import time
 import typing
 
 import pynguin.ga.searchobserver as so
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 

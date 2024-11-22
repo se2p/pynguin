@@ -33,11 +33,13 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from tests.fixtures.linecoverage.setter_getter import SetterGetter
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_three_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -98,11 +100,13 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -162,11 +166,13 @@ def test_only_void_function(setter_test):
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def getter_setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -227,11 +233,13 @@ def test_getter_before_setter(getter_setter_test):
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def setter_getter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(

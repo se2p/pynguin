@@ -7,6 +7,7 @@
 import contextlib
 import importlib
 import os
+import string
 import threading
 
 from unittest import mock
@@ -35,25 +36,25 @@ from pynguin.testcase.execution import ExecutionTracer
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_module():
     simple = importlib.import_module("tests.fixtures.instrumentation.simple")
     return importlib.reload(simple)
 
 
-@pytest.fixture()
+@pytest.fixture
 def artificial_none_module():
     simple = importlib.import_module("tests.fixtures.linecoverage.artificial_none")
     return importlib.reload(simple)
 
 
-@pytest.fixture()
+@pytest.fixture
 def comparison_module():
     comparison = importlib.import_module("tests.fixtures.instrumentation.comparison")
     return importlib.reload(comparison)
 
 
-@pytest.fixture()
+@pytest.fixture
 def tracer_mock():
     tracer = MagicMock()
     tracer.register_code_object.side_effect = range(100)
@@ -383,7 +384,7 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
         # can not compare expected and actual with equals, since the attribute
         # access instruction holds an argument address that changes with each
         # execution and can not be set in the expected element
-        assert type(expected_instr) == type(actual_instr)
+        assert type(expected_instr) is type(actual_instr)
         assert expected_instr.file == actual_instr.file
         assert expected_instr.code_object_id == actual_instr.code_object_id
         assert expected_instr.opcode == actual_instr.opcode
@@ -536,7 +537,10 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     simple_module.explicit_none_return()
     assert tracer.get_trace().covered_line_ids
     assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == OrderedSet(
-        [77, 78]
+        [
+            77,
+            78,
+        ]
     )
 
 
@@ -666,7 +670,7 @@ def test_expected_covered_lines(func, arg, expected_lines, artificial_none_modul
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def dynamic_instr():
     constant_pool = ConstantPool()
     constant_provider = DynamicConstantProvider(
@@ -680,7 +684,7 @@ def dynamic_instr():
     return constant_pool, transformer
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_module():
     dummy_module = importlib.import_module(
         "tests.fixtures.seeding.dynamicseeding.dynamicseedingdummies"
@@ -745,7 +749,7 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
         ("isupper", "UPPER", "upper", 0),
         ("isupper", "NotUpper", "NOTUPPER", 1),
         ("isdecimal", "012345", "non_decimal", 0),
-        ("isdecimal", "not_decimal", "0123456789", 1),
+        ("isdecimal", "not_decimal", string.digits, 1),
         ("isalpha", "alpha", "alpha1", 0),
         ("isalpha", "not_alpha", "isalpha", 1),
         ("isdigit", "012345", "012345_", 0),

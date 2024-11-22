@@ -9,6 +9,7 @@
 Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/operators/base.py
 and integrated in Pynguin.
 """
+
 from __future__ import annotations
 
 import abc
@@ -38,7 +39,7 @@ def fix_lineno(node: ast.AST) -> None:
     parent = node.parent  # type: ignore[attr-defined]
     if not hasattr(node, "lineno") and parent is not None and hasattr(parent, "lineno"):
         parent_lineno = parent.lineno
-        node.lineno = parent_lineno
+        node.lineno = parent_lineno  # type: ignore[attr-defined]
 
 
 def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
@@ -56,7 +57,7 @@ def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
 
     if not hasattr(new_node, "lineno") and hasattr(old_node, "lineno"):
         old_node_lineno = old_node.lineno
-        new_node.lineno = old_node_lineno
+        new_node.lineno = old_node_lineno  # type: ignore[attr-defined]
 
     if hasattr(old_node, "marker"):
         old_node_marker = old_node.marker
@@ -137,7 +138,7 @@ class MutationOperator:
         node: T,
         module: types.ModuleType,
         only_mutation: Mutation | None = None,
-    ) -> Generator[tuple[Mutation, ast.AST], None, None]:
+    ) -> Generator[tuple[Mutation, ast.AST]]:
         """Mutate a node.
 
         This method will temporarily modify the node provided and yield itself modified
@@ -160,9 +161,10 @@ class MutationOperator:
             mutated_node,
             visitor_name,
         ) in operator.visit(node):
-            yield Mutation(
-                current_node, replacement_node, cls, visitor_name
-            ), mutated_node
+            yield (
+                Mutation(current_node, replacement_node, cls, visitor_name),
+                mutated_node,
+            )
 
     def __init__(
         self,
@@ -178,9 +180,7 @@ class MutationOperator:
         self.module = module
         self.only_mutation = only_mutation
 
-    def visit(
-        self, node: T
-    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str], None, None]:
+    def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
         """Visit a node.
 
         This method will temporarily modify the node provided and yield itself modified
@@ -221,7 +221,7 @@ class MutationOperator:
 
     def _generic_visit(
         self, node: ast.AST
-    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str], None, None]:
+    ) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
         for field, old_value in ast.iter_fields(node):
             generator: Iterable[tuple[ast.AST, ast.AST, str]]
             if isinstance(old_value, list):
@@ -236,7 +236,7 @@ class MutationOperator:
 
     def _generic_visit_list(
         self, old_value: list
-    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+    ) -> Generator[tuple[ast.AST, ast.AST, str]]:
         for position, value in enumerate(old_value.copy()):
             if isinstance(value, ast.AST):
                 for (
@@ -252,7 +252,7 @@ class MutationOperator:
 
     def _generic_visit_real_node(
         self, node: ast.AST, field: str, old_value: ast.AST
-    ) -> Generator[tuple[ast.AST, ast.AST, str], None, None]:
+    ) -> Generator[tuple[ast.AST, ast.AST, str]]:
         for current_node, replacement_node, mutated_node, visitor_name in self.visit(
             old_value
         ):

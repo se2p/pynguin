@@ -692,7 +692,10 @@ def test_has_path():
     proxy = tt.ObjectProxy([1])
     proxy.count(1)
     count_call_knowledge = tt.UsageTraceNode.from_proxy(proxy).find_path(
-        ("count", "__call__")
+        (
+            "count",
+            "__call__",
+        )
     )
     assert count_call_knowledge.arg_types[0] == OrderedSet([int])
 

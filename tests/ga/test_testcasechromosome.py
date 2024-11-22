@@ -20,12 +20,12 @@ from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_case_chromosome(default_test_case):
     return tcc.TestCaseChromosome(default_test_case)
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_case_chromosome_with_test(default_test_case):
     return tcc.TestCaseChromosome(default_test_case), default_test_case
 
@@ -103,7 +103,10 @@ def test_mutation_insert_two(default_test_case):
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
-        [call(default_test_case, 0), call(default_test_case, 1)]
+        [
+            call(default_test_case, 0),
+            call(default_test_case, 1),
+        ]
     )
 
 
@@ -121,7 +124,10 @@ def test_mutation_insert_twice_no_success(default_test_case):
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert not chromosome._mutation_insert()
     test_factory.insert_random_statement.assert_has_calls(
-        [call(default_test_case, 0), call(default_test_case, 0)]
+        [
+            call(default_test_case, 0),
+            call(default_test_case, 0),
+        ]
     )
 
 

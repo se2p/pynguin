@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provide abstract selection function."""
+
 from __future__ import annotations
 
 from abc import abstractmethod

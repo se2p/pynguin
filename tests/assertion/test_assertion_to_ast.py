@@ -19,7 +19,7 @@ import pynguin.utils.ast_util as au
 from pynguin.utils.namingscope import NamingScope
 
 
-@pytest.fixture()
+@pytest.fixture
 def assertion_to_ast_ref() -> (
     tuple[ata.PyTestAssertionToAstVisitor, vr.VariableReference]
 ):

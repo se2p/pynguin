@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract base class for a test generation algorithm."""
+
 from __future__ import annotations
 
 import time

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a factory to create test case chromosomes."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

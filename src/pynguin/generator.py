@@ -16,6 +16,7 @@ framework.
 Pynguin is supposed to be used as a standalone command-line application but it
 can also be used as a library by instantiating this class directly.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -42,7 +43,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import DelegatingConstantProvider
@@ -427,7 +428,10 @@ def _track_final_metrics(
             executor
         )
         to_calculate.append(
-            (RuntimeVariable.AssertionCheckedCoverage, assertion_checked_coverage_ff)
+            (
+                RuntimeVariable.AssertionCheckedCoverage,
+                assertion_checked_coverage_ff,
+            )
         )
 
     # re-instrument the files

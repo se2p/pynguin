@@ -7,19 +7,29 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: check-ast
       - id: check-builtin-literals
       - id: check-case-conflict
       - id: check-docstring-first
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-xml
       - id: check-yaml
+      - id: debug-statements
+      - id: destroyed-symlinks
       - id: end-of-file-fixer
       - id: mixed-line-ending
-        args: [--fix=lf]
+        args: [ --fix=lf ]
+      - id: pretty-format-json
+        args: [ --autofix ]
+      - id: trailing-whitespace
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.16.0
+    rev: v3.19.0
     hooks:
       - id: pyupgrade
         args: [--py310-plus]
@@ -31,17 +41,18 @@ repos:
         args: [--profile, black]
 
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 24.10.0
     hooks:
       - id: black
         args: [--config, ./pyproject.toml]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
+    rev: v0.8.0
     hooks:
       - id: ruff
+        args: [ --fix ]
 
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v3.0.2
+    rev: v5.0.2
     hooks:
       - id: reuse

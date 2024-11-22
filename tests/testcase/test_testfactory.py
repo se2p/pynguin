@@ -94,7 +94,11 @@ def test_append_generic_statement(test_case_mock, statement):
     called = False
 
     def mock_method(
-        _t, _s, position=0, allow_none=True, recursion_depth=11  # noqa: ARG001, FBT002
+        _t,
+        _s,
+        position=0,  # noqa: ARG001
+        allow_none=True,  # noqa: ARG001, FBT002
+        recursion_depth=11,  # noqa: ARG001
     ):
         nonlocal called
         called = True
@@ -460,7 +464,7 @@ def test__get_possible_calls_no_match(default_test_case, function_mock):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_test_case(function_mock, default_test_case):
     float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)

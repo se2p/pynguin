@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides abstract factories for output variables."""
+
 from __future__ import annotations
 
 import time
@@ -22,7 +23,7 @@ import pynguin.utils.statistics.statisticsbackend as sb
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.chromosome as chrom
-    import pynguin.utils.statistics.statistics as stat
+    import pynguin.utils.statistics.stats as stat
 
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides tracking of statistics for various variables and types."""
+
 from __future__ import annotations
 
 import json
@@ -60,7 +61,7 @@ class _StatisticsTracker:
         return self._variables
 
     @property
-    def variables_generator(self) -> Generator[tuple[RuntimeVariable, Any], None, None]:
+    def variables_generator(self) -> Generator[tuple[RuntimeVariable, Any]]:
         """Provides a generator.
 
         Yields:
@@ -168,9 +169,7 @@ class _SearchStatistics:
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._backend: None | (sb.AbstractStatisticsBackend) = (
-            self._initialise_backend()
-        )
+        self._backend: sb.AbstractStatisticsBackend | None = self._initialise_backend()
         self._output_variables: dict[str, sb.OutputVariable] = {}
         self._variable_factories: dict[str, ovf.ChromosomeOutputVariableFactory] = {}
         self._sequence_output_variable_factories: dict[

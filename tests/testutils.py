@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Some utilites to make testing easier."""
+
 import ast
 
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -60,10 +61,8 @@ def assert_mutation(
     module = create_module(module_ast, "mutant")
 
     expected_mutants_processed_source_code = {
-        ast.unparse(
-            ParentNodeTransformer.create_ast(expected_mutant_source_code)
-        ): expected_mutant_info
-        for expected_mutant_source_code, expected_mutant_info in expected_mutants_source_code.items()
+        ast.unparse(ParentNodeTransformer.create_ast(expected_code)): expected_info
+        for expected_code, expected_info in expected_mutants_source_code.items()
     }
 
     for mutation, mutant_ast in operator.mutate(module_ast, module):
@@ -76,7 +75,7 @@ def assert_mutation(
 
         assert (
             mutant_source_code in expected_mutants_processed_source_code
-        ), f"{repr(mutant_source_code)} not in {expected_mutants_processed_source_code}"
+        ), f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
 
         expected_mutant_info = expected_mutants_processed_source_code.pop(
             mutant_source_code
@@ -115,10 +114,8 @@ def assert_mutator_mutation(
     module = create_module(module_ast, "mutant")
 
     expected_mutants_processed_source_code = {
-        ast.unparse(
-            ParentNodeTransformer.create_ast(expected_mutant_source_code)
-        ): expected_mutant_info
-        for expected_mutant_source_code, expected_mutant_info in expected_mutants_source_code.items()
+        ast.unparse(ParentNodeTransformer.create_ast(expected_code)): expected_info
+        for expected_code, expected_info in expected_mutants_source_code.items()
     }
 
     for mutations, mutant_ast in mutator.mutate(module_ast, module):
@@ -126,7 +123,7 @@ def assert_mutator_mutation(
 
         assert (
             mutant_source_code in expected_mutants_processed_source_code
-        ), f"{repr(mutant_source_code)} not in {expected_mutants_processed_source_code}"
+        ), f"{mutant_source_code!r} not in {expected_mutants_processed_source_code}"
 
         expected_mutant_info = expected_mutants_processed_source_code.pop(
             mutant_source_code

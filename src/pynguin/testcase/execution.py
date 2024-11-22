@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Contains all code related to test-case execution."""
+
 from __future__ import annotations
 
 import abc
@@ -1194,12 +1195,14 @@ class ExecutionTracer:  # noqa: PLR0904
 
             match cmp_op:
                 case PynguinCompare.EQ:
-                    distance_true, distance_false = _eq(value1, value2), _neq(
-                        value1, value2
+                    distance_true, distance_false = (
+                        _eq(value1, value2),
+                        _neq(value1, value2),
                     )
                 case PynguinCompare.NE:
-                    distance_true, distance_false = _neq(value1, value2), _eq(
-                        value1, value2
+                    distance_true, distance_false = (
+                        _neq(value1, value2),
+                        _eq(value1, value2),
                     )
                 case PynguinCompare.LT:
                     distance_true, distance_false = (
@@ -2465,7 +2468,7 @@ class TypeTracingObserver(ExecutionObserver):
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
         for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
-            result.proxy_knowledge[(stmt_pos, arg_name)] = copy.deepcopy(
+            result.proxy_knowledge[stmt_pos, arg_name] = copy.deepcopy(
                 tt.UsageTraceNode.from_proxy(proxy)
             )
 
@@ -2492,7 +2495,7 @@ class TypeTracingObserver(ExecutionObserver):
             for name, param in statement.args.items():
                 mod_param = vr.VariableReference(statement.test_case, ANY)
                 modified_args[name] = mod_param
-                real_params[(name, mod_param)] = param
+                real_params[name, mod_param] = param
 
             # We must rewrite calls as follows:
             # `foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)`
@@ -2531,7 +2534,7 @@ class TypeTracingObserver(ExecutionObserver):
                     is_kwargs=signature.signature.parameters[name].kind
                     == inspect.Parameter.VAR_KEYWORD,
                 )
-                self._local_state.proxies[(statement.get_position(), name)] = proxy
+                self._local_state.proxies[statement.get_position(), name] = proxy
                 exec_ctx.replace_variable_value(modified_param, proxy)
 
             return visitor.ast_node

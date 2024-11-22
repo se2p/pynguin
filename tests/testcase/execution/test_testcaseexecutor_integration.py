@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Integration tests for the executor."""
+
 import ast
 import importlib
 import threading
@@ -130,7 +131,9 @@ def test_killing_endless_loop():
         executor = TestCaseExecutor(tracer)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(
             ast.parse(

@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Provides the DynaMOSA test-generation strategy."""
+
 from __future__ import annotations
 
 import logging
@@ -17,7 +18,7 @@ from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment

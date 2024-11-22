@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a factories for generating different kind of test cases."""
+
 from __future__ import annotations
 
 from abc import abstractmethod

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a naming scope."""
+
 from __future__ import annotations
 
 import typing

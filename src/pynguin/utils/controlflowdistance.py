@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a data class to track the control-flow distances."""
+
 from __future__ import annotations
 
 from functools import total_ordering
@@ -61,8 +62,7 @@ class ControlFlowDistance:
     def __lt__(self, other: ControlFlowDistance) -> bool:
         if not isinstance(other, ControlFlowDistance):
             raise TypeError(
-                "'<' not supported between instances of "
-                "'ControlFlowDistance' and '%s'",
+                "'<' not supported between instances of 'ControlFlowDistance' and '%s'",
                 type(other),
             )
         return (self._approach_level, self._branch_distance) < (

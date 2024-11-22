@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides factories for the generation algorithm."""
+
 from __future__ import annotations
 
 import logging

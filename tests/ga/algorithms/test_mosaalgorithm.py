@@ -18,7 +18,7 @@ from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 
 
-@pytest.fixture()
+@pytest.fixture
 def mosa_strategy():
     return MOSAAlgorithm()
 

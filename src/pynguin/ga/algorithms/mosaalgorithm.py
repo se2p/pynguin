@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides the MOSA test-generation strategy."""
+
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import pynguin.ga.computations as ff
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
@@ -43,7 +44,8 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
 
         # Calculate dominance ranks and crowding distance
         fronts = self._ranking_function.compute_ranking_assignment(
-            self._population, self._archive.uncovered_goals  # type: ignore[arg-type]
+            self._population,
+            self._archive.uncovered_goals,  # type: ignore[arg-type]
         )
         for i in range(fronts.get_number_of_sub_fronts()):
             fast_epsilon_dominance_assignment(
@@ -79,9 +81,7 @@ class MOSAAlgorithm(AbstractMOSAAlgorithm):
         union.extend(self._population)
         union.extend(offspring_population)
 
-        uncovered_goals: OrderedSet[
-            ff.FitnessFunction
-        ] = self._archive.uncovered_goals  # type: ignore[assignment]
+        uncovered_goals: OrderedSet[ff.FitnessFunction] = self._archive.uncovered_goals  # type: ignore[assignment]
 
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))

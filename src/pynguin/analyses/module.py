@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides analyses for the subject module, based on the module and its AST."""
+
 from __future__ import annotations
 
 import abc
@@ -33,7 +34,7 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
@@ -1251,7 +1252,7 @@ def __analyse_method(
         test_cluster.add_accessible_object_under_test(generic_method, method_data)
 
 
-class _ParseResults(dict):
+class _ParseResults(dict):  # noqa: FURB189
     def __missing__(self, key):
         # Parse module on demand
         res = self[key] = parse_module(key)

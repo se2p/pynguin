@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a chromosome for a single test case."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

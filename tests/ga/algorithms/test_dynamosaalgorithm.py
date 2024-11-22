@@ -17,7 +17,7 @@ from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.testcase.execution import ExecutionTracer
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties():
     nested_module = importlib.import_module("tests.fixtures.examples.nested")
 
@@ -28,7 +28,7 @@ def subject_properties():
     return tracer.get_subject_properties()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_nested():
     def testMe(_):  # pragma: no cover  # noqa: N802
         def inner(_):

@@ -27,7 +27,7 @@ and allows the automated generation of unit tests for Python programs.
 <summary>Internal Pipeline Status</summary>
 
 [![pipeline status](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/main/pipeline.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/main)
-[![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/main/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/main)  
+[![coverage report](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/badges/main/coverage.svg)](https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/commits/main)
 
 </details>
 
@@ -70,13 +70,13 @@ Before you begin, ensure you have met the following requirements:
   3.11, there might be some problems due to changed internals regarding the byte-code
   instrumentation).
 
-  **Attention:** Pynguin now requires Python 3.10!  Older versions are no longer 
+  **Attention:** Pynguin now requires Python 3.10!  Older versions are no longer
   supported!
 - You have a recent Linux/macOS/Windows machine.
 
 Please consider reading the [online documentation](https://pynguin.readthedocs.io)
 to start your Pynguin adventure.
- 
+
 ## Installing Pynguin
 
 Pynguin can be easily installed using the `pip` tool by typing:
@@ -84,7 +84,7 @@ Pynguin can be easily installed using the `pip` tool by typing:
 pip install pynguin
 ```
 
-Make sure that your version of `pip` is that of a supported Python version, as any 
+Make sure that your version of `pip` is that of a supported Python version, as any
 older version is not supported by Pynguin!
 
 ## Using Pynguin
@@ -126,7 +126,7 @@ To start developing, follow these steps:
 ## Contributors
 
 Pynguin is developed at the
-[Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/) 
+[Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/)
 of the [University of Passau](https://www.uni-passau.de).
 
 Maintainer: [Stephan Lukasczyk](https://github.com/stephanlukasczyk)

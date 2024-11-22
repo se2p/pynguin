@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract base class for chromosomes."""
+
 from __future__ import annotations
 
 from abc import ABC

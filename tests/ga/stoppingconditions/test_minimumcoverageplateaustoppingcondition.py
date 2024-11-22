@@ -17,26 +17,26 @@ from pynguin.ga.stoppingcondition import MinimumCoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import StoppingCondition
 
 
-@pytest.fixture()
+@pytest.fixture
 def stopping_condition() -> StoppingCondition:
     return MinimumCoveragePlateauStoppingCondition(50, 1)
 
 
-@pytest.fixture()
+@pytest.fixture
 def individual_1() -> tsc.TestSuiteChromosome:
     chromosome = MagicMock(tsc.TestSuiteChromosome)
     chromosome.get_coverage.return_value = 0.40
     return chromosome
 
 
-@pytest.fixture()
+@pytest.fixture
 def individual_2() -> tsc.TestSuiteChromosome:
     chromosome = MagicMock(tsc.TestSuiteChromosome)
     chromosome.get_coverage.return_value = 0.60
     return chromosome
 
 
-@pytest.fixture()
+@pytest.fixture
 def individual_3() -> tsc.TestSuiteChromosome:
     chromosome = MagicMock(tsc.TestSuiteChromosome)
     chromosome.get_coverage.return_value = 0.60

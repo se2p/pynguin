@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an assertion generator."""
+
 from __future__ import annotations
 
 import ast
@@ -23,7 +24,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
@@ -334,8 +335,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             ):
                 if mutated_module is None:
                     self._logger.info(
-                        "Skipping mutant %3i/%i because "
-                        "it created an invalid module",
+                        "Skipping mutant %3i/%i because it created an invalid module",
                         idx,
                         mutant_count,
                     )

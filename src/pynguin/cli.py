@@ -9,6 +9,7 @@
 This module provides the main entry location for the program execution from the command
 line.
 """
+
 from __future__ import annotations
 
 import logging

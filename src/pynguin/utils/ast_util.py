@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Utility methods for AST manipulation."""
+
 from __future__ import annotations
 
 import ast

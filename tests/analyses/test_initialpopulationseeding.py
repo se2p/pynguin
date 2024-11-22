@@ -30,7 +30,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
 
 
-@pytest.fixture()
+@pytest.fixture
 def seed_modules_path():
     return (
         Path(__file__).parent
@@ -42,19 +42,19 @@ def seed_modules_path():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def triangle_test_cluster() -> ModuleTestCluster:
     return generate_test_cluster("tests.fixtures.examples.triangle")
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_test_cluster() -> ModuleTestCluster:
     return generate_test_cluster(
         "tests.fixtures.seeding.initialpopulationseeding.dummycontainer"
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def constant_provider():
     return EmptyConstantProvider()
 
@@ -256,7 +256,7 @@ def test_algorithm_generation_factory(
             MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
         )
     test_case_factory = chromosome_factory._test_case_factory
-    assert type(test_case_factory) == fac_type
+    assert type(test_case_factory) is fac_type
 
 
 @mock.patch("ast.parse")

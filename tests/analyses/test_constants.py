@@ -15,12 +15,12 @@ from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.utils.orderedset import OrderedSet
 
 
-@pytest.fixture()
+@pytest.fixture
 def pool() -> ConstantPool:
     return ConstantPool()
 
 
-@pytest.fixture()
+@pytest.fixture
 def rpool() -> ConstantPool:
     return RestrictedConstantPool(max_size=5)
 

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an assertion visitor to transform assertions to AST."""
+
 from __future__ import annotations
 
 import ast

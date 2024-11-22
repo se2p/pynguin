@@ -31,24 +31,24 @@ class _DummySequenceOutputVariableFactory(SequenceOutputVariableFactory):
         return 42
 
 
-@pytest.fixture()
+@pytest.fixture
 def factory():
     return DirectSequenceOutputVariableFactory(
         RuntimeVariable.TotalExceptionsTimeline, 0
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome_factory():
     return _DummyChromosomeOutputVariableFactory(RuntimeVariable.Coverage)
 
 
-@pytest.fixture()
+@pytest.fixture
 def sequence_factory():
     return _DummySequenceOutputVariableFactory(RuntimeVariable.CoverageTimeline)
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome():
     return tsc.TestSuiteChromosome()
 

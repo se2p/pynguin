@@ -10,6 +10,7 @@ The implementation of this module contains some code adopted from the ``darglint
 library (https://github.com/terrencepreilly/darglint), which was released by Terrence
 Reilly under MIT license.
 """
+
 from __future__ import annotations
 
 import ast

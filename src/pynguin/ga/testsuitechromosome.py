@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a test suite chromosome."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -26,8 +27,8 @@ class TestSuiteChromosome(chrom.Chromosome):
 
     def __init__(
         self,
-        test_case_chromosome_factory: None | (
-            cf.ChromosomeFactory[tcc.TestCaseChromosome]
+        test_case_chromosome_factory: (
+            cf.ChromosomeFactory[tcc.TestCaseChromosome] | None
         ) = None,
         orig: TestSuiteChromosome | None = None,
     ):
@@ -42,7 +43,7 @@ class TestSuiteChromosome(chrom.Chromosome):
         super().__init__(orig=orig)
 
         if orig is None:
-            self.test_case_chromosome_factory: None | (
+            self.test_case_chromosome_factory: None | (  # noqa: RUF036
                 cf.ChromosomeFactory[tcc.TestCaseChromosome]
             ) = test_case_chromosome_factory
             self.test_case_chromosomes: list[tcc.TestCaseChromosome] = []

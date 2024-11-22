@@ -31,7 +31,7 @@ from pynguin.testcase.variablereference import StaticFieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_three_test():
     """Produces the following testcase.
 
@@ -45,7 +45,9 @@ def full_cover_plus_three_test():
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -89,7 +91,7 @@ def full_cover_plus_three_test():
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_four_test():
     """Produces the following testcase.
 
@@ -103,7 +105,9 @@ def full_cover_plus_four_test():
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -147,11 +151,13 @@ def full_cover_plus_four_test():
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def partial_cover_use_bool_as_int():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -219,7 +225,7 @@ def test_case_1():
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_testsuite(
     full_cover_plus_three_test, full_cover_plus_four_test
 ) -> tsc.TestSuiteChromosome:
@@ -231,7 +237,7 @@ def full_cover_plus_testsuite(
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def partial_cover_plus_testsuite(
     plus_test_with_float_assertion, plus_test_with_multiple_assertions
 ) -> tsc.TestSuiteChromosome:
@@ -243,7 +249,7 @@ def partial_cover_plus_testsuite(
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(default_test_case))

@@ -88,7 +88,7 @@ def test_line_annotation_message(line, msg):
     assert line.message() == msg
 
 
-@pytest.fixture()
+@pytest.fixture
 def demo_module() -> str:
     return """def foo():
     pass
@@ -106,7 +106,7 @@ def bar(x: int):
 """
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_report() -> CoverageReport:
     return CoverageReport(
         module="cov_demo",
@@ -270,7 +270,9 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
 def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
     render_coverage_report(
-        sample_report, report_path, datetime.datetime(1970, 1, 1)  # noqa: DTZ001
+        sample_report,
+        report_path,
+        datetime.datetime(1970, 1, 1),  # noqa: DTZ001
     )
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()
@@ -496,8 +498,7 @@ def test_render_xml_coverage_report(sample_report, tmp_path: Path):
         "    <source>cov_demo</source>\n",
         "  </sources>\n",
         "  <packages>\n",
-        '    <package name="" line-rate="0.25" branch-rate="0.375" '
-        'complexity="0.0">\n',
+        '    <package name="" line-rate="0.25" branch-rate="0.375" complexity="0.0">\n',
         "      <classes>\n",
         '        <class name="" filename="cov_demo" line-rate="0.25" '
         'branch-rate="0.375" complexity="0.0">\n',

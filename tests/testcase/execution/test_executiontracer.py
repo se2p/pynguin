@@ -305,7 +305,12 @@ def test_enable_disable_bool():
 
 @pytest.mark.parametrize(
     "val1,val2,result",
-    [(1, 1, 0), (2, 1, 1), ("c", "b", inf), (Decimal(0.5), Decimal(0.3), 0.2)],
+    [
+        (1, 1, 0),
+        (2, 1, 1),
+        ("c", "b", inf),
+        (Decimal(0.5), Decimal(0.3), 0.2),  # noqa: RUF032
+    ],
 )
 def test_le(val1, val2, result):
     assert _le(val1, val2) == result
@@ -313,7 +318,12 @@ def test_le(val1, val2, result):
 
 @pytest.mark.parametrize(
     "val1,val2,result",
-    [(0, 1, 0), (1, 1, 1), ("b", "b", inf), (Decimal(0.5), Decimal(0.3), 1.2)],
+    [
+        (0, 1, 0),
+        (1, 1, 1),
+        ("b", "b", inf),
+        (Decimal(0.5), Decimal(0.3), 1.2),  # noqa: RUF032
+    ],
 )
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result

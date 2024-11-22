@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides implementations of a ranking function."""
+
 from __future__ import annotations
 
 import logging

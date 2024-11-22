@@ -8,6 +8,7 @@
 
 The generated version belongs to a separate package in order to apply pynguin to itself.
 """
+
 from __future__ import annotations
 
 import dataclasses

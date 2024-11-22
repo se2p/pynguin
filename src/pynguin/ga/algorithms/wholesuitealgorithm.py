@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
+
 from __future__ import annotations
 
 import logging

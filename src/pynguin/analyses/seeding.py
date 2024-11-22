@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Implements simple constant seeding strategies."""
+
 from __future__ import annotations
 
 import ast
@@ -23,7 +24,7 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
@@ -143,7 +144,7 @@ class InitialPopulationProvider:
                 testcase_wrapper = tcc.TestCaseChromosome(testcase, self._test_factory)
                 testcase_wrapper.mutate()
                 if not testcase_wrapper.test_case.statements:
-                    self._testcases.remove(testcase)
+                    self._testcases.remove(testcase)  # noqa: B909
 
     def random_testcase(self) -> tc.TestCase:
         """Provides a random seeded test case.
@@ -537,7 +538,10 @@ def assemble_stmt_from_gen_callable(
         if not isinstance(keyword, ast.keyword):
             return None
     var_refs = create_variable_references_from_call_args(
-        call.args, call.keywords, gen_callable, ref_dict  # type: ignore[arg-type]
+        call.args,  # type: ignore[arg-type]
+        call.keywords,
+        gen_callable,
+        ref_dict,
     )
     if var_refs is None:
         return None
@@ -584,7 +588,7 @@ def create_stmt_from_collection(
     Returns:
         The corresponding list statement.
     """
-    coll_elems: None | (
+    coll_elems: None | (  # noqa: RUF036
         list[vr.VariableReference]
         | list[tuple[vr.VariableReference, vr.VariableReference]]
     )
@@ -736,7 +740,7 @@ def create_specific_collection_stmt(
     coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
     coll_elems_type: ProperType,
     coll_elems: list[Any],
-) -> None | (
+) -> None | (  # noqa: RUF036
     stmt.ListStatement | stmt.SetStatement | stmt.DictStatement | stmt.TupleStatement
 ):
     """Creates the corresponding collection statement from an ast node.
@@ -796,7 +800,7 @@ def try_generating_specific_function(
         try:
             set_node = ast.Set(
                 elts=call.args,
-                ctx=ast.Load(),
+                ctx=ast.Load(),  # type: ignore[call-arg]
             )
         except AttributeError:
             return None
@@ -839,7 +843,7 @@ def try_generating_specific_function(
         )
     if func_id == "dict":
         try:
-            dict_node = ast.Dict(
+            dict_node = ast.Dict(  # type: ignore[call-arg]
                 keys=(
                     call.args[0].keys if call.args else []  # type: ignore[attr-defined]
                 ),

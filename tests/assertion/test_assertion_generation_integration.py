@@ -53,7 +53,7 @@ str_1 = human_0.get_name()""",
         ),
     ],
 )
-def test_generate_mutation_assertions(generator, expected_result):
+def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0914
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
     tracer = ExecutionTracer()
@@ -63,7 +63,9 @@ def test_generate_mutation_assertions(generator, expected_result):
         importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(
             ast.parse(
@@ -83,7 +85,10 @@ def test_generate_mutation_assertions(generator, expected_result):
 
         if generator is ag.MutationAnalysisAssertionGenerator:
             mutant_generator = mu.FirstOrderMutator(
-                [*mo.standard_operators, *mo.experimental_operators]
+                [
+                    *mo.standard_operators,
+                    *mo.experimental_operators,
+                ]
             )
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
@@ -273,7 +278,7 @@ _MUTANTS = [
         ),
     ],
 )
-def test_mutation_analysis_integration_full(  # noqa: PLR0917
+def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
     module,
     test_case_str,
     test_case_str_with_assertions,
@@ -291,7 +296,9 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
         importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(ast.parse(test_case_str))
         test_case = transformer.testcases[0]
@@ -301,7 +308,10 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
         suite.add_test_case_chromosome(chromosome)
 
         mutant_generator = mu.FirstOrderMutator(
-            [*mo.standard_operators, *mo.experimental_operators]
+            [
+                *mo.standard_operators,
+                *mo.experimental_operators,
+            ]
         )
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)

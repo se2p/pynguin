@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides analyses regarding the control-flow of the program."""
+
 from __future__ import annotations
 
 import queue
@@ -507,7 +508,10 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                     # 'label' is also set to value, to get a nicer DOT representation,
                     # because 'label' is a keyword for labelling edges.
                     edges[node_index].append(
-                        (next_index, {EDGE_DATA_BRANCH_VALUE: value, "label": value})
+                        (
+                            next_index,
+                            {EDGE_DATA_BRANCH_VALUE: value, "label": value},
+                        )
                     )
             else:
                 if next_block:

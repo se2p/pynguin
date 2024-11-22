@@ -23,14 +23,14 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.namingscope import NamingScope
 
 
-@pytest.fixture()
+@pytest.fixture
 def statement_to_ast_visitor() -> stmt_to_ast.StatementToAstVisitor:
     var_names = NamingScope()
     module_aliases = NamingScope(prefix="module")
     return stmt_to_ast.StatementToAstVisitor(module_aliases, var_names)
 
 
-@pytest.fixture()
+@pytest.fixture
 def statement_to_ast_visitor_no_store() -> stmt_to_ast.StatementToAstVisitor:
     var_names = NamingScope()
     module_aliases = NamingScope(prefix="module")
@@ -255,7 +255,7 @@ def no_default_args_signature(type_system):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def all_types_constructor(type_system):
     return GenericConstructor(
         owner=type_system.to_type_info(MagicMock),
@@ -263,7 +263,7 @@ def all_types_constructor(type_system):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def all_types_method(type_system):
     return GenericMethod(
         owner=MagicMock(),
@@ -272,7 +272,7 @@ def all_types_method(type_system):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def all_types_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
@@ -280,7 +280,7 @@ def all_types_function(type_system):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),
@@ -288,7 +288,7 @@ def default_args_function(type_system):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def no_default_args_function(type_system):
     return GenericFunction(
         function=MagicMock(__name__="function"),

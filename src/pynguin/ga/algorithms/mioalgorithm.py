@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a MIO."""
+
 from __future__ import annotations
 
 import logging

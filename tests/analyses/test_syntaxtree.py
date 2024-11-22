@@ -10,6 +10,7 @@ The implementation of this module contains some code adopted from the ``darglint
 library (https://github.com/terrencepreilly/darglint), which was released by Terrence
 Reilly under MIT license.
 """
+
 import ast
 import importlib
 import inspect
@@ -31,7 +32,7 @@ def comments_tree() -> astroid.Module:
     return astroid.parse(inspect.getsource(module), path="comments.py")
 
 
-@pytest.fixture()
+@pytest.fixture
 def function_analysis() -> FunctionAnalysisVisitor:
     return FunctionAnalysisVisitor()
 

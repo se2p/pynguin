@@ -7,6 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes to reconstruct the execution given an execution trace."""
+
 from __future__ import annotations
 
 import dis

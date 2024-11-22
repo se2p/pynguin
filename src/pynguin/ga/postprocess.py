@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides chromosome visitors to perform post-processing."""
+
 from __future__ import annotations
 
 import logging

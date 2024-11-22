@@ -9,6 +9,7 @@
 Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py
 and integrated in Pynguin.
 """
+
 from __future__ import annotations
 
 import abc
@@ -37,7 +38,7 @@ class Mutator(abc.ABC):
         self,
         target_ast: ast.AST,
         module: types.ModuleType,
-    ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
+    ) -> Generator[tuple[list[Mutation], ast.AST]]:
         """Mutate the given AST.
 
         Args:
@@ -64,7 +65,7 @@ class FirstOrderMutator(Mutator):
         self,
         target_ast: ast.AST,
         module: types.ModuleType,
-    ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
+    ) -> Generator[tuple[list[Mutation], ast.AST]]:
         for op in self.operators:
             for mutation, mutant in op.mutate(target_ast, module):
                 yield [mutation], mutant
@@ -91,7 +92,7 @@ class HighOrderMutator(FirstOrderMutator):
         self,
         target_ast: ast.AST,
         module: types.ModuleType,
-    ) -> Generator[tuple[list[Mutation], ast.AST], None, None]:
+    ) -> Generator[tuple[list[Mutation], ast.AST]]:
         mutations = self._generate_all_mutations(module, target_ast)
         for mutations_to_apply in self.hom_strategy.generate(mutations):
             generators = []

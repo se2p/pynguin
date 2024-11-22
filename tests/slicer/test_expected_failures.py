@@ -18,7 +18,7 @@ from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_data_dependency_composite():
     # Composite type dependencies, which are way too broad
     def func():
@@ -55,7 +55,7 @@ def test_data_dependency_composite():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_dunder_definition():
     def func():
         class NestedClass:
@@ -124,7 +124,7 @@ def test_dunder_definition():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_mod_untraced_object():
     def func():
         lst = [("foo", "3"), ("bar", "1"), ("foobar", "2")]
@@ -163,7 +163,7 @@ def test_mod_untraced_object():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_call_unused_argument():
     # Call with two arguments, one of which is used in the callee
 
@@ -216,7 +216,7 @@ def test_call_unused_argument():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_exception():
     # Exception
     def func():
@@ -289,7 +289,7 @@ def test_exception():
     # assert compare(sliced_instructions, expected_instructions)
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 def test_data_dependency_6():
     def func() -> int:
         class Plus:

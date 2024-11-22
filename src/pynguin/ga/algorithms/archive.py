@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides archives to store found solutions."""
+
 from __future__ import annotations
 
 import logging

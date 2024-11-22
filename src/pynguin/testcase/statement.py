@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a base implementation of a statement representation."""
+
 from __future__ import annotations
 
 import abc
@@ -500,9 +501,11 @@ class AssignmentStatement(Statement):
         if not isinstance(other, AssignmentStatement):
             return False
         return self._lhs.structural_eq(
-            other._lhs, memo  # noqa: SLF001
+            other._lhs,  # noqa: SLF001
+            memo,
         ) and self._rhs.structural_eq(
-            other._rhs, memo  # noqa: SLF001
+            other._rhs,  # noqa: SLF001
+            memo,
         )
 
 
@@ -638,7 +641,10 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
     ) -> vr.VariableReference:
         # TODO(fk) what if the current type is not correct?
         return randomness.choice(
-            [*self.test_case.get_objects(element.type, self.get_position()), element]
+            [
+                *self.test_case.get_objects(element.type, self.get_position()),
+                element,
+            ]
         )
 
     def structural_hash(  # noqa: D102
@@ -662,7 +668,9 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
             and all(
                 left.structural_eq(right, memo)
                 for left, right in zip(
-                    self._elements, other._elements, strict=True  # noqa: SLF001
+                    self._elements,
+                    other._elements,  # noqa: SLF001
+                    strict=True,
                 )
             )
         )
@@ -862,7 +870,9 @@ class DictStatement(
             and all(
                 lk.structural_eq(rk, memo) and lv.structural_eq(rv, memo)
                 for (lk, lv), (rk, rv) in zip(
-                    self._elements, other._elements, strict=True  # noqa: SLF001
+                    self._elements,
+                    other._elements,  # noqa: SLF001
+                    strict=True,
                 )
             )
         )
@@ -1383,7 +1393,8 @@ class MethodStatement(ParametrizedStatement):
         self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> bool:
         return super().structural_eq(other, memo) and self._callee.structural_eq(
-            other._callee, memo  # noqa: SLF001
+            other._callee,  # noqa: SLF001
+            memo,
         )
 
     def __repr__(self) -> str:
@@ -1933,7 +1944,9 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
     """Primitive Statement that creates a boolean."""
 
     def __init__(
-        self, test_case: tc.TestCase, value: bool | None = None  # noqa: FBT001
+        self,
+        test_case: tc.TestCase,
+        value: bool | None = None,  # noqa: FBT001
     ) -> None:
         """Initializes a primitive statement for a boolean.
 

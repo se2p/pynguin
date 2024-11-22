@@ -12,6 +12,7 @@ import abc
 import ast
 import logging
 import os
+import string
 import typing
 
 from abc import ABC
@@ -209,7 +210,9 @@ class DynamicConstantProvider(DelegatingConstantProvider):
         "isalnum": lambda value: f"{value}!" if value.isalnum() else "isalnum",
         "islower": lambda value: value.upper() if value.islower() else value.lower(),
         "isupper": lambda value: value.lower() if value.isupper() else value.upper(),
-        "isdecimal": lambda value: "non_decimal" if value.isdecimal() else "0123456789",
+        "isdecimal": lambda value: (
+            "non_decimal" if value.isdecimal() else string.digits
+        ),
         "isalpha": lambda value: f"{value}1" if value.isalpha() else "isalpha",
         "isdigit": lambda value: f"{value}_" if value.isdigit() else "0",
         "isidentifier": lambda value: (

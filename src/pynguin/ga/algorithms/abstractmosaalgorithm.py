@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract base class for MOSA and its derivatives."""
+
 from __future__ import annotations
 
 import logging

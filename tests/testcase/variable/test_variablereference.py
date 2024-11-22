@@ -46,7 +46,7 @@ class DummyReference(vr.Reference):
         pass  # pragma: no cover
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_reference():
     return DummyReference(int)
 
@@ -125,7 +125,7 @@ def test_var_distance(test_case_mock):
     assert ref.distance == 42
 
 
-@pytest.fixture()
+@pytest.fixture
 def field_mock():
     return gao.GenericField(MagicMock, "foo", int)
 
@@ -213,7 +213,7 @@ def test_field_replace_var(field_mock):
     assert ref.source == var_2
 
 
-@pytest.fixture()
+@pytest.fixture
 def static_field_mock(type_system):
     return gao.GenericStaticField(
         type_system.to_type_info(MagicMock), "foo", type_system.convert_type_hint(int)
@@ -269,7 +269,7 @@ def test_static_field_replace_var(static_field_mock):
     assert ref.get_variable_reference() is None
 
 
-@pytest.fixture()
+@pytest.fixture
 def static_module_field_mock():
     return gao.GenericStaticModuleField("foomod", "foo", int)
 

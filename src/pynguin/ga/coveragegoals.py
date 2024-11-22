@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides classes for handling fitness functions for branch coverage."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -376,8 +377,7 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def __repr__(self) -> str:
         return (
-            f"BranchCoverageTestFitness(executor={self._executor}, "
-            f"goal={self._goal})"
+            f"BranchCoverageTestFitness(executor={self._executor}, goal={self._goal})"
         )
 
     @property
@@ -444,8 +444,7 @@ class StatementCheckedCoverageTestFitness(ff.TestCaseFitnessFunction):
 
     def __repr__(self) -> str:
         return (
-            f"CheckedCoverageTestFitness(executor={self._executor}, "
-            f"goal={self._goal})"
+            f"CheckedCoverageTestFitness(executor={self._executor}, goal={self._goal})"
         )
 
 

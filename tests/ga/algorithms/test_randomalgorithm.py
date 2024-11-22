@@ -26,7 +26,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def executor():
     return MagicMock(TestCaseExecutor)
 

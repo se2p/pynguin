@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a controller for generating mutants."""
+
 from __future__ import annotations
 
 import ast
@@ -62,7 +63,7 @@ class MutationController:
 
     def create_mutants(
         self,
-    ) -> Generator[tuple[ModuleType | None, list[Mutation]], None, None]:
+    ) -> Generator[tuple[ModuleType | None, list[Mutation]]]:
         """Creates mutants for the module.
 
         Returns:

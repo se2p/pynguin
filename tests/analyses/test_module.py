@@ -58,7 +58,7 @@ def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
 
 
-@pytest.fixture()
+@pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster(linenos=-1)
 

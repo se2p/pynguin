@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a configuration interface for the test generator."""
+
 import dataclasses
 import enum
 import time

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Contains all code related to executed instruction classes."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

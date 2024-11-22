@@ -16,7 +16,7 @@ import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_test_case(constructor_mock, default_test_case):
     int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(

@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an observer to observe the search."""
+
 from __future__ import annotations
 
 import logging

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract observer that can be used to generate assertions."""
+
 import ast
 import copy
 import logging

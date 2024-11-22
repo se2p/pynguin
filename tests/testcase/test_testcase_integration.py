@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Some integration tests for the testcase/statements."""
+
 import math
 
 import pytest
@@ -67,7 +68,7 @@ def test_assignment_statement_clone(default_test_case):
     assert cloned.statements[2] is not assignment_stmt
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_test_case(function_mock, default_test_case) -> dtc.DefaultTestCase:
     int_prim = st.IntPrimitiveStatement(default_test_case, 5)
     int_prim2 = st.IntPrimitiveStatement(default_test_case, 5)

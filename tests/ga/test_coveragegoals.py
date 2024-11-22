@@ -39,17 +39,17 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-@pytest.fixture()
+@pytest.fixture
 def branchless_codeobject_goal():
     return bg.BranchlessCodeObjectGoal(0)
 
 
-@pytest.fixture()
+@pytest.fixture
 def branch_goal():
     return bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def statement_coverage_goal():
     return bg.LineCoverageGoal(code_object_id=0, line_id=42)
 
@@ -139,22 +139,22 @@ def test_non_root_get_distance(branch_goal, mocker):
     mock.assert_called_once()
 
 
-@pytest.fixture()
+@pytest.fixture
 def empty_function():
     return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
 
-@pytest.fixture()
+@pytest.fixture
 def executor_mock():
     return MagicMock(TestCaseExecutor)
 
 
-@pytest.fixture()
+@pytest.fixture
 def trace_mock():
     return ExecutionTrace()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_mock():
     return SubjectProperties()
 
@@ -223,7 +223,9 @@ def _get_test_for_simple_nesting_no_branch_covered(
 ) -> tcc.TestCaseChromosome:
     cluster = generate_test_cluster(module_name)
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -243,7 +245,9 @@ def _get_test_for_simple_nesting_outer_branch_covered(
 ) -> tcc.TestCaseChromosome:
     cluster = generate_test_cluster(module_name)
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -344,7 +348,9 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
         cluster = generate_test_cluster(module_name)
 
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(ast.parse(test_case))
         test_case = transformer.testcases[0]
@@ -362,7 +368,9 @@ def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
     cluster = generate_test_cluster(module_name)
 
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(

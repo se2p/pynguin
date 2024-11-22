@@ -8,6 +8,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes and logic for dynamic slicing."""
+
 from __future__ import annotations
 
 import logging
@@ -714,7 +715,10 @@ class DynamicSlicer:
         # Add local variables
         if traced_instr.opcode == op.LOAD_FAST:
             context.var_uses_local.add(
-                (traced_instr.argument, traced_instr.code_object_id)
+                (
+                    traced_instr.argument,
+                    traced_instr.code_object_id,
+                )
             )
         # Add global variables (with *_NAME instructions)
         elif traced_instr.opcode == op.LOAD_NAME:
@@ -729,7 +733,10 @@ class DynamicSlicer:
                 context.var_uses_global.add((traced_instr.argument, traced_instr.file))
             else:
                 context.var_uses_local.add(
-                    (traced_instr.argument, traced_instr.code_object_id)
+                    (
+                        traced_instr.argument,
+                        traced_instr.code_object_id,
+                    )
                 )
         # Add global variables
         elif traced_instr.opcode == op.LOAD_GLOBAL:
@@ -751,7 +758,10 @@ class DynamicSlicer:
                 assert current_code_meta.parent_code_object_id is not None
                 current_code_object_id = current_code_meta.parent_code_object_id
             context.var_uses_nonlocal.add(
-                (traced_instr.argument, tuple(variable_scope))
+                (
+                    traced_instr.argument,
+                    tuple(variable_scope),
+                )
             )
         else:
             # There should be no other possible instructions

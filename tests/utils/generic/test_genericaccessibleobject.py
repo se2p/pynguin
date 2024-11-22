@@ -100,7 +100,10 @@ def test_generic_method_is_method(method_mock):
 
 def test_generic_method_dependencies(method_mock, type_system):
     assert method_mock.get_dependencies({}) == OrderedSet(
-        [type_system.convert_type_hint(int), type_system.convert_type_hint(SomeType)]
+        [
+            type_system.convert_type_hint(int),
+            type_system.convert_type_hint(SomeType),
+        ]
     )
 
 

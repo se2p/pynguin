@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a visitor that transforms test cases to asts."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

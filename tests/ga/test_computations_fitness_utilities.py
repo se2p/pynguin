@@ -49,12 +49,12 @@ def test_normalise(value):
     assert ff.normalise(value) == value / (1.0 + value)
 
 
-@pytest.fixture()
+@pytest.fixture
 def trace_mock():
     return ExecutionTrace()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_mock():
     return SubjectProperties()
 

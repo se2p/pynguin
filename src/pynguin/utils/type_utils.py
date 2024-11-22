@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides utilities when working with types."""
+
 from __future__ import annotations
 
 import enum

@@ -14,7 +14,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.testcase.statement import AssignmentStatement
 
 
-@pytest.fixture()
+@pytest.fixture
 def assignment_statement(test_case_mock) -> AssignmentStatement:
     lhs = vr.FieldReference(
         vr.VariableReference(test_case_mock, int),
@@ -33,7 +33,10 @@ def test_rhs(test_case_mock, variable_reference_mock):
 def test_structural_hash(assignment_statement):
     assert (
         assignment_statement.structural_hash(
-            {assignment_statement.lhs.source: 0, assignment_statement.rhs: 1}
+            {
+                assignment_statement.lhs.source: 0,
+                assignment_statement.rhs: 1,
+            }
         )
         != 0
     )

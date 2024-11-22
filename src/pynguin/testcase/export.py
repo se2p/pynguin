@@ -126,7 +126,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         return ast.FunctionDef(
             name=f"test_{function_name}",
             args=ast.arguments(
-                args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],
+                args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],  # type: ignore[arg-type, list-item]
                 defaults=[],
                 vararg=None,
                 kwarg=None,

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an observer that can be used to calculate the checked lines of a test."""
+
 import ast
 import logging
 import threading

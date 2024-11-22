@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a random test generation algorithm similar to Randoop."""
+
 from __future__ import annotations
 
 import logging

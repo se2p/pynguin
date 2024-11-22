@@ -62,17 +62,17 @@ def test_resetting_test_case_chromosome_forces_execution():
     assert test_case.get_last_execution_result() == result
 
 
-@pytest.fixture()
+@pytest.fixture
 def executor_mock():
     return MagicMock(TestCaseExecutor)
 
 
-@pytest.fixture()
+@pytest.fixture
 def trace_mock():
     return ExecutionTrace()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_mock():
     return SubjectProperties()
 

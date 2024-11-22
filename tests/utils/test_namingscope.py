@@ -15,12 +15,12 @@ import pynguin.testcase.variablereference as vr
 import pynguin.utils.namingscope as ns
 
 
-@pytest.fixture()
+@pytest.fixture
 def naming_scope():
     return ns.NamingScope()
 
 
-@pytest.fixture()
+@pytest.fixture
 def variable_type_naming_scope():
     return ns.VariableTypeNamingScope()
 

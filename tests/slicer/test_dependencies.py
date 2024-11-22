@@ -172,7 +172,10 @@ def test_data_dependency_5():
         ]
     )
     class_attr_block = BasicBlock(
-        [Instr("LOAD_CONST", arg=None), Instr("RETURN_VALUE")]
+        [
+            Instr("LOAD_CONST", arg=None),
+            Instr("RETURN_VALUE"),
+        ]
     )
 
     expected_instructions = []

@@ -600,7 +600,8 @@ class ObjectProxy(metaclass=_ObjectProxyMetaType):  # noqa: PLR0904
     @proxify(log_arg_types=True)
     def __itruediv__(self, other):  # type:ignore[misc]
         self.__wrapped__ = operator.itruediv(
-            self.__wrapped__, other  # type: ignore[has-type]
+            self.__wrapped__,  # type: ignore[has-type]
+            other,
         )
         return self
 
