@@ -85,7 +85,6 @@ if typing.TYPE_CHECKING:
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
-
 LOGGER = logging.getLogger(__name__)
 
 # A set of modules that shall be blacklisted from analysis (keep them sorted to ease
@@ -575,12 +574,22 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                 accessible.inferred_signature.log_stats_and_guess_signature(
                     accessible.is_constructor(), str(accessible), stats
                 )
+                self.__write_type_eval_py_output(stats)
 
-        # Dump the captured type information to types.json in the reports directory
+    def __write_type_eval_py_output(self, stats):
+        # Create a folder for the inferred types
+        signatures_folder = Path(config.configuration.statistics_output.report_dir) / "signatures"
+        signatures_folder.mkdir(parents=True, exist_ok=True)
+        project_folder = signatures_folder / config.configuration.statistics_output.project_name
+        project_folder.mkdir(parents=True, exist_ok=True)
+        module_folder = project_folder / config.configuration.module_name.split(".")[-1]
+        module_folder.mkdir(parents=True, exist_ok=True)
+
+        # Dump the captured type information to a JSON file
         types_json = (
-            Path(config.configuration.statistics_output.report_dir)
-            / f"{config.configuration.module_name.split('.')[-1]}_result.json"
+            module_folder / f"{config.configuration.module_name.split('.')[-1]}_result.json"
         )
+
         types_json.write_text(
             provide_json(
                 f"{config.configuration.module_name.split('.')[-1]}.py",
@@ -590,6 +599,14 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             ),
             encoding="utf-8",
         )
+
+    def __log_type_evolution(self) -> None:
+        stats = TypeGuessingStats()
+        for accessible in self.__accessible_objects_under_test:
+            if isinstance(accessible, GenericCallableAccessibleObject):
+                accessible.inferred_signature.log_stats_and_guess_signature(
+                    accessible.is_constructor(), str(accessible), stats
+                )
 
         stat.track_output_variable(
             RuntimeVariable.SignatureInfos,
@@ -644,6 +661,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
+        self.__log_type_evolution()
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -653,6 +671,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         # Store new data
         accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
+        self.__log_type_evolution()
 
     @property
     def type_system(self) -> TypeSystem:
