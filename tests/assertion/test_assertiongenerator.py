@@ -9,9 +9,7 @@ import pytest
 import pynguin.assertion.assertiongenerator as ag
 
 
-@pytest.mark.parametrize(
-    "created,killed,timeout,score", [(5, 2, 1, 0.5), (1, 0, 1, 1.0)]
-)
+@pytest.mark.parametrize("created,killed,timeout,score", [(5, 2, 1, 0.5), (1, 0, 1, 1.0)])
 def test_mutation_score(created, killed, timeout, score):
     metrics = ag._MutationMetrics(created, killed, timeout)
     assert metrics.get_score() == score

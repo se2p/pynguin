@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides implementations of a ranking function."""
+
 from __future__ import annotations
 
 import logging
@@ -111,9 +112,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
 
         if len(zero_front) < config.configuration.search_algorithm.population:
             ranked_solutions = len(zero_front)
-            comparator: DominanceComparator[C] = DominanceComparator(
-                goals=uncovered_goals
-            )
+            comparator: DominanceComparator[C] = DominanceComparator(goals=uncovered_goals)
 
             remaining: list[C] = []
             remaining.extend(solutions)
@@ -153,9 +152,7 @@ class RankBasedPreferenceSorting(RankingFunction, Generic[C]):
     ) -> list[C]:
         zero_front: OrderedSet[C] = OrderedSet()
         for goal in uncovered_goals:
-            comparator: PreferenceSortingComparator[C] = PreferenceSortingComparator(
-                goal
-            )
+            comparator: PreferenceSortingComparator[C] = PreferenceSortingComparator(goal)
             best: C | None = None
             for solution in solutions:
                 flag = comparator.compare(solution, best)

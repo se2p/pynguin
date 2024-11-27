@@ -43,18 +43,12 @@ before_script:
         report.xml
     paths:
       - cov_html
-  needs: ["isort", "black", "reuse"]
+  needs: ["pre-commit", "reuse"]
 
 unit-tests:python-3.10:
   <<: *unit-tests
   variables:
     PYTHON_VERSION: '3.10-bookworm'
-
-#unit-tests:python-3.11:
-#  <<: *unit-tests
-#  allow_failure: true
-#  variables:
-#    PYTHON_VERSION: '3.11-rc-bookworm'
 
 .nightly-tests:
   only:
@@ -75,12 +69,6 @@ nightly-tests:python-3.10:
   variables:
     PYTHON_VERSION: '3.10-bookworm'
 
-#nightly-tests:python-3.11:
-#  extends: .nightly-tests
-#  allow_failure: true
-#  variables:
-#    PYTHON_VERSION: '3.11-rc-bookworm'
-
 memory-profile:
   only:
     - schedules
@@ -93,33 +81,21 @@ memory-profile:
     - poetry add --dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/
-  needs: ["isort", "black", "reuse"]
+  needs: ["pre-commit", "reuse"]
+
+pre-commit:
+  stage: lint
+  image: python:3.10-bookworm
+  script:
+    - poetry run pre-commit run --all-files
+  needs: []
 
 mypy:
   stage: lint
   image: python:3.10-bookworm
   script:
     - poetry run mypy
-  needs: ["isort", "black"]
-
-ruff:
-  stage: lint
-  image: python:3.10-bookworm
-  script:
-    - poetry run ruff src/pynguin
-  needs: ["isort", "black"]
-
-isort:
-  stage: build
-  image: python:3.10-bookworm
-  script:
-    - poetry run isort **/*.py -c -v --profile black
-
-black:
-  stage: build
-  image: python:3.10-bookworm
-  script:
-    - poetry run black --check .
+  needs: ["pre-commit"]
 
 sphinx:
   stage: build

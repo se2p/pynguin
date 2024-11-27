@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an interface for a stopping condition of the algorithm."""
+
 from __future__ import annotations
 
 import time
@@ -201,9 +202,7 @@ class MaxCoverageStoppingCondition(StoppingCondition):
         self.__current_coverage = int(best.get_coverage() * 100)
 
     def __str__(self) -> str:
-        return (
-            f"Achieved coverage: {self.__current_coverage / self.__max_coverage:.6f}%"
-        )
+        return f"Achieved coverage: {self.__current_coverage / self.__max_coverage:.6f}%"
 
 
 class CoveragePlateauStoppingCondition(StoppingCondition):

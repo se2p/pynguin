@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a base implementation of a variable in a test case."""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -99,9 +100,7 @@ class Reference(ABC):
         """
 
     @abstractmethod
-    def structural_eq(
-        self, other: Any, memo: dict[VariableReference, VariableReference]
-    ) -> bool:
+    def structural_eq(self, other: Any, memo: dict[VariableReference, VariableReference]) -> bool:
         """Compare if this reference is the same as the other.
 
         Args:
@@ -133,9 +132,7 @@ class Reference(ABC):
         """
 
     @abstractmethod
-    def replace_variable_reference(
-        self, old: VariableReference, new: VariableReference
-    ) -> None:
+    def replace_variable_reference(self, old: VariableReference, new: VariableReference) -> None:
         """Replace the old variable with the new variable.
 
         Args:
@@ -291,8 +288,7 @@ class CallBasedVariableReference(VariableReference):
         if not isinstance(other, self.__class__):
             return False
         return (
-            super().structural_eq(other, memo)
-            and self._callable == other._callable  # noqa: SLF001
+            super().structural_eq(other, memo) and self._callable == other._callable  # noqa: SLF001
         )
 
     def structural_hash(self, memo: dict[VariableReference, int]) -> int:  # noqa: D102

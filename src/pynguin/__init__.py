@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Pynguin is an automated unit test generation framework for Python."""
+
 import pynguin.configuration as config
 import pynguin.generator as gen
 

@@ -67,16 +67,12 @@ def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr])
             "Expected slice has remaining instructions:", expected_copy
         )  # pragma: no cover
     if len(slice_copy) != 0:
-        raise ValueError(
-            "Real slice has remaining instructions:", slice_copy
-        )  # pragma: no cover
+        raise ValueError("Real slice has remaining instructions:", slice_copy)  # pragma: no cover
 
     return True
 
 
-def _contains_name_arg(
-    instr_list: list[Instr], unique_instr: UniqueInstruction
-) -> Instr | None:
+def _contains_name_arg(instr_list: list[Instr], unique_instr: UniqueInstruction) -> Instr | None:
     for instr in instr_list:
         if instr.name == unique_instr.name:
             if isinstance(unique_instr.arg, BasicBlock | CodeType):
@@ -96,9 +92,7 @@ def _contains_name_argtype(
     instr_list: list[Instr], unique_instr: UniqueInstruction
 ) -> Instr | None:
     for instr in instr_list:
-        if instr.name == unique_instr.name and isinstance(
-            instr.arg, type(unique_instr.arg)
-        ):
+        if instr.name == unique_instr.name and isinstance(instr.arg, type(unique_instr.arg)):
             return instr
     return None  # pragma: no cover
 
@@ -126,9 +120,7 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
         offset=last_traced_instr.offset,
         lineno=last_traced_instr.lineno,
     )
-    slicing_criterion = SlicingCriterion(
-        slicing_instruction, len(trace.executed_instructions) - 2
-    )
+    slicing_criterion = SlicingCriterion(slicing_instruction, len(trace.executed_instructions) - 2)
     return dynamic_slicer.slice(
         trace,
         slicing_criterion,
@@ -136,9 +128,7 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
 
 
 def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED
-    ]
+    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(module_name, tracer):

@@ -8,6 +8,7 @@
 
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -176,9 +177,7 @@ class InstrumentationFinder(MetaPathFinder):
             An optional ModuleSpec
         """
         if self._should_instrument(fullname):
-            spec: ModuleSpec = self._original_pathfinder.find_spec(
-                fullname, path, target
-            )
+            spec: ModuleSpec = self._original_pathfinder.find_spec(fullname, path, target)
             if spec is not None:
                 if isinstance(spec.loader, FileLoader):
                     spec.loader = InstrumentationLoader(
@@ -193,8 +192,7 @@ class InstrumentationFinder(MetaPathFinder):
                     )
                     return spec
                 self._logger.error(
-                    "Loader for module under test is not a FileLoader,"
-                    " can not instrument."
+                    "Loader for module under test is not a FileLoader, can not instrument."
                 )
 
         return None
@@ -253,11 +251,7 @@ def install_import_hook(
 
     to_wrap = None
     for finder in sys.meta_path:
-        if (
-            isclass(finder)
-            and finder.__name__ == "PathFinder"
-            and hasattr(finder, "find_spec")
-        ):
+        if isclass(finder) and finder.__name__ == "PathFinder" and hasattr(finder, "find_spec"):
             to_wrap = finder
             break
 

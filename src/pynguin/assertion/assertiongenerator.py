@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an assertion generator."""
+
 from __future__ import annotations
 
 import ast
@@ -23,7 +24,7 @@ import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
@@ -50,9 +51,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self, plain_executor: ex.TestCaseExecutor, filtering_executions: int = 1
-    ):
+    def __init__(self, plain_executor: ex.TestCaseExecutor, filtering_executions: int = 1):
         """Create new assertion generator.
 
         Args:
@@ -68,9 +67,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
     def visit_test_suite_chromosome(  # noqa: D102
         self, chromosome: tsc.TestSuiteChromosome
     ) -> None:
-        self._add_assertions(
-            [chrom.test_case for chrom in chromosome.test_case_chromosomes]
-        )
+        self._add_assertions([chrom.test_case for chrom in chromosome.test_case_chromosomes])
 
     def visit_test_case_chromosome(  # noqa: D102
         self, chromosome: tcc.TestCaseChromosome
@@ -79,24 +76,18 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         # First run of executions to add assertions
-        with self._plain_executor.temporarily_add_observer(
-            ato.AssertionTraceObserver()
-        ):
+        with self._plain_executor.temporarily_add_observer(ato.AssertionTraceObserver()):
             for test in test_cases:
                 self._add_assertions_for(test, self._plain_executor.execute(test))
 
         # Perform filtering executions to remove trivially flaky assertions.
-        with self._plain_executor.temporarily_add_observer(
-            ato.AssertionVerificationObserver()
-        ):
+        with self._plain_executor.temporarily_add_observer(ato.AssertionVerificationObserver()):
             for _ in range(self._filtering_executions):
                 # Create a copy of the list that is shuffled.
                 shuffled_copy = list(test_cases)
                 randomness.RNG.shuffle(shuffled_copy)
                 for test in shuffled_copy:
-                    self.__remove_non_holding_assertions(
-                        test, self._plain_executor.execute(test)
-                    )
+                    self.__remove_non_holding_assertions(test, self._plain_executor.execute(test))
 
     @staticmethod
     def __remove_non_holding_assertions(test: tc.TestCase, result: ex.ExecutionResult):
@@ -118,9 +109,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         # have changed.
         previous_statement_assertions: OrderedSet[ass.Assertion] = OrderedSet()
         for statement in test_case.statements:
-            current_statement_assertions = result.assertion_trace.get_assertions(
-                statement
-            )
+            current_statement_assertions = result.assertion_trace.get_assertions(statement)
             for assertion in current_statement_assertions:
                 if (
                     not config.configuration.test_case_output.allow_stale_assertions
@@ -173,9 +162,7 @@ class _MutationSummary:
             The survived mutants
         """
         return [
-            info
-            for info in self.mutant_information
-            if not info.killed_by and not info.timed_out_by
+            info for info in self.mutant_information if not info.killed_by and not info.timed_out_by
         ]
 
     def get_killed(self) -> list[_MutantInfo]:
@@ -185,9 +172,7 @@ class _MutationSummary:
             The killed mutants
         """
         return [
-            info
-            for info in self.mutant_information
-            if info.killed_by and not info.timed_out_by
+            info for info in self.mutant_information if info.killed_by and not info.timed_out_by
         ]
 
     def get_timeout(self) -> list[_MutantInfo]:
@@ -326,16 +311,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        with self._mutation_executor.temporarily_add_observer(
-            ato.AssertionVerificationObserver()
-        ):
+        with self._mutation_executor.temporarily_add_observer(ato.AssertionVerificationObserver()):
             for idx, (mutated_module, _) in enumerate(
                 self._mutation_controller.create_mutants(), start=1
             ):
                 if mutated_module is None:
                     self._logger.info(
-                        "Skipping mutant %3i/%i because "
-                        "it created an invalid module",
+                        "Skipping mutant %3i/%i because it created an invalid module",
                         idx,
                         mutant_count,
                     )
@@ -366,16 +348,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     ) -> None:
         for test, results in tests_and_results:
             merged = at.AssertionVerificationTrace()
-            for result, mut in zip(
-                results, mutation_summary.mutant_information, strict=True
-            ):
+            for result, mut in zip(results, mutation_summary.mutant_information, strict=True):
                 # Ignore timed out executions
                 if result is not None and len(mut.timed_out_by) == 0:
                     merged.merge(result.assertion_verification_trace)
             for stmt_idx, statement in enumerate(test.statements):
-                for assertion_idx, assertion in reversed(
-                    list(enumerate(statement.assertions))
-                ):
+                for assertion_idx, assertion in reversed(list(enumerate(statement.assertions))):
                     if not merged.was_violated(stmt_idx, assertion_idx):
                         statement.assertions.remove(assertion)
 

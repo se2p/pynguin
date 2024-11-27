@@ -31,7 +31,7 @@ from pynguin.testcase.variablereference import StaticFieldReference
 from tests.fixtures.linecoverage.plus import Plus
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_three_test():
     """Produces the following testcase.
 
@@ -45,7 +45,9 @@ def full_cover_plus_three_test():
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -89,7 +91,7 @@ def full_cover_plus_three_test():
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_four_test():
     """Produces the following testcase.
 
@@ -103,7 +105,9 @@ def full_cover_plus_four_test():
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -147,11 +151,13 @@ def full_cover_plus_four_test():
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def partial_cover_use_bool_as_int():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -209,9 +215,7 @@ def test_case_1():
             0,
         )
     )
-    tc_1.statements[2].add_assertion(
-        ass.ObjectAssertion(tc_1.statements[2].ret_val, 1004)
-    )
+    tc_1.statements[2].add_assertion(ass.ObjectAssertion(tc_1.statements[2].ret_val, 1004))
 
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(tc_0))
@@ -219,7 +223,7 @@ def test_case_1():
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def full_cover_plus_testsuite(
     full_cover_plus_three_test, full_cover_plus_four_test
 ) -> tsc.TestSuiteChromosome:
@@ -231,7 +235,7 @@ def full_cover_plus_testsuite(
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def partial_cover_plus_testsuite(
     plus_test_with_float_assertion, plus_test_with_multiple_assertions
 ) -> tsc.TestSuiteChromosome:
@@ -243,7 +247,7 @@ def partial_cover_plus_testsuite(
     return test_suite
 
 
-@pytest.fixture()
+@pytest.fixture
 def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(default_test_case))
@@ -269,9 +273,7 @@ def test_assertion_detection_on_test_case(
     module_name, test_case_name, expected_assertions, request
 ):
     test_case = request.getfixturevalue(test_case_name)
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED
-    ]
+    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -307,13 +309,9 @@ def test_assertion_detection_on_test_case(
         ),
     ],
 )
-def test_slicing_after_test_execution(
-    module_name, test_case_name, expected_lines, request
-):
+def test_slicing_after_test_execution(module_name, test_case_name, expected_lines, request):
     test_case = request.getfixturevalue(test_case_name)
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED
-    ]
+    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -328,9 +326,7 @@ def test_slicing_after_test_execution(
         assert result.execution_trace.executed_assertions
 
         instructions_in_slice = []
-        assertion_slicer = AssertionSlicer(
-            tracer.get_subject_properties().existing_code_objects
-        )
+        assertion_slicer = AssertionSlicer(tracer.get_subject_properties().existing_code_objects)
         for assertion in result.execution_trace.executed_assertions:
             instructions_in_slice.extend(
                 assertion_slicer.slice_assertion(assertion, result.execution_trace)
@@ -389,6 +385,4 @@ def test_testsuite_assertion_checked_coverage_calculation(
         executor = TestCaseExecutor(tracer)
         executor.add_observer(AssertionExecutionObserver(tracer))
         ff = TestSuiteAssertionCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_suite) == pytest.approx(
-            expected_coverage, 0.1, 0.1
-        )
+        assert ff.compute_coverage(test_suite) == pytest.approx(expected_coverage, 0.1, 0.1)

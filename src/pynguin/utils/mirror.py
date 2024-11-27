@@ -7,7 +7,7 @@
 """A simple mirror dict."""
 
 
-class Mirror(dict):
+class Mirror(dict):  # noqa: FURB189
     """A dictionary that returns each key as its value.
 
     >>> mirror = Mirror()

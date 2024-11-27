@@ -7,6 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 """Provides classes to reconstruct the execution given an execution trace."""
+
 from __future__ import annotations
 
 import dis
@@ -72,9 +73,7 @@ class UniqueInstruction(Instr):
         self.offset = offset
 
         # Additional information from disassembly
-        dis_instr = self.locate_in_disassembly(
-            list(dis.get_instructions(code_meta.code_object))
-        )
+        dis_instr = self.locate_in_disassembly(list(dis.get_instructions(code_meta.code_object)))
         self.dis_arg = dis_instr.arg
         self.is_jump_target = dis_instr.is_jump_target
 
@@ -300,9 +299,7 @@ class ExecutionFlowBuilder:
         # Special case: if there are not remaining instructions in the trace,
         # finish this basic block
         if trace_pos < 0:
-            return self._finish_basic_block(
-                instr_index, basic_block, import_instr, efb_state
-            )
+            return self._finish_basic_block(instr_index, basic_block, import_instr, efb_state)
 
         # Get the current instruction in the disassembly for further information
         unique_instr = self._create_unique_instruction(
@@ -333,9 +330,7 @@ class ExecutionFlowBuilder:
 
         # Handle method invocation
         if not last_instr:  # type: ignore[truthy-bool]
-            last_instr = self._handle_method_invocation(
-                efb_state, import_instr, last_traced_instr
-            )
+            last_instr = self._handle_method_invocation(efb_state, import_instr, last_traced_instr)
 
         # Handle generators and exceptions
         if not efb_state.call and not efb_state.returned:
@@ -373,15 +368,12 @@ class ExecutionFlowBuilder:
             # Instruction is the last instruction in this basic block
             # -> decide what to do with this instruction
             # The instruction is a jump target, check if it was jumped to
-            if (
-                last_traced_instr.is_jump()
-                and last_traced_instr.argument == efb_state.bb_id
-            ):
+            if last_traced_instr.is_jump() and last_traced_instr.argument == efb_state.bb_id:
                 # It was jumped to this instruction,
                 # continue with target basic block of last traced
-                assert (
-                    efb_state.co_id == last_traced_instr.code_object_id
-                ), "Jump to instruction must originate from same code object"
+                assert efb_state.co_id == last_traced_instr.code_object_id, (
+                    "Jump to instruction must originate from same code object"
+                )
                 last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
                 efb_state.jump = True
             else:
@@ -414,9 +406,7 @@ class ExecutionFlowBuilder:
                     last_instr.opcode in op.TRACED_INSTRUCTIONS
                     and last_instr.opcode != last_traced_instr.opcode
                 ):
-                    last_instr = self._continue_at_last_traced(
-                        last_traced_instr, efb_state
-                    )
+                    last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
                     efb_state.returned = True
 
             else:
@@ -515,9 +505,7 @@ class ExecutionFlowBuilder:
 
         return last_instr
 
-    def _continue_at_last_basic_block(
-        self, efb_state: ExecutionFlowBuilderState
-    ) -> Instr:
+    def _continue_at_last_basic_block(self, efb_state: ExecutionFlowBuilderState) -> Instr:
         last_instr = None
 
         if efb_state.bb_id > 0:
@@ -533,15 +521,11 @@ class ExecutionFlowBuilder:
         efb_state.co_id = import_instr.code_object_id
         efb_state.bb_id = import_instr.node_id
         efb_state.offset = import_instr.offset
-        instr = Instr(
-            import_instr.name, arg=import_instr.arg, lineno=import_instr.lineno
-        )
+        instr = Instr(import_instr.name, arg=import_instr.arg, lineno=import_instr.lineno)
 
         # Find the basic block and the exact location of the current instruction
         basic_block, bb_offset = self._get_basic_block(efb_state.co_id, efb_state.bb_id)
-        instr_index = self.locate_in_basic_block(
-            instr, efb_state.offset, basic_block, bb_offset
-        )
+        instr_index = self.locate_in_basic_block(instr, efb_state.offset, basic_block, bb_offset)
 
         if instr_index > 0:
             # Instruction has exactly one possible predecessor
@@ -552,9 +536,7 @@ class ExecutionFlowBuilder:
 
         return last_instr
 
-    def _get_last_in_basic_block(
-        self, code_object_id: int, basic_block_id: int
-    ) -> Instr:
+    def _get_last_in_basic_block(self, code_object_id: int, basic_block_id: int) -> Instr:
         code_object = self.known_code_objects.get(code_object_id)
         assert code_object, "Unknown code object id"
         # Locate basic block in CFG to which instruction belongs
@@ -566,9 +548,7 @@ class ExecutionFlowBuilder:
         assert instr, "Block did not contain a last instruction"
         return instr  # type: ignore[return-value]
 
-    def _get_basic_block(
-        self, code_object_id: int, basic_block_id: int
-    ) -> tuple[list[Instr], int]:
+    def _get_basic_block(self, code_object_id: int, basic_block_id: int) -> tuple[list[Instr], int]:
         """Locates the basic block in CFG to which the current state belongs.
 
         The current state is defined by the last instruction.
@@ -594,9 +574,7 @@ class ExecutionFlowBuilder:
         raise InstructionNotFoundException
 
     def _locate_traced_in_bytecode(self, instr: ExecutedInstruction) -> Instr:
-        basic_block, bb_offset = self._get_basic_block(
-            instr.code_object_id, instr.node_id
-        )
+        basic_block, bb_offset = self._get_basic_block(instr.code_object_id, instr.node_id)
 
         for instruction in basic_block:
             if (

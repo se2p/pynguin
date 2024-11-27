@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides comparators for the MOSA derivates."""
+
 from __future__ import annotations
 
 from typing import Generic

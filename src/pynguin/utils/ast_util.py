@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Utility methods for AST manipulation."""
+
 from __future__ import annotations
 
 import ast
@@ -82,9 +83,7 @@ def create_ast_attribute(attr, value, *, store: bool = False) -> ast.Attribute:
     Returns:
         the attribute node
     """
-    return ast.Attribute(
-        attr=attr, ctx=ast.Store() if store else ast.Load(), value=value
-    )
+    return ast.Attribute(attr=attr, ctx=ast.Store() if store else ast.Load(), value=value)
 
 
 def create_ast_list(elts, *, store: bool = False) -> ast.List:

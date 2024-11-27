@@ -16,12 +16,12 @@ import pynguin.ga.testsuitechromosome as tsc
 from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
 
 
-@pytest.fixture()
+@pytest.fixture
 def stopping_condition():
     return MaxCoverageStoppingCondition(50)
 
 
-@pytest.fixture()
+@pytest.fixture
 def individual() -> tsc.TestSuiteChromosome:
     chromosome = MagicMock(tsc.TestSuiteChromosome)
     chromosome.get_coverage.return_value = 0.60

@@ -62,17 +62,17 @@ def test_resetting_test_case_chromosome_forces_execution():
     assert test_case.get_last_execution_result() == result
 
 
-@pytest.fixture()
+@pytest.fixture
 def executor_mock():
     return MagicMock(TestCaseExecutor)
 
 
-@pytest.fixture()
+@pytest.fixture
 def trace_mock():
     return ExecutionTrace()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_mock():
     return SubjectProperties()
 
@@ -82,9 +82,7 @@ def test_branch_test_case_is_minimizing_function(executor_mock):
     assert not func.is_maximisation_function()
 
 
-def test_test_case_compute_fitness_values(
-    subject_properties_mock, executor_mock, trace_mock
-):
+def test_test_case_compute_fitness_values(subject_properties_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer

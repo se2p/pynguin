@@ -210,7 +210,7 @@ def test_first_constant_string_replacement():
                 """
             ): ("mutate_Constant_str", ast.Constant, ast.Constant),
             inspect.cleandoc(
-                f"""
+                """
                 x = ''
                 """
             ): ("mutate_Constant_str_empty", ast.Constant, ast.Constant),

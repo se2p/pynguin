@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a visitor that transforms statements to AST."""
+
 from __future__ import annotations
 
 import ast
@@ -219,9 +220,7 @@ class StatementToAstVisitor(StatementVisitor):
             func=ast.Attribute(
                 attr=stmt.accessible_object().callable.__name__,
                 ctx=ast.Load(),
-                value=self._create_module_alias(
-                    stmt.accessible_object().callable.__module__
-                ),
+                value=self._create_module_alias(stmt.accessible_object().callable.__module__),
             ),
             args=args,
             keywords=kwargs,
@@ -281,9 +280,7 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.List(
                 elts=[
-                    au.create_full_name(
-                        self._variable_names, self._module_aliases, x, load=True
-                    )
+                    au.create_full_name(self._variable_names, self._module_aliases, x, load=True)
                     for x in stmt.elements
                 ],
                 ctx=ast.Load(),
@@ -294,15 +291,11 @@ class StatementToAstVisitor(StatementVisitor):
         # There is no literal for empty sets, so we have to write "set()"
         inner: Any
         if len(stmt.elements) == 0:
-            inner = ast.Call(
-                func=ast.Name(id="set", ctx=ast.Load()), args=[], keywords=[]
-            )
+            inner = ast.Call(func=ast.Name(id="set", ctx=ast.Load()), args=[], keywords=[])
         else:
-            inner = ast.Set(
+            inner = ast.Set(  # type: ignore[call-arg]
                 elts=[
-                    au.create_full_name(
-                        self._variable_names, self._module_aliases, x, load=True
-                    )
+                    au.create_full_name(self._variable_names, self._module_aliases, x, load=True)
                     for x in stmt.elements
                 ],
                 ctx=ast.Load(),
@@ -326,9 +319,7 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.Tuple(
                 elts=[
-                    au.create_full_name(
-                        self._variable_names, self._module_aliases, x, load=True
-                    )
+                    au.create_full_name(self._variable_names, self._module_aliases, x, load=True)
                     for x in stmt.elements
                 ],
                 ctx=ast.Load(),
@@ -344,15 +335,11 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=ast.Dict(
                 keys=[
-                    au.create_full_name(
-                        self._variable_names, self._module_aliases, x[0], load=True
-                    )
+                    au.create_full_name(self._variable_names, self._module_aliases, x[0], load=True)
                     for x in stmt.elements
                 ],
                 values=[
-                    au.create_full_name(
-                        self._variable_names, self._module_aliases, x[1], load=True
-                    )
+                    au.create_full_name(self._variable_names, self._module_aliases, x[1], load=True)
                     for x in stmt.elements
                 ],
             ),
@@ -376,9 +363,7 @@ class StatementToAstVisitor(StatementVisitor):
             value=ast.Constant(value=stmt.value),
         )
 
-    def _create_args(
-        self, stmt: ParametrizedStatement
-    ) -> tuple[list[ast.expr], list[ast.keyword]]:
+    def _create_args(self, stmt: ParametrizedStatement) -> tuple[list[ast.expr], list[ast.keyword]]:
         """Creates the AST nodes for arguments.
 
         Creates the positional arguments, i.e., POSITIONAL_ONLY,

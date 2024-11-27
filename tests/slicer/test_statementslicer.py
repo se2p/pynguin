@@ -33,11 +33,13 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from tests.fixtures.linecoverage.setter_getter import SetterGetter
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_three_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -54,9 +56,7 @@ def plus_three_test():
 def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
     module_name = "tests.fixtures.linecoverage.plus"
     test_suite = tsc.TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(
-        tcc.TestCaseChromosome(test_case=plus_three_test)
-    )
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=plus_three_test))
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
@@ -93,16 +93,16 @@ def test_testcase_statement_checked_coverage_calculation(plus_three_test):
         executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            4 / 8, 0.1, 0.1
-        )
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(4 / 8, 0.1, 0.1)
 
 
-@pytest.fixture()
+@pytest.fixture
 def setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -157,16 +157,16 @@ def test_only_void_function(setter_test):
         executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            3 / 6, 0.1, 0.1
-        )
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(3 / 6, 0.1, 0.1)
 
 
-@pytest.fixture()
+@pytest.fixture
 def getter_setter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -222,16 +222,16 @@ def test_getter_before_setter(getter_setter_test):
         executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            5 / 6, 0.1, 0.1
-        )
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(5 / 6, 0.1, 0.1)
 
 
-@pytest.fixture()
+@pytest.fixture
 def setter_getter_test():
     cluster = generate_test_cluster("tests.fixtures.linecoverage.setter_getter")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -303,9 +303,7 @@ def test_getter_after_setter(setter_getter_test):
         executor.add_observer(StatementSlicingObserver(tracer))
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
-        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(
-            5 / 6, 0.1, 0.1
-        )
+        assert ff.compute_coverage(test_case_chromosome) == pytest.approx(5 / 6, 0.1, 0.1)
 
 
 def test_get_line_id_by_instruction_throws_error():
@@ -325,6 +323,4 @@ def test_get_line_id_by_instruction_throws_error():
     )
 
     with pytest.raises(ValueError):  # noqa: PT011
-        DynamicSlicer.get_line_id_by_instruction(
-            instruction_mock, subject_properties_mock
-        )
+        DynamicSlicer.get_line_id_by_instruction(instruction_mock, subject_properties_mock)

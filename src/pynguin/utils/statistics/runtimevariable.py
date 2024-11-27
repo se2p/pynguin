@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides runtime variables for output."""
+
 import enum
 
 

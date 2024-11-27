@@ -88,7 +88,7 @@ def test_line_annotation_message(line, msg):
     assert line.message() == msg
 
 
-@pytest.fixture()
+@pytest.fixture
 def demo_module() -> str:
     return """def foo():
     pass
@@ -106,7 +106,7 @@ def bar(x: int):
 """
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample_report() -> CoverageReport:
     return CoverageReport(
         module="cov_demo",
@@ -270,7 +270,9 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
 def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
     render_coverage_report(
-        sample_report, report_path, datetime.datetime(1970, 1, 1)  # noqa: DTZ001
+        sample_report,
+        report_path,
+        datetime.datetime(1970, 1, 1),  # noqa: DTZ001
     )
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()
@@ -294,8 +296,7 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .hll { background-color: #073642 }\n",
             ".highlight { background: #002b36; color: #839496 }\n",
             ".highlight .c { color: #586e75; font-style: italic } /* Comment */\n",
-            ".highlight .err { color: #839496; background-color: #dc322f } "
-            "/* Error */\n",
+            ".highlight .err { color: #839496; background-color: #dc322f } /* Error */\n",
             ".highlight .esc { color: #839496 } /* Escape */\n",
             ".highlight .g { color: #839496 } /* Generic */\n",
             ".highlight .k { color: #859900 } /* Keyword */\n",
@@ -304,30 +305,22 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             ".highlight .o { color: #586e75 } /* Operator */\n",
             ".highlight .x { color: #839496 } /* Other */\n",
             ".highlight .p { color: #839496 } /* Punctuation */\n",
-            ".highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang "
-            "*/\n",
-            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline"
-            " */\n",
+            ".highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */\n",
+            ".highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */\n",
             ".highlight .cp { color: #d33682 } /* Comment.Preproc */\n",
             ".highlight .cpf { color: #586e75 } /* Comment.PreprocFile */\n",
-            ".highlight .c1 { color: #586e75; font-style: italic } "
-            "/* Comment.Single */\n",
-            ".highlight .cs { color: #586e75; font-style: italic } /* Comment.Special "
-            "*/\n",
+            ".highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */\n",
+            ".highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */\n",
             ".highlight .gd { color: #dc322f } /* Generic.Deleted */\n",
-            ".highlight .ge { color: #839496; font-style: italic } "
-            "/* Generic.Emph */\n",
+            ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
             ".highlight .ges { color: #839496; font-weight: bold; font-style: italic } "
             "/* Generic.EmphStrong */\n",
             ".highlight .gr { color: #dc322f } /* Generic.Error */\n",
-            ".highlight .gh { color: #839496; font-weight: bold } "
-            "/* Generic.Heading */\n",
+            ".highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */\n",
             ".highlight .gi { color: #859900 } /* Generic.Inserted */\n",
             ".highlight .go { color: #839496 } /* Generic.Output */\n",
-            ".highlight .gp { color: #268bd2; font-weight: bold } "
-            "/* Generic.Prompt */\n",
-            ".highlight .gs { color: #839496; font-weight: bold } "
-            "/* Generic.Strong */\n",
+            ".highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */\n",
+            ".highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */\n",
             ".highlight .gu { color: #839496; text-decoration: underline } /* "
             "Generic.Subheading */\n",
             ".highlight .gt { color: #268bd2 } /* Generic.Traceback */\n",
@@ -424,25 +417,20 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             '            <td style="width: 40px; text-align: right;" class="lines">\n',
             '                <span class="partiallyCovered" title="1/2 branchless code '
             'objects covered; Line 1 covered">1</span>\n',
-            '                  <span class="notCovered" title="Line 2 not '
-            'covered">2</span>\n',
+            '                  <span class="notCovered" title="Line 2 not covered">2</span>\n',
             '                  <span class="notRelevant">3</span>\n',
             '                  <span class="notRelevant">4</span>\n',
-            '                  <span class="fullyCovered" title="Line 5 '
-            'covered">5</span>\n',
+            '                  <span class="fullyCovered" title="Line 5 covered">5</span>\n',
             '                  <span class="partiallyCovered" title="2/4 branches '
             'covered; Line 6 not covered">6</span>\n',
             '                  <span class="notRelevant">7</span>\n',
             '                  <span class="notRelevant">8</span>\n',
-            '                  <span class="notCovered" title="Line 9 not '
-            'covered">9</span>\n',
+            '                  <span class="notCovered" title="Line 9 not covered">9</span>\n',
             '                  <span class="notCovered" title="0/2 branches covered;'
             ' Line 10 not covered">10</span>\n',
-            '                  <span class="notCovered" title="Line 11 not '
-            'covered">11</span>\n',
+            '                  <span class="notCovered" title="Line 11 not covered">11</span>\n',
             '                  <span class="notRelevant">12</span>\n',
-            '                  <span class="notCovered" title="Line 13 not '
-            'covered">13</span>\n',
+            '                  <span class="notCovered" title="Line 13 not covered">13</span>\n',
             "                  </td>\n",
             '            <td style="width: 100%;"><div '
             'class="highlight"><pre><span></span><span class="k">def</span> <span '
@@ -450,8 +438,7 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             '    <span class="k">pass</span>\n',
             "\n",
             "\n",
-            '<span class="k">def</span> <span class="nf">baz</span><span '
-            'class="p">():</span>\n',
+            '<span class="k">def</span> <span class="nf">baz</span><span class="p">():</span>\n',
             '    <span class="k">assert</span> <span class="mi">3</span> <span '
             'class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> '
             '<span class="mi">3</span> <span class="o">==</span> <span '
@@ -461,8 +448,7 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             '<span class="k">def</span> <span class="nf">bar</span><span '
             'class="p">(</span><span class="n">x</span><span class="p">:</span> <span '
             'class="nb">int</span><span class="p">):</span>\n',
-            '    <span class="k">if</span> <span class="n">x</span><span '
-            'class="p">:</span>\n',
+            '    <span class="k">if</span> <span class="n">x</span><span class="p">:</span>\n',
             '        <span class="k">return</span> <span class="mi">5</span>\n',
             '    <span class="k">else</span><span class="p">:</span>\n',
             '        <span class="k">return</span> <span class="mi">6</span>\n',
@@ -496,22 +482,18 @@ def test_render_xml_coverage_report(sample_report, tmp_path: Path):
         "    <source>cov_demo</source>\n",
         "  </sources>\n",
         "  <packages>\n",
-        '    <package name="" line-rate="0.25" branch-rate="0.375" '
-        'complexity="0.0">\n',
+        '    <package name="" line-rate="0.25" branch-rate="0.375" complexity="0.0">\n',
         "      <classes>\n",
         '        <class name="" filename="cov_demo" line-rate="0.25" '
         'branch-rate="0.375" complexity="0.0">\n',
         "          <methods />\n",
         "          <lines>\n",
-        '            <line number="1" hits="1" branch="true" condition-coverage="50% '
-        '(1/2)" />\n',
+        '            <line number="1" hits="1" branch="true" condition-coverage="50% (1/2)" />\n',
         '            <line number="2" hits="0" branch="false" />\n',
         '            <line number="5" hits="1" branch="false" />\n',
-        '            <line number="6" hits="1" branch="true" condition-coverage="50% '
-        '(2/4)" />\n',
+        '            <line number="6" hits="1" branch="true" condition-coverage="50% (2/4)" />\n',
         '            <line number="9" hits="0" branch="false" />\n',
-        '            <line number="10" hits="0" branch="true" condition-coverage="0% '
-        '(0/2)" />\n',
+        '            <line number="10" hits="0" branch="true" condition-coverage="0% (0/2)" />\n',
         '            <line number="11" hits="0" branch="false" />\n',
         '            <line number="13" hits="0" branch="false" />\n',
         "          </lines>\n",

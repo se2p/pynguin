@@ -9,6 +9,7 @@
 This module provides the main entry location for the program execution from the command
 line.
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,9 +42,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         description="Pynguin is an automatic unit test generation framework for Python",
         fromfile_prefix_chars="@",
     )
-    parser.add_argument(
-        "--version", action="version", version="%(prog)s " + __version__
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument(
         "-v",
         "--verbose",
@@ -60,6 +59,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Don't use rich for nicer consoler output.",
+    )
+    parser.add_argument(
+        "--log-file",
+        "--log_file",
+        help="Path to an optional log file.",
+        type=Path,
     )
     parser.add_arguments(config.Configuration, dest="config")
 
@@ -117,28 +122,35 @@ def _setup_output_path(output_path: str) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
 
-def _setup_logging(verbosity: int, no_rich: bool) -> Console | None:  # noqa: FBT001
+def _setup_logging(
+    verbosity: int,
+    no_rich: bool,  # noqa: FBT001
+    log_file: Path | None,
+) -> Console | None:
     level = logging.WARNING
+    if log_file is not None:
+        level = logging.INFO
     if verbosity == 1:
         level = logging.INFO
     if verbosity >= 2:
         level = logging.DEBUG
 
     console = None
+    handler: logging.Handler
     if no_rich:
-        handler: logging.Handler = logging.StreamHandler()
+        handler = logging.StreamHandler()
     else:
         install()
         console = Console(tab_size=4)
-        handler = RichHandler(
-            rich_tracebacks=True, log_time_format="[%X]", console=console
-        )
+        handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]", console=console)
         handler.setFormatter(logging.Formatter("%(message)s"))
+
+    if log_file is not None:
+        handler = logging.FileHandler(log_file)
 
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s]"
-        "(%(name)s:%(funcName)s:%(lineno)d): %(message)s",
+        format="%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s",
         datefmt="[%X]",
         handlers=[handler],
     )
@@ -185,7 +197,11 @@ to see why this happens and what you must do to prevent it."""
 
     _setup_output_path(parsed.config.test_case_output.output_path)
 
-    console = _setup_logging(parsed.verbosity, parsed.no_rich)
+    console = _setup_logging(
+        verbosity=parsed.verbosity,
+        no_rich=parsed.no_rich,
+        log_file=parsed.log_file,
+    )
 
     set_configuration(parsed.config)
     if console is not None:

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides utilities when working with types."""
+
 from __future__ import annotations
 
 import enum
@@ -222,8 +223,7 @@ def is_assertable(obj: Any, recursion_depth: int = 0) -> bool:
         return all(is_assertable(elem, recursion_depth + 1) for elem in obj)
     if is_dict(tp_):
         return all(
-            is_assertable(key, recursion_depth + 1)
-            and is_assertable(value, recursion_depth + 1)
+            is_assertable(key, recursion_depth + 1) and is_assertable(value, recursion_depth + 1)
             for key, value in obj.items()
         )
     return False

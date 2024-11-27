@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an observer to observe the search."""
+
 from __future__ import annotations
 
 import logging
@@ -80,9 +81,7 @@ class LogSearchObserver(SearchObserver):
         self, best: tsc.TestSuiteChromosome
     ) -> None:
         self.iteration += 1
-        self._logger.info(
-            "Iteration: %7i, Coverage: %5f", self.iteration, best.get_coverage()
-        )
+        self._logger.info("Iteration: %7i, Coverage: %5f", self.iteration, best.get_coverage())
 
     def after_search_finish(self) -> None:
         """Not used."""

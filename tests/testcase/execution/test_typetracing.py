@@ -40,53 +40,49 @@ def test_type_reconstruction(test_func, return_type):
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.return_types")
     executor = TestCaseExecutor(ExecutionTracer())
     visitor = AstToTestCaseTransformer(
-        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        test_cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
-    visitor.visit(
-        ast.parse("def test_case():\n   var_0 = module_0." + test_func + "()")
-    )
+    visitor.visit(ast.parse("def test_case():\n   var_0 = module_0." + test_func + "()"))
     test_case = visitor.testcases[0]
     observer = ReturnTypeObserver(test_cluster)
     executor.add_observer(observer)
     result = executor.execute(test_case)
-    assert result.proper_return_type_trace[
-        0
-    ] == test_cluster.type_system.convert_type_hint(return_type)
+    assert result.proper_return_type_trace[0] == test_cluster.type_system.convert_type_hint(
+        return_type
+    )
 
 
 def test_type_tracing_observer_separate_proxies_for_args():
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.guess_params")
     visitor = AstToTestCaseTransformer(
-        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        test_cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     visitor.visit(
-        ast.parse(
-            "def test_case():\n"
-            "    int_0 = 0\n"
-            "    var_0 = module_0.foo(int_0, int_0, int_0)"
-        )
+        ast.parse("def test_case():\n    int_0 = 0\n    var_0 = module_0.foo(int_0, int_0, int_0)")
     )
     test_case = visitor.testcases[0]
     executor = TestCaseExecutor(ExecutionTracer())
     observer = TypeTracingObserver(test_cluster)
     executor.add_observer(observer)
     result = executor.execute(test_case)
-    assert {"__rmul__"} == set(result.proxy_knowledge[(1, "a")].children.keys())
-    assert {"__radd__"} == set(result.proxy_knowledge[(1, "b")].children.keys())
-    assert {"__truediv__"} == set(result.proxy_knowledge[(1, "c")].children.keys())
+    assert {"__rmul__"} == set(result.proxy_knowledge[1, "a"].children.keys())
+    assert {"__radd__"} == set(result.proxy_knowledge[1, "b"].children.keys())
+    assert {"__truediv__"} == set(result.proxy_knowledge[1, "c"].children.keys())
 
 
 def test_type_tracing_test_case_executor_integration():
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.guess_params")
     visitor = AstToTestCaseTransformer(
-        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        test_cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     visitor.visit(
-        ast.parse(
-            "def test_case():\n"
-            "    int_0 = 0\n"
-            "    var_0 = module_0.foo(int_0, int_0, int_0)"
-        )
+        ast.parse("def test_case():\n    int_0 = 0\n    var_0 = module_0.foo(int_0, int_0, int_0)")
     )
     test_case = visitor.testcases[0]
     executor = TestCaseExecutor(ExecutionTracer())

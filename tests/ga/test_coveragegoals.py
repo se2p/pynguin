@@ -11,6 +11,7 @@ import ast
 import importlib
 import threading
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -34,17 +35,21 @@ from pynguin.testcase.execution import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 
 
-@pytest.fixture()
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+@pytest.fixture
 def branchless_codeobject_goal():
     return bg.BranchlessCodeObjectGoal(0)
 
 
-@pytest.fixture()
+@pytest.fixture
 def branch_goal():
     return bg.BranchGoal(code_object_id=0, predicate_id=0, value=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def statement_coverage_goal():
     return bg.LineCoverageGoal(code_object_id=0, line_id=42)
 
@@ -134,22 +139,22 @@ def test_non_root_get_distance(branch_goal, mocker):
     mock.assert_called_once()
 
 
-@pytest.fixture()
+@pytest.fixture
 def empty_function():
     return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
 
-@pytest.fixture()
+@pytest.fixture
 def executor_mock():
     return MagicMock(TestCaseExecutor)
 
 
-@pytest.fixture()
+@pytest.fixture
 def trace_mock():
     return ExecutionTrace()
 
 
-@pytest.fixture()
+@pytest.fixture
 def subject_properties_mock():
     return SubjectProperties()
 
@@ -164,9 +169,7 @@ def test_goal(executor_mock):
     assert func.goal == goal
 
 
-def test_compute_fitness_values_mocked(
-    subject_properties_mock, executor_mock, trace_mock
-):
+def test_compute_fitness_values_mocked(subject_properties_mock, executor_mock, trace_mock):
     tracer = MagicMock()
     tracer.get_subject_properties.return_value = subject_properties_mock
     executor_mock.tracer.return_value = tracer
@@ -211,6 +214,83 @@ def test_compute_fitness_values_no_branches():
         assert chromosome.get_fitness_for(goals_dict["get_x"]) == 0.0
         assert chromosome.get_fitness_for(goals_dict["identity"]) == 0.0
         assert chromosome.get_fitness_for(goals_dict["DummyClass"]) == 0.0
+
+
+def _get_test_for_simple_nesting_no_branch_covered(
+    module_name,
+) -> tcc.TestCaseChromosome:
+    cluster = generate_test_cluster(module_name)
+    transformer = AstToTestCaseTransformer(
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
+    )
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 10
+    int_1 = 10
+    var_0 = module_0.foo(int_0, int_1)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+def _get_test_for_simple_nesting_outer_branch_covered(
+    module_name,
+) -> tcc.TestCaseChromosome:
+    cluster = generate_test_cluster(module_name)
+    transformer = AstToTestCaseTransformer(
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
+    )
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    int_0 = 0
+    int_1 = 10
+    var_0 = module_0.foo(int_0, int_1)
+"""
+        )
+    )
+    test_case = transformer.testcases[0]
+    return tcc.TestCaseChromosome(test_case=test_case)
+
+
+@pytest.mark.parametrize(
+    "chrom_factory, expected_fitness",
+    [
+        pytest.param(_get_test_for_simple_nesting_no_branch_covered, 4.7272727272727275),
+        pytest.param(_get_test_for_simple_nesting_outer_branch_covered, 1.4090909090909092),
+    ],
+)
+def test_fitness_simple_nesting(
+    chrom_factory: Callable[[str], tcc.TestCaseChromosome], expected_fitness: float
+):
+    module_name = "tests.fixtures.branchcoverage.simplenesting"
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = TestCaseExecutor(tracer)
+        chromosome = chrom_factory(module_name)
+        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        goals = bg.create_branch_coverage_fitness_functions(executor, pool)
+        goals_dict = {}
+        for goal in goals:
+            chromosome.add_fitness_function(goal)
+            goals_dict[
+                tracer.get_subject_properties()
+                .existing_code_objects[goal._goal.code_object_id]
+                .code_object.co_name
+            ] = goal
+        fitness = chromosome.get_fitness()
+        assert fitness == pytest.approx(expected_fitness)
 
 
 @pytest.mark.parametrize(
@@ -262,7 +342,9 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
         cluster = generate_test_cluster(module_name)
 
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(ast.parse(test_case))
         test_case = transformer.testcases[0]
@@ -280,7 +362,9 @@ def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
     cluster = generate_test_cluster(module_name)
 
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -385,17 +469,13 @@ def _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock):
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
     for line_id in range(len(lines)):
         line_goal = bg.LineCoverageGoal(0, line_id)
-        chromosome.add_fitness_function(
-            bg.LineCoverageTestFitness(executor_mock, line_goal)
-        )
+        chromosome.add_fitness_function(bg.LineCoverageTestFitness(executor_mock, line_goal))
 
 
 def _get_lines_data_for_plus_module():
     file_name = "../fixtures/linecoverage/plus.py"
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
-    return {
-        line_id: LineMetaData(0, file_name, line) for line_id, line in enumerate(lines)
-    }
+    return {line_id: LineMetaData(0, file_name, line) for line_id, line in enumerate(lines)}
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:

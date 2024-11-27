@@ -31,24 +31,22 @@ class _DummySequenceOutputVariableFactory(SequenceOutputVariableFactory):
         return 42
 
 
-@pytest.fixture()
+@pytest.fixture
 def factory():
-    return DirectSequenceOutputVariableFactory(
-        RuntimeVariable.TotalExceptionsTimeline, 0
-    )
+    return DirectSequenceOutputVariableFactory(RuntimeVariable.TotalExceptionsTimeline, 0)
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome_factory():
     return _DummyChromosomeOutputVariableFactory(RuntimeVariable.Coverage)
 
 
-@pytest.fixture()
+@pytest.fixture
 def sequence_factory():
     return _DummySequenceOutputVariableFactory(RuntimeVariable.CoverageTimeline)
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome():
     return tsc.TestSuiteChromosome()
 
@@ -103,10 +101,7 @@ def test_get_output_variables_with_content(sequence_factory, chromosome):
     sequence_factory.update(chromosome_2)
     time.sleep(0.05)
     variables = sequence_factory.get_output_variables()
-    [
-        check_result(var.name, var.value, index + 1)
-        for index, var in enumerate(variables)
-    ]
+    [check_result(var.name, var.value, index + 1) for index, var in enumerate(variables)]
     assert len(variables) >= 0
 
 
@@ -147,10 +142,45 @@ def test_get_time_line_value_no_interpolation(sequence_factory):
     assert sequence_factory._get_time_line_value(start_time + 1) == 0
 
 
-def test_area_under_curve(sequence_factory):
-    config.configuration.stopping.maximum_search_time = 6
+@pytest.mark.parametrize(
+    "values, result",
+    [
+        pytest.param([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 0.0),
+        pytest.param([0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 1.0], 193 / 60),
+        pytest.param([1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 5.0),
+    ],
+)
+def test_area_under_curve(sequence_factory, values, result):
+    config.configuration.stopping.maximum_search_time = 5
     start_time = time.time_ns()
     sequence_factory.set_start_time(start_time)
-    sequence_factory._time_stamps = [start_time + i * 1_000_000_000 for i in range(6)]
-    sequence_factory._values = [0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 1.0]
-    assert sequence_factory.area_under_curve == pytest.approx(193 / 60)
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)]
+    sequence_factory._values = values
+    assert sequence_factory.area_under_curve == pytest.approx(result)
+
+
+@pytest.mark.parametrize(
+    "values, result",
+    [
+        pytest.param([0.0, 0.0, 0.0, 0.0, 0.0, 0.0], 0.0),
+        pytest.param([0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 1.0], 193 / 300),
+        pytest.param([1.0, 1.0, 1.0, 1.0, 1.0, 1.0], 1.0),
+    ],
+)
+def test_normalised_area_under_curve(sequence_factory, values, result):
+    config.configuration.stopping.maximum_search_time = 5
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)]
+    sequence_factory._values = values
+    assert sequence_factory.normalised_area_under_curve == pytest.approx(result)
+
+
+def test_normalised_area_under_curve_outlier(sequence_factory):
+    config.configuration.stopping.maximum_search_time = 5
+    start_time = time.time_ns()
+    sequence_factory.set_start_time(start_time)
+    sequence_factory._time_stamps = [i * 1_000_000_000 for i in range(6)] + [5_500_000_000]
+    sequence_factory._values = [0.0, 1 / 2, 2 / 3, 3 / 4, 4 / 5, 5 / 6, 6 / 7]
+    expected = 2987 / (840 * 5.5)
+    assert sequence_factory.normalised_area_under_curve == pytest.approx(expected)

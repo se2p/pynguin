@@ -88,50 +88,46 @@ def test_data_dependency_3():
 
 def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
-    module_block = BasicBlock(
-        [
-            # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
-            # ob.attr1 = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("STORE_ATTR", arg="attr1"),
-            # ob.attr2 = ob.attr2 + [ob.attr1]
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("LOAD_ATTR", arg="attr2"),
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("LOAD_ATTR", arg="attr1"),
-            Instr("BUILD_LIST", arg=1),
-            Instr("BINARY_ADD"),
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("STORE_ATTR", arg="attr2"),
-            # result = ob.attr2
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("LOAD_ATTR", arg="attr2"),
-            Instr("STORE_FAST", arg="result"),
-            # return
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    class_attr_block = BasicBlock(
-        [
-            # attr2 = [1, 2, 3]
-            Instr("BUILD_LIST", arg=0),
-            Instr("LOAD_CONST", arg=(1, 2, 3)),
-            Instr("LIST_EXTEND", arg=1),
-            Instr("STORE_NAME", arg="attr2"),
-            # return
-            Instr("LOAD_CONST", arg=None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
+    module_block = BasicBlock([
+        # class Foo:
+        Instr("LOAD_BUILD_CLASS"),
+        Instr("LOAD_CONST", arg=dummy_code_object),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("MAKE_FUNCTION", arg=0),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("CALL_FUNCTION", arg=2),
+        Instr("STORE_NAME", arg="Foo"),
+        # ob.attr1 = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("STORE_ATTR", arg="attr1"),
+        # ob.attr2 = ob.attr2 + [ob.attr1]
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("LOAD_ATTR", arg="attr2"),
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("LOAD_ATTR", arg="attr1"),
+        Instr("BUILD_LIST", arg=1),
+        Instr("BINARY_ADD"),
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("STORE_ATTR", arg="attr2"),
+        # result = ob.attr2
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("LOAD_ATTR", arg="attr2"),
+        Instr("STORE_FAST", arg="result"),
+        # return
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
+    class_attr_block = BasicBlock([
+        # attr2 = [1, 2, 3]
+        Instr("BUILD_LIST", arg=0),
+        Instr("LOAD_CONST", arg=(1, 2, 3)),
+        Instr("LIST_EXTEND", arg=1),
+        Instr("STORE_NAME", arg="attr2"),
+        # return
+        Instr("LOAD_CONST", arg=None),
+        Instr("RETURN_VALUE"),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(module_block)
@@ -145,35 +141,34 @@ def test_data_dependency_4():
 
 def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
-    module_block = BasicBlock(
-        [
-            # class Foo:
-            Instr("LOAD_BUILD_CLASS"),
-            Instr("LOAD_CONST", arg=dummy_code_object),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("MAKE_FUNCTION", arg=0),
-            Instr("LOAD_CONST", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=2),
-            Instr("STORE_NAME", arg="Foo"),
-            # ob = Foo()
-            Instr("LOAD_GLOBAL", arg="Foo"),
-            Instr("CALL_FUNCTION", arg=0),
-            Instr("STORE_FAST", arg="ob"),
-            # ob.attr1 = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("STORE_ATTR", arg="attr1"),
-            # result = ob
-            Instr("LOAD_FAST", arg="ob"),
-            Instr("STORE_FAST", arg="result"),
-            # return
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    class_attr_block = BasicBlock(
-        [Instr("LOAD_CONST", arg=None), Instr("RETURN_VALUE")]
-    )
+    module_block = BasicBlock([
+        # class Foo:
+        Instr("LOAD_BUILD_CLASS"),
+        Instr("LOAD_CONST", arg=dummy_code_object),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("MAKE_FUNCTION", arg=0),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("CALL_FUNCTION", arg=2),
+        Instr("STORE_NAME", arg="Foo"),
+        # ob = Foo()
+        Instr("LOAD_GLOBAL", arg="Foo"),
+        Instr("CALL_FUNCTION", arg=0),
+        Instr("STORE_FAST", arg="ob"),
+        # ob.attr1 = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("STORE_ATTR", arg="attr1"),
+        # result = ob
+        Instr("LOAD_FAST", arg="ob"),
+        Instr("STORE_FAST", arg="result"),
+        # return
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
+    class_attr_block = BasicBlock([
+        Instr("LOAD_CONST", arg=None),
+        Instr("RETURN_VALUE"),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(module_block)
@@ -196,32 +191,26 @@ def test_simple_control_dependency_1():
 
         return result
 
-    return_basic_block = BasicBlock(
-        [
-            # return result
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    if_basic_block = BasicBlock(
-        [
-            # result = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("STORE_FAST", arg="result"),
-        ]
-    )
-    init_basic_block = BasicBlock(
-        [
-            # foo = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("STORE_FAST", arg="foo"),
-            # if foo == 1
-            Instr("LOAD_FAST", arg="foo"),
-            Instr("LOAD_CONST", arg=1),
-            Instr("COMPARE_OP", arg=Compare.EQ),
-            Instr("POP_JUMP_IF_FALSE", arg=return_basic_block),
-        ]
-    )
+    return_basic_block = BasicBlock([
+        # return result
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
+    if_basic_block = BasicBlock([
+        # result = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("STORE_FAST", arg="result"),
+    ])
+    init_basic_block = BasicBlock([
+        # foo = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("STORE_FAST", arg="foo"),
+        # if foo == 1
+        Instr("LOAD_FAST", arg="foo"),
+        Instr("LOAD_CONST", arg=1),
+        Instr("COMPARE_OP", arg=Compare.EQ),
+        Instr("POP_JUMP_IF_FALSE", arg=return_basic_block),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(init_basic_block)
@@ -245,20 +234,16 @@ def test_simple_control_dependency_2():
 
         return result
 
-    init_basic_block = BasicBlock(
-        [
-            # result = 3
-            Instr("LOAD_CONST", arg=3),
-            Instr("STORE_FAST", arg="result"),
-        ]
-    )
-    return_basic_block = BasicBlock(
-        [
-            # return result
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
+    init_basic_block = BasicBlock([
+        # result = 3
+        Instr("LOAD_CONST", arg=3),
+        Instr("STORE_FAST", arg="result"),
+    ])
+    return_basic_block = BasicBlock([
+        # return result
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(init_basic_block)
@@ -284,49 +269,39 @@ def test_simple_control_dependency_3():
 
         return result
 
-    elif_block = BasicBlock(
-        [
-            # result = 2
-            Instr("LOAD_CONST", arg=2),
-            Instr("STORE_FAST", arg="result"),
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    else_block = BasicBlock(
-        [
-            Instr("LOAD_CONST", arg=3),
-            Instr("STORE_FAST", arg="result"),
-        ]
-    )
-    elif_cond = BasicBlock(
-        [
-            # elif foo == 1:
-            Instr("LOAD_FAST", arg="foo"),
-            Instr("LOAD_CONST", arg=1),
-            Instr("COMPARE_OP", arg=Compare.EQ),
-            Instr("POP_JUMP_IF_FALSE", arg=else_block),
-        ]
-    )
-    if_cond = BasicBlock(
-        [
-            # if foo == bar
-            Instr("LOAD_FAST", arg="foo"),
-            Instr("LOAD_FAST", arg="bar"),
-            Instr("COMPARE_OP", arg=Compare.EQ),
-            Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
-        ]
-    )
-    init_block = BasicBlock(
-        [
-            # foo = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("STORE_FAST", arg="foo"),
-            # bar = 2
-            Instr("LOAD_CONST", arg=2),
-            Instr("STORE_FAST", arg="bar"),
-        ]
-    )
+    elif_block = BasicBlock([
+        # result = 2
+        Instr("LOAD_CONST", arg=2),
+        Instr("STORE_FAST", arg="result"),
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
+    else_block = BasicBlock([
+        Instr("LOAD_CONST", arg=3),
+        Instr("STORE_FAST", arg="result"),
+    ])
+    elif_cond = BasicBlock([
+        # elif foo == 1:
+        Instr("LOAD_FAST", arg="foo"),
+        Instr("LOAD_CONST", arg=1),
+        Instr("COMPARE_OP", arg=Compare.EQ),
+        Instr("POP_JUMP_IF_FALSE", arg=else_block),
+    ])
+    if_cond = BasicBlock([
+        # if foo == bar
+        Instr("LOAD_FAST", arg="foo"),
+        Instr("LOAD_FAST", arg="bar"),
+        Instr("COMPARE_OP", arg=Compare.EQ),
+        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
+    ])
+    init_block = BasicBlock([
+        # foo = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("STORE_FAST", arg="foo"),
+        # bar = 2
+        Instr("LOAD_CONST", arg=2),
+        Instr("STORE_FAST", arg="bar"),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(init_block)
@@ -354,48 +329,38 @@ def test_simple_control_dependency_4():
 
         return result
 
-    return_block = BasicBlock(
-        [
-            # return result
-            Instr("LOAD_FAST", arg="result"),
-            Instr("RETURN_VALUE"),
-        ]
-    )
-    else_block = BasicBlock(
-        [
-            # result = 3
-            Instr("LOAD_CONST", arg=3),
-            Instr("STORE_FAST", arg="result"),
-        ]
-    )
-    elif_cond = BasicBlock(
-        [
-            # elif foo == 1:
-            Instr("LOAD_FAST", arg="foo"),
-            Instr("LOAD_FAST", arg="bar"),
-            Instr("COMPARE_OP", arg=Compare.GT),
-            Instr("POP_JUMP_IF_FALSE", arg=else_block),
-        ]
-    )
-    if_cond = BasicBlock(
-        [
-            # if foo == bar
-            Instr("LOAD_FAST", arg="foo"),
-            Instr("LOAD_FAST", arg="bar"),
-            Instr("COMPARE_OP", arg=Compare.EQ),
-            Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
-        ]
-    )
-    init_block = BasicBlock(
-        [
-            # foo = 1
-            Instr("LOAD_CONST", arg=1),
-            Instr("STORE_FAST", arg="foo"),
-            # bar = 2
-            Instr("LOAD_CONST", arg=2),
-            Instr("STORE_FAST", arg="bar"),
-        ]
-    )
+    return_block = BasicBlock([
+        # return result
+        Instr("LOAD_FAST", arg="result"),
+        Instr("RETURN_VALUE"),
+    ])
+    else_block = BasicBlock([
+        # result = 3
+        Instr("LOAD_CONST", arg=3),
+        Instr("STORE_FAST", arg="result"),
+    ])
+    elif_cond = BasicBlock([
+        # elif foo == 1:
+        Instr("LOAD_FAST", arg="foo"),
+        Instr("LOAD_FAST", arg="bar"),
+        Instr("COMPARE_OP", arg=Compare.GT),
+        Instr("POP_JUMP_IF_FALSE", arg=else_block),
+    ])
+    if_cond = BasicBlock([
+        # if foo == bar
+        Instr("LOAD_FAST", arg="foo"),
+        Instr("LOAD_FAST", arg="bar"),
+        Instr("COMPARE_OP", arg=Compare.EQ),
+        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
+    ])
+    init_block = BasicBlock([
+        # foo = 1
+        Instr("LOAD_CONST", arg=1),
+        Instr("STORE_FAST", arg="foo"),
+        # bar = 2
+        Instr("LOAD_CONST", arg=2),
+        Instr("STORE_FAST", arg="bar"),
+    ])
 
     expected_instructions = []
     expected_instructions.extend(init_block)

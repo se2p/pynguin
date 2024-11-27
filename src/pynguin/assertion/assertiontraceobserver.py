@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract observer that can be used to generate assertions."""
+
 import ast
 import copy
 import logging
@@ -126,10 +127,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
                 self._check_reference(exec_ctx, statement.ret_val, position, trace)
-            elif (
-                type(exec_ctx.get_reference_value(statement.ret_val)).__module__
-                != "builtins"
-            ):
+            elif type(exec_ctx.get_reference_value(statement.ret_val)).__module__ != "builtins":
                 # Everything else is continually checked, unless it is from builtins.
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
@@ -226,9 +224,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             if isinstance(value, Sized):
                 try:
                     length = len(value)
-                    trace.add_entry(
-                        position, ass.CollectionLengthAssertion(ref, length)
-                    )
+                    trace.add_entry(position, ass.CollectionLengthAssertion(ref, length))
                     return
                 except BaseException as err:  # noqa: BLE001
                     # Could not get len, so continue down.

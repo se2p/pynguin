@@ -211,9 +211,7 @@ class StackEffect:
         Returns:
             A tuple containing the number of pops and pushes as integer.
         """
-        assert (
-            opcode != op.SETUP_ASYNC_WITH
-        ), "Uncertain stack effect for SETUP_ASYNC_WITH"
+        assert opcode != op.SETUP_ASYNC_WITH, "Uncertain stack effect for SETUP_ASYNC_WITH"
 
         if opcode in StackEffect._se_lookup:
             return StackEffect._se_lookup[opcode]

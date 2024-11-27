@@ -30,7 +30,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
 
 
-@pytest.fixture()
+@pytest.fixture
 def seed_modules_path():
     return (
         Path(__file__).parent
@@ -42,19 +42,17 @@ def seed_modules_path():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def triangle_test_cluster() -> ModuleTestCluster:
     return generate_test_cluster("tests.fixtures.examples.triangle")
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_test_cluster() -> ModuleTestCluster:
-    return generate_test_cluster(
-        "tests.fixtures.seeding.initialpopulationseeding.dummycontainer"
-    )
+    return generate_test_cluster("tests.fixtures.seeding.initialpopulationseeding.dummycontainer")
 
 
-@pytest.fixture()
+@pytest.fixture
 def constant_provider():
     return EmptyConstantProvider()
 
@@ -71,9 +69,7 @@ def test_get_testcases(constant_provider, seed_modules_path, triangle_test_clust
     assert len(provider) == 2
 
 
-def test_get_seeded_testcase(
-    constant_provider, seed_modules_path, triangle_test_cluster
-):
+def test_get_seeded_testcase(constant_provider, seed_modules_path, triangle_test_cluster):
     config.configuration.module_name = "triangle"
     provider = seeding.InitialPopulationProvider(
         triangle_test_cluster,
@@ -176,9 +172,7 @@ def test_create_assertion(  # noqa: PLR0917
         pytest.param("wrongassignseed"),
     ],
 )
-def test_not_working_cases(
-    constant_provider, seed_modules_path, dummy_test_cluster, module_name
-):
+def test_not_working_cases(constant_provider, seed_modules_path, dummy_test_cluster, module_name):
     config.configuration.module_name = module_name
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster,
@@ -248,21 +242,17 @@ def test_algorithm_generation_factory(
     tsfactory = TestSuiteGenerationAlgorithmFactory(
         mock_class.return_value, dummy_test_cluster, constant_provider
     )
-    with mock.patch(
-        "pynguin.analyses.seeding.InitialPopulationProvider.__len__"
-    ) as len_mock:
+    with mock.patch("pynguin.analyses.seeding.InitialPopulationProvider.__len__") as len_mock:
         len_mock.return_value = 1
         chromosome_factory = tsfactory._get_chromosome_factory(
             MagicMock(test_case_fitness_functions=[], test_suite_fitness_functions=[])
         )
     test_case_factory = chromosome_factory._test_case_factory
-    assert type(test_case_factory) == fac_type
+    assert type(test_case_factory) is fac_type
 
 
 @mock.patch("ast.parse")
-def test_module_not_readable(
-    parse_mock, constant_provider, seed_modules_path, dummy_test_cluster
-):
+def test_module_not_readable(parse_mock, constant_provider, seed_modules_path, dummy_test_cluster):
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
     provider = seeding.InitialPopulationProvider(
         dummy_test_cluster, test_factory, constant_provider
@@ -274,9 +264,7 @@ def test_module_not_readable(
 
 
 @mock.patch("pynguin.ga.testcasechromosome.TestCaseChromosome.mutate")
-def test_initial_mutation(
-    mutate_mock, constant_provider, seed_modules_path, dummy_test_cluster
-):
+def test_initial_mutation(mutate_mock, constant_provider, seed_modules_path, dummy_test_cluster):
     config.configuration.seeding.initial_population_mutations = 2
     config.configuration.module_name = "primitiveseed"
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)

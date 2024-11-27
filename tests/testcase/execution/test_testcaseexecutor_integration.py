@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Integration tests for the executor."""
+
 import ast
 import importlib
 import threading
@@ -68,9 +69,7 @@ def test_no_exceptions(short_test_case):
 
 def test_instrumentation(short_test_case):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    config.configuration.statistics_output.coverage_metrics = [
-        config.CoverageMetric.CHECKED
-    ]
+    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     with install_import_hook(config.configuration.module_name, tracer):
@@ -130,7 +129,9 @@ def test_killing_endless_loop():
         executor = TestCaseExecutor(tracer)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(
             ast.parse(

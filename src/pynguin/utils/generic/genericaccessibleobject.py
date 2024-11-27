@@ -8,6 +8,7 @@
 
 Think of these like the reflection classes in Java.
 """
+
 from __future__ import annotations
 
 import abc
@@ -409,10 +410,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         return hash(self._callable)
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self._callable.__name__}, "
-            f"{self.inferred_signature})"
-        )
+        return f"{self.__class__.__name__}({self._callable.__name__}, {self.inferred_signature})"
 
     def __str__(self):
         return f"{self._callable.__module__}.{self._callable.__qualname__}"
@@ -421,9 +419,7 @@ class GenericFunction(GenericCallableAccessibleObject):
 class GenericAbstractField(GenericAccessibleObject, abc.ABC):
     """Abstract superclass for fields."""
 
-    def __init__(
-        self, owner: TypeInfo | None, field: str, field_type: ProperType
-    ) -> None:
+    def __init__(self, owner: TypeInfo | None, field: str, field_type: ProperType) -> None:
         """Constructs the new abstract field object.
 
         Args:
@@ -487,10 +483,7 @@ class GenericField(GenericAbstractField):
         return hash((self._owner, self._field))
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.owner}, {self._field},"
-            f" {self._field_type})"
-        )
+        return f"{self.__class__.__name__}({self.owner}, {self._field}, {self._field_type})"
 
 
 class GenericStaticField(GenericAbstractField):
@@ -523,18 +516,13 @@ class GenericStaticField(GenericAbstractField):
         return self._owner == other._owner and self._field == other._field
 
     def __hash__(self):
-        return hash(
-            (
-                self._owner,
-                self._field,
-            )
-        )
+        return hash((
+            self._owner,
+            self._field,
+        ))
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.owner}, {self._field},"
-            f" {self._field_type})"
-        )
+        return f"{self.__class__.__name__}({self.owner}, {self._field}, {self._field_type})"
 
 
 class GenericStaticModuleField(GenericAbstractField):
@@ -581,7 +569,4 @@ class GenericStaticModuleField(GenericAbstractField):
         return hash((self._module, self._field))
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self._module}, {self._field},"
-            f" {self._field_type})"
-        )
+        return f"{self.__class__.__name__}({self._module}, {self._field}, {self._field_type})"

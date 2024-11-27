@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+# Replace black with ruff-format
+0729abe647ddd0ab6a7fc33fbbcec10a16819d07

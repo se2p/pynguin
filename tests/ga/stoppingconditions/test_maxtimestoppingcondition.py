@@ -13,7 +13,7 @@ import pytest
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 
 
-@pytest.fixture()
+@pytest.fixture
 def stopping_condition():
     return MaxSearchTimeStoppingCondition(600)
 

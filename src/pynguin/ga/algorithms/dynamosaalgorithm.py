@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Provides the DynaMOSA test-generation strategy."""
+
 from __future__ import annotations
 
 import logging
@@ -17,7 +18,7 @@ from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
@@ -51,9 +52,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             self.executor.tracer.get_subject_properties(),
         )
         self._number_of_goals = len(self._test_case_fitness_functions)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.Goals, self._number_of_goals
-        )
+        stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
@@ -67,9 +66,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
                 fronts.get_sub_front(i), self._goals_manager.current_goals
             )
 
-        self.before_first_search_iteration(
-            self.create_test_suite(self._archive.solutions)
-        )
+        self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while self.resources_left() and len(self._archive.uncovered_goals) > 0:
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
@@ -83,9 +80,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: list[tcc.TestCaseChromosome] = (
-            self._breed_next_generation()
-        )
+        offspring_population: list[tcc.TestCaseChromosome] = self._breed_next_generation()
 
         # Create union of parents and offspring
         union: list[tcc.TestCaseChromosome] = []
@@ -144,16 +139,12 @@ class _GoalsManager:
         subject_properties: SubjectProperties,
     ) -> None:
         self._archive = archive
-        branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = (
-            OrderedSet()
-        )
+        branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
         for fit in fitness_functions:
             assert isinstance(fit, bg.BranchCoverageTestFitness)
             branch_fitness_functions.add(fit)
         self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
-        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = (
-            self._graph.root_branches
-        )
+        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = self._graph.root_branches
         self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
@@ -227,15 +218,11 @@ class _BranchFitnessGraph:
                 continue
             assert fitness.goal.is_branch
             branch_goal = cast(bg.BranchGoal, fitness.goal)
-            predicate_meta_data = subject_properties.existing_predicates[
-                branch_goal.predicate_id
-            ]
+            predicate_meta_data = subject_properties.existing_predicates[branch_goal.predicate_id]
             code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id
             ]
-            if code_object_meta_data.cdg.is_control_dependent_on_root(
-                predicate_meta_data.node
-            ):
+            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
                 self._root_branches.add(fitness)
 
             dependencies = code_object_meta_data.cdg.get_control_dependencies(

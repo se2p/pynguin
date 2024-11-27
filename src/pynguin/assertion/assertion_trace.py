@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an output trace."""
+
 from __future__ import annotations
 
 import dataclasses

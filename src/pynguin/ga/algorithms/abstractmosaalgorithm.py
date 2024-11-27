@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract base class for MOSA and its derivatives."""
+
 from __future__ import annotations
 
 import logging
@@ -41,10 +42,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             offspring_2 = cast(tcc.TestCaseChromosome, parent_2.clone())
 
             # Apply crossover
-            if (
-                randomness.next_float()
-                <= config.configuration.search_algorithm.crossover_rate
-            ):
+            if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:
                 try:
                     self._crossover_function.cross_over(offspring_1, offspring_2)
                 except ConstructionFailedException:
