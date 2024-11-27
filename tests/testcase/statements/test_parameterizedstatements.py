@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import inspect
+import operator
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -291,7 +292,7 @@ def test_constructor_mutate_parameter_add_copy(constructor_mock, default_test_ca
         const, "_param_count_of_type"
     ) as param_count_of_type:
         with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-            choice_mock.side_effect = lambda coll: coll[0]
+            choice_mock.side_effect = operator.itemgetter(0)
             param_count_of_type.return_value = 5
             with mock.patch(
                 "pynguin.testcase.statement.is_optional_parameter"
@@ -355,7 +356,7 @@ def test_constructor_mutate_parameter_choose_existing(
     default_test_case.add_statement(float1)
     default_test_case.add_statement(const)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda coll: coll[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         with mock.patch(
             "pynguin.testcase.testfactory.is_optional_parameter"
         ) as optional_mock:

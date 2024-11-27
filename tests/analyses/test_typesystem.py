@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import inspect
+import operator
 
 from typing import Any
 from typing import TypeVar
@@ -607,7 +608,7 @@ def test_guess_generic_types_list_set_from_elements(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)
@@ -624,7 +625,7 @@ def test_guess_generic_types_dict_key_from_elements(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)
@@ -644,7 +645,7 @@ def test_guess_generic_types_dict_key_from_arguments(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)
@@ -661,7 +662,7 @@ def test_guess_generic_types_dict_value_from_elements(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].type_checks.add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)
@@ -681,7 +682,7 @@ def test_guess_generic_types_dict_value_from_arguments(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[1].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)
@@ -705,7 +706,7 @@ def test_guess_generic_types_list_set_from_arguments(
     knowledge = UsageTraceNode("ROOT")
     knowledge.children[symbol].arg_types[0].add(int)
     with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
-        choice_mock.side_effect = lambda x: x[0]
+        choice_mock.side_effect = operator.itemgetter(0)
         assert inferred_signature._guess_generic_type_parameters_for_builtins(
             inferred_signature.type_system.convert_type_hint(typ), knowledge, 0
         ) == inferred_signature.type_system.convert_type_hint(result)

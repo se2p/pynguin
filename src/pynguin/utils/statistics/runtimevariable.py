@@ -130,9 +130,6 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
 
-    # Obtained type signatures at different points in time
-    SignatureInfosTimeline = "SignatureInfosTimeline"
-
     # ========= Values collected at the end of the search =========
 
     # Total number of statements in the resulting test suite

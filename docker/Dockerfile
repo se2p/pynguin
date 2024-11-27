@@ -13,7 +13,7 @@
 # Build stage for Pynguin
 FROM python:3.10.14-slim-bullseye AS build
 LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
-ENV POETRY_VERSION "1.8.2"
+ENV POETRY_VERSION "1.8.3"
 
 WORKDIR /pynguin-build
 
@@ -36,7 +36,7 @@ FROM python:3.10.14-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.37.0.dev0"
+ENV PYNGUIN_VERSION "0.39.0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the
@@ -58,8 +58,8 @@ COPY --from=build /pynguin-build/dist/pynguin-${PYNGUIN_VERSION}-py3-none-any.wh
 COPY --from=build /pynguin-build/pynguin-docker.sh .
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
-    typing-extensions==4.10.0 \
-    mypy==1.9.0
+    typing-extensions==4.12.2 \
+    mypy==1.10.0
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []

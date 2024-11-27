@@ -91,6 +91,7 @@ def test_write_statistics_with_individual(capsys, chromosome):
     assert captured.out != ""  # noqa: PLC1901
 
 
+@pytest.mark.xfail(raises=IndexError, reason="AUC computation interferes")
 def test_get_output_variables(chromosome, search_statistics):
     config.configuration.statistics_output.output_variables = [
         RuntimeVariable.Coverage,

@@ -306,8 +306,7 @@ def test_data_dependency_6():
 
     sliced_instructions = slice_function_at_return(func)
     checked_lines = set()
-    for instr in sliced_instructions:
-        checked_lines.add(instr.lineno)
+    checked_lines.update(instr.lineno for instr in sliced_instructions)
     expected_lines = {293, 296, 298, 300, 301, 302, 303, 304}
 
     # same as expected_lines == checked_lines, but with nicer output on failure

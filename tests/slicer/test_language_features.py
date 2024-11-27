@@ -610,7 +610,7 @@ def test_object_modification_call():
                 self.x = 1
 
             def inc_x(self):
-                self.x = self.x + 1
+                self.x = self.x + 1  # noqa: PLR6104
 
         ob = NestedClass()
         ob.inc_x()
