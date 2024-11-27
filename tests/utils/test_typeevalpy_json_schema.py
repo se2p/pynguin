@@ -93,3 +93,53 @@ def test_convert_parameter(file_name, function_node, signature, function_name):
         parameter="b",
     )
     assert actual == expected
+
+
+@pytest.fixture(scope="session")
+def function_node_kwargs() -> FunctionDef:
+    code = """
+def fun(a: int, b: float | complex, **kwargs: int) -> str:
+    return f"{a} | {b}"
+"""
+    module = parse(code)
+    return module.body[0]
+
+
+@pytest.fixture(scope="session")
+def signature_kwargs() -> InferredSignature:
+    signature = MagicMock(Signature)
+    signature.return_value.return_annotation.return_value = str
+    inferred_signature = InferredSignature(
+        signature=signature,
+        original_return_type=Instance(TypeInfo(str)),
+        original_parameters={
+            "a": Instance(TypeInfo(int)),
+            "b": UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(complex)))),
+            "kwargs": Instance(TypeInfo(int)),
+        },
+        type_system=MagicMock(),
+    )
+    inferred_signature.current_guessed_parameters = {
+        "a": [Instance(TypeInfo(int))],
+        "b": [UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(complex))))],
+        "kwargs": [Instance(TypeInfo(int))],
+    }
+    return inferred_signature
+
+
+def test_convert_parameter_kwargs(
+    file_name, function_node_kwargs, signature_kwargs, function_name
+):
+    config.configuration.type_inference.type_tracing = True
+    actual = convert_parameter(
+        file_name, function_node_kwargs, "kwargs", signature_kwargs, function_name, None
+    )
+    expected = TypeEvalPySchemaParameter(
+        file=file_name,
+        line_number=2,
+        col_offset=39,
+        type=["int"],
+        function=function_name,
+        parameter="kwargs",
+    )
+    assert actual == expected

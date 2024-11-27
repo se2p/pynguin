@@ -181,7 +181,7 @@ def convert_parameter(  # noqa: PLR0917
     """
 
     def find_parameter_node(arguments: Arguments, name: str) -> AssignName:
-        for argument in arguments.args:
+        for argument in arguments.arguments:
             if argument.name == name:
                 return argument
         raise KeyError(f"Could not find an argument with name {name}")
