@@ -330,7 +330,7 @@ class TestCluster(abc.ABC):
 
     @abc.abstractmethod
     def add_accessible_object_under_test(
-        self, objc: GenericAccessibleObject, data: CallableData
+        self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
         """Add accessible object to the objects under test.
 
@@ -360,7 +360,7 @@ class TestCluster(abc.ABC):
     @abc.abstractmethod
     def function_data_for_accessibles(
         self,
-    ) -> dict[GenericAccessibleObject, CallableData]:
+    ) -> dict[GenericAccessibleObject, _CallableData]:
         """Provides all function data for all accessibles."""
 
     @abc.abstractmethod
@@ -578,8 +578,8 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
         # Dump the captured type information to types.json in the reports directory
         types_json = (
-            Path(config.configuration.statistics_output.report_dir) /
-            f"{config.configuration.module_name.split('.')[-1]}_result.json"
+            Path(config.configuration.statistics_output.report_dir)
+            / f"{config.configuration.module_name.split('.')[-1]}_result.json"
         )
         types_json.write_text(
             provide_json(
@@ -677,7 +677,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__generators[generated_type].add(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: CallableData
+        self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
         self.__accessible_objects_under_test.add(objc)
         self.__function_data_for_accessibles[objc] = data
@@ -699,7 +699,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, CallableData]:
+    ) -> dict[GenericAccessibleObject, _CallableData]:
         return self.__function_data_for_accessibles
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
@@ -820,7 +820,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     @staticmethod
     def __compute_cyclomatic_complexities(
-        callable_data: typing.Iterable[CallableData],
+        callable_data: typing.Iterable[_CallableData],
     ) -> list[int]:
         # Collect complexities only for callables that had an AST.  Their minimal
         # complexity is 1, the value None symbolises a callable that had no AST present,
@@ -869,7 +869,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__delegate.add_generator(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: CallableData
+        self, objc: GenericAccessibleObject, data: _CallableData
     ) -> None:
         self.__delegate.add_accessible_object_under_test(objc, data)
 
@@ -881,7 +881,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, CallableData]:
+    ) -> dict[GenericAccessibleObject, _CallableData]:
         return self.__delegate.function_data_for_accessibles
 
     def track_statistics_values(  # noqa: D102
@@ -1029,7 +1029,7 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 
 
 @dataclasses.dataclass
-class CallableData:
+class _CallableData:
     """Provides all information on callables.
 
     While the accessible is available for every callable, the other fields are only
@@ -1130,7 +1130,7 @@ def __analyse_class(
             type_info.raw_type
         )
 
-    method_data = CallableData(
+    method_data = _CallableData(
         accessible=generic,
         tree=constructor_ast,
         description=description,
@@ -1224,7 +1224,7 @@ def __analyse_method(
     generic_method = GenericMethod(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
-    method_data = CallableData(
+    method_data = _CallableData(
         accessible=generic_method,
         tree=method_ast,
         description=description,
