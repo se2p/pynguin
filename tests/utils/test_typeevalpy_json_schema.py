@@ -81,7 +81,9 @@ def test_convert_return(file_name, function_node, signature, function_name):
 
 def test_convert_parameter(file_name, function_node, signature, function_name):
     config.configuration.type_inference.type_tracing = True
-    actual = convert_parameter(file_name, function_node, "b", signature, function_name)
+    actual = convert_parameter(
+        file_name, function_node, "b", signature, function_name, None
+    )
     expected = TypeEvalPySchemaParameter(
         file=file_name,
         line_number=2,
