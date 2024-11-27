@@ -34,7 +34,6 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
-import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
@@ -600,26 +599,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             encoding="utf-8",
         )
 
-    def __log_type_evolution(self) -> None:
-        stats = TypeGuessingStats()
-        for accessible in self.__accessible_objects_under_test:
-            if isinstance(accessible, GenericCallableAccessibleObject):
-                accessible.inferred_signature.log_stats_and_guess_signature(
-                    accessible.is_constructor(), str(accessible), stats
-                )
-
-        stat.track_output_variable(
-            RuntimeVariable.SignatureInfos,
-            json.dumps(
-                stats.signature_infos,
-                default=_serialize_helper,
-            ),
-        )
-        stat.track_output_variable(
-            RuntimeVariable.NumberOfConstructors,
-            str(stats.number_of_constructors),
-        )
-
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.__generators.get(accessible.generated_type())
         if gens is None:
@@ -661,7 +640,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.__generators[new_type].add(accessible)
-        self.__log_type_evolution()
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -671,7 +649,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         # Store new data
         accessible.inferred_signature.usage_trace[param_name].merge(knowledge)
-        self.__log_type_evolution()
 
     @property
     def type_system(self) -> TypeSystem:
