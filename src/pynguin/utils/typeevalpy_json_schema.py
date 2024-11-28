@@ -312,12 +312,15 @@ def provide_json(
             tree = callable_data.tree
             name = f"{config.configuration.module_name}.{function_name}"
             signature_info = stats.signature_infos.get(name)
-            parameter_jsons = [
-                convert_parameter(
-                    file_name, tree, parameter, signature, function_name, signature_info
-                )
-                for parameter in signature.original_parameters
-            ]
+            parameter_jsons = []
+            for parameter in signature.original_parameters:
+                try:
+                    param_json = convert_parameter(
+                        file_name, tree, parameter, signature, function_name, signature_info
+                    )
+                    parameter_jsons.append(param_json)
+                except Exception as e:
+                    print(f"Error converting parameter {parameter}: {e}")
             schema_elements.extend(parameter_jsons)
             if not accessible.is_constructor():
                 return_json = convert_return(
