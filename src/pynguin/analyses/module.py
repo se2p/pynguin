@@ -34,6 +34,7 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
@@ -573,9 +574,20 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                 accessible.inferred_signature.log_stats_and_guess_signature(
                     accessible.is_constructor(), str(accessible), stats
                 )
-                self.__write_type_eval_py_output(stats)
+        stat.track_output_variable(
+            RuntimeVariable.SignatureInfos,
+            json.dumps(
+                stats.signature_infos,
+                default=_serialize_helper,
+            ),
+        )
+        stat.track_output_variable(
+            RuntimeVariable.NumberOfConstructors,
+            str(stats.number_of_constructors),
+        )
+        self.__write_type_eval_py_output(stats)
 
-    def __write_type_eval_py_output(self, stats):
+    def __write_type_eval_py_output(self, stats: TypeGuessingStats):
         # Create a folder for the inferred types
         signatures_folder = Path(config.configuration.statistics_output.report_dir) / "signatures"
         signatures_folder.mkdir(parents=True, exist_ok=True)
