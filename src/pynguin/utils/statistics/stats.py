@@ -391,11 +391,11 @@ class _SearchStatistics:
             if "SignatureInfos" in output_variables_map:
                 try:
                     obj = json.loads(output_variables_map["SignatureInfos"].value)
+                    output_file = report_dir / "signature-infos.json"
+                    with output_file.open(mode="w") as f:
+                        json.dump(obj, f)
                 except json.JSONDecodeError:
                     self._logger.error("Failed to parse signature infos")
-                output_file = report_dir / "signature-infos.json"
-                with output_file.open(mode="w") as f:
-                    json.dump(obj, f)
             cfg_file = report_dir / "pynguin-config.txt"
             cfg_file.write_text(pprint.pformat(repr(config.configuration)))
         return True
