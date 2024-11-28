@@ -389,7 +389,10 @@ class _SearchStatistics:
         ):
             report_dir = Path(config.configuration.statistics_output.report_dir).resolve()
             if "SignatureInfos" in output_variables_map:
-                obj = json.loads(output_variables_map["SignatureInfos"].value)
+                try:
+                    obj = json.loads(output_variables_map["SignatureInfos"].value)
+                except json.JSONDecodeError:
+                    self._logger.error("Failed to parse signature infos")
                 output_file = report_dir / "signature-infos.json"
                 with output_file.open(mode="w") as f:
                     json.dump(obj, f)
