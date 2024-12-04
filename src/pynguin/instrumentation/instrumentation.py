@@ -22,6 +22,7 @@ from bytecode import Bytecode
 from bytecode import ControlFlowGraph
 from bytecode import Instr
 
+import pynguin.instrumentation.tracer as tr
 import pynguin.utils.opcodes as op
 
 from pynguin.analyses.constants import DynamicConstantProvider
@@ -31,7 +32,6 @@ from pynguin.analyses.controlflow import ControlDependenceGraph
 
 if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ProgramGraphNode
-    from pynguin.testcase.execution import ExecutionTracer
 
 CODE_OBJECT_ID_KEY = "code_object_id"
 
@@ -77,6 +77,22 @@ class CodeObjectMetaData:
 
     # CDG of this Code Object
     cdg: ControlDependenceGraph
+
+    def __getstate__(self) -> dict:
+        return {
+            "code_object": self.code_object,
+            "parent_code_object_id": self.parent_code_object_id,
+            "cfg": self.cfg,
+            "original_cfg": self.original_cfg,
+            "cdg": self.cdg,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self.code_object = state["code_object"]
+        self.parent_code_object_id = state["parent_code_object_id"]
+        self.cfg = state["cfg"]
+        self.original_cfg = state["original_cfg"]
+        self.cdg = state["cdg"]
 
 
 @dataclass
@@ -217,11 +233,20 @@ class InstrumentationTransformer:
 
     def __init__(  # noqa: D107
         self,
-        tracer: ExecutionTracer,
+        instrumentation_tracer: tr.InstrumentationExecutionTracer,
         instrumentation_adapters: list[InstrumentationAdapter],
     ):
         self._instrumentation_adapters = instrumentation_adapters
-        self._tracer = tracer
+        self._instrumentation_tracer = instrumentation_tracer
+
+    @property
+    def instrumentation_tracer(self) -> tr.InstrumentationExecutionTracer:
+        """Get the tracer that is used for the instrumentation.
+
+        Returns:
+            The tracer that is used for the instrumentation.
+        """
+        return self._instrumentation_tracer
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module.
@@ -257,7 +282,7 @@ class InstrumentationTransformer:
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
         original_cfg = CFG.from_bytecode(Bytecode.from_code(code))
         cdg = ControlDependenceGraph.compute(cfg)
-        code_object_id = self._tracer.register_code_object(
+        code_object_id = self._instrumentation_tracer.register_code_object(
             CodeObjectMetaData(
                 code_object=code,
                 parent_code_object_id=parent_code_object_id,
@@ -339,8 +364,10 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
-        self._tracer = tracer
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
+        self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(
         self,
@@ -449,7 +476,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -462,7 +489,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -504,7 +531,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -540,7 +567,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         block[compare_idx:compare_idx] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -575,7 +602,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             The id assigned to the predicate.
         """
         lineno = basic_block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -588,7 +615,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         basic_block[self._JUMP_OP_POS : self._JUMP_OP_POS] = [
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -622,7 +649,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         # Insert instructions at the beginning.
         basic_block[0:0] = [
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -680,7 +707,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         for_instr = basic_block[self._JUMP_OP_POS]
         assert for_instr.opcode == op.FOR_ITER  # type: ignore[union-attr]
         lineno = for_instr.lineno  # type: ignore[union-attr]
-        predicate_id = self._tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -700,7 +727,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         entered.extend(
             [
                 ArtificialInstr(
-                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                    "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
@@ -724,7 +751,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         not_entered.extend(
             [
                 ArtificialInstr(
-                    "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                    "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
                 ),
                 ArtificialInstr(
                     "LOAD_METHOD",
@@ -752,8 +779,10 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
-        self._tracer = tracer
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
+        self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(  # noqa: D102
         self,
@@ -770,7 +799,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         while instr_index < len(basic_block):
             if basic_block[instr_index].lineno != lineno:  # type: ignore[union-attr]
                 lineno = basic_block[instr_index].lineno  # type: ignore[union-attr]
-                line_id = self._tracer.register_line(
+                line_id = self._instrumentation_tracer.register_line(
                     code_object_id, file_name, lineno  # type: ignore[arg-type]
                 )
                 instr_index += (  # increment by the amount of instructions inserted
@@ -801,7 +830,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         """
         inserted_instructions = [
             ArtificialInstr(
-                "LOAD_CONST", self._tracer, lineno=lineno  # type: ignore[arg-type]
+                "LOAD_CONST", self._instrumentation_tracer, lineno=lineno  # type: ignore[arg-type]
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -829,8 +858,10 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, tracer: ExecutionTracer) -> None:  # noqa: D107
-        self._tracer = tracer
+    def __init__(  # noqa: D107
+        self, instrumentation_tracer: tr.InstrumentationExecutionTracer
+    ) -> None:
+        self._instrumentation_tracer = instrumentation_tracer
 
     def visit_node(  # noqa: C901
         self,
@@ -874,7 +905,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 and file_name != "<ast>"
             ):
                 lineno = instr.lineno  # type: ignore[union-attr]
-                self._tracer.register_line(
+                self._instrumentation_tracer.register_line(
                     code_object_id, file_name, lineno  # type: ignore[arg-type]
                 )
 
@@ -1006,7 +1037,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1059,7 +1090,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1138,7 +1169,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1172,7 +1203,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 #   Load lookup method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer.__class__,  # type: ignore[arg-type]
+                    self._instrumentation_tracer.__class__,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1265,7 +1296,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1332,7 +1363,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1393,7 +1424,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1455,7 +1486,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1526,7 +1557,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(
@@ -1591,7 +1622,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 # references method in the ExecutionTracer by name
@@ -1643,7 +1674,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 # references method in the ExecutionTracer by name
@@ -1681,7 +1712,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 # Load tracing method
                 ArtificialInstr(
                     "LOAD_CONST",
-                    self._tracer,  # type: ignore[arg-type]
+                    self._instrumentation_tracer,  # type: ignore[arg-type]
                     lineno=instr.lineno,
                 ),
                 ArtificialInstr(

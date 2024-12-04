@@ -79,6 +79,12 @@ class AssertionTrace:
                 copy.trace[stmt_key].add(entry)
         return copy
 
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, AssertionTrace) and self.trace == other.trace
+
+    def __hash__(self) -> int:
+        return hash(self.trace)
+
 
 @dataclasses.dataclass
 class AssertionVerificationTrace:

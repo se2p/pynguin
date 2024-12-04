@@ -19,7 +19,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement
@@ -87,14 +87,15 @@ def test_observers(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
-    observer.before_statement_execution.side_effect = lambda _x, y, _z: y
+    observer.remote_observer.before_statement_execution.side_effect = lambda x, y, z: y
     executor.add_observer(observer)
     executor.execute(short_test_case)
-    assert observer.before_test_case_execution.call_count == 1
-    assert observer.before_statement_execution.call_count == 2
-    assert observer.after_statement_execution.call_count == 2
-    assert observer.after_test_case_execution_inside_thread.call_count == 1
-    assert observer.after_test_case_execution_outside_thread.call_count == 1
+    assert observer.before_remote_test_case_execution.call_count == 1
+    assert observer.remote_observer.before_test_case_execution.call_count == 1
+    assert observer.remote_observer.before_statement_execution.call_count == 2
+    assert observer.remote_observer.after_statement_execution.call_count == 2
+    assert observer.remote_observer.after_test_case_execution.call_count == 1
+    assert observer.after_remote_test_case_execution.call_count == 1
 
 
 def test_observers_clear():

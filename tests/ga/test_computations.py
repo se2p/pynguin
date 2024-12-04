@@ -13,9 +13,9 @@ import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.execution import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 
 
@@ -166,7 +166,7 @@ def test_run_test_suite_chromosome():
     result0 = MagicMock()
     result1 = MagicMock()
     result2 = MagicMock()
-    executor.execute.side_effect = [result0, result1]
+    executor.execute_multiple.return_value = [result0, result1]
     ff = DummyTestSuiteChromosomeComputation(executor)
     indiv = tsc.TestSuiteChromosome()
     test_case0 = tcc.TestCaseChromosome(MagicMock())
@@ -189,7 +189,7 @@ def test_run_test_suite_chromosome_cache():
     result0 = MagicMock()
     result1 = MagicMock()
     result2 = MagicMock()
-    executor.execute.side_effect = [result0, result1]
+    executor.execute_multiple.return_value = [result0, result1]
     func = DummyTestSuiteChromosomeComputation(executor)
     indiv = tsc.TestSuiteChromosome()
     # Executed because it was changed.

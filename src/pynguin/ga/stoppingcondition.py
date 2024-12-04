@@ -12,27 +12,82 @@
 """Provides an interface for a stopping condition of the algorithm."""
 from __future__ import annotations
 
+import threading
 import time
 
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from typing import Any
 
 import pynguin.ga.searchobserver as so
 
+from pynguin.testcase.execution import ExecutionContext
 from pynguin.testcase.execution import ExecutionObserver
+from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import RemoteExecutionObserver
 
 
 if TYPE_CHECKING:
     import ast
 
     import pynguin.ga.testsuitechromosome as tsc
-    import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcase as tc
 
     from pynguin.testcase.execution import ExecutionContext
     from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.testcase.statement import Statement
+    from pynguin.testcase.testcase import TestCase
+
+
+class RemoteStoppingConditionObserver(RemoteExecutionObserver):
+    """A stopping condition observer that can be used remotely."""
+
+    def before_test_case_execution(self, test_case: tc.TestCase):
+        """Not used.
+
+        Args:
+            test_case: Not used
+        """
+
+    def after_test_case_execution(
+        self,
+        executor: TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ExecutionResult,
+    ):
+        """Not used.
+
+        Args:
+            executor: Not used
+            test_case: Not used
+            result: Not used
+        """
+
+    def before_statement_execution(  # noqa: D102
+        self, statement: Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node
+
+    def after_statement_execution(
+        self,
+        statement: Statement,
+        executor: TestCaseExecutor,
+        exec_ctx: ExecutionContext,
+        exception: BaseException | None,
+    ) -> None:
+        """Not used.
+
+        Args:
+            statement: Not used
+            executor: Not used
+            exec_ctx: Not used
+            exception: Not used
+        """
+
+
+EMPTY_REMOTE_STOPPING_OBSERVER = RemoteStoppingConditionObserver()
 
 
 class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
@@ -40,6 +95,10 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
 
     def __init__(self, *, observes_execution: bool = False):  # noqa: D107
         self._observes_execution = observes_execution
+
+    @property
+    def remote_observer(self) -> RemoteExecutionObserver:  # noqa: D102
+        return EMPTY_REMOTE_STOPPING_OBSERVER
 
     @abstractmethod
     def current_value(self) -> int:
@@ -90,14 +149,14 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
         """
         return self._observes_execution
 
-    def before_test_case_execution(self, test_case: tc.TestCase):
+    def before_remote_test_case_execution(self, test_case: TestCase) -> None:
         """Not used.
 
         Args:
             test_case: Not used
         """
 
-    def after_test_case_execution_inside_thread(
+    def after_remote_test_case_execution(
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         """Not used.
@@ -105,37 +164,6 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
         Args:
             test_case: Not used
             result: Not used
-        """
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ):
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """
-
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        return node
-
-    def after_statement_execution(
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        """Not used.
-
-        Args:
-            statement: Not used
-            executor: Not used
-            exec_ctx: Not used
-            exception: Not used
         """
 
     def before_search_start(self, start_time_ns: int) -> None:
@@ -391,11 +419,59 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
     def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._num_executed_tests = 0
 
-    def before_test_case_execution(self, test_case: tc.TestCase):  # noqa: D102
+    def before_remote_test_case_execution(self, test_case: tc.TestCase):  # noqa: D102
         self._num_executed_tests += 1
 
     def __str__(self):
         return f"Executed test cases: {self.current_value()}/{self.limit()}"
+
+
+class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
+    """A stopping condition observer that checks the maximum number of executed statements."""  # noqa: E501
+
+    class RemoteMaxStatementExecutionsObserverState(threading.local):
+        """Local state for the remote observer."""
+
+        def __init__(self):  # noqa: D107
+            super().__init__()
+            self._num_executed_statements = 0
+
+    def __init__(self):
+        """Create new RemoteMaxStatementExecutionsObserver."""
+        self._state = (
+            RemoteMaxStatementExecutionsObserver.RemoteMaxStatementExecutionsObserverState()
+        )
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "num_executed_statements": self._state._num_executed_statements  # noqa: SLF001
+        }
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._state._num_executed_statements = state[  # noqa: SLF001
+            "num_executed_statements"
+        ]
+
+    def before_statement_execution(  # noqa: D102
+        self,
+        statement: Statement,
+        node: ast.stmt,
+        exec_ctx: ExecutionContext,
+    ) -> ast.stmt:
+        self._state._num_executed_statements += 1  # noqa: SLF001
+        return node
+
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: TestCaseExecutor,
+        test_case: TestCase,
+        result: ExecutionResult,
+    ):
+        result.num_executed_statements = (
+            self._state._num_executed_statements  # noqa: SLF001
+        )
 
 
 class MaxStatementExecutionsStoppingCondition(StoppingCondition):
@@ -411,6 +487,11 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
         self._num_executed_statements = 0
         assert max_executed_statements > 0.0
         self._max_executed_statements = max_executed_statements
+        self._remote_observer = RemoteMaxStatementExecutionsObserver()
+
+    @property
+    def remote_observer(self) -> RemoteExecutionObserver:  # noqa: D102
+        return self._remote_observer
 
     def current_value(self) -> int:  # noqa: D102
         return self._num_executed_statements
@@ -430,11 +511,10 @@ class MaxStatementExecutionsStoppingCondition(StoppingCondition):
     def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
         self._num_executed_statements = 0
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    def after_remote_test_case_execution(  # noqa: D102
+        self, test_case: TestCase, result: ExecutionResult
     ):
-        self._num_executed_statements += 1
-        return node
+        self._num_executed_statements += result.num_executed_statements
 
     def __str__(self):
         return f"Executed statements: {self.current_value()}/{self.limit()}"
