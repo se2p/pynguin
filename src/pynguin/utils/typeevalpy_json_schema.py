@@ -258,9 +258,9 @@ def convert_return(
 
     line_number = function_node.lineno
     if is_function:
-        col_offset = function_node.col_offset + 5  # seems to be correct for functions
+        col_offset = function_node.col_offset + len("def ") + 1 # 1-indexed
     else:
-        col_offset = function_node.col_offset + 1  # seems to be correct for methods
+        col_offset = function_node.col_offset + 1  # 1-indexed
     types: list[str] = format_return_types(signature)
     return TypeEvalPySchemaFunctionReturn(
         file=file_name,
