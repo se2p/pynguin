@@ -1680,80 +1680,144 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _fix_result_for_pickle(result: ExecutionResult) -> None:
-        if exception_bad_items := dill.detect.baditems(result.exceptions):
-            _LOGGER.warning(
-                "Unpicklable exceptions, final results might differ from classic"
-                " execution with same seed: %s",
-                exception_bad_items,
-            )
-            result.exceptions = {
-                position: exception
-                for position, exception in result.exceptions.items()
-                if exception not in exception_bad_items
-            }
-
-        if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
-            _LOGGER.warning(
-                "Unpicklable assertion trace, final results might differ from classic"
-                " execution with same seed: %s",
-                assertion_trace_bad_items,
-            )
-            result.assertion_trace.clear()
-
-        if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
-            _LOGGER.warning(
-                "Unpicklable execution trace, final results might differ from classic"
-                " execution with same seed: %s",
-                execution_trace_bad_items,
-            )
-            result.execution_trace.executed_assertions.clear()
-
-        if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
-            _LOGGER.warning(
-                "Unpicklable proxy knowledge, final results might differ from classic"
-                " execution with same seed: %s",
-                proxy_knowledge_bad_items,
-            )
-            result.proxy_knowledge.clear()
-
-        if proper_return_type_trace_bad_items := dill.detect.baditems(
-            result.proper_return_type_trace
-        ):
-            _LOGGER.warning(
-                "Unpicklable proper return type trace, final results might differ from"
-                " classic execution with same seed: %s",
-                proper_return_type_trace_bad_items,
-            )
-            result.proper_return_type_trace.clear()
-
-        if raw_return_type_generic_args_bad_items := dill.detect.baditems(
-            result.raw_return_type_generic_args
-        ):
-            _LOGGER.warning(
-                "Unpicklable raw return type generic args, final results might differ"
-                " from classic execution with same seed: %s",
-                raw_return_type_generic_args_bad_items,
-            )
-            result.raw_return_type_generic_args = {
-                position: generic_args
-                for position, generic_args in result.raw_return_type_generic_args.items()  # noqa: E501
-                if all(
-                    type_ not in raw_return_type_generic_args_bad_items
-                    for type_ in generic_args
+        try:
+            if exception_bad_items := dill.detect.baditems(result.exceptions):
+                _LOGGER.warning(
+                    "Unpicklable exceptions, final results might differ"
+                    " from classic execution with same seed: %s",
+                    exception_bad_items,
                 )
-            }
-
-        if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
+                result.exceptions = {
+                    position: exception
+                    for position, exception in result.exceptions.items()
+                    if exception not in exception_bad_items
+                }
+        except Exception as exception:
+            result.exceptions.clear()
             _LOGGER.warning(
-                "Unpicklable raw return types, final results might differ from classic"
-                " execution with same seed: %s",
-                raw_return_types_bad_items,
+                "Failed to fix exceptions for pickle, final results might differ"
+                " from classic execution with same seed: %s",
+                exception,
             )
-            result.raw_return_types = {
-                position: type_
-                for position, type_ in result.raw_return_types.items()
-                if type_ not in raw_return_types_bad_items
-            }
+
+        try:
+            if assertion_trace_bad_items := dill.detect.baditems(
+                result.assertion_trace
+            ):
+                _LOGGER.warning(
+                    "Unpicklable assertion trace, final results might differ"
+                    " from classic execution with same seed: %s",
+                    assertion_trace_bad_items,
+                )
+                result.assertion_trace.clear()
+        except Exception as exception:
+            result.assertion_trace.clear()
+            _LOGGER.warning(
+                "Failed to fix assertion trace for pickle, final results might differ"
+                " from classic execution with same seed: %s",
+                exception,
+            )
+
+        try:
+            if execution_trace_bad_items := dill.detect.baditems(
+                result.execution_trace
+            ):
+                _LOGGER.warning(
+                    "Unpicklable execution trace, final results might differ"
+                    " from classic execution with same seed: %s",
+                    execution_trace_bad_items,
+                )
+                result.execution_trace.executed_assertions.clear()
+        except Exception as exception:
+            result.execution_trace.executed_assertions.clear()
+            _LOGGER.warning(
+                "Failed to fix execution trace for pickle, final results might differ"
+                " from classic execution with same seed: %s",
+                exception,
+            )
+
+        try:
+            if proxy_knowledge_bad_items := dill.detect.baditems(
+                result.proxy_knowledge
+            ):
+                _LOGGER.warning(
+                    "Unpicklable proxy knowledge, final results might differ"
+                    " from classic execution with same seed: %s",
+                    proxy_knowledge_bad_items,
+                )
+                result.proxy_knowledge.clear()
+        except Exception as exception:
+            result.proxy_knowledge.clear()
+            _LOGGER.warning(
+                "Failed to fix proxy knowledge for pickle, final results might differ"
+                " from classic execution with same seed: %s",
+                exception,
+            )
+
+        try:
+            if proper_return_type_trace_bad_items := dill.detect.baditems(
+                result.proper_return_type_trace
+            ):
+                _LOGGER.warning(
+                    "Unpicklable proper return type trace, final results might differ"
+                    " from classic execution with same seed: %s",
+                    proper_return_type_trace_bad_items,
+                )
+                result.proper_return_type_trace.clear()
+        except Exception as exception:
+            result.proper_return_type_trace.clear()
+            _LOGGER.warning(
+                "Failed to fix proper return type trace for pickle, final results might"
+                " differ from classic execution with same seed: %s",
+                exception,
+            )
+
+        try:
+            if raw_return_type_generic_args_bad_items := dill.detect.baditems(
+                result.raw_return_type_generic_args
+            ):
+                _LOGGER.warning(
+                    "Unpicklable raw return type generic args, final results might"
+                    " differ from classic execution with same seed: %s",
+                    raw_return_type_generic_args_bad_items,
+                )
+                result.raw_return_type_generic_args = {
+                    position: generic_args
+                    for position, generic_args in result.raw_return_type_generic_args.items()  # noqa: E501
+                    if all(
+                        type_ not in raw_return_type_generic_args_bad_items
+                        for type_ in generic_args
+                    )
+                }
+        except Exception as exception:
+            result.raw_return_type_generic_args.clear()
+            _LOGGER.warning(
+                "Failed to fix raw return type generic args for pickle, final results"
+                " might differ from classic execution with same seed: %s",
+                exception,
+            )
+
+        try:
+            if raw_return_types_bad_items := dill.detect.baditems(
+                result.raw_return_types
+            ):
+                _LOGGER.warning(
+                    "Unpicklable raw return types, final results might differ"
+                    " from classic execution with same seed: %s",
+                    raw_return_types_bad_items,
+                )
+                result.raw_return_types = {
+                    position: type_
+                    for position, type_ in result.raw_return_types.items()
+                    if type_ not in raw_return_types_bad_items
+                }
+        except Exception as exception:
+            result.raw_return_types.clear()
+            _LOGGER.warning(
+                "Failed to fix raw return types for pickle, final results might differ"
+                " from classic execution with same seed: %s",
+                exception,
+            )
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
