@@ -1594,6 +1594,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
+        tracer.current_thread_identifier = threading.current_thread().ident
+
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
         new_reference_bindings = (
@@ -1612,6 +1614,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 randomness.RNG.getstate(),
             )
         )
+
+        tracer.current_thread_identifier = -1
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
@@ -1638,6 +1642,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         results = tuple(executor.execute_multiple(test_cases))
 
+        tracer.current_thread_identifier = threading.current_thread().ident
+
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
@@ -1662,6 +1668,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 randomness.RNG.getstate(),
             )
         )
+
+        tracer.current_thread_identifier = -1
 
     @staticmethod
     def _replace_tracer(tracer: ExecutionTracer) -> None:
