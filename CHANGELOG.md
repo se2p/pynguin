@@ -11,17 +11,31 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
-### Pynguin 0.39.0
+## Pynguin 0.40.0
+
+- Provide a (normalised) area under curve for timeline output variables.
+
+  Variables for statistics that produce a timeline, e.g., coverage development over time
+  imply in interesting property: while the final coverage of two distinct
+  runs/configurations might be equal, one might have a faster coverage increase than the
+  other, thus could be considered better.  The area under curve, i.e., the integral over
+  the development function allows to access this property easily.
+- Add the ability to write the logging to a log file and not only STDOUT.
+- Add an auto-deploy action to GitHub to push releases to PyPI.
+- Fix a typo in the documentation (cf. GitHub issue #75).
+- Switch to `ruff-format`.
+
+## Pynguin 0.39.0
 
 - Fix a bug in the handling of infinite loops in global scope (thanks to @BergLucas in
   #65)
 
-### Pynguin 0.38.0
+## Pynguin 0.38.0
 
 - Remove the dependency to our custom [MutPy fork](https://github.com/se2p/MutPy-Pynguin)
   by integrating the relevant code into Pynguin directly (thanks to @BergLucas in #64)
 
-### Pynguin 0.37.0
+## Pynguin 0.37.0
 
 - Add possibility to control number of mutations in MOSA.
 - Compute the area under curve if Pynguin traces the overage over time; area under curve
