@@ -62,8 +62,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
-    typing-extensions==4.12.2 \
-    mypy==1.13.0
+    mypy==1.13.0 \
+    typing-extensions==4.12.2
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []
