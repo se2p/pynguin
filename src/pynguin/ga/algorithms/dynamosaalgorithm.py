@@ -217,7 +217,7 @@ class _BranchFitnessGraph:
                 self._root_branches.add(fitness)
                 continue
             assert fitness.goal.is_branch
-            branch_goal = cast(bg.BranchGoal, fitness.goal)
+            branch_goal = cast("bg.BranchGoal", fitness.goal)
             predicate_meta_data = subject_properties.existing_predicates[branch_goal.predicate_id]
             code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id

@@ -92,7 +92,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             )
             return
         if statement.affects_assertions:
-            stmt = cast(st.VariableCreatingStatement, statement)
+            stmt = cast("st.VariableCreatingStatement", statement)
             self._handle(stmt, exec_ctx)
 
     def after_test_case_execution_inside_thread(  # noqa: D102

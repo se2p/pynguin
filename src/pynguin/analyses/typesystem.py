@@ -1140,7 +1140,7 @@ class TypeSystem:  # noqa: PLR0904
         # Pre-compute numeric tower
         numeric = [complex, float, int, bool]
         self.numeric_tower: dict[Instance, list[Instance]] = cast(
-            dict[Instance, list[Instance]],
+            "dict[Instance, list[Instance]]",
             {
                 self.convert_type_hint(typ): [self.convert_type_hint(tp) for tp in numeric[idx:]]
                 for idx, typ in enumerate(numeric)

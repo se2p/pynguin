@@ -6,6 +6,7 @@
 #
 import ast
 
+from typing import TYPE_CHECKING
 from typing import cast
 
 import pytest
@@ -20,9 +21,12 @@ from pynguin.testcase.execution import ReturnTypeObserver
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import TypeTracingObserver
 from pynguin.testcase.execution import TypeTracingTestCaseExecutor
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject,
-)
+
+
+if TYPE_CHECKING:
+    from pynguin.utils.generic.genericaccessibleobject import (
+        GenericCallableAccessibleObject,
+    )
 
 
 @pytest.mark.parametrize(
@@ -89,7 +93,7 @@ def test_type_tracing_test_case_executor_integration():
     t_executor = TypeTracingTestCaseExecutor(executor, test_cluster)
     t_executor.execute(test_case)
     acc = cast(
-        GenericCallableAccessibleObject,
+        "GenericCallableAccessibleObject",
         test_cluster.accessible_objects_under_test[0],
     )
     assert "__rmul__" in acc.inferred_signature.usage_trace["a"].children

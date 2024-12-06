@@ -38,8 +38,8 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
             parent_2 = self._selection_function.select(self._population)[0]
-            offspring_1 = cast(tcc.TestCaseChromosome, parent_1.clone())
-            offspring_2 = cast(tcc.TestCaseChromosome, parent_2.clone())
+            offspring_1 = cast("tcc.TestCaseChromosome", parent_1.clone())
+            offspring_2 = cast("tcc.TestCaseChromosome", parent_2.clone())
 
             # Apply crossover
             if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:

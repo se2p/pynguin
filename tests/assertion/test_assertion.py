@@ -68,7 +68,7 @@ def test_assertion_accept(assertion, method):
     ],
 )
 def test_assertion_clone(assertion):
-    source = cast(vr.VariableReference, assertion.source)
+    source = cast("vr.VariableReference", assertion.source)
     cloned = assertion.clone({source: source})
     assert cloned == assertion
     assert hash(cloned) == hash(assertion)

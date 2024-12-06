@@ -12,7 +12,6 @@ Think of these like the reflection classes in Java.
 from __future__ import annotations
 
 import abc
-import enum
 import typing
 
 from types import BuiltinFunctionType
@@ -35,6 +34,8 @@ TypesOfCallables = (
 )
 
 if typing.TYPE_CHECKING:
+    import enum
+
     from pynguin.analyses.typesystem import ProperType
     from pynguin.analyses.typesystem import TypeInfo
 
@@ -148,7 +149,7 @@ class GenericEnum(GenericAccessibleObject):
         self._names = [
             e.name
             for e in typing.cast(
-                list[enum.Enum], list(typing.cast(type[enum.Enum], owner.raw_type))
+                "list[enum.Enum]", list(typing.cast("type[enum.Enum]", owner.raw_type))
             )
         ]
 

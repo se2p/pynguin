@@ -2397,7 +2397,7 @@ class TypeTracingObserver(ExecutionObserver):
             statement = test_case.get_statement(stmt_pos)
             assert isinstance(statement, stmt.ParametrizedStatement)
             self._cluster.update_parameter_knowledge(
-                cast(gao.GenericCallableAccessibleObject, statement.accessible_object()),
+                cast("gao.GenericCallableAccessibleObject", statement.accessible_object()),
                 arg_name,
                 knowledge,
             )
@@ -2422,11 +2422,11 @@ class TypeTracingObserver(ExecutionObserver):
             # In other words, each argument is wrapped in its own proxy, even if they
             # point to the same variable.
             modified = cast(
-                stmt.ParametrizedStatement,
+                "stmt.ParametrizedStatement",
                 statement.clone(statement.test_case, Mirror()),
             )
             signature = cast(
-                gao.GenericCallableAccessibleObject, modified.accessible_object()
+                "gao.GenericCallableAccessibleObject", modified.accessible_object()
             ).inferred_signature
             modified.args = modified_args
             modified.ret_val = statement.ret_val

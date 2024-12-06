@@ -521,7 +521,7 @@ def assemble_stmt_from_gen_callable(
         return None
     if isinstance(gen_callable, GenericFunction):
         return stmt.FunctionStatement(
-            testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
+            testcase, cast("GenericCallableAccessibleObject", gen_callable), var_refs
         )
     if isinstance(gen_callable, GenericMethod):
         return stmt.MethodStatement(
@@ -532,7 +532,7 @@ def assemble_stmt_from_gen_callable(
         )
     if isinstance(gen_callable, GenericConstructor):
         return stmt.ConstructorStatement(
-            testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
+            testcase, cast("GenericCallableAccessibleObject", gen_callable), var_refs
         )
     return None
 

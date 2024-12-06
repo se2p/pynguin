@@ -118,8 +118,8 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
 
         mutated_node = copy_node(node)
 
-        target = cast(ast.List | ast.Tuple | ast.Set, mutated_node.targets[0])
-        value = cast(ast.List | ast.Tuple | ast.Set, mutated_node.value)
+        target = cast("ast.List | ast.Tuple | ast.Set", mutated_node.targets[0])
+        value = cast("ast.List | ast.Tuple | ast.Set", mutated_node.value)
 
         new_targets: list[ast.expr] = []
         new_values: list[ast.expr] = []
