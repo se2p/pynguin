@@ -595,10 +595,10 @@ class LLMConfiguration:
     max_query_token_length: int = 750
     """The maximum token length that a query should have."""
 
-    hybrid_initial_population: bool = True
+    hybrid_initial_population: bool = False
     """Whether to include the LLM test cases in the initial population."""
 
-    llm_test_case_percentage: float = 0.0
+    llm_test_case_percentage: float = 0.5
     """The percentage of LLM test cases in on the initial population. The value must
      be from [0.0, 1.0]."""
 
