@@ -202,5 +202,11 @@ class RuntimeVariable(str, enum.Enum):
     # Number of uninterpreted statements
     LLMUninterpretedStatements = "LLMUninterpretedStatements"
 
+    # The coverage before LLM call for uncovered targets (initial coverage)
+    CoverageBeforeLLMCall = "CoverageBeforeLLMCall"
+
+    # The coverage after LLM call for uncovered targets
+    CoverageAfterLLMCall = "CoverageAfterLLMCall"
+
     def __repr__(self):
         return f"{self.name}"

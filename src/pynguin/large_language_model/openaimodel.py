@@ -13,6 +13,7 @@ import re
 import time
 
 from pathlib import Path
+from typing import Dict
 
 import openai
 
@@ -28,7 +29,13 @@ from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
-
+from pynguin.large_language_model.prompts.uncoveredtargetsprompt import UncoveredTargetsPrompt
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+    GenericMethod,
+    GenericFunction,
+    GenericConstructor
+)
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +280,13 @@ class OpenAIModel:
         module_code = get_module_source_code()
         module_path = get_module_path()
         prompt = TestCaseGenerationPrompt(module_code, str(module_path))
+        return self.query(prompt)
+
+    def call_llm_for_uncovered_targets(self, gao_coverage_map: Dict[GenericCallableAccessibleObject, float],
+                                       winning_test_case_source_code):
+        module_code = get_module_source_code()
+        module_path = get_module_path()
+        prompt = UncoveredTargetsPrompt(list(gao_coverage_map.keys()), module_code, str(module_path))
         return self.query(prompt)
 
     def extract_python_code_from_llm_output(self, llm_output: str) -> str:

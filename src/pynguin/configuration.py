@@ -582,7 +582,7 @@ class StoppingConfiguration:
 class LLMConfiguration:
     """Configuration for the LLM."""
 
-    api_key: str = ""
+    api_key: str = "sk-proj-HVudZZVGLcfYK0uX376PT3BlbkFJJeShguKM4Jz7f0nDMGsD"
     """The api key to call OpenAI LLM with."""
 
     model_name: str = "gpt-3.5-turbo"
@@ -595,15 +595,22 @@ class LLMConfiguration:
     max_query_token_length: int = 750
     """The maximum token length that a query should have."""
 
-    hybrid_initial_population: bool = False
+    hybrid_initial_population: bool = True
     """Whether to include the LLM test cases in the initial population."""
 
-    llm_test_case_percentage: float = 0.5
+    llm_test_case_percentage: float = 0.0
     """The percentage of LLM test cases in on the initial population. The value must
      be from [0.0, 1.0]."""
 
     enable_response_caching: bool = False
     """Whether to enable caching for responses of the model."""
+
+    call_llm_for_uncovered_targets: bool = False
+    """Whether to call the LLM for the uncovered targets initially."""
+
+    coverage_threshold: float = 1
+    """The coverage threshold for a callable to be considered uncovered. The value must
+     be from [0.0, 1.0]."""
 
 
 @dataclasses.dataclass
