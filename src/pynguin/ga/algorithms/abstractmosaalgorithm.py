@@ -197,11 +197,9 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             if coverage < config.configuration.large_language_model.coverage_threshold
         }
 
-        winning_test_case_source_code = unparse_test_case(solutions_test_suite.test_case_chromosomes[0].test_case)
         model = OpenAIModel()
         llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-        llm_query_results = model.call_llm_for_uncovered_targets(filtered_gao_coverage_map,
-                                                                 winning_test_case_source_code)
+        llm_query_results = model.call_llm_for_uncovered_targets(filtered_gao_coverage_map)
         if llm_query_results is not None:
             llm_test_cases_str = model.extract_test_cases_from_llm_output(
                 llm_query_results

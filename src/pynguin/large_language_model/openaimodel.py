@@ -282,8 +282,7 @@ class OpenAIModel:
         prompt = TestCaseGenerationPrompt(module_code, str(module_path))
         return self.query(prompt)
 
-    def call_llm_for_uncovered_targets(self, gao_coverage_map: Dict[GenericCallableAccessibleObject, float],
-                                       winning_test_case_source_code):
+    def call_llm_for_uncovered_targets(self, gao_coverage_map: Dict[GenericCallableAccessibleObject, float]):
         module_code = get_module_source_code()
         module_path = get_module_path()
         prompt = UncoveredTargetsPrompt(list(gao_coverage_map.keys()), module_code, str(module_path))
