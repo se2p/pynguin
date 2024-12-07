@@ -1598,20 +1598,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        try:
-            new_reference_bindings = (
-                reference_bindings
-                if result.assertion_trace.trace
-                and not dill.detect.baditems(reference_bindings)
-                else None
+        new_reference_bindings = (
+            SubprocessTestCaseExecutor._create_new_reference_bindings(
+                result,
+                reference_bindings,
             )
-        except Exception as exception:
-            new_reference_bindings = None
-            _LOGGER.warning(
-                "Failed to fix reference bindings for pickle, final results might"
-                " differ from classic execution with same seed: %s",
-                exception,
-            )
+        )
 
         sending_connection.send(
             (
@@ -1655,25 +1647,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for result in results:
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        try:
-            new_references_bindings = tuple(
-                (
-                    reference_bindings
-                    if result.assertion_trace.trace
-                    and not dill.detect.baditems(reference_bindings)
-                    else None
-                )
-                for result, reference_bindings in zip(
-                    results, references_bindings, strict=True
-                )
+        new_references_bindings = tuple(
+            SubprocessTestCaseExecutor._create_new_reference_bindings(
+                result,
+                reference_bindings,
             )
-        except Exception as exception:
-            new_references_bindings = tuple(None for _ in references_bindings)
-            _LOGGER.warning(
-                "Failed to fix reference bindings for pickle, final results might"
-                " differ from classic execution with same seed: %s",
-                exception,
+            for result, reference_bindings in zip(
+                results, references_bindings, strict=True
             )
+        )
 
         sending_connection.send(
             (
@@ -1686,6 +1668,26 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         tracer.current_thread_identifier = -1
+
+    @staticmethod
+    def _create_new_reference_bindings(
+        result: ExecutionResult,
+        reference_bindings: dict[int, vr.VariableReference],
+    ) -> dict[int, vr.VariableReference]:
+        try:
+            return (
+                reference_bindings
+                if result.assertion_trace.trace
+                and not dill.detect.baditems(reference_bindings)
+                else None
+            )
+        except Exception as exception:
+            _LOGGER.warning(
+                "Failed to fix reference bindings for pickle, final results might"
+                " differ from classic execution with same seed: %s",
+                exception,
+            )
+            return None
 
     @staticmethod
     def _replace_tracer(tracer: ExecutionTracer) -> None:
