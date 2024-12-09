@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides class prompt for generating tests for a module."""
-from typing import List
 
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject, GenericMethod, \
@@ -43,7 +42,7 @@ class UncoveredTargetsPrompt(Prompt):
             if gao.is_method():
                 method_gao: GenericMethod = gao
                 function_header = (
-                    f"- The method {method_gao.method_name} of class {method_gao.owner.__name__}{signature}"
+                    f"- The method {method_gao.method_name} of class {method_gao.owner.name}{signature}"
                 )
             elif gao.is_function():
                 fn_gao: GenericFunction = gao

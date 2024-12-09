@@ -12,6 +12,16 @@ from pynguin.large_language_model.prompts.prompt import Prompt
 class TestCaseGenerationPrompt(Prompt):
     """Implementation prompt for generating tests for a module."""
 
+    def __init__(self, module_code: str, module_path: str):
+        """Creates a new prompt.
+
+        Args:
+            module_code: the module code to be passed to the prompt.
+            module_path: the module file path.
+        """
+        self.module_code = module_code
+        self.module_path = module_path
+
     def build_prompt(self) -> str:
         """Builds prompt message."""
         return f"""You are a Python developer tasked with writing unit tests

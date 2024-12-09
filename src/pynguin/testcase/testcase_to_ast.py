@@ -69,7 +69,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             ):
                 # If a statement causes an exception and defines a new name, we don't
                 # actually want to create that name, as it will not be stored anyway.
-                store_call_return = False
+                store_call_return = True
             statement_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases, variables, store_call_return=store_call_return
             )

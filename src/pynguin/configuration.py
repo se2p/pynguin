@@ -44,6 +44,9 @@ class Algorithm(str, enum.Enum):
     """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
     Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
 
+    LLMOSA = "LLMOSA"
+    """The many-objective sorting algorithm with LLM."""
+
     RANDOM = "RANDOM"
     """A feedback-direct random test generation approach similar to the algorithm
     proposed by Randoop (cf. Pacheco et al. Feedback-directed random test generation.
@@ -70,6 +73,9 @@ class Algorithm(str, enum.Enum):
 
 class AssertionGenerator(str, enum.Enum):
     """Different approaches for assertion generation supported by Pynguin."""
+
+    LLM = "LLM"
+    """Use Large Language Model(LLM) for assertion generation."""
 
     MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
     """Use the mutation analysis approach for assertion generation."""
@@ -592,9 +598,6 @@ class LLMConfiguration:
     """The temperature to use when querying the model.
     The value must be from [0.0, 1.0]."""
 
-    max_query_token_length: int = 750
-    """The maximum token length that a query should have."""
-
     hybrid_initial_population: bool = False
     """Whether to include the LLM test cases in the initial population."""
 
@@ -609,8 +612,14 @@ class LLMConfiguration:
     """Whether to call the LLM for the uncovered targets initially."""
 
     coverage_threshold: float = 1
-    """The coverage threshold for a callable to be considered uncovered. The value must
+    """The coverage threshold when to call the LLM for low-coverage targets. The value must
      be from [0.0, 1.0]."""
+
+    call_llm_on_stall_detection: bool = False
+    """Whether to call the LLM for the uncovered targets in coverage stalls."""
+
+    max_plateau_len: int = 25
+    """The number of iterations to allow before soliciting the LLM"""
 
 
 @dataclasses.dataclass

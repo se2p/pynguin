@@ -5,16 +5,11 @@
 # SPDX-License-Identifier: MIT
 #
 """This module generates unit tests for a given module using OpenAI's language model."""
-import datetime
-import inspect
 import logging
 import pathlib
 import re
 import time
-
 from pathlib import Path
-from typing import Dict
-
 import openai
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -22,80 +17,17 @@ from openai.types.chat import ChatCompletionUserMessageParam
 
 import pynguin.configuration as config
 
-from pynguin.analyses.module import import_module
 from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
-from pynguin.large_language_model.prompts.uncoveredtargetsprompt import UncoveredTargetsPrompt
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject,
-    GenericMethod,
-    GenericFunction,
-    GenericConstructor
+from pynguin.large_language_model.prompts.assertiongenerationprompt import (
+    AssertionGenerationPrompt,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def save_prompt_info_to_file(prompt_message: str, full_response: str):
-    """Append a prompt and its response, with a timestamp, to a log file.
-
-    Parameters:
-    - prompt_message: The prompt text.
-    - full_response: The response text.
-
-    Logs an error if writing to the file fails.
-    """
-    try:
-        output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / "prompt_info.txt"
-
-        with output_file.open(mode="a", encoding="utf-8") as file:
-            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-            file.write(f"==============\nDate and Time: {timestamp}\n==============\n")
-            file.write(f"Prompt:\n{prompt_message}\n")
-            file.write("==============\nFull Response\n==============\n")
-            file.write(full_response + "\n")
-            file.write("==============\n\n")
-    except OSError as error:
-        logging.exception("Error while writing prompt information to file: %s", error)
-
-
-def save_llm_tests_to_file(test_cases: str, file_name: str):
-    """Save extracted test cases to a Python (.py) file.
-
-    Args:
-        file_name: the file name
-        test_cases: The test cases to save, formatted as Python code.
-
-    Raises:
-        OSError: If there is an issue writing to the file, logs the exception.
-    """
-    try:
-        output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / file_name
-        with output_file.open(mode="w", encoding="utf-8") as file:
-            file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
-            file.write(
-                "# Date and time: "
-                + datetime.datetime.now(datetime.timezone.utc).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                + "\n\n"
-            )
-            file.write(test_cases)
-        logging.info("Test cases saved successfully to %s", output_file)
-    except OSError as error:
-        logging.exception(
-            "Error while saving LLM-generated test cases to file: %s", error
-        )
 
 
 def get_module_path() -> Path:
@@ -118,8 +50,8 @@ def get_module_source_code() -> str:
     Raises:
         FileNotFoundError: If the module file is not found.
     """
-    module = import_module(config.configuration.module_name)
-    return inspect.getsource(module)
+    module_path = get_module_path()
+    return module_path.read_text()
 
 
 def is_api_key_present() -> bool:
@@ -231,39 +163,26 @@ class OpenAIModel:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionUserMessageParam(role="user", content=prompt_text)
+            ChatCompletionUserMessageParam(role="user", content=f"${prompt_text}")
         ]
-
         try:
-            response = openai.chat.completions.create(
+            response = openai.chat.completions.create(  # type: ignore[call-overload]
                 model=self._model_name,
                 messages=messages,
                 max_tokens=self._max_query_len,
                 temperature=self._temperature,
             )
             response_text = response.choices[0].message.content
-
             if (
                 config.configuration.large_language_model.enable_response_caching
                 and response_text is not None
             ):
                 self.cache.set(prompt_text, response_text)
-
-            if response_text:
-                save_prompt_info_to_file(prompt_text, response_text)
             return response_text
-
         except openai.OpenAIError as e:
-            logger.error(
-                "An error occurred while querying the OpenAI API. "
-                "Model: %s, Prompt: %s, Error: %s",
-                self._model_name,
-                prompt_text,
-                e,
-            )
+            logger.error("An error occurred while querying the OpenAI API: %s", e)
         finally:
             self._llm_calls_timer += time.time_ns() - start_time
-
         return None
 
     def clear_cache(self):
@@ -282,13 +201,7 @@ class OpenAIModel:
         prompt = TestCaseGenerationPrompt(module_code, str(module_path))
         return self.query(prompt)
 
-    def call_llm_for_uncovered_targets(self, gao_coverage_map: Dict[GenericCallableAccessibleObject, float]):
-        module_code = get_module_source_code()
-        module_path = get_module_path()
-        prompt = UncoveredTargetsPrompt(list(gao_coverage_map.keys()), module_code, str(module_path))
-        return self.query(prompt)
-
-    def extract_python_code_from_llm_output(self, llm_output: str) -> str:
+    def extract_python_code(self, llm_output: str | None) -> str | None:
         """Extracts Python code blocks from the LLM output.
 
         Args:
@@ -300,13 +213,15 @@ class OpenAIModel:
         Raises:
             ValueError: If no Python code block is found in the LLM output.
         """
-        code_blocks = re.findall(r"```python([\s\S]+?)(?:```|$)", llm_output)
-        if not code_blocks:
-            self._llm_calls_with_no_python_code += 1
-            return llm_output
-        return "\n".join(code_blocks)
+        if llm_output:
+            code_blocks = re.findall(r"```python([\s\S]+?)```", llm_output)
+            if not code_blocks:
+                self._llm_calls_with_no_python_code += 1
+                return llm_output
+            return "\n".join(code_blocks)
+        return None
 
-    def extract_test_cases_from_llm_output(self, llm_output: str) -> str:
+    def extract_test_cases(self, llm_output: str | None) -> str | None:
         """Extracts test cases from the LLM output.
 
         Args:
@@ -315,10 +230,27 @@ class OpenAIModel:
         Returns:
             The extracted test cases.
         """
-        python_code = self.extract_python_code_from_llm_output(llm_output)
-        logger.debug("Extracted Python code: %s.", python_code)
-        generated_tests: dict[str, str] = rewrite_tests(python_code)
-        tests_with_line_breaks = "\n\n".join(generated_tests.values())
-        logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
-        save_llm_tests_to_file(tests_with_line_breaks, "rewritten_llm_test_cases.py")
-        return tests_with_line_breaks
+        python_code = self.extract_python_code(llm_output)
+        if python_code:
+            generated_tests: dict[str, str] = rewrite_tests(python_code)
+            return "\n\n".join(generated_tests.values())
+        return None
+
+    def generate_assertions_for_test_case(
+        self, test_case_source_code: str
+    ) -> str | None:
+        """Generates assertions for a given test case source code.
+
+        Args:
+            test_case_source_code (str): The source code of the test case.
+
+        Returns:
+            str: The generated assertions as a string.
+        """
+        module_source_code = get_module_source_code()
+        prompt = AssertionGenerationPrompt(
+            test_case_source_code=test_case_source_code,
+            module_source_code=module_source_code,
+        )
+        prompt_result = self.query(prompt)
+        return self.extract_python_code(prompt_result)

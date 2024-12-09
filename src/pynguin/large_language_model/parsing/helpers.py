@@ -9,9 +9,8 @@ import ast
 import logging
 
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.testcase_to_ast as tta
 import pynguin.utils.namingscope as ns
-
+import pynguin.testcase.testcase_to_ast as tta
 
 logger = logging.getLogger(__name__)
 

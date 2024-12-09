@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.strategies as ms
@@ -508,7 +509,7 @@ def _run() -> ReturnCode:
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)
-    _generate_assertions(executor, generation_result)
+    _generate_assertions(executor, generation_result, test_cluster)
     tracked_metrics = _track_final_metrics(
         algorithm, executor, generation_result, constant_provider
     )
@@ -620,12 +621,15 @@ def _setup_mutation_analysis_assertion_generator(
     return assertion_generator
 
 
-def _generate_assertions(executor, generation_result):
+def _generate_assertions(executor, generation_result, test_cluster):
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen != config.AssertionGenerator.NONE:
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
-        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+        if ass_gen == config.AssertionGenerator.LLM:
+            generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
+            generator = _setup_mutation_analysis_assertion_generator(executor)
+        elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
             generator = _setup_mutation_analysis_assertion_generator(executor)
         else:
             generator = ag.AssertionGenerator(executor)

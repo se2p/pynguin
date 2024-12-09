@@ -56,7 +56,15 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                 RuntimeVariable.CoverageBeforeLLMCall, coverage_before_llm_call
             )
 
-            self._population.extend(self.target_uncovered_function())
+            llm_chromosomes = self.target_uncovered_function()
+
+            self._population.extend(llm_chromosomes)
+
+            self._logger.info(
+                "Added %d LLM test case chromosomes to the population.",
+                len(llm_chromosomes)
+            )
+
             self._archive.update(self._population)
 
             coverage_after_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
@@ -253,3 +261,15 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             coverage_functions=self._test_suite_coverage_functions,
             model=model,
         )
+
+    def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
+        if config.configuration.large_language_model.hybrid_initial_population:
+            test_suite_chromosome: tsc.TestSuiteChromosome = (
+                self._chromosome_factory.get_chromosome()
+            )
+            return test_suite_chromosome.test_case_chromosomes
+        population: list[tcc.TestCaseChromosome] = []
+        for _ in range(config.configuration.search_algorithm.population):
+            chromosome = self._chromosome_factory.get_chromosome()
+            population.append(chromosome)
+        return population
