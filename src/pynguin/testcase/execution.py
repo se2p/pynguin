@@ -393,6 +393,9 @@ class ExecutionObserver(abc.ABC):
     def before_remote_test_case_execution(self, test_case: tc.TestCase) -> None:
         """Called before test case execution from the main thread.
 
+        Note: This method can be called with several test cases before the
+        after_remote_test_case_execution method is called.
+
         Args:
             test_case: The test cases that will be executed.
         """
@@ -1426,6 +1429,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         if not test_cases_tuple:
             return ()
 
+        for test_case in test_cases_tuple:
+            self._before_remote_test_case_execution(test_case)
+
         receiving_connection, sending_connection = mp.Pipe(duplex=False)
 
         remote_observers = tuple(self._yield_remote_observers())
@@ -1484,7 +1490,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 )
                 raise RuntimeError("Bug in Pynguin!")
 
-            return super().execute_multiple(test_cases_tuple)
+            executor = SubprocessTestCaseExecutor(
+                self._tracer,
+                self._module_provider,
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement,
+            )
+
+            for remote_observer in remote_observers:
+                executor.add_remote_observer(remote_observer)
+
+            return executor.execute_multiple(test_cases_tuple)
 
         return_value: tuple[
             ExecutionTracer,
@@ -1523,6 +1539,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 )
 
         self._tracer.state = new_tracer.state
+
+        for test_case, result in zip(test_cases_tuple, results, strict=True):
+            self._after_remote_test_case_execution(test_case, result)
 
         return results
 
