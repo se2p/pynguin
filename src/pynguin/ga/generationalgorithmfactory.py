@@ -40,6 +40,7 @@ from pynguin.analyses.module import FilteredModuleTestCluster
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
@@ -147,6 +148,7 @@ class TestSuiteGenerationAlgorithmFactory(
         config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSAAlgorithm,
+        config.Algorithm.LLMOSA: LLMOSAAlgorithm,
         config.Algorithm.RANDOM: RandomAlgorithm,
         config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchAlgorithm,
         config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchAlgorithm,
@@ -236,6 +238,7 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
+            config.Algorithm.LLMOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
         }:
             return test_case_chromosome_factory
@@ -378,6 +381,7 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
+            config.Algorithm.LLMOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
         }:

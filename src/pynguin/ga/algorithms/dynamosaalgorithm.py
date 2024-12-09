@@ -24,10 +24,11 @@ from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-import pynguin.ga.testcasechromosome as tcc
+
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
+    import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.ga.algorithms.archive import CoverageArchive
@@ -55,23 +56,6 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
-
-        # Use LLM to target uncovered functions
-        if config.configuration.large_language_model.call_llm_for_uncovered_targets:
-            coverage_before_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-            self._logger.info("Coverage before LLM call for uncovered targets: %5f", coverage_before_llm_call)
-            stat.track_output_variable(
-                RuntimeVariable.CoverageBeforeLLMCall, coverage_before_llm_call
-            )
-
-            self._population.extend(self.target_uncovered_function())
-            self._goals_manager.update(self._population)
-
-            coverage_after_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-            self._logger.info("Coverage after LLM call for uncovered targets: %5f", coverage_after_llm_call)
-            stat.track_output_variable(
-                RuntimeVariable.CoverageAfterLLMCall, coverage_after_llm_call
-            )
 
         # Calculate dominance ranks and crowding distance
         fronts = self._ranking_function.compute_ranking_assignment(
