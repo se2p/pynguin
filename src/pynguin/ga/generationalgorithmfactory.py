@@ -226,7 +226,7 @@ class TestSuiteGenerationAlgorithmFactory(
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
             )
-        if config.configuration.algorithm.LLMOSA:
+        if config.configuration.algorithm == config.Algorithm.LLMOSA:
             return ltscf.LLMTestSuiteChromosomeFactory(
                 test_case_chromosome_factory,
                 strategy.test_factory,

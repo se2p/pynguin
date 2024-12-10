@@ -26,7 +26,7 @@ def test_extract_python_code_valid():
     llm_output = "Some text\n```python\nprint('Hello, world!')\n```"
     expected_code = "\nprint('Hello, world!')\n"
     model = OpenAIModel()
-    assert model.extract_python_code(llm_output) == expected_code
+    assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
 
 @pytest.mark.skipif(
@@ -37,7 +37,7 @@ def test_extract_python_code_multiple_blocks():
     llm_output = "Text\n```python\nprint('Hello')\n```\nMore text\n```python\nprint('World')\n```"
     expected_code = "\nprint('Hello')\n\n\nprint('World')\n"
     model = OpenAIModel()
-    assert model.extract_python_code(llm_output) == expected_code
+    assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
 
 def test_set_api_key_missing(monkeypatch):

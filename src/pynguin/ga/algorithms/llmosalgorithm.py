@@ -57,7 +57,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             RuntimeVariable.Goals, self._number_of_goals
         )
 
-        self._population = self.get_random_population()
+        self._population = self._get_random_population()
         self._archive.update(self._population)
 
         # Use LLM to target uncovered functions
@@ -288,7 +288,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             model=model,
         )
 
-    def get_random_population(self) -> list[tcc.TestCaseChromosome]:  # noqa: D102
+    def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
         if config.configuration.large_language_model.hybrid_initial_population:
             test_suite_chromosome: tsc.TestSuiteChromosome = (
                 self._chromosome_factory.get_chromosome()
