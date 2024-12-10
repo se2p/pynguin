@@ -10,14 +10,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pynguin.configuration as config
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
+import pynguin.configuration as config
 import pynguin.testcase.statement as statmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.utils.namingscope as ns
 
 from pynguin.testcase.testcasevisitor import TestCaseVisitor
+
 
 if TYPE_CHECKING:
     from ast import stmt

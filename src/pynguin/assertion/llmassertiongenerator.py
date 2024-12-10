@@ -8,19 +8,17 @@
 
 import logging
 import re
-import pynguin.utils.statistics.statistics as stat
 
 import pynguin.ga.chromosomevisitor as cv
-from pynguin.assertion.assertion import (
-    ObjectAssertion,
-    IsInstanceAssertion,
-    FloatAssertion,
-)
-
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variablereference as vr
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.testcase.testcase as tc
+import pynguin.testcase.variablereference as vr
+import pynguin.utils.statistics.statistics as stat
+
+from pynguin.assertion.assertion import FloatAssertion
+from pynguin.assertion.assertion import IsInstanceAssertion
+from pynguin.assertion.assertion import ObjectAssertion
 from pynguin.large_language_model.llmagent import OpenAIModel
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
@@ -28,6 +26,7 @@ from pynguin.large_language_model.parsing.deserializer import (
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -204,15 +203,23 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
                         test_cluster=self._test_cluster,
                     )
                     if result is None:
-                        logging.error("Failed to deserialize test case %s", new_test_case_source_code)
+                        logging.error(
+                            "Failed to deserialize test case %s",
+                            new_test_case_source_code,
+                        )
                         continue
 
-                    tcs, total_statements, parsed_statements, uninterpreted_statements = result
+                    (
+                        tcs,
+                        _,
+                        _,
+                        _,
+                    ) = result
 
                     if tcs and len(tcs) > 0:
-                        deserialized_test_case = tcs[0]
+                        deserialized_test_case: tc.TestCase = tcs[0]
                         copy_test_case_references(
-                            test_case,deserialized_test_case, refs_replacement_dict
+                            test_case, deserialized_test_case, refs_replacement_dict
                         )
                         for statement in deserialized_test_case.statements:
                             if len(statement.assertions):

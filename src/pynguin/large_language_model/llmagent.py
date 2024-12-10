@@ -12,10 +12,8 @@ import pathlib
 import re
 import time
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Dict, Optional, List, Iterable
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.utils.statistics.statistics as stat
 
 import openai
 
@@ -23,25 +21,35 @@ from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat import ChatCompletionUserMessageParam
 
 import pynguin.configuration as config
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.utils.statistics.statistics as stat
 
-from pynguin.analyses.module import import_module, TestCluster
-from pynguin.ga.chromosomefactory import ChromosomeFactory
-from pynguin.ga.computations import CoverageFunction, FitnessFunction
+from pynguin.analyses.module import TestCluster
+from pynguin.analyses.module import import_module
+from pynguin.ga.computations import CoverageFunction
+from pynguin.ga.computations import FitnessFunction
 from pynguin.large_language_model.caching import Cache
-from pynguin.large_language_model.parsing.deserializer import deserialize_code_to_testcases
+from pynguin.large_language_model.parsing.deserializer import (
+    deserialize_code_to_testcases,
+)
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
-from pynguin.large_language_model.prompts.assertiongenerationprompt import AssertionGenerationPrompt
+from pynguin.large_language_model.prompts.assertiongenerationprompt import (
+    AssertionGenerationPrompt,
+)
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
-from pynguin.large_language_model.prompts.uncoveredtargetsprompt import UncoveredTargetsPrompt
+from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
+    UncoveredTargetsPrompt,
+)
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject
+    GenericCallableAccessibleObject,
 )
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 logger = logging.getLogger(__name__)
 
@@ -285,13 +293,25 @@ class OpenAIModel:
         prompt = TestCaseGenerationPrompt(module_code, str(module_path))
         return self.query(prompt)
 
-    def call_llm_for_uncovered_targets(self, gao_coverage_map: Dict[GenericCallableAccessibleObject, float]):
+    def call_llm_for_uncovered_targets(
+        self, gao_coverage_map: dict[GenericCallableAccessibleObject, float]
+    ):
+        """Queries the language model for uncovered targets.
+
+        Args:
+            gao_coverage_map (dict): Maps callable objects to coverage percentages.
+
+        Returns:
+            Any: Result of the query based on the constructed prompt.
+        """
         module_code = get_module_source_code()
         module_path = get_module_path()
-        prompt = UncoveredTargetsPrompt(list(gao_coverage_map.keys()), module_code, str(module_path))
+        prompt = UncoveredTargetsPrompt(
+            list(gao_coverage_map.keys()), module_code, str(module_path)
+        )
         return self.query(prompt)
 
-    def extract_python_code_from_llm_output(self, llm_output: str) -> str:
+    def extract_python_code_from_llm_output(self, llm_output: str | None) -> str:
         """Extracts Python code blocks from the LLM output.
 
         Args:
@@ -303,11 +323,13 @@ class OpenAIModel:
         Raises:
             ValueError: If no Python code block is found in the LLM output.
         """
-        code_blocks = re.findall(r"```python([\s\S]+?)(?:```|$)", llm_output)
-        if not code_blocks:
-            self._llm_calls_with_no_python_code += 1
-            return llm_output
-        return "\n".join(code_blocks)
+        if llm_output:
+            code_blocks = re.findall(r"```python([\s\S]+?)(?:```|$)", llm_output)
+            if not code_blocks:
+                self._llm_calls_with_no_python_code += 1
+                return llm_output
+            return "\n".join(code_blocks)
+        return ""
 
     def extract_test_cases_from_llm_output(self, llm_output: str) -> str:
         """Extracts test cases from the LLM output.
@@ -327,8 +349,7 @@ class OpenAIModel:
         return tests_with_line_breaks
 
     def _log_and_track_llm_stats(self) -> None:
-        """
-        Logs LLM statistics and updates tracking variables.
+        """Logs LLM statistics and updates tracking variables.
 
         Updates the following runtime variables:
         - TotalLLMCalls: Total number of LLM calls made.
@@ -353,9 +374,7 @@ class OpenAIModel:
         stat.track_output_variable(
             RuntimeVariable.TotalLLMCalls, self.llm_calls_counter
         )
-        stat.track_output_variable(
-            RuntimeVariable.LLMQueryTime, self.llm_calls_timer
-        )
+        stat.track_output_variable(RuntimeVariable.LLMQueryTime, self.llm_calls_timer)
         stat.track_output_variable(
             RuntimeVariable.TotalCodelessLLMResponses,
             self.llm_calls_with_no_python_code,
@@ -381,16 +400,15 @@ class OpenAIModel:
         return self.extract_python_code_from_llm_output(prompt_result)
 
 
-def get_test_case_chromosomes_from_llm_results(
-    llm_query_results: Optional[str],
+def get_test_case_chromosomes_from_llm_results(  # noqa: PLR0917
+    llm_query_results: str | None,
     test_cluster: TestCluster,
     test_factory: TestFactory,
     fitness_functions: Iterable[FitnessFunction],
     coverage_functions: Iterable[CoverageFunction],
     model: OpenAIModel,
-) -> List[tcc.TestCaseChromosome]:
-    """
-    Process LLM query results into test case chromosomes.
+) -> list[tcc.TestCaseChromosome]:
+    """Process LLM query results into test case chromosomes.
 
     Args:
         llm_query_results: The raw string results returned from the LLM.
@@ -398,30 +416,43 @@ def get_test_case_chromosomes_from_llm_results(
         test_cluster: The test cluster to which the generated test cases belong.
             Provides context for deserialization and test case generation.
         test_factory: A factory object used to create instances of `TestCaseChromosome`.
-        fitness_functions: An iterable collection of fitness functions to attach to each generated chromosome.
+        fitness_functions: An iterable collection of fitness functions
+        to attach to each generated chromosome.
             These define objectives for evolutionary algorithms.
-        coverage_functions: An iterable collection of coverage functions to attach to each generated chromosome.
+        coverage_functions: An iterable collection of coverage functions
+        to attach to each generated chromosome.
             These define metrics for evaluating test case coverage.
-        model: The OpenAIModel instance used for extracting test cases from LLM query results.
+        model: The OpenAIModel instance used for extracting test cases
+        from LLM query results.
 
     Returns:
-        A list of `TestCaseChromosome` objects created from the deserialized LLM test cases.
-        Each chromosome is augmented with the provided fitness and coverage functions.
+        A list of `TestCaseChromosome` objects created from the deserialized
+         LLM test cases. Each chromosome is augmented with the provided
+         fitness and coverage functions.
     """
-
-    llm_test_case_chromosomes = []
+    llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
     if llm_query_results is None:
         return llm_test_case_chromosomes
 
     llm_test_cases_str = model.extract_test_cases_from_llm_output(llm_query_results)
+
+    deserialized_code_to_testcases = deserialize_code_to_testcases(
+        llm_test_cases_str, test_cluster=test_cluster
+    )
+
+    if deserialized_code_to_testcases is None:
+        logging.error(
+            "Failed to deserialize test cases %s",
+            llm_test_cases_str,
+        )
+        return []
+
     (
         test_cases,
         total_statements,
         parsed_statements,
         uninterpreted_statements,
-    ) = deserialize_code_to_testcases(
-        llm_test_cases_str, test_cluster=test_cluster
-    )
+    ) = deserialized_code_to_testcases
 
     tests_source_code = "\n\n".join(
         unparse_test_case(test_case) or "" for test_case in test_cases
@@ -431,9 +462,7 @@ def get_test_case_chromosomes_from_llm_results(
     stat.track_output_variable(
         RuntimeVariable.LLMTotalParsedStatements, parsed_statements
     )
-    stat.track_output_variable(
-        RuntimeVariable.LLMTotalStatements, total_statements
-    )
+    stat.track_output_variable(RuntimeVariable.LLMTotalStatements, total_statements)
     stat.track_output_variable(
         RuntimeVariable.LLMUninterpretedStatements, uninterpreted_statements
     )
@@ -450,4 +479,3 @@ def get_test_case_chromosomes_from_llm_results(
         llm_test_case_chromosomes.append(test_case_chromosome)
 
     return llm_test_case_chromosomes
-

@@ -10,29 +10,39 @@ from __future__ import annotations
 import inspect
 import logging
 
-from typing import TYPE_CHECKING, Tuple, List, Dict, cast
+from typing import TYPE_CHECKING
+from typing import cast
 
 import pynguin.ga.computations as ff
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils import randomness
-import pynguin.ga.testcasechromosome as tcc
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.utils.orderedset import OrderedSet
 
-import pynguin.configuration as config
-from pynguin.large_language_model.llmagent import OpenAIModel
+import operator
 
-from pynguin.large_language_model.llmagent import get_test_case_chromosomes_from_llm_results
-from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
-from pynguin.utils.report import get_coverage_report, LineAnnotation, CoverageReport
+import pynguin.configuration as config
+
+from pynguin.large_language_model.llmagent import OpenAIModel
+from pynguin.large_language_model.llmagent import (
+    get_test_case_chromosomes_from_llm_results,
+)
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+)
+from pynguin.utils.report import CoverageReport
+from pynguin.utils.report import LineAnnotation
+from pynguin.utils.report import get_coverage_report
 
 
 class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
@@ -51,9 +61,17 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._archive.update(self._population)
 
         # Use LLM to target uncovered functions
-        coverage_before_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-        if config.configuration.large_language_model.call_llm_for_uncovered_targets and coverage_before_llm_call < 1.0:
-            self._logger.info("Coverage before LLM call for uncovered targets: %5f", coverage_before_llm_call)
+        coverage_before_llm_call = self.create_test_suite(
+            self._archive.solutions
+        ).get_coverage()
+        if (
+            config.configuration.large_language_model.call_llm_for_uncovered_targets
+            and coverage_before_llm_call < 1.0
+        ):
+            self._logger.info(
+                "Coverage before LLM call for uncovered targets: %5f",
+                coverage_before_llm_call,
+            )
             stat.track_output_variable(
                 RuntimeVariable.CoverageBeforeLLMCall, coverage_before_llm_call
             )
@@ -64,13 +82,18 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
             self._logger.info(
                 "Added %d LLM test case chromosomes to the population.",
-                len(llm_chromosomes)
+                len(llm_chromosomes),
             )
 
             self._archive.update(self._population)
 
-            coverage_after_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-            self._logger.info("Coverage after LLM call for uncovered targets: %5f", coverage_after_llm_call)
+            coverage_after_llm_call = self.create_test_suite(
+                self._archive.solutions
+            ).get_coverage()
+            self._logger.info(
+                "Coverage after LLM call for uncovered targets: %5f",
+                coverage_after_llm_call,
+            )
             stat.track_output_variable(
                 RuntimeVariable.CoverageAfterLLMCall, coverage_after_llm_call
             )
@@ -110,7 +133,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                     self._population.extend(llm_chromosomes)
                     self._logger.info(
                         "Added %d LLM test case chromosomes to the population.",
-                        len(llm_chromosomes)
+                        len(llm_chromosomes),
                     )
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
@@ -125,7 +148,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
     def evolve(self) -> None:
         """Runs one evolution step."""
         offspring_population: list[tcc.TestCaseChromosome] = (
-            self.breed_next_generation()
+            self._breed_next_generation()
         )
 
         # Create union of parents and offspring
@@ -171,19 +194,18 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
         self._archive.update(self._population)
 
-    def target_uncovered_function(self) -> List[tcc.TestCaseChromosome]:
-        """
-        Identifies uncovered targets, queries an LLM for test cases, and processes
-        the results into a list of test case chromosomes.
+    def target_uncovered_function(self) -> list[tcc.TestCaseChromosome]:
+        """Identifies uncovered targets, queries an LLM for test cases.
+
+         and processes the results into a list of test case chromosomes.
 
         Returns:
             A list of `TestCaseChromosome` objects derived from the LLM query results.
         """
         solutions_test_suite = self.create_test_suite(self._archive.solutions)
 
-        def coverage_in_range(start_line: int, end_line: int) -> Tuple[int, int]:
-            """
-            Calculate the total and covered coverage points for a given line range.
+        def coverage_in_range(start_line: int, end_line: int) -> tuple[int, int]:
+            """Calculate the total and covered coverage points for a given line range.
 
             Args:
                 start_line: The first line in the range, inclusive.
@@ -200,9 +222,10 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                     covered_coverage_points += line_annot.total.covered
             return covered_coverage_points, total_coverage_points
 
-        def calculate_gao_coverage_map() -> Dict[GenericCallableAccessibleObject, float]:
-            """
-            Calculate the coverage ratio for each GenericCallableAccessibleObject.
+        def calculate_gao_coverage_map() -> (
+            dict[GenericCallableAccessibleObject, float]
+        ):
+            """Calculate the coverage ratio for each GenericCallableAccessibleObject.
 
             Returns:
                 A dictionary mapping accessible objects to their coverage ratios.
@@ -221,10 +244,9 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             return gao_coverage
 
         def filter_gao_by_coverage(
-            gao_coverage: Dict[GenericCallableAccessibleObject, float]
-        ) -> Dict[GenericCallableAccessibleObject, float]:
-            """
-            Filter GenericCallableAccessibleObjects by their coverage ratio.
+            gao_coverage: dict[GenericCallableAccessibleObject, float]
+        ) -> dict[GenericCallableAccessibleObject, float]:
+            """Filter GenericCallableAccessibleObjects by their coverage ratio.
 
             Args:
                 gao_coverage: A dictionary of objects and their coverage ratios.
@@ -235,25 +257,27 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             return {
                 gao: coverage
                 for gao, coverage in sorted(
-                    gao_coverage.items(),
-                    key=lambda item: item[1]
+                    gao_coverage.items(), key=operator.itemgetter(1)
                 )
-                if coverage < config.configuration.large_language_model.coverage_threshold
+                if coverage
+                < config.configuration.large_language_model.coverage_threshold
             }
 
         # Main logic
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
-            self.executor,
-            config.configuration.statistics_output.coverage_metrics,
+            self.executor,  # type:ignore[arg-type]
+            set(config.configuration.statistics_output.coverage_metrics),
         )
-        line_annotations: List[LineAnnotation] = coverage_report.line_annotations
+        line_annotations: list[LineAnnotation] = coverage_report.line_annotations
 
         gao_coverage_map = calculate_gao_coverage_map()
         filtered_gao_coverage_map = filter_gao_by_coverage(gao_coverage_map)
 
         model = OpenAIModel()
-        llm_query_results = model.call_llm_for_uncovered_targets(filtered_gao_coverage_map)
+        llm_query_results = model.call_llm_for_uncovered_targets(
+            filtered_gao_coverage_map
+        )
 
         return get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
@@ -264,7 +288,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             model=model,
         )
 
-    def get_random_population(self) -> list[tcc.TestCaseChromosome]:
+    def get_random_population(self) -> list[tcc.TestCaseChromosome]:  # noqa: D102
         if config.configuration.large_language_model.hybrid_initial_population:
             test_suite_chromosome: tsc.TestSuiteChromosome = (
                 self._chromosome_factory.get_chromosome()
@@ -272,11 +296,13 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             return test_suite_chromosome.test_case_chromosomes
         population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
-            chromosome = self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
+            chromosome = (
+                self._chromosome_factory.test_case_chromosome_factory.get_chromosome()  # type:ignore[attr-defined]
+            )
             population.append(chromosome)
         return population
 
-    def breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
+    def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
         offspring_population: list[tcc.TestCaseChromosome] = []
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
@@ -315,7 +341,9 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             )
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
-                tch: tcc.TestCaseChromosome = self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
+                tch: tcc.TestCaseChromosome = (
+                    self._chromosome_factory.test_case_chromosome_factory.get_chromosome()  # type:ignore[attr-defined]
+                )
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()

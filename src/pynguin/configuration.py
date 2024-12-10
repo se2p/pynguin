@@ -612,8 +612,8 @@ class LLMConfiguration:
     """Whether to call the LLM for the uncovered targets initially."""
 
     coverage_threshold: float = 1
-    """The coverage threshold when to call the LLM for low-coverage targets. The value must
-     be from [0.0, 1.0]."""
+    """The coverage threshold when to call the LLM for low-coverage targets.
+    The value must be from [0.0, 1.0]."""
 
     call_llm_on_stall_detection: bool = False
     """Whether to call the LLM for the uncovered targets in coverage stalls."""

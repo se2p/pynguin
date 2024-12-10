@@ -12,9 +12,12 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
+
 if TYPE_CHECKING:
-    import pynguin.testcase.variablereference as vr
     import ast
+
+    import pynguin.testcase.variablereference as vr
+
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 

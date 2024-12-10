@@ -9,10 +9,10 @@ import pytest
 
 import pynguin.configuration as config
 
-from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.openaimodel import is_api_key_present
-from pynguin.large_language_model.openaimodel import is_api_key_valid
-from pynguin.large_language_model.openaimodel import set_api_key
+from pynguin.large_language_model.llmagent import OpenAIModel
+from pynguin.large_language_model.llmagent import is_api_key_present
+from pynguin.large_language_model.llmagent import is_api_key_valid
+from pynguin.large_language_model.llmagent import set_api_key
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
