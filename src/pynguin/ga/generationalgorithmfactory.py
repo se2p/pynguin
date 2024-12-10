@@ -226,7 +226,7 @@ class TestSuiteGenerationAlgorithmFactory(
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
             )
-        if config.configuration.large_language_model.hybrid_initial_population:
+        if config.configuration.algorithm.LLMOSA:
             return ltscf.LLMTestSuiteChromosomeFactory(
                 test_case_chromosome_factory,
                 strategy.test_factory,
@@ -238,7 +238,6 @@ class TestSuiteGenerationAlgorithmFactory(
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
-            config.Algorithm.LLMOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
         }:
             return test_case_chromosome_factory

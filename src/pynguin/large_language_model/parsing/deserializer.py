@@ -39,7 +39,6 @@ from pynguin.utils.type_utils import is_assertable
 if TYPE_CHECKING:
     from pynguin.assertion.assertion import Assertion
     from pynguin.analyses.module import TestCluster
-    from pynguin.testcase.defaulttestcase import DefaultTestCase
 
 logger = logging.getLogger(__name__)
 
@@ -771,7 +770,6 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
     def __init__(  # noqa: D107
         self,
         test_cluster: TestCluster,
-        *,
         create_assertions: bool,
         uninterpreted_statements: bool = False,
     ):

@@ -10,17 +10,19 @@ from __future__ import annotations
 import inspect
 import logging
 
-from typing import TYPE_CHECKING, Tuple, List, Dict
+from typing import TYPE_CHECKING, Tuple, List, Dict, cast
 
 import pynguin.ga.computations as ff
 import pynguin.utils.statistics.statistics as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
+from pynguin.utils import randomness
+import pynguin.ga.testcasechromosome as tcc
+from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.utils.orderedset import OrderedSet
@@ -45,7 +47,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             RuntimeVariable.Goals, self._number_of_goals
         )
 
-        self._population = self._get_random_population()
+        self._population = self.get_random_population()
         self._archive.update(self._population)
 
         # Use LLM to target uncovered functions
@@ -123,7 +125,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
     def evolve(self) -> None:
         """Runs one evolution step."""
         offspring_population: list[tcc.TestCaseChromosome] = (
-            self._breed_next_generation()
+            self.breed_next_generation()
         )
 
         # Create union of parents and offspring
@@ -262,7 +264,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             model=model,
         )
 
-    def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
+    def get_random_population(self) -> list[tcc.TestCaseChromosome]:
         if config.configuration.large_language_model.hybrid_initial_population:
             test_suite_chromosome: tsc.TestSuiteChromosome = (
                 self._chromosome_factory.get_chromosome()
@@ -270,6 +272,56 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             return test_suite_chromosome.test_case_chromosomes
         population: list[tcc.TestCaseChromosome] = []
         for _ in range(config.configuration.search_algorithm.population):
-            chromosome = self._chromosome_factory.get_chromosome()
+            chromosome = self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
             population.append(chromosome)
         return population
+
+    def breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
+        offspring_population: list[tcc.TestCaseChromosome] = []
+        for _ in range(int(config.configuration.search_algorithm.population / 2)):
+            parent_1 = self._selection_function.select(self._population)[0]
+            parent_2 = self._selection_function.select(self._population)[0]
+            offspring_1 = cast(tcc.TestCaseChromosome, parent_1.clone())
+            offspring_2 = cast(tcc.TestCaseChromosome, parent_2.clone())
+
+            # Apply crossover
+            if (
+                randomness.next_float()
+                <= config.configuration.search_algorithm.crossover_rate
+            ):
+                try:
+                    self._crossover_function.cross_over(offspring_1, offspring_2)
+                except ConstructionFailedException:
+                    self._logger.debug("CrossOver failed.")
+                    continue
+
+            # Apply mutation on offspring_1
+            for _ in range(config.configuration.search_algorithm.number_of_mutations):
+                self._mutate(offspring_1)
+            if offspring_1.changed and offspring_1.size() > 0:
+                offspring_population.append(offspring_1)
+
+            # Apply mutation on offspring_2
+            for _ in range(config.configuration.search_algorithm.number_of_mutations):
+                self._mutate(offspring_2)
+            if offspring_2.changed and offspring_2.size() > 0:
+                offspring_population.append(offspring_2)
+
+        # Add new randomly generated tests
+        for _ in range(
+            int(
+                config.configuration.search_algorithm.population
+                * config.configuration.search_algorithm.test_insertion_probability
+            )
+        ):
+            if len(self._archive.covered_goals) == 0 or randomness.next_bool():
+                tch: tcc.TestCaseChromosome = self._chromosome_factory.test_case_chromosome_factory.get_chromosome()
+            else:
+                tch = randomness.choice(self._archive.solutions).clone()
+                tch.mutate()
+
+            if tch.changed and tch.size() > 0:
+                offspring_population.append(tch)
+
+        self._logger.debug("Number of offsprings = %d", len(offspring_population))
+        return offspring_population

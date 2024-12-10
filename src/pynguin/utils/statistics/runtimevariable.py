@@ -208,5 +208,11 @@ class RuntimeVariable(str, enum.Enum):
     # The coverage after LLM call for uncovered targets
     CoverageAfterLLMCall = "CoverageAfterLLMCall"
 
+    # Total assertions added to test cases that were received from the LLM
+    TotalAssertionsAddedFromLLM = "TotalAssertionsAddedFromLLM"
+
+    # Total assertions added to test cases
+    TotalAssertionsReceivedFromLLM = "TotalAssertionsReceivedFromLLM"
+
     def __repr__(self):
         return f"{self.name}"

@@ -8,6 +8,7 @@
 
 import logging
 import re
+import pynguin.utils.statistics.statistics as stat
 
 import pynguin.ga.chromosomevisitor as cv
 from pynguin.assertion.assertion import (
@@ -15,17 +16,18 @@ from pynguin.assertion.assertion import (
     IsInstanceAssertion,
     FloatAssertion,
 )
-from pynguin.large_language_model.openaimodel import OpenAIModel
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+from pynguin.large_language_model.llmagent import OpenAIModel
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,6 +183,8 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         Args:
             test_cases (list[tc.TestCase]): The test cases to add assertions for.
         """
+        total_assertions_added = 0
+        total_assertions_from_llm = 0
         refs_replacement_dict: dict[vr.Reference, vr.Reference] = {}
         for test_case in test_cases:  # noqa: PLR1702
             test_case_source_code = unparse_test_case(test_case)
@@ -190,22 +194,37 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
                 )
                 if python_code is not None:
                     extracted_assertions = extract_assertions(python_code)
+                    total_assertions_from_llm += len(extracted_assertions)
                     indented_assertions = indent_assertions(extracted_assertions)
                     new_test_case_source_code = (
                         test_case_source_code + "\n" + indented_assertions
                     )
-                    deserialized_test_cases = deserialize_code_to_testcases(
+                    result = deserialize_code_to_testcases(
                         test_file_contents=new_test_case_source_code,
                         test_cluster=self._test_cluster,
                     )
-                    if deserialized_test_cases and len(deserialized_test_cases) > 0:
-                        deserialized_test_case = deserialized_test_cases[0]
+                    if result is None:
+                        logging.error("Failed to deserialize test case %s", new_test_case_source_code)
+                        continue
+
+                    tcs, total_statements, parsed_statements, uninterpreted_statements = result
+
+                    if tcs and len(tcs) > 0:
+                        deserialized_test_case = tcs[0]
                         copy_test_case_references(
-                            test_case, deserialized_test_case, refs_replacement_dict
+                            test_case,deserialized_test_case, refs_replacement_dict
                         )
                         for statement in deserialized_test_case.statements:
                             if len(statement.assertions):
                                 original_statement = test_case.statements[
                                     statement.get_position()
                                 ]
+                                total_assertions_added += len(statement.assertions)
                                 original_statement.assertions = statement.assertions
+
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.TotalAssertionsAddedFromLLM, total_assertions_added
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.TotalAssertionsReceivedFromLLM, total_assertions_from_llm
+        )

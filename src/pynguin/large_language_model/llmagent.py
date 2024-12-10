@@ -31,6 +31,7 @@ from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.parsing.deserializer import deserialize_code_to_testcases
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
+from pynguin.large_language_model.prompts.assertiongenerationprompt import AssertionGenerationPrompt
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
@@ -360,6 +361,25 @@ class OpenAIModel:
             self.llm_calls_with_no_python_code,
         )
 
+    def generate_assertions_for_test_case(
+        self, test_case_source_code: str
+    ) -> str | None:
+        """Generates assertions for a given test case source code.
+
+        Args:
+            test_case_source_code (str): The source code of the test case.
+
+        Returns:
+            str: The generated assertions as a string.
+        """
+        module_source_code = get_module_source_code()
+        prompt = AssertionGenerationPrompt(
+            test_case_source_code=test_case_source_code,
+            module_source_code=module_source_code,
+        )
+        prompt_result = self.query(prompt)
+        return self.extract_python_code_from_llm_output(prompt_result)
+
 
 def get_test_case_chromosomes_from_llm_results(
     llm_query_results: Optional[str],
@@ -430,3 +450,4 @@ def get_test_case_chromosomes_from_llm_results(
         llm_test_case_chromosomes.append(test_case_chromosome)
 
     return llm_test_case_chromosomes
+
