@@ -50,6 +50,10 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     _logger = logging.getLogger(__name__)
 
+    def __init__(self) -> None:  # noqa: D107
+        super().__init__()
+        self.model = OpenAIModel()
+
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._number_of_goals = len(self._test_case_fitness_functions)
@@ -274,8 +278,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
         gao_coverage_map = calculate_gao_coverage_map()
         filtered_gao_coverage_map = filter_gao_by_coverage(gao_coverage_map)
 
-        model = OpenAIModel()
-        llm_query_results = model.call_llm_for_uncovered_targets(
+        llm_query_results = self.model.call_llm_for_uncovered_targets(
             filtered_gao_coverage_map
         )
 
@@ -285,7 +288,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             test_factory=self._test_factory,
             fitness_functions=self._test_case_fitness_functions,
             coverage_functions=self._test_suite_coverage_functions,
-            model=model,
+            model=self.model,
         )
 
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:
