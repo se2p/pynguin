@@ -12,26 +12,35 @@ readme = "README.md"
 repository = "https://github.com/se2p/pynguin"
 documentation = "https://pynguin.readthedocs.io"
 homepage = "https://www.pynguin.eu"
-keywords = ["unit test", "random testing", "search based", "test generation"]
-classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Environment :: Console",
-  "Intended Audience :: Developers",
-  "Intended Audience :: Education",
-  "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: MacOS :: MacOS X",
-  "Operating System :: Microsoft :: Windows",
-  "Operating System :: POSIX :: Linux",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: Implementation :: CPython",
-  "Topic :: Education :: Testing",
-  "Topic :: Software Development :: Testing",
-  "Topic :: Software Development :: Testing :: Unit",
-  "Typing :: Typed",
+keywords = [
+    "unit test",
+    "random testing",
+    "search based",
+    "test generation"
 ]
-packages = [{ include = "pynguin", from = "src" }]
-include = [{ path = "tests", format = "sdist" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Education :: Testing",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Unit",
+    "Typing :: Typed",
+]
+packages = [
+    { include = "pynguin", from = "src" }
+]
+include = [
+    { path = "tests", format = "sdist" }
+]
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
@@ -52,7 +61,7 @@ asciitree = "^0.3.3"
 libcst = "^1.5.1"
 
 [tool.poetry.group.dev.dependencies]
-isort = { extras = ["pyproject"], version = "^5.13.2" }
+isort = {extras = ["pyproject"], version = "^5.13.2"}
 mypy = "^1.13.0"
 pre-commit = "^4.0.1"
 pyupgrade = "^3.19.0"
@@ -90,7 +99,7 @@ exclude_lines = [
   "raise NotImplementedError",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
-  "if typing.TYPE_CHECKING:",
+  "if typing.TYPE_CHECKING:"
 ]
 
 [tool.coverage.html]
@@ -103,7 +112,7 @@ force_single_line = true
 combine_as_imports = true
 lines_between_types = 1
 lines_after_imports = 2
-src_paths = ["src", "tests"]
+src_paths = [ "src", "tests"]
 
 [tool.mypy]
 files = "src"
@@ -111,7 +120,10 @@ mypy_path = "src"
 namespace_packages = true
 explicit_package_bases = true
 show_error_codes = true
-enable_error_code = ["ignore-without-code", "truthy-bool"]
+enable_error_code = [
+  "ignore-without-code",
+  "truthy-bool",
+]
 check_untyped_defs = true
 ignore_errors = false
 ignore_missing_imports = true
@@ -121,7 +133,9 @@ warn_redundant_casts = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+  "tests",
+]
 # A lot of our own classes start with Test so pytest will pick them up during test collection.
 # But they don't actually contains tests, so we set an empty matcher for the class name.
 python_classes = ''
@@ -235,12 +249,12 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-  "D100",   # Missing docstring in public module
-  "D101",   # Missing docstring in public class
-  "D102",   # Missing docstring in public method
-  "D103",   # Missing docstring in public function
-  "D104",   # Missing docstring in public package
-  "PT006",  # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
-  "S101",   # Use of `assert` detected
-  "SLF001", # Private member accessed
+    "D100",   # Missing docstring in public module
+    "D101",   # Missing docstring in public class
+    "D102",   # Missing docstring in public method
+    "D103",   # Missing docstring in public function
+    "D104",   # Missing docstring in public package
+    "PT006",  # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
+    "S101",   # Use of `assert` detected
+    "SLF001", # Private member accessed
 ]
