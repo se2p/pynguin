@@ -20,7 +20,10 @@ def test_progress():
     strategy = DummyAlgorithm()
     stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
-    stopping.before_statement_execution(None, None, None)
+    result = MagicMock()
+    stopping.remote_observer.before_statement_execution(None, None, None)
+    stopping.remote_observer.after_test_case_execution(None, None, result)
+    stopping.after_remote_test_case_execution(None, result)
     strategy.stopping_conditions = [stopping]
     assert strategy.progress() == 0.1
 

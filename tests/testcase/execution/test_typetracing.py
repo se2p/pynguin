@@ -16,7 +16,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import UnionType
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ReturnTypeObserver
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import TypeTracingObserver

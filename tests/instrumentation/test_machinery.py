@@ -9,7 +9,7 @@ import importlib
 import threading
 
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 
 
 def test_hook():

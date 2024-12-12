@@ -33,13 +33,14 @@ from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentati
 from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
 
 if TYPE_CHECKING:
     from types import CodeType
 
     from pynguin.instrumentation.instrumentation import InstrumentationAdapter
-    from pynguin.testcase.execution import ExecutionTracer
 
 
 class InstrumentationLoader(SourceFileLoader):
@@ -49,17 +50,15 @@ class InstrumentationLoader(SourceFileLoader):
         self,
         fullname,
         path,
-        tracer: ExecutionTracer,
         transformer: InstrumentationTransformer,
     ):
         super().__init__(fullname, path)
-        self._tracer = tracer
         self._transformer = transformer
 
     def exec_module(self, module):  # noqa: D102
-        self._tracer.reset()
+        self._transformer.instrumentation_tracer.reset()
         super().exec_module(module)
-        self._tracer.store_import_trace()
+        self._transformer.instrumentation_tracer.store_import_trace()
 
     def get_code(self, fullname) -> CodeType:
         """Add instrumentation instructions to the code of the module.
@@ -78,14 +77,14 @@ class InstrumentationLoader(SourceFileLoader):
 
 
 def build_transformer(
-    tracer: ExecutionTracer,
+    instrumentation_tracer: InstrumentationExecutionTracer,
     coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
     """Build a transformer that applies the configured instrumentation.
 
     Args:
-        tracer: The tracer to use.
+        instrumentation_tracer: The tracer to use.
         coverage_metrics: The coverage metrics to use.
         dynamic_constant_provider: The dynamic constant provider to use.
             When such a provider is passed, we apply the instrumentation for dynamic
@@ -96,16 +95,16 @@ def build_transformer(
     """
     adapters: list[InstrumentationAdapter] = []
     if config.CoverageMetric.BRANCH in coverage_metrics:
-        adapters.append(BranchCoverageInstrumentation(tracer))
+        adapters.append(BranchCoverageInstrumentation(instrumentation_tracer))
     if config.CoverageMetric.LINE in coverage_metrics:
-        adapters.append(LineCoverageInstrumentation(tracer))
+        adapters.append(LineCoverageInstrumentation(instrumentation_tracer))
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        adapters.append(CheckedCoverageInstrumentation(tracer))
+        adapters.append(CheckedCoverageInstrumentation(instrumentation_tracer))
 
     if dynamic_constant_provider is not None:
         adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
 
-    return InstrumentationTransformer(tracer, adapters)
+    return InstrumentationTransformer(instrumentation_tracer, adapters)
 
 
 class InstrumentationFinder(MetaPathFinder):
@@ -122,7 +121,7 @@ class InstrumentationFinder(MetaPathFinder):
         *,
         original_pathfinder,
         module_to_instrument: str,
-        tracer: ExecutionTracer,
+        instrumentation_tracer: InstrumentationExecutionTracer,
         coverage_metrics: set[config.CoverageMetric],
         dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
@@ -131,15 +130,24 @@ class InstrumentationFinder(MetaPathFinder):
         Args:
             original_pathfinder: the original pathfinder that is wrapped.
             module_to_instrument: the name of the module, that should be instrumented.
-            tracer: the execution tracer
+            instrumentation_tracer: the instrumentation execution tracer
             coverage_metrics: the coverage metrics to be used for instrumentation.
             dynamic_constant_provider: Used for dynamic constant seeding
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
-        self._tracer = tracer
+        self._instrumentation_tracer = instrumentation_tracer
         self._coverage_metrics = coverage_metrics
         self._dynamic_constant_provider = dynamic_constant_provider
+
+    @property
+    def instrumentation_tracer(self) -> InstrumentationExecutionTracer:
+        """Get the instrumentation tracer.
+
+        Returns:
+            The instrumentation tracer
+        """
+        return self._instrumentation_tracer
 
     def update_instrumentation_metrics(
         self,
@@ -156,7 +164,7 @@ class InstrumentationFinder(MetaPathFinder):
             coverage_metrics: The new coverage metrics
             dynamic_constant_provider: The dynamic constant provider, if any.
         """
-        self._tracer = tracer
+        self._instrumentation_tracer.tracer = tracer
         self._coverage_metrics = coverage_metrics
         self._dynamic_constant_provider = dynamic_constant_provider
 
@@ -184,9 +192,8 @@ class InstrumentationFinder(MetaPathFinder):
                     spec.loader = InstrumentationLoader(
                         spec.loader.name,
                         spec.loader.path,
-                        self._tracer,
                         build_transformer(
-                            self._tracer,
+                            self._instrumentation_tracer,
                             self._coverage_metrics,
                             self._dynamic_constant_provider,
                         ),
@@ -262,7 +269,7 @@ def install_import_hook(
     hook = InstrumentationFinder(
         original_pathfinder=to_wrap,
         module_to_instrument=module_to_instrument,
-        tracer=tracer,
+        instrumentation_tracer=InstrumentationExecutionTracer(tracer),
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )

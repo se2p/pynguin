@@ -29,7 +29,7 @@ class DummyStopping(StoppingCondition):
 
 def test_nothing_on_after_test_case_execution():
     stopping = DummyStopping()
-    stopping.after_test_case_execution_inside_thread(None, None)
+    stopping.after_remote_test_case_execution(None, None)
     # Nothing really to assert on
 
 
