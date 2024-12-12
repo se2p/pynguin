@@ -485,8 +485,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("DUP_TOP", lineno=lineno),
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -565,8 +565,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -615,8 +615,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -651,8 +651,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         basic_block[0:0] = [
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -728,8 +728,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         entered.extend([
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -752,8 +752,8 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         not_entered.extend([
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
@@ -834,8 +834,8 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         inserted_instructions = [
             ArtificialInstr(
                 "LOAD_CONST",
-                self._instrumentation_tracer,
-                lineno=lineno,  # type: ignore[arg-type]
+                self._instrumentation_tracer,  # type: ignore[arg-type]
+                lineno=lineno,
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
