@@ -68,7 +68,6 @@ from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -267,7 +266,23 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
+
+    # Detect which LLM strategy is used
+    stat.track_output_variable(RuntimeVariable.LLMStrategy, _detect_llm_strategy())
     return executor, test_cluster, wrapped_constant_provider
+
+
+def _detect_llm_strategy() -> str:
+    if config.configuration.large_language_model.hybrid_initial_population:
+        return f"HIP-{config.configuration.large_language_model.llm_test_case_percentage}"
+    if config.configuration.large_language_model.call_llm_on_stall_detection:
+        return "LLMOSA"
+    if config.configuration.large_language_model.call_llm_for_uncovered_targets:
+        return "UIT"
+    if config.configuration.test_case_output.assertion_generation == config.AssertionGenerator.LLM:
+        return "AssertionGenerator"
+    else:
+        return ""
 
 
 def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:

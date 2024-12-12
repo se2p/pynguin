@@ -181,6 +181,10 @@ class RuntimeVariable(str, enum.Enum):
     # they do not increase the resulting checked coverage
     DeletedAssertions = "DeletedAssertions"
 
+    # Which LLM strategy is applied. This is mainly
+    # for final result grouping
+    LLMStrategy = "LLMStrategy"
+
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
