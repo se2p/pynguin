@@ -53,7 +53,7 @@ str_1 = human_0.get_name()""",
         ),
     ],
 )
-def test_generate_mutation_assertions(generator, expected_result):
+def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0914
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
     tracer = ExecutionTracer()
@@ -63,7 +63,9 @@ def test_generate_mutation_assertions(generator, expected_result):
         importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(
             ast.parse(
@@ -82,9 +84,10 @@ def test_generate_mutation_assertions(generator, expected_result):
         suite.add_test_case_chromosome(chromosome)
 
         if generator is ag.MutationAnalysisAssertionGenerator:
-            mutant_generator = mu.FirstOrderMutator(
-                [*mo.standard_operators, *mo.experimental_operators]
-            )
+            mutant_generator = mu.FirstOrderMutator([
+                *mo.standard_operators,
+                *mo.experimental_operators,
+            ])
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
             mutation_tracer = ExecutionTracer()
@@ -99,9 +102,7 @@ def test_generate_mutation_assertions(generator, expected_result):
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(
-            ast.fix_missing_locations(
-                ast.Module(body=visitor.test_case_ast, type_ignores=[])
-            )
+            ast.fix_missing_locations(ast.Module(body=visitor.test_case_ast, type_ignores=[]))
         )
         assert source == expected_result
 
@@ -220,8 +221,7 @@ _MUTANTS = [
         (
             "tests.fixtures.mutation.expected",
             "def test_case_0():\n    int_0 = 2\n    var_0 = module_0.bar(int_0)",
-            "int_0 = 2\nwith pytest.raises(ValueError):\n    "
-            "var_0 = module_0.bar(int_0)",
+            "int_0 = 2\nwith pytest.raises(ValueError):\n    var_0 = module_0.bar(int_0)",
             [
                 "def bar(foo):\n    if not foo == 2:\n        raise ValueError()",
                 "def bar(foo):\n    if foo == 3:\n        raise ValueError()",
@@ -273,7 +273,7 @@ _MUTANTS = [
         ),
     ],
 )
-def test_mutation_analysis_integration_full(  # noqa: PLR0917
+def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
     module,
     test_case_str,
     test_case_str_with_assertions,
@@ -291,7 +291,9 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
         importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
-            cluster, False, EmptyConstantProvider()  # noqa: FBT003
+            cluster,
+            False,  # noqa: FBT003
+            EmptyConstantProvider(),
         )
         transformer.visit(ast.parse(test_case_str))
         test_case = transformer.testcases[0]
@@ -300,9 +302,10 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
         suite = tsc.TestSuiteChromosome()
         suite.add_test_case_chromosome(chromosome)
 
-        mutant_generator = mu.FirstOrderMutator(
-            [*mo.standard_operators, *mo.experimental_operators]
-        )
+        mutant_generator = mu.FirstOrderMutator([
+            *mo.standard_operators,
+            *mo.experimental_operators,
+        ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
         mutation_tracer = ExecutionTracer()
@@ -321,18 +324,14 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0917
         assert kills == killed
         assert timeouts == timeout
         # Test for disjoint
-        assert len(kills | survived | timeouts) == len(kills) + len(timeouts) + len(
-            survived
-        )
+        assert len(kills | survived | timeouts) == len(kills) + len(timeouts) + len(survived)
 
         assert summary.get_metrics() == metrics
         assert mutation_controller._testing_created_mutants == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(
-            ast.fix_missing_locations(
-                ast.Module(body=visitor.test_case_ast, type_ignores=[])
-            )
+            ast.fix_missing_locations(ast.Module(body=visitor.test_case_ast, type_ignores=[]))
         )
         assert source == test_case_str_with_assertions
         for thread in threading.enumerate():

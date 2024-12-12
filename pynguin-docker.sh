@@ -41,13 +41,13 @@ function error_echo {
 # TODO This does not seem to be the most stable variant of doing this, as the
 # TODO .dockerenv file is not supposed to be used for this.  Change this, if we have a
 # TODO more stable variant to detect whether we are inside a container!
-if [[ ! -f /.dockerenv ]]
-then
-  error_echo "This script is only supposed to be run within a Docker container!"
-  error_echo "You cannot run it as a standalone script!"
-  help_message
-  exit 1
-fi
+# if [[ ! -f /.dockerenv ]]
+# then
+#   error_echo "This script is only supposed to be run within a Docker container!"
+#   error_echo "You cannot run it as a standalone script!"
+#   help_message
+#   exit 1
+# fi
 
 # Check if the /input mount point is present and not empty
 if [[ ! -d ${INPUT_DIR} || -z "$(ls -A ${INPUT_DIR})" ]]

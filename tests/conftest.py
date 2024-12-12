@@ -26,7 +26,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG
@@ -52,7 +52,7 @@ from tests.fixtures.linecoverage.plus import Plus
 
 
 @pytest.fixture(autouse=True)
-def reset_configuration():  # noqa: PT004
+def reset_configuration():
     """Automatically reset the configuration singleton."""
     config.configuration = config.Configuration(
         algorithm=config.Algorithm.RANDOM,
@@ -66,17 +66,17 @@ def reset_configuration():  # noqa: PT004
     config.configuration.test_creation.use_random_object_for_call = 0.0
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_case_mock():
     return MagicMock(tc.TestCase)
 
 
-@pytest.fixture()
+@pytest.fixture
 def default_test_case():
     return dtc.DefaultTestCase(ModuleTestCluster(0))
 
 
-@pytest.fixture()
+@pytest.fixture
 def variable_reference_mock():
     return MagicMock(vr.Reference)
 
@@ -98,11 +98,7 @@ def provide_callables_from_fixtures_modules(
     provide_imported_modules,
 ) -> dict[str, Callable]:
     def inspect_member(member):
-        return (
-            inspect.isclass(member)
-            or inspect.ismethod(member)
-            or inspect.isfunction(member)
-        )
+        return inspect.isclass(member) or inspect.ismethod(member) or inspect.isfunction(member)
 
     members = []
     for module in provide_imported_modules.values():
@@ -111,7 +107,7 @@ def provide_callables_from_fixtures_modules(
     return dict(members)
 
 
-@pytest.fixture()
+@pytest.fixture
 def constructor_mock(type_system) -> GenericConstructor:
     return GenericConstructor(
         owner=TypeInfo(SomeType),
@@ -132,7 +128,7 @@ def constructor_mock(type_system) -> GenericConstructor:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def method_mock(type_system) -> GenericMethod:
     return GenericMethod(
         owner=TypeInfo(SomeType),
@@ -154,7 +150,7 @@ def method_mock(type_system) -> GenericMethod:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def function_mock(type_system) -> GenericFunction:
     return GenericFunction(
         function=simple_function,
@@ -175,19 +171,17 @@ def function_mock(type_system) -> GenericFunction:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def field_mock() -> GenericField:
-    return GenericField(
-        owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float))
-    )
+    return GenericField(owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float)))
 
 
-@pytest.fixture()
+@pytest.fixture
 def type_system():
     return TypeSystem()
 
 
-@pytest.fixture()
+@pytest.fixture
 def short_test_case(constructor_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     int_stmt = stmt.IntPrimitiveStatement(test_case, 5)
@@ -200,7 +194,7 @@ def short_test_case(constructor_mock):
 
 
 @pytest.fixture(autouse=True)
-def reset_statistics_tracker():  # noqa: PT004
+def reset_statistics_tracker():
     stat.reset()
 
 
@@ -208,21 +202,19 @@ def reset_statistics_tracker():  # noqa: PT004
 def conditional_jump_example_bytecode() -> Bytecode:
     label_else = Label()
     label_print = Label()
-    return Bytecode(
-        [
-            Instr("LOAD_NAME", "print"),
-            Instr("LOAD_NAME", "test"),
-            Instr("POP_JUMP_IF_FALSE", label_else),
-            Instr("LOAD_CONST", "yes"),
-            Instr("JUMP_FORWARD", label_print),
-            label_else,
-            Instr("LOAD_CONST", "no"),
-            label_print,
-            Instr("CALL_FUNCTION", 1),
-            Instr("LOAD_CONST", None),
-            Instr("RETURN_VALUE"),
-        ]
-    )
+    return Bytecode([
+        Instr("LOAD_NAME", "print"),
+        Instr("LOAD_NAME", "test"),
+        Instr("POP_JUMP_IF_FALSE", label_else),
+        Instr("LOAD_CONST", "yes"),
+        Instr("JUMP_FORWARD", label_print),
+        label_else,
+        Instr("LOAD_CONST", "no"),
+        label_print,
+        Instr("CALL_FUNCTION", 1),
+        Instr("LOAD_CONST", None),
+        Instr("RETURN_VALUE"),
+    ])
 
 
 @pytest.fixture(scope="module")
@@ -317,7 +309,7 @@ def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     return graph
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_test_with_object_assertion() -> tc.TestCase:
     """Generated testcase.
 
@@ -328,7 +320,9 @@ def plus_test_with_object_assertion() -> tc.TestCase:
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -346,7 +340,7 @@ def plus_test_with_object_assertion() -> tc.TestCase:
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_test_with_float_assertion() -> tc.TestCase:
     """Generated testcase.
 
@@ -357,7 +351,9 @@ def plus_test_with_float_assertion() -> tc.TestCase:
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -369,13 +365,11 @@ def plus_test_with_float_assertion() -> tc.TestCase:
         )
     )
     test_case = transformer.testcases[0]
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
+    test_case.statements[-1].add_assertion(ass.FloatAssertion(test_case.statements[-1].ret_val, 46))
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_test_with_type_name_assertion() -> tc.TestCase:
     """Generated testcase.
 
@@ -386,7 +380,9 @@ def plus_test_with_type_name_assertion() -> tc.TestCase:
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -405,7 +401,7 @@ def plus_test_with_type_name_assertion() -> tc.TestCase:
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def exception_test_with_except_assertion() -> tc.TestCase:
     """Generated testcase.
 
@@ -415,7 +411,9 @@ def exception_test_with_except_assertion() -> tc.TestCase:
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.exception")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -436,7 +434,7 @@ def exception_test_with_except_assertion() -> tc.TestCase:
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def list_test_with_len_assertion() -> tc.TestCase:
     """Generated testcase.
 
@@ -445,7 +443,9 @@ def list_test_with_len_assertion() -> tc.TestCase:
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.list")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -459,9 +459,7 @@ def list_test_with_len_assertion() -> tc.TestCase:
         ass.CollectionLengthAssertion(
             vr.FieldReference(
                 test_case.statements[-1].ret_val,
-                gao.GenericField(
-                    TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))
-                ),
+                gao.GenericField(TypeInfo(ListTest), "attribute", Instance(TypeInfo(list))),
             ),
             3,
         )
@@ -469,7 +467,7 @@ def list_test_with_len_assertion() -> tc.TestCase:
     return test_case
 
 
-@pytest.fixture()
+@pytest.fixture
 def plus_test_with_multiple_assertions():
     """Generated testcase.
 
@@ -482,7 +480,9 @@ def plus_test_with_multiple_assertions():
     """
     cluster = generate_test_cluster("tests.fixtures.linecoverage.plus")
     transformer = AstToTestCaseTransformer(
-        cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(
         ast.parse(
@@ -495,19 +495,13 @@ def plus_test_with_multiple_assertions():
     )
     test_case = transformer.testcases[0]
 
-    test_case.statements[0].add_assertion(
-        ass.ObjectAssertion(test_case.statements[0].ret_val, 42)
-    )
-    test_case.statements[-1].add_assertion(
-        ass.FloatAssertion(test_case.statements[-1].ret_val, 46)
-    )
+    test_case.statements[0].add_assertion(ass.ObjectAssertion(test_case.statements[0].ret_val, 42))
+    test_case.statements[-1].add_assertion(ass.FloatAssertion(test_case.statements[-1].ret_val, 46))
     test_case.statements[-1].add_assertion(
         ass.ObjectAssertion(
             vr.FieldReference(
                 test_case.statements[1].ret_val,
-                gao.GenericField(
-                    TypeInfo(Plus), "calculations", Instance(TypeInfo(int))
-                ),
+                gao.GenericField(TypeInfo(Plus), "calculations", Instance(TypeInfo(int))),
             ),
             1,
         )

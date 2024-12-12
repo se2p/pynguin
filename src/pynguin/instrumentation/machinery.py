@@ -8,6 +8,7 @@
 
 Inspired by https://github.com/agronholm/typeguard/blob/master/typeguard/importhook.py.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -19,7 +20,6 @@ from importlib.abc import MetaPathFinder
 from importlib.machinery import ModuleSpec
 from importlib.machinery import SourceFileLoader
 from inspect import isclass
-from types import CodeType
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -38,6 +38,8 @@ from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
 
 if TYPE_CHECKING:
+    from types import CodeType
+
     from pynguin.instrumentation.instrumentation import InstrumentationAdapter
 
 
@@ -69,7 +71,7 @@ class InstrumentationLoader(SourceFileLoader):
         Returns:
             The modules code blocks
         """
-        to_instrument = cast(CodeType, super().get_code(fullname))
+        to_instrument = cast("CodeType", super().get_code(fullname))
         assert to_instrument is not None, "Failed to get code object of module."
         return self._transformer.instrument_module(to_instrument)
 
@@ -184,9 +186,7 @@ class InstrumentationFinder(MetaPathFinder):
             An optional ModuleSpec
         """
         if self._should_instrument(fullname):
-            spec: ModuleSpec = self._original_pathfinder.find_spec(
-                fullname, path, target
-            )
+            spec: ModuleSpec = self._original_pathfinder.find_spec(fullname, path, target)
             if spec is not None:
                 if isinstance(spec.loader, FileLoader):
                     spec.loader = InstrumentationLoader(
@@ -200,8 +200,7 @@ class InstrumentationFinder(MetaPathFinder):
                     )
                     return spec
                 self._logger.error(
-                    "Loader for module under test is not a FileLoader,"
-                    " can not instrument."
+                    "Loader for module under test is not a FileLoader, can not instrument."
                 )
 
         return None
@@ -260,11 +259,7 @@ def install_import_hook(
 
     to_wrap = None
     for finder in sys.meta_path:
-        if (
-            isclass(finder)
-            and finder.__name__ == "PathFinder"
-            and hasattr(finder, "find_spec")
-        ):
+        if isclass(finder) and finder.__name__ == "PathFinder" and hasattr(finder, "find_spec"):
             to_wrap = finder
             break
 

@@ -11,11 +11,9 @@ import pytest
 from pynguin.analyses.constants import collect_static_constants
 
 
-@pytest.fixture()
+@pytest.fixture
 def fixture_dir():
-    return (
-        Path(__file__).parent / ".." / "fixtures" / "seeding" / "staticconstantseeding"
-    )
+    return Path(__file__).parent / ".." / "fixtures" / "seeding" / "staticconstantseeding"
 
 
 @pytest.mark.parametrize(

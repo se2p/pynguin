@@ -16,7 +16,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome() -> tsc.TestSuiteChromosome:
     return tsc.TestSuiteChromosome()
 

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Implements simple constant seeding strategies."""
+
 from __future__ import annotations
 
 import ast
@@ -23,7 +24,7 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
@@ -96,16 +97,12 @@ class InitialPopulationProvider:
         try:
             if len(result) > 0:
                 logger.debug("Module name found: %s", result[0])
-                stat.track_output_variable(
-                    RuntimeVariable.SuitableTestModule, value=True
-                )
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, value=True)
                 with result[0].open(mode="r", encoding="utf-8") as module_file:
                     return ast.parse(module_file.read())
             else:
                 logger.debug("No suitable test module found.")
-                stat.track_output_variable(
-                    RuntimeVariable.SuitableTestModule, value=False
-                )
+                stat.track_output_variable(RuntimeVariable.SuitableTestModule, value=False)
                 return None
         except BaseException as exception:
             logger.exception("Cannot read module: %s", exception)
@@ -131,9 +128,7 @@ class InitialPopulationProvider:
         transformer.visit(tree)
         self._testcases = transformer.testcases
         stat.track_output_variable(RuntimeVariable.FoundTestCases, len(self._testcases))
-        stat.track_output_variable(
-            RuntimeVariable.CollectedTestCases, len(self._testcases)
-        )
+        stat.track_output_variable(RuntimeVariable.CollectedTestCases, len(self._testcases))
         self._mutate_testcases_initially()
 
     def _mutate_testcases_initially(self):
@@ -143,7 +138,7 @@ class InitialPopulationProvider:
                 testcase_wrapper = tcc.TestCaseChromosome(testcase, self._test_factory)
                 testcase_wrapper.mutate()
                 if not testcase_wrapper.test_case.statements:
-                    self._testcases.remove(testcase)
+                    self._testcases.remove(testcase)  # noqa: B909
 
     def random_testcase(self) -> tc.TestCase:
         """Provides a random seeded test case.
@@ -189,13 +184,9 @@ def create_assign_stmt(
         o for o in objs_under_test if isinstance(o, GenericCallableAccessibleObject)
     }
     if isinstance(value, ast.Constant):
-        new_stmt = create_stmt_from_constant(
-            value, testcase, constant_provider=constant_provider
-        )
+        new_stmt = create_stmt_from_constant(value, testcase, constant_provider=constant_provider)
     elif isinstance(value, ast.UnaryOp):
-        new_stmt = create_stmt_from_unaryop(
-            value, testcase, constant_provider=constant_provider
-        )
+        new_stmt = create_stmt_from_unaryop(value, testcase, constant_provider=constant_provider)
     elif isinstance(value, ast.Call):
         new_stmt = create_stmt_from_call(
             value,
@@ -313,9 +304,7 @@ def create_variable_references_from_call_args(
             }
         ) and isinstance(call_arg, ast.Name):
             reference = ref_dict.get(call_arg.id)
-        elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(
-            call_arg, ast.Starred
-        ):
+        elif param.kind == inspect.Parameter.VAR_POSITIONAL and isinstance(call_arg, ast.Starred):
             reference = ref_dict.get(call_arg.value.id)  # type: ignore[attr-defined]
         else:
             return None
@@ -329,9 +318,7 @@ def create_variable_references_from_call_args(
         keyword = call_keyword.arg
         if keyword is None:
             # **kwargs has to be the last parameter?
-            keyword = list(gen_callable.inferred_signature.signature.parameters.keys())[
-                -1
-            ]
+            keyword = list(gen_callable.inferred_signature.signature.parameters.keys())[-1]
             if (
                 gen_callable.inferred_signature.signature.parameters[keyword].kind
                 != inspect.Parameter.VAR_KEYWORD
@@ -367,21 +354,13 @@ def create_stmt_from_constant(
     if isinstance(val, bool):
         return stmt.BooleanPrimitiveStatement(testcase, val)
     if isinstance(val, int):
-        return stmt.IntPrimitiveStatement(
-            testcase, val, constant_provider=constant_provider
-        )
+        return stmt.IntPrimitiveStatement(testcase, val, constant_provider=constant_provider)
     if isinstance(val, float):
-        return stmt.FloatPrimitiveStatement(
-            testcase, val, constant_provider=constant_provider
-        )
+        return stmt.FloatPrimitiveStatement(testcase, val, constant_provider=constant_provider)
     if isinstance(val, str):
-        return stmt.StringPrimitiveStatement(
-            testcase, val, constant_provider=constant_provider
-        )
+        return stmt.StringPrimitiveStatement(testcase, val, constant_provider=constant_provider)
     if isinstance(val, bytes):
-        return stmt.BytesPrimitiveStatement(
-            testcase, val, constant_provider=constant_provider
-        )
+        return stmt.BytesPrimitiveStatement(testcase, val, constant_provider=constant_provider)
     logger.info("Could not find case for constant while handling assign statement.")
     return None
 
@@ -407,12 +386,8 @@ def create_stmt_from_unaryop(
             testcase, (-1) * val, constant_provider=constant_provider
         )
     if isinstance(val, int):
-        return stmt.IntPrimitiveStatement(
-            testcase, (-1) * val, constant_provider=constant_provider
-        )
-    logger.info(
-        "Could not find case for unary operator while handling assign statement."
-    )
+        return stmt.IntPrimitiveStatement(testcase, (-1) * val, constant_provider=constant_provider)
+    logger.info("Could not find case for unary operator while handling assign statement.")
     return None
 
 
@@ -537,13 +512,16 @@ def assemble_stmt_from_gen_callable(
         if not isinstance(keyword, ast.keyword):
             return None
     var_refs = create_variable_references_from_call_args(
-        call.args, call.keywords, gen_callable, ref_dict  # type: ignore[arg-type]
+        call.args,  # type: ignore[arg-type]
+        call.keywords,
+        gen_callable,
+        ref_dict,
     )
     if var_refs is None:
         return None
     if isinstance(gen_callable, GenericFunction):
         return stmt.FunctionStatement(
-            testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
+            testcase, cast("GenericCallableAccessibleObject", gen_callable), var_refs
         )
     if isinstance(gen_callable, GenericMethod):
         return stmt.MethodStatement(
@@ -554,7 +532,7 @@ def assemble_stmt_from_gen_callable(
         )
     if isinstance(gen_callable, GenericConstructor):
         return stmt.ConstructorStatement(
-            testcase, cast(GenericCallableAccessibleObject, gen_callable), var_refs
+            testcase, cast("GenericCallableAccessibleObject", gen_callable), var_refs
         )
     return None
 
@@ -584,9 +562,8 @@ def create_stmt_from_collection(
     Returns:
         The corresponding list statement.
     """
-    coll_elems: None | (
-        list[vr.VariableReference]
-        | list[tuple[vr.VariableReference, vr.VariableReference]]
+    coll_elems: None | (  # noqa: RUF036
+        list[vr.VariableReference] | list[tuple[vr.VariableReference, vr.VariableReference]]
     )
     if isinstance(coll_node, ast.Dict):
         keys = create_elements(
@@ -633,9 +610,7 @@ def create_stmt_from_collection(
                 testcase.test_cluster.type_system.to_type_info(set),
                 (get_collection_type(coll_elems),),
             )
-    return create_specific_collection_stmt(
-        testcase, coll_node, coll_elems_type, coll_elems
-    )
+    return create_specific_collection_stmt(testcase, coll_node, coll_elems_type, coll_elems)
 
 
 def create_elements(  # noqa: C901
@@ -736,7 +711,7 @@ def create_specific_collection_stmt(
     coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
     coll_elems_type: ProperType,
     coll_elems: list[Any],
-) -> None | (
+) -> None | (  # noqa: RUF036
     stmt.ListStatement | stmt.SetStatement | stmt.DictStatement | stmt.TupleStatement
 ):
     """Creates the corresponding collection statement from an ast node.
@@ -796,7 +771,7 @@ def try_generating_specific_function(
         try:
             set_node = ast.Set(
                 elts=call.args,
-                ctx=ast.Load(),
+                ctx=ast.Load(),  # type: ignore[call-arg]
             )
         except AttributeError:
             return None
@@ -839,7 +814,7 @@ def try_generating_specific_function(
         )
     if func_id == "dict":
         try:
-            dict_node = ast.Dict(
+            dict_node = ast.Dict(  # type: ignore[call-arg]
                 keys=(
                     call.args[0].keys if call.args else []  # type: ignore[attr-defined]
                 ),

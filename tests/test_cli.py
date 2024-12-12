@@ -8,6 +8,7 @@ import argparse
 import importlib
 import logging
 import os
+import re
 
 from pathlib import Path
 from unittest import mock
@@ -66,7 +67,7 @@ def test__create_argument_parser():
 def test__setup_logging_single_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    _setup_logging(1, False)  # noqa: FBT003
+    _setup_logging(verbosity=1, no_rich=False, log_file=None)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     assert logger.level == logging.INFO
@@ -77,7 +78,7 @@ def test__setup_logging_single_verbose_without_log_file():
 def test__setup_logging_double_verbose_without_log_file():
     logging.shutdown()
     importlib.reload(logging)
-    _setup_logging(2, False)  # noqa: FBT003
+    _setup_logging(verbosity=2, no_rich=False, log_file=None)
     logger = logging.getLogger("")
     assert len(logger.handlers) == 1
     assert logger.level == logging.DEBUG
@@ -85,12 +86,27 @@ def test__setup_logging_double_verbose_without_log_file():
     importlib.reload(logging)
 
 
+def test__setup_logging_log_file(tmp_path: Path):
+    log_file = tmp_path / "pynguin.log"
+    logging.shutdown()
+    importlib.reload(logging)
+    _setup_logging(verbosity=1, no_rich=False, log_file=log_file)
+    logger = logging.getLogger("")
+    assert len(logger.handlers) == 1
+    logger.info("Test entry")
+    assert re.match(
+        r"\[[0-9]{2}:[0-9]{2}:[0-9]{2}\]\s\[INFO\]\(.+:"
+        r"test__setup_logging_log_file:[0-9]+\):\sTest\sentry",
+        log_file.read_text(),
+    )
+    logging.shutdown()
+    importlib.reload(logging)
+
+
 @pytest.mark.parametrize(
     "arguments, expected",
     [
-        pytest.param(
-            ["--foo", "bar", "--bar", "foo"], ["--foo", "bar", "--bar", "foo"]
-        ),
+        pytest.param(["--foo", "bar", "--bar", "foo"], ["--foo", "bar", "--bar", "foo"]),
         pytest.param(
             ["--foo", "bar", "--output_variables", "foo,bar,baz", "--bar", "foo"],
             ["--foo", "bar", "--output_variables", "foo", "bar", "baz", "--bar", "foo"],
@@ -240,19 +256,17 @@ def test_load_configuration_from_file(tmp_path):
         config_file /= "tests"  # pragma: no cover
     config_file = config_file / "fixtures" / "test.conf"
     parser = _create_argument_parser()
-    parsed = parser.parse_args(
-        [
-            f"@{config_file}",
-            "--module_name",
-            "hurz",
-            "--project_path",
-            str(tmp_path),
-            "--output_path",
-            str(tmp_path),
-            "--maximum_search_time",
-            "50",
-        ]
-    )
+    parsed = parser.parse_args([
+        f"@{config_file}",
+        "--module_name",
+        "hurz",
+        "--project_path",
+        str(tmp_path),
+        "--output_path",
+        str(tmp_path),
+        "--maximum_search_time",
+        "50",
+    ])
     configuration = parsed.config
     expected = config.Configuration(
         algorithm=config.Algorithm.MOSA,

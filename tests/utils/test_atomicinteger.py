@@ -9,12 +9,12 @@ import pytest
 from pynguin.utils.atomicinteger import AtomicInteger
 
 
-@pytest.fixture()
+@pytest.fixture
 def atomic_integer_null():
     return AtomicInteger()
 
 
-@pytest.fixture()
+@pytest.fixture
 def atomic_integer_nonnull():
     return AtomicInteger(value=42)
 

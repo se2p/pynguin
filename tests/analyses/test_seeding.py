@@ -49,7 +49,9 @@ def test_case_0():
     )
     test_cluster = generate_test_cluster("tests.fixtures.grammar.parameters")
     transformer = AstToTestCaseTransformer(
-        test_cluster, False, EmptyConstantProvider()  # noqa: FBT003
+        test_cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
     )
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"

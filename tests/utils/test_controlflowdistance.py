@@ -58,15 +58,9 @@ def test_lt_other_type(control_flow_distance):
         pytest.param(2, 1, 1, 2, False),
     ],
 )
-def test_lt(
-    approach_level_1, branch_distance_1, approach_level_2, branch_distance_2, result
-):
-    cfd_1 = ControlFlowDistance(
-        approach_level=approach_level_1, branch_distance=branch_distance_1
-    )
-    cfd_2 = ControlFlowDistance(
-        approach_level=approach_level_2, branch_distance=branch_distance_2
-    )
+def test_lt(approach_level_1, branch_distance_1, approach_level_2, branch_distance_2, result):
+    cfd_1 = ControlFlowDistance(approach_level=approach_level_1, branch_distance=branch_distance_1)
+    cfd_2 = ControlFlowDistance(approach_level=approach_level_2, branch_distance=branch_distance_2)
     assert (cfd_1 < cfd_2) == result
 
 
@@ -114,22 +108,16 @@ def test_get_resulting_branch_fitness(level, distance, control_flow_distance):
     control_flow_distance.approach_level = level
     control_flow_distance.branch_distance = distance
 
-    expected = (
-        level + distance / (1.0 + distance) if not math.isinf(distance) else level + 1.0
-    )
+    expected = level + distance / (1.0 + distance) if not math.isinf(distance) else level + 1.0
 
-    assert (
-        pytest.approx(control_flow_distance.get_resulting_branch_fitness()) == expected
-    )
+    assert pytest.approx(control_flow_distance.get_resulting_branch_fitness()) == expected
 
 
 @pytest.mark.parametrize(
     "executed_code_objects, approach_level",
     [pytest.param([0, 1], 0), pytest.param([1], 1)],
 )
-def test_calculate_control_flow_distance_for_root(
-    executed_code_objects, approach_level
-):
+def test_calculate_control_flow_distance_for_root(executed_code_objects, approach_level):
     execution_result = MagicMock(ExecutionResult)
     execution_trace = MagicMock(ExecutionTrace)
     execution_trace.executed_code_objects = executed_code_objects
@@ -139,6 +127,4 @@ def test_calculate_control_flow_distance_for_root(
     tracer.register_code_object(MagicMock())
 
     distance = get_root_control_flow_distance(execution_result, 0, tracer)
-    assert distance == ControlFlowDistance(
-        approach_level=approach_level, branch_distance=0.0
-    )
+    assert distance == ControlFlowDistance(approach_level=approach_level, branch_distance=0.0)

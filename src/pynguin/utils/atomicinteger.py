@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an atomic integer implementation."""
+
 import threading
 
 

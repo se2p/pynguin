@@ -298,9 +298,9 @@ POP_JUMP_IF_FALSE ProgramGraphNode";
 )
 def test_all_control_flow(expected):
     cfg = CFG.from_bytecode(Bytecode.from_code(control_flow_labelling.__code__))
-    assert bytes(cfg.dot, "utf-8").decode("unicode_escape") == bytes(
-        expected, "utf-8"
-    ).decode("unicode_escape")
+    assert bytes(cfg.dot, "utf-8").decode("unicode_escape") == bytes(expected, "utf-8").decode(
+        "unicode_escape"
+    )
 
 
 def test_integration_copy_cfg(conditional_jump_example_bytecode):

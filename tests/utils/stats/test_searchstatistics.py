@@ -12,7 +12,7 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.statistics.statisticsbackend import ConsoleStatisticsBackend
@@ -20,12 +20,12 @@ from pynguin.utils.statistics.statisticsbackend import CSVStatisticsBackend
 from pynguin.utils.statistics.statisticsbackend import OutputVariable
 
 
-@pytest.fixture()
+@pytest.fixture
 def search_statistics():
     return stat._SearchStatistics()
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome():
     chrom = tsc.TestSuiteChromosome()
     fitness_func = MagicMock(ff.FitnessFunction)
@@ -39,7 +39,7 @@ def chromosome():
     return chrom
 
 
-@pytest.fixture()
+@pytest.fixture
 def chromosome_mock():
     return MagicMock(chrom.Chromosome)
 
@@ -80,9 +80,7 @@ def test_write_statistics_no_individual(search_statistics):
 
 
 def test_write_statistics_with_individual(capsys, chromosome):
-    config.configuration.statistics_output.statistics_backend = (
-        config.StatisticsBackend.CONSOLE
-    )
+    config.configuration.statistics_output.statistics_backend = config.StatisticsBackend.CONSOLE
     statistics = stat._SearchStatistics()
     statistics.current_individual(chromosome)
     result = statistics.write_statistics()
@@ -104,12 +102,8 @@ def test_get_output_variables(chromosome, search_statistics):
     search_statistics.set_output_variable_for_runtime_variable(
         RuntimeVariable.CoverageTimeline, 0.25
     )
-    search_statistics.set_output_variable_for_runtime_variable(
-        RuntimeVariable.Coverage, 0.75
-    )
-    search_statistics.set_output_variable_for_runtime_variable(
-        RuntimeVariable.TargetModule, "foo"
-    )
+    search_statistics.set_output_variable_for_runtime_variable(RuntimeVariable.Coverage, 0.75)
+    search_statistics.set_output_variable_for_runtime_variable(RuntimeVariable.TargetModule, "foo")
     variables = search_statistics._get_output_variables(chromosome, skip_missing=True)
     assert variables[RuntimeVariable.Coverage.name].value == 0.75
     assert variables[RuntimeVariable.Length.name].value == 0

@@ -58,7 +58,7 @@ def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
 
 
-@pytest.fixture()
+@pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster(linenos=-1)
 
@@ -105,9 +105,7 @@ def test_analyse_module_dependencies(parsed_module_complex_dependencies):
 
 def test_add_generator_primitive(module_test_cluster):
     generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(int)
-    )
+    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(int)
     module_test_cluster.add_generator(generator)
     assert module_test_cluster.get_generators_for(
         module_test_cluster.type_system.convert_type_hint(int)
@@ -116,8 +114,8 @@ def test_add_generator_primitive(module_test_cluster):
 
 def test_add_generator(module_test_cluster):
     generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator)
     assert module_test_cluster.get_generators_for(
@@ -127,13 +125,13 @@ def test_add_generator(module_test_cluster):
 
 def test_add_generator_two(module_test_cluster):
     generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator)
     generator_2 = MagicMock(GenericMethod)
-    generator_2.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator_2.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator_2)
     assert module_test_cluster.get_generators_for(
@@ -151,8 +149,8 @@ def test_add_accessible_object_under_test(module_test_cluster):
 
 def test_add_modifier(module_test_cluster):
     modifier = MagicMock(GenericMethod)
-    modifier.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    modifier.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_modifier(
         module_test_cluster.type_system.to_type_info(MagicMock), modifier
@@ -165,14 +163,10 @@ def test_add_modifier(module_test_cluster):
 def test_add_modifier_two(module_test_cluster):
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
-    module_test_cluster.add_modifier(
-        module_test_cluster.type_system.to_type_info(int), modifier
-    )
+    module_test_cluster.add_modifier(module_test_cluster.type_system.to_type_info(int), modifier)
     modifier2 = MagicMock(GenericMethod)
     modifier2.generated_type.return_value = MagicMock
-    module_test_cluster.add_modifier(
-        module_test_cluster.type_system.to_type_info(int), modifier2
-    )
+    module_test_cluster.add_modifier(module_test_cluster.type_system.to_type_info(int), modifier2)
     assert module_test_cluster.get_modifiers_for(
         module_test_cluster.type_system.convert_type_hint(int)
     ) == OrderedSet([modifier, modifier2])
@@ -181,14 +175,10 @@ def test_add_modifier_two(module_test_cluster):
 def test_get_random_modifier(module_test_cluster):
     modifier = MagicMock(GenericMethod)
     modifier.generated_type.return_value = MagicMock
-    module_test_cluster.add_modifier(
-        module_test_cluster.type_system.to_type_info(int), modifier
-    )
+    module_test_cluster.add_modifier(module_test_cluster.type_system.to_type_info(int), modifier)
     modifier2 = MagicMock(GenericMethod)
     modifier2.generated_type.return_value = MagicMock
-    module_test_cluster.add_modifier(
-        module_test_cluster.type_system.to_type_info(int), modifier2
-    )
+    module_test_cluster.add_modifier(module_test_cluster.type_system.to_type_info(int), modifier2)
     assert module_test_cluster.get_random_call_for(
         module_test_cluster.type_system.convert_type_hint(int)
     ) in {modifier, modifier2}
@@ -237,8 +227,8 @@ def test_select_concrete_type_union_unary(type_, result, module_test_cluster):
 
 def test_select_concrete_type_any(module_test_cluster):
     generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator)
     assert (
@@ -257,8 +247,8 @@ def test_get_all_generatable_types_only_builtin(module_test_cluster):
 
 def test_get_all_generatable_types(module_test_cluster):
     generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator)
     expected = {
@@ -318,14 +308,8 @@ def test_nothing_included_multiple_times():
 
 def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
-    assert (
-        len(cluster.get_generators_for(cluster.type_system.convert_type_hint(int))[0])
-        == 0
-    )
-    assert (
-        len(cluster.get_generators_for(cluster.type_system.convert_type_hint(float))[0])
-        == 0
-    )
+    assert len(cluster.get_generators_for(cluster.type_system.convert_type_hint(int))[0]) == 0
+    assert len(cluster.get_generators_for(cluster.type_system.convert_type_hint(float))[0]) == 0
     assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1, "object": 1}
     assert cluster.num_accessible_objects_under_test() == 4
 
@@ -350,14 +334,10 @@ def test_inheritance_generator():
     from tests.fixtures.cluster.inheritance import Bar  # noqa: PLC0415
     from tests.fixtures.cluster.inheritance import Foo  # noqa: PLC0415
 
-    res_foo, only_any = cluster.get_generators_for(
-        cluster.type_system.convert_type_hint(Foo)
-    )
+    res_foo, only_any = cluster.get_generators_for(cluster.type_system.convert_type_hint(Foo))
     assert len(res_foo) == 2
     assert not only_any
-    res_bar, only_any = cluster.get_generators_for(
-        cluster.type_system.convert_type_hint(Bar)
-    )
+    res_bar, only_any = cluster.get_generators_for(cluster.type_system.convert_type_hint(Bar))
     assert len(res_bar) == 1
     assert not only_any
 
@@ -382,8 +362,8 @@ def test_only_any_generator_3(module_test_cluster):
     generator.generated_type.return_value = ANY
     module_test_cluster.add_generator(generator)
     generator2 = MagicMock(GenericMethod)
-    generator2.generated_type.return_value = (
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator2.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
+        MagicMock
     )
     module_test_cluster.add_generator(generator2)
     assert module_test_cluster.get_generators_for(
@@ -396,12 +376,8 @@ def test_inheritance_modifier():
     from tests.fixtures.cluster.inheritance import Bar  # noqa: PLC0415
     from tests.fixtures.cluster.inheritance import Foo  # noqa: PLC0415
 
-    assert (
-        len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Bar))) == 2
-    )
-    assert (
-        len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Foo))) == 1
-    )
+    assert len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Bar))) == 2
+    assert len(cluster.get_modifiers_for(cluster.type_system.convert_type_hint(Foo))) == 1
 
 
 def test_modifier():
@@ -428,15 +404,11 @@ def test_resolve_optional():
 def test_private_method_not_added():
     cluster = generate_test_cluster("tests.fixtures.examples.private_methods")
     assert len(cluster.accessible_objects_under_test) == 1
-    assert isinstance(
-        next(iter(cluster.accessible_objects_under_test)), GenericConstructor
-    )
+    assert isinstance(next(iter(cluster.accessible_objects_under_test)), GenericConstructor)
 
 
 def test_overridden_inherited_methods():
-    cluster = generate_test_cluster(
-        "tests.fixtures.cluster.overridden_inherited_methods"
-    )
+    cluster = generate_test_cluster("tests.fixtures.cluster.overridden_inherited_methods")
     accessible_objects = cluster.accessible_objects_under_test
     methods = __extract_method_names(accessible_objects)
     expected = {"Foo.__init__", "Foo.foo", "Foo.__iter__", "Bar.__init__", "Bar.foo"}
@@ -446,15 +418,13 @@ def test_overridden_inherited_methods():
 def test_conditional_import_forward_ref():
     cluster = generate_test_cluster("tests.fixtures.cluster.conditional_import")
     accessible_objects = list(cluster.accessible_objects_under_test)
-    constructor = cast(GenericConstructor, accessible_objects[0])
+    constructor = cast("GenericConstructor", accessible_objects[0])
     assert constructor.inferred_signature.original_parameters["arg0"] == AnyType()
 
 
 def test_enums():
     cluster = generate_test_cluster("tests.fixtures.cluster.enums")
-    accessible_objects = cast(
-        list[GenericEnum], list(cluster.accessible_objects_under_test)
-    )
+    accessible_objects = cast("list[GenericEnum]", list(cluster.accessible_objects_under_test))
     assert {enum.owner.name: set(enum.names) for enum in accessible_objects} == {
         "Color": {"RED", "BLUE", "GREEN"},
         "Foo": {"FOO", "BAR"},
@@ -539,10 +509,7 @@ def test_inheritance_graph():
 )
 def test_instance_attrs(mod, typ, attributes):
     cluster = generate_test_cluster(mod)
-    assert (
-        cluster.type_system.find_type_info(f"{mod}.{typ}").instance_attributes
-        == attributes
-    )
+    assert cluster.type_system.find_type_info(f"{mod}.{typ}").instance_attributes == attributes
 
 
 @pytest.mark.parametrize(

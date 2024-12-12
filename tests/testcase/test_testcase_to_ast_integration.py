@@ -16,7 +16,7 @@ import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_test_case(constructor_mock, default_test_case):
     int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
     constructor_stmt = stmt.ConstructorStatement(
@@ -33,11 +33,7 @@ def test_test_case_to_ast_once(simple_test_case):
     simple_test_case.accept(visitor)
     simple_test_case.accept(visitor)
     assert (
-        ast.unparse(
-            ast.fix_missing_locations(
-                Module(body=visitor.test_case_ast, type_ignores=[])
-            )
-        )
+        ast.unparse(ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[])))
         == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
 
@@ -47,19 +43,11 @@ def test_test_case_to_ast_twice(simple_test_case):
     simple_test_case.accept(visitor)
     simple_test_case.accept(visitor)
     assert (
-        ast.unparse(
-            ast.fix_missing_locations(
-                Module(body=visitor.test_case_ast, type_ignores=[])
-            )
-        )
+        ast.unparse(ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[])))
         == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
     assert (
-        ast.unparse(
-            ast.fix_missing_locations(
-                Module(body=visitor.test_case_ast, type_ignores=[])
-            )
-        )
+        ast.unparse(ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[])))
         == "int_0 = 5\nsome_type_0 = module_0.SomeType(int_0)\nassert some_type_0 == 3"
     )
 

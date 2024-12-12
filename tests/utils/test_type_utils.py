@@ -150,7 +150,7 @@ def test_is_enum():
     ],
 )
 def test_should_skip_parameter(param_name, result):
-    def inner_func(normal: str, *args, default="foo", **kwargs):  # noqa: ARG001
+    def inner_func(normal: str, *args, default="foo", **kwargs):
         pass  # pragma: no cover
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
@@ -184,7 +184,7 @@ def test_is_ignorable_type():
 
 
 def test_is_ignorable_type_async():
-    async def async_generator():  # pragma: no cover
+    async def async_generator():  # pragma: no cover  # noqa: RUF029
         yield "foo"
 
     generator_type = type(async_generator())

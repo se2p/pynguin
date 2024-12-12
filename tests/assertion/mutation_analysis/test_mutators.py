@@ -18,12 +18,10 @@ from tests.testutils import assert_mutator_mutation
 
 def test_first_order_mutator_generation():
     assert_mutator_mutation(
-        FirstOrderMutator(
-            [
-                ArithmeticOperatorReplacement,
-                AssignmentOperatorReplacement,
-            ]
-        ),
+        FirstOrderMutator([
+            ArithmeticOperatorReplacement,
+            AssignmentOperatorReplacement,
+        ]),
         inspect.cleandoc(
             """
             x = 1
@@ -55,12 +53,10 @@ def test_first_order_mutator_generation():
 
 def test_high_order_mutator_generation():
     assert_mutator_mutation(
-        HighOrderMutator(
-            [
-                ArithmeticOperatorReplacement,
-                AssignmentOperatorReplacement,
-            ]
-        ),
+        HighOrderMutator([
+            ArithmeticOperatorReplacement,
+            AssignmentOperatorReplacement,
+        ]),
         inspect.cleandoc(
             """
             x = 1
@@ -87,12 +83,10 @@ def test_high_order_mutator_generation():
 
 def test_high_order_mutator_generation_with_same_node():
     assert_mutator_mutation(
-        HighOrderMutator(
-            [
-                ArithmeticOperatorDeletion,
-                ArithmeticOperatorReplacement,
-            ]
-        ),
+        HighOrderMutator([
+            ArithmeticOperatorDeletion,
+            ArithmeticOperatorReplacement,
+        ]),
         inspect.cleandoc(
             """
             x = 1

@@ -59,9 +59,7 @@ def test_test_case_assertion_minimization(default_test_case):
     ass_min = pp.AssertionMinimization()
     statement = stmt.IntPrimitiveStatement(default_test_case)
 
-    assertion_1 = MagicMock(
-        checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
-    )
+    assertion_1 = MagicMock(checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)])
     assertion_2 = MagicMock(checked_instructions=[MagicMock(lineno=1)])
 
     statement.add_assertion(assertion_1)
@@ -82,12 +80,8 @@ def test_test_case_assertion_minimization_does_not_remove_exception_assertion(
     ass_min = pp.AssertionMinimization()
     statement = stmt.IntPrimitiveStatement(default_test_case)
 
-    assertion_1 = MagicMock(
-        checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)]
-    )
-    assertion_2 = MagicMock(
-        spec=ExceptionAssertion, checked_instructions=[MagicMock(lineno=1)]
-    )
+    assertion_1 = MagicMock(checked_instructions=[MagicMock(lineno=1), MagicMock(lineno=2)])
+    assertion_2 = MagicMock(spec=ExceptionAssertion, checked_instructions=[MagicMock(lineno=1)])
 
     statement.add_assertion(assertion_1)
     statement.add_assertion(assertion_2)

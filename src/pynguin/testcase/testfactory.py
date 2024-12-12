@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a factory for test-case generation."""
+
 from __future__ import annotations
 
 import contextlib
@@ -484,12 +485,10 @@ class TestFactory:
 
         self._logger.debug("Adding primitive %s", primitive)
         # TODO(fk) fix this ugly cast.
-        statement = cast(stmt.PrimitiveStatement, primitive.clone(test_case, {}))
+        statement = cast("stmt.PrimitiveStatement", primitive.clone(test_case, {}))
         return test_case.add_variable_creating_statement(statement, position)
 
-    def insert_random_statement(
-        self, test_case: tc.TestCase, last_position: int
-    ) -> int:
+    def insert_random_statement(self, test_case: tc.TestCase, last_position: int) -> int:
         """Insert a random statement up to the given position.
 
         If the insertion was successful, the position at which the statement was
@@ -517,9 +516,7 @@ class TestFactory:
             return position
         return -1
 
-    def insert_random_call_on_object(
-        self, test_case: tc.TestCase, position: int
-    ) -> bool:
+    def insert_random_call_on_object(self, test_case: tc.TestCase, position: int) -> bool:
         """Insert a random call on an object that already exists within the test case.
 
         Args:
@@ -532,9 +529,7 @@ class TestFactory:
         variable = self._select_random_variable_for_call(test_case, position)
         success = False
         if variable is not None:
-            success = self.insert_random_call_on_object_at(
-                test_case, variable, position
-            )
+            success = self.insert_random_call_on_object_at(test_case, variable, position)
 
         if not success and self._test_cluster.num_accessible_objects_under_test() > 0:
             success = self.insert_random_call(test_case, position)
@@ -590,11 +585,11 @@ class TestFactory:
         previous_length = test_case.size()
         try:
             if accessible.is_method():
-                method = cast(gao.GenericMethod, accessible)
+                method = cast("gao.GenericMethod", accessible)
                 self.add_method(test_case, method, position=position, callee=callee)
                 return True
             if accessible.is_field():
-                field = cast(gao.GenericField, accessible)
+                field = cast("gao.GenericField", accessible)
                 self.add_field(test_case, field, position=position, callee=callee)
                 return True
             raise RuntimeError("Unknown accessible object")
@@ -808,7 +803,7 @@ class TestFactory:
         return_value = statement.ret_val
         replacement: stmt.Statement | None = None
         if call.is_method():
-            method = cast(gao.GenericMethod, call)
+            method = cast("gao.GenericMethod", call)
             assert method.owner is not None
             callee = test_case.get_random_object(
                 self._test_cluster.type_system.make_instance(method.owner), position
@@ -818,19 +813,19 @@ class TestFactory:
             )
             replacement = stmt.MethodStatement(test_case, method, callee, parameters)
         elif call.is_constructor():
-            constructor = cast(gao.GenericConstructor, call)
+            constructor = cast("gao.GenericConstructor", call)
             parameters = self._get_reuse_parameters(
                 test_case, constructor.inferred_signature, position, signature_memo
             )
             replacement = stmt.ConstructorStatement(test_case, constructor, parameters)
         elif call.is_function():
-            funktion = cast(gao.GenericFunction, call)
+            funktion = cast("gao.GenericFunction", call)
             parameters = self._get_reuse_parameters(
                 test_case, funktion.inferred_signature, position, signature_memo
             )
             replacement = stmt.FunctionStatement(test_case, funktion, parameters)
         elif call.is_enum():
-            enum_ = cast(gao.GenericEnum, call)
+            enum_ = cast("gao.GenericEnum", call)
             replacement = stmt.EnumPrimitiveStatement(test_case, enum_)
 
         if replacement is None:
@@ -867,9 +862,7 @@ class TestFactory:
                 < config.configuration.test_creation.skip_optional_parameter_probability
             ):
                 continue
-            found[parameter_name] = test_case.get_random_object(
-                parameter_type, position
-            )
+            found[parameter_name] = test_case.get_random_object(parameter_type, position)
         return found
 
     def _get_possible_calls(
@@ -977,10 +970,7 @@ class TestFactory:
 
             if not var:
                 raise ConstructionFailedException(
-                    (
-                        f"Failed to create variable for type {parameter_type} "
-                        f"at position {position}"
-                    ),
+                    (f"Failed to create variable for type {parameter_type} at position {position}"),
                 )
 
             parameters[parameter_name] = var
@@ -1058,13 +1048,9 @@ class TestFactory:
             raise ConstructionFailedException(f"No objects for type {parameter_type}")
 
         # Could not create, so re-use an existing variable.
-        self._logger.debug(
-            "Choosing from %d existing objects: %s", len(objects), objects
-        )
+        self._logger.debug("Choosing from %d existing objects: %s", len(objects), objects)
         reference = randomness.choice(objects)
-        self._logger.debug(
-            "Use existing object of type %s: %s", parameter_type, reference
-        )
+        self._logger.debug("Use existing object of type %s: %s", parameter_type, reference)
         return reference
 
     def _create_or_reuse_variable(
@@ -1113,7 +1099,7 @@ class TestFactory:
         if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
                 test_case,
-                cast(Instance, parameter_type),
+                cast("Instance", parameter_type),
                 position,
                 recursion_depth,
                 constant_provider=self._constant_provider,
@@ -1125,9 +1111,7 @@ class TestFactory:
                 position,
                 recursion_depth,
             )
-        type_generators, only_any = self._test_cluster.get_generators_for(
-            parameter_type
-        )
+        type_generators, only_any = self._test_cluster.get_generators_for(parameter_type)
         if type_generators and not only_any:
             type_generator = randomness.choice(type_generators)
             return self.append_generic_accessible(
@@ -1147,9 +1131,7 @@ class TestFactory:
     ) -> vr.VariableReference:
         # If there already is a None alias just return it.
         # TODO(fk) better way?
-        for statement in test_case.statements[
-            : min(len(test_case.statements), position)
-        ]:
+        for statement in test_case.statements[: min(len(test_case.statements), position)]:
             if isinstance(statement, stmt.NoneStatement):
                 return statement.ret_val
 
@@ -1216,13 +1198,9 @@ class TestFactory:
                     test_case, parameter_type, position, recursion_depth
                 )
             if parameter_type.type.raw_type is dict:
-                return self._create_dict(
-                    test_case, parameter_type, position, recursion_depth
-                )
+                return self._create_dict(test_case, parameter_type, position, recursion_depth)
         if isinstance(parameter_type, TupleType):
-            return self._create_tuple(
-                test_case, parameter_type, position, recursion_depth
-            )
+            return self._create_tuple(test_case, parameter_type, position, recursion_depth)
         raise RuntimeError("Unknown collection type")
 
     # TODO(fk) Methods below should be refactored asap,
@@ -1236,9 +1214,7 @@ class TestFactory:
         recursion_depth: int,
     ) -> vr.VariableReference:
         element_type = parameter_type.args[0]
-        size = randomness.next_int(
-            0, config.configuration.test_creation.collection_size
-        )
+        size = randomness.next_int(0, config.configuration.test_creation.collection_size)
         elements = []
         for _ in range(size):
             previous_length = test_case.size()
@@ -1266,9 +1242,7 @@ class TestFactory:
     ) -> vr.VariableReference:
         if parameter_type.unknown_size:
             # Untyped tuple, time to guess...
-            size = randomness.next_int(
-                0, config.configuration.test_creation.collection_size
-            )
+            size = randomness.next_int(0, config.configuration.test_creation.collection_size)
             args = tuple(
                 randomness.choice(self._test_cluster.get_all_generatable_types())
                 for _ in range(size)
@@ -1300,9 +1274,7 @@ class TestFactory:
         args = parameter_type.args
         key_type = args[0]
         value_type = args[1]
-        size = randomness.next_int(
-            0, config.configuration.test_creation.collection_size
-        )
+        size = randomness.next_int(0, config.configuration.test_creation.collection_size)
         elements = []
         for _ in range(size):
             previous_length = test_case.size()
@@ -1334,9 +1306,6 @@ class TestFactory:
             True, if the test case has a call on the SUT.
         """
         for statement in test_case.statements:
-            if (
-                statement.accessible_object()
-                in self._test_cluster.accessible_objects_under_test
-            ):
+            if statement.accessible_object() in self._test_cluster.accessible_objects_under_test:
                 return True
         return False

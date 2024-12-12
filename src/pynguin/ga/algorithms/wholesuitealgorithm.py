@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a whole-suite test generation algorithm similar to EvoSuite."""
+
 from __future__ import annotations
 
 import logging
@@ -66,10 +67,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
             offspring2 = parent2.clone()
 
             try:
-                if (
-                    randomness.next_float()
-                    <= config.configuration.search_algorithm.crossover_rate
-                ):
+                if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:
                     self._crossover_function.cross_over(offspring1, offspring2)
 
                 offspring1.mutate()
@@ -85,8 +83,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
             best_individual = self._get_best_individual()
 
             if (fitness_offspring < fitness_parents) or (
-                fitness_offspring == fitness_parents
-                and length_offspring <= length_parents
+                fitness_offspring == fitness_parents and length_offspring <= length_parents
             ):
                 for offspring in [offspring1, offspring2]:
                     if offspring.length() <= 2 * best_individual.length():
@@ -129,7 +126,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
                 if goal.is_branchless_code_object:
                     exclude_code.add(goal.code_object_id)
                 elif goal.is_branch:
-                    branch_goal = cast(bg.BranchGoal, goal)
+                    branch_goal = cast("bg.BranchGoal", goal)
                     if branch_goal.value:
                         exclude_true.add(branch_goal.predicate_id)
                     else:

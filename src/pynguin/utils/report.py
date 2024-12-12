@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides capabilities to create a coverage report."""
+
 from __future__ import annotations
 
 import dataclasses
@@ -13,7 +14,7 @@ import importlib.resources
 import inspect
 import sys
 import typing
-import xml.etree.ElementTree as ET  # noqa: N817,S405
+import xml.etree.ElementTree as ET  # noqa: S405
 
 import pygments
 
@@ -52,9 +53,7 @@ class CoverageEntry:
         Returns:
             A new coverage entry with the summed up elements of self and other.
         """
-        return CoverageEntry(
-            self.covered + other.covered, self.existing + other.existing
-        )
+        return CoverageEntry(self.covered + other.covered, self.existing + other.existing)
 
 
 @dataclasses.dataclass
@@ -79,9 +78,7 @@ class LineAnnotation:
         """
         msgs = []
         if self.branches.existing > 0:
-            msgs.append(
-                f"{self.branches.covered}/{self.branches.existing} branches covered"
-            )
+            msgs.append(f"{self.branches.covered}/{self.branches.existing} branches covered")
         if self.branchless_code_objects.existing > 0:
             msgs.append(
                 f"{self.branchless_code_objects.covered}/"
@@ -90,10 +87,7 @@ class LineAnnotation:
             )
         if self.lines.existing > 0:
             # No need to say something like "1 out of 1 lines executed".
-            msgs.append(
-                f"Line {self.line_no}"
-                f"{'' if self.lines.covered == 1 else ' not'} covered"
-            )
+            msgs.append(f"Line {self.line_no}{'' if self.lines.covered == 1 else ' not'} covered")
         return "; ".join(msgs)
 
     def __add__(self, other: LineAnnotation) -> LineAnnotation:
@@ -167,9 +161,7 @@ def get_coverage_report(
     subject_properties = executor.tracer.get_subject_properties()
     source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
     line_annotations = [
-        LineAnnotation(
-            idx + 1, CoverageEntry(), CoverageEntry(), CoverageEntry(), CoverageEntry()
-        )
+        LineAnnotation(idx + 1, CoverageEntry(), CoverageEntry(), CoverageEntry(), CoverageEntry())
         for idx in range(len(source))
     ]
 
@@ -177,12 +169,10 @@ def get_coverage_report(
     branchless_code_objects = CoverageEntry()
     branches = CoverageEntry()
     if config.CoverageMetric.BRANCH in metrics:
-        line_to_branchless_code_object_coverage = (
-            _get_line_to_branchless_code_object_coverage(subject_properties, trace)
-        )
-        line_to_branch_coverage = _get_line_to_branch_coverage(
+        line_to_branchless_code_object_coverage = _get_line_to_branchless_code_object_coverage(
             subject_properties, trace
         )
+        line_to_branch_coverage = _get_line_to_branch_coverage(subject_properties, trace)
 
         branch_coverage = ff.compute_branch_coverage(trace, subject_properties)
         for cov in line_to_branchless_code_object_coverage.values():
@@ -277,12 +267,8 @@ def render_xml_coverage_report(  # noqa: PLR0914
     branch_rate = f"{cov_report.branch_coverage}"
     lines_covered = f"{cov_report.lines.covered}"
     lines_valid = f"{cov_report.lines.existing}"
-    branches_covered = (
-        f"{cov_report.branches.covered + cov_report.branchless_code_objects.covered}"
-    )
-    branches_valid = (
-        f"{cov_report.branches.existing + cov_report.branchless_code_objects.existing}"
-    )
+    branches_covered = f"{cov_report.branches.covered + cov_report.branchless_code_objects.covered}"
+    branches_valid = f"{cov_report.branches.existing + cov_report.branchless_code_objects.existing}"
     complexity = "0.0"
     version = f"pynguin-{ver.__version__}"
 
@@ -345,12 +331,10 @@ def render_xml_coverage_report(  # noqa: PLR0914
             or line_annotation.branchless_code_objects.existing > 0
         ):
             covered = (
-                line_annotation.branches.covered
-                + line_annotation.branchless_code_objects.covered
+                line_annotation.branches.covered + line_annotation.branchless_code_objects.covered
             )
             existing = (
-                line_annotation.branches.existing
-                + line_annotation.branchless_code_objects.existing
+                line_annotation.branches.existing + line_annotation.branchless_code_objects.existing
             )
             cov = covered / existing
             cov_string = f"{cov:.0%} ({covered}/{existing})"
@@ -364,8 +348,7 @@ def render_xml_coverage_report(  # noqa: PLR0914
     with report_path.open(mode="w", encoding="utf-8") as xml_file:
         xml_file.write('<?xml version="1.0" encoding="UTF-8"?>')
         xml_file.write(
-            "<!DOCTYPE coverage SYSTEM "
-            '"http://cobertura.sourceforge.net/xml/coverage-04.dtd">'
+            '<!DOCTYPE coverage SYSTEM "http://cobertura.sourceforge.net/xml/coverage-04.dtd">'
         )
         tree.write(xml_file, encoding="unicode")
 
@@ -387,9 +370,7 @@ def _get_line_to_branch_coverage(subject_properties, trace):
 def _get_line_to_branchless_code_object_coverage(subject_properties, trace):
     line_to_branchless_code_object_coverage = {}
     for code in subject_properties.branch_less_code_objects:
-        lineno = subject_properties.existing_code_objects[
-            code
-        ].code_object.co_firstlineno
+        lineno = subject_properties.existing_code_objects[code].code_object.co_firstlineno
         if lineno not in line_to_branchless_code_object_coverage:
             line_to_branchless_code_object_coverage[lineno] = CoverageEntry()
         line_to_branchless_code_object_coverage[lineno] += CoverageEntry(existing=1)
@@ -422,6 +403,4 @@ def _get_line_annotations_for_branch_coverage(
     if lineno in predicate_coverage:
         branches = predicate_coverage[lineno]
         total += branches
-    return LineAnnotation(
-        lineno, total, branches, branchless_code_objects, CoverageEntry()
-    )
+    return LineAnnotation(lineno, total, branches, branchless_code_objects, CoverageEntry())

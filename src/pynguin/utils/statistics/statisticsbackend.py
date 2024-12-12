@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an interface for a statistics writer."""
+
 from __future__ import annotations
 
 import csv
@@ -54,9 +55,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
 
     def write_data(self, data: dict[str, OutputVariable]) -> None:  # noqa: D102
         try:
-            output_dir = Path(
-                config.configuration.statistics_output.report_dir
-            ).resolve()
+            output_dir = Path(config.configuration.statistics_output.report_dir).resolve()
             output_file = output_dir / "statistics.csv"
             with output_file.open(mode="a") as csv_file:
                 field_names = [k for k, _ in data.items()]
@@ -67,7 +66,7 @@ class CSVStatisticsBackend(AbstractStatisticsBackend):
                     csv_writer.writeheader()
                 csv_writer.writerow({k: str(v.value) for k, v in data.items()})
         except OSError as error:
-            logging.exception("Error while writing statistics: %s", error)
+            self._logger.exception("Error while writing statistics: %s", error)
 
 
 class ConsoleStatisticsBackend(AbstractStatisticsBackend):

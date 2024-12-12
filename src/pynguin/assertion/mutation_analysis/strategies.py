@@ -9,6 +9,7 @@
 Based on https://github.com/se2p/mutpy-pynguin/blob/main/mutpy/controller.py
 and integrated in Pynguin.
 """
+
 from __future__ import annotations
 
 import abc
@@ -65,9 +66,7 @@ class HOMStrategy(abc.ABC):
         self.order = order
 
     @abc.abstractmethod
-    def generate(
-        self, mutations: list[Mutation]
-    ) -> Generator[list[Mutation], None, None]:
+    def generate(self, mutations: list[Mutation]) -> Generator[list[Mutation]]:
         """Generate the mutations.
 
         Args:
@@ -83,7 +82,7 @@ class FirstToLastHOMStrategy(HOMStrategy):
 
     def generate(  # noqa: D102
         self, mutations: list[Mutation]
-    ) -> Generator[list[Mutation], None, None]:
+    ) -> Generator[list[Mutation]]:
         mutations = mutations.copy()
         while mutations:
             mutations_to_apply: list[Mutation] = []
@@ -103,7 +102,7 @@ class EachChoiceHOMStrategy(HOMStrategy):
 
     def generate(  # noqa: D102
         self, mutations: list[Mutation]
-    ) -> Generator[list[Mutation], None, None]:
+    ) -> Generator[list[Mutation]]:
         mutations = mutations.copy()
         while mutations:
             mutations_to_apply: list[Mutation] = []
@@ -121,7 +120,7 @@ class BetweenOperatorsHOMStrategy(HOMStrategy):
 
     def generate(  # noqa: D102
         self, mutations: list[Mutation]
-    ) -> Generator[list[Mutation], None, None]:
+    ) -> Generator[list[Mutation]]:
         usage = dict.fromkeys(mutations, 0)
         not_used = mutations.copy()
         while not_used:
@@ -153,7 +152,7 @@ class RandomHOMStrategy(HOMStrategy):
 
     def generate(  # noqa: D102
         self, mutations: list[Mutation]
-    ) -> Generator[list[Mutation], None, None]:
+    ) -> Generator[list[Mutation]]:
         mutations = mutations.copy()
         randomness.RNG.shuffle(mutations)
         while mutations:

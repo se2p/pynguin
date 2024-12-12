@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a singleton instance of Random that can be seeded."""
+
 from __future__ import annotations
 
 import random

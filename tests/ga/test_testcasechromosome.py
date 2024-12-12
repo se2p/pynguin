@@ -20,12 +20,12 @@ from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_case_chromosome(default_test_case):
     return tcc.TestCaseChromosome(default_test_case)
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_case_chromosome_with_test(default_test_case):
     return tcc.TestCaseChromosome(default_test_case), default_test_case
 
@@ -102,9 +102,10 @@ def test_mutation_insert_two(default_test_case):
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert chromosome._mutation_insert()
-    test_factory.insert_random_statement.assert_has_calls(
-        [call(default_test_case, 0), call(default_test_case, 1)]
-    )
+    test_factory.insert_random_statement.assert_has_calls([
+        call(default_test_case, 0),
+        call(default_test_case, 1),
+    ])
 
 
 def test_mutation_insert_twice_no_success(default_test_case):
@@ -120,9 +121,10 @@ def test_mutation_insert_twice_no_success(default_test_case):
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [0.2, 0.2, 0.2]
         assert not chromosome._mutation_insert()
-    test_factory.insert_random_statement.assert_has_calls(
-        [call(default_test_case, 0), call(default_test_case, 0)]
-    )
+    test_factory.insert_random_statement.assert_has_calls([
+        call(default_test_case, 0),
+        call(default_test_case, 0),
+    ])
 
 
 def test_mutation_insert_max_length(default_test_case):
@@ -275,9 +277,7 @@ def test_mutate_all(test_case_chromosome, func, rand, result):
         float_mock.side_effect = rand
         with mock.patch.object(test_case_chromosome, func) as mock_func:
             mock_func.return_value = result
-            with mock.patch.object(
-                test_case_chromosome, "_test_factory"
-            ) as factory_mock:
+            with mock.patch.object(test_case_chromosome, "_test_factory") as factory_mock:
                 factory_mock.has_call_on_sut.return_value = True
                 test_case_chromosome.mutate()
                 assert test_case_chromosome.changed == result

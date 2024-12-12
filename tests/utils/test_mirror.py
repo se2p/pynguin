@@ -9,7 +9,7 @@ import pytest
 from pynguin.utils.mirror import Mirror
 
 
-@pytest.fixture()
+@pytest.fixture
 def mirror():
     return Mirror()
 

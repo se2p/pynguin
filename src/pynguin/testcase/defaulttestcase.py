@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a default implementation of a test case."""
+
 from __future__ import annotations
 
 import logging

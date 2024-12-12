@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides tracking of statistics for various variables and types."""
+
 from __future__ import annotations
 
 import json
@@ -60,7 +61,7 @@ class _StatisticsTracker:
         return self._variables
 
     @property
-    def variables_generator(self) -> Generator[tuple[RuntimeVariable, Any], None, None]:
+    def variables_generator(self) -> Generator[tuple[RuntimeVariable, Any]]:
         """Provides a generator.
 
         Yields:
@@ -121,9 +122,7 @@ class _StatisticsTracker:
             variable: The variable to be set
             value: the value to be set
         """
-        self._search_statistics.set_output_variable_for_runtime_variable(
-            variable, value
-        )
+        self._search_statistics.set_output_variable_for_runtime_variable(variable, value)
 
     def update_output_variable_for_runtime_variable(
         self, variable: RuntimeVariable, value: Any
@@ -134,9 +133,7 @@ class _StatisticsTracker:
             variable: The variable to update
             value: The value to add
         """
-        self._search_statistics.update_output_variable_for_runtime_variable(
-            variable, value
-        )
+        self._search_statistics.update_output_variable_for_runtime_variable(variable, value)
 
     @property
     def output_variables(self) -> dict[str, sb.OutputVariable]:
@@ -168,14 +165,10 @@ class _SearchStatistics:
     _logger = logging.getLogger(__name__)
 
     def __init__(self):
-        self._backend: None | (sb.AbstractStatisticsBackend) = (
-            self._initialise_backend()
-        )
+        self._backend: sb.AbstractStatisticsBackend | None = self._initialise_backend()
         self._output_variables: dict[str, sb.OutputVariable] = {}
         self._variable_factories: dict[str, ovf.ChromosomeOutputVariableFactory] = {}
-        self._sequence_output_variable_factories: dict[
-            str, ovf.SequenceOutputVariableFactory
-        ] = {}
+        self._sequence_output_variable_factories: dict[str, ovf.SequenceOutputVariableFactory] = {}
         self._init_factories()
         self.set_output_variable_for_runtime_variable(
             RuntimeVariable.RandomSeed, config.configuration.seeding.seed
@@ -209,22 +202,22 @@ class _SearchStatistics:
         )
 
     def _fill_sequence_output_variable_factories(self) -> None:
-        self._sequence_output_variable_factories[
-            RuntimeVariable.CoverageTimeline.name
-        ] = self._CoverageSequenceOutputVariableFactory()
+        self._sequence_output_variable_factories[RuntimeVariable.CoverageTimeline.name] = (
+            self._CoverageSequenceOutputVariableFactory()
+        )
         self._sequence_output_variable_factories[RuntimeVariable.SizeTimeline.name] = (
             self._SizeSequenceOutputVariableFactory()
         )
-        self._sequence_output_variable_factories[
-            RuntimeVariable.LengthTimeline.name
-        ] = self._LengthSequenceOutputVariableFactory()
-        self._sequence_output_variable_factories[
-            RuntimeVariable.FitnessTimeline.name
-        ] = self._FitnessSequenceOutputVariableFactory()
-        self._sequence_output_variable_factories[
-            RuntimeVariable.TotalExceptionsTimeline.name
-        ] = ovf.DirectSequenceOutputVariableFactory.get_integer(
-            RuntimeVariable.TotalExceptionsTimeline
+        self._sequence_output_variable_factories[RuntimeVariable.LengthTimeline.name] = (
+            self._LengthSequenceOutputVariableFactory()
+        )
+        self._sequence_output_variable_factories[RuntimeVariable.FitnessTimeline.name] = (
+            self._FitnessSequenceOutputVariableFactory()
+        )
+        self._sequence_output_variable_factories[RuntimeVariable.TotalExceptionsTimeline.name] = (
+            ovf.DirectSequenceOutputVariableFactory.get_integer(
+                RuntimeVariable.TotalExceptionsTimeline
+            )
         )
 
     def set_sequence_output_variable_start_time(self, start_time: int) -> None:
@@ -323,9 +316,7 @@ class _SearchStatistics:
             variable_name = variable.name
             if variable_name in self._output_variables:
                 # Values directly sent
-                output_variables_map[variable_name] = self._output_variables[
-                    variable_name
-                ]
+                output_variables_map[variable_name] = self._output_variables[variable_name]
             elif variable_name in self._variable_factories:
                 # Values extracted from the individual
                 output_variables_map[variable_name] = self._variable_factories[
@@ -348,15 +339,18 @@ class _SearchStatistics:
                     variable_name
                 ].area_under_curve_output_variable
                 output_variables_map[auc_variable.name] = auc_variable
+                # Additionally, add a normalised version of the area under curve
+                norm_auc_variable = self._sequence_output_variable_factories[
+                    variable_name
+                ].normalised_area_under_curve_output_variable
+                output_variables_map[norm_auc_variable.name] = norm_auc_variable
             elif skip_missing:
                 # if variable does not exist, return an empty value instead
                 output_variables_map[variable_name] = sb.OutputVariable(
                     name=variable_name, value=""
                 )
             else:
-                self._logger.error(
-                    "No obtained value for output variable %s", variable_name
-                )
+                self._logger.error("No obtained value for output variable %s", variable_name)
                 return {}
 
         return output_variables_map
@@ -381,8 +375,7 @@ class _SearchStatistics:
 
         if not self._best_individual:
             self._logger.error(
-                "No statistics has been saved because Pynguin failed to generate any "
-                "test case"
+                "No statistics has been saved because Pynguin failed to generate any test case"
             )
             return False
 
@@ -394,9 +387,7 @@ class _SearchStatistics:
             config.configuration.statistics_output.statistics_backend
             == config.StatisticsBackend.CSV
         ):
-            report_dir = Path(
-                config.configuration.statistics_output.report_dir
-            ).resolve()
+            report_dir = Path(config.configuration.statistics_output.report_dir).resolve()
             if "SignatureInfos" in output_variables_map:
                 obj = json.loads(output_variables_map["SignatureInfos"].value)
                 output_file = report_dir / "signature-infos.json"
@@ -434,9 +425,7 @@ class _SearchStatistics:
         def get_data(self, individual: chrom.Chromosome) -> float:
             return individual.get_fitness()
 
-    class _CoverageSequenceOutputVariableFactory(
-        ovf.DirectSequenceOutputVariableFactory
-    ):
+    class _CoverageSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.CoverageTimeline, 0.0)
 
@@ -457,9 +446,7 @@ class _SearchStatistics:
         def get_value(self, individual: chrom.Chromosome) -> int:
             return individual.length()
 
-    class _FitnessSequenceOutputVariableFactory(
-        ovf.DirectSequenceOutputVariableFactory
-    ):
+    class _FitnessSequenceOutputVariableFactory(ovf.DirectSequenceOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.FitnessTimeline, 0.0)
 

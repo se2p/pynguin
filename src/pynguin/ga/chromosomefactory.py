@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Factory for chromosome used by the genetic algorithm."""
+
 from abc import abstractmethod
 from typing import Generic
 from typing import TypeVar

@@ -146,7 +146,7 @@ class _AbstractOrderedSet(AbstractSet[T], Sequence[T]):  # noqa: PLW1641
         #     unification but it doesn't
         #   if S is a subclass of T => type error (while AbstractSet would resolve to
         #     AbstractSet[T])
-        merged_iterables = itertools.chain([cast(Iterable[T], self)], others)
+        merged_iterables = itertools.chain([cast("Iterable[T]", self)], others)
         return self.__class__(itertools.chain.from_iterable(merged_iterables))
 
     def __and__(self, other: Iterable[T]) -> Self:
@@ -281,9 +281,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         for other in others:
             items_as_set = set(other)
             items_to_remove |= items_as_set
-        self._items = {
-            item: None for item in self._items if item not in items_to_remove
-        }
+        self._items = {item: None for item in self._items if item not in items_to_remove}
 
     def intersection_update(self, other: Iterable[T]) -> None:
         """Computes the intersection inplace.
@@ -307,10 +305,8 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             other: The other set.
         """
         items_to_add = [item for item in other if item not in self]
-        items_to_remove = cast(set[T], set(other))
-        self._items = {
-            item: None for item in self._items if item not in items_to_remove
-        }
+        items_to_remove = cast("set[T]", set(other))
+        self._items = {item: None for item in self._items if item not in items_to_remove}
         for item in items_to_add:
             self._items[item] = None
 

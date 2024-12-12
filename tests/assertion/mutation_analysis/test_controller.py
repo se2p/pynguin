@@ -18,9 +18,10 @@ from pynguin.testcase.execution import ExecutionTracer
 
 
 def test_create_mutants():
-    mutant_generator = mu.FirstOrderMutator(
-        [*mo.standard_operators, *mo.experimental_operators]
-    )
+    mutant_generator = mu.FirstOrderMutator([
+        *mo.standard_operators,
+        *mo.experimental_operators,
+    ])
 
     module = importlib.import_module("tests.fixtures.examples.triangle")
     module_source_code = inspect.getsource(module)

@@ -8,6 +8,7 @@
 
 This module provides the main entry location for the program executions.
 """
+
 import sys
 
 from pynguin.cli import main

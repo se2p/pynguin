@@ -24,17 +24,13 @@ class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
     def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:
         return True  # pragma: no cover
 
-    def _replacement_supplier(
-        self, element: vr.VariableReference
-    ) -> vr.VariableReference:
+    def _replacement_supplier(self, element: vr.VariableReference) -> vr.VariableReference:
         return self.elements[0]
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
         return self.elements[0]
 
-    def clone(
-        self, test_case: tc.TestCase, offset: int = 0
-    ) -> DummyCollectionStatement:
+    def clone(self, test_case: tc.TestCase, offset: int = 0) -> DummyCollectionStatement:
         pass  # pragma: no cover
 
     def accept(self, visitor: stmt.StatementVisitor) -> None:

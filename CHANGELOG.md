@@ -11,17 +11,31 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
-### Pynguin 0.39.0
+## Pynguin 0.40.0
+
+- Provide a (normalised) area under curve for timeline output variables.
+
+  Variables for statistics that produce a timeline, e.g., coverage development over time
+  imply in interesting property: while the final coverage of two distinct
+  runs/configurations might be equal, one might have a faster coverage increase than the
+  other, thus could be considered better.  The area under curve, i.e., the integral over
+  the development function allows to access this property easily.
+- Add the ability to write the logging to a log file and not only STDOUT.
+- Add an auto-deploy action to GitHub to push releases to PyPI.
+- Fix a typo in the documentation (cf. GitHub issue #75).
+- Switch to `ruff-format`.
+
+## Pynguin 0.39.0
 
 - Fix a bug in the handling of infinite loops in global scope (thanks to @BergLucas in
   #65)
 
-### Pynguin 0.38.0
+## Pynguin 0.38.0
 
 - Remove the dependency to our custom [MutPy fork](https://github.com/se2p/MutPy-Pynguin)
   by integrating the relevant code into Pynguin directly (thanks to @BergLucas in #64)
 
-### Pynguin 0.37.0
+## Pynguin 0.37.0
 
 - Add possibility to control number of mutations in MOSA.
 - Compute the area under curve if Pynguin traces the overage over time; area under curve
@@ -101,18 +115,18 @@ for the source-code artifacts of each version.
 - Write Pynguin version number to Cobertura XML report
 - Fix the computation of coverage values
 
-  Pynguin 0.26.0 added the possibility to optimise for, e.g., branch coverage while 
-  yielding the line coverage of the resulting test suite in the end.  This had some 
-  unintentional implications, such as the value of the `Coverage` output variable 
-  having weird values.  We fix this by providing additional output variables 
-  `FinalBranchCoverage` and `FinalLineCoverage` that contain the final coverage 
+  Pynguin 0.26.0 added the possibility to optimise for, e.g., branch coverage while
+  yielding the line coverage of the resulting test suite in the end.  This had some
+  unintentional implications, such as the value of the `Coverage` output variable
+  having weird values.  We fix this by providing additional output variables
+  `FinalBranchCoverage` and `FinalLineCoverage` that contain the final coverage
   values *after* all generation and postprocessing.  See the
   [runtimevariable.py](pynguin/utils/statistics/runtimevariable.py) module for details.
 - Rewrite the internal type handling in Pynguin
 
-  This is a huge internal change that improves the internal type system and adds the 
+  This is a huge internal change that improves the internal type system and adds the
   possibility to trace types during test execution.  Some highlights:
-  - we got rid of our internal abstraction of `type | None` to mark whether type 
+  - we got rid of our internal abstraction of `type | None` to mark whether type
     information exists
   - we allow to retrieve additional or new type information from the test execution
   - enhance our internal type representation to make it more flexible
@@ -123,38 +137,38 @@ for the source-code artifacts of each version.
 
 - Allow the calculation of coverage values regardless of optimisation.
 
-  Allows to yield, for example, the resulting line coverage of the test suite, while 
-  the optimisation during test generation was done for branch coverage.  Add the 
+  Allows to yield, for example, the resulting line coverage of the test suite, while
+  the optimisation during test generation was done for branch coverage.  Add the
   required coverage values to your `--output-variables` list to activate this feature.
 
-  *Note:* when doing this, the `Coverage` output variable will contain the average 
+  *Note:* when doing this, the `Coverage` output variable will contain the average
   value of the incorporated coverage values!
 - Provide a Cobertura-like coverage report
 
-  Pynguin already provides an HTML report that can be activated by setting 
-  `--create-coverage-report True`.  This report is nice for human users but not very 
-  usable if one wants to automatically reason about the achieved coverage using 
+  Pynguin already provides an HTML report that can be activated by setting
+  `--create-coverage-report True`.  This report is nice for human users but not very
+  usable if one wants to automatically reason about the achieved coverage using
   tools.  We thus also emit an XML report in the style of the
-  [Cobertura](https://cobertura.github.io/cobertura/) tool that can be used for 
+  [Cobertura](https://cobertura.github.io/cobertura/) tool that can be used for
   further automated tools.
 - Fix typo on `test_parameterizedstatements.py` (see #27, thanks to @stavares843)
 - Fix typo on `testcase.py` (see #26, thanks to @stavares843)
 - Improve mutation-based assertion generation
 
-  The assertion generation now does not more compare the recorded assertion traces 
-  but actually executes the assertions to make the whole process more reliable.  
-  Besides, we do not check for `is not None` as a fallback for object checks any 
-  more, but use an `isinstance` check on the object's type to have a more precise 
+  The assertion generation now does not more compare the recorded assertion traces
+  but actually executes the assertions to make the whole process more reliable.
+  Besides, we do not check for `is not None` as a fallback for object checks any
+  more, but use an `isinstance` check on the object's type to have a more precise
   assertion.
 - Make statistics tests debuggable
 
-  Some accidental circular import made it impossible to run a debugger on tests in 
+  Some accidental circular import made it impossible to run a debugger on tests in
   `pynguin.utils`.  We resolved this by moving tests to another package.
 - Partial rework of internal type system
 
-  We added an abstraction layer over the existing type hints from a module to make 
-  handling and reasoning with types easier.  This abstraction is based on the one 
-  used by [`mypy`](http://mypy-lang.org), however, we only cover a small part of 
+  We added an abstraction layer over the existing type hints from a module to make
+  handling and reasoning with types easier.  This abstraction is based on the one
+  used by [`mypy`](http://mypy-lang.org), however, we only cover a small part of
   what [PEP-484](https://peps.python.org/pep-0484/) actually defines.
 - Make assertion generation more strict
 
@@ -191,30 +205,30 @@ for the source-code artifacts of each version.
 - Improve killing of long-running test-case executions
 - Add computation of mutation scores for `MUTATION_ANALYSIS` assertion generation.
 
-  The output variables `NumberOfCreatedMutants`, `NumberOfKilledMutants`, 
+  The output variables `NumberOfCreatedMutants`, `NumberOfKilledMutants`,
   `NumberOfTimedOutMutants`, and `MutationScore` allow to export those values.
-- Do not enable `typing.TYPE_CHECKING` for SUT analysis as this may cause circular 
+- Do not enable `typing.TYPE_CHECKING` for SUT analysis as this may cause circular
   imports.
-- Improve the black list of modules that shall not be incorporated into the test 
+- Improve the black list of modules that shall not be incorporated into the test
   cluster.
 - Annotate failing tests with `@pytest.mark.xfail(strict=True)`.
 - Improve log output of mutation-based assertion generation.
 - Add instrumentation to mutated modules to easier kill them.
 
   This change is relevant only to the `MUTATION_ANALYSIS` assertion-generation strategy.
-- Write errors in execution threads to the log instead of STDERR to avoid cluttering 
+- Write errors in execution threads to the log instead of STDERR to avoid cluttering
   log output.
 - Add limits for amount and size of constants in the constant pool.
 
-  The configuration options `max_dynamic_length` and `max_dynamic_pool_size` allow 
-  to set sizes for the maximum length of strings/bytes that shall be stored in the 
+  The configuration options `max_dynamic_length` and `max_dynamic_pool_size` allow
+  to set sizes for the maximum length of strings/bytes that shall be stored in the
   dynamic constant pool and the maximum numbers of constants of a type, respectively.
   This prevents the constant pool from growing unreasonably large.
 - Improve handling of type annotations.
 - Fix computation of cyclomatic complexity.
 
-  Computing cyclomatic complexity does not work for functions that are not present 
-  in the AST, e.g., default constructors.  We now omit those from the computation of 
+  Computing cyclomatic complexity does not work for functions that are not present
+  in the AST, e.g., default constructors.  We now omit those from the computation of
   the cyclomatic-complexity output variables.
 
 ## Pynguin 0.22.0
@@ -225,24 +239,24 @@ for the source-code artifacts of each version.
 - Extend the blacklist of modules that shall not be analysed.
 - Raise `RuntimeError` from tracer when called from another thread.
 - Provide better exception messages for critical failures.
-- Apply a further limit to the execution time of a single generated test case to at 
+- Apply a further limit to the execution time of a single generated test case to at
   most 10 seconds.
 - Exclude empty enum classes from test cluster to fix test generation.
 
-  Parsing included modules raised an issue when the `enum` module is used: the test 
-  cluster then had a reference to the `enum.Enum` class, which obviously does not 
-  contain any fields.  In the following, generating tests failed, as soon as this 
-  class was selected to fulfil parameter values because there was no field to select 
+  Parsing included modules raised an issue when the `enum` module is used: the test
+  cluster then had a reference to the `enum.Enum` class, which obviously does not
+  contain any fields.  In the following, generating tests failed, as soon as this
+  class was selected to fulfil parameter values because there was no field to select
   from, e.g., `MyEnum.MY_FIELD`.  We now exclude empty enums from the test cluster.
 
 ## Pynguin 0.21.0
 
 - Fix a bug in the module analysis regarding nested functions
 
-  Nested functions/closures caused Pynguin's module analysis to crash with an 
+  Nested functions/closures caused Pynguin's module analysis to crash with an
   failing assertion.
 - Improve the branch-distance computation for `bool` values
-- Allow for more statistics variables regarding number of lines and cyclomatic 
+- Allow for more statistics variables regarding number of lines and cyclomatic
   complexity
 
 ## Pynguin 0.20.1
@@ -255,12 +269,12 @@ for the source-code artifacts of each version.
 
 - Remove splitting into passing and failing test suite.
 
-  Previously, we consider a test case passing if it did not raise any exception 
-  during its execution; it was considered failing otherwise.  Pynguin did a split of 
-  the test cases into two test suites before exporting them.  This was mainly an 
-  artefact from implementing the random algorithm in the very beginning of the 
-  project.  Due to the improved assertion export for exception assertions we can now 
-  get rid of the split and export only one test module containing all generated test 
+  Previously, we consider a test case passing if it did not raise any exception
+  during its execution; it was considered failing otherwise.  Pynguin did a split of
+  the test cases into two test suites before exporting them.  This was mainly an
+  artefact from implementing the random algorithm in the very beginning of the
+  project.  Due to the improved assertion export for exception assertions we can now
+  get rid of the split and export only one test module containing all generated test
   cases.
 - Remove the option to use a log file (`--log_file` or `--log-file`).
 
@@ -274,37 +288,37 @@ for the source-code artifacts of each version.
 
 - Distinguish between expected and unexpected exceptions.
 
-  We consider an exception to be expected if it is explicitly raised in the code 
-  under test or is documented in the code's docstring.  For those exceptions we 
-  build an `with pytest.raises` block around the exception-raising statement.  All 
-  other exceptions are considered to be unexpected.  We decorate the test method 
-  with the `@pytest.mark.xfail` decorator and let the exception happen.  It is up to 
-  the user to decide whether such an exception is expected.  An exception here is 
-  the `AssertionError`: it is considered to be expected as soon as there is an 
+  We consider an exception to be expected if it is explicitly raised in the code
+  under test or is documented in the code's docstring.  For those exceptions we
+  build an `with pytest.raises` block around the exception-raising statement.  All
+  other exceptions are considered to be unexpected.  We decorate the test method
+  with the `@pytest.mark.xfail` decorator and let the exception happen.  It is up to
+  the user to decide whether such an exception is expected.  An exception here is
+  the `AssertionError`: it is considered to be expected as soon as there is an
   `assert` statement in the code under test.
 - Improve installation description to explicitly point to using a virtual environment
   (see GitHub issue #23, thanks to @tuckcodes).
 - Improve variable names and exception assertions
 
-  The assertion generation got an improved handling for asserting on exceptions, 
-  which creates more meaningful and (hopefully) better understandable assertions for 
+  The assertion generation got an improved handling for asserting on exceptions,
+  which creates more meaningful and (hopefully) better understandable assertions for
   exceptions.
 - Enhance the module analysis
 
-  This is basically a rewrite of our previously existing test cluster, which keeps 
-  track of all the callables from the subject under test as well as the subject's 
-  dependencies.  It also incorporates an analysis of the subject's AST (if present) 
-  and allows for more and more precise information about the subject which can then 
+  This is basically a rewrite of our previously existing test cluster, which keeps
+  track of all the callables from the subject under test as well as the subject's
+  dependencies.  It also incorporates an analysis of the subject's AST (if present)
+  and allows for more and more precise information about the subject which can then
   improve the quality of the generated tests.
-- To distinguish bytecode instructions during instrumentation we add an 
+- To distinguish bytecode instructions during instrumentation we add an
   `ArtificialInstr` for our own added instructions.
 - Fix a bug in the tracing of runtime types.
-  
-  During assertion generation Pynguin tracks the variable types to decide for which 
-  values it actually is able to generate assertions.  Creating an assertion on a 
-  generator function does not work, as the type is not exposed by Python but only 
-  present during runtime—thus generating an object of this type always fail.  We 
-  mitigate this by ignoring objects of type `builtins.generator` from the assertion 
+
+  During assertion generation Pynguin tracks the variable types to decide for which
+  values it actually is able to generate assertions.  Creating an assertion on a
+  generator function does not work, as the type is not exposed by Python but only
+  present during runtime—thus generating an object of this type always fail.  We
+  mitigate this by ignoring objects of type `builtins.generator` from the assertion
   generation.
 - Improve documentation regarding coverage measurement and the coverage report
 
@@ -317,7 +331,7 @@ for the source-code artifacts of each version.
   *This breaks the CLI in two ways:*
   - The parameter `--stopping-condition` has been removed.
   - The parameter `--budget` was renamed to `--maximum-search-time`.
-  
+
   Users have to change their run configurations accordingly!
 
   To specify stopping conditions, add one or many from `--maximum-search-time`,
@@ -327,7 +341,7 @@ for the source-code artifacts of each version.
 ### Further Changes
 
 - Clarify log output for search phases
-- Pynguin now uses the `ast.unparse` function from Python's AST library instead of 
+- Pynguin now uses the `ast.unparse` function from Python's AST library instead of
   the third-party `astor` library to generate the source code of the test cases.
 
 ## Pynguin 0.18.0
@@ -340,7 +354,7 @@ for the source-code artifacts of each version.
 
 ### Further Changes
 - Add line coverage visualisation to the coverage report.
-- Add a citation reference to our freshly accepted ICSE'22 tool demo paper “Pynguin: 
+- Add a citation reference to our freshly accepted ICSE'22 tool demo paper “Pynguin:
   Automated Unit Test Generation for Python.
 - Unify the modules for the analysis of the module under test.
 
@@ -357,44 +371,44 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.16.0
 
-- Refactor the assertion generation.  This unifies the `SIMPLE` and the 
-  `MUTATION_ANALYSIS` approaches.  Furthermore, Pynguin now uses the 
+- Refactor the assertion generation.  This unifies the `SIMPLE` and the
+  `MUTATION_ANALYSIS` approaches.  Furthermore, Pynguin now uses the
   `MUTATION_ANALYSIS` approach again as the default.
-- Update the type annotations in Pynguin's code to the simplified, future versions 
+- Update the type annotations in Pynguin's code to the simplified, future versions
   (e.g. instead of `Dict[str, Set[int]]` we can now write `dict[str, set[int]]`) and do
   not need any imports from Python's `typing` module.
 - Fix a crash of the seeding when native modules are present.  Fixes #20.
-- Provide a hint in the documentation that PyCharm 2021.3 now integrates `poetry` 
-  support, thus no plugin is required for this (and newer) versions (thanks to 
+- Provide a hint in the documentation that PyCharm 2021.3 now integrates `poetry`
+  support, thus no plugin is required for this (and newer) versions (thanks to
   @labrenz).
 
 ## Pynguin 0.15.0
 
 - Fix a bug for mutating a statement that is not in the current test case (see #17).
-- Set default assertion generation to `SIMPLE` due to issues with the experimental 
+- Set default assertion generation to `SIMPLE` due to issues with the experimental
   new generation strategy.
 - Add GitHub Actions that also runs our CI chain on GitHub.
 
 ## Pynguin 0.14.0
 
-- *Breaking:* Simplify the logging such that Pynguin uses different log levels also 
+- *Breaking:* Simplify the logging such that Pynguin uses different log levels also
   for the log file.  This removes the `-q` option to make all outputs quiet.
-- Pynguin now also supports field accesses during test generation.  This is a 
+- Pynguin now also supports field accesses during test generation.  This is a
   preliminary feature.
 - Fix a deadlock in the executor
-- Pynguin now uses Python 3.10 as its default version for the provided Docker 
+- Pynguin now uses Python 3.10 as its default version for the provided Docker
   container as well as our CI.  Still, Pynguin supports Python 3.8 and 3.9.  Up to now,
   Python 3.11 is not yet supported.
 - Refactor the state-trace implementation
 - Remove the module-loader singleton
-- Fix loading of mutated module for assertion generation.  Caused that no assertion 
-  was generated because the mutants were not loaded properly.  This is a regression 
+- Fix loading of mutated module for assertion generation.  Caused that no assertion
+  was generated because the mutants were not loaded properly.  This is a regression
   from merging the assertion-generation strategy in Pynguin 0.13.0.
 
 ## Pynguin 0.13.2
 
 - Add the reference to the preprint of our EMSE journal submission to documentation.
-- Clarify on the value of the `PYNGUIN_DANGER_AWARE` environment variable.  One can 
+- Clarify on the value of the `PYNGUIN_DANGER_AWARE` environment variable.  One can
   set an arbitrary value for the variable, Pynguin only checks whether its defined.
 
 ## Pynguin 0.13.1
@@ -405,7 +419,7 @@ for the source-code artifacts of each version.
 
 - Add an assertion-generation strategy based on mutation (thanks to @f-str).
 
-  The new strategy is enabled by default (can be configured using the 
+  The new strategy is enabled by default (can be configured using the
   `--assertion-generation` parameter).  It uses a custom
   [fork](https://github.com/se2p/mutpy-pynguin) of the mutation-testing framework
   [MutPy](https://github.com/mutpy/mutpy), which mutates the subject under test and for
@@ -416,7 +430,7 @@ for the source-code artifacts of each version.
 
   The release also updates the documentation accordingly.
 
-  *Note:* This feature is an early prototype of such an assertion generation, which 
+  *Note:* This feature is an early prototype of such an assertion generation, which
   might cause unexpected behaviour.  You can switch back to the previous strategy for
   assertion generation by setting `--assertion-generation SIMPLE`.
 
@@ -435,24 +449,24 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.11.0
 
-- Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph 
-  caused DynaMOSA to not consider certain targets because they were control 
+- Fix a control-dependency bug in DynaMOSA.  Loops in the control-dependence graph
+  caused DynaMOSA to not consider certain targets because they were control
   dependent on goals that had not yet been covered due to the loop.
 - Improve documentation
-- Split and extend `FitnessValues` to avoid expensive re-computations.  This also 
-  extends the API of the `FitnessValues` and refactors large parts of the fitness 
+- Split and extend `FitnessValues` to avoid expensive re-computations.  This also
+  extends the API of the `FitnessValues` and refactors large parts of the fitness
   handling.
-- Fix for bumpiness of flaky tests.  Whenever Pynguin generates a test that behaves 
-  flaky result could be that coverage over time looks like ventricular fibrillation 
-  especially for the MIO algorithm.  The fix prevents this by carefully revisiting 
+- Fix for bumpiness of flaky tests.  Whenever Pynguin generates a test that behaves
+  flaky result could be that coverage over time looks like ventricular fibrillation
+  especially for the MIO algorithm.  The fix prevents this by carefully revisiting
   the equality of chromosomes.
 - Improve handling of entry/exit nodes in the CFG; this fixes issues with Python 3.10
 
 ## Pynguin 0.10.0
 
 - Provide support for Python 3.10
-- Pynguin now set `typing.TYPE_CHECKING = True` explicitly before parsing the 
-  subject under test in order to be able to collect also information about types 
+- Pynguin now set `typing.TYPE_CHECKING = True` explicitly before parsing the
+  subject under test in order to be able to collect also information about types
   that are only imported due to type checking/providing type annotations.
 - Improved generation of collection statements
 - Cleanup the implementation of the algorithms
@@ -460,8 +474,8 @@ for the source-code artifacts of each version.
 - Cleanup the implementation of the dynamic value seeding
 - Make Pynguin executions as deterministic as we possibly can
 - Make DynaMOSA the default algorithm
-- Allow the generation of an HTML coverage report similar to the one generated by 
-  Coverage.py.  This allows to show the subject under test and the coverage achieved 
+- Allow the generation of an HTML coverage report similar to the one generated by
+  Coverage.py.  This allows to show the subject under test and the coverage achieved
   by the test cases generated by Pynguin in the web browser.
 - Add a [CITATION.cff](https://citation-file-format.github.io/) file
 - Improve the internal control-flow graph
@@ -470,7 +484,7 @@ for the source-code artifacts of each version.
 - Fix a bug in post-processing
 - Fix a bug in branch coverage instrumentation on `for` loops
 - Add a variant of the whole-suite algorithm that uses an archive
-- Guard imports that are only necessary for type checking in Pynguin's modules by 
+- Guard imports that are only necessary for type checking in Pynguin's modules by
   `if typing.TYPE_CHECKING` conditions
 
 ## Pynguin 0.9.2
@@ -505,38 +519,38 @@ for the source-code artifacts of each version.
 
 ## Pynguin 0.8.0
 
-- *Breaking:* Renamed `RANDOM_SEARCH` to `RANDOM_TEST_SUITE_SEARCH` to select the 
+- *Breaking:* Renamed `RANDOM_SEARCH` to `RANDOM_TEST_SUITE_SEARCH` to select the
   random-sampling algorithm based on test suites introduced in Pynguin 0.7.0.
- 
+
 
 - Improve input generation for collection types.
-- Add an implementation of tournament selection for the use with DynaMOSA, MOSA, and 
+- Add an implementation of tournament selection for the use with DynaMOSA, MOSA, and
   Whole Suite.
-  
-  For Whole Suite, on can choose the selection algorithm (either rank or tournament 
+
+  For Whole Suite, on can choose the selection algorithm (either rank or tournament
   selection) by setting the value of the `--selection` parameter.
 - Add [DynaMOSA](https://doi.org/10.1109/TSE.2017.2663435) test-generation algorithm.
-  
+
   It can be selected via `--algorithm DYNAMOSA`.
 - Add [MIO](https://doi.org/10.1007/978-3-319-66299-2_1) test-generation algorithm.
-  
+
   It can be selected via `--algorithm MIO`.
 - Add a random sampling algorithm based on test cases.
-  
-  The algorithm is available by setting `--algorithm RANDOM_TEST_CASE_SEARCH`.  It 
-  randomly picks one test case, adds all available fitness functions to it and adds 
-  it to the MOSA archive.  If the test case is covering one fitness target it is 
-  retrieved by the archive.  If it covers an already covered target but is shorter 
+
+  The algorithm is available by setting `--algorithm RANDOM_TEST_CASE_SEARCH`.  It
+  randomly picks one test case, adds all available fitness functions to it and adds
+  it to the MOSA archive.  If the test case is covering one fitness target it is
+  retrieved by the archive.  If it covers an already covered target but is shorter
   than the currently covering test case for that target, it replaces the latter.
 - Fix `OSError` from executors queue.
-  
-  The queue was kept open until the garbage collector delete the object.  This 
-  caused an `OSError` because it reached the OS's limit of open resource handles.  
+
+  The queue was kept open until the garbage collector delete the object.  This
+  caused an `OSError` because it reached the OS's limit of open resource handles.
   We now close the queue in the test-case executor manually to mitigate this.
 - Fix `__eq__` and `__hash__` of parameterised statements.
-  
-  Before this, functions such as `foo(a)` and `bar(a)` had been considered 
-  equivalent from their equals and hash-code implementation, which only compared the 
+
+  Before this, functions such as `foo(a)` and `bar(a)` had been considered
+  equivalent from their equals and hash-code implementation, which only compared the
   parameters and returns but not the actual function's name.
 - Fix logging to work properly again.
 
@@ -551,19 +565,19 @@ for the source-code artifacts of each version.
 ## Pynguin 0.7.0
 
 - *Breaking:* Renamed algorithms in configuration options.
-  Use `RANDOM` instead of `RANDOOPY` for feedback-directed random test generation 
+  Use `RANDOM` instead of `RANDOOPY` for feedback-directed random test generation
   and `WHOLE_SUITE` instead of `WSPY` for whole-suite test generation.
-- Add [MOSA](https://doi.org/10.1109/ICST.2015.7102604) test-generation algorithm.  
+- Add [MOSA](https://doi.org/10.1109/ICST.2015.7102604) test-generation algorithm.
   It can be selected via `--algorithm MOSA`.
 - Add simple random-search test-generation algorithm.
   It can be selected via `--algorithm RANDOM_SEARCH`.
-- Pynguin now supports the usage of a configuration file (based on Python's 
+- Pynguin now supports the usage of a configuration file (based on Python's
   [argparse](https://docs.python.org/3/library/argparse.html)) module.
-  Use `@<path/to/file>` in the command-line options of Pynguin to specify a 
+  Use `@<path/to/file>` in the command-line options of Pynguin to specify a
   configuration file.
   See the `argparse` documentation for details on the file structure.
-- Add further seeding strategies to extract dynamic values from execution and to use 
-  existing test cases as a seeded initial population (thanks to 
+- Add further seeding strategies to extract dynamic values from execution and to use
+  existing test cases as a seeded initial population (thanks to
   [@Luki42](https://github.com/luki42))
 
 ## Pynguin 0.6.3

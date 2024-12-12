@@ -5,13 +5,14 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides some observers for statistics."""
+
 from __future__ import annotations
 
 import time
 import typing
 
 import pynguin.ga.searchobserver as so
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -40,9 +41,7 @@ class IterationObserver(so.SearchObserver):
         self._iterations += 1
 
     def after_search_finish(self) -> None:  # noqa: D102
-        stat.track_output_variable(
-            RuntimeVariable.AlgorithmIterations, self._iterations
-        )
+        stat.track_output_variable(RuntimeVariable.AlgorithmIterations, self._iterations)
 
 
 class SequenceStartTimeObserver(so.SearchObserver):

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides chromosome visitors to perform post-processing."""
+
 from __future__ import annotations
 
 import logging
@@ -174,9 +175,7 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
             "Removed %s unused primitives/collections from test case",
             size_before - test_case.size(),
         )
-        self._deleted_statement_indexes.update(
-            primitive_remover.deleted_statement_indexes
-        )
+        self._deleted_statement_indexes.update(primitive_remover.deleted_statement_indexes)
 
 
 class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):

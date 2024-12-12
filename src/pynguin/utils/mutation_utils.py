@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides some mutation related utilities."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

@@ -14,32 +14,32 @@ from pynguin.analyses.controlflow import ProgramGraph
 from pynguin.analyses.controlflow import ProgramGraphNode
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_basic_block() -> BasicBlock:
     return MagicMock(BasicBlock)
 
 
-@pytest.fixture()
+@pytest.fixture
 def node() -> ProgramGraphNode:
     return ProgramGraphNode(index=42)
 
 
-@pytest.fixture()
+@pytest.fixture
 def second_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=23)
 
 
-@pytest.fixture()
+@pytest.fixture
 def third_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=21)
 
 
-@pytest.fixture()
+@pytest.fixture
 def fourth_node() -> ProgramGraphNode:
     return ProgramGraphNode(index=24)
 
 
-@pytest.fixture()
+@pytest.fixture
 def graph() -> ProgramGraph:
     return ProgramGraph()
 

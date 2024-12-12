@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides abstract factories for output variables."""
+
 from __future__ import annotations
 
 import time
@@ -22,7 +23,7 @@ import pynguin.utils.statistics.statisticsbackend as sb
 
 if typing.TYPE_CHECKING:
     import pynguin.ga.chromosome as chrom
-    import pynguin.utils.statistics.statistics as stat
+    import pynguin.utils.statistics.stats as stat
 
     from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -60,9 +61,7 @@ class ChromosomeOutputVariableFactory(ABC, Generic[T]):
         Returns:
             The output variable for the individual
         """
-        return sb.OutputVariable(
-            name=self._variable.name, value=self.get_data(individual)
-        )
+        return sb.OutputVariable(name=self._variable.name, value=self.get_data(individual))
 
 
 class SequenceOutputVariableFactory(ABC, Generic[T]):
@@ -135,9 +134,7 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
             A list of output variables
         """
         return [
-            sb.OutputVariable(
-                name=variable_name, value=self._get_time_line_value(variable_index)
-            )
+            sb.OutputVariable(name=variable_name, value=self._get_time_line_value(variable_index))
             for variable_index, variable_name in self.get_variable_names_indices()
         ]
 
@@ -145,31 +142,56 @@ class SequenceOutputVariableFactory(ABC, Generic[T]):
     def area_under_curve(self) -> float:
         """Provides the area under the curve using trapezoid approximation."""
         assert config.configuration.stopping.maximum_search_time is not None
-        time_stamps_values: list[tuple[int, float]] = list(
+        time_stamps_values: list[tuple[float, float]] = list(
             zip(self._time_stamps, self._values, strict=True)
         )
-        max_time = config.configuration.stopping.maximum_search_time - 1
-        end_time = max_time * 1_000_000_000
-        if self._time_stamps[-1] < end_time:
-            time_stamps_values.append((end_time, 1.0))
+        run_time = self._time_stamps[-1] / 1_000_000_000
 
-        result = 0.0
+        area = 0.0
         previous_value = 0.0
-        previous_time_stamp = 0
+        previous_time_stamp = 0.0
         for time_stamp, value in time_stamps_values:
-            delta = (time_stamp - previous_time_stamp) / 1_000_000_000
-            summand = (previous_value + value) / 2 * delta
-            assert summand >= 0, "Sum must not be negative"
-            result += summand
+            time_delta = time_stamp - previous_time_stamp
+            # Taking the abs should actually not be necessary, because time_delta should
+            # always be >= 0, but to prevent issues with rounding, etc....
+            current_area = abs((previous_value + value) / 2 * time_delta)
+            area += current_area
             previous_time_stamp = time_stamp
             previous_value = value
-        return result
+
+        if run_time < config.configuration.stopping.maximum_search_time:
+            area += (config.configuration.stopping.maximum_search_time - run_time) * self._values[
+                -1
+            ]
+
+        return area / 1_000_000_000
+
+    @property
+    def normalised_area_under_curve(self) -> float:
+        """Provides the normalised area under curve using trapezoid approximation."""
+        assert config.configuration.stopping.maximum_search_time is not None
+        run_time = self._time_stamps[-1] / 1_000_000_000
+        if run_time >= config.configuration.stopping.maximum_search_time:
+            normalised_area = self.area_under_curve / run_time
+        else:
+            last_value = self._values[-1]
+            time_delta = config.configuration.stopping.maximum_search_time - run_time
+            normalised_area = (
+                self.area_under_curve + last_value * time_delta
+            ) / config.configuration.stopping.maximum_search_time
+        assert 0.0 <= normalised_area <= 1.0, f"Normalised AuC out of range ({normalised_area})!"
+        return normalised_area
 
     @property
     def area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
         """Provides the output variable for area under curve."""
+        return sb.OutputVariable(name=f"{self._variable.name}_AUC", value=self.area_under_curve)
+
+    @property
+    def normalised_area_under_curve_output_variable(self) -> sb.OutputVariable[float]:
+        """Provides the output variable for normalised area under curve."""
         return sb.OutputVariable(
-            name=f"{self._variable.name}_AUC", value=self.area_under_curve
+            name=f"{self._variable.name}_nAUC", value=self.normalised_area_under_curve
         )
 
     def _get_time_line_value(self, index: int) -> T:
@@ -264,9 +286,7 @@ class DirectSequenceOutputVariableFactory(SequenceOutputVariableFactory, Generic
         return DirectSequenceOutputVariableFactory(variable, 0)
 
 
-class TypeEvolutionSequenceOutputVariableFactory(
-    DirectSequenceOutputVariableFactory, Generic[T]
-):
+class TypeEvolutionSequenceOutputVariableFactory(DirectSequenceOutputVariableFactory, Generic[T]):
     """A sequence output variable for type-information evolution."""
 
     def __init__(self, variable: RuntimeVariable, start_value: T) -> None:  # noqa: D107

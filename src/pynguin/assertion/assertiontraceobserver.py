@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract observer that can be used to generate assertions."""
+
 import ast
 import copy
 import logging
@@ -51,9 +52,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             self.watch_list: list[vr.VariableReference] = []
 
     def __init__(self) -> None:  # noqa: D107
-        self._assertion_local_state = (
-            RemoteAssertionTraceObserver.RemoteAssertionLocalState()
-        )
+        self._assertion_local_state = RemoteAssertionTraceObserver.RemoteAssertionLocalState()
 
     def get_trace(self) -> at.AssertionTrace:
         """Get a copy of the gathered trace.
@@ -85,9 +84,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         if exception is not None:
-            if self._is_module_exposed(
-                executor.module_provider, type(exception).__module__
-            ):
+            if self._is_module_exposed(executor.module_provider, type(exception).__module__):
                 self._assertion_local_state.trace.add_entry(
                     statement.get_position(),
                     ass.ExceptionAssertion(
@@ -97,7 +94,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                 )
             return
         if statement.affects_assertions:
-            stmt = cast(st.VariableCreatingStatement, statement)
+            stmt = cast("st.VariableCreatingStatement", statement)
             self._handle(stmt, executor.module_provider, exec_ctx)
 
     def after_test_case_execution(  # noqa: D102
@@ -128,13 +125,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         if not statement.ret_val.is_none_type():
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
-                self._check_reference(
-                    module_provider, exec_ctx, statement.ret_val, position, trace
-                )
-            elif (
-                type(exec_ctx.get_reference_value(statement.ret_val)).__module__
-                != "builtins"
-            ):
+                self._check_reference(module_provider, exec_ctx, statement.ret_val, position, trace)
+            elif type(exec_ctx.get_reference_value(statement.ret_val)).__module__ != "builtins":
                 # Everything else is continually checked, unless it is from builtins.
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
@@ -239,9 +231,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             if isinstance(value, Sized):
                 try:
                     length = len(value)
-                    trace.add_entry(
-                        position, ass.CollectionLengthAssertion(ref, length)
-                    )
+                    trace.add_entry(position, ass.CollectionLengthAssertion(ref, length))
                     return
                 except BaseException as err:  # noqa: BLE001
                     # Could not get len, so continue down.
@@ -265,9 +255,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                         )
 
     @staticmethod
-    def _is_module_exposed(
-        module_provider: ex.ModuleProvider, module_name: str
-    ) -> bool:
+    def _is_module_exposed(module_provider: ex.ModuleProvider, module_name: str) -> bool:
         try:
             module_provider.get_module(module_name)
         except KeyError:
@@ -296,9 +284,7 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
             self.trace = at.AssertionVerificationTrace()
 
     def __init__(self):  # noqa: D107
-        self._state = (
-            RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
-        )
+        self._state = RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
 
     @property
     def state(self) -> dict[str, Any]:  # noqa: D102

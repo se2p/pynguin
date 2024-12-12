@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Contains all code related to test-case execution."""
+
 from __future__ import annotations
 
 import inspect
@@ -118,12 +119,8 @@ class ExecutionTrace:
             distance_false: the measured false distance
             predicate: the predicate id
         """
-        self.executed_predicates[predicate] = (
-            self.executed_predicates.get(predicate, 0) + 1
-        )
-        self.true_distances[predicate] = min(
-            self.true_distances.get(predicate, inf), distance_true
-        )
+        self.executed_predicates[predicate] = self.executed_predicates.get(predicate, 0) + 1
+        self.true_distances[predicate] = min(self.true_distances.get(predicate, inf), distance_true)
         self.false_distances[predicate] = min(
             self.false_distances.get(predicate, inf), distance_false
         )
@@ -338,9 +335,7 @@ class LineMetaData:
             return False
         # code object id is not checked since file
         # and line number are the unique identifiers
-        return (
-            self.line_number == other.line_number and self.file_name == other.file_name
-        )
+        return self.line_number == other.line_number and self.file_name == other.file_name
 
 
 @dataclass
@@ -348,9 +343,7 @@ class SubjectProperties:
     """Contains properties about the subject under test."""
 
     # Maps all known ids of Code Objects to meta information
-    existing_code_objects: dict[int, instr.CodeObjectMetaData] = field(
-        default_factory=dict
-    )
+    existing_code_objects: dict[int, instr.CodeObjectMetaData] = field(default_factory=dict)
 
     # Stores which of the existing code objects do not contain a branch, i.e.,
     # they do not contain a predicate. Every code object is initially seen as
@@ -358,9 +351,7 @@ class SubjectProperties:
     branch_less_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
 
     # Maps all known ids of predicates to meta information
-    existing_predicates: dict[int, instr.PredicateMetaData] = field(
-        default_factory=dict
-    )
+    existing_predicates: dict[int, instr.PredicateMetaData] = field(default_factory=dict)
 
     # stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
@@ -551,9 +542,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_line(
-        self, code_object_id: int, file_name: str, line_number: int
-    ) -> int:
+    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
         """Tracks the existence of a line.
 
         Args:
@@ -880,9 +869,7 @@ def _eq(val1, val2) -> float:
     if is_string(val1) and is_string(val2):
         return levenshtein_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
-        return levenshtein_distance(
-            val1.decode("iso-8859-1"), val2.decode("iso-8859-1")
-        )
+        return levenshtein_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
     return inf
 
 
@@ -1109,13 +1096,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
-        assert (
-            code_object_id in self.subject_properties.existing_code_objects
-        ), "Cannot trace unknown code object"
+        assert code_object_id in self.subject_properties.existing_code_objects, (
+            "Cannot trace unknown code object"
+        )
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
     def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
@@ -1124,34 +1109,28 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
-    def executed_compare_predicate(  # noqa: D102
+    def executed_compare_predicate(  # noqa: D102, C901
         self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
 
         try:
             self.disable()
-            assert (
-                predicate in self.subject_properties.existing_predicates
-            ), "Cannot trace unknown predicate"
+            assert predicate in self.subject_properties.existing_predicates, (
+                "Cannot trace unknown predicate"
+            )
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
 
             match cmp_op:
                 case instr.PynguinCompare.EQ:
-                    distance_true, distance_false = _eq(value1, value2), _neq(
-                        value1, value2
-                    )
+                    distance_true, distance_false = _eq(value1, value2), _neq(value1, value2)
                 case instr.PynguinCompare.NE:
-                    distance_true, distance_false = _neq(value1, value2), _eq(
-                        value1, value2
-                    )
+                    distance_true, distance_false = _neq(value1, value2), _eq(value1, value2)
                 case instr.PynguinCompare.LT:
                     distance_true, distance_false = (
                         _lt(value1, value2),
@@ -1200,18 +1179,16 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
 
         try:
             self.disable()
-            assert (
-                predicate in self.subject_properties.existing_predicates
-            ), "Cannot trace unknown predicate"
+            assert predicate in self.subject_properties.existing_predicates, (
+                "Cannot trace unknown predicate"
+            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1240,18 +1217,16 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
 
         try:
             self.disable()
-            assert (
-                predicate in self.subject_properties.existing_predicates
-            ), "Cannot trace unknown predicate"
+            assert predicate in self.subject_properties.existing_predicates, (
+                "Cannot trace unknown predicate"
+            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1268,9 +1243,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1285,23 +1258,19 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             line_id = len(self.subject_properties.existing_lines)
             self.subject_properties.existing_lines[line_id] = line_meta
         else:
-            index = list(self.subject_properties.existing_lines.values()).index(
-                line_meta
-            )
+            index = list(self.subject_properties.existing_lines.values()).index(line_meta)
             line_id = list(self.subject_properties.existing_lines.keys())[index]
         return line_id
 
-    def _update_metrics(
-        self, distance_false: float, distance_true: float, predicate: int
-    ):
-        assert (
-            predicate in self.subject_properties.existing_predicates
-        ), "Cannot update unknown predicate"
+    def _update_metrics(self, distance_false: float, distance_true: float, predicate: int):
+        assert predicate in self.subject_properties.existing_predicates, (
+            "Cannot update unknown predicate"
+        )
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
-        assert (distance_true == 0.0) ^ (
-            distance_false == 0.0
-        ), "Exactly one distance must be 0.0, i.e., one branch must be taken."
+        assert (distance_true == 0.0) ^ (distance_false == 0.0), (
+            "Exactly one distance must be 0.0, i.e., one branch must be taken."
+        )
         self._thread_local_state.trace.update_predicate_distances(
             distance_true=distance_true,
             distance_false=distance_false,
@@ -1318,9 +1287,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1342,9 +1309,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_type: type,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1393,9 +1358,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_type: type,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1435,9 +1398,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         target_id: int,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1457,9 +1418,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg: int,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1478,9 +1437,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1493,9 +1450,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self, statement: stmt.Statement
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1519,9 +1474,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         if self.is_disabled():
             return
@@ -1532,9 +1485,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             if instruction.opcode == op.POP_JUMP_IF_TRUE:
                 break
             pop_jump_if_true_position -= 1
-        assert (
-            pop_jump_if_true_position != -1
-        ), "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
+        assert pop_jump_if_true_position != -1, (
+            "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
+        )
 
         self._thread_local_state.trace.executed_assertions.append(
             ExecutedAssertion(
@@ -1551,12 +1504,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def lineids_to_linenos(  # noqa: D102
         self, line_ids: OrderedSet[int]
     ) -> OrderedSet[int]:
-        return OrderedSet(
-            [
-                self.subject_properties.existing_lines[line_id].line_number
-                for line_id in line_ids
-            ]
-        )
+        return OrderedSet([
+            self.subject_properties.existing_lines[line_id].line_number for line_id in line_ids
+        ])
 
     def __getstate__(self) -> dict:
         return self.state
@@ -1566,7 +1516,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
 
 class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904, D101
-
     def __init__(self, tracer: ExecutionTracer):  # noqa: D107
         self._tracer = tracer
 
@@ -1651,9 +1600,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904,
         lineno: int,
         offset: int,
     ) -> None:
-        self._tracer.track_generic(
-            module, code_object_id, node_id, opcode, lineno, offset
-        )
+        self._tracer.track_generic(module, code_object_id, node_id, opcode, lineno, offset)
 
     def track_memory_access(  # noqa: PLR0917, D102
         self,
@@ -1715,9 +1662,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904,
         offset: int,
         target_id: int,
     ) -> None:
-        self._tracer.track_jump(
-            module, code_object_id, node_id, opcode, lineno, offset, target_id
-        )
+        self._tracer.track_jump(module, code_object_id, node_id, opcode, lineno, offset, target_id)
 
     def track_call(  # noqa: PLR0917, D102
         self,
@@ -1729,9 +1674,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904,
         offset: int,
         arg: int,
     ) -> None:
-        self._tracer.track_call(
-            module, code_object_id, node_id, opcode, lineno, offset, arg
-        )
+        self._tracer.track_call(module, code_object_id, node_id, opcode, lineno, offset, arg)
 
     def track_return(  # noqa: PLR0917, D102
         self,
@@ -1742,9 +1685,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904,
         lineno: int,
         offset: int,
     ) -> None:
-        self._tracer.track_return(
-            module, code_object_id, node_id, opcode, lineno, offset
-        )
+        self._tracer.track_return(module, code_object_id, node_id, opcode, lineno, offset)
 
     def register_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement

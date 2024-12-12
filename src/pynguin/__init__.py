@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Pynguin is an automated unit test generation framework for Python."""
+
 import copyreg
 
 from collections.abc import Callable

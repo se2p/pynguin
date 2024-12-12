@@ -13,7 +13,7 @@ import pynguin.testcase.statement as stmt
 from pynguin.analyses.module import ModuleTestCluster
 
 
-@pytest.fixture()
+@pytest.fixture
 def benchmark_test_case(constructor_mock, function_mock):
     """Create a test case with a moderately large structure."""
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))

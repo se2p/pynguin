@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides classes for computations on chromosomes, e.g., fitness and coverage."""
+
 from __future__ import annotations
 
 import abc
@@ -57,9 +58,7 @@ class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
             A list of execution results
         """
         if individual.changed or individual.get_last_execution_result() is None:
-            individual.set_last_execution_result(
-                self._executor.execute(individual.test_case)
-            )
+            individual.set_last_execution_result(self._executor.execute(individual.test_case))
             individual.changed = False
         result = individual.get_last_execution_result()
         assert result is not None
@@ -180,9 +179,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
 
-        return compute_branch_distance_fitness(
-            merged_trace, tracer.get_subject_properties()
-        )
+        return compute_branch_distance_fitness(merged_trace, tracer.get_subject_properties())
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
@@ -197,9 +194,7 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
         return False
 
 
-class TestSuiteFitnessFunction(
-    TestSuiteChromosomeComputation, FitnessFunction, abc.ABC
-):
+class TestSuiteFitnessFunction(TestSuiteChromosomeComputation, FitnessFunction, abc.ABC):
     """Base class for test suite fitness functions."""
 
 
@@ -296,9 +291,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return len(tracer.get_subject_properties().existing_lines) - len(
-            merged_trace.checked_lines
-        )
+        return len(tracer.get_subject_properties().existing_lines) - len(merged_trace.checked_lines)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
@@ -329,15 +322,11 @@ class CoverageFunction:
         """
 
 
-class TestSuiteCoverageFunction(
-    TestSuiteChromosomeComputation, CoverageFunction, abc.ABC
-):
+class TestSuiteCoverageFunction(TestSuiteChromosomeComputation, CoverageFunction, abc.ABC):
     """Base class for all coverage functions that act on test suite level."""
 
 
-class TestCaseCoverageFunction(
-    TestCaseChromosomeComputation, CoverageFunction, abc.ABC
-):
+class TestCaseCoverageFunction(TestCaseChromosomeComputation, CoverageFunction, abc.ABC):
     """Base class for all coverage functions that act on test case level."""
 
 
@@ -427,9 +416,7 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(
-            merged_trace, tracer.get_subject_properties()
-        )
+        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
@@ -439,9 +426,7 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(
-            merged_trace, tracer.get_subject_properties()
-        )
+        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
 
 
 class ComputationCache:
@@ -499,9 +484,9 @@ class ComputationCache:
         Args:
             fitness_function: A fitness function
         """
-        assert (
-            not fitness_function.is_maximisation_function()
-        ), "Currently only minimization is supported"
+        assert not fitness_function.is_maximisation_function(), (
+            "Currently only minimization is supported"
+        )
         self._fitness_functions.append(fitness_function)
 
     def get_coverage_functions(self) -> list[CoverageFunction]:
@@ -557,9 +542,7 @@ class ComputationCache:
             if fitness_func not in self._fitness_cache:
                 new_value = fitness_func.compute_fitness(self._chromosome)
                 assert (  # noqa: PT018
-                    not math.isnan(new_value)
-                    and not math.isinf(new_value)
-                    and new_value >= 0
+                    not math.isnan(new_value) and not math.isinf(new_value) and new_value >= 0
                 ), f"Invalid fitness value {new_value}"
                 self._fitness_cache[fitness_func] = new_value
                 # When computing a minimising fitness value, we can also determine
@@ -732,9 +715,7 @@ def compute_branch_distance_fitness(
             trace.executed_code_objects, exclude_code
         )
     )
-    assert (
-        code_objects_missing >= 0.0
-    ), "Amount of non covered code objects cannot be negative"
+    assert code_objects_missing >= 0.0, "Amount of non covered code objects cannot be negative"
 
     # Handle None for branches.
     exclude_true = set() if exclude_true is None else exclude_true
@@ -744,13 +725,9 @@ def compute_branch_distance_fitness(
     predicate_fitness: float = 0.0
     for predicate in subject_properties.existing_predicates:
         if predicate not in exclude_true:
-            predicate_fitness += _predicate_fitness(
-                predicate, trace.true_distances, trace
-            )
+            predicate_fitness += _predicate_fitness(predicate, trace.true_distances, trace)
         if predicate not in exclude_false:
-            predicate_fitness += _predicate_fitness(
-                predicate, trace.false_distances, trace
-            )
+            predicate_fitness += _predicate_fitness(predicate, trace.false_distances, trace)
 
     assert predicate_fitness >= 0.0, "Predicate fitness cannot be negative."
     return code_objects_missing + predicate_fitness
@@ -761,10 +738,7 @@ def _predicate_fitness(
 ) -> float:
     if predicate in branch_distances and branch_distances[predicate] == 0.0:
         return 0.0
-    if (
-        predicate in trace.executed_predicates
-        and trace.executed_predicates[predicate] >= 2
-    ):
+    if predicate in trace.executed_predicates and trace.executed_predicates[predicate] >= 2:
         return normalise(branch_distances[predicate])
     return 1.0
 
@@ -808,15 +782,9 @@ def compute_branch_distance_fitness_is_covered(
 
     # Check if all predicates are covered
     for predicate in subject_properties.existing_predicates:
-        if (
-            predicate not in exclude_true
-            and (predicate, 0.0) not in trace.true_distances
-        ):
+        if predicate not in exclude_true and (predicate, 0.0) not in trace.true_distances:
             return False
-        if (
-            predicate not in exclude_false
-            and (predicate, 0.0) not in trace.false_distances
-        ):
+        if predicate not in exclude_false and (predicate, 0.0) not in trace.false_distances:
             return False
     return True
 
@@ -851,9 +819,7 @@ def compute_checked_coverage_statement_fitness_is_covered(
     return len(trace.checked_lines) == len(subject_properties.existing_lines)
 
 
-def compute_branch_coverage(
-    trace: ExecutionTrace, subject_properties: SubjectProperties
-) -> float:
+def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectProperties) -> float:
     """Computes branch coverage on bytecode instructions.
 
     The resulting coverage should be equal to decision coverage on source code.
@@ -866,9 +832,7 @@ def compute_branch_coverage(
         The computed coverage value
     """
     covered = len(
-        trace.executed_code_objects.intersection(
-            subject_properties.branch_less_code_objects
-        )
+        trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
     )
     existing = len(subject_properties.branch_less_code_objects)
 
@@ -885,9 +849,7 @@ def compute_branch_coverage(
     return coverage
 
 
-def compute_line_coverage(
-    trace: ExecutionTrace, subject_properties: SubjectProperties
-) -> float:
+def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProperties) -> float:
     """Computes line coverage on bytecode instructions.
 
     Args:
@@ -922,13 +884,10 @@ def _cleanse_included_implicit_return_none(
     ):
         if (
             # check if the "return None" is implicit or explicit
-            len(statement_slice) != 3
-            and statement_slice[-4].lineno != statement_slice[-3].lineno
+            len(statement_slice) != 3 and statement_slice[-4].lineno != statement_slice[-3].lineno
         ):
             statement_checked_lines.remove(
-                DynamicSlicer.get_line_id_by_instruction(
-                    statement_slice[-3], subject_properties
-                )
+                DynamicSlicer.get_line_id_by_instruction(statement_slice[-3], subject_properties)
             )
 
 
@@ -1017,9 +976,7 @@ def compute_assertion_checked_coverage(
             assertion_checked_instructions = assertion_slicer.slice_assertion(
                 executed_assertion, trace
             )
-            executed_assertion.assertion.checked_instructions.extend(
-                assertion_checked_instructions
-            )
+            executed_assertion.assertion.checked_instructions.extend(assertion_checked_instructions)
             # checked at any point by the assertion of a statement
             checked_instructions.extend(assertion_checked_instructions)
 

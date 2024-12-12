@@ -192,9 +192,7 @@ def test_compare_ignores_proxy():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     tracer.register_predicate(MagicMock(code_object_id=0))
-    tracer.executed_compare_predicate(
-        tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ
-    )
+    tracer.executed_compare_predicate(tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
     assert (0, 0) in tracer.get_trace().false_distances.items()
 
@@ -305,7 +303,12 @@ def test_enable_disable_bool():
 
 @pytest.mark.parametrize(
     "val1,val2,result",
-    [(1, 1, 0), (2, 1, 1), ("c", "b", inf), (Decimal(0.5), Decimal(0.3), 0.2)],
+    [
+        (1, 1, 0),
+        (2, 1, 1),
+        ("c", "b", inf),
+        (Decimal(0.5), Decimal(0.3), 0.2),  # noqa: RUF032
+    ],
 )
 def test_le(val1, val2, result):
     assert _le(val1, val2) == result
@@ -313,7 +316,12 @@ def test_le(val1, val2, result):
 
 @pytest.mark.parametrize(
     "val1,val2,result",
-    [(0, 1, 0), (1, 1, 1), ("b", "b", inf), (Decimal(0.5), Decimal(0.3), 1.2)],
+    [
+        (0, 1, 0),
+        (1, 1, 1),
+        ("b", "b", inf),
+        (Decimal(0.5), Decimal(0.3), 1.2),  # noqa: RUF032
+    ],
 )
 def test_lt(val1, val2, result):
     assert _lt(val1, val2) == result

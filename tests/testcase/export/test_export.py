@@ -40,9 +40,7 @@ def test_case_1():
     )
 
 
-def test_export_sequence_expected_exception(
-    exportable_test_case_with_expected_exception, tmp_path
-):
+def test_export_sequence_expected_exception(exportable_test_case_with_expected_exception, tmp_path):
     path = tmp_path / "generated_with_expected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_expected_exception.accept(exporter)

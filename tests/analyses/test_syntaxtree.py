@@ -10,6 +10,7 @@ The implementation of this module contains some code adopted from the ``darglint
 library (https://github.com/terrencepreilly/darglint), which was released by Terrence
 Reilly under MIT license.
 """
+
 import ast
 import importlib
 import inspect
@@ -31,15 +32,13 @@ def comments_tree() -> astroid.Module:
     return astroid.parse(inspect.getsource(module), path="comments.py")
 
 
-@pytest.fixture()
+@pytest.fixture
 def function_analysis() -> FunctionAnalysisVisitor:
     return FunctionAnalysisVisitor()
 
 
 def __parse_ast(code: str) -> ast.Module:
-    return ast.parse(
-        code, filename="dummy.py", type_comments=True, feature_version=(3, 8)
-    )
+    return ast.parse(code, filename="dummy.py", type_comments=True, feature_version=(3, 8))
 
 
 @pytest.mark.parametrize(
@@ -61,9 +60,7 @@ def test__has_decorator(comments_tree, decorators, expected):
     ],
 )
 def test_get_function_description(comments_tree, function):
-    descriptions = get_function_description(
-        get_function_node_from_ast(comments_tree, function)
-    )
+    descriptions = get_function_description(get_function_node_from_ast(comments_tree, function))
     assert descriptions.name == function
 
 
@@ -81,9 +78,7 @@ def test_get_function_description(comments_tree, function):
 )
 def test_get_method_description(comments_tree, function):
     descriptions = get_function_description(
-        get_function_node_from_ast(
-            get_class_node_from_ast(comments_tree, "AClass"), function
-        )
+        get_function_node_from_ast(get_class_node_from_ast(comments_tree, "AClass"), function)
     )
     assert descriptions.name == function
 

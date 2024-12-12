@@ -62,9 +62,7 @@ class AbstractOverriddenElementModification(MutationOperator):
         while parent is not None:
             if not isinstance(parent, ast.Module):
                 parent_names.append(parent.name)  # type: ignore[attr-defined]
-            if not isinstance(parent, ast.ClassDef) and not isinstance(
-                parent, ast.Module
-            ):
+            if not isinstance(parent, ast.ClassDef) and not isinstance(parent, ast.Module):
                 return None
             parent = parent.parent  # type: ignore[attr-defined,union-attr]
 
@@ -101,9 +99,7 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
 
             return ast.Pass()
 
-        if isinstance(first_expression, ast.Tuple) and isinstance(
-            node.value, ast.Tuple
-        ):
+        if isinstance(first_expression, ast.Tuple) and isinstance(node.value, ast.Tuple):
             return self.mutate_unpack(node)
 
         return None
@@ -122,15 +118,13 @@ class HidingVariableDeletion(AbstractOverriddenElementModification):
 
         mutated_node = copy_node(node)
 
-        target = cast(ast.List | ast.Tuple | ast.Set, mutated_node.targets[0])
-        value = cast(ast.List | ast.Tuple | ast.Set, mutated_node.value)
+        target = cast("ast.List | ast.Tuple | ast.Set", mutated_node.targets[0])
+        value = cast("ast.List | ast.Tuple | ast.Set", mutated_node.value)
 
         new_targets: list[ast.expr] = []
         new_values: list[ast.expr] = []
         for target_element, value_element in zip(target.elts, value.elts, strict=False):
-            if not isinstance(target_element, ast.Name) or not isinstance(
-                value_element, ast.expr
-            ):
+            if not isinstance(target_element, ast.Name) or not isinstance(value_element, ast.expr):
                 continue
 
             overridden = self.is_overridden(mutated_node, target_element.id)
@@ -304,9 +298,7 @@ class SuperCallingDeletion(AbstractSuperCallingModification):
         return mutated_node
 
 
-class SuperCallingInsert(
-    AbstractSuperCallingModification, AbstractOverriddenElementModification
-):
+class SuperCallingInsert(AbstractSuperCallingModification, AbstractOverriddenElementModification):
     """A class that mutates super calls by inserting them."""
 
     def mutate_FunctionDef(  # noqa: N802
@@ -322,12 +314,7 @@ class SuperCallingInsert(
         """
         overridden = self.is_overridden(node, node.name)
 
-        if (
-            not self.should_mutate(node)
-            or not node.body
-            or overridden is None
-            or not overridden
-        ):
+        if not self.should_mutate(node) or not node.body or overridden is None or not overridden:
             return None
 
         mutated_node = copy_node(node)

@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Contains all code related to test-case execution."""
+
 from __future__ import annotations
 
 import abc
@@ -112,9 +113,7 @@ class ExecutionContext:
         """
         return self._local_namespace
 
-    def replace_variable_value(
-        self, variable: vr.VariableReference, new_value: Any
-    ) -> None:
+    def replace_variable_value(self, variable: vr.VariableReference, new_value: Any) -> None:
         """Replace the value of the variable with the new value.
 
         Args:
@@ -188,15 +187,11 @@ class ExecutionContext:
         Returns:
             An ast node.
         """
-        stmt_visitor = stmt_to_ast.StatementToAstVisitor(
-            self._module_aliases, self._variable_names
-        )
+        stmt_visitor = stmt_to_ast.StatementToAstVisitor(self._module_aliases, self._variable_names)
         statement.accept(stmt_visitor)
         return stmt_visitor.ast_node
 
-    def node_for_assertion(
-        self, assertion: ass.Assertion, statement_node: ast.stmt
-    ) -> ast.stmt:
+    def node_for_assertion(self, assertion: ass.Assertion, statement_node: ast.stmt) -> ast.stmt:
         """Transforms the given assertion in an executable ast node.
 
         Args:
@@ -476,18 +471,14 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 )
                 executor.execute_ast(assertion_node, exec_ctx)
 
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(
-                    tracer
-                )
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(tracer)
                 tracer.register_assertion_position(code_object_id, node_id, assertion)
         finally:
             if enabled:
                 # Restore old state
                 tracer.disable()
 
-    def _get_assertion_node_and_code_object_ids(
-        self, tracer: ExecutionTracer
-    ) -> tuple[int, int]:
+    def _get_assertion_node_and_code_object_ids(self, tracer: ExecutionTracer) -> tuple[int, int]:
         existing_code_objects = tracer.get_subject_properties().existing_code_objects
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
@@ -518,23 +509,19 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
 
     def __init__(self):
         """Initializes the remote observer."""
-        self._return_type_local_state = (
-            RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
-        )
+        self._return_type_local_state = RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
 
     @property
     def state(self) -> dict[str, Any]:  # noqa: D102
         return {
             "return_type_trace": self._return_type_local_state.return_type_trace,
-            "return_type_generic_args": self._return_type_local_state.return_type_generic_args,  # noqa: E501
+            "return_type_generic_args": self._return_type_local_state.return_type_generic_args,
         }
 
     @state.setter
     def state(self, state: dict[str, Any]):  # noqa: RUF100
         self._return_type_local_state.return_type_trace = state["return_type_trace"]
-        self._return_type_local_state.return_type_generic_args = state[
-            "return_type_generic_args"
-        ]
+        self._return_type_local_state.return_type_generic_args = state["return_type_generic_args"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -584,8 +571,8 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
                     type(first_item[1]),
                 )
             elif type(value) is tuple:
-                self._return_type_local_state.return_type_generic_args[position] = (
-                    tuple(type(v) for v in value)
+                self._return_type_local_state.return_type_generic_args[position] = tuple(
+                    type(v) for v in value
                 )
 
 
@@ -666,23 +653,17 @@ class ExecutionResult:
     """Result of an execution."""
 
     timeout: bool = False
-    exceptions: dict[int, BaseException] = dataclasses.field(
-        default_factory=dict, init=False
-    )
+    exceptions: dict[int, BaseException] = dataclasses.field(default_factory=dict, init=False)
     assertion_trace: at.AssertionTrace = dataclasses.field(
         default_factory=at.AssertionTrace, init=False
     )
     assertion_verification_trace: at.AssertionVerificationTrace = dataclasses.field(
         default_factory=at.AssertionVerificationTrace, init=False
     )
-    execution_trace: ExecutionTrace = dataclasses.field(
-        default_factory=ExecutionTrace, init=False
-    )
+    execution_trace: ExecutionTrace = dataclasses.field(default_factory=ExecutionTrace, init=False)
 
     # Observation of return types.
-    raw_return_types: dict[int, type] = dataclasses.field(
-        default_factory=dict, init=False
-    )
+    raw_return_types: dict[int, type] = dataclasses.field(default_factory=dict, init=False)
     raw_return_type_generic_args: dict[int, tuple[type, ...]] = dataclasses.field(
         default_factory=dict, init=False
     )
@@ -743,9 +724,7 @@ class ExecutionResult:
         self.proper_return_type_trace = ExecutionResult.shift_dict(
             self.proper_return_type_trace, deleted_statements
         )
-        self.exceptions = ExecutionResult.shift_dict(
-            self.exceptions, deleted_statements
-        )
+        self.exceptions = ExecutionResult.shift_dict(self.exceptions, deleted_statements)
 
     T = TypeVar("T")
 
@@ -778,10 +757,7 @@ class ExecutionResult:
         return shifted
 
     def __str__(self) -> str:
-        return (
-            f"ExecutionResult(exceptions: {self.exceptions}, "
-            f"trace: {self.execution_trace})"
-        )
+        return f"ExecutionResult(exceptions: {self.exceptions}, trace: {self.execution_trace})"
 
     def __repr__(self) -> str:
         return str(self)
@@ -791,9 +767,7 @@ class ModuleProvider:
     """Class for providing modules."""
 
     def __init__(self):  # noqa: D107
-        self._mutated_module_aliases: dict[
-            str, tuple[ModuleType, InstrumentationTransformer]
-        ] = {}
+        self._mutated_module_aliases: dict[str, tuple[ModuleType, InstrumentationTransformer]] = {}
 
     @property
     def mutated_module_aliases(
@@ -933,9 +907,7 @@ class AbstractTestCaseExecutor(abc.ABC):
         """Remove all existing observers."""
 
     @abstractmethod
-    def temporarily_add_observer(
-        self, observer: ExecutionObserver
-    ) -> AbstractContextManager[None]:
+    def temporarily_add_observer(self, observer: ExecutionObserver) -> AbstractContextManager[None]:
         """Temporarily add the given observer.
 
         Args:
@@ -987,9 +959,7 @@ class AbstractTestCaseExecutor(abc.ABC):
             Result of the execution
         """
 
-    def execute_multiple(
-        self, test_cases: Iterable[tc.TestCase]
-    ) -> Iterable[ExecutionResult]:
+    def execute_multiple(self, test_cases: Iterable[tc.TestCase]) -> Iterable[ExecutionResult]:
         """Executes multiple test cases.
 
         Args:
@@ -1028,15 +998,12 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement
 
-        self._module_provider = (
-            module_provider if module_provider is not None else ModuleProvider()
-        )
+        self._module_provider = module_provider if module_provider is not None else ModuleProvider()
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
         self._remote_observers: list[RemoteExecutionObserver] = []
         self._instrument = (
-            config.CoverageMetric.CHECKED
-            in config.configuration.statistics_output.coverage_metrics
+            config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
         instrumentation_tracer = InstrumentationExecutionTracer(self._tracer)
         checked_instrumentation = CheckedCoverageInstrumentation(instrumentation_tracer)
@@ -1172,9 +1139,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._after_test_case_execution(test_case, result)
         result_queue.put(result)
 
-    def _after_test_case_execution(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ) -> None:
+    def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
         """Collect the trace data after each executed test case.
 
         Args:
@@ -1213,9 +1178,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # Otherwise raise an exception to kill it.
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
@@ -1225,9 +1188,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         ast_node = exec_ctx.node_for_statement(statement)
         try:
             for observer in self._yield_remote_observers():
-                ast_node = observer.before_statement_execution(
-                    statement, ast_node, exec_ctx
-                )
+                ast_node = observer.before_statement_execution(statement, ast_node, exec_ctx)
         finally:
             self._tracer.enable()
         return ExecutionContext.wrap_node_in_module(ast_node)
@@ -1275,9 +1236,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # See comments in _before_statement_execution
         if self.tracer.current_thread_identifier != threading.current_thread().ident:
             # Kill this thread
-            raise RuntimeError(
-                "The current thread shall not be executed any more, thus I kill it."
-            )
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         self._tracer.disable()
         try:
@@ -1421,7 +1380,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         return result
 
-    def execute_multiple(  # noqa: D102
+    def execute_multiple(  # noqa: D102, C901
         self, test_cases: Iterable[tc.TestCase]
     ) -> Iterable[ExecutionResult]:
         test_cases_tuple = tuple(test_cases)
@@ -1478,14 +1437,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 )
             elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
                 _LOGGER.warning(
-                    "%s. Falling back to executing each test-case"
-                    " in a separate process.",
+                    "%s. Falling back to executing each test-case in a separate process.",
                     SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
                 )
             else:
                 _LOGGER.error(
-                    "Finished process exited with code %s and"
-                    " did not return the results.",
+                    "Finished process exited with code %s and did not return the results.",
                     process.exitcode,
                 )
                 raise RuntimeError("Bug in Pynguin!")
@@ -1567,8 +1524,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return {
             position: reference
             for position, statement in enumerate(test_case.statements)
-            if (reference := statement.ret_val) is not None
-            and not reference.is_none_type()
+            if (reference := statement.ret_val) is not None and not reference.is_none_type()
         }
 
     @staticmethod
@@ -1617,22 +1573,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-        new_reference_bindings = (
-            SubprocessTestCaseExecutor._create_new_reference_bindings(
-                result,
-                reference_bindings,
-            )
+        new_reference_bindings = SubprocessTestCaseExecutor._create_new_reference_bindings(
+            result,
+            reference_bindings,
         )
 
-        sending_connection.send(
-            (
-                tracer,
-                module_provider,
-                result,
-                new_reference_bindings,
-                randomness.RNG.getstate(),
-            )
-        )
+        sending_connection.send((
+            tracer,
+            module_provider,
+            result,
+            new_reference_bindings,
+            randomness.RNG.getstate(),
+        ))
 
         tracer.current_thread_identifier = -1
 
@@ -1667,24 +1619,20 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
         new_references_bindings = tuple(
-            SubprocessTestCaseExecutor._create_new_reference_bindings(
+            SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
                 result,
                 reference_bindings,
             )
-            for result, reference_bindings in zip(
-                results, references_bindings, strict=True
-            )
+            for result, reference_bindings in zip(results, references_bindings, strict=True)
         )
 
-        sending_connection.send(
-            (
-                tracer,
-                module_provider,
-                results,
-                new_references_bindings,
-                randomness.RNG.getstate(),
-            )
-        )
+        sending_connection.send((
+            tracer,
+            module_provider,
+            results,
+            new_references_bindings,
+            randomness.RNG.getstate(),
+        ))
 
         tracer.current_thread_identifier = -1
 
@@ -1692,15 +1640,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _create_new_reference_bindings(
         result: ExecutionResult,
         reference_bindings: dict[int, vr.VariableReference],
-    ) -> dict[int, vr.VariableReference]:
+    ) -> dict[int, vr.VariableReference] | None:
         try:
             return (
                 reference_bindings
-                if result.assertion_trace.trace
-                and not dill.detect.baditems(reference_bindings)
+                if result.assertion_trace.trace and not dill.detect.baditems(reference_bindings)
                 else None
             )
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             _LOGGER.warning(
                 "Failed to fix reference bindings for pickle, final results might"
                 " differ from classic execution with same seed: %s",
@@ -1716,7 +1663,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             instrumentation_finder.instrumentation_tracer.tracer = tracer
 
     @staticmethod
-    def _fix_result_for_pickle(result: ExecutionResult) -> None:
+    def _fix_result_for_pickle(result: ExecutionResult) -> None:  # noqa: C901
         try:
             if exception_bad_items := dill.detect.baditems(result.exceptions):
                 _LOGGER.warning(
@@ -1729,7 +1676,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     for position, exception in result.exceptions.items()
                     if exception not in exception_bad_items
                 }
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.exceptions.clear()
             _LOGGER.warning(
                 "Failed to fix exceptions for pickle, final results might differ"
@@ -1738,16 +1685,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
         try:
-            if assertion_trace_bad_items := dill.detect.baditems(
-                result.assertion_trace
-            ):
+            if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
                 _LOGGER.warning(
                     "Unpicklable assertion trace, final results might differ"
                     " from classic execution with same seed: %s",
                     assertion_trace_bad_items,
                 )
                 result.assertion_trace.clear()
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.assertion_trace.clear()
             _LOGGER.warning(
                 "Failed to fix assertion trace for pickle, final results might differ"
@@ -1756,16 +1701,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
         try:
-            if execution_trace_bad_items := dill.detect.baditems(
-                result.execution_trace
-            ):
+            if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
                 _LOGGER.warning(
                     "Unpicklable execution trace, final results might differ"
                     " from classic execution with same seed: %s",
                     execution_trace_bad_items,
                 )
                 result.execution_trace.executed_assertions.clear()
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.execution_trace.executed_assertions.clear()
             _LOGGER.warning(
                 "Failed to fix execution trace for pickle, final results might differ"
@@ -1774,16 +1717,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
         try:
-            if proxy_knowledge_bad_items := dill.detect.baditems(
-                result.proxy_knowledge
-            ):
+            if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
                 _LOGGER.warning(
                     "Unpicklable proxy knowledge, final results might differ"
                     " from classic execution with same seed: %s",
                     proxy_knowledge_bad_items,
                 )
                 result.proxy_knowledge.clear()
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.proxy_knowledge.clear()
             _LOGGER.warning(
                 "Failed to fix proxy knowledge for pickle, final results might differ"
@@ -1801,7 +1742,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     proper_return_type_trace_bad_items,
                 )
                 result.proper_return_type_trace.clear()
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.proper_return_type_trace.clear()
             _LOGGER.warning(
                 "Failed to fix proper return type trace for pickle, final results might"
@@ -1820,13 +1761,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 )
                 result.raw_return_type_generic_args = {
                     position: generic_args
-                    for position, generic_args in result.raw_return_type_generic_args.items()  # noqa: E501
+                    for position, generic_args in result.raw_return_type_generic_args.items()
                     if all(
                         type_ not in raw_return_type_generic_args_bad_items
                         for type_ in generic_args
                     )
                 }
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.raw_return_type_generic_args.clear()
             _LOGGER.warning(
                 "Failed to fix raw return type generic args for pickle, final results"
@@ -1835,9 +1776,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
         try:
-            if raw_return_types_bad_items := dill.detect.baditems(
-                result.raw_return_types
-            ):
+            if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
                 _LOGGER.warning(
                     "Unpicklable raw return types, final results might differ"
                     " from classic execution with same seed: %s",
@@ -1848,7 +1787,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     for position, type_ in result.raw_return_types.items()
                     if type_ not in raw_return_types_bad_items
                 }
-        except Exception as exception:
+        except Exception as exception:  # noqa: BLE001
             result.raw_return_types.clear()
             _LOGGER.warning(
                 "Failed to fix raw return types for pickle, final results might differ"
@@ -1864,9 +1803,7 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     and one time with proxies in order to refine parameter types.
     """
 
-    def __init__(
-        self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster
-    ):
+    def __init__(self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster):
         """Initializes the executor.
 
         Args:
@@ -1964,7 +1901,7 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
         result: ExecutionResult,
     ) -> None:
         for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
-            result.proxy_knowledge[(stmt_pos, arg_name)] = copy.deepcopy(
+            result.proxy_knowledge[stmt_pos, arg_name] = copy.deepcopy(
                 tt.UsageTraceNode.from_proxy(proxy)
             )
 
@@ -1977,7 +1914,7 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
             for name, param in statement.args.items():
                 mod_param = vr.VariableReference(statement.test_case, ANY)
                 modified_args[name] = mod_param
-                real_params[(name, mod_param)] = param
+                real_params[name, mod_param] = param
 
             # We must rewrite calls as follows:
             # `foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)`
@@ -1988,11 +1925,11 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
             # In other words, each argument is wrapped in its own proxy, even if they
             # point to the same variable.
             modified = cast(
-                stmt.ParametrizedStatement,
+                "stmt.ParametrizedStatement",
                 statement.clone(statement.test_case, Mirror()),
             )
             signature = cast(
-                gao.GenericCallableAccessibleObject, modified.accessible_object()
+                "gao.GenericCallableAccessibleObject", modified.accessible_object()
             ).inferred_signature
             modified.args = modified_args
             modified.ret_val = statement.ret_val
@@ -2016,7 +1953,7 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
                     is_kwargs=signature.signature.parameters[name].kind
                     == inspect.Parameter.VAR_KEYWORD,
                 )
-                self._local_state.proxies[(statement.get_position(), name)] = proxy
+                self._local_state.proxies[statement.get_position(), name] = proxy
                 exec_ctx.replace_variable_value(modified_param, proxy)
 
             return visitor.ast_node
@@ -2072,9 +2009,7 @@ class TypeTracingObserver(ExecutionObserver):
             statement = test_case.get_statement(stmt_pos)
             assert isinstance(statement, stmt.ParametrizedStatement)
             self._cluster.update_parameter_knowledge(
-                cast(
-                    gao.GenericCallableAccessibleObject, statement.accessible_object()
-                ),
+                cast("gao.GenericCallableAccessibleObject", statement.accessible_object()),
                 arg_name,
                 knowledge,
             )

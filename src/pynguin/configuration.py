@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a configuration interface for the test generator."""
+
 import dataclasses
 import enum
 import time
@@ -604,14 +605,10 @@ class Configuration:
     )
     """Statistic Output configuration."""
 
-    stopping: StoppingConfiguration = dataclasses.field(
-        default_factory=StoppingConfiguration
-    )
+    stopping: StoppingConfiguration = dataclasses.field(default_factory=StoppingConfiguration)
     """Stopping configuration."""
 
-    seeding: SeedingConfiguration = dataclasses.field(
-        default_factory=SeedingConfiguration
-    )
+    seeding: SeedingConfiguration = dataclasses.field(default_factory=SeedingConfiguration)
     """Seeding configuration."""
 
     type_inference: TypeInferenceConfiguration = dataclasses.field(

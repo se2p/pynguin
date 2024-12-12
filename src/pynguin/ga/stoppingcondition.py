@@ -10,6 +10,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an interface for a stopping condition of the algorithm."""
+
 from __future__ import annotations
 
 import threading
@@ -156,9 +157,7 @@ class StoppingCondition(so.SearchObserver, ExecutionObserver, ABC):
             test_case: Not used
         """
 
-    def after_remote_test_case_execution(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ):
+    def after_remote_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult):
         """Not used.
 
         Args:
@@ -229,9 +228,7 @@ class MaxCoverageStoppingCondition(StoppingCondition):
         self.__current_coverage = int(best.get_coverage() * 100)
 
     def __str__(self) -> str:
-        return (
-            f"Achieved coverage: {self.__current_coverage / self.__max_coverage:.6f}%"
-        )
+        return f"Achieved coverage: {self.__current_coverage / self.__max_coverage:.6f}%"
 
 
 class CoveragePlateauStoppingCondition(StoppingCondition):
@@ -427,7 +424,7 @@ class MaxTestExecutionsStoppingCondition(StoppingCondition):
 
 
 class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
-    """A stopping condition observer that checks the maximum number of executed statements."""  # noqa: E501
+    """A stopping condition observer that checks the maximum number of executed statements."""
 
     class RemoteMaxStatementExecutionsObserverState(threading.local):
         """Local state for the remote observer."""
