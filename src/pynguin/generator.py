@@ -68,6 +68,7 @@ from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -274,13 +275,16 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
 
 def _detect_llm_strategy() -> str:
     if config.configuration.large_language_model.hybrid_initial_population:
-        return f"HIP-{config.configuration.large_language_model.llm_test_case_percentage}"
+        return f"Hybrid-Initial-Population-{config.configuration.large_language_model.llm_test_case_percentage}"
     if config.configuration.large_language_model.call_llm_on_stall_detection:
-        return "LLMOSA"
+        return "LLM-On-Stall-Detection"
     if config.configuration.large_language_model.call_llm_for_uncovered_targets:
-        return "UIT"
-    if config.configuration.test_case_output.assertion_generation == config.AssertionGenerator.LLM:
-        return "AssertionGenerator"
+        return "LLM-For-Initial-Uncovered-Targets"
+    if (
+        config.configuration.test_case_output.assertion_generation
+        == config.AssertionGenerator.LLM
+    ):
+        return "LLM-Assertion-Generator"
     else:
         return ""
 
