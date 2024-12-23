@@ -12,21 +12,22 @@ from pynguin.large_language_model.prompts.prompt import Prompt
 class AssertionGenerationPrompt(Prompt):
     """Implementation prompt for generating assertions for a test case."""
 
-    def __init__(self, test_case_source_code: str, module_source_code: str):
+    def __init__(self, test_case_source_code: str, module_source_code: str, module_code: str, module_path: str):
         """Creates a new prompt.
 
         Args:
-            test_case_source_code: The test case to generate assertion for.
+            test_case_source_code: The test case to generate assertions for.
             module_source_code: The source code of the module under test.
         """
+        super().__init__(module_code, module_path)
         self._test_case_source_code = test_case_source_code
         self._module_source_code = module_source_code
 
     def build_prompt(self) -> str:
-        """Builds prompt message."""
-        return f"""Hi GPT! Please generate assertions for
-        the following test case (return python code only):
-        `{self._test_case_source_code}`
-        ### Add assertions below ###
-        Source code: `{self._module_source_code}`
-        """
+        """Builds the prompt message."""
+        return (
+            f"Write assertions for the following test case:\n"
+            f"`{self._test_case_source_code}`\n"
+            f"### Add assertions below ###\n"
+            f"Module source code: `{self._module_source_code}`"
+        )

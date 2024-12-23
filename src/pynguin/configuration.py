@@ -189,6 +189,7 @@ class StatisticsOutputConfiguration:
     coverage_metrics: list[CoverageMetric] = dataclasses.field(
         default_factory=lambda: [
             CoverageMetric.BRANCH,
+            CoverageMetric.LINE,
         ]
     )
     """List of coverage metrics that are optimised during the search"""
@@ -594,7 +595,7 @@ class LLMConfiguration:
     model_name: str = "gpt-3.5-turbo"
     """The OpenAI Model to use for completions."""
 
-    temperature: float = 0.1
+    temperature: float = 0.8
     """The temperature to use when querying the model.
     The value must be from [0.0, 1.0]."""
 
@@ -608,7 +609,7 @@ class LLMConfiguration:
     enable_response_caching: bool = False
     """Whether to enable caching for responses of the model."""
 
-    call_llm_for_uncovered_targets: bool = False
+    call_llm_for_uncovered_targets: bool = True
     """Whether to call the LLM for the uncovered targets initially."""
 
     coverage_threshold: float = 1
@@ -619,8 +620,10 @@ class LLMConfiguration:
     """Whether to call the LLM for the uncovered targets in coverage stalls."""
 
     max_plateau_len: int = 25
-    """The number of iterations to allow before soliciting the LLM"""
+    """The number of iterations to allow before soliciting the LLM."""
 
+    max_llm_interventions: int = 1
+    """The maximum number of allowed LLM interventions."""
 
 @dataclasses.dataclass
 class Configuration:

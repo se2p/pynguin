@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import logging
+from itertools import cycle
+
 
 from typing import TYPE_CHECKING
 
@@ -89,18 +91,22 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
 
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
+        elif len(llm_test_cases) < number_of_llm_test_cases:
+            additional_cases_needed = number_of_llm_test_cases - total_llm_test_cases
+            llm_test_case_cycle = cycle(llm_test_cases)
+            for _ in range(additional_cases_needed):
+                llm_test_cases.append(next(llm_test_case_cycle).clone())
 
         for test_case in llm_test_cases:
             chromosome.add_test_case_chromosome(test_case)
 
         self._logger.info(
-            "Merged %d out of %d LLM test cases into the population.",
-            len(llm_test_cases),
-            total_llm_test_cases,
+            "Merged %d of LLM test cases into the population.",
+            len(llm_test_cases)
         )
 
         num_random_cases = (
-            config.configuration.search_algorithm.population - total_llm_test_cases
+            config.configuration.search_algorithm.population - len(llm_test_cases)
         )
 
         for _ in range(num_random_cases):

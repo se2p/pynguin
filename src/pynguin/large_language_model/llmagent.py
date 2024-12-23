@@ -19,6 +19,7 @@ import openai
 
 from openai.types.chat import ChatCompletionMessageParam
 from openai.types.chat import ChatCompletionUserMessageParam
+from openai.types.chat import ChatCompletionSystemMessageParam
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
@@ -242,6 +243,7 @@ class OpenAIModel:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
+            ChatCompletionSystemMessageParam(role="system", content=prompt.system_message),
             ChatCompletionUserMessageParam(role="user", content=prompt_text)
         ]
 

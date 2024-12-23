@@ -80,9 +80,9 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                 RuntimeVariable.CoverageBeforeLLMCall, coverage_before_llm_call
             )
 
-            llm_chromosomes = self.target_uncovered_function()
+            llm_chromosomes = self.target_uncovered_callables()
 
-            self._population.extend(llm_chromosomes)
+            self._population = llm_chromosomes + self._population
 
             self._logger.info(
                 "Added %d LLM test case chromosomes to the population.",
@@ -124,21 +124,22 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             if config.configuration.large_language_model.call_llm_on_stall_detection:
+                if plateau_counter > max_plateau_len:
+                    plateau_counter = 0
+                    max_plateau_len *= 2
+                    if self.model.llm_calls_counter < config.configuration.large_language_model.max_llm_interventions:
+                        llm_chromosomes = self.target_uncovered_callables()
+                        self._population = llm_chromosomes + self._population
+                        self._logger.info(
+                            "Added %d LLM test case chromosomes to the population.",
+                            len(llm_chromosomes),
+                        )
                 length_of_covered_goals = len(self._archive.covered_goals)
                 if length_of_covered_goals == last_length_of_covered_goals:
                     plateau_counter += 1
                 else:
                     plateau_counter = 0
                 last_length_of_covered_goals = length_of_covered_goals
-                if plateau_counter > max_plateau_len:
-                    plateau_counter = 0
-                    max_plateau_len *= 2
-                    llm_chromosomes = self.target_uncovered_function()
-                    self._population.extend(llm_chromosomes)
-                    self._logger.info(
-                        "Added %d LLM test case chromosomes to the population.",
-                        len(llm_chromosomes),
-                    )
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
@@ -198,7 +199,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
         self._archive.update(self._population)
 
-    def target_uncovered_function(self) -> list[tcc.TestCaseChromosome]:
+    def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
         """Identifies uncovered targets, queries an LLM for test cases.
 
          and processes the results into a list of test case chromosomes.

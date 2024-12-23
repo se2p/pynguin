@@ -9,10 +9,10 @@
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 class UncoveredTargetsPrompt(Prompt):
@@ -28,7 +28,7 @@ class UncoveredTargetsPrompt(Prompt):
 
         Args:
             callables (list[GenericCallableAccessibleObject]): List of
-             uncovered callables.
+                uncovered callables.
             module_path (str): Path to the module.
             module_code (str): Source code of the module.
         """
@@ -43,40 +43,40 @@ class UncoveredTargetsPrompt(Prompt):
         Returns:
             list[str]: A list of formatted function headers with their signatures.
         """
-        function_headers = []
+        callables_list = []
 
         for gao in self.callables:
             signature = str(gao.inferred_signature)
             if gao.is_method() and isinstance(gao, GenericMethod):
                 method_gao: GenericMethod = gao
-                function_header = (
-                    f"- The method {method_gao.method_name} of class"
-                    f" {method_gao.owner.name}{signature}"
+                callable_list_item = (
+                    f"- The method {method_gao.method_name} of class "
+                    f"{method_gao.owner.name}{signature}"
                 )
             elif gao.is_function() and isinstance(gao, GenericFunction):
                 fn_gao: GenericFunction = gao
-                function_header = f"- The function {fn_gao.function_name}{signature}"
+                callable_list_item = f"- The function {fn_gao.function_name}{signature}"
             elif gao.is_constructor() and isinstance(gao, GenericConstructor):
                 constructor_gao: GenericConstructor = gao
-                class_name = constructor_gao.owner.name  # type:ignore[union-attr]
-                function_header = (
-                    f"- The constructor of the class {class_name} {signature}"
+                class_name = constructor_gao.owner.name  # type: ignore[union-attr]
+                callable_list_item = (
+                    f"- The constructor of the class {class_name}{signature}"
                 )
             else:
                 continue  # Skip unknown callable types
 
-            function_headers.append(function_header)
+            callables_list.append(callable_list_item)
 
-        return function_headers
+        return callables_list
 
     def build_prompt(self) -> str:
-        """Builds prompt message."""
-        function_headers = self.build_callables_prompt_section()
-        callables_section = "\n".join(function_headers)
+        """Builds the prompt message."""
+        callables_list = self.build_callables_prompt_section()
+        callables_section = "\n".join(callables_list)
 
-        return f"""You are a Python developer tasked with writing unit tests
-         for a the following callables that Pynguin failed to cover:
-            {callables_section}
-        Source code:
-        `{self.module_code}`
-            """
+        return (
+            f"Write unit tests for the following callables that Pynguin failed to cover:\n"
+            f"{callables_section}\n"
+            f"Module path: `{self.module_path}`\n"
+            f"Module source code: `{self.module_code}`"
+        )
