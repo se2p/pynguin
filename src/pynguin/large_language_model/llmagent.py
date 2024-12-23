@@ -212,7 +212,7 @@ class OpenAIModel:
         Returns:
             The total time spent on LLM API calls.
         """
-        return self._llm_calls_timer / 1e9
+        return self._llm_calls_timer
 
     @property
     def llm_calls_with_no_python_code(self) -> int:
