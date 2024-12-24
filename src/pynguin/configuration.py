@@ -592,7 +592,7 @@ class LLMConfiguration:
     api_key: str = "sk-proj-HVudZZVGLcfYK0uX376PT3BlbkFJJeShguKM4Jz7f0nDMGsD"
     """The api key to call OpenAI LLM with."""
 
-    model_name: str = "gpt-3.5-turbo"
+    model_name: str = "gpt-4o-mini"
     """The OpenAI Model to use for completions."""
 
     temperature: float = 0.8

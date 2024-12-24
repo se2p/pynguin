@@ -276,11 +276,11 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
 def _detect_llm_strategy() -> str:
     if config.configuration.large_language_model.hybrid_initial_population:
         return f"Hybrid-Initial-Population-{config.configuration.large_language_model.llm_test_case_percentage}"
-    if config.configuration.large_language_model.call_llm_on_stall_detection:
+    elif config.configuration.large_language_model.call_llm_on_stall_detection:
         return "LLM-On-Stall-Detection"
-    if config.configuration.large_language_model.call_llm_for_uncovered_targets:
+    elif config.configuration.large_language_model.call_llm_for_uncovered_targets:
         return "LLM-For-Initial-Uncovered-Targets"
-    if (
+    elif (
         config.configuration.test_case_output.assertion_generation
         == config.AssertionGenerator.LLM
     ):
