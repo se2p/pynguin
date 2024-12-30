@@ -198,6 +198,7 @@ class StatisticsOutputConfiguration:
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
+            RuntimeVariable.MutationScore
         ]
     )
     """List of variables to output to the statistics backend."""
@@ -609,11 +610,11 @@ class LLMConfiguration:
     enable_response_caching: bool = False
     """Whether to enable caching for responses of the model."""
 
-    call_llm_for_uncovered_targets: bool = True
+    call_llm_for_uncovered_targets: bool = False
     """Whether to call the LLM for the uncovered targets initially."""
 
     coverage_threshold: float = 1
-    """The coverage threshold when to call the LLM for low-coverage targets.
+    """The coverage threshold when to call the LLM for low-coverage targets.generate_assertions_for_test_case
     The value must be from [0.0, 1.0]."""
 
     call_llm_on_stall_detection: bool = False

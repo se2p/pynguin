@@ -196,6 +196,18 @@ class StatementDeserializer:  # noqa: PLR0904
                 type_elem = assert_node.test.args[1]  # type: ignore[attr-defined]
                 assertion = ass.IsInstanceAssertion(source, type_elem)
                 return assertion, source
+            elif (
+                hasattr(assert_node, "test")
+                and hasattr(assert_node.test, "left")
+                and hasattr(assert_node.test, "comparators")
+                and hasattr(assert_node.test, "ops")
+                and hasattr(assert_node.test.left, "func")
+            ):
+                source = self._get_source_reference(
+                    assert_node.test.left.func
+                )  # Adjusted to handle ast.Attribute
+                val_elem = assert_node.test.comparators[0]
+                operator = assert_node.test.ops[0]
             else:
                 source = self._get_source_reference(
                     assert_node.test.left  # type: ignore[attr-defined]
@@ -270,6 +282,10 @@ class StatementDeserializer:  # noqa: PLR0904
         """
         if isinstance(node, ast.List):
             return [self._extract_value_from_ast(elem) for elem in node.elts]
+        if isinstance(node, ast.Name):
+            return None
+        if isinstance(node, ast.Call):
+            return None
         if isinstance(node, ast.Tuple):
             return tuple(self._extract_value_from_ast(elem) for elem in node.elts)
         if isinstance(node, ast.Set):

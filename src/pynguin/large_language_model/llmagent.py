@@ -371,7 +371,7 @@ class OpenAIModel:
             number_of_llm_responses_with_python_code,
             self.llm_calls_counter,
         )
-        logger.info("Total LLM call time is %s seconds", self.llm_calls_timer)
+        logger.info("Total LLM call time is %s seconds", self.llm_calls_timer / 1e9)
 
         stat.track_output_variable(
             RuntimeVariable.TotalLLMCalls, self.llm_calls_counter
