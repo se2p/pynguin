@@ -195,7 +195,7 @@ class StatisticsOutputConfiguration:
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
-            RuntimeVariable.MutationScore
+            RuntimeVariable.MutationScore,
         ]
     )
     """List of variables to output to the statistics backend."""
@@ -622,6 +622,7 @@ class LLMConfiguration:
 
     max_llm_interventions: int = 1
     """The maximum number of allowed LLM interventions."""
+
 
 @dataclasses.dataclass
 class Configuration:

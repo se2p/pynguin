@@ -33,7 +33,7 @@ import operator
 
 import pynguin.configuration as config
 
-from pynguin.large_language_model.llmagent import OpenAIModel
+from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmagent import (
     get_test_case_chromosomes_from_llm_results,
 )
@@ -52,7 +52,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
-        self.model = OpenAIModel()
+        self.model = LLMAgent()
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()

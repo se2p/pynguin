@@ -180,16 +180,18 @@ def is_api_key_valid() -> bool:
         return False
 
 
-class OpenAIModel:
+class LLMAgent:
     """A class to interact with OpenAI's language model for generating unit tests."""
 
     def __init__(self):
-        """Initializes the OpenAIModel with configuration settings and cache."""
+        """Initializes the LLMAgent with configuration settings and cache."""
         self._model_name = config.configuration.large_language_model.model_name
         self._temperature = config.configuration.large_language_model.temperature
         self._llm_calls_counter = 0
         self._llm_calls_timer = 0
         self._llm_calls_with_no_python_code = 0
+        self._llm_input_tokens = 0
+        self._llm_output_tokens = 0
 
         if config.configuration.large_language_model.enable_response_caching:
             self.cache = Cache()
@@ -213,6 +215,24 @@ class OpenAIModel:
             The total time spent on LLM API calls.
         """
         return self._llm_calls_timer
+
+    @property
+    def llm_input_tokens(self) -> int:
+        """Returns the number of LLM input tokens.
+
+        Returns:
+            The number of LLM input tokens.
+        """
+        return self._llm_input_tokens
+
+    @property
+    def llm_output_tokens(self) -> int:
+        """Returns the number of LLM input tokens.
+
+        Returns:
+            The number of LLM output tokens.
+        """
+        return self._llm_output_tokens
 
     @property
     def llm_calls_with_no_python_code(self) -> int:
@@ -255,6 +275,9 @@ class OpenAIModel:
                 messages=messages,
                 temperature=self._temperature,
             )
+            if response.usage is not None:
+                self._llm_input_tokens += response.usage.prompt_tokens
+                self._llm_output_tokens += response.usage.completion_tokens
             response_text = response.choices[0].message.content
 
             if (
@@ -380,6 +403,12 @@ class OpenAIModel:
         )
         stat.track_output_variable(RuntimeVariable.LLMQueryTime, self.llm_calls_timer)
         stat.track_output_variable(
+            RuntimeVariable.TotalLLMOutputTokens, self.llm_output_tokens
+        )
+        stat.track_output_variable(
+            RuntimeVariable.TotalLLMInputTokens, self.llm_input_tokens
+        )
+        stat.track_output_variable(
             RuntimeVariable.TotalCodelessLLMResponses,
             self.llm_calls_with_no_python_code,
         )
@@ -410,7 +439,7 @@ def get_test_case_chromosomes_from_llm_results(  # noqa: PLR0917
     test_factory: TestFactory,
     fitness_functions: Iterable[FitnessFunction],
     coverage_functions: Iterable[CoverageFunction],
-    model: OpenAIModel,
+    model: LLMAgent,
 ) -> list[tcc.TestCaseChromosome]:
     """Process LLM query results into test case chromosomes.
 
@@ -426,7 +455,7 @@ def get_test_case_chromosomes_from_llm_results(  # noqa: PLR0917
         coverage_functions: An iterable collection of coverage functions
         to attach to each generated chromosome.
             These define metrics for evaluating test case coverage.
-        model: The OpenAIModel instance used for extracting test cases
+        model: The LLMAgent instance used for extracting test cases
         from LLM query results.
 
     Returns:

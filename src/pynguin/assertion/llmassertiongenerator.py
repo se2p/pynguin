@@ -19,7 +19,7 @@ import pynguin.utils.statistics.statistics as stat
 from pynguin.assertion.assertion import FloatAssertion
 from pynguin.assertion.assertion import IsInstanceAssertion
 from pynguin.assertion.assertion import ObjectAssertion
-from pynguin.large_language_model.llmagent import OpenAIModel
+from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
@@ -155,7 +155,7 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         Args:
             test_cluster (TestCluster): The test cluster used for generating assertions.
         """
-        self._model = OpenAIModel()
+        self._model = LLMAgent()
         self._test_cluster = test_cluster
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:

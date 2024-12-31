@@ -188,6 +188,12 @@ class RuntimeVariable(str, enum.Enum):
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
+    # Number of input tokens sent LLM to model
+    TotalLLMInputTokens = "TotalLLMInputTokens"
+
+    # Number of input tokens sent LLM to model
+    TotalLLMOutputTokens = "TotalLLMOutputTokens"
+
     # Number of LLM responses with no python code within them
     TotalCodelessLLMResponses = "TotalCodelessLLMResponses"
 
