@@ -118,6 +118,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
         last_length_of_covered_goals = len(self._archive.covered_goals)
         plateau_counter = 0
+        max_llm_int = config.configuration.large_language_model.max_llm_interventions
         max_plateau_len = config.configuration.large_language_model.max_plateau_len
         while (
             self.resources_left()
@@ -127,7 +128,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                 if plateau_counter > max_plateau_len:
                     plateau_counter = 0
                     max_plateau_len *= 2
-                    if self.model.llm_calls_counter < config.configuration.large_language_model.max_llm_interventions:
+                    if self.model.llm_calls_counter < max_llm_int:
                         llm_chromosomes = self.target_uncovered_callables()
                         self._population = llm_chromosomes + self._population
                         self._logger.info(

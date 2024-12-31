@@ -9,10 +9,10 @@
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
-    GenericConstructor,
-    GenericFunction,
-    GenericMethod,
 )
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 class UncoveredTargetsPrompt(Prompt):
@@ -75,7 +75,8 @@ class UncoveredTargetsPrompt(Prompt):
         callables_section = "\n".join(callables_list)
 
         return (
-            f"Write unit tests for the following callables that Pynguin failed to cover:\n"
+            f"Write unit tests for the following callables that "
+            f" Pynguin failed to cover:\n"
             f"{callables_section}\n"
             f"Module path: `{self.module_path}`\n"
             f"Module source code: `{self.module_code}`"

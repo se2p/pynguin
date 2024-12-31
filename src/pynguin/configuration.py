@@ -187,10 +187,7 @@ class StatisticsOutputConfiguration:
     """Interpolate timeline values"""
 
     coverage_metrics: list[CoverageMetric] = dataclasses.field(
-        default_factory=lambda: [
-            CoverageMetric.BRANCH,
-            CoverageMetric.LINE,
-        ]
+        default_factory=lambda: [CoverageMetric.BRANCH]
     )
     """List of coverage metrics that are optimised during the search"""
 
@@ -614,7 +611,7 @@ class LLMConfiguration:
     """Whether to call the LLM for the uncovered targets initially."""
 
     coverage_threshold: float = 1
-    """The coverage threshold when to call the LLM for low-coverage targets.generate_assertions_for_test_case
+    """The coverage threshold when to call the LLM for low-coverage targets.
     The value must be from [0.0, 1.0]."""
 
     call_llm_on_stall_detection: bool = False

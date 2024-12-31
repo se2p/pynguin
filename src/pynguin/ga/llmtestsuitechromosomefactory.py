@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import logging
 from itertools import cycle
-
-
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
@@ -101,12 +99,11 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
             chromosome.add_test_case_chromosome(test_case)
 
         self._logger.info(
-            "Merged %d of LLM test cases into the population.",
-            len(llm_test_cases)
+            "Merged %d of LLM test cases into the population.", len(llm_test_cases)
         )
 
-        num_random_cases = (
-            config.configuration.search_algorithm.population - len(llm_test_cases)
+        num_random_cases = config.configuration.search_algorithm.population - len(
+            llm_test_cases
         )
 
         for _ in range(num_random_cases):
