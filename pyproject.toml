@@ -44,37 +44,38 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
-astroid = "^3.3.6"
+astroid = "^3.3.8"
 black = "^24.10.0"
 bytecode = "^0.16.0"
 jellyfish = "^1.1.3"
-Jinja2 = "^3.1.4"
+Jinja2 = "^3.1.5"
 networkx = "^3.4"
 rich = "^13.9.4"
-Pygments = "^2.18.0"
+Pygments = "^2.19.1"
 pytest = "^8.3.4"
 simple-parsing = "^0.1.6"
 typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
 libcst = "^1.5.1"
+setuptools = "^75.7"
 
 [tool.poetry.group.dev.dependencies]
 isort = {extras = ["pyproject"], version = "^5.13.2"}
-mypy = "^1.13.0"
+mypy = "^1.14.1"
 pre-commit = "^4.0.1"
-pyupgrade = "^3.19.0"
+pyupgrade = "^3.19.1"
 ruff = "^0.8"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
-sphinx-autodoc-typehints = "^2.5"
+sphinx-autodoc-typehints = "^3.0"
 sphinx-hoverxref = "^1.4.2"
 sphinx-rtd-theme = "^3.0.2"
 sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
-coverage = "^7.6.9"
-hypothesis = "^6.122"
+coverage = "^7.6.10"
+hypothesis = "^6.123"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"

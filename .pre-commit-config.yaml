@@ -32,16 +32,16 @@ repos:
     rev: v3.19.0
     hooks:
       - id: pyupgrade
-        args: [--py310-plus]
+        args: [ --py310-plus ]
 
   - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        args: [--profile, black]
+        args: [ --profile, black ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.3
+    rev: v0.8.6
     hooks:
       - id: ruff
         args: [ --fix ]

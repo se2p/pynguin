@@ -882,7 +882,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 self._tracer.register_line(
                     code_object_id,
                     file_name,
-                    lineno,  # type: ignore[arg-type]
+                    lineno,
                 )
 
             # Perform the actual instrumentation
