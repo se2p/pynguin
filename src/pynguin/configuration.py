@@ -195,7 +195,6 @@ class StatisticsOutputConfiguration:
         default_factory=lambda: [
             RuntimeVariable.TargetModule,
             RuntimeVariable.Coverage,
-            RuntimeVariable.MutationScore,
         ]
     )
     """List of variables to output to the statistics backend."""
@@ -587,7 +586,7 @@ class StoppingConfiguration:
 class LLMConfiguration:
     """Configuration for the LLM."""
 
-    api_key: str = "sk-proj-HVudZZVGLcfYK0uX376PT3BlbkFJJeShguKM4Jz7f0nDMGsD"
+    api_key: str = ""
     """The api key to call OpenAI LLM with."""
 
     model_name: str = "gpt-4o-mini"
@@ -650,9 +649,7 @@ class Configuration:
     )
     """Stopping configuration."""
 
-    large_language_model: LLMConfiguration = dataclasses.field(
-        default_factory=LLMConfiguration
-    )
+    large_language_model: LLMConfiguration = dataclasses.field(default_factory=LLMConfiguration)
     """Large Language Model(LLM) configuration."""
 
     seeding: SeedingConfiguration = dataclasses.field(

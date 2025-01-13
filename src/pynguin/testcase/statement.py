@@ -2213,9 +2213,7 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
         return None
 
     def mutate(self) -> bool:  # noqa: D102
-        return self.rhs.mutate_var_ref(
-            set(self._test_case.get_all_objects(self.get_position()))
-        )
+        return self.rhs.mutate_var_ref(set(self._test_case.get_all_objects(self.get_position())))
 
     def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
         return self.rhs.get_all_var_refs()
@@ -2227,9 +2225,7 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
 
     def structural_hash(self, memo) -> int:  # noqa: D102
         return (
-            31
-            + 17 * self.ret_val.structural_hash(memo)
-            + 17 * hash(self.rhs.structural_hash(memo))
+            31 + 17 * self.ret_val.structural_hash(memo) + 17 * hash(self.rhs.structural_hash(memo))
         )
 
     def structural_eq(  # noqa: D102
@@ -2237,9 +2233,7 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
     ) -> bool:
         if not isinstance(other, ASTAssignStatement):
             return False
-        return self.ret_val.structural_eq(
-            other.ret_val, memo
-        ) and self.rhs.structural_eq(other.rhs)
+        return self.ret_val.structural_eq(other.ret_val, memo) and self.rhs.structural_eq(other.rhs)
 
     def get_rhs_as_normal_ast(
         self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]

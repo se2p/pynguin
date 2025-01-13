@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 """Provides a factory to create hybrid (LLM/standard) test suite chromosomes."""
+
 from __future__ import annotations
 
 import logging
@@ -17,7 +18,7 @@ import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testfactory as tf
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmagent import (
@@ -99,18 +100,12 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         for test_case in llm_test_cases:
             chromosome.add_test_case_chromosome(test_case)
 
-        self._logger.info(
-            "Merged %d of LLM test cases into the population.", len(llm_test_cases)
-        )
+        self._logger.info("Merged %d of LLM test cases into the population.", len(llm_test_cases))
 
-        num_random_cases = config.configuration.search_algorithm.population - len(
-            llm_test_cases
-        )
+        num_random_cases = config.configuration.search_algorithm.population - len(llm_test_cases)
 
         for _ in range(num_random_cases):
-            chromosome.add_test_case_chromosome(
-                self._test_case_chromosome_factory.get_chromosome()
-            )
+            chromosome.add_test_case_chromosome(self._test_case_chromosome_factory.get_chromosome())
         for ch in chromosome.test_case_chromosomes:
             for fitness_function in self._fitness_functions:
                 ch.add_fitness_function(fitness_function)

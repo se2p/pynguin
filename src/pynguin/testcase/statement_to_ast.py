@@ -281,7 +281,7 @@ class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
                     self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
-            value=stmt.get_rhs_as_normal_ast(
+            value=stmt.get_rhs_as_normal_ast(  # type: ignore[arg-type]
                 lambda x: au.create_full_name(
                     self._variable_names, self._module_aliases, x, load=True
                 )

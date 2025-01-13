@@ -14,7 +14,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.assertion.assertion import FloatAssertion
 from pynguin.assertion.assertion import IsInstanceAssertion
@@ -28,7 +28,7 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
-_LOGGER = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def extract_assertions(input_str: str) -> list[str]:
@@ -71,17 +71,13 @@ def copy_test_case_references(  # noqa: C901
     for target_statement in target.statements:
         original_statement = original.statements[target_statement.get_position()]
 
-        if hasattr(target_statement, "ret_val") and hasattr(
-            original_statement, "ret_val"
-        ):
+        if hasattr(target_statement, "ret_val") and hasattr(original_statement, "ret_val"):
             target_ret_val = target_statement.ret_val
             original_ret_val = original_statement.ret_val
             refs_replacement_dict[target_ret_val] = original_ret_val
             target_statement.ret_val = original_ret_val
 
-        if hasattr(target_statement, "callee") and hasattr(
-            original_statement, "callee"
-        ):
+        if hasattr(target_statement, "callee") and hasattr(original_statement, "callee"):
             target_callee = target_statement.callee
             original_callee = original_statement.callee
             # Check if already replaced
@@ -97,9 +93,7 @@ def copy_test_case_references(  # noqa: C901
                 original_arg_value = original_statement.args.get(arg_key)
                 # Check if already replaced
                 if target_arg_value in refs_replacement_dict:
-                    target_statement.args[arg_key] = refs_replacement_dict[
-                        target_arg_value
-                    ]
+                    target_statement.args[arg_key] = refs_replacement_dict[target_arg_value]
                 else:
                     # Replace the whole instance and store in dictionary
                     refs_replacement_dict[target_arg_value] = original_arg_value
@@ -117,24 +111,21 @@ def copy_test_case_references(  # noqa: C901
                     ref = target_assertion.source  # type: ignore[attr-defined]
                     var_ref = ref.get_variable_reference()
                     if var_ref in refs_replacement_dict:
-                        target_source = vr.FieldReference(
-                            refs_replacement_dict[var_ref], ref.field
-                        )
+                        target_source = vr.FieldReference(refs_replacement_dict[var_ref], ref.field)
                 # Check if already replaced
                 if target_source:
                     # Replace the assertion with a new ObjectAssertion using
                     # the replaced source
                     if isinstance(target_assertion, FloatAssertion):
-                        new_assertion = FloatAssertion(
-                            target_source, target_assertion.value
-                        )
+                        new_assertion = FloatAssertion(target_source, target_assertion.value)
                     elif isinstance(target_assertion, IsInstanceAssertion):
                         new_assertion = IsInstanceAssertion(  # type: ignore[assignment]
                             target_source, target_assertion.expected_type
                         )
                     else:
                         new_assertion = ObjectAssertion(  # type: ignore[assignment]
-                            target_source, target_assertion.object  # type: ignore[attr-defined]
+                            target_source,
+                            target_assertion.object,  # type: ignore[attr-defined]
                         )
                     new_assertions.add(new_assertion)
                 else:
@@ -172,9 +163,7 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         Args:
             chromosome (tsc.TestSuiteChromosome): The test suite chromosome to process.
         """
-        self._add_assertions_for(
-            [chrom.test_case for chrom in chromosome.test_case_chromosomes]
-        )
+        self._add_assertions_for([chrom.test_case for chrom in chromosome.test_case_chromosomes])
 
     def _add_assertions_for(self, test_cases: list[tc.TestCase]):
         """Add assertions for the given list of test cases.
@@ -195,15 +184,13 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
                     extracted_assertions = extract_assertions(python_code)
                     total_assertions_from_llm += len(extracted_assertions)
                     indented_assertions = indent_assertions(extracted_assertions)
-                    new_test_case_source_code = (
-                        test_case_source_code + "\n" + indented_assertions
-                    )
+                    new_test_case_source_code = test_case_source_code + "\n" + indented_assertions
                     result = deserialize_code_to_testcases(
                         test_file_contents=new_test_case_source_code,
                         test_cluster=self._test_cluster,
                     )
                     if result is None:
-                        logging.error(
+                        _logger.error(
                             "Failed to deserialize test case %s",
                             new_test_case_source_code,
                         )
@@ -223,9 +210,7 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
                         )
                         for statement in deserialized_test_case.statements:
                             if len(statement.assertions):
-                                original_statement = test_case.statements[
-                                    statement.get_position()
-                                ]
+                                original_statement = test_case.statements[statement.get_position()]
                                 total_assertions_added += len(statement.assertions)
                                 original_statement.assertions = statement.assertions
 

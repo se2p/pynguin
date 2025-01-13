@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides the MOSA-LLM test-generation strategy."""
+
 from __future__ import annotations
 
 import inspect
@@ -15,7 +16,7 @@ from typing import cast
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
@@ -57,17 +58,13 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
         self._number_of_goals = len(self._test_case_fitness_functions)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.Goals, self._number_of_goals
-        )
+        stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
         self._population = self._get_random_population()
         self._archive.update(self._population)
 
         # Use LLM to target uncovered functions
-        coverage_before_llm_call = self.create_test_suite(
-            self._archive.solutions
-        ).get_coverage()
+        coverage_before_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
         if (
             config.configuration.large_language_model.call_llm_for_uncovered_targets
             and coverage_before_llm_call < 1.0
@@ -91,9 +88,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
             self._archive.update(self._population)
 
-            coverage_after_llm_call = self.create_test_suite(
-                self._archive.solutions
-            ).get_coverage()
+            coverage_after_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
             self._logger.info(
                 "Coverage after LLM call for uncovered targets: %5f",
                 coverage_after_llm_call,
@@ -104,7 +99,8 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
         # Calculate dominance ranks and crowding distance
         fronts = self._ranking_function.compute_ranking_assignment(
-            self._population, self._archive.uncovered_goals  # type: ignore[arg-type]
+            self._population,
+            self._archive.uncovered_goals,  # type: ignore[arg-type]
         )
         for i in range(fronts.get_number_of_sub_fronts()):
             fast_epsilon_dominance_assignment(
@@ -112,17 +108,14 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                 self._archive.uncovered_goals,  # type: ignore[arg-type]
             )
 
-        self.before_first_search_iteration(
-            self.create_test_suite(self._archive.solutions)
-        )
+        self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
         last_length_of_covered_goals = len(self._archive.covered_goals)
         plateau_counter = 0
         max_llm_int = config.configuration.large_language_model.max_llm_interventions
         max_plateau_len = config.configuration.large_language_model.max_plateau_len
         while (
-            self.resources_left()
-            and self._number_of_goals - len(self._archive.covered_goals) != 0
+            self.resources_left() and self._number_of_goals - len(self._archive.covered_goals) != 0
         ):
             if config.configuration.large_language_model.call_llm_on_stall_detection:
                 if plateau_counter > max_plateau_len:
@@ -153,25 +146,19 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def evolve(self) -> None:
         """Runs one evolution step."""
-        offspring_population: list[tcc.TestCaseChromosome] = (
-            self._breed_next_generation()
-        )
+        offspring_population: list[tcc.TestCaseChromosome] = self._breed_next_generation()
 
         # Create union of parents and offspring
         union: list[tcc.TestCaseChromosome] = []
         union.extend(self._population)
         union.extend(offspring_population)
 
-        uncovered_goals: OrderedSet[
-            ff.FitnessFunction
-        ] = self._archive.uncovered_goals  # type: ignore[assignment]
+        uncovered_goals: OrderedSet[ff.FitnessFunction] = self._archive.uncovered_goals  # type: ignore[assignment]
 
         # Ranking the union
         self._logger.debug("Union Size = %d", len(union))
         # Ranking the union using the best rank algorithm
-        fronts = self._ranking_function.compute_ranking_assignment(
-            union, uncovered_goals
-        )
+        fronts = self._ranking_function.compute_ranking_assignment(union, uncovered_goals)
 
         remain = len(self._population)
         index = 0
@@ -228,9 +215,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                     covered_coverage_points += line_annot.total.covered
             return covered_coverage_points, total_coverage_points
 
-        def calculate_gao_coverage_map() -> (
-            dict[GenericCallableAccessibleObject, float]
-        ):
+        def calculate_gao_coverage_map() -> dict[GenericCallableAccessibleObject, float]:
             """Calculate the coverage ratio for each GenericCallableAccessibleObject.
 
             Returns:
@@ -250,7 +235,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             return gao_coverage
 
         def filter_gao_by_coverage(
-            gao_coverage: dict[GenericCallableAccessibleObject, float]
+            gao_coverage: dict[GenericCallableAccessibleObject, float],
         ) -> dict[GenericCallableAccessibleObject, float]:
             """Filter GenericCallableAccessibleObjects by their coverage ratio.
 
@@ -262,11 +247,8 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
             """
             return {
                 gao: coverage
-                for gao, coverage in sorted(
-                    gao_coverage.items(), key=operator.itemgetter(1)
-                )
-                if coverage
-                < config.configuration.large_language_model.coverage_threshold
+                for gao, coverage in sorted(gao_coverage.items(), key=operator.itemgetter(1))
+                if coverage < config.configuration.large_language_model.coverage_threshold
             }
 
         # Main logic
@@ -280,9 +262,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
         gao_coverage_map = calculate_gao_coverage_map()
         filtered_gao_coverage_map = filter_gao_by_coverage(gao_coverage_map)
 
-        llm_query_results = self.model.call_llm_for_uncovered_targets(
-            filtered_gao_coverage_map
-        )
+        llm_query_results = self.model.call_llm_for_uncovered_targets(filtered_gao_coverage_map)
 
         return get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
@@ -312,14 +292,11 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
             parent_2 = self._selection_function.select(self._population)[0]
-            offspring_1 = cast(tcc.TestCaseChromosome, parent_1.clone())
-            offspring_2 = cast(tcc.TestCaseChromosome, parent_2.clone())
+            offspring_1 = cast("tcc.TestCaseChromosome", parent_1.clone())
+            offspring_2 = cast("tcc.TestCaseChromosome", parent_2.clone())
 
             # Apply crossover
-            if (
-                randomness.next_float()
-                <= config.configuration.search_algorithm.crossover_rate
-            ):
+            if randomness.next_float() <= config.configuration.search_algorithm.crossover_rate:
                 try:
                     self._crossover_function.cross_over(offspring_1, offspring_2)
                 except ConstructionFailedException:

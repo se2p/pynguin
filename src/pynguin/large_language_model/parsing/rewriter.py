@@ -85,21 +85,15 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         """
         if isinstance(node, ast.Name):
             return node
-        if isinstance(node, ast.Constant) and key_in_dict(
-            node.value, self.constant_dict
-        ):
+        if isinstance(node, ast.Constant) and key_in_dict(node.value, self.constant_dict):
             varname = self.constant_dict[node.value]
-        elif self.replace_only_free_subnodes and has_bound_variables(
-            node, self._bound_variables
-        ):
+        elif self.replace_only_free_subnodes and has_bound_variables(node, self._bound_variables):
             return node
         else:
             varname = self.generate_new_varname()
             if isinstance(node, ast.Constant):
                 self.constant_dict[node.value] = varname
-            assign_decl = ast.Assign(
-                targets=[ast.Name(varname, ctx=ast.Store())], value=node
-            )
+            assign_decl = ast.Assign(targets=[ast.Name(varname, ctx=ast.Store())], value=node)
             self.stmts_to_add.append(assign_decl)
 
         return ast.Name(varname, ctx=ast.Load())
@@ -332,9 +326,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
             if isinstance(target, ast.Name):
                 self.used_varnames.add(target.id)
         new_rhs = self.visit(assign.value)
-        return ast.Assign(
-            targets=assign.targets, value=new_rhs, type_comment=assign.type_comment
-        )
+        return ast.Assign(targets=assign.targets, value=new_rhs, type_comment=assign.type_comment)
 
     def visit_AnnAssign(self, node: ast.AnnAssign):  # noqa: N802
         """Convert annotated assigns as well to the correct format.
@@ -402,9 +394,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         if type(expr.value) in {ast.Await, ast.Yield, ast.YieldFrom}:
             return expr
         rhs = self.visit(expr.value)
-        return ast.Assign(
-            targets=[ast.Name(id=self.generate_new_varname(), ctx=ast.Store)], value=rhs
-        )
+        return ast.Assign(targets=[ast.Name(id=self.generate_new_varname())], value=rhs)
 
     def visit_Assert(self, assert_node: ast.Assert):  # noqa: N802
         """We want the test's upper level comparators to remain.
@@ -436,9 +426,7 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         if not fn_def_node.name.startswith("test_"):
             return fn_def_node
 
-        fn_def_node.args.args = [
-            arg for arg in fn_def_node.args.args if arg.arg != "self"
-        ]
+        fn_def_node.args.args = [arg for arg in fn_def_node.args.args if arg.arg != "self"]
         # Visit the main body
         new_body = self.visit_block_helper(fn_def_node.body)
         fn_def_node.body = new_body
@@ -793,9 +781,7 @@ class TestClassRewriter(ast.NodeTransformer):
                 self.collect_set_up_vars(child_node)
 
         for child_node in node.body:
-            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith(
-                "test_"
-            ):
+            if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_"):
                 self.transform_test_function(child_node)
 
         return node
@@ -818,9 +804,7 @@ class TestClassRewriter(ast.NodeTransformer):
                     self.counter += 1
                     # Create a new assignment with the counter-based variable
                     new_target = ast.Name(id=var_name, ctx=ast.Store())
-                    self.set_up_vars.append(
-                        ast.Assign(targets=[new_target], value=stmt.value)
-                    )
+                    self.set_up_vars.append(ast.Assign(targets=[new_target], value=stmt.value))
 
     def transform_test_function(self, test_func_node: ast.FunctionDef):
         """Transforms a test function by replacing `self.<variable>`.
@@ -866,11 +850,7 @@ class TestClassRewriter(ast.NodeTransformer):
         for field, value in ast.iter_fields(node):
             if isinstance(value, list):
                 new_values = [
-                    (
-                        self.replace_self_references(item)
-                        if isinstance(item, ast.AST)
-                        else item
-                    )
+                    (self.replace_self_references(item) if isinstance(item, ast.AST) else item)
                     for item in value
                 ]
                 setattr(node, field, new_values)
@@ -897,8 +877,7 @@ def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
         for node in module_node.body
         if isinstance(node, ast.ClassDef)
         for child_node in node.body
-        if isinstance(child_node, ast.FunctionDef)
-        and child_node.name.startswith("test_")
+        if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_")
     ]
 
 
@@ -924,13 +903,7 @@ def process_function_defs(
         try:
             return_tests[function_def.name] = ast.unparse(test_module) + "\n"
         except AttributeError as e:
-            logger.info(
-                "Got error: %s\nwhen trying to unparse the transformation"
-                " of %s from:\n%s",
-                e,
-                function_def.name,
-                ast.unparse(function_def),
-            )
+            logger.info("Got error: %s\nwhen trying to unparse the transformation", e)
     return return_tests
 
 

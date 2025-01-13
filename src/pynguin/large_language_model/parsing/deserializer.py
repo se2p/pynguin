@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 """A class to deserialize AST nodes into Statements in a TestCase."""
+
 from __future__ import annotations
 
 import ast
@@ -166,7 +167,7 @@ class StatementDeserializer:  # noqa: PLR0904
 
     def create_assert_stmt(
         self, assert_node: ast.Assert
-    ) -> tuple[Assertion | None, Reference] | None | tuple[Assertion, Reference]:
+    ) -> tuple[Assertion | None, Reference] | tuple[Assertion, Reference] | None:
         """Creates an assert statement.
 
         Args:
@@ -333,9 +334,7 @@ class StatementDeserializer:  # noqa: PLR0904
 
         # Handle positional arguments.
         for (name, param), call_arg in zip(
-            list(gen_callable.inferred_signature.signature.parameters.items())[
-                shift_by:
-            ],
+            list(gen_callable.inferred_signature.signature.parameters.items())[shift_by:],
             call_args,
             strict=False,
         ):
@@ -362,9 +361,7 @@ class StatementDeserializer:  # noqa: PLR0904
         for call_keyword in call_keywords:
             keyword = call_keyword.arg
             if keyword is None:
-                keyword = list(
-                    gen_callable.inferred_signature.signature.parameters.keys()
-                )[-1]
+                keyword = list(gen_callable.inferred_signature.signature.parameters.keys())[-1]
                 if (
                     gen_callable.inferred_signature.signature.parameters[keyword].kind
                     != inspect.Parameter.VAR_KEYWORD
@@ -404,9 +401,7 @@ class StatementDeserializer:  # noqa: PLR0904
             return stmt.StringPrimitiveStatement(self._testcase, val)
         if isinstance(val, bytes):
             return stmt.BytesPrimitiveStatement(self._testcase, val)
-        logger.debug(
-            "Could not find case for constant while handling assign statement."
-        )
+        logger.debug("Could not find case for constant while handling assign statement.")
         return None
 
     def create_stmt_from_unaryop(
@@ -429,14 +424,10 @@ class StatementDeserializer:  # noqa: PLR0904
             return stmt.FloatPrimitiveStatement(self._testcase, (-1) * val)
         if isinstance(val, int):
             return stmt.IntPrimitiveStatement(self._testcase, (-1) * val)
-        logger.debug(
-            "Could not find case for unary operator while handling assign statement."
-        )
+        logger.debug("Could not find case for unary operator while handling assign statement.")
         return None
 
-    def create_stmt_from_call(
-        self, call: ast.Call
-    ) -> stmt.VariableCreatingStatement | None:
+    def create_stmt_from_call(self, call: ast.Call) -> stmt.VariableCreatingStatement | None:
         """Creates the corresponding statement from an ast.call.
 
         Depending on the call, this can be a GenericConstructor, GenericMethod
@@ -501,9 +492,7 @@ class StatementDeserializer:  # noqa: PLR0904
 
         for obj in self._test_cluster.accessible_objects_under_test:
             if isinstance(obj, GenericConstructor):
-                owner = (
-                    str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0].rstrip(")")
-                )
+                owner = str(obj.owner).rsplit(".", maxsplit=1)[-1].split("'")[0].rstrip(")")
                 if call_name == owner and call_id not in self._ref_dict:
                     return obj
             elif isinstance(obj, GenericMethod):
@@ -542,14 +531,16 @@ class StatementDeserializer:  # noqa: PLR0904
             if not isinstance(keyword, ast.keyword):
                 return None
         var_refs = self.create_variable_references_from_call_args(
-            call.args, call.keywords, gen_callable  # type: ignore[arg-type]
+            call.args,  # type: ignore[arg-type]
+            call.keywords,
+            gen_callable,
         )
         if var_refs is None:
             return None
         if isinstance(gen_callable, GenericFunction):
             return stmt.FunctionStatement(
                 self._testcase,
-                cast(GenericCallableAccessibleObject, gen_callable),
+                cast("GenericCallableAccessibleObject", gen_callable),
                 var_refs,
             )
         if isinstance(gen_callable, GenericMethod):
@@ -566,7 +557,7 @@ class StatementDeserializer:  # noqa: PLR0904
         if isinstance(gen_callable, GenericConstructor):
             return stmt.ConstructorStatement(
                 self._testcase,
-                cast(GenericCallableAccessibleObject, gen_callable),
+                cast("GenericCallableAccessibleObject", gen_callable),
                 var_refs,
             )
         return None
@@ -584,10 +575,9 @@ class StatementDeserializer:  # noqa: PLR0904
         Returns:
             The corresponding list statement.
         """
-        coll_elems: None | (
-            list[vr.VariableReference]
-            | list[tuple[vr.VariableReference, vr.VariableReference]]
-        )
+        coll_elems: (
+            list[vr.VariableReference] | list[tuple[vr.VariableReference, vr.VariableReference]]
+        ) | None
         if isinstance(coll_node, ast.Dict):
             keys = self.create_elements(coll_node.keys)
             values = self.create_elements(coll_node.values)
@@ -604,9 +594,7 @@ class StatementDeserializer:  # noqa: PLR0904
             if coll_elems is None:
                 return None
             coll_elems_type = self.get_collection_type(coll_node, coll_elems)
-        return self.create_specific_collection_stmt(
-            coll_node, coll_elems_type, coll_elems
-        )
+        return self.create_specific_collection_stmt(coll_node, coll_elems_type, coll_elems)
 
     def create_elements(  # noqa: C901
         self, elements: Any
@@ -630,30 +618,22 @@ class StatementDeserializer:  # noqa: PLR0904
                 statement = self.create_stmt_from_constant(elem)
                 if not statement:
                     return None
-                coll_elems.append(
-                    self._testcase.add_variable_creating_statement(statement)
-                )
+                coll_elems.append(self._testcase.add_variable_creating_statement(statement))
             elif isinstance(elem, ast.UnaryOp):
                 statement = self.create_stmt_from_unaryop(elem)
                 if not statement:
                     return None
-                coll_elems.append(
-                    self._testcase.add_variable_creating_statement(statement)
-                )
+                coll_elems.append(self._testcase.add_variable_creating_statement(statement))
             elif isinstance(elem, ast.Call):
                 statement = self.create_stmt_from_call(elem)
                 if not statement:
                     return None
-                coll_elems.append(
-                    self._testcase.add_variable_creating_statement(statement)
-                )
+                coll_elems.append(self._testcase.add_variable_creating_statement(statement))
             elif isinstance(elem, ast.List | ast.Tuple | ast.Set | ast.Dict):
                 statement = self.create_stmt_from_collection(elem)
                 if not statement:
                     return None
-                coll_elems.append(
-                    self._testcase.add_variable_creating_statement(statement)
-                )
+                coll_elems.append(self._testcase.add_variable_creating_statement(statement))
             elif isinstance(elem, ast.Name):
                 try:
                     coll_elems.append(self._ref_dict[elem.id])
@@ -700,12 +680,7 @@ class StatementDeserializer:  # noqa: PLR0904
         coll_node: ast.List | ast.Set | ast.Dict | ast.Tuple,
         coll_elems_type: Any,
         coll_elems: list[Any],
-    ) -> None | (
-        stmt.ListStatement
-        | stmt.SetStatement
-        | stmt.DictStatement
-        | stmt.TupleStatement
-    ):
+    ) -> (stmt.ListStatement | stmt.SetStatement | stmt.DictStatement | stmt.TupleStatement) | None:
         """Creates the corresponding collection statement from an ast node.
 
         Args:
@@ -751,19 +726,14 @@ class StatementDeserializer:  # noqa: PLR0904
 
         # It appears that sometimes builtins is a dictionary and other times it is
         # a module, depending on your python interpreter... curious.
-        builtins_dict = (
-            __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
-        )
+        builtins_dict = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
 
         if func_id in builtins_dict:
             return self.create_ast_assign_stmt(call)
 
         if func_id == "set":
             try:
-                set_node = ast.Set(
-                    elts=call.args,
-                    ctx=ast.Load(),
-                )
+                set_node = ast.Set(elts=call.args)
             except AttributeError:
                 return None
             return self.create_stmt_from_collection(set_node)
@@ -790,7 +760,6 @@ class StatementDeserializer:  # noqa: PLR0904
                 dict_node = ast.Dict(
                     keys=call.args[0].keys if call.args else [],  # type: ignore[attr-defined]
                     values=call.args[0].values if call.args else [],  # type: ignore[attr-defined]
-                    ctx=ast.Load(),
                 )
             except AttributeError:
                 return None

@@ -283,10 +283,7 @@ def _detect_llm_strategy() -> str:
         return "LLM-On-Stall-Detection"
     if config.configuration.large_language_model.call_llm_for_uncovered_targets:
         return "LLM-For-Initial-Uncovered-Targets"
-    if (
-        config.configuration.test_case_output.assertion_generation
-        == config.AssertionGenerator.LLM
-    ):
+    if config.configuration.test_case_output.assertion_generation == config.AssertionGenerator.LLM:
         return "LLM-Assertion-Generator"
     return ""
 

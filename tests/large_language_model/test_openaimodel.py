@@ -42,7 +42,7 @@ def test_extract_python_code_multiple_blocks():
 
 def test_set_api_key_missing(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
-    with pytest.raises(ValueError, match="OpenAI API key is missing."):
+    with pytest.raises(ValueError, match="OpenAI API key is missing"):
         set_api_key()
 
 
@@ -56,9 +56,7 @@ def test_is_api_key_present(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "    ")
     assert is_api_key_present() is False
 
-    monkeypatch.setattr(
-        config.configuration.large_language_model, "api_key", "valid_api_key"
-    )
+    monkeypatch.setattr(config.configuration.large_language_model, "api_key", "valid_api_key")
     assert is_api_key_present() is True
 
 
@@ -71,10 +69,8 @@ def test_openai_model_query_success():
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
     model = LLMAgent()
-    try:
-        model.clear_cache()
-    except Exception:
-        pass
+    model.clear_cache()
+
     response = model.query(prompt)
 
     assert response is not None

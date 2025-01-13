@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 """This module generates unit tests for a given module using OpenAI's language model."""
+
 import datetime
 import inspect
 import logging
@@ -23,7 +24,7 @@ from openai.types.chat import ChatCompletionUserMessageParam
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.utils.statistics.statistics as stat
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.module import TestCluster
 from pynguin.analyses.module import import_module
@@ -52,7 +53,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def save_prompt_info_to_file(prompt_message: str, full_response: str):
@@ -70,16 +71,14 @@ def save_prompt_info_to_file(prompt_message: str, full_response: str):
         output_file = output_dir / "prompt_info.txt"
 
         with output_file.open(mode="a", encoding="utf-8") as file:
-            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             file.write(f"==============\nDate and Time: {timestamp}\n==============\n")
             file.write(f"Prompt:\n{prompt_message}\n")
             file.write("==============\nFull Response\n==============\n")
             file.write(full_response + "\n")
             file.write("==============\n\n")
     except OSError as error:
-        logging.exception("Error while writing prompt information to file: %s", error)
+        _logger.exception("Error while writing prompt information to file: %s", error)
 
 
 def save_llm_tests_to_file(test_cases: str, file_name: str):
@@ -100,17 +99,13 @@ def save_llm_tests_to_file(test_cases: str, file_name: str):
             file.write("# LLM generated and rewritten (in Pynguin format) test cases\n")
             file.write(
                 "# Date and time: "
-                + datetime.datetime.now(datetime.timezone.utc).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+                + datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
                 + "\n\n"
             )
             file.write(test_cases)
-        logging.info("Test cases saved successfully to %s", output_file)
+        _logger.info("Test cases saved successfully to %s", output_file)
     except OSError as error:
-        logging.exception(
-            "Error while saving LLM-generated test cases to file: %s", error
-        )
+        _logger.exception("Error while saving LLM-generated test cases to file: %s", error)
 
 
 def get_module_path() -> Path:
@@ -263,9 +258,7 @@ class LLMAgent:
         self._llm_calls_counter += 1
 
         messages: list[ChatCompletionMessageParam] = [
-            ChatCompletionSystemMessageParam(
-                role="system", content=prompt.system_message
-            ),
+            ChatCompletionSystemMessageParam(role="system", content=prompt.system_message),
             ChatCompletionUserMessageParam(role="user", content=prompt_text),
         ]
 
@@ -291,9 +284,8 @@ class LLMAgent:
             return response_text
 
         except openai.OpenAIError as e:
-            logger.error(
-                "An error occurred while querying the OpenAI API. "
-                "Model: %s, Prompt: %s, Error: %s",
+            _logger.error(
+                "An error occurred while querying the OpenAI API. Model: %s, Prompt: %s, Error: %s",
                 self._model_name,
                 prompt_text,
                 e,
@@ -368,10 +360,10 @@ class LLMAgent:
             The extracted test cases.
         """
         python_code = self.extract_python_code_from_llm_output(llm_output)
-        logger.debug("Extracted Python code: %s.", python_code)
+        _logger.debug("Extracted Python code: %s.", python_code)
         generated_tests: dict[str, str] = rewrite_tests(python_code)
         tests_with_line_breaks = "\n\n".join(generated_tests.values())
-        logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
+        _logger.debug("Rewritten tests: %s.", tests_with_line_breaks)
         save_llm_tests_to_file(tests_with_line_breaks, "rewritten_llm_test_cases.py")
         return tests_with_line_breaks
 
@@ -391,31 +383,23 @@ class LLMAgent:
             self.llm_calls_counter - self.llm_calls_with_no_python_code
         )
 
-        logger.info(
+        _logger.info(
             "%d out of %d LLM responses have Python code.",
             number_of_llm_responses_with_python_code,
             self.llm_calls_counter,
         )
-        logger.info("Total LLM call time is %s seconds", self.llm_calls_timer / 1e9)
+        _logger.info("Total LLM call time is %s seconds", self.llm_calls_timer / 1e9)
 
-        stat.track_output_variable(
-            RuntimeVariable.TotalLLMCalls, self.llm_calls_counter
-        )
+        stat.track_output_variable(RuntimeVariable.TotalLLMCalls, self.llm_calls_counter)
         stat.track_output_variable(RuntimeVariable.LLMQueryTime, self.llm_calls_timer)
-        stat.track_output_variable(
-            RuntimeVariable.TotalLLMOutputTokens, self.llm_output_tokens
-        )
-        stat.track_output_variable(
-            RuntimeVariable.TotalLLMInputTokens, self.llm_input_tokens
-        )
+        stat.track_output_variable(RuntimeVariable.TotalLLMOutputTokens, self.llm_output_tokens)
+        stat.track_output_variable(RuntimeVariable.TotalLLMInputTokens, self.llm_input_tokens)
         stat.track_output_variable(
             RuntimeVariable.TotalCodelessLLMResponses,
             self.llm_calls_with_no_python_code,
         )
 
-    def generate_assertions_for_test_case(
-        self, test_case_source_code: str
-    ) -> str | None:
+    def generate_assertions_for_test_case(self, test_case_source_code: str) -> str | None:
         """Generates assertions for a given test case source code.
 
         Args:
@@ -474,7 +458,7 @@ def get_test_case_chromosomes_from_llm_results(  # noqa: PLR0917
     )
 
     if deserialized_code_to_testcases is None:
-        logging.error(
+        _logger.error(
             "Failed to deserialize test cases %s",
             llm_test_cases_str,
         )
@@ -487,18 +471,12 @@ def get_test_case_chromosomes_from_llm_results(  # noqa: PLR0917
         uninterpreted_statements,
     ) = deserialized_code_to_testcases
 
-    tests_source_code = "\n\n".join(
-        unparse_test_case(test_case) or "" for test_case in test_cases
-    )
+    tests_source_code = "\n\n".join(unparse_test_case(test_case) or "" for test_case in test_cases)
     save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
 
-    stat.track_output_variable(
-        RuntimeVariable.LLMTotalParsedStatements, parsed_statements
-    )
+    stat.track_output_variable(RuntimeVariable.LLMTotalParsedStatements, parsed_statements)
     stat.track_output_variable(RuntimeVariable.LLMTotalStatements, total_statements)
-    stat.track_output_variable(
-        RuntimeVariable.LLMUninterpretedStatements, uninterpreted_statements
-    )
+    stat.track_output_variable(RuntimeVariable.LLMUninterpretedStatements, uninterpreted_statements)
 
     for test_case in test_cases:
         test_case_chromosome = tcc.TestCaseChromosome(

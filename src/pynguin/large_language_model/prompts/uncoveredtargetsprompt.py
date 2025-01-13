@@ -59,9 +59,7 @@ class UncoveredTargetsPrompt(Prompt):
             elif gao.is_constructor() and isinstance(gao, GenericConstructor):
                 constructor_gao: GenericConstructor = gao
                 class_name = constructor_gao.owner.name  # type: ignore[union-attr]
-                callable_list_item = (
-                    f"- The constructor of the class {class_name}{signature}"
-                )
+                callable_list_item = f"- The constructor of the class {class_name}{signature}"
             else:
                 continue  # Skip unknown callable types
 

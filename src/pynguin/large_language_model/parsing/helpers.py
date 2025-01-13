@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 """Helper function for LLM parser."""
+
 import ast
 import logging
 
@@ -29,9 +30,7 @@ def _count_all_statements(node) -> int:
     num_non_assert_statements = 0
     for _, value in ast.iter_fields(node):
         # For all blocks
-        if isinstance(value, list) and all(
-            isinstance(elem, ast.stmt) for elem in value
-        ):
+        if isinstance(value, list) and all(isinstance(elem, ast.stmt) for elem in value):
             for elem in value:
                 if isinstance(elem, ast.Assert):
                     continue

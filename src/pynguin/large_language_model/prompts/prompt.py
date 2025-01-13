@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides the LLM prompt."""
+
 from abc import abstractmethod
 
 
