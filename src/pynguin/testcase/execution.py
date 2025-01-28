@@ -67,10 +67,13 @@ from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.type_utils import given_exception_matches, string_distance, string_le_distance, string_lt_distance
+from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
 from pynguin.utils.type_utils import is_numeric
 from pynguin.utils.type_utils import is_string
+from pynguin.utils.type_utils import string_distance
+from pynguin.utils.type_utils import string_le_distance
+from pynguin.utils.type_utils import string_lt_distance
 
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
