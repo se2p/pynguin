@@ -73,7 +73,7 @@ def test_parse_module(parsed_module_no_dependencies):
 
 def test_parse_native_module():
     module.LOGGER = MagicMock(Logger)
-    module_name = "jellyfish._rustyfish"
+    module_name = "libcst.native"
     parse_result = parse_module(module_name)
     assert parse_result.module.__name__ == module_name
     assert parse_result.module_name == module_name
