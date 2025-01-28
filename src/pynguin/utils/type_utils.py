@@ -318,7 +318,7 @@ def string_distance(string1: str, string2: str) -> float:
 
     min_length = min(len(string1), len(string2))
     max_length = max(len(string1), len(string2))
-    differences:float = max_length - min_length
+    differences: float = max_length - min_length
 
     for pos in range(min_length):
         if string1[pos] != string2[pos]:
