@@ -133,14 +133,14 @@ def test_passed_exception_match_not():
         pytest.param(PynguinCompare.EQ, 5, 0, 5, 0),
         pytest.param(PynguinCompare.EQ, 0, 0, 0, 1),
         pytest.param(PynguinCompare.EQ, "string", 0, inf, 0),
-        pytest.param(PynguinCompare.EQ, "abc", "cde", 3, 0),
-        pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(4, 6)), 3, 0),
+        pytest.param(PynguinCompare.EQ, "abc", "cde", 2.0, 0),
+        pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(2, 5)), 2.0, 0),
         pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(3)), 0, 1),
         pytest.param(
             PynguinCompare.EQ,
             bytearray(bytes(range(3))),
-            bytearray(bytes(range(4, 6))),
-            3,
+            bytearray(bytes(range(2, 5))),
+            2.0,
             0,
         ),
         pytest.param(
@@ -153,7 +153,7 @@ def test_passed_exception_match_not():
         pytest.param(PynguinCompare.NE, 5, 0, 0, 5),
         pytest.param(PynguinCompare.NE, 0, 0, 1, 0),
         pytest.param(PynguinCompare.NE, "string", 0, 0, inf),
-        pytest.param(PynguinCompare.NE, "abc", "cde", 0, 3),
+        pytest.param(PynguinCompare.NE, "abc", "cde", 0, 2.0),
         pytest.param(PynguinCompare.LT, 5, 0, 6, 0),
         pytest.param(PynguinCompare.LT, 0, 5, 0, 5),
         pytest.param(PynguinCompare.LT, Decimal(5), Decimal(0), 6, 0),
@@ -306,7 +306,7 @@ def test_enable_disable_bool():
     [
         (1, 1, 0),
         (2, 1, 1),
-        ("c", "b", inf),
+        ("c", "b", 1),
         (Decimal(0.5), Decimal(0.3), 0.2),  # noqa: RUF032
     ],
 )
@@ -319,7 +319,7 @@ def test_le(val1, val2, result):
     [
         (0, 1, 0),
         (1, 1, 1),
-        ("b", "b", inf),
+        ("b", "b", 1),
         (Decimal(0.5), Decimal(0.3), 1.2),  # noqa: RUF032
     ],
 )
@@ -411,3 +411,5 @@ def test_killed_by_thread_guard(method, inputs):
     tracer.current_thread_identifier = threading.current_thread().ident + 1
     with pytest.raises(RuntimeError):
         getattr(tracer, method)(*inputs)
+
+
