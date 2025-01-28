@@ -305,7 +305,7 @@ def given_exception_matches(err, exc) -> bool:
     return issubclass(err, exc)
 
 
-def string_distance(string1:str, string2:str) -> int:
+def string_distance(string1: str, string2: str) -> int:
     """Returns the distance between two strings.
 
     Unlike the Levenshtein distance, this calculates not just the
@@ -328,7 +328,7 @@ def string_distance(string1:str, string2:str) -> int:
     return differences
 
 
-def string_lt_distance(string1:str, string2:str) -> int:
+def string_lt_distance(string1: str, string2: str) -> int:
     """Returns the strict ordered distance between two strings."""
     if string1 < string2:
         return 0
@@ -342,7 +342,7 @@ def string_lt_distance(string1:str, string2:str) -> int:
     return 1
 
 
-def string_le_distance(string1:str, string2:str) -> int:
+def string_le_distance(string1: str, string2: str) -> int:
     """Returns the ordered distance between two strings."""
     if string1 <= string2:
         return 0
