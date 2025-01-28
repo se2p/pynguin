@@ -305,7 +305,7 @@ def given_exception_matches(err, exc) -> bool:
     return issubclass(err, exc)
 
 
-def string_distance(string1: str, string2: str) -> int:
+def string_distance(string1: str, string2: str) -> float:
     """Returns the distance between two strings.
 
     Unlike the Levenshtein distance, this calculates not just the
@@ -323,7 +323,7 @@ def string_distance(string1: str, string2: str) -> int:
     for pos in range(min_length):
         if string1[pos] != string2[pos]:
             difference = abs(ord(string1[pos]) - ord(string2[pos]))
-            differences += difference / (difference + 1)
+            differences += difference / (difference + 1.0)
 
     return differences
 
