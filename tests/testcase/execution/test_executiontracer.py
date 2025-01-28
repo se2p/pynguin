@@ -207,9 +207,8 @@ def test_compare_ignores_proxy():
         ("a", "aaa", 2, 0),
         ("aaa", "a", 2, 0),
         ("aaa", "b", 2.5, 0),
-        ("foo", "foo", 0, 1)
-
-    ]
+        ("foo", "foo", 0, 1),
+    ],
     )
 def test_string_equals_distance(string1, string2, true_distance, false_distance):
     tracer = ExecutionTracer()
@@ -230,8 +229,8 @@ def test_string_equals_distance(string1, string2, true_distance, false_distance)
         ("bc", "b",  1, 0),
         ("b",  "b",  1, 0),
         ("a",  "b",  0, 1),
-        ("a",  "bc", 0, 1)
-    ]
+        ("a",  "bc", 0, 1),
+    ],
     )
 def test_string_lt_distance(string1, string2, true_distance, false_distance):
     tracer = ExecutionTracer()
@@ -252,8 +251,8 @@ def test_string_lt_distance(string1, string2, true_distance, false_distance):
         ("bc", "b",  1, 0),
         ("b",  "b",  0, 1),
         ("a",  "bb", 0, 2),
-        ("a",  "b",  0, 2)
-    ]
+        ("a",  "b",  0, 2),
+    ],
     )
 def test_string_le_distance(string1, string2, true_distance, false_distance):
     tracer = ExecutionTracer()
