@@ -329,8 +329,7 @@ def string_distance(string1:str, string2:str) -> int:
 
 
 def string_lt_distance(string1:str, string2:str) -> int:
-    """Returns the strict ordered distance between two strings.
-    """
+    """Returns the strict ordered distance between two strings."""
     if string1 < string2:
         return 0
 
@@ -344,8 +343,7 @@ def string_lt_distance(string1:str, string2:str) -> int:
 
 
 def string_le_distance(string1:str, string2:str) -> int:
-    """Returns the ordered distance between two strings.
-    """
+    """Returns the ordered distance between two strings."""
     if string1 <= string2:
         return 0
 
