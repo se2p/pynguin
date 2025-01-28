@@ -1838,7 +1838,7 @@ def _lt(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return (float(val1) - float(val2)) + 1.0
-    elif is_string(val1) and is_string(val2):
+    if is_string(val1) and is_string(val2):
         return string_lt_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
         return string_lt_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
@@ -1859,7 +1859,7 @@ def _le(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return float(val1) - float(val2)
-    elif is_string(val1) and is_string(val2):
+    if is_string(val1) and is_string(val2):
         return string_le_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
         return string_le_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
