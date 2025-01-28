@@ -478,5 +478,3 @@ def test_killed_by_thread_guard(method, inputs):
     tracer.current_thread_identifier = threading.current_thread().ident + 1
     with pytest.raises(RuntimeError):
         getattr(tracer, method)(*inputs)
-
-
