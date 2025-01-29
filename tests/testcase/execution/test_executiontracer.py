@@ -133,14 +133,14 @@ def test_passed_exception_match_not():
         pytest.param(PynguinCompare.EQ, 5, 0, 5, 0),
         pytest.param(PynguinCompare.EQ, 0, 0, 0, 1),
         pytest.param(PynguinCompare.EQ, "string", 0, inf, 0),
-        pytest.param(PynguinCompare.EQ, "abc", "cde", 3, 0),
-        pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(4, 6)), 3, 0),
+        pytest.param(PynguinCompare.EQ, "abc", "cde", 2.0, 0),
+        pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(2, 5)), 2.0, 0),
         pytest.param(PynguinCompare.EQ, bytes(range(3)), bytes(range(3)), 0, 1),
         pytest.param(
             PynguinCompare.EQ,
             bytearray(bytes(range(3))),
-            bytearray(bytes(range(4, 6))),
-            3,
+            bytearray(bytes(range(2, 5))),
+            2.0,
             0,
         ),
         pytest.param(
@@ -153,7 +153,7 @@ def test_passed_exception_match_not():
         pytest.param(PynguinCompare.NE, 5, 0, 0, 5),
         pytest.param(PynguinCompare.NE, 0, 0, 1, 0),
         pytest.param(PynguinCompare.NE, "string", 0, 0, inf),
-        pytest.param(PynguinCompare.NE, "abc", "cde", 0, 3),
+        pytest.param(PynguinCompare.NE, "abc", "cde", 0, 2.0),
         pytest.param(PynguinCompare.LT, 5, 0, 6, 0),
         pytest.param(PynguinCompare.LT, 0, 5, 0, 5),
         pytest.param(PynguinCompare.LT, Decimal(5), Decimal(0), 6, 0),
@@ -195,6 +195,72 @@ def test_compare_ignores_proxy():
     tracer.executed_compare_predicate(tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ)
     assert (0, 5) in tracer.get_trace().true_distances.items()
     assert (0, 0) in tracer.get_trace().false_distances.items()
+
+
+@pytest.mark.parametrize(
+    "string1,string2,true_distance,false_distance",
+    [
+        ("a", "b", 0.5, 0),
+        ("aa", "bb", 1.0, 0),
+        ("aa", "cc", 2 * 2.0 / 3.0, 0),
+        ("dd", "aa", 2 * 3.0 / 4.0, 0),
+        ("a", "aaa", 2, 0),
+        ("aaa", "a", 2, 0),
+        ("aaa", "b", 2.5, 0),
+        ("foo", "foo", 0, 1),
+    ],
+)
+def test_string_equals_distance(string1, string2, true_distance, false_distance):
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_compare_predicate(string1, string2, 0, PynguinCompare.EQ)
+    assert (0, true_distance) in tracer.get_trace().true_distances.items()
+    assert (0, false_distance) in tracer.get_trace().false_distances.items()
+
+
+@pytest.mark.parametrize(
+    "string1,string2,true_distance,false_distance",
+    [
+        ("b", "a", 2, 0),
+        ("c", "a", 3, 0),
+        ("bb", "ba", 2, 0),
+        ("bc", "ba", 3, 0),
+        ("bc", "b", 1, 0),
+        ("b", "b", 1, 0),
+        ("a", "b", 0, 1),
+        ("a", "bc", 0, 1),
+    ],
+)
+def test_string_lt_distance(string1, string2, true_distance, false_distance):
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_compare_predicate(string1, string2, 0, PynguinCompare.LT)
+    assert (0, true_distance) in tracer.get_trace().true_distances.items()
+    assert (0, false_distance) in tracer.get_trace().false_distances.items()
+
+
+@pytest.mark.parametrize(
+    "string1,string2,true_distance,false_distance",
+    [
+        ("b", "a", 1, 0),
+        ("c", "a", 2, 0),
+        ("bb", "ba", 1, 0),
+        ("bc", "ba", 2, 0),
+        ("bc", "b", 1, 0),
+        ("b", "b", 0, 1),
+        ("a", "bb", 0, 2),
+        ("a", "b", 0, 2),
+    ],
+)
+def test_string_le_distance(string1, string2, true_distance, false_distance):
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    tracer.register_predicate(MagicMock(code_object_id=0))
+    tracer.executed_compare_predicate(string1, string2, 0, PynguinCompare.LE)
+    assert (0, true_distance) in tracer.get_trace().true_distances.items()
+    assert (0, false_distance) in tracer.get_trace().false_distances.items()
 
 
 def test_bool_ignores_proxy():
@@ -306,7 +372,7 @@ def test_enable_disable_bool():
     [
         (1, 1, 0),
         (2, 1, 1),
-        ("c", "b", inf),
+        ("c", "b", 1),
         (Decimal(0.5), Decimal(0.3), 0.2),  # noqa: RUF032
     ],
 )
@@ -319,7 +385,7 @@ def test_le(val1, val2, result):
     [
         (0, 1, 0),
         (1, 1, 1),
-        ("b", "b", inf),
+        ("b", "b", 1),
         (Decimal(0.5), Decimal(0.3), 1.2),  # noqa: RUF032
     ],
 )

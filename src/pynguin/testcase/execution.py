@@ -41,7 +41,6 @@ import pytest  # noqa: F401
 from bytecode import BasicBlock
 from bytecode import CellVar
 from bytecode import FreeVar
-from jellyfish import levenshtein_distance
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -72,6 +71,9 @@ from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
 from pynguin.utils.type_utils import is_numeric
 from pynguin.utils.type_utils import is_string
+from pynguin.utils.type_utils import string_distance
+from pynguin.utils.type_utils import string_le_distance
+from pynguin.utils.type_utils import string_lt_distance
 
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
@@ -1804,9 +1806,9 @@ def _eq(val1, val2) -> float:
     if is_numeric(val1) and is_numeric(val2):
         return float(abs(val1 - val2))
     if is_string(val1) and is_string(val2):
-        return levenshtein_distance(val1, val2)
+        return string_distance(val1, val2)
     if is_bytes(val1) and is_bytes(val2):
-        return levenshtein_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
+        return string_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
     return inf
 
 
@@ -1839,6 +1841,10 @@ def _lt(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return (float(val1) - float(val2)) + 1.0
+    if is_string(val1) and is_string(val2):
+        return string_lt_distance(val1, val2)
+    if is_bytes(val1) and is_bytes(val2):
+        return string_lt_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
     return inf
 
 
@@ -1856,6 +1862,10 @@ def _le(val1, val2) -> float:
         return 0.0
     if is_numeric(val1) and is_numeric(val2):
         return float(val1) - float(val2)
+    if is_string(val1) and is_string(val2):
+        return string_le_distance(val1, val2)
+    if is_bytes(val1) and is_bytes(val2):
+        return string_le_distance(val1.decode("iso-8859-1"), val2.decode("iso-8859-1"))
     return inf
 
 
