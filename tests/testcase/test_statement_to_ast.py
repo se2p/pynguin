@@ -235,6 +235,7 @@ def no_default_args_signature(type_system):
         type_system=type_system,
     )
 
+
 def no_types_signature(type_system):
     return InferredSignature(
         signature=inspect.Signature(
@@ -251,6 +252,7 @@ def no_types_signature(type_system):
         },
         type_system=type_system,
     )
+
 
 @pytest.fixture
 def all_types_constructor(type_system):
@@ -291,6 +293,7 @@ def no_default_args_function(type_system):
         function=MagicMock(__name__="function"),
         inferred_signature=no_default_args_signature(type_system),
     )
+
 
 @pytest.fixture
 def lambda_function(type_system):
@@ -548,14 +551,18 @@ def test_statement_to_ast_function_no_store(
         == "module_0.function()"
     )
 
-def test_statement_to_ast_function_lambda(
-        statement_to_ast_visitor, test_case_mock, lambda_function
-):
-    func_stmt = stmt.FunctionStatement(test_case_mock, lambda_function,
-                                       {"x": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val})
-    statement_to_ast_visitor.visit_function_statement(func_stmt)
-    assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_1 = module_0.lambda(var_0)"
 
+def test_statement_to_ast_function_lambda(
+    statement_to_ast_visitor, test_case_mock, lambda_function
+):
+    func_stmt = stmt.FunctionStatement(
+        test_case_mock, lambda_function, {"x": stmt.IntPrimitiveStatement(MagicMock(), 3).ret_val}
+    )
+    statement_to_ast_visitor.visit_function_statement(func_stmt)
+    assert (
+        __create_source_from_ast(statement_to_ast_visitor.ast_node)
+        == "var_1 = module_0.lambda(var_0)"
+    )
 
 
 def test_statement_to_ast_list_single(statement_to_ast_visitor, default_test_case):

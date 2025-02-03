@@ -4,9 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import ast
 
-import black
 
 from pynguin.testcase import export
 

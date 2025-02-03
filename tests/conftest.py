@@ -170,6 +170,7 @@ def function_mock(type_system) -> GenericFunction:
         ),
     )
 
+
 @pytest.fixture
 def lambda_mock(type_system) -> GenericFunction:
     return GenericFunction(
