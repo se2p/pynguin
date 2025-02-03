@@ -13,6 +13,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 
 from pynguin.analyses.module import ModuleTestCluster
+from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
@@ -64,5 +65,30 @@ def exportable_test_case_with_lambda(lambda_mock):
     int_stmt = IntPrimitiveStatement(test_case, 1)
     lambda_stmt = FunctionStatement(test_case, lambda_mock, {"z": int_stmt.ret_val})
     test_case.add_statement(int_stmt)
+    test_case.add_statement(lambda_stmt)
+    return tcc.TestCaseChromosome(test_case)
+
+
+@pytest.fixture
+def exportable_test_case_with_lambda_complex(lambda_mock_complex):
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
+    complex_stmt_1 = ComplexPrimitiveStatement(test_case, 3 + 4j)
+    complex_stmt_2 = ComplexPrimitiveStatement(test_case, 1 + 0j)
+    float_stmt_1 = FloatPrimitiveStatement(test_case, 0.1)
+    float_stmt_2 = FloatPrimitiveStatement(test_case, 0.3)
+    lambda_stmt = FunctionStatement(
+        test_case,
+        lambda_mock_complex,
+        {
+            "x": complex_stmt_1.ret_val,
+            "y": complex_stmt_2.ret_val,
+            "w1": float_stmt_1.ret_val,
+            "w2": float_stmt_2.ret_val,
+        },
+    )
+    test_case.add_statement(complex_stmt_1)
+    test_case.add_statement(complex_stmt_2)
+    test_case.add_statement(float_stmt_1)
+    test_case.add_statement(float_stmt_2)
     test_case.add_statement(lambda_stmt)
     return tcc.TestCaseChromosome(test_case)
