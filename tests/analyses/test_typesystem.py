@@ -881,7 +881,9 @@ def test_no_partial_type_match(type_system, left, right):
     assert match is None
 
 def test_instance_of_type_to_full_name():
-    """Ensures that TypeInfo.to_full_name does not crash when called with an instance
+    """Tests TypeInfo.to_full_name on an instance of a type.
+
+    Ensures that TypeInfo.to_full_name does not crash when called with an instance
     of a type instead of a type. This is required as sometimes it happens that there
     is an instance of UnionType (which is not instantiable in the first place) is part
     of the knowledge of TypeTracing.
