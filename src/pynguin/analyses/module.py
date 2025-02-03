@@ -287,7 +287,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
         )
         linenos = len(source_code.splitlines())
 
-    except (TypeError, OSError) as error:
+    except (TypeError, OSError, RuntimeError) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "
