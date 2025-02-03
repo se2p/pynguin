@@ -879,3 +879,12 @@ def test_no_partial_type_match(type_system, left, right):
         type_system.convert_type_hint(left), type_system.convert_type_hint(right)
     )
     assert match is None
+
+def test_instance_of_type_to_full_name():
+    """Ensures that TypeInfo.to_full_name does not crash when called with an instance
+    of a type instead of a type. This is required as sometimes it happens that there
+    is an instance of UnionType (which is not instantiable in the first place) is part
+    of the knowledge of TypeTracing.
+    When debugging this, I recommend using a separate test file as the method is called
+    during module imports already."""
+    TypeInfo.to_full_name(int())
