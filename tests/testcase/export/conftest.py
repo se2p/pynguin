@@ -56,3 +56,12 @@ def exportable_test_case_with_unexpected_exception(function_mock):
     test_case.add_statement(float_stmt)
     test_case.add_statement(function_stmt)
     return tcc.TestCaseChromosome(test_case)
+
+
+@pytest.fixture
+def exportable_test_case_with_lambda(lambda_mock):
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
+    int_stmt = IntPrimitiveStatement(test_case, 1)
+    lambda_stmt = FunctionStatement(test_case, lambda_mock, {"z": int_stmt.ret_val})
+    test_case.add_statement(lambda_stmt)
+    return tcc.TestCaseChromosome(test_case)

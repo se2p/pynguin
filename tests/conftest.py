@@ -170,6 +170,26 @@ def function_mock(type_system) -> GenericFunction:
         ),
     )
 
+@pytest.fixture
+def lambda_mock(type_system) -> GenericFunction:
+    return GenericFunction(
+        function=lambda z: z,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=int,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(int)),
+            original_parameters={"z": Instance(TypeInfo(int))},
+            type_system=type_system,
+        ),
+    )
+
 
 @pytest.fixture
 def field_mock() -> GenericField:
