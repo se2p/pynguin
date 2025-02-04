@@ -400,7 +400,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         Example:
             y = lambda x: x => Rename <lambda> to y.
         """
-        if function and getattr(function, "__name__", None) == "<lambda>":
+        if getattr(function, "__name__", None) == "<lambda>":
             function.__name__ = function.__code__.co_varnames[0]
 
     def is_function(self) -> bool:  # noqa: D102
