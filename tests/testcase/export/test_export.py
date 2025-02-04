@@ -90,9 +90,9 @@ def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
     exportable_test_case_with_lambda.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (
-            path.read_text()
-            == export._PYNGUIN_FILE_HEADER
-            + """import tests.conftest as module_0
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import tests.conftest as module_0
 
 
 def test_case_0():
@@ -108,9 +108,9 @@ def test_export_lambda_complex(exportable_test_case_with_lambda_complex, tmp_pat
     exportable_test_case_with_lambda_complex.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (
-            path.read_text()
-            == export._PYNGUIN_FILE_HEADER
-            + """import tests.conftest as module_0
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import tests.conftest as module_0
 
 
 def test_case_0():
@@ -121,4 +121,3 @@ def test_case_0():
     complex_2 = module_0.x(complex_0, complex_1, float_0, float_1)
 """
     )
-
