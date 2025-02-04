@@ -587,8 +587,10 @@ class TypeInfo:
             self.qualname = raw_type.__qualname__
             self.module = raw_type.__module__
         except AttributeError:
-            _LOGGER.error("TypeInfo must not be instantiated with instances of types, "
-                          "but was called with %s", raw_type)
+            _LOGGER.error(
+                "TypeInfo must not be instantiated with instances of types, but was called with %s",
+                raw_type,
+            )
             self.name = raw_type.__class__.__name__
             self.qualname = raw_type.__class__.__qualname__
             self.module = raw_type.__class__.__module__
@@ -618,8 +620,10 @@ class TypeInfo:
         try:
             return f"{typ.__module__}.{typ.__qualname__}"
         except AttributeError:
-            _LOGGER.error("This method must not be called with instances of types, "
-                          "but was called with %s", typ)
+            _LOGGER.error(
+                "This method must not be called with instances of types, but was called with %s",
+                typ,
+            )
             return f"{typ.__class__.__module__}.{typ.__class__.__qualname__}"
 
     def __eq__(self, other) -> bool:

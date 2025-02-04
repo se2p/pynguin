@@ -880,6 +880,7 @@ def test_no_partial_type_match(type_system, left, right):
     )
     assert match is None
 
+
 def test_instance_of_type_to_full_name():
     """Tests TypeInfo.to_full_name on an instance of a type.
 
@@ -888,5 +889,6 @@ def test_instance_of_type_to_full_name():
     is an instance of UnionType (which is not instantiable in the first place) is part
     of the knowledge of TypeTracing.
     When debugging this, I recommend using a separate test file as the method is called
-    during module imports already."""
-    TypeInfo.to_full_name(int())
+    during module imports already.
+    """
+    TypeInfo.to_full_name(0)
