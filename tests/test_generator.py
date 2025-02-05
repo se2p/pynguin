@@ -202,3 +202,24 @@ def test_integrate(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
+
+
+def test_integrate_typetracing_union_type(tmp_path):
+    project_path = Path().absolute()
+    if project_path.name == "tests":
+        project_path /= ".."  # pragma: no cover
+    project_path = project_path / "docs" / "source" / "_static"
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        stopping=config.StoppingConfiguration(maximum_search_time=1),
+        module_name="typetracing_union_type",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(project_path),
+        statistics_output=config.StatisticsOutputConfiguration(
+            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+        ),
+        type_inference=config.TypeInferenceConfiguration(type_tracing=True),
+    )
+    gen.set_configuration(configuration)
+    result = gen.run_pynguin()
+    assert result == gen.ReturnCode.OK
