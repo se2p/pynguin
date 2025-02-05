@@ -881,14 +881,13 @@ def test_no_partial_type_match(type_system, left, right):
     assert match is None
 
 
-def test_instance_of_type_to_full_name():
-    """Tests TypeInfo.to_full_name on an instance of a type.
+def test_to_type_info_union_type(subtyping_cluster):
+    type_system = subtyping_cluster.type_system
+    type_system.to_type_info(float | int)
 
-    Ensures that TypeInfo.to_full_name does not crash when called with an instance
-    of a type instead of a type. This is required as sometimes it happens that there
-    is an instance of UnionType (which is not instantiable in the first place) is part
-    of the knowledge of TypeTracing.
-    When debugging this, I recommend using a separate test file as the method is called
-    during module imports already.
-    """
-    TypeInfo.to_full_name(0)
+
+def test__guess_parameter_type_with_type_knowledge(inferred_signature):
+    knowledge = UsageTraceNode("ROOT")
+    kind = "" # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
+    knowledge.type_checks.add(float | int)
+    assert inferred_signature._guess_parameter_type(knowledge, kind)
