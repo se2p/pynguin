@@ -888,6 +888,6 @@ def test_to_type_info_union_type(subtyping_cluster):
 
 def test__guess_parameter_type_with_type_knowledge(inferred_signature):
     knowledge = UsageTraceNode("ROOT")
-    kind = "" # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
+    kind = ""  # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
     knowledge.type_checks.add(float | int)
     assert inferred_signature._guess_parameter_type(knowledge, kind)

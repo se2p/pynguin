@@ -20,6 +20,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
@@ -966,12 +967,7 @@ def test_change_call_unknown(default_test_case):
         test_factory.change_call(default_test_case, to_replace, acc, {})
 
 
-
-
-
-
-def test_add_method_type_tracing_union_type(provide_callables_from_fixtures_modules,
-                               default_test_case):
+def test_add_method_type_tracing_union_type(default_test_case):
     generic_method = gao.GenericMethod(
         owner=MagicMock(),
         method=MagicMock(),
@@ -987,13 +983,12 @@ def test_add_method_type_tracing_union_type(provide_callables_from_fixtures_modu
             ),
             original_return_type=MagicMock(),
             original_parameters={
-                "sentence": default_test_case.test_cluster.type_system
-            .convert_type_hint(str)
+                "sentence": default_test_case.test_cluster.type_system.convert_type_hint(str)
             },
             type_system=default_test_case.test_cluster.type_system,
-            ),
+        ),
     )
-    import pynguin.utils.typetracing as tt
+
     usage_trace = MagicMock(tt.UsageTraceNode)
     usage_trace.__len__.return_value = 1
     usage_trace.children = []
