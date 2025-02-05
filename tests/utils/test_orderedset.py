@@ -9,6 +9,7 @@ import copy
 import pytest
 
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.orderedset import OrderedTypeSet
 
 
 @pytest.mark.parametrize("length, iterable", [(0, []), (3, [1, 2, 3]), (2, [1, 2, 2])])
@@ -61,3 +62,34 @@ def test_ordereset_or_union(first, second, result):
 def test_ordereset_and_intersection(first, second, result):
     assert OrderedSet(first) & OrderedSet(second) == OrderedSet(result)
     assert OrderedSet(first).intersection(OrderedSet(second)) == OrderedSet(result)
+
+
+def test_ordered_type_set_add():
+    ordered_type_set = OrderedTypeSet()
+    ordered_type_set.add(float | int)
+    assert float in ordered_type_set
+    assert int in ordered_type_set
+
+
+def test_ordered_type_set_discard():
+    ordered_type_set = OrderedTypeSet()
+    ordered_type_set.add(float | int)
+    ordered_type_set.discard(float)
+    assert float not in ordered_type_set
+    assert int in ordered_type_set
+
+
+def test_ordered_type_set_discard_2():
+    ordered_type_set = OrderedTypeSet()
+    ordered_type_set.add(float | int)
+    ordered_type_set.add(str)
+    ordered_type_set.discard(float | str)
+    assert int in ordered_type_set
+
+
+def test_ordered_type_set_union():
+    ordered_type_set_1 = OrderedTypeSet([str | int])
+    ordered_type_set_2 = OrderedTypeSet([str])
+    union = ordered_type_set_1 | ordered_type_set_2
+    assert str in union
+    assert int in union

@@ -34,6 +34,7 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import itertools
+import types
 
 from collections.abc import Hashable
 from collections.abc import Iterable
@@ -43,6 +44,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 from typing import TypeVar
+from typing import Union
 from typing import cast
 from typing import overload
 
@@ -309,6 +311,44 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         self._items = {item: None for item in self._items if item not in items_to_remove}
         for item in items_to_add:
             self._items[item] = None
+
+
+class OrderedTypeSet(OrderedSet[type]):
+    """A set that resolves | operators between types.
+
+    When `add()` is called with a union type (e.g., `int | float`), it extracts
+    the individual types and adds them separately.
+    """
+
+    def add(self, value: type | types.UnionType) -> None:
+        """Adds a type or a union of types to the set.
+
+        If `value` is a union type (e.g., `int | float`), it extracts its components
+        and adds them individually.
+
+        Args:
+            value: The type or union type to add.
+        """
+        if type(value) is types.UnionType:
+            for subtype in value.__args__:
+                super().add(subtype)
+        else:
+            super().add(value)
+
+    def discard(self, value: T) -> None:
+        """Removes a type or a union of types from the set.
+
+        If `value` is a union type (e.g., `int | float`), it extracts its components
+        and removes them individually.
+
+        Args:
+            value: The type or union type to remove.
+        """
+        if hasattr(value, "__args__") and getattr(value, "__origin__", None) is Union:
+            for subtype in value.__args__:
+                super().discard(subtype)
+        else:
+            super().discard(value)
 
 
 class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[type-var]

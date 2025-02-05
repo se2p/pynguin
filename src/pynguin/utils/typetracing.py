@@ -30,6 +30,7 @@ from asciitree import LeftAligned
 from asciitree.drawing import BOX_LIGHT
 
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.orderedset import OrderedTypeSet
 
 
 LOGGER = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class UsageTraceNode:
     children: dict[str, UsageTraceNode] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
-    type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
+    type_checks: OrderedTypeSet = dataclasses.field(default_factory=OrderedTypeSet)
 
     # Maps argument positions to their types.
     arg_types: dict[int, OrderedSet[type]] = dataclasses.field(
