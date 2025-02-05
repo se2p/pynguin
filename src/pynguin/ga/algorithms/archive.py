@@ -20,6 +20,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 
 from pynguin.utils import randomness
+from pynguin.utils.logging_utils import reset_logging
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -126,6 +127,7 @@ class CoverageArchive(Archive):
 
             for solution in solutions:
                 covers = solution.get_is_covered(objective)
+                reset_logging()  # reset logging after generated test case execution
                 size = solution.size()
 
                 if covers and size < best_size:

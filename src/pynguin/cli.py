@@ -211,5 +211,17 @@ to see why this happens and what you must do to prevent it."""
         return run_pynguin().value
 
 
+def force_exit(exit_code: int) -> None:
+    """Force the program to exit with the given exit code."""
+    try:
+        sys.exit(exit_code)
+    except SystemExit as e:
+        raise e
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+    os._exit(exit_code)  # os._exit as a last resort
+
+
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    force_exit(main(sys.argv))

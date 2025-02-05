@@ -31,6 +31,7 @@ from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
+from pynguin.utils.logging_utils import reset_logging
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -325,6 +326,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                         results.append(None)
                     continue
 
+                reset_logging()
                 self._logger.info(
                     "Running tests on mutant %3i/%i",
                     idx,
@@ -398,6 +400,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         for info in mutation_summary.mutant_information:
             if info.killed_by:
+                reset_logging()
                 _LOGGER.info(
                     "Mutant %i killed by Test(s): %s",
                     info.mut_num,

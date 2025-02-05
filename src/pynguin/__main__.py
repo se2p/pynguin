@@ -11,8 +11,9 @@ This module provides the main entry location for the program executions.
 
 import sys
 
+from pynguin.cli import force_exit
 from pynguin.cli import main
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    force_exit(main(sys.argv))

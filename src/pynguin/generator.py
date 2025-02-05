@@ -62,6 +62,7 @@ from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.logging_utils import reset_logging
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -720,6 +721,7 @@ def _export_chromosome(
     )
     export_visitor = export.PyTestChromosomeToAstVisitor()
     chromosome.accept(export_visitor)
+    reset_logging()  # reset logging after last generated test execution
     export.save_module_to_file(
         export_visitor.to_module(),
         target_file,
