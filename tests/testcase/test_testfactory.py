@@ -964,3 +964,42 @@ def test_change_call_unknown(default_test_case):
     acc.is_enum.return_value = False
     with pytest.raises(AssertionError):
         test_factory.change_call(default_test_case, to_replace, acc, {})
+
+
+
+
+
+
+def test_add_method_type_tracing_union_type(provide_callables_from_fixtures_modules,
+                               default_test_case):
+    generic_method = gao.GenericMethod(
+        owner=MagicMock(),
+        method=MagicMock(),
+        inferred_signature=InferredSignature(
+            signature=Signature(
+                parameters=[
+                    Parameter(
+                        name="sentence",
+                        kind=Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float | int,
+                    ),
+                ]
+            ),
+            original_return_type=MagicMock(),
+            original_parameters={
+                "sentence": default_test_case.test_cluster.type_system
+            .convert_type_hint(str)
+            },
+            type_system=default_test_case.test_cluster.type_system,
+            ),
+    )
+    import pynguin.utils.typetracing as tt
+    usage_trace = MagicMock(tt.UsageTraceNode)
+    usage_trace.__len__.return_value = 1
+    usage_trace.children = []
+    ordered_set = OrderedSet()
+    ordered_set.add(float | int)
+    usage_trace.type_checks = ordered_set
+    generic_method.inferred_signature.usage_trace["sentence"] = usage_trace
+    factory = tf.TestFactory(default_test_case.test_cluster)
+    factory.add_method(default_test_case, generic_method, position=0, callee=MagicMock())
