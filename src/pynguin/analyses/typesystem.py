@@ -591,9 +591,9 @@ class TypeInfo:
                 "TypeInfo must not be instantiated with instances of types, but was called with %s",
                 raw_type,
             )
-            self.name = raw_type.__class__.__name__
-            self.qualname = raw_type.__class__.__qualname__
-            self.module = raw_type.__class__.__module__
+            self.name = type(raw_type).__name__
+            self.qualname = type(raw_type).__qualname__
+            self.module = type(raw_type).__module__
         self.full_name = TypeInfo.to_full_name(raw_type)
         self.hash = hash(self.full_name)
         self.is_abstract = inspect.isabstract(raw_type)
@@ -624,7 +624,7 @@ class TypeInfo:
                 "This method must not be called with instances of types, but was called with %s",
                 typ,
             )
-            return f"{typ.__class__.__module__}.{typ.__class__.__qualname__}"
+            return f"{type(typ).__module__}.{type(typ).__qualname__}"
 
     def __eq__(self, other) -> bool:
         return isinstance(other, TypeInfo) and other.full_name == self.full_name
