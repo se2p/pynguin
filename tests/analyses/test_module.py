@@ -538,7 +538,7 @@ class CustomError(Exception):
     pass
 
 
-def test_jvm_not_running(parsed_module_no_dependencies):
+def test_exception_during_inspect_getmembers(parsed_module_no_dependencies):
     with patch("inspect.getmembers", side_effect=CustomError):
         test_cluster = analyse_module(parsed_module_no_dependencies)
-        assert test_cluster.num_accessible_objects_under_test() == 4
+        assert test_cluster.num_accessible_objects_under_test() == 3  # one less (failed)
