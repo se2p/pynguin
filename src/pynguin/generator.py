@@ -174,6 +174,10 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
         # are missing or it is malformed
         _LOGGER.exception("Failed to load SUT: %s", ex)
         return False
+    except Exception as ex:
+        # Any other exception that might occur during the import
+        _LOGGER.exception("Failed to load SUT: %s", ex)
+        return False
     return True
 
 
