@@ -82,6 +82,19 @@ def test_parse_native_module():
     module.LOGGER.debug.assert_called_once()
 
 
+@pytest.mark.parametrize("exception_type", [TypeError, OSError, RuntimeError])
+@patch("astroid.parse")
+def test_parse_module_exceptions(mock_parse, exception_type):
+    mock_parse.side_effect = exception_type("Mocked Exception")
+    module.LOGGER = MagicMock(Logger)
+    module_name = "tests.fixtures.cluster.no_dependencies"
+    result = parse_module(module_name)
+    assert result.module_name == module_name
+    assert result.syntax_tree is None
+    assert result.linenos == -1
+    module.LOGGER.debug.assert_called_once()
+
+
 def test_parse_alias_module():
     module.LOGGER = MagicMock(Logger)
     module_name = "tests.fixtures.cluster.dependency"
