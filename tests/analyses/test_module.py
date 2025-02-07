@@ -11,6 +11,7 @@ from logging import Logger
 from typing import Union
 from typing import cast
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -531,3 +532,13 @@ def test__add_or_make_union_2(type_system):
     assert ModuleTestCluster._add_or_make_union(
         ANY, type_system.convert_type_hint(int)
     ) == UnionType((type_system.convert_type_hint(int),))
+
+
+class CustomError(Exception):
+    pass
+
+
+def test_exception_during_inspect_getmembers(parsed_module_no_dependencies):
+    with patch("inspect.getmembers", side_effect=CustomError):
+        test_cluster = analyse_module(parsed_module_no_dependencies)
+        assert test_cluster.num_accessible_objects_under_test() == 3  # one less (failed)
