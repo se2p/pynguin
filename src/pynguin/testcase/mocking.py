@@ -33,7 +33,7 @@ class MockedLogger(Logger):
 
 
 mocked_logging: ModuleType = types.ModuleType("logging")
-mocked_logging.getLogger = MockedLogger
+mocked_logging.getLogger = MockedLogger  # type: ignore[attr-defined]
 
 mocks_to_use: MappingProxyType[str, ModuleType] = MappingProxyType({
     "logging": mocked_logging,
