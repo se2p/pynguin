@@ -28,13 +28,12 @@ class MockedLogger(Logger):
         """Create a new mocked logger."""
         super().__init__(name)
 
-    def addHandler(self, handler):
+    def addHandler(self, handler):  # noqa: N802
         """Do not add any handlers."""
-        pass
 
 
 mocked_logging: ModuleType = types.ModuleType("logging")
-mocked_logging.getLogger = lambda: MockedLogger()
+mocked_logging.getLogger = MockedLogger
 
 mocks_to_use: MappingProxyType[str, ModuleType] = MappingProxyType({
     "logging": mocked_logging,

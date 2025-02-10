@@ -6,11 +6,15 @@
 #
 import importlib
 import threading
+
 from unittest.mock import MagicMock
 
 import pynguin.testcase.defaulttestcase as dtc
-from pynguin.testcase.execution import ExecutionContext, ExecutionTracer, TestCaseExecutor
+
+from pynguin.testcase.execution import ExecutionContext
+from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.mocking import MockedLogger
 from pynguin.testcase.statement import NoneStatement
 
@@ -32,5 +36,3 @@ def test_logging_mocked():
 
     logger_from_ctx = ctx.global_namespace["module_0"].logging.getLogger()
     assert isinstance(logger_from_ctx, MockedLogger)
-
-

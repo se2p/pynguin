@@ -12,6 +12,7 @@ line.
 
 from __future__ import annotations
 
+import atexit
 import logging
 import os
 import sys
@@ -30,7 +31,6 @@ import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
-import atexit
 
 
 if TYPE_CHECKING:
