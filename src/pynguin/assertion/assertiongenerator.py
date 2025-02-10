@@ -271,6 +271,8 @@ class InstrumentedMutationController(ct.MutationController):
         module = types.ModuleType(module_name)
         try:
             exec(code, module.__dict__)  # noqa: S102
+        except Exception as exception:  # noqa: BLE001
+            _LOGGER.debug("Error creating mutant: %s", exception)
         except SystemExit as exception:
             _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
         self._tracer.store_import_trace()
