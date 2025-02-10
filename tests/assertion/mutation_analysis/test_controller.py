@@ -13,6 +13,7 @@ import pynguin.assertion.mutation_analysis.controller as ct
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
+
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.testcase.execution import ExecutionTracer
 from tests.testutils import import_module_safe
@@ -36,9 +37,7 @@ def test_create_mutants(module_name, expected_mutants):
     module, module_source_code = import_module_safe(module_name)
 
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
-    mutation_controller = ct.MutationController(
-        mutant_generator, module_ast, module
-    )
+    mutation_controller = ct.MutationController(mutant_generator, module_ast, module)
     config.configuration.seeding.seed = 42
 
     mutations = tuple(mutation_controller.create_mutants())
@@ -78,4 +77,3 @@ def test_create_mutants_instrumented(module_name, expected_mutants):
 
     assert len(mutations) == expected_mutants
     assert mutant_count == expected_mutants
-

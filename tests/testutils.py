@@ -170,7 +170,6 @@ def module_to_path(module: str) -> Path:
 
 
 def import_module_safe(module_name):
-
     def import_using_spec(module_name):
         spec = importlib.util.find_spec(module_name)
         assert spec is not None, f"Module {module_name} not found."
@@ -184,7 +183,7 @@ def import_module_safe(module_name):
         module_source_code = inspect.getsource(module)
     except SystemExit:
         return import_using_spec(module_name)
-    except Exception:
+    except Exception:  # noqa: BLE001
         return import_using_spec(module_name)
 
     return module, module_source_code
