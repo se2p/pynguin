@@ -30,6 +30,7 @@ import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
+import atexit
 
 
 if TYPE_CHECKING:
@@ -154,6 +155,11 @@ def _setup_logging(
         datefmt="[%X]",
         handlers=[handler],
     )
+
+    # Disable the logging shutdown, to avoid hanging the program while trying to close
+    # the logging handlers of SUTs.
+    atexit.unregister(logging.shutdown)
+
     return console
 
 
