@@ -7,6 +7,8 @@
 """Some utilites to make testing easier."""
 
 import ast
+import importlib
+import inspect
 
 from pathlib import Path
 
@@ -165,3 +167,24 @@ def module_to_path(module: str) -> Path:
     project_root = Path(__file__).parent.parent
     file_name = module.replace(".", "/") + ".py"
     return project_root / file_name
+
+
+def import_module_safe(module_name):
+
+    def import_using_spec(module_name):
+        spec = importlib.util.find_spec(module_name)
+        assert spec is not None, f"Module {module_name} not found."
+        module = importlib.util.module_from_spec(spec)
+        file_name = module_to_path(module_name)
+        module_source_code = Path(file_name).read_text(encoding="utf-8")
+        return module, module_source_code
+
+    try:
+        module = importlib.import_module(module_name)
+        module_source_code = inspect.getsource(module)
+    except SystemExit:
+        return import_using_spec(module_name)
+    except Exception:
+        return import_using_spec(module_name)
+
+    return module, module_source_code
