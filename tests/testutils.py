@@ -7,6 +7,7 @@
 """Some utilites to make testing easier."""
 
 import ast
+
 from pathlib import Path
 
 import pynguin.utils.generic.genericaccessibleobject as gao
@@ -158,6 +159,7 @@ def create_aor_mutation_on_substraction(node: ast.Sub | None = None) -> Mutation
         operator=ArithmeticOperatorReplacement,
         visitor_name="mutate_Sub",
     )
+
 
 def module_to_path(module: str) -> Path:
     project_root = Path(__file__).parent.parent

@@ -7,13 +7,16 @@
 import importlib
 import inspect
 import threading
+
 from pathlib import Path
 
 import pytest
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
+
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.testcase.execution import ExecutionTracer
 from tests.testutils import module_to_path
@@ -43,7 +46,7 @@ def test_create_mutants(module_name, expected_mutants):
         assert spec is not None, f"Module {module_name} not found."
         module = importlib.util.module_from_spec(spec)
         file_name = module_to_path(module_name)
-        module_source_code = Path(file_name).read_text()
+        module_source_code = Path(file_name).read_text(encoding="utf-8")
 
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
     mutation_tracer = ExecutionTracer()

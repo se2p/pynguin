@@ -272,8 +272,7 @@ class InstrumentedMutationController(ct.MutationController):
         try:
             exec(code, module.__dict__)  # noqa: S102
         except SystemExit as exception:
-            _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s",
-                          exception)
+            _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
         self._tracer.store_import_trace()
         return module
 
