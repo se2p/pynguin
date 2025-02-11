@@ -4,35 +4,46 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import importlib
+import ast
 import threading
 
-from unittest.mock import MagicMock
-
-import pynguin.testcase.defaulttestcase as dtc
-
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.testcase.execution import ExecutionContext
 from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.mocking import MockedLogger
-from pynguin.testcase.statement import NoneStatement
+from tests.testcase.execution.fixtures import file_to_open  # noqa: F401
 
 
-def test_logging_mocked():
+def test_logging():
     module_name = "tests.fixtures.mocking.log_to_null_handler"
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     ctx = ExecutionContext(ModuleProvider())
-    logging_module = importlib.import_module(module_name)
-    ctx._global_namespace = {"module_0": logging_module}
 
-    test_case = MagicMock(dtc.DefaultTestCase)
-    stmt = NoneStatement(test_case)
+    cluster = generate_test_cluster(module_name)
+    transformer = AstToTestCaseTransformer(
+        cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
+    )
+    transformer.visit(
+        ast.parse(
+            """def test_case_0():
+    anything = module_0.log_to_null()
+    """
+        )
+    )
+    test_case = transformer.testcases[0]
+    stmt = test_case.statements[0]
 
     ast_node = executor._before_statement_execution(stmt, ctx)
     executor.execute_ast(ast_node, ctx)
 
+    # the logger should be a MockedLogger
     logger_from_ctx = ctx.global_namespace["module_0"].logging.getLogger()
     assert isinstance(logger_from_ctx, MockedLogger)
