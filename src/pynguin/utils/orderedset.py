@@ -312,43 +312,125 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         for item in items_to_add:
             self._items[item] = None
 
-
-class OrderedTypeSet(OrderedSet[type]):
+class OrderedTypeSet:
     """A set that resolves | operators between types.
 
     When `add()` is called with a union type (e.g., `int | float`), it extracts
     the individual types and adds them separately.
     """
 
+    def __init__(self, iterable: Iterable[type | types.UnionType] = ()) -> None:
+        """Initialize the set with an iterable of types."""
+        self._ordered_set = OrderedSet[type]()
+        self.update(iterable)
+
+    def __contains__(self, value: type) -> bool:
+        """Check if a type is in the set."""
+        return value in self._ordered_set
+
+    def __iter__(self):
+        """Return an iterator over the set."""
+        return iter(self._ordered_set)
+
+    def __len__(self) -> int:
+        """Return the number of types in the set."""
+        return len(self._ordered_set)
+
+    @overload
+    def __getitem__(self, index: int) -> type:
+        pass
+
+    @overload
+    def __getitem__(self, index: slice) -> "OrderedTypeSet":
+        pass
+
+    def __getitem__(self, index: int | slice) -> type | "OrderedTypeSet":
+        """Lookup item at given position."""
+        if isinstance(index, slice):
+            return OrderedTypeSet(self._ordered_set[index])
+        return self._ordered_set[index]
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality with another OrderedTypeSet."""
+        if not isinstance(other, OrderedTypeSet):
+            return NotImplemented
+        return self._ordered_set == other._ordered_set
+
+    def __repr__(self) -> str:
+        """Return a string representation of the set."""
+        return f"OrderedTypeSet({list(self._ordered_set)!r})"
+
+    def __and__(self, other):
+        """Return the intersection of this set with another."""
+        return self.intersection(other)
+
+    def __or__(self, other):
+        """Return the union of this set with another."""
+        return self.union(other)
+
+    def __xor__(self, other):
+        """Return the symmetric difference of this set with another."""
+        return self.symmetric_difference(other)
+
     def add(self, value: type | types.UnionType) -> None:
-        """Adds a type or a union of types to the set.
-
-        If `value` is a union type (e.g., `int | float`), it extracts its components
-        and adds them individually.
-
-        Args:
-            value: The type or union type to add.
-        """
-        if type(value) is types.UnionType:
-            for subtype in value.__args__:
-                super().add(subtype)
+        """Add a type or a union of types to the set."""
+        if isinstance(value, types.UnionType):
+            self._ordered_set.update(value.__args__)
         else:
-            super().add(value)
+            self._ordered_set.add(value)
 
-    def discard(self, value: T) -> None:
-        """Removes a type or a union of types from the set.
-
-        If `value` is a union type (e.g., `int | float`), it extracts its components
-        and removes them individually.
-
-        Args:
-            value: The type or union type to remove.
-        """
-        if hasattr(value, "__args__") and getattr(value, "__origin__", None) is Union:
+    def discard(self, value: type | types.UnionType) -> None:
+        """Remove a type or a union of types from the set."""
+        if isinstance(value, types.UnionType):
             for subtype in value.__args__:
-                super().discard(subtype)
+                self._ordered_set.discard(subtype)
         else:
-            super().discard(value)
+            self._ordered_set.discard(value)
+
+    def update(self, iterable: Iterable[type | types.UnionType]) -> None:
+        """Update the set with multiple types or union types."""
+        for item in iterable:
+            self.add(item)
+
+    def clear(self) -> None:
+        """Remove all items from the set."""
+        self._ordered_set.clear()
+
+    def union(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+        """Return the union of this set with others."""
+        return OrderedTypeSet(self._ordered_set.union(*(OrderedTypeSet(other) for other in others)))
+
+    def intersection(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+        """Return the intersection of this set with others."""
+        return OrderedTypeSet(self._ordered_set.intersection(*(OrderedTypeSet(other) for other in others)))
+
+    def difference(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+        """Return the difference of this set with others."""
+        return OrderedTypeSet(self._ordered_set.difference(*(OrderedTypeSet(other) for other in others)))
+
+    def issubset(self, other: Iterable[type | types.UnionType]) -> bool:
+        """Check if this set is a subset of another."""
+        return self._ordered_set.issubset(OrderedTypeSet(other))
+
+    def issuperset(self, other: Iterable[type | types.UnionType]) -> bool:
+        """Check if this set is a superset of another."""
+        return self._ordered_set.issuperset(OrderedTypeSet(other))
+
+    def symmetric_difference(self, other: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+        """Return the symmetric difference of this set with another."""
+        return OrderedTypeSet(self._ordered_set.symmetric_difference(OrderedTypeSet(other)))
+
+    def difference_update(self, *others: Iterable[type | types.UnionType]) -> None:
+        """Update this set to remove elements in others."""
+        self._ordered_set.difference_update(*(OrderedTypeSet(other) for other in others))
+
+    def intersection_update(self, other: Iterable[type | types.UnionType]) -> None:
+        """Update this set to keep only items in another set."""
+        self._ordered_set.intersection_update(OrderedTypeSet(other))
+
+    def symmetric_difference_update(self, other: Iterable[type | types.UnionType]) -> None:
+        """Update this set to remove items from another set, then add items from the other set."""
+        self._ordered_set.symmetric_difference_update(OrderedTypeSet(other))
 
 
 class FrozenOrderedSet(_AbstractOrderedSet[T_co], Hashable):  # type: ignore[type-var]
