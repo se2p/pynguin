@@ -34,6 +34,7 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import itertools
+import types
 
 from collections.abc import Hashable
 from collections.abc import Iterable
@@ -41,16 +42,11 @@ from collections.abc import Iterator
 from collections.abc import MutableSet
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 from typing import cast
 from typing import get_args
 from typing import overload
-
-
-if TYPE_CHECKING:
-    import types
 
 from typing_extensions import Self
 
@@ -317,7 +313,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
             self._items[item] = None
 
 
-class OrderedTypeSet:  # noqa: PLR0904
+class OrderedTypeSet(Sequence[type]):  # noqa: PLR0904
     """A set that resolves | operators between types.
 
     When `add()` is called with a union type (e.g., `int | float`), it extracts
@@ -329,8 +325,10 @@ class OrderedTypeSet:  # noqa: PLR0904
         self._ordered_set = OrderedSet[type]()
         self.update(iterable)
 
-    def __contains__(self, value: type | types.UnionType) -> bool:
+    def __contains__(self, value: Any) -> bool:
         """Check if a type is in the set."""
+        if not isinstance(value, (type | types.UnionType)):
+            return False
         return value in self._ordered_set
 
     def __iter__(self):
@@ -342,14 +340,17 @@ class OrderedTypeSet:  # noqa: PLR0904
         return len(self._ordered_set)
 
     @overload
-    def __getitem__(self, index: int) -> type | types.UnionType:
+    def __getitem__(self, index: int) -> type:
         pass
 
     @overload
-    def __getitem__(self, index: slice) -> OrderedTypeSet:
+    def __getitem__(self, index: slice) -> Sequence[type]:
         pass
 
-    def __getitem__(self, index: int | slice) -> type | types.UnionType | OrderedTypeSet:
+    def __getitem__(  # type: ignore[misc]
+        self,
+        index: int | slice,
+    ) -> type | OrderedTypeSet:
         """Lookup item at given position."""
         if isinstance(index, slice):
             return OrderedTypeSet(self._ordered_set[index])

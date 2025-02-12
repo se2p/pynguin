@@ -19,6 +19,7 @@ import itertools
 import json
 import logging
 import queue
+import types
 import typing
 
 from collections import defaultdict
@@ -1008,7 +1009,7 @@ def __is_private(method_name: str) -> bool:
     return method_name.startswith("__") and not method_name.endswith("__")
 
 
-def __is_method_defined_in_class(class_: type, method: object) -> bool:
+def __is_method_defined_in_class(class_: type | types.UnionType, method: object) -> bool:
     return class_ == get_class_that_defined_method(method)
 
 
@@ -1080,7 +1081,7 @@ def __analyse_class(
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
-    if issubclass(type_info.raw_type, enum.Enum):
+    if issubclass(type_info.raw_type, enum.Enum):  # type: ignore[arg-type]
         generic: GenericEnum | GenericConstructor = GenericEnum(type_info)
         if isinstance(generic, GenericEnum) and len(generic.names) == 0:
             LOGGER.debug(
@@ -1092,7 +1093,7 @@ def __analyse_class(
         generic = GenericConstructor(
             type_info,
             test_cluster.type_system.infer_type_info(
-                type_info.raw_type.__init__,
+                type_info.raw_type.__init__,  # type: ignore[misc]
                 type_inference_strategy=type_inference_strategy,
             ),
             raised_exceptions,
