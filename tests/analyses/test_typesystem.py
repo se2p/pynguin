@@ -887,6 +887,7 @@ def test_to_type_info_union_type(subtyping_cluster):
 
 
 def test__guess_parameter_type_with_type_knowledge_simple(inferred_signature):
+    config.configuration.test_creation.negate_type = 0
     knowledge = UsageTraceNode("ROOT")
     kind = ""  # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
     knowledge.type_checks.add(float)
@@ -901,9 +902,9 @@ def pick_0_generator():
 
 
 def pick_1_generator():
-    yield 0
-    yield 1
     while True:
+        yield 0
+        yield 1
         yield 0
 
 
@@ -919,6 +920,7 @@ pick_0 = pick_0_generator()
     ],
 )
 def test__guess_parameter_type_with_type_knowledge(inferred_signature, pick, expected_type):
+    config.configuration.test_creation.negate_type = 0
     knowledge = UsageTraceNode("ROOT")
     kind = ""  # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
     knowledge.type_checks.add(float | int)
