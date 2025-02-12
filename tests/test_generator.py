@@ -223,3 +223,34 @@ def test_integrate_typetracing_union_type(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
+
+
+class CustomError(Exception):
+    pass
+
+
+def test__load_sut_custom_exception():
+    with mock.patch("importlib.import_module") as import_module_mock:
+        import_module_mock.side_effect = CustomError()
+        gen.set_configuration(configuration=MagicMock(log_file=None))
+        assert gen._load_sut(MagicMock()) is False
+
+
+def test_integrate_exception_on_import(tmp_path):
+    project_path = Path().absolute()
+    if project_path.name == "tests":
+        project_path /= ".."  # pragma: no cover
+    module_name = "tests.fixtures.errors.import_error"
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.MOSA,
+        stopping=config.StoppingConfiguration(maximum_search_time=1),
+        module_name=module_name,
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(project_path),
+        statistics_output=config.StatisticsOutputConfiguration(
+            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
+        ),
+    )
+    gen.set_configuration(configuration)
+    result = gen.run_pynguin()
+    assert result == gen.ReturnCode.SETUP_FAILED
