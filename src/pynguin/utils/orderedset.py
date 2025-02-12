@@ -44,11 +44,11 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 from typing import TypeVar
-from typing import Union
 from typing import cast
 from typing import overload
 
-from typing_extensions import Self
+from typing_extensions import Self, get_args
+import typing_inspect
 
 
 T = TypeVar("T")
@@ -372,20 +372,14 @@ class OrderedTypeSet:
         """Return the symmetric difference of this set with another."""
         return self.symmetric_difference(other)
 
-    def add(self, value: type | types.UnionType) -> None:
+    def add(self, value: type) -> None:
         """Add a type or a union of types to the set."""
-        if isinstance(value, types.UnionType):
-            self._ordered_set.update(value.__args__)
-        else:
-            self._ordered_set.add(value)
+        self._ordered_set.update(get_args(value) or (value,))
 
     def discard(self, value: type | types.UnionType) -> None:
         """Remove a type or a union of types from the set."""
-        if isinstance(value, types.UnionType):
-            for subtype in value.__args__:
-                self._ordered_set.discard(subtype)
-        else:
-            self._ordered_set.discard(value)
+        for subtype in get_args(value) or (value,):
+            self._ordered_set.discard(subtype)
 
     def update(self, iterable: Iterable[type | types.UnionType]) -> None:
         """Update the set with multiple types or union types."""
