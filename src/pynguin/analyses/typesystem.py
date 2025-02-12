@@ -569,7 +569,7 @@ class TypeInfo:
     Corresponds 1:1 to a class.
     """
 
-    def __init__(self, raw_type: type):
+    def __init__(self, raw_type: type | types.UnionType):
         """Create type info from the given type.
 
         Don't use this constructor directly (unless for testing purposes), instead ask
@@ -582,18 +582,7 @@ class TypeInfo:
             raw_type: the raw (class) type
         """
         self.raw_type = raw_type
-        try:
-            self.name = raw_type.__name__
-            self.qualname = raw_type.__qualname__
-            self.module = raw_type.__module__
-        except AttributeError:
-            _LOGGER.error(
-                "TypeInfo must not be instantiated with instances of types, but was called with %s",
-                raw_type,
-            )
-            self.name = type(raw_type).__name__
-            self.qualname = type(raw_type).__qualname__
-            self.module = type(raw_type).__module__
+        self.name, self.qualname, self.module = TypeInfo._extract_name_qualname_module(raw_type)
         self.full_name = TypeInfo.to_full_name(raw_type)
         self.hash = hash(self.full_name)
         self.is_abstract = inspect.isabstract(raw_type)
@@ -608,8 +597,41 @@ class TypeInfo:
         )
 
     @staticmethod
-    def to_full_name(typ: type) -> str:
+    def _extract_name_qualname_module(raw_type: type | types.UnionType) -> tuple[
+        str, str, str]:
+        """Extract the name, qualname and module from the given type.
+
+        While type has a __name__, __qualname__ and __module__ attribute, UnionType
+        does not. This caused a crash which is resolved by special handling of UnionType.
+        As fallback, we use the type of the given type, which worked for the UnionType.
+        """
+        if isinstance(raw_type, types.UnionType):
+            name = "UnionType"
+            qualname = "UnionType"
+            module = "types"
+            return name, qualname, module
+
+        try:
+            name = raw_type.__name__
+            qualname = raw_type.__qualname__
+            module = raw_type.__module__
+        except AttributeError:   # fallback
+            _LOGGER.error(
+                "TypeInfo must not be instantiated with instances of types, but was called with %s",
+                raw_type,
+            )
+            name = type(raw_type).__name__
+            qualname = type(raw_type).__qualname__
+            module = type(raw_type).__module__
+        return name, qualname, module
+
+    @staticmethod
+    def to_full_name(typ: type | types.UnionType) -> str:
         """Get the full name of the given type.
+
+        While type has a __name__, __qualname__ and __module__ attribute, UnionType
+        does not. This caused a crash which is resolved by special handling of UnionType.
+        As fallback, we use the type of the given type, which worked for the UnionType.
 
         Args:
             typ: The type for which we want a full name.
@@ -617,9 +639,12 @@ class TypeInfo:
         Returns:
             The fully qualified name
         """
+        if isinstance(typ, types.UnionType):
+            return "types.UnionType"
+
         try:
             return f"{typ.__module__}.{typ.__qualname__}"
-        except AttributeError:
+        except AttributeError:  # fallback
             _LOGGER.error(
                 "This method must not be called with instances of types, but was called with %s",
                 typ,
@@ -1306,7 +1331,7 @@ class TypeSystem:  # noqa: PLR0904
         dot = to_pydot(self._graph)
         return dot.to_string()
 
-    def to_type_info(self, typ: type) -> TypeInfo:
+    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:
         """Find or create type info for the given type.
 
         Args:
