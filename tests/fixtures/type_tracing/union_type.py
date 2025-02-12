@@ -4,8 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-
-
 def foo(param1):
     if isinstance(param1, str | int):
         pass
