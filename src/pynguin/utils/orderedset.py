@@ -324,7 +324,7 @@ class OrderedTypeSet:
         self._ordered_set = OrderedSet[type]()
         self.update(iterable)
 
-    def __contains__(self, value: type) -> bool:
+    def __contains__(self, value: type | types.UnionType) -> bool:
         """Check if a type is in the set."""
         return value in self._ordered_set
 
@@ -337,14 +337,14 @@ class OrderedTypeSet:
         return len(self._ordered_set)
 
     @overload
-    def __getitem__(self, index: int) -> type:
+    def __getitem__(self, index: int) -> type | types.UnionType:
         pass
 
     @overload
     def __getitem__(self, index: slice) -> "OrderedTypeSet":
         pass
 
-    def __getitem__(self, index: int | slice) -> type | "OrderedTypeSet":
+    def __getitem__(self, index: int | slice) -> type | types.UnionType | "OrderedTypeSet":
         """Lookup item at given position."""
         if isinstance(index, slice):
             return OrderedTypeSet(self._ordered_set[index])
@@ -372,7 +372,7 @@ class OrderedTypeSet:
         """Return the symmetric difference of this set with another."""
         return self.symmetric_difference(other)
 
-    def add(self, value: type) -> None:
+    def add(self, value: type | types.UnionType) -> None:
         """Add a type or a union of types to the set."""
         self._ordered_set.update(get_args(value) or (value,))
 
