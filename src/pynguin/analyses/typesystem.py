@@ -597,8 +597,7 @@ class TypeInfo:
         )
 
     @staticmethod
-    def _extract_name_qualname_module(raw_type: type | types.UnionType) -> tuple[
-        str, str, str]:
+    def _extract_name_qualname_module(raw_type: type | types.UnionType) -> tuple[str, str, str]:
         """Extract the name, qualname and module from the given type.
 
         While type has a __name__, __qualname__ and __module__ attribute, UnionType
@@ -615,7 +614,7 @@ class TypeInfo:
             name = raw_type.__name__
             qualname = raw_type.__qualname__
             module = raw_type.__module__
-        except AttributeError:   # fallback
+        except AttributeError:  # fallback
             _LOGGER.error(
                 "TypeInfo must not be instantiated with instances of types, but was called with %s",
                 raw_type,

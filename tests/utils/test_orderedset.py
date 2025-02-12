@@ -64,7 +64,9 @@ def test_ordereset_and_intersection(first, second, result):
     assert OrderedSet(first).intersection(OrderedSet(second)) == OrderedSet(result)
 
 
-@pytest.mark.parametrize("length, iterable", [(0, []), (3, [int, float, str]), (2, [int, float, int])])
+@pytest.mark.parametrize(
+    "length, iterable", [(0, []), (3, [int, float, str]), (2, [int, float, int])]
+)
 def test_orderedtypeset_len(length, iterable):
     assert len(OrderedTypeSet(iterable)) == length
 
@@ -109,7 +111,13 @@ def test_orderedtypeset_or_union(first, second, result):
 
 @pytest.mark.parametrize(
     "first, second, result",
-    [([], [], []), ([int], [], []), ([], [int], []), ([int], [float], []), ([int, float], [float, str], [float])],
+    [
+        ([], [], []),
+        ([int], [], []),
+        ([], [int], []),
+        ([int], [float], []),
+        ([int, float], [float, str], [float]),
+    ],
 )
 def test_orderedtypeset_and_intersection(first, second, result):
     assert OrderedTypeSet(first) & OrderedTypeSet(second) == OrderedTypeSet(result)
@@ -161,9 +169,9 @@ def test_ordered_type_set_len():
 
 def test_ordered_type_set_getitem():
     ordered_type_set = OrderedTypeSet([int, float, str])
-    assert ordered_type_set[0] == int
-    assert ordered_type_set[1] == float
-    assert ordered_type_set[2] == str
+    assert ordered_type_set[0] is int
+    assert ordered_type_set[1] is float
+    assert ordered_type_set[2] is str
 
 
 def test_ordered_type_set_getitem_slice():
@@ -178,7 +186,7 @@ def test_ordered_type_set_eq():
 
 
 def test_ordered_type_set_eq_other_type():
-    assert not OrderedTypeSet([int, float]) == "foo"
+    assert OrderedTypeSet([int, float]) != "foo"
 
 
 def test_ordered_type_set_clear():
@@ -255,3 +263,8 @@ def test_ordered_type_set_symmetric_difference_update():
 def test_ordered_type_set_repr():
     ordered_type_set = OrderedTypeSet([int, float])
     assert repr(ordered_type_set) == "OrderedTypeSet([<class 'int'>, <class 'float'>])"
+
+
+def test_ordered_type_set_hash():
+    ordered_type_set = OrderedTypeSet([int, float])
+    assert hash(ordered_type_set) == hash((int, float))

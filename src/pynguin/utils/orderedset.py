@@ -34,7 +34,6 @@ SPDX-License-Identifier: MIT
 from __future__ import annotations
 
 import itertools
-import types
 
 from collections.abc import Hashable
 from collections.abc import Iterable
@@ -42,13 +41,18 @@ from collections.abc import Iterator
 from collections.abc import MutableSet
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 from typing import cast
+from typing import get_args
 from typing import overload
 
-from typing_extensions import Self, get_args
-import typing_inspect
+
+if TYPE_CHECKING:
+    import types
+
+from typing_extensions import Self
 
 
 T = TypeVar("T")
@@ -312,7 +316,8 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         for item in items_to_add:
             self._items[item] = None
 
-class OrderedTypeSet:
+
+class OrderedTypeSet:  # noqa: PLR0904
     """A set that resolves | operators between types.
 
     When `add()` is called with a union type (e.g., `int | float`), it extracts
@@ -341,10 +346,10 @@ class OrderedTypeSet:
         pass
 
     @overload
-    def __getitem__(self, index: slice) -> "OrderedTypeSet":
+    def __getitem__(self, index: slice) -> OrderedTypeSet:
         pass
 
-    def __getitem__(self, index: int | slice) -> type | types.UnionType | "OrderedTypeSet":
+    def __getitem__(self, index: int | slice) -> type | types.UnionType | OrderedTypeSet:
         """Lookup item at given position."""
         if isinstance(index, slice):
             return OrderedTypeSet(self._ordered_set[index])
@@ -372,6 +377,10 @@ class OrderedTypeSet:
         """Return the symmetric difference of this set with another."""
         return self.symmetric_difference(other)
 
+    def __hash__(self) -> int:
+        """Return a hash based on the set's contents."""
+        return hash(tuple(self._ordered_set))
+
     def add(self, value: type | types.UnionType) -> None:
         """Add a type or a union of types to the set."""
         self._ordered_set.update(get_args(value) or (value,))
@@ -390,17 +399,21 @@ class OrderedTypeSet:
         """Remove all items from the set."""
         self._ordered_set.clear()
 
-    def union(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+    def union(self, *others: Iterable[type | types.UnionType]) -> OrderedTypeSet:
         """Return the union of this set with others."""
         return OrderedTypeSet(self._ordered_set.union(*(OrderedTypeSet(other) for other in others)))
 
-    def intersection(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+    def intersection(self, *others: Iterable[type | types.UnionType]) -> OrderedTypeSet:
         """Return the intersection of this set with others."""
-        return OrderedTypeSet(self._ordered_set.intersection(*(OrderedTypeSet(other) for other in others)))
+        return OrderedTypeSet(
+            self._ordered_set.intersection(*(OrderedTypeSet(other) for other in others))
+        )
 
-    def difference(self, *others: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+    def difference(self, *others: Iterable[type | types.UnionType]) -> OrderedTypeSet:
         """Return the difference of this set with others."""
-        return OrderedTypeSet(self._ordered_set.difference(*(OrderedTypeSet(other) for other in others)))
+        return OrderedTypeSet(
+            self._ordered_set.difference(*(OrderedTypeSet(other) for other in others))
+        )
 
     def issubset(self, other: Iterable[type | types.UnionType]) -> bool:
         """Check if this set is a subset of another."""
@@ -410,7 +423,7 @@ class OrderedTypeSet:
         """Check if this set is a superset of another."""
         return self._ordered_set.issuperset(OrderedTypeSet(other))
 
-    def symmetric_difference(self, other: Iterable[type | types.UnionType]) -> "OrderedTypeSet":
+    def symmetric_difference(self, other: Iterable[type | types.UnionType]) -> OrderedTypeSet:
         """Return the symmetric difference of this set with another."""
         return OrderedTypeSet(self._ordered_set.symmetric_difference(OrderedTypeSet(other)))
 
