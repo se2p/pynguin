@@ -12,7 +12,6 @@ line.
 
 from __future__ import annotations
 
-import atexit
 import logging
 import os
 import sys
@@ -155,10 +154,6 @@ def _setup_logging(
         datefmt="[%X]",
         handlers=[handler],
     )
-
-    # Disable the logging shutdown, to avoid hanging the program while trying to close
-    # the logging handlers of SUTs.
-    atexit.unregister(logging.shutdown)
 
     return console
 
