@@ -310,6 +310,31 @@ def small_control_flow_graph() -> CFG:
 
 
 @pytest.fixture(scope="module")
+def yield_control_flow_graph() -> CFG:
+    cfg = CFG(MagicMock())
+    entry = ProgramGraphNode(index=-1)
+    y_assign_0_node = ProgramGraphNode(index=0)
+    y_eq_0_node = ProgramGraphNode(index=1)
+    yield_y_node = ProgramGraphNode(index=2)  # yield_y_node, 2
+    jmp_node = ProgramGraphNode(index=3)
+
+    cfg.add_node(entry)
+    cfg.add_node(y_assign_0_node)
+    cfg.add_node(y_eq_0_node)
+    cfg.add_node(yield_y_node)
+    cfg.add_node(jmp_node)
+
+    cfg.add_edge(entry, y_assign_0_node)
+    cfg.add_edge(y_assign_0_node, y_eq_0_node)
+    cfg.add_edge(y_eq_0_node, yield_y_node, label="True")
+    cfg.add_edge(y_eq_0_node, jmp_node, label="False")
+    cfg.add_edge(yield_y_node, jmp_node)
+    # No outgoing edge - will be constructed from yield node
+
+    return cfg
+
+
+@pytest.fixture(scope="module")
 def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     graph = CFG(MagicMock())
     entry = ProgramGraphNode(index=-sys.maxsize)
