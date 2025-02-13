@@ -11,6 +11,7 @@ from collections.abc import Callable
 from inspect import Signature
 from unittest.mock import MagicMock
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 
@@ -19,6 +20,7 @@ from astroid import parse
 
 import pynguin.configuration as config
 
+from pynguin.analyses.module import SignatureInfo
 from pynguin.analyses.module import TypeGuessingStats
 from pynguin.analyses.module import _CallableData
 from pynguin.analyses.typesystem import InferredSignature
@@ -154,38 +156,65 @@ def test_convert_parameter_kwargs(file_name, function_node_kwargs, signature_kwa
     assert actual == expected
 
 
-@pytest.fixture(scope="session")
-def expected_function_json(file_name, function_name):
-    return json.dumps(
-        [
-            {
-                "col_offset": 9,
-                "file": file_name,
-                "function": function_name,
-                "line_number": 2,
-                "parameter": "a",
-                "type": ["int"],
-            },
-            {
-                "col_offset": 17,
-                "file": file_name,
-                "function": function_name,
-                "line_number": 2,
-                "parameter": "b",
-                "type": ["complex", "float"],
-            },
-            {
-                "col_offset": 5,
-                "file": file_name,
-                "function": function_name,
-                "line_number": 2,
-                "type": ["str"],
-            },
-        ]
+def test_convert_parameter_with_guessed_types(file_name, function_node, signature, function_name):
+    config.configuration.type_inference.type_tracing = True
+    signature_info = MagicMock(SignatureInfo)
+    signature_info.guessed_parameter_types = {"b": {"decimal.Decimal", "float"}}
+
+    actual = convert_parameter(
+        file_name, function_node, "b", signature, function_name, signature_info
+    )
+    expected = TypeEvalPySchemaParameter(
+        file=file_name,
+        line_number=2,
+        col_offset=17,
+        type=["complex", "decimal.Decimal", "float"],  # Should include the guessed type
+        function=function_name,
+        parameter="b",
     )
 
-def test_provide_json_function(file_name, function_node, signature,
-                               function_name, expected_function_json):
+    assert actual == expected
+
+
+def test_convert_parameter_key_error(file_name, function_node, signature, function_name):
+    with pytest.raises(KeyError, match="Could not find an argument with name non_existent_param"):
+        convert_parameter(
+            file_name, function_node, "non_existent_param", signature, function_name, None
+        )
+
+
+@pytest.fixture(scope="session")
+def expected_function_json(file_name, function_name):
+    return json.dumps([
+        {
+            "col_offset": 9,
+            "file": file_name,
+            "function": function_name,
+            "line_number": 2,
+            "parameter": "a",
+            "type": ["int"],
+        },
+        {
+            "col_offset": 17,
+            "file": file_name,
+            "function": function_name,
+            "line_number": 2,
+            "parameter": "b",
+            "type": ["complex", "float"],
+        },
+        {
+            "col_offset": 5,
+            "file": file_name,
+            "function": function_name,
+            "line_number": 2,
+            "type": ["str"],
+        },
+    ])
+
+
+def test_provide_json_function(
+    file_name, function_node, signature, function_name, expected_function_json
+):
     config.configuration.type_inference.type_tracing = True
 
     accessible = GenericFunction(
@@ -205,8 +234,9 @@ def test_provide_json_function(file_name, function_node, signature,
     actual_json = provide_json(file_name, accessibles, function_data, stats)
     assert json.loads(actual_json) == json.loads(expected_function_json)
 
+
 @pytest.fixture(scope="session")
-def expected_constructor_json(file_name, function_name):
+def expected_constructor_json(file_name):
     return json.dumps([
         {
             "col_offset": 9,
@@ -225,6 +255,7 @@ def expected_constructor_json(file_name, function_name):
             "type": ["complex", "float"],
         },
     ])
+
 
 def test_provide_json_constructor(file_name, function_node, signature, expected_constructor_json):
     config.configuration.type_inference.type_tracing = True
@@ -246,8 +277,9 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
     actual_json = provide_json(file_name, accessibles, function_data, stats)
     assert json.loads(actual_json) == json.loads(expected_constructor_json)
 
+
 @pytest.fixture(scope="session")
-def expected_method_json(file_name, function_name):
+def expected_method_json():
     return json.dumps([
         {
             "col_offset": 9,
@@ -275,8 +307,7 @@ def expected_method_json(file_name, function_name):
     ])
 
 
-def test_provide_json_generic_method(file_name, function_node, signature,
-                                     expected_method_json):
+def test_provide_json_generic_method(file_name, function_node, signature, expected_method_json):
     config.configuration.type_inference.type_tracing = True
 
     mock_owner = MagicMock()
@@ -301,7 +332,7 @@ def test_provide_json_generic_method(file_name, function_node, signature,
     assert json.loads(actual_json) == json.loads(expected_method_json)
 
 
-def test_provide_json_unknown_accessible(file_name):
+def test_provide_json_unknown_class(file_name):
     class UnknownClass:  # not subclass of GenericCallableAccessibleObject
         pass
 
@@ -314,7 +345,7 @@ def test_provide_json_unknown_accessible(file_name):
     assert res == "[]"  # make sure there is no crash
 
 
-def test_provide_json_not_implemented_error(file_name):
+def test_provide_json_unknown_accessible(file_name):
     accessible = Mock(GenericCallableAccessibleObject)
     accessibles = OrderedSet([accessible])  # Add it to the set
     function_data = {}
@@ -322,3 +353,32 @@ def test_provide_json_not_implemented_error(file_name):
 
     with pytest.raises(NotImplementedError):
         provide_json(file_name, accessibles, function_data, stats)
+
+
+def test_provide_json_parameter_conversion_exception(file_name, function_node, signature):
+    config.configuration.type_inference.type_tracing = True
+
+    accessible = GenericFunction(
+        function=Callable[[int, float | complex], str],
+        inferred_signature=signature,
+        raised_exceptions=set(),
+        function_name="test_function",
+    )
+    accessibles = OrderedSet([accessible])
+    function_data = {
+        accessible: _CallableData(
+            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+        )
+    }
+    stats = TypeGuessingStats(signature_infos={})
+
+    with (
+        patch(
+            "pynguin.utils.typeevalpy_json_schema.convert_parameter",
+            side_effect=Exception("Mocked exception"),
+        ),
+        patch("pynguin.utils.typeevalpy_json_schema._LOGGER.exception") as mock_logger,
+    ):
+        actual_json = provide_json(file_name, accessibles, function_data, stats)
+        mock_logger.assert_called_once()
+        assert actual_json is not None  # Ensure function doesn't crash
