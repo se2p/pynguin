@@ -245,25 +245,6 @@ class ExecutionContext:
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
 
-# TODO: Move this into mocking.py; requires moving ExecutionContext as well
-def mock_execution_context(
-    exec_ctx: ExecutionContext, mocks: MappingProxyType[str, ModuleType] = mocks_to_use
-) -> None:
-    """Mock all dangerous methods of the execution context, such as logging.
-
-    For each module in the global namespace all references to all original modules
-    contained in the mocks dictionary are replaced with the respective mocks.
-
-    Args:
-        exec_ctx: The execution context to mock.
-        mocks: The mocks to use.
-    """
-    for module_to_mock_name, mock in mocks.items():
-        for module_to_patch_name in exec_ctx.global_namespace:
-            if hasattr(exec_ctx.global_namespace[module_to_patch_name], module_to_mock_name):
-                setattr(exec_ctx.global_namespace[module_to_patch_name], module_to_mock_name, mock)
-
-
 class ExecutionObserver:
     """An Observer that can be used to observe the execution of a test case.
 
@@ -2318,8 +2299,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         code = compile(ast_node, "<ast>", "exec")
         if self._instrument:
             code = self._checked_transformer.instrument_module(code)
-
-        mock_execution_context(exec_ctx)
 
         try:
             exec(  # noqa: S102
