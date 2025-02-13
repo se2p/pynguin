@@ -287,7 +287,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
         )
         linenos = len(source_code.splitlines())
 
-    except (TypeError, OSError) as error:
+    except (TypeError, OSError, RuntimeError) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "
@@ -1118,7 +1118,13 @@ def __analyse_class(
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
-    for method_name, method in inspect.getmembers(type_info.raw_type, inspect.isfunction):
+    try:
+        methods_with_names = inspect.getmembers(type_info.raw_type, inspect.isfunction)
+    except Exception as ex:  # noqa: BLE001
+        LOGGER.error("Could not get members for class %s: %s", type_info.full_name, str(ex))
+        return
+
+    for method_name, method in methods_with_names:
         __analyse_method(
             type_info=type_info,
             method_name=method_name,

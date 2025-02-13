@@ -79,6 +79,9 @@ class MutationController:
             except Exception as exception:  # noqa: BLE001
                 _LOGGER.debug("Error creating mutant: %s", exception)
                 mutant_module = None
+            except SystemExit as exception:
+                _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
+                mutant_module = None
 
             yield mutant_module, mutations
 

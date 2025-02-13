@@ -263,7 +263,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: int = time.time_ns()  # noqa: RUF009
+    seed: int = time.time_ns()
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True
