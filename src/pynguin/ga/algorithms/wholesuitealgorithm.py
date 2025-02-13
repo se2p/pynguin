@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -126,7 +126,7 @@ class WholeSuiteAlgorithm(GenerationAlgorithm[arch.CoverageArchive]):
                 if goal.is_branchless_code_object:
                     exclude_code.add(goal.code_object_id)
                 elif goal.is_branch:
-                    branch_goal = cast(bg.BranchGoal, goal)
+                    branch_goal = cast("bg.BranchGoal", goal)
                     if branch_goal.value:
                         exclude_true.add(branch_goal.predicate_id)
                     else:

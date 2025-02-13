@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -19,9 +19,6 @@ import pynguin.utils.ast_util as au
 
 from pynguin.testcase.statement import ClassPrimitiveStatement
 from pynguin.testcase.statement import StatementVisitor
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject,
-)
 
 
 if TYPE_CHECKING:
@@ -46,6 +43,9 @@ if TYPE_CHECKING:
     from pynguin.testcase.statement import SetStatement
     from pynguin.testcase.statement import StringPrimitiveStatement
     from pynguin.testcase.statement import TupleStatement
+    from pynguin.utils.generic.genericaccessibleobject import (
+        GenericCallableAccessibleObject,
+    )
 
 
 class StatementToAstVisitor(StatementVisitor):
@@ -380,7 +380,7 @@ class StatementToAstVisitor(StatementVisitor):
         kwargs = []
 
         gen_callable: GenericCallableAccessibleObject = cast(
-            GenericCallableAccessibleObject, stmt.accessible_object()
+            "GenericCallableAccessibleObject", stmt.accessible_object()
         )
 
         left_of_current: list[str] = []

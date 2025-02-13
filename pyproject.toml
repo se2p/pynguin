@@ -1,10 +1,10 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
 [tool.poetry]
 name = "pynguin"
-version = "0.40.0.dev"
+version = "0.41.0.dev"
 description = "Pynguin is a tool for automated unit test generation for Python"
 authors = ["Stephan Lukasczyk <stephan@pynguin.eu>"]
 license = "MIT"
@@ -44,37 +44,36 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
-astroid = "^3.3.5"
+astroid = "^3.3.8"
 black = "^24.10.0"
-bytecode = "^0.16.0"
-jellyfish = "^1.1.0"
-Jinja2 = "^3.1.4"
+bytecode = "^0.16.1"
+Jinja2 = "^3.1.5"
 networkx = "^3.4"
 rich = "^13.9.4"
-Pygments = "^2.18.0"
-pytest = "^8.3.3"
-simple-parsing = "^0.1.6"
+Pygments = "^2.19.1"
+pytest = "^8.3.4"
+simple-parsing = "^0.1.7"
 typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
-libcst = "^1.5.1"
+libcst = "^1.6.0"
+setuptools = "^75.8"
 
 [tool.poetry.group.dev.dependencies]
-isort = {extras = ["pyproject"], version = "^5.13.2"}
-mypy = "^1.13.0"
-pre-commit = "^4.0.1"
-pyupgrade = "^3.19.0"
-ruff = "^0.8"
+isort = {extras = ["pyproject"], version = "^6.0.0"}
+mypy = "^1.14.1"
+pre-commit = "^4.1.0"
+ruff = "^0.9"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
-sphinx-autodoc-typehints = "^2.5"
+sphinx-autodoc-typehints = "^3.0"
 sphinx-hoverxref = "^1.4.2"
 sphinx-rtd-theme = "^3.0.2"
 sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
-coverage = "^7.6.7"
-hypothesis = "^6.119"
+coverage = "^7.6.10"
+hypothesis = "^6.124"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"

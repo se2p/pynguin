@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -12,7 +12,6 @@ Think of these like the reflection classes in Java.
 from __future__ import annotations
 
 import abc
-import enum
 import typing
 
 from types import BuiltinFunctionType
@@ -35,6 +34,8 @@ TypesOfCallables = (
 )
 
 if typing.TYPE_CHECKING:
+    import enum
+
     from pynguin.analyses.typesystem import ProperType
     from pynguin.analyses.typesystem import TypeInfo
 
@@ -148,7 +149,7 @@ class GenericEnum(GenericAccessibleObject):
         self._names = [
             e.name
             for e in typing.cast(
-                list[enum.Enum], list(typing.cast(type[enum.Enum], owner.raw_type))
+                "list[enum.Enum]", list(typing.cast("type[enum.Enum]", owner.raw_type))
             )
         ]
 
@@ -385,7 +386,22 @@ class GenericFunction(GenericCallableAccessibleObject):
             function_name: The optional name of the function
         """
         self._function_name = function_name
+        self._rename_lambda(function)
         super().__init__(None, function, inferred_signature, raised_exceptions)
+
+    @staticmethod
+    def _rename_lambda(function: FunctionType) -> None:
+        """Renames a lambda function to its parameter name.
+
+        If a lambda is defined at top level in a module, it is named "<lambda>" and
+        the first co_varname is the actual name. To allow calling the function by its
+        name, we rename it.
+
+        Example:
+            y = lambda x: x => Rename <lambda> to y.
+        """
+        if getattr(function, "__name__", None) == "<lambda>":
+            function.__name__ = function.__code__.co_varnames[0]
 
     def is_function(self) -> bool:  # noqa: D102
         return True

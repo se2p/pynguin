@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -622,7 +622,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
     """
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
-        arg_type = cast(Instance, self.ret_val.type).args[0]
+        arg_type = cast("Instance", self.ret_val.type).args[0]
         # TODO(fk) what if the current type is not correct?
         possible_insertions = self.test_case.get_objects(arg_type, self.get_position())
         if len(possible_insertions) == 0:
@@ -802,8 +802,8 @@ class DictStatement(CollectionStatement[tuple[vr.VariableReference, vr.VariableR
         self,
     ) -> tuple[vr.VariableReference, vr.VariableReference] | None:
         # TODO(fk) what if the current type is not correct?
-        key_type = cast(Instance, self.ret_val.type).args[0]
-        val_type = cast(Instance, self.ret_val.type).args[1]
+        key_type = cast("Instance", self.ret_val.type).args[0]
+        val_type = cast("Instance", self.ret_val.type).args[1]
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
         if len(possibles_keys) == 0 or len(possibles_values) == 0:
@@ -1144,7 +1144,7 @@ class ParametrizedStatement(VariableCreatingStatement, abc.ABC):
         if self._param_count_of_type(param_type) > len(possible_replacements) + 1:
             original_param_source = self.test_case.get_statement(current.get_statement_position())
             copy = cast(
-                VariableCreatingStatement,
+                "VariableCreatingStatement",
                 original_param_source.clone(
                     self.test_case,
                     {
@@ -1241,7 +1241,7 @@ class ConstructorStatement(ParametrizedStatement):
         Returns:
             The used constructor
         """
-        return cast(gao.GenericConstructor, self._generic_callable)
+        return cast("gao.GenericConstructor", self._generic_callable)
 
     def __repr__(self) -> str:
         return (
@@ -1279,7 +1279,7 @@ class MethodStatement(ParametrizedStatement):
         Returns:
             The used method
         """
-        return cast(gao.GenericMethod, self._generic_callable)
+        return cast("gao.GenericMethod", self._generic_callable)
 
     def _mutable_argument_count(self) -> int:
         # We add +1 to the count, because the callee itself can also be mutated.
@@ -1385,7 +1385,7 @@ class FunctionStatement(ParametrizedStatement):
         Returns:
             The used function
         """
-        return cast(gao.GenericFunction, self._generic_callable)
+        return cast("gao.GenericFunction", self._generic_callable)
 
     def clone(  # noqa: D102
         self,

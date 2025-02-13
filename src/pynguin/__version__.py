@@ -1,9 +1,9 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """Specifies the version of Pynguin."""
 
-__version__ = "0.40.0.dev"
+__version__ = "0.41.0.dev"

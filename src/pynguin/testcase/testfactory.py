@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -485,7 +485,7 @@ class TestFactory:
 
         self._logger.debug("Adding primitive %s", primitive)
         # TODO(fk) fix this ugly cast.
-        statement = cast(stmt.PrimitiveStatement, primitive.clone(test_case, {}))
+        statement = cast("stmt.PrimitiveStatement", primitive.clone(test_case, {}))
         return test_case.add_variable_creating_statement(statement, position)
 
     def insert_random_statement(self, test_case: tc.TestCase, last_position: int) -> int:
@@ -585,11 +585,11 @@ class TestFactory:
         previous_length = test_case.size()
         try:
             if accessible.is_method():
-                method = cast(gao.GenericMethod, accessible)
+                method = cast("gao.GenericMethod", accessible)
                 self.add_method(test_case, method, position=position, callee=callee)
                 return True
             if accessible.is_field():
-                field = cast(gao.GenericField, accessible)
+                field = cast("gao.GenericField", accessible)
                 self.add_field(test_case, field, position=position, callee=callee)
                 return True
             raise RuntimeError("Unknown accessible object")
@@ -803,7 +803,7 @@ class TestFactory:
         return_value = statement.ret_val
         replacement: stmt.Statement | None = None
         if call.is_method():
-            method = cast(gao.GenericMethod, call)
+            method = cast("gao.GenericMethod", call)
             assert method.owner is not None
             callee = test_case.get_random_object(
                 self._test_cluster.type_system.make_instance(method.owner), position
@@ -813,19 +813,19 @@ class TestFactory:
             )
             replacement = stmt.MethodStatement(test_case, method, callee, parameters)
         elif call.is_constructor():
-            constructor = cast(gao.GenericConstructor, call)
+            constructor = cast("gao.GenericConstructor", call)
             parameters = self._get_reuse_parameters(
                 test_case, constructor.inferred_signature, position, signature_memo
             )
             replacement = stmt.ConstructorStatement(test_case, constructor, parameters)
         elif call.is_function():
-            funktion = cast(gao.GenericFunction, call)
+            funktion = cast("gao.GenericFunction", call)
             parameters = self._get_reuse_parameters(
                 test_case, funktion.inferred_signature, position, signature_memo
             )
             replacement = stmt.FunctionStatement(test_case, funktion, parameters)
         elif call.is_enum():
-            enum_ = cast(gao.GenericEnum, call)
+            enum_ = cast("gao.GenericEnum", call)
             replacement = stmt.EnumPrimitiveStatement(test_case, enum_)
 
         if replacement is None:
@@ -1099,7 +1099,7 @@ class TestFactory:
         if parameter_type.accept(is_primitive_type):
             return self._create_primitive(
                 test_case,
-                cast(Instance, parameter_type),
+                cast("Instance", parameter_type),
                 position,
                 recursion_depth,
                 constant_provider=self._constant_provider,

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,15 +11,15 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.10']
-        poetry-version: [1.7.1]
+        poetry-version: [1.8.4]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -31,17 +31,11 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Check imports with isort
-        run: poetry run isort --check-only . --profile black
-
-      - name: Check formatting with black
-        run: poetry run black --diff --check .
+      - name: Run the hooks from pre-commit
+        run: poetry run pre-commit run --all-files
 
       - name: Check typing with mypy
         run: poetry run mypy
-
-      - name: Linting with ruff
-        run: poetry run ruff src/pynguin
 
       - name: Run tests
         run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing tests/

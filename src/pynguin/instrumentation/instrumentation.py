@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -882,7 +882,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 self._tracer.register_line(
                     code_object_id,
                     file_name,
-                    lineno,  # type: ignore[arg-type]
+                    lineno,
                 )
 
             # Perform the actual instrumentation

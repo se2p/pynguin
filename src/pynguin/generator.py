@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -169,9 +169,9 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
         importlib.import_module(config.configuration.module_name)
-    except ImportError as ex:
+    except Exception as ex:
         # A module could not be imported because some dependencies
-        # are missing or it is malformed
+        # are missing or it is malformed or any error is raised during the import
         _LOGGER.exception("Failed to load SUT: %s", ex)
         return False
     return True
@@ -665,7 +665,7 @@ def _track_search_metrics(
     ]:
         if metric in coverage_metrics:
             coverage_function: ff.TestSuiteCoverageFunction = _get_coverage_ff_from_algorithm(
-                algorithm, cast(type[ff.TestSuiteCoverageFunction], fitness_type)
+                algorithm, cast("type[ff.TestSuiteCoverageFunction]", fitness_type)
             )
             stat.track_output_variable(
                 runtime, generation_result.get_coverage_for(coverage_function)

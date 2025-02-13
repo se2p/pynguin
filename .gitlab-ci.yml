@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -78,7 +78,7 @@ memory-profile:
     - pip install poetry
     - poetry config virtualenvs.in-project true
     - poetry install
-    - poetry add --dev memray pytest-memray
+    - poetry add --group dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/
   needs: ["pre-commit", "reuse"]

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -89,7 +89,7 @@ class ConstantPool:
         Returns:
             A random element of the given type
         """
-        return typing.cast(T, randomness.choice(tuple(self._constants[tp_])))
+        return typing.cast("T", randomness.choice(tuple(self._constants[tp_])))
 
     def get_all_constants_for(self, tp_: type[T]) -> OrderedSet[T]:
         """Get all values from the constant pool.
@@ -100,7 +100,7 @@ class ConstantPool:
         Returns:
             All constants of the given type
         """
-        return typing.cast(OrderedSet[T], self._constants[tp_])
+        return typing.cast("OrderedSet[T]", self._constants[tp_])
 
     def __len__(self):
         return sum(len(value) for value in self._constants.values())

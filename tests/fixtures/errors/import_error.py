@@ -4,4 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides functionality related to assertion generation."""
+
+class CustomError(Exception):
+    pass
+
+raise CustomError("This is a custom error")

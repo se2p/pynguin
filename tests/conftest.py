@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -166,6 +166,71 @@ def function_mock(type_system) -> GenericFunction:
             ),
             original_return_type=Instance(TypeInfo(float)),
             original_parameters={"z": Instance(TypeInfo(float))},
+            type_system=type_system,
+        ),
+    )
+
+
+@pytest.fixture
+def lambda_mock(type_system) -> GenericFunction:
+    return GenericFunction(
+        function=lambda z: z,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=int,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(int)),
+            original_parameters={"z": Instance(TypeInfo(int))},
+            type_system=type_system,
+        ),
+    )
+
+
+weighted_avg = lambda x, y, w1, w2: (x * w1 + y * w2) / (w1 + w2)  # noqa: E731
+
+
+@pytest.fixture
+def lambda_mock_complex(type_system) -> GenericFunction:
+    return GenericFunction(
+        function=weighted_avg,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="x",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=complex,
+                    ),
+                    inspect.Parameter(
+                        name="y",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=complex,
+                    ),
+                    inspect.Parameter(
+                        name="w1",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                    inspect.Parameter(
+                        name="w2",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(complex)),
+            original_parameters={
+                "x": Instance(TypeInfo(complex)),
+                "y": Instance(TypeInfo(complex)),
+                "w1": Instance(TypeInfo(float)),
+                "w2": Instance(TypeInfo(float)),
+            },
             type_system=type_system,
         ),
     )
