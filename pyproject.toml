@@ -13,39 +13,39 @@ repository = "https://github.com/se2p/pynguin"
 documentation = "https://pynguin.readthedocs.io"
 homepage = "https://www.pynguin.eu"
 keywords = [
-    "unit test",
-    "random testing",
-    "search based",
-    "test generation"
+  "unit test",
+  "random testing",
+  "search based",
+  "test generation"
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Education",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: Microsoft :: Windows",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Topic :: Education :: Testing",
-    "Topic :: Software Development :: Testing",
-    "Topic :: Software Development :: Testing :: Unit",
-    "Typing :: Typed",
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Education :: Testing",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Software Development :: Testing :: Unit",
+  "Typing :: Typed",
 ]
 packages = [
-    { include = "pynguin", from = "src" }
+  { include = "pynguin", from = "src" }
 ]
 include = [
-    { path = "tests", format = "sdist" }
+  { path = "tests", format = "sdist" }
 ]
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
 astroid = "^3.3.8"
-black = "^24.10.0"
+black = "^25.1.0"
 bytecode = "^0.16.1"
 Jinja2 = "^3.1.5"
 networkx = "^3.4"
@@ -59,8 +59,8 @@ libcst = "^1.6.0"
 setuptools = "^75.8"
 
 [tool.poetry.group.dev.dependencies]
-isort = {extras = ["pyproject"], version = "^6.0.0"}
-mypy = "^1.14.1"
+isort = { extras = ["pyproject"], version = "^6.0.0" }
+mypy = "^1.15.0"
 pre-commit = "^4.1.0"
 ruff = "^0.9"
 
@@ -72,8 +72,8 @@ sphinx-rtd-theme = "^3.0.2"
 sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
-coverage = "^7.6.10"
-hypothesis = "^6.124"
+coverage = "^7.6.12"
+hypothesis = "^6.125"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
@@ -109,7 +109,7 @@ force_single_line = true
 combine_as_imports = true
 lines_between_types = 1
 lines_after_imports = 2
-src_paths = [ "src", "tests"]
+src_paths = ["src", "tests"]
 
 [tool.mypy]
 files = "src"
@@ -175,65 +175,66 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-    "A",     # flake8-builtins
-    "ARG",   # flake8-unused-arguments
-    "B",     # bugbear
-    "BLE",   # flake8-blind-except
-    "CPY",   # flake8-copyright
-    "C4",    # flake8-comprehensions
-    "C90",   # mccabe
-    "D",     # pydocstyle
-    "DTZ",   # flake8-datetimez
-    "E",     # pycodestyle
-    "ERA",   # flake8-eradicate
-    "F",     # pyflakes
-    "FA",    # flake8-future-annotations
-    "FBT",   # flake8-boolean-trap
-    "FIX",   # flake8-fixme
-    "FLY",   # flynt
-    "FURB",  # refurb
-    "G",     # flake8-logging-format
-    "ICN",   # flake8-import-conventions
-    "INT",   # flake8-gettext
-    "ISC",   # flake8-implicit-str-concat
-    "LOG",   # flake8-logging
-    "N",     # flake8-naming
-    "NPY",   # numpy
-    "PERF",  # perflint
-    "PGH",   # pygrep-hooks
-    "PIE",   # flake8-pie
-    "PL",    # pylint
-    "PT",    # flake8-pytest-style
-    "PTH",   # flake8-use-pathlib
-    "PYI",   # flake8-pyi
-    "Q",     # flake8-quotes
-    "RET",   # flake8-return
-    "RSE",   # flake8-raise
-    "RUF",   # ruff
-    "S",     # flake8-bandig
-    "SIM",   # flake8-simplify
-    "SLF",   # flake8-self
-    "SLOT",  # flake8-slots
-    "TCH",   # flake8-type-checking
-    "TID",   # flake8-tidy-imports
-    "T20",   # flake8-print
-    "UP",    # pyupgrade
-    "W",     # pycodestyle
+  "A", # flake8-builtins
+  "ARG", # flake8-unused-arguments
+  "B", # bugbear
+  "BLE", # flake8-blind-except
+  "CPY", # flake8-copyright
+  "C4", # flake8-comprehensions
+  "C90", # mccabe
+  "D", # pydocstyle
+  "DTZ", # flake8-datetimez
+  "E", # pycodestyle
+  "ERA", # flake8-eradicate
+  "F", # pyflakes
+  "FA", # flake8-future-annotations
+  "FBT", # flake8-boolean-trap
+  "FIX", # flake8-fixme
+  "FLY", # flynt
+  "FURB", # refurb
+  "G", # flake8-logging-format
+  "ICN", # flake8-import-conventions
+  "INT", # flake8-gettext
+  "ISC", # flake8-implicit-str-concat
+  "LOG", # flake8-logging
+  "N", # flake8-naming
+  "NPY", # numpy
+  "PERF", # perflint
+  "PGH", # pygrep-hooks
+  "PIE", # flake8-pie
+  "PL", # pylint
+  "PT", # flake8-pytest-style
+  "PTH", # flake8-use-pathlib
+  "PYI", # flake8-pyi
+  "Q", # flake8-quotes
+  "RET", # flake8-return
+  "RSE", # flake8-raise
+  "RUF", # ruff
+  "S", # flake8-bandig
+  "SIM", # flake8-simplify
+  "SLF", # flake8-self
+  "SLOT", # flake8-slots
+  "TCH", # flake8-type-checking
+  "TID", # flake8-tidy-imports
+  "T20", # flake8-print
+  "UP", # pyupgrade
+  "W", # pycodestyle
 ]
 ignore = [
-    "ARG002",   # unused method argument
-    "B019",     # functools.lru_cache might cause memory leaks
-    "CPY001",   # missing copyright notice at top of file
-    "D105",     # missing docstrings in magic methods
-    "FIX002",   # valid TODO comments
-    "ISC001",   # conflicts with ruff-format
-    "PLR0911",  # do not complain about too many return statements
-    "PLR0912",  # do not complain about too many branches
-    "PLR0913",  # do not complain about too many arguments to function call
-    "PLR2004",  # magic values in comparisons
-    "PLR6301",  # method could be a function, class method, or static method
-    "RUF003",   # comment contains ambiguous en dash
-    "S101",     # do not complain about using assert statements
+  "ARG002", # unused method argument
+  "B019", # functools.lru_cache might cause memory leaks
+  "CPY001", # missing copyright notice at top of file
+  "D105", # missing docstrings in magic methods
+  "FIX002", # valid TODO comments
+  "ISC001", # conflicts with ruff-format
+  "PLR0911", # do not complain about too many return statements
+  "PLR0912", # do not complain about too many branches
+  "PLR0913", # do not complain about too many arguments to function call
+  "PLR2004", # magic values in comparisons
+  "PLR6301", # method could be a function, class method, or static method
+  "RUF003", # comment contains ambiguous en dash
+  "RUF009", # do not perform function call in dataclass defaults
+  "S101", # do not complain about using assert statements
 ]
 # Allow unused variables when underscore-prefixed:
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
@@ -246,12 +247,12 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "D100",   # Missing docstring in public module
-    "D101",   # Missing docstring in public class
-    "D102",   # Missing docstring in public method
-    "D103",   # Missing docstring in public function
-    "D104",   # Missing docstring in public package
-    "PT006",  # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
-    "S101",   # Use of `assert` detected
-    "SLF001", # Private member accessed
+  "D100", # Missing docstring in public module
+  "D101", # Missing docstring in public class
+  "D102", # Missing docstring in public method
+  "D103", # Missing docstring in public function
+  "D104", # Missing docstring in public package
+  "PT006", # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
+  "S101", # Use of `assert` detected
+  "SLF001", # Private member accessed
 ]
