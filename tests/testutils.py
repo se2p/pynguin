@@ -181,9 +181,7 @@ def import_module_safe(module_name):
     try:
         module = importlib.import_module(module_name)
         module_source_code = inspect.getsource(module)
-    except SystemExit:
-        return import_using_spec(module_name)
-    except Exception:  # noqa: BLE001
+    except (SystemExit, Exception):
         return import_using_spec(module_name)
 
     return module, module_source_code
