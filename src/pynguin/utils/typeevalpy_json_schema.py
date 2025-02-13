@@ -284,7 +284,7 @@ def provide_json(
     Args:
         file_name: the name of the file defining the SUT
         accessibles: the set of all accessibles from the SUT
-        function_data: a map of accessibles and their respecitve information from the
+        function_data: a map of accessibles and their respective information from the
                        analyses
         stats: type guessing stats
 
