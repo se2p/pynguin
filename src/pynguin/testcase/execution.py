@@ -2204,9 +2204,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             else:
                 try:
                     result = return_queue.get(block=False)
-                except Empty as ex:
+                except Empty:
                     _LOGGER.error("Finished thread did not return a result.")
-                    raise RuntimeError("Bug in Pynguin!") from ex
+                    # previously we re-raised the exception as a RuntimeError to have a marker in
+                    # the logs, however, it is still not fully clear WHY this actually happens.
+                    # Plus, it confuses users.  Thus, for now log the message, such that we can
+                    # still search for it in the logs, but continue with an empty results.  This
+                    # allows the EA to continue with the search process.
+                    _LOGGER.error("Bug in Pynguin!")
+                    result = ExecutionResult(timeout=True)
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
 
