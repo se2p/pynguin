@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Tests for the TypeEvalPy JSON generation."""
+
 from inspect import Signature
 from unittest.mock import MagicMock
 
@@ -66,9 +67,7 @@ def function_name(function_node) -> str:
 
 def test_convert_return(file_name, function_node, signature, function_name):
     config.configuration.type_inference.type_tracing = True
-    actual = convert_return(
-        file_name, function_node, signature, function_name, is_function=True
-    )
+    actual = convert_return(file_name, function_node, signature, function_name, is_function=True)
     expected = TypeEvalPySchemaFunctionReturn(
         file=file_name,
         line_number=2,
@@ -81,9 +80,7 @@ def test_convert_return(file_name, function_node, signature, function_name):
 
 def test_convert_parameter(file_name, function_node, signature, function_name):
     config.configuration.type_inference.type_tracing = True
-    actual = convert_parameter(
-        file_name, function_node, "b", signature, function_name, None
-    )
+    actual = convert_parameter(file_name, function_node, "b", signature, function_name, None)
     expected = TypeEvalPySchemaParameter(
         file=file_name,
         line_number=2,
@@ -127,9 +124,7 @@ def signature_kwargs() -> InferredSignature:
     return inferred_signature
 
 
-def test_convert_parameter_kwargs(
-    file_name, function_node_kwargs, signature_kwargs, function_name
-):
+def test_convert_parameter_kwargs(file_name, function_node_kwargs, signature_kwargs, function_name):
     config.configuration.type_inference.type_tracing = True
     actual = convert_parameter(
         file_name, function_node_kwargs, "kwargs", signature_kwargs, function_name, None

@@ -7,10 +7,12 @@
 
 These are based on the ``pydantic`` schema provided by ``TypeEvalPy``.
 """
+
 from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 import typing
 
 from abc import ABC
@@ -39,13 +41,16 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 if typing.TYPE_CHECKING:
-    from pynguin.analyses.module import CallableData
     from pynguin.analyses.module import SignatureInfo
     from pynguin.analyses.module import TypeGuessingStats
+    from pynguin.analyses.module import _CallableData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -134,7 +139,6 @@ class TypeEvalPySchemaFunctionReturn(TypeEvalPySchemaElement):
 
 
 class _TypeExpansionVisitor(TypeVisitor[set[str]]):
-
     def visit_any_type(self, left: AnyType) -> set[str]:
         return {"Any"}
 
@@ -142,9 +146,7 @@ class _TypeExpansionVisitor(TypeVisitor[set[str]]):
         return {"None"}
 
     def visit_instance(self, left: Instance) -> set[str]:
-        return {
-            left.type.name if left.type.module == "builtins" else left.type.full_name
-        }
+        return {left.type.name if left.type.module == "builtins" else left.type.full_name}
 
     def visit_tuple_type(self, left: TupleType) -> set[str]:
         return {"tuple"}
@@ -258,7 +260,7 @@ def convert_return(
 
     line_number = function_node.lineno
     if is_function:
-        col_offset = function_node.col_offset + len("def ") + 1 # 1-indexed
+        col_offset = function_node.col_offset + len("def ") + 1  # 1-indexed
     else:
         col_offset = function_node.col_offset + 1  # 1-indexed
     types: list[str] = format_return_types(signature)
@@ -274,7 +276,7 @@ def convert_return(
 def provide_json(
     file_name: str,
     accessibles: OrderedSet[GenericAccessibleObject],
-    function_data: dict[GenericAccessibleObject, CallableData],
+    function_data: dict[GenericAccessibleObject, _CallableData],
     stats: TypeGuessingStats,
 ) -> str:
     """Provide the JSON string representation for the callables in the SUT.
@@ -313,14 +315,18 @@ def provide_json(
             name = f"{config.configuration.module_name}.{function_name}"
             signature_info = stats.signature_infos.get(name)
             parameter_jsons = []
-            for parameter in signature.original_parameters:
-                try:
+            try:
+                for parameter in signature.original_parameters:
                     param_json = convert_parameter(
                         file_name, tree, parameter, signature, function_name, signature_info
                     )
                     parameter_jsons.append(param_json)
-                except Exception as e:
-                    print(f"Error converting parameter {parameter}: {e}")
+            except Exception as e:
+                _LOGGER.exception(
+                    "Could not convert parameter for %s: %s",
+                    function_name,
+                    e,
+                )
             schema_elements.extend(parameter_jsons)
             if not accessible.is_constructor():
                 return_json = convert_return(
@@ -332,6 +338,4 @@ def provide_json(
                 )
                 schema_elements.append(return_json)
 
-    return json.dumps(
-        [dataclasses.asdict(schema_element) for schema_element in schema_elements]
-    )
+    return json.dumps([dataclasses.asdict(schema_element) for schema_element in schema_elements])
