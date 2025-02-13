@@ -20,9 +20,9 @@ from astroid import parse
 
 import pynguin.configuration as config
 
+from pynguin.analyses.module import CallableData
 from pynguin.analyses.module import SignatureInfo
 from pynguin.analyses.module import TypeGuessingStats
-from pynguin.analyses.module import _CallableData
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
@@ -247,7 +247,7 @@ def test_provide_json_function(
     )
     accessibles = OrderedSet([accessible])
     function_data = {
-        accessible: _CallableData(
+        accessible: CallableData(
             tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
         )
     }
@@ -290,7 +290,7 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
     )
     accessibles = OrderedSet([accessible])
     function_data = {
-        accessible: _CallableData(
+        accessible: CallableData(
             tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
         )
     }
@@ -344,7 +344,7 @@ def test_provide_json_generic_method(file_name, function_node, signature, expect
     )
     accessibles = OrderedSet([accessible])
     function_data = {
-        accessible: _CallableData(
+        accessible: CallableData(
             tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
         )
     }
@@ -388,7 +388,7 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
     )
     accessibles = OrderedSet([accessible])
     function_data = {
-        accessible: _CallableData(
+        accessible: CallableData(
             tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
         )
     }

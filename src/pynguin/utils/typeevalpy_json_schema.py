@@ -41,9 +41,9 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 if typing.TYPE_CHECKING:
+    from pynguin.analyses.module import CallableData
     from pynguin.analyses.module import SignatureInfo
     from pynguin.analyses.module import TypeGuessingStats
-    from pynguin.analyses.module import _CallableData
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 
@@ -276,7 +276,7 @@ def convert_return(
 def provide_json(
     file_name: str,
     accessibles: OrderedSet[GenericAccessibleObject],
-    function_data: dict[GenericAccessibleObject, _CallableData],
+    function_data: dict[GenericAccessibleObject, CallableData],
     stats: TypeGuessingStats,
 ) -> str:
     """Provide the JSON string representation for the callables in the SUT.

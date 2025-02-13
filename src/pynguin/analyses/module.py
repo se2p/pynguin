@@ -329,7 +329,7 @@ class TestCluster(abc.ABC):
 
     @abc.abstractmethod
     def add_accessible_object_under_test(
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         """Add accessible object to the objects under test.
 
@@ -359,7 +359,7 @@ class TestCluster(abc.ABC):
     @abc.abstractmethod
     def function_data_for_accessibles(
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         """Provides all function data for all accessibles."""
 
     @abc.abstractmethod
@@ -562,7 +562,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             OrderedSet
         )
         self.__accessible_objects_under_test: OrderedSet[GenericAccessibleObject] = OrderedSet()
-        self.__function_data_for_accessibles: dict[GenericAccessibleObject, _CallableData] = {}
+        self.__function_data_for_accessibles: dict[GenericAccessibleObject, CallableData] = {}
 
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
@@ -685,7 +685,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__generators[generated_type].add(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         self.__accessible_objects_under_test.add(objc)
         self.__function_data_for_accessibles[objc] = data
@@ -707,7 +707,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__function_data_for_accessibles
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
@@ -828,7 +828,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     @staticmethod
     def __compute_cyclomatic_complexities(
-        callable_data: typing.Iterable[_CallableData],
+        callable_data: typing.Iterable[CallableData],
     ) -> list[int]:
         # Collect complexities only for callables that had an AST.  Their minimal
         # complexity is 1, the value None symbolises a callable that had no AST present,
@@ -877,7 +877,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__delegate.add_generator(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         self.__delegate.add_accessible_object_under_test(objc, data)
 
@@ -889,7 +889,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__delegate.function_data_for_accessibles
 
     def track_statistics_values(  # noqa: D102
@@ -1037,7 +1037,7 @@ def __is_method_defined_in_class(class_: type, method: object) -> bool:
 
 
 @dataclasses.dataclass
-class _CallableData:
+class CallableData:
     """Provides all information on callables.
 
     While the accessible is available for every callable, the other fields are only
@@ -1086,7 +1086,7 @@ def __analyse_function(
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
-    function_data = _CallableData(
+    function_data = CallableData(
         accessible=generic_function,
         tree=func_ast,
         description=description,
@@ -1138,7 +1138,7 @@ def __analyse_class(
             type_info.raw_type
         )
 
-    method_data = _CallableData(
+    method_data = CallableData(
         accessible=generic,
         tree=constructor_ast,
         description=description,
@@ -1238,7 +1238,7 @@ def __analyse_method(
     generic_method = GenericMethod(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
-    method_data = _CallableData(
+    method_data = CallableData(
         accessible=generic_method,
         tree=method_ast,
         description=description,

@@ -827,20 +827,19 @@ class InferredSignature:
     _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
     _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
 
-    # fmt: off
     # Similar to above, but these are not dunder methods but are called,
     # e.g., for 'append', we need to search for 'append.__call__(...)'
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = (
-        OrderedSet(  # noqa: RUF009
-            [("append", "__call__"), ("remove", "__call__")]
-        )
-    )
-    # fmt: on
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet(  # noqa: RUF009
-        [("add", "__call__"), ("remove", "__call__"), ("discard", "__call__")]
-    )
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
+        ("append", "__call__"),
+        ("remove", "__call__"),
+    ])
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
+        ("add", "__call__"),
+        ("remove", "__call__"),
+        ("discard", "__call__"),
+    ])
     # Nothing for tuple and dict.
-    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()  # noqa: RUF009
+    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
 
     def _from_type_check(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         # Type checks is not empty here.
