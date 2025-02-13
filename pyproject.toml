@@ -45,7 +45,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
 astroid = "^3.3.8"
-black = "^24.10.0"
+black = "^25.1.0"
 bytecode = "^0.16.1"
 Jinja2 = "^3.1.5"
 networkx = "^3.4"
@@ -60,7 +60,7 @@ setuptools = "^75.8"
 
 [tool.poetry.group.dev.dependencies]
 isort = { extras = ["pyproject"], version = "^6.0.0" }
-mypy = "^1.14.1"
+mypy = "^1.15.0"
 pre-commit = "^4.1.0"
 ruff = "^0.9"
 
@@ -72,8 +72,8 @@ sphinx-rtd-theme = "^3.0.2"
 sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
-coverage = "^7.6.10"
-hypothesis = "^6.124"
+coverage = "^7.6.12"
+hypothesis = "^6.125"
 pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
