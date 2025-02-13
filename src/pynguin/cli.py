@@ -212,10 +212,5 @@ to see why this happens and what you must do to prevent it."""
         return run_pynguin().value
 
 
-def force_exit(exit_code: int) -> None:
-    """Force the program to exit with the given exit code."""
-    sys.exit(exit_code)
-
-
 if __name__ == "__main__":
-    force_exit(main(sys.argv))
+    sys.exit(main(sys.argv))
