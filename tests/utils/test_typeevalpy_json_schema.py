@@ -8,6 +8,7 @@
 import json
 
 from inspect import Signature
+from typing import Callable
 from unittest.mock import MagicMock
 
 import pytest
@@ -150,7 +151,7 @@ def test_convert_parameter_kwargs(file_name, function_node_kwargs, signature_kwa
 def test_provide_json(file_name, function_node, signature, function_name):
     config.configuration.type_inference.type_tracing = True
 
-    accessible = GenericFunction(function=function_node,
+    accessible = GenericFunction(function=Callable[[int, float | complex], str],
                                  inferred_signature=signature,
                                  raised_exceptions=set(),
                                  function_name=function_name)
