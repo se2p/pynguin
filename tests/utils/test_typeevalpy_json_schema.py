@@ -23,10 +23,14 @@ import pynguin.configuration as config
 from pynguin.analyses.module import SignatureInfo
 from pynguin.analyses.module import TypeGuessingStats
 from pynguin.analyses.module import _CallableData
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import Unsupported
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -36,6 +40,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typeevalpy_json_schema import TypeEvalPySchemaFunctionReturn
 from pynguin.utils.typeevalpy_json_schema import TypeEvalPySchemaParameter
+from pynguin.utils.typeevalpy_json_schema import _TypeExpansionVisitor  # noqa: PLC2701
 from pynguin.utils.typeevalpy_json_schema import convert_parameter
 from pynguin.utils.typeevalpy_json_schema import convert_return
 from pynguin.utils.typeevalpy_json_schema import provide_json
@@ -181,6 +186,23 @@ def test_convert_parameter_key_error(file_name, function_node, signature, functi
         convert_parameter(
             file_name, function_node, "non_existent_param", signature, function_name, None
         )
+
+
+@pytest.mark.parametrize(
+    "param_type, expected_types",
+    [
+        (AnyType(), {"Any"}),
+        (NoneType(), {"None"}),
+        (Instance(TypeInfo(int)), {"int"}),
+        (TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(str)))), {"tuple"}),
+        (UnionType((Instance(TypeInfo(int)), Instance(TypeInfo(str)))), {"int", "str"}),
+        (UnionType((Instance(TypeInfo(int)),)), {"int"}),
+        (Unsupported(), {"<?>"}),
+    ],
+)
+def test_convert_parameter_type_expansion(param_type, expected_types):
+    visitor = _TypeExpansionVisitor()
+    assert param_type.accept(visitor) == expected_types
 
 
 @pytest.fixture(scope="session")
