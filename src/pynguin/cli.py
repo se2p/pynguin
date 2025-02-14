@@ -154,6 +154,7 @@ def _setup_logging(
         datefmt="[%X]",
         handlers=[handler],
     )
+
     return console
 
 

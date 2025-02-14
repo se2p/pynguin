@@ -67,7 +67,7 @@ def __return_tuple_no_annotation():
     return 23, 42  # pragma: no cover
 
 
-class __TypedDummy:  # noqa: N801
+class __TypedDummy:
     def __init__(self, a: Any) -> None:
         self.__a = a  # pragma: no cover
 
@@ -75,7 +75,7 @@ class __TypedDummy:  # noqa: N801
         return self.__a  # pragma: no cover
 
 
-class __UntypedDummy:  # noqa: N801
+class __UntypedDummy:
     def __init__(self, a):
         self.__a = a  # pragma: no cover
 

@@ -4,6 +4,13 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import graphviz
+
+
+def show_dot_graph(dot_str: str):
+    """Show a graph using Graphviz."""
+    graph = graphviz.Source(dot_str)
+    graph.view()
 
 
 def print_dunder(obj):
