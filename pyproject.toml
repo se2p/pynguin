@@ -63,6 +63,7 @@ isort = { extras = ["pyproject"], version = "^6.0.0" }
 mypy = "^1.15.0"
 pre-commit = "^4.1.0"
 ruff = "^0.9"
+types-toml = "^0.10.8.20240310"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
