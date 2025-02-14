@@ -879,3 +879,53 @@ def test_no_partial_type_match(type_system, left, right):
         type_system.convert_type_hint(left), type_system.convert_type_hint(right)
     )
     assert match is None
+
+
+def test_to_type_info_union_type(subtyping_cluster):
+    type_system = subtyping_cluster.type_system
+    type_system.to_type_info(float | int)
+
+
+def test__guess_parameter_type_with_type_knowledge_simple(inferred_signature):
+    config.configuration.test_creation.negate_type = 0
+    knowledge = UsageTraceNode("ROOT")
+    kind = ""  # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
+    knowledge.type_checks.add(float)
+    expected = Instance(TypeInfo(float))
+    actual = inferred_signature._guess_parameter_type(knowledge, kind)
+    assert actual == expected
+
+
+def pick_0_generator():
+    while True:
+        yield 0
+
+
+def pick_1_generator():
+    while True:
+        yield 0
+        yield 1
+        yield 0
+
+
+pick_1 = pick_1_generator()
+pick_0 = pick_0_generator()
+
+
+@pytest.mark.parametrize(
+    "pick, expected_type",
+    [
+        (pick_0, Instance(TypeInfo(float))),
+        (pick_1, Instance(TypeInfo(int))),
+    ],
+)
+def test__guess_parameter_type_with_type_knowledge(inferred_signature, pick, expected_type):
+    config.configuration.test_creation.negate_type = 0
+    knowledge = UsageTraceNode("ROOT")
+    kind = ""  # not inspect.Parameter.VAR_KEYWORD or inspect.Parameter.VAR_POSITIONAL
+    knowledge.type_checks.add(float | int)
+
+    with mock.patch("pynguin.utils.randomness.choice") as choice_mock:
+        choice_mock.side_effect = lambda x: x[next(pick)]  # noqa: FURB118
+        actual = inferred_signature._guess_parameter_type(knowledge, kind)
+        assert actual == expected_type

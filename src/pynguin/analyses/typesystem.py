@@ -569,7 +569,7 @@ class TypeInfo:
     Corresponds 1:1 to a class.
     """
 
-    def __init__(self, raw_type: type):
+    def __init__(self, raw_type: type | types.UnionType):
         """Create type info from the given type.
 
         Don't use this constructor directly (unless for testing purposes), instead ask
@@ -582,9 +582,7 @@ class TypeInfo:
             raw_type: the raw (class) type
         """
         self.raw_type = raw_type
-        self.name = raw_type.__name__
-        self.qualname = raw_type.__qualname__
-        self.module = raw_type.__module__
+        self.name, self.qualname, self.module = TypeInfo._extract_name_qualname_module(raw_type)
         self.full_name = TypeInfo.to_full_name(raw_type)
         self.hash = hash(self.full_name)
         self.is_abstract = inspect.isabstract(raw_type)
@@ -599,8 +597,30 @@ class TypeInfo:
         )
 
     @staticmethod
-    def to_full_name(typ: type) -> str:
+    def _extract_name_qualname_module(raw_type: type | types.UnionType) -> tuple[str, str, str]:
+        """Extract the name, qualname and module from the given type.
+
+        While type has a __name__, __qualname__ and __module__ attribute, UnionType
+        does not. This caused a crash which is resolved by special handling of UnionType.
+        As fallback, we use the type of the given type, which worked for the UnionType.
+        """
+        if isinstance(raw_type, types.UnionType):
+            name = "UnionType"
+            qualname = "UnionType"
+            module = "types"
+            return name, qualname, module
+
+        name = TypeInfo.get_dunder_value_from_type(raw_type, "name")
+        qualname = TypeInfo.get_dunder_value_from_type(raw_type, "qualname")
+        module = TypeInfo.get_dunder_value_from_type(raw_type, "module")
+        return name, qualname, module
+
+    @staticmethod
+    def to_full_name(typ: type | types.UnionType) -> str:
         """Get the full name of the given type.
+
+        While type has a __name__, __qualname__ and __module__ attribute, UnionType
+        does not. This caused a crash which is resolved by special handling of UnionType.
 
         Args:
             typ: The type for which we want a full name.
@@ -608,7 +628,38 @@ class TypeInfo:
         Returns:
             The fully qualified name
         """
-        return f"{typ.__module__}.{typ.__qualname__}"
+        if isinstance(typ, types.UnionType):
+            return "types.UnionType"
+
+        module = TypeInfo.get_dunder_value_from_type(typ, "module")
+        qualname = TypeInfo.get_dunder_value_from_type(typ, "qualname")
+        return f"{module}.{qualname}"
+
+    @staticmethod
+    def get_dunder_value_from_type(typ: type, name: str) -> str:
+        """Get the dunder value with the given name from the given type.
+
+        If the given type has no dunder attribute with the given name, we fall back to
+        using the type of the given typ (== a value in this case). This worked for the
+        UnionType.
+
+        Args:
+            typ: The type from which to get the attribute.
+            name: The name of the dunder attribute to get.
+
+        Returns:
+            The value of the dunder attribute.
+        """
+        dunder_name = f"__{name}__"
+        if hasattr(typ, dunder_name):
+            return getattr(typ, dunder_name)
+
+        _LOGGER.error(
+            "%s has no attribute __%s__. This method must not be called with instances of types.",
+            typ,
+            name,
+        )
+        return getattr(type(typ), dunder_name)
 
     def __eq__(self, other) -> bool:
         return isinstance(other, TypeInfo) and other.full_name == self.full_name
@@ -1289,7 +1340,7 @@ class TypeSystem:  # noqa: PLR0904
         dot = to_pydot(self._graph)
         return dot.to_string()
 
-    def to_type_info(self, typ: type) -> TypeInfo:
+    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:
         """Find or create type info for the given type.
 
         Args:
