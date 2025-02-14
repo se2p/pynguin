@@ -10,6 +10,7 @@ from bytecode import Bytecode
 
 from pynguin.analyses.controlflow import CFG
 from tests.fixtures.programgraph.whileloop import Foo
+from tests.fixtures.programgraph.yield_fun import yield_fun
 
 
 def test_integration_create_cfg(conditional_jump_example_bytecode):
@@ -312,3 +313,13 @@ def test_integration_copy_cfg(conditional_jump_example_bytecode):
 def test_integration_no_exit():
     with pytest.raises(AssertionError):
         CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
+
+
+def test_cfg_from_yield():
+    cfg = CFG.from_bytecode(Bytecode.from_code(yield_fun.__code__))
+    assert cfg.entry_node is not None
+    assert cfg.exit_nodes is not None
+
+    predecessors = list(map(cfg.get_predecessors, cfg.exit_nodes))
+    empty_predecessors = list(filter(lambda x: len(x) == 0, predecessors))
+    assert len(empty_predecessors) == 0

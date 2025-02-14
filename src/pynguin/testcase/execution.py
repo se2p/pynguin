@@ -29,6 +29,7 @@ from queue import Empty
 from queue import Queue
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
+from types import MappingProxyType
 from types import ModuleType
 from typing import TYPE_CHECKING
 from typing import Any
@@ -65,6 +66,7 @@ from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
+from pynguin.testcase.mocking import mocks_to_use
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
@@ -1978,8 +1980,25 @@ class ModuleProvider:
             the module which should be loaded.
         """
         if (mutated_module := self._mutated_module_aliases.get(module_name, None)) is not None:
-            return mutated_module
-        return self.__get_sys_module(module_name)
+            retrieved_module = mutated_module
+        else:
+            retrieved_module = self.__get_sys_module(module_name)
+        self.mock_module(retrieved_module)
+        return retrieved_module
+
+    @staticmethod
+    def mock_module(
+        module_to_mock: ModuleType, mocks: MappingProxyType[str, ModuleType] = mocks_to_use
+    ) -> None:
+        """Mock all dangerous methods of the given module, such as logging.
+
+        Args:
+            module_to_mock: The module to mock.
+            mocks: The mocks to use.
+        """
+        for module_to_mock_name, mock in mocks.items():
+            if hasattr(module_to_mock, module_to_mock_name):
+                setattr(module_to_mock, module_to_mock_name, mock)
 
     def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.
@@ -2185,9 +2204,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             else:
                 try:
                     result = return_queue.get(block=False)
-                except Empty as ex:
+                except Empty:
                     _LOGGER.error("Finished thread did not return a result.")
-                    raise RuntimeError("Bug in Pynguin!") from ex
+                    # previously we re-raised the exception as a RuntimeError to have a marker in
+                    # the logs, however, it is still not fully clear WHY this actually happens.
+                    # Plus, it confuses users.  Thus, for now log the message, such that we can
+                    # still search for it in the logs, but continue with an empty results.  This
+                    # allows the EA to continue with the search process.
+                    _LOGGER.error("Bug in Pynguin!")
+                    result = ExecutionResult(timeout=True)
         self._after_test_case_execution_outside_thread(test_case, result)
         return result
 
