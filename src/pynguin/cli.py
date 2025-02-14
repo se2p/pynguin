@@ -72,54 +72,25 @@ def _create_argument_parser() -> argparse.ArgumentParser:
 
 
 def _expand_arguments_if_necessary(arguments: list[str]) -> list[str]:
-    """Expand command-line arguments, if necessary.
-
-    This is a hacky way to pass comma separated output variables.  The reason to have
-    this is an issue with the automatically-generated bash scripts for Pynguin cluster
-    execution, for which I am not able to solve the (I assume) globbing issues.  This
-    function allows to provide the output variables either separated by spaces or by
-    commas, which works as a work-around for the aforementioned problem.
-
-    This function replaces the commas for the ``--output-variables`` parameter and
-    the ``--coverage-metrics`` by spaces that can then be handled by the argument-
-    parsing code.
-
-    Args:
-        arguments: The list of command-line arguments
-    Returns:
-        The (potentially) processed list of command-line arguments
-    """
-    if (
-        "--output_variables" not in arguments
-        and "--output-variables" not in arguments
-        and "--coverage_metrics" not in arguments
-        and "--coverage-metrics" not in arguments
-    ):
-        return arguments
-    if "--output_variables" in arguments:
-        arguments = _parse_comma_separated_option(arguments, "--output_variables")
-    elif "--output-variables" in arguments:
-        arguments = _parse_comma_separated_option(arguments, "--output-variables")
-
-    if "--coverage_metrics" in arguments:
-        arguments = _parse_comma_separated_option(arguments, "--coverage_metrics")
-    elif "--coverage-metrics" in arguments:
-        arguments = _parse_comma_separated_option(arguments, "--coverage-metrics")
+    """Expand command-line arguments, if necessary."""
+    options = ["--output_variables", "--output-variables", "--coverage_metrics", "--coverage-metrics"]
+    for option in options:
+        if option in arguments:
+            arguments = _parse_comma_separated_option(arguments, option)
     return arguments
 
 
 def _parse_comma_separated_option(arguments: list[str], option: str) -> list[str]:
     index = arguments.index(option)
-    if "," not in arguments[index + 1]:
-        return arguments
-    variables = arguments[index + 1].split(",")
-    return arguments[: index + 1] + variables + arguments[index + 2 :]
+    if "," in arguments[index + 1]:
+        variables = arguments[index + 1].split(",")
+        return arguments[: index + 1] + variables + arguments[index + 2 :]
+    return arguments
 
 
 def _setup_output_path(output_path: str) -> None:
     path = Path(output_path).resolve()
-    if not path.exists():
-        path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents=True, exist_ok=True)
 
 
 def _setup_logging(
@@ -128,15 +99,12 @@ def _setup_logging(
     log_file: Path | None,
 ) -> Console | None:
     level = logging.WARNING
-    if log_file is not None:
-        level = logging.INFO
     if verbosity == 1:
         level = logging.INFO
-    if verbosity >= 2:
+    elif verbosity >= 2:
         level = logging.DEBUG
 
     console = None
-    handler: logging.Handler
     if no_rich:
         handler = logging.StreamHandler()
     else:
