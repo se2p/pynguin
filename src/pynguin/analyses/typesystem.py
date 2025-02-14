@@ -610,18 +610,9 @@ class TypeInfo:
             module = "types"
             return name, qualname, module
 
-        try:
-            name = raw_type.__name__
-            qualname = raw_type.__qualname__
-            module = raw_type.__module__
-        except AttributeError:  # fallback
-            _LOGGER.error(
-                "TypeInfo must not be instantiated with instances of types, but was called with %s",
-                raw_type,
-            )
-            name = type(raw_type).__name__
-            qualname = type(raw_type).__qualname__
-            module = type(raw_type).__module__
+        name = TypeInfo.get_dunder_value_from_type(raw_type, "name")
+        qualname = TypeInfo.get_dunder_value_from_type(raw_type, "qualname")
+        module = TypeInfo.get_dunder_value_from_type(raw_type, "module")
         return name, qualname, module
 
     @staticmethod
@@ -630,7 +621,6 @@ class TypeInfo:
 
         While type has a __name__, __qualname__ and __module__ attribute, UnionType
         does not. This caused a crash which is resolved by special handling of UnionType.
-        As fallback, we use the type of the given type, which worked for the UnionType.
 
         Args:
             typ: The type for which we want a full name.
@@ -641,14 +631,35 @@ class TypeInfo:
         if isinstance(typ, types.UnionType):
             return "types.UnionType"
 
-        try:
-            return f"{typ.__module__}.{typ.__qualname__}"
-        except AttributeError:  # fallback
-            _LOGGER.error(
-                "This method must not be called with instances of types, but was called with %s",
-                typ,
-            )
-            return f"{type(typ).__module__}.{type(typ).__qualname__}"
+        module = TypeInfo.get_dunder_value_from_type(typ, "module")
+        qualname = TypeInfo.get_dunder_value_from_type(typ, "qualname")
+        return f"{module}.{qualname}"
+
+    @staticmethod
+    def get_dunder_value_from_type(typ: type, name: str) -> str:
+        """Get the dunder value with the given name from the given type.
+
+        If the given type has no dunder attribute with the given name, we fall back to
+        using the type of the given typ (== a value in this case). This worked for the
+        UnionType.
+
+        Args:
+            typ: The type from which to get the attribute.
+            name: The name of the dunder attribute to get.
+
+        Returns:
+            The value of the dunder attribute.
+        """
+        dunder_name = f"__{name}__"
+        if hasattr(typ, dunder_name):
+            return getattr(typ, dunder_name)
+
+        _LOGGER.error(
+            "%s has no attribute __%s__. This method must not be called with instances of types.",
+            typ,
+            name,
+        )
+        return getattr(type(typ), dunder_name)
 
     def __eq__(self, other) -> bool:
         return isinstance(other, TypeInfo) and other.full_name == self.full_name
