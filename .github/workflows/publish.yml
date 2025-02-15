@@ -20,9 +20,9 @@ jobs:
           python-version: "3.10"
 
       - name: Install poetry
-        uses: abatilo/actions-poetry@v2
+        uses: abatilo/actions-poetry@v4
         with:
-          poetry-version: "1.8.4"
+          poetry-version: "2.0.1"
 
       - name: Setup a local virtual environment (if no poetry.toml file)
         run: |
