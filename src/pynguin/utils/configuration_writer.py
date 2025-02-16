@@ -16,6 +16,8 @@ import toml
 
 import pynguin.configuration as config
 
+PYNGUIN_CONFIG_TXT = "pynguin-config.txt"
+PYNGUIN_CONFIG_TOML = "pynguin-config.toml"
 
 def write_configuration():
     """Save the current configuration to a txt and a toml file."""
@@ -23,13 +25,13 @@ def write_configuration():
         report_dir = Path(config.configuration.statistics_output.report_dir).resolve()
 
         # Write configuration to a TOML file
-        toml_file = report_dir / "pynguin-config.toml"
+        toml_file = report_dir / PYNGUIN_CONFIG_TOML
         config_repr = convert_config_to_dict(config.configuration)
         with toml_file.open("w", encoding="utf-8") as f:
             toml.dump(config_repr, f)
 
         # Write configuration to a TXT file
-        txt_file = report_dir / "pynguin-config.txt"
+        txt_file = report_dir / PYNGUIN_CONFIG_TXT
         txt_file.write_text(pprint.pformat(repr(config.configuration)))
 
 
