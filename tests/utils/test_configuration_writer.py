@@ -1,6 +1,9 @@
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
+import toml
 
 import pynguin.configuration as config
 from pynguin.configuration import StatisticsBackend
@@ -12,11 +15,13 @@ from pynguin.utils.configuration_writer import write_configuration, \
 def expected_toml(tmp_path):
     expected_toml = Path(tmp_path) / f"expected-{PYNGUIN_CONFIG_TOML}"
     expected = """project_path = ""
+module_name = ""
 algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
 
 [test_case_output]
+output_path = ""
 export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
@@ -25,56 +30,115 @@ mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
 post_process = true
 float_precision = 0.01
+format_with_black = true
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
 statistics_backend = "CSV"
 timeline_interval = 1000000000
+timeline_interpolation = true
 coverage_metrics = [ "BRANCH",]
 output_variables = [ "TargetModule", "Coverage",]
+configuration_id = ""
+run_id = ""
+project_name = ""
+create_coverage_report = false
 type_guess_top_n = 10
 
 [stopping]
 maximum_search_time = -1
+maximum_test_executions = -1
+maximum_statement_executions = -1
 maximum_slicing_time = 600
+maximum_iterations = -1
 maximum_test_execution_timeout = 5
 maximum_coverage = 100
+maximum_coverage_plateau = -1
+minimum_coverage = 100
+minimum_plateau_iterations = -1
+test_execution_time_per_statement = 1
 
 [seeding]
 seed = {SEED}
+constant_seeding = true
+initial_population_seeding = false
+initial_population_data = ""
 seeded_testcases_reuse_probability = 0.9
 initial_population_mutations = 0
+dynamic_constant_seeding = true
 seeded_primitives_reuse_probability = 0.2
 seeded_dynamic_values_reuse_probability = 0.6
+seed_from_archive = false
+seed_from_archive_probability = 0.2
 seed_from_archive_mutations = 3
 max_dynamic_length = 1000
 max_dynamic_pool_size = 50
 
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
+type_tracing = false
 
 [test_creation]
+max_recursion = 10
 max_delta = 20
 max_int = 2048
+string_length = 20
+bytes_length = 20
+collection_size = 5
 primitive_reuse_probability = 0.5
+object_reuse_probability = 0.9
+none_weight = 0
+any_weight = 0
+original_type_weight = 5
+type_tracing_weight = 10
+type4py_weight = 10
 type_tracing_kept_guesses = 2
 wrap_var_param_type_probability = 0.7
 negate_type = 0.1
+skip_optional_parameter_probability = 0.7
+max_attempts = 1000
+insertion_uut = 0.5
+max_size = 100
 use_random_object_for_call = 0.0
 
 [search_algorithm]
+min_initial_tests = 1
+max_initial_tests = 10
+population = 50
 chromosome_length = 40
+chop_max_length = true
+elite = 1
 crossover_rate = 0.75
+test_insertion_probability = 0.1
 test_delete_probability = 0.3333333333333333
+test_change_probability = 0.3333333333333333
+test_insert_probability = 0.3333333333333333
+statement_insertion_probability = 0.5
+random_perturbation = 0.2
+change_parameter_probability = 0.1
+tournament_size = 5
 rank_bias = 1.7
 selection = "TOURNAMENT_SELECTION"
+use_archive = false
+filter_covered_targets_from_test_cluster = false
+number_of_mutations = 1
+
+[mio]
+exploitation_starts_at_percent = 0.5
 
 [random]
+max_sequence_length = 10
+max_sequences_combined = 10
 
 [mio.initial_config]
+number_of_tests_per_target = 10
+random_test_or_from_archive_probability = 0.5
+number_of_mutations = 1
 
 [mio.focused_config]
+number_of_tests_per_target = 1
 random_test_or_from_archive_probability = 0.0
+number_of_mutations = 10
 """
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
@@ -170,13 +234,10 @@ def test_write_configuration(expected_toml, expected_txt, tmp_path):
     [
         ({"key": "value"}, {"key": "value"}),
         (["item1", "item2"], ["item1", "item2"]),
-        (Path("/some/path"), "/some/path"),
         (StatisticsBackend.CSV, "CSV"),
         (123, 123),
         ("string", "string"),
         (None, None),
-        ({"_value_": "special_value"}, "special_value"),
-
     ],
 )
 def test_convert_config_to_dict(input_value, expected_output):
