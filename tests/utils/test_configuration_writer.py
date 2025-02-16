@@ -1,14 +1,20 @@
-import json
-from dataclasses import asdict
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
 from pathlib import Path
 
 import pytest
-import toml
 
 import pynguin.configuration as config
+
 from pynguin.configuration import StatisticsBackend
-from pynguin.utils.configuration_writer import write_configuration, \
-    convert_config_to_dict, PYNGUIN_CONFIG_TOML, PYNGUIN_CONFIG_TXT
+from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TOML
+from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
+from pynguin.utils.configuration_writer import convert_config_to_dict
+from pynguin.utils.configuration_writer import write_configuration
 
 
 @pytest.fixture
@@ -145,6 +151,7 @@ number_of_mutations = 10
     expected_toml.write_text(expected)
     return expected_toml
 
+
 @pytest.fixture
 def expected_txt(tmp_path):
     expected_txt = Path(tmp_path) / f"expected-{PYNGUIN_CONFIG_TXT}"
@@ -205,7 +212,7 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[])')"""
+ 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[])')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -218,13 +225,11 @@ def test_write_configuration(expected_toml, expected_txt, tmp_path):
 
     write_configuration()
 
-    toml_path = Path(
-        config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TOML
+    toml_path = Path(config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TOML
     assert toml_path.exists()
     assert toml_path.read_text() == expected_toml.read_text()
 
-    txt_path = Path(
-        config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TXT
+    txt_path = Path(config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TXT
     assert txt_path.exists()
     assert txt_path.read_text() == expected_txt.read_text()
 

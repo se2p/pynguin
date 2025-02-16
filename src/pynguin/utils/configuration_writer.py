@@ -6,19 +6,19 @@
 #
 """Utility to write the current configuration to a TOML file."""
 
-import enum
 import json
 import pprint
 
 from pathlib import Path
-from typing import Any
 
 import toml
 
 import pynguin.configuration as config
 
+
 PYNGUIN_CONFIG_TXT = "pynguin-config.txt"
 PYNGUIN_CONFIG_TOML = "pynguin-config.toml"
+
 
 def write_configuration():
     """Save the current configuration to a txt and a toml file."""
