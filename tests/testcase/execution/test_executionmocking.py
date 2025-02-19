@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
+import importlib
+import logging
 import threading
 
 from pynguin.analyses.constants import EmptyConstantProvider
@@ -19,6 +21,7 @@ from tests.testcase.execution.fixtures import file_to_open  # noqa: F401
 
 
 def test_logging():
+    importlib.reload(logging)
     module_name = "tests.fixtures.mocking.log_to_null_handler"
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -47,3 +50,10 @@ def test_logging():
     # the logger should be a MockedLogger
     logger_from_ctx = ctx.global_namespace["module_0"].logging.getLogger()
     assert isinstance(logger_from_ctx, MockedLogger)
+
+    own_logger = logging.getLogger()
+    for handler in own_logger.handlers:
+        if hasattr(handler, "baseFilename"):
+            assert handler.baseFilename != "/dev/null"
+
+    logging.shutdown()  # should not result in handlers that can not be released
