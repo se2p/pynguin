@@ -29,6 +29,7 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.instrumentation.machinery import ExecutionTracer
 from pynguin.instrumentation.machinery import InstrumentationExecutionTracer
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
@@ -234,7 +235,7 @@ class InstrumentedMutationController(ct.MutationController):
         mutant_generator: mu.Mutator,
         module_ast: ast.Module,
         module: types.ModuleType,
-        tracer: ex.ExecutionTracer,
+        tracer: ExecutionTracer,
         *,
         testing: bool = False,
     ) -> None:
@@ -260,7 +261,7 @@ class InstrumentedMutationController(ct.MutationController):
         self._testing_created_mutants: list[str] = []
 
     @property
-    def tracer(self) -> ex.ExecutionTracer:
+    def tracer(self) -> ExecutionTracer:
         """Provides the execution tracer.
 
         Returns:
