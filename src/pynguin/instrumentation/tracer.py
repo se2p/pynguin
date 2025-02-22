@@ -837,22 +837,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             The line numbers.
         """
 
-    @abstractmethod
-    def __getstate__(self) -> dict:
-        """Gets the state.
-
-        Returns:
-            The state
-        """
-
-    @abstractmethod
-    def __setstate__(self, state: dict) -> None:
-        """Sets the state.
-
-        Args:
-            state: The state
-        """
-
 
 def _eq(val1, val2) -> float:
     """Distance computation for '=='.
@@ -1518,12 +1502,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.subject_properties.existing_lines[line_id].line_number for line_id in line_ids
         ])
 
-    def __getstate__(self) -> dict:
-        return self.state
-
-    def __setstate__(self, state: dict) -> None:
-        self.state = state
-
 
 class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904, D101
     def __init__(self, tracer: ExecutionTracer):  # noqa: D107
@@ -1714,9 +1692,3 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904,
 
     def __repr__(self) -> str:
         return "InstrumentationExecutionTracer"
-
-    def __getstate__(self) -> dict:
-        return {"tracer": self._tracer}
-
-    def __setstate__(self, state: dict) -> None:
-        self._tracer = state["tracer"]
