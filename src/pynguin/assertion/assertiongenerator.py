@@ -42,6 +42,8 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
 
+    from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -259,6 +261,15 @@ class InstrumentedMutationController(ct.MutationController):
             The execution tracer.
         """
         return self._transformer.instrumentation_tracer.tracer
+
+    @property
+    def transformer(self) -> InstrumentationTransformer:
+        """Provides the instrumentation transformer.
+
+        Returns:
+            The instrumentation transformer.
+        """
+        return self._transformer
 
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
         self.tracer.current_thread_identifier = threading.current_thread().ident
