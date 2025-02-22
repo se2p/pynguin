@@ -16,9 +16,9 @@ import pynguin.utils.typetracing as tt
 
 from pynguin.instrumentation.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation.instrumentation import PynguinCompare
-from pynguin.testcase.execution import ExecutionTracer
-from pynguin.testcase.execution import _le  # noqa: PLC2701
-from pynguin.testcase.execution import _lt  # noqa: PLC2701
+from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import _le  # noqa: PLC2701
+from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701
 from pynguin.utils.orderedset import OrderedSet
 
 

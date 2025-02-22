@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from opcode import opname
 
 

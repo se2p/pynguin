@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-class Random(random.Random):  # noqa: S311
+class Random(random.Random):
     """Override Random to allow querying for the seed value.
 
     It generates a seed if none was given from `time.time_ns()`.  This is NOT

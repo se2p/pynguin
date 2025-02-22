@@ -11,7 +11,7 @@ from pynguin.analyses.controlflow import ControlDependency
 from pynguin.analyses.controlflow import ProgramGraphNode
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from tests.fixtures.programgraph.yield_fun import yield_fun
 
 

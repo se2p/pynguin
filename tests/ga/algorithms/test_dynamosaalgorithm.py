@@ -14,7 +14,7 @@ import pynguin.ga.coveragegoals as bg
 
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 
 
 @pytest.fixture

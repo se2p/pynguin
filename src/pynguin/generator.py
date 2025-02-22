@@ -55,10 +55,10 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import AssertionExecutionObserver
-from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
