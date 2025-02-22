@@ -15,7 +15,7 @@ import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
 
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from tests.testutils import import_module_safe
 
 
