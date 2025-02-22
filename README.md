@@ -1,5 +1,5 @@
 <!--
-SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 
 SPDX-License-Identifier: CC-BY-4.0
 -->
@@ -138,6 +138,7 @@ Contributors:
 - [Gordon Fraser](https://github.com/gofraser)
 - [Abdur-Rahmaan Janhangeer](https://github.com/Abdur-rahmaanJ)
 - [Maximilian Königseder](https://github.com/mak1ng)
+- [Lukas Krodinger](https://github.com/LuKrO2011)
 - [Florian Kroiß](https://github.com/Wooza)
 - [Simon Labrenz](https://github.com/labrenz)
 - [Roman Levin](https://github.com/romanlevin)

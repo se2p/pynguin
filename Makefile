@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -101,7 +101,7 @@ update-docs-requirements:
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check
-check: update-docs-requirements isort mypy ruff ruff-format test
+check: isort mypy ruff ruff-format test
 
 .PHONY: lint
 lint: test check-safety check-style

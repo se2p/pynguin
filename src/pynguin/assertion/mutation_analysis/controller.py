@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -78,6 +78,9 @@ class MutationController:
                 mutant_module = self.create_mutant(mutant_ast)
             except Exception as exception:  # noqa: BLE001
                 _LOGGER.debug("Error creating mutant: %s", exception)
+                mutant_module = None
+            except SystemExit as exception:
+                _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
                 mutant_module = None
 
             yield mutant_module, mutations

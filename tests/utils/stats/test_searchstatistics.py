@@ -1,9 +1,11 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
+import json
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -87,6 +89,70 @@ def test_write_statistics_with_individual(capsys, chromosome):
     captured = capsys.readouterr()
     assert result
     assert captured.out != ""  # noqa: PLC1901
+
+
+@pytest.fixture(scope="session")
+def function_json():
+    return json.dumps([
+        {
+            "col_offset": 9,
+            "file": "test.py",
+            "function": "foo",
+            "line_number": 2,
+            "parameter": "a",
+            "type": ["int"],
+        },
+        {
+            "col_offset": 17,
+            "file": "test.py",
+            "function": "foo",
+            "line_number": 2,
+            "parameter": "b",
+            "type": ["complex", "float"],
+        },
+        {
+            "col_offset": 5,
+            "file": "test.py",
+            "function": "foo",
+            "line_number": 2,
+            "type": ["str"],
+        },
+    ])
+
+
+def test_write_statistics_with_type_eval_export(chromosome, function_json, tmp_path):
+    config.configuration.statistics_output.statistics_backend = config.StatisticsBackend.CSV
+    config.configuration.statistics_output.output_variables = [RuntimeVariable.SignatureInfos]
+    config.configuration.statistics_output.report_dir = tmp_path
+    output_file = tmp_path / "signature-infos.json"
+
+    statistics = stat._SearchStatistics()
+    statistics.current_individual(chromosome)
+    statistics.set_output_variable_for_runtime_variable(
+        RuntimeVariable.SignatureInfos, function_json
+    )
+    result = statistics.write_statistics()
+
+    assert output_file.exists()
+    assert output_file.read_text() == function_json
+    assert result
+
+
+def test_write_statistics_with_type_eval_export_invalid(chromosome, tmp_path):
+    config.configuration.statistics_output.statistics_backend = config.StatisticsBackend.CSV
+    config.configuration.statistics_output.output_variables = [RuntimeVariable.SignatureInfos]
+    config.configuration.statistics_output.report_dir = tmp_path
+    output_file = tmp_path / "signature-infos.json"
+
+    statistics = stat._SearchStatistics()
+    statistics.current_individual(chromosome)
+    statistics.set_output_variable_for_runtime_variable(
+        RuntimeVariable.SignatureInfos, "invalid_json"
+    )
+    result = statistics.write_statistics()
+
+    assert not output_file.exists()
+    assert result
 
 
 @pytest.mark.xfail(raises=IndexError, reason="AUC computation interferes")

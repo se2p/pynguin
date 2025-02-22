@@ -1,9 +1,6 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
-
-default_language_version:
-  python: python3.10
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -28,20 +25,21 @@ repos:
         args: [ --autofix ]
       - id: trailing-whitespace
 
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.19.0
+  - repo: https://github.com/python-poetry/poetry
+    rev: 2.0.1
     hooks:
-      - id: pyupgrade
-        args: [--py310-plus]
+      - id: poetry-check
+      - id: poetry-lock
+      - id: poetry-install
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.13.2
+    rev: 6.0.0
     hooks:
       - id: isort
-        args: [--profile, black]
+        args: [ --profile, black ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.2
+    rev: v0.9.6
     hooks:
       - id: ruff
         args: [ --fix ]

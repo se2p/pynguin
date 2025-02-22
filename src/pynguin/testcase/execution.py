@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -25,6 +25,7 @@ from importlib import reload
 from pathlib import Path
 from queue import Empty
 from queue import Queue
+from types import ModuleType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
@@ -36,6 +37,8 @@ import multiprocess.connection as mp_conn
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
+
+from bytecode import BasicBlock
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -62,6 +65,7 @@ from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
+from pynguin.testcase.mocking import mocks_to_use
 from pynguin.utils import randomness
 from pynguin.utils.mirror import Mirror
 
@@ -70,6 +74,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from collections.abc import Iterable
     from contextlib import AbstractContextManager
+    from types import MappingProxyType
     from types import ModuleType
 
     from bytecode import BasicBlock
@@ -817,11 +822,26 @@ class ModuleProvider:
         Returns:
             the module which should be loaded.
         """
-        if (
-            mutated_module_alias := self._mutated_module_aliases.get(module_name, None)
-        ) is not None:
-            return mutated_module_alias[0]
-        return self.__get_sys_module(module_name)
+        if (mutated_module := self._mutated_module_aliases.get(module_name, None)) is not None:
+            retrieved_module = mutated_module[0]
+        else:
+            retrieved_module = self.__get_sys_module(module_name)
+        self.mock_module(retrieved_module)
+        return retrieved_module
+
+    @staticmethod
+    def mock_module(
+        module_to_mock: ModuleType, mocks: MappingProxyType[str, ModuleType] = mocks_to_use
+    ) -> None:
+        """Mock all dangerous methods of the given module, such as logging.
+
+        Args:
+            module_to_mock: The module to mock.
+            mocks: The mocks to use.
+        """
+        for module_to_mock_name, mock in mocks.items():
+            if hasattr(module_to_mock, module_to_mock_name):
+                setattr(module_to_mock, module_to_mock_name, mock)
 
     def add_mutated_version(
         self,
@@ -1107,9 +1127,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         else:
             try:
                 result = return_queue.get(block=False)
-            except Empty as ex:
+            except Empty:
                 _LOGGER.error("Finished thread did not return a result.")
-                raise RuntimeError("Bug in Pynguin!") from ex
+                # previously we re-raised the exception as a RuntimeError to have a marker in
+                # the logs, however, it is still not fully clear WHY this actually happens.
+                # Plus, it confuses users.  Thus, for now log the message, such that we can
+                # still search for it in the logs, but continue with an empty results.  This
+                # allows the EA to continue with the search process.
+                _LOGGER.error("Bug in Pynguin!")
+                result = ExecutionResult(timeout=True)
         self._after_remote_test_case_execution(test_case, result)
         return result
 
