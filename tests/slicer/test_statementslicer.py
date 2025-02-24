@@ -24,9 +24,9 @@ from pynguin.analyses.typesystem import InferredSignature
 from pynguin.ga.computations import TestCaseStatementCheckedCoverageFunction
 from pynguin.ga.computations import TestSuiteStatementCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
-from pynguin.testcase.execution import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import MethodStatement
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod

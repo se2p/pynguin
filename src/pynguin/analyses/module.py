@@ -82,7 +82,7 @@ if typing.TYPE_CHECKING:
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
 
-    from pynguin.testcase.execution import SubjectProperties
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 

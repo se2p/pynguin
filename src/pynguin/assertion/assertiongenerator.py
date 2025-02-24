@@ -29,6 +29,8 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.instrumentation.machinery import ExecutionTracer
+from pynguin.instrumentation.machinery import InstrumentationExecutionTracer
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
@@ -39,6 +41,8 @@ if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
+
+    from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -224,7 +228,7 @@ class InstrumentedMutationController(ct.MutationController):
         mutant_generator: mu.Mutator,
         module_ast: ast.Module,
         module: types.ModuleType,
-        tracer: ex.ExecutionTracer,
+        tracer: ExecutionTracer,
         *,
         testing: bool = False,
     ) -> None:
@@ -239,10 +243,8 @@ class InstrumentedMutationController(ct.MutationController):
         """
         super().__init__(mutant_generator, module_ast, module)
 
-        self._tracer = tracer
-
         self._transformer = build_transformer(
-            tracer,
+            InstrumentationExecutionTracer(tracer),
             {config.CoverageMetric.BRANCH},
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
@@ -252,17 +254,26 @@ class InstrumentedMutationController(ct.MutationController):
         self._testing_created_mutants: list[str] = []
 
     @property
-    def tracer(self) -> ex.ExecutionTracer:
+    def tracer(self) -> ExecutionTracer:
         """Provides the execution tracer.
 
         Returns:
             The execution tracer.
         """
-        return self._tracer
+        return self._transformer.instrumentation_tracer.tracer
+
+    @property
+    def transformer(self) -> InstrumentationTransformer:
+        """Provides the instrumentation transformer.
+
+        Returns:
+            The instrumentation transformer.
+        """
+        return self._transformer
 
     def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
-        self._tracer.current_thread_identifier = threading.current_thread().ident
-        self._tracer.reset()
+        self.tracer.current_thread_identifier = threading.current_thread().ident
+        self.tracer.reset()
         module_name = self._module.__name__
         code = compile(ast_node, module_name, "exec")
         if self._testing:
@@ -275,7 +286,7 @@ class InstrumentedMutationController(ct.MutationController):
             _LOGGER.debug("Error creating mutant: %s", exception)
         except SystemExit as exception:
             _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
-        self._tracer.store_import_trace()
+        self.tracer.store_import_trace()
         return module
 
 
