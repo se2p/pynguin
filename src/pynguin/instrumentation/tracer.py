@@ -1472,7 +1472,18 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         ])
 
 
-class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904, D101
+class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
+    """An `InstrumentationExecutionTracer` is a sort of proxy for an `ExecutionTracer`.
+
+    This was done because when a module is instrumented, instructions are inserted into
+    its bytecode and refer directly to a tracer. This means that without the use of a
+    proxy, it would be impossible to modify the tracer, as there are direct references
+    between the bytecode instructions and the tracer. By adding a proxy between
+    the bytecode and the tracer, this ensures that the bytecode only has direct
+    references to the proxy but no references to the tracer, so the tracer can be
+    modified without any problems.
+    """
+
     def __init__(self, tracer: ExecutionTracer):  # noqa: D107
         self._tracer = tracer
 
