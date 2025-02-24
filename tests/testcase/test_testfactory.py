@@ -4,10 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import dataclasses
 import enum
 import inspect
-import itertools
 
 from inspect import Parameter
 from inspect import Signature
@@ -29,12 +27,10 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
-from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
-from tests.utils.stats.test_outputvariablefactory import sequence_factory
 
 
 def test_append_statement_unknown_type(test_case_mock):
