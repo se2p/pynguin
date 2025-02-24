@@ -1,3 +1,9 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019-2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
 import importlib
 import threading
 
@@ -7,7 +13,6 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.utils.orderedset import OrderedSet
 
 
 def test_simple_execution(short_test_case):
