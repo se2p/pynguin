@@ -838,7 +838,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             _LOGGER.error(
                 "Exception in Thread: %s",
                 arg.thread,
-                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),
+                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),  # noqa: LOG014
             )
 
         # Set our own exception hook, so timeout related errors in executing threads
