@@ -4,8 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import dataclasses
 import enum
 import inspect
+import itertools
 
 from inspect import Parameter
 from inspect import Signature
@@ -27,10 +29,12 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
+from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
+from tests.utils.stats.test_outputvariablefactory import sequence_factory
 
 
 def test_append_statement_unknown_type(test_case_mock):
@@ -991,7 +995,7 @@ def test_add_method_type_tracing_union_type(default_test_case):
 
     usage_trace = MagicMock(tt.UsageTraceNode)
     usage_trace.__len__.return_value = 1
-    usage_trace.children = []
+    usage_trace.children = {}
     ordered_set = OrderedSet()
     ordered_set.add(float | int)
     usage_trace.type_checks = ordered_set
