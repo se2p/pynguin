@@ -843,7 +843,6 @@ class ModuleProvider:
         Args:
             module_name: for the module name of the module, which should be mutated.
             mutated_module: the custom module, which should be used.
-            transformer: the transformer to be used for the mutated module.
         """
         self._mutated_module_aliases[module_name] = mutated_module
 
