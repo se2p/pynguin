@@ -200,3 +200,22 @@ def create_ast_keyword(arg, value) -> ast.keyword:
         the keyword node
     """
     return ast.keyword(arg=arg, value=value)
+
+
+def create_ast_for_nested_list(nested: list) -> ast.List | ast.Constant:
+    """
+    Recursively convert a nested list into a corresponding AST node.
+
+    Args:
+        nested: nested list
+
+    Returns:
+        the nested list node
+    """
+    if isinstance(nested, list):
+        return ast.List(
+            elts=[create_ast_for_nested_list(item) for item in nested],
+            ctx=ast.Load(),
+        )
+    else:
+        return ast.Constant(value=nested)

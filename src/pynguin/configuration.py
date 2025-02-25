@@ -382,6 +382,51 @@ class TypeInferenceConfiguration:
 
 
 @dataclasses.dataclass
+class PynguinMLConfiguration:
+    """Configuration related to PynguinML.""" #TODO(ah) do we need parameters model_test, check_nan,
+
+    constraints_path: str = ""
+    """
+    The directory path where YAML API constraints are located. If empty, PynguinML will
+    not consider constraints.
+    """
+
+    dtype_mapping_path: str = ""
+    """
+    Path to a YAML file that maps library-specific datatypes to NumPy datatypes.
+    PynguinML uses these string values for input generation. Only specify existing
+    NumPy datatypes. Specify NumPy dtypes without the "np." prefix.
+    Example: "torch.int32" -> "int32".
+    """
+
+    constructor_function: str = ""
+    """
+    Optional constructor function for building tensors (e.g. torch.tensor or
+    tensorflow.convert_to_tensor). Should be able to convert np.ndarray.
+    """
+
+    ignore_probability: float = 0.15
+    """
+    Probability of ignoring parameter constraints to trigger the standard Pynguin flow.
+    Occasionally bypassing constraints allows PynguinML to explore additional code
+    paths, potentially leading to exception handling and improved test coverage.
+    Expects values in [0,1].
+    """
+
+    max_ndim: int = 4
+    """
+    Maximum number of dimensions of the tensors.
+    If set too big, it can cause memory errors due to large tensor sizes.
+    """
+
+    max_shape_dim: int = 4
+    """
+    Maximum size of a dimension of a shape.
+    If set too big, it can cause memory errors due to large tensor sizes.
+    """
+
+
+@dataclasses.dataclass
 class TestCreationConfiguration:
     """Configuration related to test creation."""
 
@@ -610,6 +655,9 @@ class Configuration:
         default_factory=TypeInferenceConfiguration
     )
     """Type inference configuration."""
+
+    pynguinml: PynguinMLConfiguration = dataclasses.field(default_factory=PynguinMLConfiguration)
+    """PynguinML configuration."""
 
     test_creation: TestCreationConfiguration = dataclasses.field(
         default_factory=TestCreationConfiguration

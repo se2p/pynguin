@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from pynguin.testcase.statement import FunctionStatement
     from pynguin.testcase.statement import IntPrimitiveStatement
     from pynguin.testcase.statement import ListStatement
+    from pynguin.testcase.statement import NdArrayStatement
     from pynguin.testcase.statement import MethodStatement
     from pynguin.testcase.statement import NoneStatement
     from pynguin.testcase.statement import ParametrizedStatement
@@ -285,6 +286,16 @@ class StatementToAstVisitor(StatementVisitor):
                 ],
                 ctx=ast.Load(),
             ),
+        )
+
+    def visit_ndarray_statement(self, stmt: NdArrayStatement) -> None:
+        self._ast_node = ast.Assign(
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
+                )
+            ],
+            value=au.create_ast_for_nested_list(stmt.elements),
         )
 
     def visit_set_statement(self, stmt: SetStatement) -> None:  # noqa: D102

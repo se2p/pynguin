@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import abc
+import copy
 import logging
 import math
 
@@ -18,6 +19,8 @@ from typing import Any
 from typing import Generic
 from typing import TypeVar
 from typing import cast
+
+import numpy as np
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -30,6 +33,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.pynguinml_utils import utils
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
@@ -385,6 +389,14 @@ class StatementVisitor(abc.ABC):
         """
 
     @abstractmethod
+    def visit_ndarray_statement(self, stmt) -> None:
+        """Visit ndarray.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
     def visit_set_statement(self, stmt) -> None:
         """Visit set.
 
@@ -612,6 +624,278 @@ class CollectionStatement(VariableCreatingStatement, Generic[T]):
             True, iff an element was inserted.
         """
         return alpha_exponent_insertion(self._elements, self._insertion_supplier)
+
+
+class NdArrayStatement(CollectionStatement):
+    """Represents a n-dimensional list."""
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        type_: ProperType,
+        elements: list[Any],  # Can contain nested lists or numbers
+        np_dtype: np.generic | str,
+        low,
+        high
+    ):
+        super().__init__(
+            test_case,
+            type_,
+            elements
+        )
+        self._np_dtype = np.dtype(np_dtype)
+        self._low = low
+        self._high = high
+
+    def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
+        references = set()
+        references.add(self.ret_val)
+        # references.update(self._elements)
+        return references
+
+    def replace(  # noqa: D102
+        self, old: vr.VariableReference, new: vr.VariableReference
+    ) -> None:
+        if self.ret_val == old:
+            self.ret_val = new
+        self._elements = [new if arg == old else arg for arg in self._elements]
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> NdArrayStatement:
+        return NdArrayStatement(
+            test_case,
+            self.ret_val.type,
+            copy.deepcopy(self._elements),
+            self._np_dtype,
+            self._low,
+            self._high
+        )
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_ndarray_statement(self)
+
+    @staticmethod
+    def _get_shape(array) -> list:
+        """
+        Recursively computes the shape of a rectangular nested list.
+        For example, [[1,2,3],[4,5,6]] returns [2, 3].
+        """
+        shape = []
+        while isinstance(array, list) and len(array) > 0:
+            shape.append(len(array))
+            if len(array) == 0:
+                break
+            array = array[0]
+        return shape
+
+    def _remove_at_axis_multi(self, array, axis: int, deletion_indices: list):
+        """
+        Recursively removes the elements at the specified indices along the given axis.
+        If axis == 0, removes elements from the current list.
+        For deeper axes, applies the deletion mask to every sublist.
+        Returns the modified array.
+        """
+        if axis == 0:
+            # Remove elements at indices in deletion_indices.
+            return [elem for idx, elem in enumerate(array) if idx not in deletion_indices]
+        else:
+            # Recurse on each subarray.
+            return [self._remove_at_axis_multi(subarray, axis - 1, deletion_indices) for subarray in array]
+
+    def _random_deletion(self) -> bool:
+        """Randomly removes elements while keeping shape valid."""
+        shape = self._get_shape(self._elements)
+        if not shape:
+            return False
+
+        deletable_axes = [axis for axis, size in enumerate(shape) if size > 0]
+        if not deletable_axes:
+            return False
+
+        axis_choice = randomness.next_int(0, len(deletable_axes))
+        chosen_axis = deletable_axes[axis_choice]
+
+        axis_size = shape[chosen_axis]
+        p = 1.0 / axis_size
+
+        # Select indices to delete based on probability.
+        deletion_indices = [i for i in range(axis_size) if randomness.next_float() >= p]
+
+        # If no index was selected, force deletion of one.
+        if len(deletion_indices) == 0:
+            deletion_indices = [randomness.next_int(0, axis_size)]
+
+        deletion_indices.sort(reverse=True)
+
+        self._elements = self._remove_at_axis_multi(self._elements, chosen_axis, deletion_indices)
+        return True
+
+    def _replacement_supplier(self, element: T) -> T:
+        if self._np_dtype.kind in ('i', 'u'):
+            new_value = randomness.next_int(self._low, self._high + 1)
+            return new_value
+        elif self._np_dtype.kind == 'f':
+            new_value = self._low + (self._high - self._low) * randomness.next_float()
+            return new_value
+        elif self._np_dtype.kind == 'c':
+            real_part = self._low + (self._high - self._low) * randomness.next_float()
+            imag_part = self._low + (self._high - self._low) * randomness.next_float()
+            return complex(real_part, imag_part)
+        else:
+            return element
+
+    def _random_replacement(self) -> bool:
+        """Replaces elements while keeping shape valid."""
+        shape = self._get_shape(self._elements)
+        if not shape or math.prod(shape) == 0:
+            return False
+
+        total_leaves = math.prod(shape)
+        p = 1.0 / total_leaves
+
+        def replace_recursive(array):
+            changed = False
+            new_array = []
+            for elem in array:
+                if isinstance(elem, list):
+                    # Recursively process subarrays.
+                    replaced_subarray, sub_changed = replace_recursive(elem)
+                    new_array.append(replaced_subarray)
+                    if sub_changed:
+                        changed = True
+                else:
+                    if randomness.next_float() < p:
+                        replacement = self._replacement_supplier(elem)
+                        new_array.append(replacement)
+                        if replacement != elem:
+                            changed = True
+                    else:
+                        new_array.append(elem)
+            return new_array, changed
+
+        self._elements, changed_ = replace_recursive(self._elements)
+        return changed_
+
+    def _insertion_supplier(self) -> T | None:
+        return self._replacement_supplier(None)
+
+    def _random_insertion(self) -> bool:
+        """
+        Randomly insert new elements into the n-dimensional array using an alpha-exponent algorithm.
+        A random axis is chosen, and new elements are inserted along that axis in such a way
+        that the overall rectangular shape is maintained.
+        """
+        shape = self._get_shape(self._elements)
+        if not shape:
+            return False
+
+        # Allow insertion along any axis (0, 1, ..., len(shape)-1).
+        insertable_axes = list(range(len(shape)))
+        axis_choice = int(randomness.next_float() * len(insertable_axes))
+        chosen_axis = insertable_axes[axis_choice]
+        axis_size = shape[chosen_axis]
+
+        # Check if the chosen axis exceeds the maximum allowed dimension.
+        if axis_size >= utils.max_shape_dim():
+            return False
+
+        # Calculate the number of free slots available.
+        free_slots = utils.max_shape_dim() - axis_size
+        if free_slots <= 0:
+            return False
+
+        alpha = 0.5
+        exponent = 0
+        insertion_indices = []
+        while randomness.next_float() <= pow(alpha, exponent):
+            pos = randomness.next_int(0, axis_size + 1)
+            insertion_indices.append(pos)
+            exponent += 1
+
+        # If the number of planned insertions exceeds the free slots, trim the list.
+        if len(insertion_indices) > free_slots:
+            insertion_indices = insertion_indices[:free_slots]
+
+        if not insertion_indices:
+            return False
+
+        insertion_indices.sort()  # sort in ascending order for consistent insertion
+        self._elements = self._insert_at_axis_multi(self._elements, chosen_axis, insertion_indices)
+        return True
+
+    def _insert_at_axis_multi(self, array, axis: int, insertion_indices: list) -> list:
+        """
+        Recursively inserts new elements at the specified indices along the given axis.
+        - When axis == 0, we are at the level where insertion occurs: we insert new elements into the list.
+        - For deeper axes (axis > 0), apply recursively to each subarray.
+        """
+        if axis == 0:
+            new_array = []
+            current_index = 0
+            insertion_iter = iter(insertion_indices)
+            next_insertion = next(insertion_iter, None)
+            for i, elem in enumerate(array):
+                # Insert new element(s) before adding the current element if current index matches.
+                while next_insertion is not None and current_index == next_insertion:
+                    # To preserve rectangular shape, create a new subarray similar to elem.
+                    new_elem = self._create_subarray_like(elem) if array else self._insertion_supplier()
+                    if new_elem is not None:
+                        new_array.append(new_elem)
+                    current_index += 1
+                    next_insertion = next(insertion_iter, None)
+                new_array.append(elem)
+                current_index += 1
+            # If any insertion positions remain, append new elements at the end.
+            while next_insertion is not None:
+                new_elem = self._create_subarray_like(array[0]) if array else self._insertion_supplier()
+                if new_elem is not None:
+                    new_array.append(new_elem)
+                next_insertion = next(insertion_iter, None)
+            return new_array
+        else:
+            return [self._insert_at_axis_multi(subarray, axis - 1, insertion_indices)
+                    for subarray in array]
+
+    def _create_subarray_like(self, template):
+        """
+        Create a new subarray with the same structure as the template.
+        For a list template, recursively create a new list of the same length.
+        For a leaf (non-list) element, return a new value using _insertion_supplier.
+        """
+        if isinstance(template, list):
+            # Create a new list with the same length as the template.
+            # We assume all subarrays in this dimension have the same shape.
+            return [self._create_subarray_like(template[0]) for _ in range(len(template))]
+        else:
+            return self._insertion_supplier()
+
+    def _nested_to_tuple(self, nested):
+        """Recursively convert a nested list into a nested tuple."""
+        if isinstance(nested, list):
+            return tuple(self._nested_to_tuple(item) for item in nested)
+        else:
+            return nested
+
+    def structural_hash(  # noqa: D102
+        self, memo: dict[vr.VariableReference, int]
+    ) -> int:
+        ret_hash = self.ret_val.structural_hash(memo)
+        nested_tuple = self._nested_to_tuple(self._elements)
+        return hash((ret_hash, nested_tuple))
+
+    def structural_eq(  # noqa: D102
+        self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+
+        if not self.ret_val.structural_eq(other.ret_val, memo):
+            return False
+
+        return self._elements == other._elements
 
 
 class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):

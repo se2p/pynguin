@@ -254,6 +254,9 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
     def visit_list_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
+    def visit_ndarray_statement(self, stmt) -> None:  # noqa: D102
+        self._handle_collection_or_primitive(stmt)
+
     def visit_set_statement(self, stmt) -> None:  # noqa: D102
         self._handle_collection_or_primitive(stmt)
 
