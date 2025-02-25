@@ -391,4 +391,4 @@ def test(expected_parameter_list):
 
     parameter_list = extract_parameter_list_from_config()
 
-    assert parameter_list == expected_parameter_list
+    assert parameter_list == [elem.replace(" ", "\n") for elem in expected_parameter_list]

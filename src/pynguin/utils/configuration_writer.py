@@ -40,7 +40,7 @@ def write_configuration():
 
         # Write CLI options to a TXT file
         cli_file = report_dir / PYNGUIN_CLI_PARAMS
-        cli_file.write_text(" ".join(extract_parameter_list_from_config()))
+        cli_file.write_text("\n".join(extract_parameter_list_from_config()))
 
 
 def convert_config_to_dict(config_obj: object) -> dict[str, str | dict[str, str]]:
@@ -70,8 +70,8 @@ def extract_parameter_list_from_config() -> list[str]:
 
     def format_parameter(k: str, v: Any) -> str:
         if isinstance(v, list):
-            return f"--{k} {','.join(v)}"
-        return f"--{k} {v}"
+            return f"--{k}\n{','.join(v)}"
+        return f"--{k}\n{v}"
 
     parameter_list: list[str] = []
     cfg_dict = dataclasses.asdict(config.configuration)
