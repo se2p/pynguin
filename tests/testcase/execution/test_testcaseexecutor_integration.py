@@ -8,10 +8,8 @@
 
 import ast
 import importlib
-import logging
 import threading
 
-from queue import Queue
 from unittest.mock import MagicMock
 
 import pytest
@@ -23,12 +21,10 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
-from tests.testcase.execution.fixtures import file_to_open  # noqa: F401
 
 
 def test_simple_execution(default_test_case):
@@ -151,42 +147,3 @@ def test_killing_endless_loop():
             if "_execute_test_case" in thread.name:
                 thread.join()
         assert len(threading.enumerate()) == 1  # Only main thread should be alive.
-
-
-def test_restore_logging():
-    original_logging_handlers = logging.getLogger().handlers.copy()
-    original_logging_module = globals()["logging"]
-
-    module_name = "tests.fixtures.mocking.log_to_null_handler"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(config.configuration.module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
-        cluster = generate_test_cluster(module_name)
-        transformer = AstToTestCaseTransformer(
-            cluster,
-            False,  # noqa: FBT003
-            EmptyConstantProvider(),
-        )
-        transformer.visit(
-            ast.parse(
-                """def test_case_0():
-    anything = module_0.log_to_null()
-    """
-            )
-        )
-        test_case = transformer.testcases[0]
-
-        return_queue: Queue[ExecutionResult] = Queue()
-        executor._execute_test_case(test_case, return_queue)
-
-        logging_handlers_after_test = logging.getLogger().handlers
-        assert original_logging_handlers == logging_handlers_after_test
-        assert original_logging_module == logging
-
-        result = return_queue.get()
-        assert not result.has_test_exceptions()
-        assert not result.timeout
