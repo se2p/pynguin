@@ -7,19 +7,11 @@
 import pytest
 
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
-from pynguin.testcase.execution import ExecutionResult
 
 
 @pytest.fixture
 def stopping_condition():
     return MaxStatementExecutionsStoppingCondition(10000)
-
-
-@pytest.fixture
-def result():
-    result = ExecutionResult()
-    result.num_executed_statements = 1
-    return result
 
 
 def test_current_value(stopping_condition):
