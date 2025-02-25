@@ -57,12 +57,14 @@ typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
 libcst = "^1.6.0"
 setuptools = "^75.8"
+toml = "^0.10.2"
 
 [tool.poetry.group.dev.dependencies]
 isort = { extras = ["pyproject"], version = "^6.0.0" }
 mypy = "^1.15.0"
 pre-commit = "^4.1.0"
 ruff = "^0.9"
+types-toml = "^0.10.8.20240310"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
