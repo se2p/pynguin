@@ -37,6 +37,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
 
     def __init__(self) -> None:
         """Initializes the observer."""
+        super().__init__()
         self._slicing_local_state = RemoteStatementSlicingObserver.RemoteSlicingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):

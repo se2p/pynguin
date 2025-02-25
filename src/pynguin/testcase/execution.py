@@ -459,6 +459,7 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
 
     def __init__(self):
         """Initializes the remote observer."""
+        super().__init__()
         self._return_type_local_state = RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
@@ -1268,6 +1269,7 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
 
     def __init__(self):
         """Initializes the remote observer."""
+        super().__init__()
         self._local_state = RemoteTypeTracingObserver.RemoteTypeTracingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
