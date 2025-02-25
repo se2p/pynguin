@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-
 import pytest
 
 import pynguin.assertion.assertiongenerator as ag
