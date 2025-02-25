@@ -23,6 +23,7 @@ from abc import abstractmethod
 from importlib import reload
 from queue import Empty
 from queue import Queue
+from types import ModuleType
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
@@ -30,6 +31,8 @@ from typing import cast
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
+
+from bytecode import BasicBlock
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -57,9 +60,10 @@ from pynguin.testcase.mocking import mocks_to_use
 from pynguin.utils.mirror import Mirror
 
 
-immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
-
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from collections.abc import Iterable
+    from contextlib import AbstractContextManager
     from types import MappingProxyType
     from types import ModuleType
 
@@ -68,6 +72,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
     from pynguin.analyses import module
+    from pynguin.testcase.testcase import TestCase
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -229,21 +234,21 @@ class ExecutionContext:
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
 
-class ExecutionObserver:
-    """An Observer that can be used to observe the execution of a test case.
+class RemoteExecutionObserver(abc.ABC):
+    """A remote observer that can be used to observe the execution of a test case.
 
     Important Note: If an observer is stateful, then this state must be encapsulated
     in a threading.local, i.e., be bound to a thread. Note that thread local data
     is initialized per thread, so there is no need to clear any pre-existing data
     (because there is none), as every thread gets its own instance.
 
-    Methods that are called from within the thread are not allowed to interact with the
-    'outside'. The only thing that should leave an observer are results when they are
-    written to the execution result in
-    ExecutionObserver::after_test_case_execution_inside_thread.
+    Methods in this class are not allowed to interact with the 'outside' because this
+    class could be sent to a remote environment. The only thing that should leave an
+    observer are results when they are written to the execution result in
+    RemoteExecutionObserver::after_test_case_execution.
 
     You may interact with the 'outside' in
-    ExecutionObserver::after_test_case_execution_outside_thread.
+    ExecutionObserver::after_remote_test_case_execution.
 
     Note: Usage of threading.local may interfere with debugging tools, such as pydevd.
     In such a case, disable Cython by setting the following environment variable:
@@ -251,6 +256,9 @@ class ExecutionObserver:
 
     For more details, look at some implementations, e.g., AssertionTraceObserver.
     """
+
+    def __init__(self) -> None:  # noqa: B027
+        """Initializes the remote observer."""
 
     @abstractmethod
     def before_test_case_execution(self, test_case: tc.TestCase):
@@ -261,35 +269,22 @@ class ExecutionObserver:
         """
 
     @abstractmethod
-    def after_test_case_execution_inside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
+    def after_test_case_execution(
+        self,
+        executor: TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ExecutionResult,
     ) -> None:
         """Called after test case execution.
 
-        The call happens from inside the thread that executed the test case. You should
-        override this method to extract information from the thread local storage to the
-        execution result.
+        The call happens from the remote environment that executed the test case. You
+        should override this method to extract information from the thread local storage
+        to the execution result.
 
-        Note: When a thread times out, then this method might not be called at all.
-
-        Args:
-            test_case: The test cases that was executed
-            result: The execution result
-        """
-
-    @abstractmethod
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ) -> None:
-        """Called after test case execution from the main thread.
-
-        Note: This method is always called, though the data you expect in the execution
-        might not be there, if the execution of the test case timed out.
-        You are not allowed to access thread local state here (due to how
-        threading.local works, it isn't even possible ;)), but you can do some
-        postprocessing with the data from the execution result here.
+        Note: When a timeout occurs, then this method might not be called at all.
 
         Args:
+            executor: The executor that executed the test case
             test_case: The test cases that was executed
             result: The execution result
         """
@@ -327,19 +322,52 @@ class ExecutionObserver:
         """
 
 
-class AssertionExecutionObserver(ExecutionObserver):
-    """An observer which executes the assertions of statements.
+class ExecutionObserver(abc.ABC):
+    """An observer that can be used to observe the execution of a test case."""
+
+    @property
+    @abstractmethod
+    def remote_observer(self) -> RemoteExecutionObserver:
+        """The remote observer.
+
+        Returns:
+            The remote observer
+        """
+
+    @abstractmethod
+    def before_remote_test_case_execution(self, test_case: tc.TestCase) -> None:
+        """Called before test case execution from the main thread.
+
+        Note: This method can be called with several test cases before the
+        after_remote_test_case_execution method is called.
+
+        Args:
+            test_case: The test cases that will be executed.
+        """
+
+    @abstractmethod
+    def after_remote_test_case_execution(
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        """Called after test case execution from the main thread.
+
+        Note: This method is always called, though the data you expect in the execution
+        might not be there, if the execution of the test case timed out.
+        You are not allowed to access thread local state here (due to how
+        threading.local works, it isn't even possible ;)), but you can do some
+        postprocessing with the data from the execution result here.
+
+        Args:
+            test_case: The test cases that was executed
+            result: The execution result
+        """
+
+
+class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
+    """A remote observer which executes the assertions of statements.
 
     Enables slicing on the recorded data.
     """
-
-    def __init__(self, tracer: ExecutionTracer):
-        """Instantiates a new observer.
-
-        Args:
-            tracer: The execution tracer used for tracing
-        """
-        self._tracer = tracer
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -348,22 +376,16 @@ class AssertionExecutionObserver(ExecutionObserver):
             test_case: not used
         """
 
-    def after_test_case_execution_inside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
+    def after_test_case_execution(
+        self,
+        executor: TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ExecutionResult,
     ) -> None:
         """Not used.
 
         Args:
-            test_case: Not used
-            result: Not used
-        """
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ) -> None:
-        """Not used.
-
-        Args:
+            executor: Not used
             test_case: Not used
             result: Not used
         """
@@ -382,14 +404,15 @@ class AssertionExecutionObserver(ExecutionObserver):
     ) -> None:
         # This is a bit cumbersome, because the tracer is disabled by default.
         enabled = False
+        tracer = executor.tracer
         try:
-            if self._tracer.is_disabled():
+            if tracer.is_disabled():
                 enabled = True
-                self._tracer.enable()
+                tracer.enable()
 
             if statement.has_only_exception_assertion():
                 if exception is not None:
-                    self._tracer.register_exception_assertion(statement)
+                    tracer.register_exception_assertion(statement)
                 return
 
             for assertion in statement.assertions:
@@ -398,15 +421,15 @@ class AssertionExecutionObserver(ExecutionObserver):
                 )
                 executor.execute_ast(assertion_node, exec_ctx)
 
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids()
-                self._tracer.register_assertion_position(code_object_id, node_id, assertion)
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(tracer)
+                tracer.register_assertion_position(code_object_id, node_id, assertion)
         finally:
             if enabled:
                 # Restore old state
-                self._tracer.disable()
+                tracer.disable()
 
-    def _get_assertion_node_and_code_object_ids(self) -> tuple[int, int]:
-        existing_code_objects = self._tracer.get_subject_properties().existing_code_objects
+    def _get_assertion_node_and_code_object_ids(self, tracer: ExecutionTracer) -> tuple[int, int]:
+        existing_code_objects = tracer.get_subject_properties().existing_code_objects
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None
@@ -423,13 +446,10 @@ class AssertionExecutionObserver(ExecutionObserver):
         return code_object_id, assert_node.index
 
 
-class ReturnTypeObserver(ExecutionObserver):
-    """Observes the runtime types seen during execution.
+class RemoteReturnTypeObserver(RemoteExecutionObserver):
+    """An observer which observes the runtime types seen during execution."""
 
-    Updates the return types of the called function with the observed types.
-    """
-
-    class ReturnTypeLocalState(threading.local):
+    class RemoteReturnTypeLocalState(threading.local):
         """Encapsulate observed return types."""
 
         def __init__(self):  # noqa: D107
@@ -437,16 +457,9 @@ class ReturnTypeObserver(ExecutionObserver):
             self.return_type_trace: dict[int, type] = {}
             self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
 
-    def __init__(self, test_cluster: module.TestCluster):
-        """Initializes the observer.
-
-        Args:
-            test_cluster: The test cluster that shall be updated
-        """
-        self._return_type_local_state = ReturnTypeObserver.ReturnTypeLocalState()
-
-        # Non-local state
-        self._test_cluster = test_cluster
+    def __init__(self):
+        """Initializes the remote observer."""
+        self._return_type_local_state = RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -455,15 +468,84 @@ class ReturnTypeObserver(ExecutionObserver):
             test_case: Not used
         """
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ExecutionResult,
     ):
         result.raw_return_types = dict(self._return_type_local_state.return_type_trace)
         result.raw_return_type_generic_args = dict(
             self._return_type_local_state.return_type_generic_args
         )
 
-    def after_test_case_execution_outside_thread(  # noqa: D102
+    def before_statement_execution(  # noqa: D102
+        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
+    ) -> ast.stmt:
+        return node  # not relevant
+
+    def after_statement_execution(  # noqa: D102
+        self,
+        statement: stmt.Statement,
+        executor: TestCaseExecutor,
+        exec_ctx: ExecutionContext,
+        exception: BaseException | None,
+    ) -> None:
+        if exception is None and (ret_val := statement.ret_val) is not None:
+            value = exec_ctx.get_reference_value(ret_val)
+            position = statement.get_position()
+            self._return_type_local_state.return_type_trace[position] = type(value)
+            # TODO(fk) Hardcoded support for generics.
+            # Try to guess generic arguments from elements.
+
+            if type(value) in {set, list} and len(value) > 0:
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(next(iter(value))),
+                )
+            elif isinstance(value, dict) and len(value) > 0:
+                first_item = next(iter(value.items()))
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(first_item[0]),
+                    type(first_item[1]),
+                )
+            elif type(value) is tuple:
+                self._return_type_local_state.return_type_generic_args[position] = tuple(
+                    type(v) for v in value
+                )
+
+
+class ReturnTypeObserver(ExecutionObserver):
+    """Observes the runtime types seen during execution.
+
+    Updates the return types of the called function with the observed types.
+    """
+
+    def __init__(self, test_cluster: module.TestCluster):
+        """Initializes the observer.
+
+        Args:
+            test_cluster: The test cluster that shall be updated
+        """
+        self._test_cluster = test_cluster
+        self._remote_observer = RemoteReturnTypeObserver()
+
+    @property
+    def remote_observer(self) -> RemoteExecutionObserver:
+        """The remote observer.
+
+        Returns:
+            The remote observer
+        """
+        return self._remote_observer
+
+    def before_remote_test_case_execution(self, test_case: TestCase) -> None:
+        """Not used.
+
+        Args:
+            test_case: Not used
+        """
+
+    def after_remote_test_case_execution(  # noqa: D102
         self, test_case: tc.TestCase, result: ExecutionResult
     ):
         # We store the raw types, so we still need to convert them to proper types.
@@ -503,40 +585,6 @@ class ReturnTypeObserver(ExecutionObserver):
             )
         return proper
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        return node  # not relevant
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        if exception is None and (ret_val := statement.ret_val) is not None:
-            value = exec_ctx.get_reference_value(ret_val)
-            position = statement.get_position()
-            self._return_type_local_state.return_type_trace[position] = type(value)
-            # TODO(fk) Hardcoded support for generics.
-            # Try to guess generic arguments from elements.
-
-            if type(value) in {set, list} and len(value) > 0:
-                self._return_type_local_state.return_type_generic_args[position] = (
-                    type(next(iter(value))),
-                )
-            elif isinstance(value, dict) and len(value) > 0:
-                first_item = next(iter(value.items()))
-                self._return_type_local_state.return_type_generic_args[position] = (
-                    type(first_item[0]),
-                    type(first_item[1]),
-                )
-            elif type(value) is tuple:
-                self._return_type_local_state.return_type_generic_args[position] = tuple(
-                    type(v) for v in value
-                )
-
 
 @dataclasses.dataclass
 class ExecutionResult:
@@ -565,6 +613,8 @@ class ExecutionResult:
     proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode] = dataclasses.field(
         default_factory=dict, init=False
     )
+
+    num_executed_statements: int = dataclasses.field(default=0, init=False)
 
     def has_test_exceptions(self) -> bool:
         """Returns true if any exceptions were thrown during the execution.
@@ -703,7 +753,8 @@ class ModuleProvider:
 
     @staticmethod
     def mock_module(
-        module_to_mock: ModuleType, mocks: MappingProxyType[str, ModuleType] = mocks_to_use
+        module_to_mock: ModuleType,
+        mocks: MappingProxyType[str, ModuleType] = mocks_to_use,
     ) -> None:
         """Mock all dangerous methods of the given module, such as logging.
 
@@ -738,6 +789,36 @@ class ModuleProvider:
         reload(ModuleProvider.__get_sys_module(module_name))
 
 
+class OutputSuppressionContext:
+    """A context manager that suppress stdout and stderr."""
+
+    # Repeatedly opening/closing devnull caused problems.
+    # This is closed when Pynguin terminates, since we don't need this output
+    # anyway this is acceptable.
+    _null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
+
+    def __init__(self) -> None:
+        """Create a new context manager that suppress stdout and stderr."""
+        self._restored = False
+        self._restored_lock = threading.Lock()
+
+    def restore(self) -> None:
+        """Restore stdout and stderr."""
+        with self._restored_lock:
+            if self._restored:
+                return
+            self._restored = True
+            sys.stdout = sys.__stdout__
+            sys.stderr = sys.__stderr__
+
+    def __enter__(self) -> None:
+        sys.stdout = self._null_file
+        sys.stderr = self._null_file
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.restore()
+
+
 class AbstractTestCaseExecutor(abc.ABC):
     """Interface for a test case executor."""
 
@@ -763,11 +844,33 @@ class AbstractTestCaseExecutor(abc.ABC):
         """Remove all existing observers."""
 
     @abstractmethod
-    def temporarily_add_observer(self, observer: ExecutionObserver):
+    def temporarily_add_observer(self, observer: ExecutionObserver) -> AbstractContextManager[None]:
         """Temporarily add the given observer.
 
         Args:
             observer: The observer to add.
+        """
+
+    @abstractmethod
+    def add_remote_observer(self, remote_observer: RemoteExecutionObserver) -> None:
+        """Add a remote execution observer.
+
+        Args:
+            remote_observer: the remote observer to be added.
+        """
+
+    @abstractmethod
+    def clear_remote_observers(self) -> None:
+        """Remove all existing remote observers."""
+
+    @abstractmethod
+    def temporarily_add_remote_observer(
+        self, remote_observer: RemoteExecutionObserver
+    ) -> AbstractContextManager[None]:
+        """Temporarily add a remote observer.
+
+        Args:
+            remote_observer: The remote observer to add.
         """
 
     @property
@@ -793,6 +896,21 @@ class AbstractTestCaseExecutor(abc.ABC):
             Result of the execution
         """
 
+    def execute_multiple(self, test_cases: Iterable[tc.TestCase]) -> Iterable[ExecutionResult]:
+        """Executes multiple test cases.
+
+        Args:
+            test_cases: The test cases that should be executed.
+
+        Raises:
+            RuntimeError: If something goes wrong inside Pynguin during execution.
+
+        Yields:
+            The results of the execution
+        """
+        for test_case in test_cases:
+            yield self.execute(test_case)
+
 
 class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
@@ -814,17 +932,13 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             test_execution_time_per_statement: The amount of time (in seconds) that is
                 added to the timeout per statement, up to minimum_test_execution_timeout
         """
-        # Repeatedly opening/closing devnull caused problems.
-        # This is closed when Pynguin terminates, since we don't need this output
-        # anyway this is acceptable.
-        self._null_file = open(os.devnull, mode="w")  # noqa: PLW1514, PTH123, SIM115
-
         self._maximum_test_execution_timeout = maximum_test_execution_timeout
         self._test_execution_time_per_statement = test_execution_time_per_statement
 
         self._module_provider = module_provider if module_provider is not None else ModuleProvider()
         self._tracer = tracer
         self._observers: list[ExecutionObserver] = []
+        self._remote_observers: list[RemoteExecutionObserver] = []
         self._instrument = (
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
@@ -847,39 +961,45 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         threading.excepthook = log_thread_exception
 
     @property
-    def module_provider(self) -> ModuleProvider:
-        """The module provider used by this executor.
-
-        Returns:
-            The used module provider
-        """
+    def module_provider(self) -> ModuleProvider:  # noqa: D102
         return self._module_provider
 
-    def add_observer(self, observer: ExecutionObserver) -> None:
-        """Add an execution observer.
-
-        Args:
-            observer: the observer to be added.
-        """
+    def add_observer(self, observer: ExecutionObserver) -> None:  # noqa: D102
         self._observers.append(observer)
 
-    def clear_observers(self) -> None:
-        """Remove all existing observers."""
+    def clear_observers(self) -> None:  # noqa: D102
         self._observers.clear()
 
     @contextlib.contextmanager
-    def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102
+    def temporarily_add_observer(  # noqa: D102
+        self, observer: ExecutionObserver
+    ) -> Generator[None, None, None]:
         self._observers.append(observer)
         yield
         self._observers.remove(observer)
 
-    @property
-    def tracer(self) -> ExecutionTracer:
-        """Provide access to the execution tracer.
+    def add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> None:
+        self._remote_observers.append(remote_observer)
 
-        Returns:
-            The execution tracer
-        """
+    def clear_remote_observers(self) -> None:  # noqa: D102
+        self._remote_observers.clear()
+
+    @contextlib.contextmanager
+    def temporarily_add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> Generator[None, None, None]:
+        self._remote_observers.append(remote_observer)
+        yield
+        self._remote_observers.remove(remote_observer)
+
+    def _yield_remote_observers(self) -> Generator[RemoteExecutionObserver, None, None]:
+        yield from self._remote_observers
+        yield from (observer.remote_observer for observer in self._observers)
+
+    @property
+    def tracer(self) -> ExecutionTracer:  # noqa: D102
         return self._tracer
 
     def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
@@ -894,67 +1014,75 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        with (
-            contextlib.redirect_stdout(self._null_file),
-            contextlib.redirect_stderr(self._null_file),
-        ):
-            return_queue: Queue[ExecutionResult] = Queue()
-            thread = threading.Thread(
-                target=self._execute_test_case,
-                args=(test_case, return_queue),
-                daemon=True,
+        self._before_remote_test_case_execution(test_case)
+        output_suppression_context = OutputSuppressionContext()
+        return_queue: Queue[ExecutionResult] = Queue()
+        thread = threading.Thread(
+            target=self._execute_test_case,
+            args=(test_case, output_suppression_context, return_queue),
+            daemon=True,
+        )
+        thread.start()
+        thread.join(
+            timeout=min(
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement * len(test_case.statements),
             )
-            thread.start()
-            thread.join(
-                timeout=min(
-                    self._maximum_test_execution_timeout,
-                    self._test_execution_time_per_statement * len(test_case.statements),
-                )
-            )
-            if thread.is_alive():
-                # Set thread ident to invalid value, such that the tracer
-                # kills the thread
-                self._tracer.current_thread_identifier = -1
+        )
+        if thread.is_alive():
+            # Set thread ident to invalid value, such that the tracer
+            # kills the thread
+            self._tracer.current_thread_identifier = -1
+            # Wait for the thread so that stdout/stderr is not redirected anymore
+            _LOGGER.debug("Waiting for thread to finish")
+            thread.join(timeout=self._maximum_test_execution_timeout)
+            # Restore stdout and stderr if it was not already done by the thread
+            _LOGGER.debug("Restoring stdout and stderr")
+            output_suppression_context.restore()
+            result = ExecutionResult(timeout=True)
+            _LOGGER.warning("Experienced timeout from test-case execution")
+        else:
+            try:
+                result = return_queue.get(block=False)
+            except Empty:
+                _LOGGER.error("Finished thread did not return a result.")
+                # previously we re-raised the exception as a RuntimeError to have a marker in
+                # the logs, however, it is still not fully clear WHY this actually happens.
+                # Plus, it confuses users.  Thus, for now log the message, such that we can
+                # still search for it in the logs, but continue with an empty results.  This
+                # allows the EA to continue with the search process.
+                _LOGGER.error("Bug in Pynguin!")
                 result = ExecutionResult(timeout=True)
-                _LOGGER.warning("Experienced timeout from test-case execution")
-            else:
-                try:
-                    result = return_queue.get(block=False)
-                except Empty:
-                    _LOGGER.error("Finished thread did not return a result.")
-                    # previously we re-raised the exception as a RuntimeError to have a marker in
-                    # the logs, however, it is still not fully clear WHY this actually happens.
-                    # Plus, it confuses users.  Thus, for now log the message, such that we can
-                    # still search for it in the logs, but continue with an empty results.  This
-                    # allows the EA to continue with the search process.
-                    _LOGGER.error("Bug in Pynguin!")
-                    result = ExecutionResult(timeout=True)
-        self._after_test_case_execution_outside_thread(test_case, result)
+        self._after_remote_test_case_execution(test_case, result)
         return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
         self._tracer.init_trace()
-        for observer in self._observers:
+        for observer in self._yield_remote_observers():
             observer.before_test_case_execution(test_case)
 
-    def _execute_test_case(self, test_case: tc.TestCase, result_queue: Queue) -> None:
+    def _execute_test_case(
+        self,
+        test_case: tc.TestCase,
+        output_suppression_context: OutputSuppressionContext,
+        result_queue: Queue,
+    ) -> None:
         self._before_test_case_execution(test_case)
         result = ExecutionResult()
         exec_ctx = ExecutionContext(self._module_provider)
         self._tracer.current_thread_identifier = threading.current_thread().ident
-        for idx, statement in enumerate(test_case.statements):
-            ast_node = self._before_statement_execution(statement, exec_ctx)
-            exception = self.execute_ast(ast_node, exec_ctx)
-            self._after_statement_execution(statement, exec_ctx, exception)
-            if exception is not None:
-                result.report_new_thrown_exception(idx, exception)
-                break
-        self._after_test_case_execution_inside_thread(test_case, result)
+        with output_suppression_context:
+            for idx, statement in enumerate(test_case.statements):
+                ast_node = self._before_statement_execution(statement, exec_ctx)
+                exception = self.execute_ast(ast_node, exec_ctx)
+                self._after_statement_execution(statement, exec_ctx, exception)
+                if exception is not None:
+                    result.report_new_thrown_exception(idx, exception)
+                    break
+        self._after_test_case_execution(test_case, result)
         result_queue.put(result)
 
-    def _after_test_case_execution_inside_thread(
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ) -> None:
+    def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
         """Collect the trace data after each executed test case.
 
         Args:
@@ -962,20 +1090,29 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             result: The execution result
         """
         result.execution_trace = self._tracer.get_trace()
-        for observer in self._observers:
-            observer.after_test_case_execution_inside_thread(test_case, result)
+        for observer in self._yield_remote_observers():
+            observer.after_test_case_execution(self, test_case, result)
 
-    def _after_test_case_execution_outside_thread(
+    def _before_remote_test_case_execution(self, test_case: tc.TestCase) -> None:
+        """Process test case before remote execution.
+
+        Args:
+            test_case: The executed test case
+        """
+        for observer in self._observers:
+            observer.before_remote_test_case_execution(test_case)
+
+    def _after_remote_test_case_execution(
         self, test_case: tc.TestCase, result: ExecutionResult
     ) -> None:
-        """Process results outside of thread.
+        """Process results after remote execution.
 
         Args:
             test_case: The executed test case
             result: The execution result
         """
         for observer in self._observers:
-            observer.after_test_case_execution_outside_thread(test_case, result)
+            observer.after_remote_test_case_execution(test_case, result)
 
     def _before_statement_execution(
         self, statement: stmt.Statement, exec_ctx: ExecutionContext
@@ -993,7 +1130,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
         ast_node = exec_ctx.node_for_statement(statement)
         try:
-            for observer in self._observers:
+            for observer in self._yield_remote_observers():
                 ast_node = observer.before_statement_execution(statement, ast_node, exec_ctx)
         finally:
             self._tracer.enable()
@@ -1046,7 +1183,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
         self._tracer.disable()
         try:
-            for observer in reversed(self._observers):
+            for observer in reversed(tuple(self._yield_remote_observers())):
                 observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
             self._tracer.enable()
@@ -1080,6 +1217,24 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     def clear_observers(self) -> None:  # noqa: D102
         self._delegate.clear_observers()
 
+    def temporarily_add_observer(  # noqa: D102
+        self, observer: ExecutionObserver
+    ) -> AbstractContextManager[None]:
+        return self._delegate.temporarily_add_observer(observer)
+
+    def add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> None:
+        self._delegate.add_remote_observer(remote_observer)
+
+    def clear_remote_observers(self) -> None:  # noqa: D102
+        self._delegate.clear_remote_observers()
+
+    def temporarily_add_remote_observer(  # noqa: D102
+        self, remote_observer: RemoteExecutionObserver
+    ) -> AbstractContextManager[None]:
+        return self._delegate.temporarily_add_remote_observer(remote_observer)
+
     @property
     def tracer(self) -> ExecutionTracer:  # noqa: D102
         return self._delegate.tracer
@@ -1099,17 +1254,11 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
                 self._delegate.execute(test_case)
         return result
 
-    def temporarily_add_observer(self, observer: ExecutionObserver):  # noqa: D102
-        pass
 
+class RemoteTypeTracingObserver(RemoteExecutionObserver):
+    """A remote execution observer used for type tracing."""
 
-class TypeTracingObserver(ExecutionObserver):
-    """An execution observer used for type tracing.
-
-    It wraps parameters in proxies in order to make better guesses on their type.
-    """
-
-    class TypeTracingLocalState(threading.local):
+    class RemoteTypeTracingLocalState(threading.local):
         """Thread local data for type tracing."""
 
         def __init__(self):  # noqa: D107
@@ -1117,14 +1266,9 @@ class TypeTracingObserver(ExecutionObserver):
             # Active proxies per statement position and argument name.
             self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
 
-    def __init__(self, cluster: module.TestCluster):
-        """Initializes the observer.
-
-        Args:
-            cluster: The test cluster that shall be updated by the observer
-        """
-        self._local_state = TypeTracingObserver.TypeTracingLocalState()
-        self._cluster = cluster
+    def __init__(self):
+        """Initializes the remote observer."""
+        self._local_state = RemoteTypeTracingObserver.RemoteTypeTracingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -1133,24 +1277,15 @@ class TypeTracingObserver(ExecutionObserver):
             test_case: Not used
         """
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ExecutionResult,
     ) -> None:
         for (stmt_pos, arg_name), proxy in self._local_state.proxies.items():
             result.proxy_knowledge[stmt_pos, arg_name] = copy.deepcopy(
                 tt.UsageTraceNode.from_proxy(proxy)
-            )
-
-    def after_test_case_execution_outside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ExecutionResult
-    ) -> None:
-        for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
-            statement = test_case.get_statement(stmt_pos)
-            assert isinstance(statement, stmt.ParametrizedStatement)
-            self._cluster.update_parameter_knowledge(
-                cast("gao.GenericCallableAccessibleObject", statement.accessible_object()),
-                arg_name,
-                knowledge,
             )
 
     def before_statement_execution(  # noqa: D102
@@ -1222,3 +1357,42 @@ class TypeTracingObserver(ExecutionObserver):
             assert statement.ret_val
             value = exec_ctx.get_reference_value(statement.ret_val)
             exec_ctx.replace_variable_value(statement.ret_val, tt.unwrap(value))
+
+
+class TypeTracingObserver(ExecutionObserver):
+    """An execution observer used for type tracing.
+
+    It wraps parameters in proxies in order to make better guesses on their type.
+    """
+
+    def __init__(self, cluster: module.TestCluster):
+        """Initializes the observer.
+
+        Args:
+            cluster: The test cluster that shall be updated by the observer
+        """
+        self._cluster = cluster
+        self._remote_observer = RemoteTypeTracingObserver()
+
+    @property
+    def remote_observer(self) -> RemoteTypeTracingObserver:  # noqa: D102
+        return self._remote_observer
+
+    def before_remote_test_case_execution(self, test_case: TestCase) -> None:
+        """Not used.
+
+        Args:
+            test_case: Not used
+        """
+
+    def after_remote_test_case_execution(  # noqa: D102
+        self, test_case: tc.TestCase, result: ExecutionResult
+    ) -> None:
+        for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
+            statement = test_case.get_statement(stmt_pos)
+            assert isinstance(statement, stmt.ParametrizedStatement)
+            self._cluster.update_parameter_knowledge(
+                cast("gao.GenericCallableAccessibleObject", statement.accessible_object()),
+                arg_name,
+                knowledge,
+            )

@@ -6,9 +6,19 @@
 #
 from unittest.mock import MagicMock
 
+import pytest
+
 from pynguin.ga import chromosome as chrom
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
+from pynguin.testcase.execution import ExecutionResult
+
+
+@pytest.fixture
+def result():
+    result = ExecutionResult()
+    result.num_executed_statements = 1
+    return result
 
 
 class DummyAlgorithm(GenerationAlgorithm):
@@ -16,11 +26,11 @@ class DummyAlgorithm(GenerationAlgorithm):
         pass  # pragma: no cover
 
 
-def test_progress():
+def test_progress(result):
     strategy = DummyAlgorithm()
     stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
-    stopping.before_statement_execution(None, None, None)
+    stopping.after_remote_test_case_execution(None, result)
     strategy.stopping_conditions = [stopping]
     assert strategy.progress() == 0.1
 

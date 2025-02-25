@@ -26,6 +26,6 @@ def test_is_not_fulfilled(stopping_condition):
 
 def test_is_fulfilled(stopping_condition):
     stopping_condition.set_limit(1)
-    stopping_condition.before_test_case_execution(None)
-    stopping_condition.before_test_case_execution(None)
+    stopping_condition.before_remote_test_case_execution(None)
+    stopping_condition.before_remote_test_case_execution(None)
     assert stopping_condition.is_fulfilled()

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019-2023 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019-2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -42,8 +42,6 @@ from pynguin.utils.type_utils import string_lt_distance
 
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
-
-_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass

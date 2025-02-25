@@ -38,6 +38,9 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+    from collections.abc import Iterable
+
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
@@ -80,12 +83,16 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         # First run of executions to add assertions
-        with self._plain_executor.temporarily_add_observer(ato.AssertionTraceObserver()):
+        with self._plain_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionTraceObserver()
+        ):
             for test in test_cases:
                 self._add_assertions_for(test, self._plain_executor.execute(test))
 
         # Perform filtering executions to remove trivially flaky assertions.
-        with self._plain_executor.temporarily_add_observer(ato.AssertionVerificationObserver()):
+        with self._plain_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
+        ):
             for _ in range(self._filtering_executions):
                 # Create a copy of the list that is shuffled.
                 shuffled_copy = list(test_cases)
@@ -311,7 +318,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         # We use a separate tracer and executor to execute tests on the mutants.
         self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
-        self._mutation_executor.add_observer(ato.AssertionVerificationObserver())
+        self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
 
         self._mutation_controller = mutation_controller
 
@@ -319,50 +326,76 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._testing = testing
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
 
+    def _execute_test_case_on_mutant(
+        self,
+        test_cases: list[tc.TestCase],
+        mutated_module: types.ModuleType | None,
+        idx: int,
+        mutant_count: int,
+    ) -> Iterable[ex.ExecutionResult | None]:
+        if mutated_module is None:
+            self._logger.info(
+                "Skipping mutant %3i/%i because it created an invalid module",
+                idx,
+                mutant_count,
+            )
+            return (None for _ in range(len(test_cases)))
+
+        self._logger.info(
+            "Running tests on mutant %3i/%i",
+            idx,
+            mutant_count,
+        )
+        self._mutation_executor.module_provider.add_mutated_version(
+            module_name=config.configuration.module_name,
+            mutated_module=mutated_module,
+        )
+
+        return self._mutation_executor.execute_multiple(test_cases)
+
+    def _execute_test_case_on_mutants(
+        self,
+        test_cases: list[tc.TestCase],
+        mutant_count: int,
+    ) -> Generator[Iterable[ex.ExecutionResult | None], None, None]:
+        for idx, (mutated_module, _) in enumerate(
+            self._mutation_controller.create_mutants(), start=1
+        ):
+            yield self._execute_test_case_on_mutant(
+                test_cases,
+                mutated_module,
+                idx,
+                mutant_count,
+            )
+
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
-            (test, []) for test in test_cases
-        ]
+        tests_mutants_results: list[list[ex.ExecutionResult | None]] = [[] for _ in test_cases]
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        with self._mutation_executor.temporarily_add_observer(ato.AssertionVerificationObserver()):
-            for idx, (mutated_module, _) in enumerate(
-                self._mutation_controller.create_mutants(), start=1
+        with self._mutation_executor.temporarily_add_remote_observer(
+            ato.RemoteAssertionVerificationObserver()
+        ):
+            for tests_mutant_results in self._execute_test_case_on_mutants(
+                test_cases, mutant_count
             ):
-                if mutated_module is None:
-                    self._logger.info(
-                        "Skipping mutant %3i/%i because it created an invalid module",
-                        idx,
-                        mutant_count,
-                    )
-                    for _, results in tests_and_results:
-                        results.append(None)
-                    continue
+                for test_mutants_results, test_mutant_results in zip(
+                    tests_mutants_results, tests_mutant_results, strict=True
+                ):
+                    test_mutants_results.append(test_mutant_results)
 
-                self._logger.info(
-                    "Running tests on mutant %3i/%i",
-                    idx,
-                    mutant_count,
-                )
-                self._mutation_executor.module_provider.add_mutated_version(
-                    module_name=config.configuration.module_name,
-                    mutated_module=mutated_module,
-                )
-                for test, results in tests_and_results:
-                    results.append(self._mutation_executor.execute(test))
-
-        summary = self.__compute_mutation_summary(mutant_count, tests_and_results)
+        summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
         self.__report_mutation_summary(summary)
-        self.__remove_non_relevant_assertions(tests_and_results, summary)
+        self.__remove_non_relevant_assertions(test_cases, tests_mutants_results, summary)
 
     @staticmethod
     def __remove_non_relevant_assertions(
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
+        test_cases: list[tc.TestCase],
+        tests_mutants_results: list[list[ex.ExecutionResult | None]],
         mutation_summary: _MutationSummary,
     ) -> None:
-        for test, results in tests_and_results:
+        for test, results in zip(test_cases, tests_mutants_results, strict=True):
             merged = at.AssertionVerificationTrace()
             for result, mut in zip(results, mutation_summary.mutant_information, strict=True):
                 # Ignore timed out executions
@@ -376,12 +409,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     @staticmethod
     def __compute_mutation_summary(
         number_of_mutants: int,
-        tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]],
+        tests_mutants_results: list[list[ex.ExecutionResult | None]],
     ) -> _MutationSummary:
         mutation_info = [_MutantInfo(i) for i in range(number_of_mutants)]
-        for test_num, (_, results) in enumerate(tests_and_results):
+        for test_num, test_mutants_results in enumerate(tests_mutants_results):
             # For each mutation, check if we had a violated assertion
-            for info, result in zip(mutation_info, results, strict=True):
+            for info, result in zip(mutation_info, test_mutants_results, strict=True):
                 if result is None or info.timed_out_by:
                     continue
                 if result.timeout:

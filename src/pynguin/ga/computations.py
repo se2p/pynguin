@@ -28,6 +28,8 @@ from pynguin.slicer.dynamicslicer import DynamicSlicer
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion
     from pynguin.testcase.execution import AbstractTestCaseExecutor
@@ -46,7 +48,7 @@ class ChromosomeComputation(abc.ABC):
 class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test case chromosome."""
 
-    def _run_test_case_chromosome(self, individual) -> ExecutionResult:
+    def _run_test_case_chromosome(self, individual: TestCaseChromosome) -> ExecutionResult:
         """Runs a test suite and updates the execution results.
 
         Updates all test cases that were changed.
@@ -68,7 +70,7 @@ class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
 class TestSuiteChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
+    def _run_test_suite_chromosome(self, individual: TestSuiteChromosome) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results.
 
         Updates all test cases that were changed.
@@ -79,23 +81,42 @@ class TestSuiteChromosomeComputation(ChromosomeComputation, abc.ABC):
         Returns:
             A list of execution results
         """
-        results: list[ExecutionResult] = []
-        for test_case_chromosome in individual.test_case_chromosomes:
-            if (
+        test_case_chromosomes = tuple(
+            (
+                test_case_chromosome,
                 test_case_chromosome.changed
-                or test_case_chromosome.get_last_execution_result() is None
-            ):
-                test_case_chromosome.set_last_execution_result(
-                    self._executor.execute(test_case_chromosome.test_case)
-                )
+                or test_case_chromosome.get_last_execution_result() is None,
+            )
+            for test_case_chromosome in individual.test_case_chromosomes
+        )
+
+        changed_results_iterator = iter(
+            self._executor.execute_multiple(
+                test_case_chromosome.test_case
+                for test_case_chromosome, changed in test_case_chromosomes
+                if changed
+            )
+        )
+
+        results: list[ExecutionResult] = []
+
+        for test_case_chromosome, changed in test_case_chromosomes:
+            result: ExecutionResult | None
+            if changed:
+                result = next(changed_results_iterator)
+                test_case_chromosome.set_last_execution_result(result)
                 test_case_chromosome.changed = False
                 # If we execute a suite which in turn executes it's test cases,
                 # then we have to invalidate the values of the test cases, because
                 # the test case is no longer aware that it was changed.
                 test_case_chromosome.invalidate_cache()
-            result = test_case_chromosome.get_last_execution_result()
+            else:
+                result = test_case_chromosome.get_last_execution_result()
+
             assert result is not None
+
             results.append(result)
+
         return results
 
 
