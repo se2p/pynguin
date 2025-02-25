@@ -772,18 +772,7 @@ class ModuleProvider:
     """Class for providing modules."""
 
     def __init__(self):  # noqa: D107
-        self._mutated_module_aliases: dict[str, tuple[ModuleType, InstrumentationTransformer]] = {}
-
-    @property
-    def mutated_module_aliases(
-        self,
-    ) -> dict[str, tuple[ModuleType, InstrumentationTransformer]]:
-        """The mutated module aliases.
-
-        Returns:
-            The mutated module aliases
-        """
-        return self._mutated_module_aliases.copy()
+        self._mutated_module_aliases: dict[str, ModuleType] = {}
 
     @staticmethod
     def __get_sys_module(module_name: str) -> ModuleType:
@@ -823,7 +812,7 @@ class ModuleProvider:
             the module which should be loaded.
         """
         if (mutated_module := self._mutated_module_aliases.get(module_name, None)) is not None:
-            retrieved_module = mutated_module[0]
+            retrieved_module = mutated_module
         else:
             retrieved_module = self.__get_sys_module(module_name)
         self.mock_module(retrieved_module)
@@ -831,7 +820,8 @@ class ModuleProvider:
 
     @staticmethod
     def mock_module(
-        module_to_mock: ModuleType, mocks: MappingProxyType[str, ModuleType] = mocks_to_use
+        module_to_mock: ModuleType,
+        mocks: MappingProxyType[str, ModuleType] = mocks_to_use,
     ) -> None:
         """Mock all dangerous methods of the given module, such as logging.
 
@@ -847,7 +837,6 @@ class ModuleProvider:
         self,
         module_name: str,
         mutated_module: ModuleType,
-        transformer: InstrumentationTransformer,
     ) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.
 
@@ -856,7 +845,7 @@ class ModuleProvider:
             mutated_module: the custom module, which should be used.
             transformer: the transformer to be used for the mutated module.
         """
-        self._mutated_module_aliases[module_name] = (mutated_module, transformer)
+        self._mutated_module_aliases[module_name] = mutated_module
 
     def clear_mutated_modules(self):
         """Clear the existing aliases."""

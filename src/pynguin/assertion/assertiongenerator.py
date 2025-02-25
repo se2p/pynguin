@@ -316,6 +316,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         """
         super().__init__(plain_executor)
 
+        # We use a separate tracer and executor to execute tests on the mutants.
         if config.configuration.subprocess:
             self._mutation_executor: ex.TestCaseExecutor = ex.SubprocessTestCaseExecutor(
                 mutation_controller.tracer
@@ -354,7 +355,6 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._mutation_executor.module_provider.add_mutated_version(
             module_name=config.configuration.module_name,
             mutated_module=mutated_module,
-            transformer=self._mutation_controller.transformer,
         )
 
         return self._mutation_executor.execute_multiple(test_cases)

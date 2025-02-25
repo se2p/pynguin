@@ -28,6 +28,8 @@ from pynguin.slicer.dynamicslicer import DynamicSlicer
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion
     from pynguin.testcase.execution import AbstractTestCaseExecutor
@@ -46,7 +48,7 @@ class ChromosomeComputation(abc.ABC):
 class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test case chromosome."""
 
-    def _run_test_case_chromosome(self, individual) -> ExecutionResult:
+    def _run_test_case_chromosome(self, individual: TestCaseChromosome) -> ExecutionResult:
         """Runs a test suite and updates the execution results.
 
         Updates all test cases that were changed.
@@ -68,7 +70,7 @@ class TestCaseChromosomeComputation(ChromosomeComputation, abc.ABC):
 class TestSuiteChromosomeComputation(ChromosomeComputation, abc.ABC):
     """A function that computes something on a test suite chromosome."""
 
-    def _run_test_suite_chromosome(self, individual) -> list[ExecutionResult]:
+    def _run_test_suite_chromosome(self, individual: TestSuiteChromosome) -> list[ExecutionResult]:
         """Runs a test suite and updates the execution results.
 
         Updates all test cases that were changed.
@@ -99,6 +101,7 @@ class TestSuiteChromosomeComputation(ChromosomeComputation, abc.ABC):
         results: list[ExecutionResult] = []
 
         for test_case_chromosome, changed in test_case_chromosomes:
+            result: ExecutionResult | None
             if changed:
                 result = next(changed_results_iterator)
                 test_case_chromosome.set_last_execution_result(result)

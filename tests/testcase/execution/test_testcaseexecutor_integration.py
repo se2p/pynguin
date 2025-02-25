@@ -91,14 +91,15 @@ def test_observers(short_test_case):
     tracer.current_thread_identifier = threading.current_thread().ident
     executor = TestCaseExecutor(tracer)
     observer = MagicMock()
+    observer.remote_observer = MagicMock()
     observer.remote_observer.before_statement_execution.side_effect = lambda _x, y, _z: y
     executor.add_observer(observer)
     executor.execute(short_test_case)
-    assert observer.before_remote_test_case_execution.call_count == 1
     assert observer.remote_observer.before_test_case_execution.call_count == 1
     assert observer.remote_observer.before_statement_execution.call_count == 2
     assert observer.remote_observer.after_statement_execution.call_count == 2
     assert observer.remote_observer.after_test_case_execution.call_count == 1
+    assert observer.before_remote_test_case_execution.call_count == 1
     assert observer.after_remote_test_case_execution.call_count == 1
 
 
