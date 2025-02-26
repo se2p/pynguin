@@ -1329,6 +1329,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
+        sending_connection.close()
+
         # We need to use `poll` here because `recv` cannot take a timeout argument and
         # `join` does not return until the pipe is closed in both processes.
         has_results = receiving_connection.poll(
@@ -1339,7 +1341,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
-            sending_connection.close()
             receiving_connection.close()
 
             if process.exitcode is None:
@@ -1377,7 +1378,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             random_state,
         ) = return_value
 
-        sending_connection.close()
         receiving_connection.close()
 
         process.join(timeout=self._maximum_test_execution_timeout)
@@ -1438,6 +1438,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
+        sending_connection.close()
+
         # We need to use `poll` here because `recv` cannot take a timeout argument and
         # `join` does not return until the pipe is closed in both processes.
         has_results = receiving_connection.poll(
@@ -1451,7 +1453,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
-            sending_connection.close()
             receiving_connection.close()
 
             if process.exitcode is None:
@@ -1505,7 +1506,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 random_state,
             ) = return_value
 
-            sending_connection.close()
             receiving_connection.close()
 
             process.join(timeout=self._maximum_test_execution_timeout)
@@ -1639,6 +1639,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             randomness.RNG.getstate(),
         ))
 
+        sending_connection.close()
+
         tracer.current_thread_identifier = -1
 
     @staticmethod
@@ -1689,6 +1691,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             new_references_bindings,
             randomness.RNG.getstate(),
         ))
+
+        sending_connection.close()
 
         tracer.current_thread_identifier = -1
 
