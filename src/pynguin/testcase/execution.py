@@ -834,11 +834,7 @@ class ModuleProvider:
             if hasattr(module_to_mock, module_to_mock_name):
                 setattr(module_to_mock, module_to_mock_name, mock)
 
-    def add_mutated_version(
-        self,
-        module_name: str,
-        mutated_module: ModuleType,
-    ) -> None:
+    def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.
 
         Args:
