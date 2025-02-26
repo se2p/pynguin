@@ -47,6 +47,9 @@ def write_configuration():
 def convert_config_to_dict(config_obj: object) -> dict[str, str | dict[str, str]]:
     """Converts a configuration object to a dictionary.
 
+    Other than the built-in `dataclasses.asdict`, this function converts enum values
+    to their string representation, which is required for the TOML format.
+
     Args:
         config_obj: The configuration object to convert.
 
