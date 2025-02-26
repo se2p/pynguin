@@ -1472,7 +1472,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             for remote_observer in remote_observers:
                 executor.add_remote_observer(remote_observer)
 
-            return executor.execute_multiple(test_cases_tuple)
+            return (executor.execute(test_case) for test_case in test_cases_tuple)
 
         return_value: tuple[
             ExecutionTracer,
