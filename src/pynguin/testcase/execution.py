@@ -1663,9 +1663,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 else None
             )
         except Exception as exception:  # noqa: BLE001
-            _LOGGER.warning(
-                "Failed to fix reference bindings for pickle, final results might"
-                " differ from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix reference bindings for pickle",
                 exception,
             )
             return None
