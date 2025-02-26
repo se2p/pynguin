@@ -1329,6 +1329,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
+        # We need to use `poll` here because `recv` cannot take a timeout argument and
+        # `join` does not return until the pipe is closed in both processes.
         has_results = receiving_connection.poll(
             timeout=min(
                 self._maximum_test_execution_timeout,
@@ -1436,6 +1438,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         process.start()
 
+        # We need to use `poll` here because `recv` cannot take a timeout argument and
+        # `join` does not return until the pipe is closed in both processes.
         has_results = receiving_connection.poll(
             timeout=min(
                 self._maximum_test_execution_timeout * len(test_cases_tuple),
@@ -1468,6 +1472,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 )
                 raise RuntimeError("Bug in Pynguin!")
 
+            # Fallback to executing each test-case in separate subprocesses
+            # if the execution of multiple test-cases in a single subprocess failed.
+            # We need to use another executor because we already called
+            # `_before_remote_test_case_execution` so we only need to run the
+            # remote observers.
             executor = SubprocessTestCaseExecutor(
                 self._tracer,
                 self._module_provider,
@@ -1542,6 +1551,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _create_variable_binding(
         test_case: TestCase,
     ) -> dict[int, vr.VariableReference]:
+        """Create binding between statement positions and variable references.
+
+        This is important because the `Assertion`s added to the `AssertionTrace` use
+        `Reference`s to indicate on which line they should be used. This causes a
+        problem because when data is returned from the subprocess to the main process,
+        it creates new references and so we need a way to link the old references to
+        the new ones.
+
+        Args:
+            test_case: The test case
+        """
         return {
             position: reference
             for position, statement in enumerate(test_case.statements)
@@ -1554,6 +1574,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         old_reference_bindings: dict[int, vr.VariableReference],
         new_reference_bindings: dict[int, vr.VariableReference],
     ) -> None:
+        """Fix the assertion trace after the test case execution.
+
+        See the docstring of `_create_variable_binding` for more information.
+
+        Args:
+            assertion_trace: The assertion trace
+            old_reference_bindings: The old reference bindings
+            new_reference_bindings: The new reference bindings
+        """
         memo = {
             new_reference: old_reference_bindings[position]
             for position, new_reference in new_reference_bindings.items()
@@ -1590,6 +1619,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         result = executor.execute(test_case)
 
+        # We need to set the current thread identifier to the current thread
+        # because pickle can execute code of the instrumented module and it would
+        # kill the subprocess which is not what we want.
         tracer.current_thread_identifier = threading.current_thread().ident
 
         SubprocessTestCaseExecutor._fix_result_for_pickle(result)
@@ -1634,6 +1666,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         results = tuple(executor.execute_multiple(test_cases))
 
+        # We need to set the current thread identifier to the current thread
+        # because pickle can execute code of the instrumented module and it would
+        # kill the subprocess which is not what we want.
         tracer.current_thread_identifier = threading.current_thread().ident
 
         for result in results:
@@ -1662,6 +1697,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         result: ExecutionResult,
         reference_bindings: dict[int, vr.VariableReference],
     ) -> dict[int, vr.VariableReference] | None:
+        """Create new reference bindings.
+
+        See the docstring of `_create_variable_binding` for more information.
+
+        Args:
+            result: The result to create new reference bindings for
+            reference_bindings: The old reference bindings
+
+        Returns:
+            The new reference bindings
+        """
         try:
             return (
                 reference_bindings
@@ -1677,6 +1723,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _replace_tracer(tracer: ExecutionTracer) -> None:
+        """Replace the tracer used for instrumentation.
+
+        This is necessary because the tracer used in the instrumented module is
+        inaccessible from the function running in the subprocess and we need to have
+        access to it otherwise it would kill the subprocess because we would not be able
+        to change the `current_thread_identifier`.
+        """
         instrumentation_finder = sys.meta_path[0]
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
@@ -1692,6 +1745,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _fix_result_for_pickle(result: ExecutionResult) -> None:  # noqa: C901
+        """Fix the result for pickling.
+
+        This method removes unpicklable objects from the result because it would cause
+        the subprocess to crash when sending the result back to the main process.
+
+        Args:
+            result: The result to fix
+        """
         try:
             if exception_bad_items := dill.detect.baditems(result.exceptions):
                 SubprocessTestCaseExecutor._log_different_results(
