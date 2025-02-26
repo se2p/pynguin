@@ -241,7 +241,7 @@ def expected_parameter_list() -> list[str]:
         "--timeline_interval 1000000000",
         "--timeline_interpolation True",
         "--coverage_metrics BRANCH",
-        "--output_variables TargetModule,Coverage",
+        "--output_variables TargetModule\nCoverage",
         "--create_coverage_report False",
         "--type_guess_top_n 10",
         "--maximum_search_time -1",

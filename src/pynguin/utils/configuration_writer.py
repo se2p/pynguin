@@ -70,7 +70,8 @@ def extract_parameter_list_from_config() -> list[str]:
 
     def format_parameter(k: str, v: Any) -> str:
         if isinstance(v, list):
-            return f"--{k}\n{','.join(v)}"
+            values = "\n".join(v)
+            return f"--{k}\n{values}"
         return f"--{k}\n{v}"
 
     parameter_list: list[str] = []
