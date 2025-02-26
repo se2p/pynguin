@@ -8,6 +8,7 @@
 
 import dataclasses
 import json
+import logging
 import pprint
 
 from pathlib import Path
@@ -55,7 +56,7 @@ def convert_config_to_dict(config_obj: object) -> dict[str, str | dict[str, str]
     return json.loads(json.dumps(config_obj, default=lambda o: o.__dict__))
 
 
-def extract_parameter_list_from_config() -> list[str]:
+def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
     """Extracts the CLI parameter list from the current configuration.
 
     Allows to use the dumped configuration as input for the CLI again.  Pynguin's CLI parser already
@@ -63,6 +64,9 @@ def extract_parameter_list_from_config() -> list[str]:
     documentation.
 
     Implementation detail: the result is sorted to make the output deterministic.
+
+    Args:
+        verbosity: Whether to include verbosity parameters in the output.
 
     Returns:
         A sorted list of CLI parameters.
@@ -92,4 +96,23 @@ def extract_parameter_list_from_config() -> list[str]:
                 else:
                     parameter_list.append(format_parameter(f"{sub_key}", sub_value))
 
-    return sorted(parameter_list)
+    verbosity_params = _extract_verbosity_params() if verbosity else []
+    return sorted(parameter_list + verbosity_params)
+
+
+def _extract_verbosity_params() -> list[str]:
+    """Extract the verbosity level from the logging configuration."""
+    logging_level = logging.getLogger().getEffectiveLevel()
+    if logging_level == logging.DEBUG:
+        verbosity = 2
+    elif logging_level == logging.INFO:
+        verbosity = 1
+    else:
+        verbosity = 0
+
+    # set number of 'v's to the verbosity level
+    verbosity_params = []
+    if verbosity > 0:
+        verbosity_params.append(f"-{'v' * verbosity}")
+
+    return verbosity_params

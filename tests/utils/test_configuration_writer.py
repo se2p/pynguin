@@ -4,8 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import logging
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -384,11 +386,36 @@ def test_ignore_callable_and_dunder_methods():
     assert "method" not in converted
 
 
-def test(expected_parameter_list):
+def test_extract_parameter_list_from_config(expected_parameter_list):
     config.configuration.module_name = "dummy"
     config.configuration.project_path = "/tmp"  # noqa: S108
     config.configuration.seeding.seed = 12345
 
-    parameter_list = extract_parameter_list_from_config()
+    parameter_list = extract_parameter_list_from_config(verbosity=False)
 
     assert parameter_list == [elem.replace(" ", "\n") for elem in expected_parameter_list]
+
+
+def test_extract_parameter_list_from_config_preserve_verbosity():
+    with patch("logging.getLogger") as mock_get_logger:
+        mock_logger = mock_get_logger.return_value
+        mock_logger.getEffectiveLevel.return_value = logging.DEBUG  # Simulate verbose logging
+        parameter_list = extract_parameter_list_from_config()
+        assert "-v" not in parameter_list
+
+
+@pytest.mark.parametrize(
+    "log_level, expected_v_flag",
+    [
+        (logging.INFO, "-v"),
+        (logging.DEBUG, "-vv"),
+    ],
+)
+def test_extract_parameter_list_from_config_preserve_verbosity_2(log_level, expected_v_flag):
+    with patch("logging.getLogger") as mock_get_logger:
+        mock_logger = mock_get_logger.return_value
+        mock_logger.getEffectiveLevel.return_value = log_level
+
+        parameter_list = extract_parameter_list_from_config()
+
+        assert expected_v_flag in parameter_list
