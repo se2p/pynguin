@@ -6,19 +6,9 @@
 #
 from unittest.mock import MagicMock
 
-import pytest
-
 from pynguin.ga import chromosome as chrom
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
-from pynguin.testcase.execution import ExecutionResult
-
-
-@pytest.fixture
-def result():
-    result = ExecutionResult()
-    result.num_executed_statements = 1
-    return result
 
 
 class DummyAlgorithm(GenerationAlgorithm):

@@ -386,10 +386,8 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             for tests_mutant_results in self._execute_test_case_on_mutants(
                 test_cases, mutant_count
             ):
-                for test_mutants_results, test_mutant_results in zip(
-                    tests_mutants_results, tests_mutant_results, strict=True
-                ):
-                    test_mutants_results.append(test_mutant_results)
+                for i, test_mutant_results in enumerate(tests_mutant_results):
+                    tests_mutants_results[i].append(test_mutant_results)
 
         summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
         self.__report_mutation_summary(summary)

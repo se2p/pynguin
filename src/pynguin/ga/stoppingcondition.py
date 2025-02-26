@@ -435,6 +435,7 @@ class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
 
     def __init__(self):
         """Create new RemoteMaxStatementExecutionsObserver."""
+        super().__init__()
         self._state = (
             RemoteMaxStatementExecutionsObserver.RemoteMaxStatementExecutionsObserverState()
         )
