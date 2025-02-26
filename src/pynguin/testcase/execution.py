@@ -56,7 +56,6 @@ from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-from pynguin.testcase.mocking import mocks_to_use
 from pynguin.utils.mirror import Mirror
 
 
@@ -64,7 +63,6 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from collections.abc import Iterable
     from contextlib import AbstractContextManager
-    from types import MappingProxyType
     from types import ModuleType
 
     from bytecode import BasicBlock
@@ -746,26 +744,8 @@ class ModuleProvider:
             the module which should be loaded.
         """
         if (mutated_module := self._mutated_module_aliases.get(module_name, None)) is not None:
-            retrieved_module = mutated_module
-        else:
-            retrieved_module = self.__get_sys_module(module_name)
-        self.mock_module(retrieved_module)
-        return retrieved_module
-
-    @staticmethod
-    def mock_module(
-        module_to_mock: ModuleType,
-        mocks: MappingProxyType[str, ModuleType] = mocks_to_use,
-    ) -> None:
-        """Mock all dangerous methods of the given module, such as logging.
-
-        Args:
-            module_to_mock: The module to mock.
-            mocks: The mocks to use.
-        """
-        for module_to_mock_name, mock in mocks.items():
-            if hasattr(module_to_mock, module_to_mock_name):
-                setattr(module_to_mock, module_to_mock_name, mock)
+            return mutated_module
+        return self.__get_sys_module(module_name)
 
     def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.

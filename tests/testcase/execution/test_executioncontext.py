@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from logging import Logger
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,13 +11,8 @@ import pytest
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import TypeInfo
 from pynguin.testcase.execution import ExecutionContext
 from pynguin.testcase.execution import ModuleProvider
-from pynguin.testcase.mocking import MockedLogger
-from pynguin.testcase.mocking import mocked_logging
 
 
 def test_get_reference_value():
@@ -49,17 +43,3 @@ def test_get_reference_value_3(test_case_mock):
     )
     ctx._local_namespace = {ctx._variable_names.get_name(var): var_mock}
     assert ctx.get_reference_value(ref) == 5
-
-
-def test_get_reference_value_logging():
-    ctx = ExecutionContext(ModuleProvider())
-    ref = vr.FieldReference(
-        # logger = logging.getLogger()  # noqa: ERA001
-        vr.StaticModuleFieldReference(
-            gao.GenericStaticModuleField("logging", "getLogger", Instance(TypeInfo(Logger)))
-        ),
-        # logger.addHandler()  # noqa: ERA001
-        gao.GenericField(TypeInfo(Logger), "addHandler", NoneType()),
-    )
-    ctx._global_namespace = {ctx._module_aliases.get_name("logging"): mocked_logging}
-    assert ctx.get_reference_value(ref) == MockedLogger.addHandler
