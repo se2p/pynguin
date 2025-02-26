@@ -1337,6 +1337,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
+            sending_connection.close()
+            receiving_connection.close()
+
             if process.exitcode is None:
                 process.kill()
                 _LOGGER.warning("Experienced timeout from test-case execution")
@@ -1444,6 +1447,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
         if not has_results:
+            sending_connection.close()
+            receiving_connection.close()
+
             if process.exitcode is None:
                 process.kill()
                 _LOGGER.warning(
@@ -1472,45 +1478,45 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             for remote_observer in remote_observers:
                 executor.add_remote_observer(remote_observer)
 
-            return (executor.execute(test_case) for test_case in test_cases_tuple)
+            results = tuple(executor.execute(test_case) for test_case in test_cases_tuple)
+        else:
+            return_value: tuple[
+                ExecutionTracer,
+                ModuleProvider,
+                tuple[ExecutionResult, ...],
+                tuple[dict[int, vr.VariableReference] | None, ...],
+                tuple[Any, ...],
+            ] = receiving_connection.recv()
 
-        return_value: tuple[
-            ExecutionTracer,
-            ModuleProvider,
-            tuple[ExecutionResult, ...],
-            tuple[dict[int, vr.VariableReference] | None, ...],
-            tuple[Any, ...],
-        ] = receiving_connection.recv()
+            (
+                new_tracer,
+                new_module_provider,
+                results,
+                new_references_bindings,
+                random_state,
+            ) = return_value
 
-        (
-            new_tracer,
-            new_module_provider,
-            results,
-            new_references_bindings,
-            random_state,
-        ) = return_value
+            sending_connection.close()
+            receiving_connection.close()
 
-        sending_connection.close()
-        receiving_connection.close()
+            process.join(timeout=self._maximum_test_execution_timeout)
 
-        process.join(timeout=self._maximum_test_execution_timeout)
+            if process.exitcode is None:
+                process.kill()
 
-        if process.exitcode is None:
-            process.kill()
+            randomness.RNG.setstate(random_state)
 
-        randomness.RNG.setstate(random_state)
+            self._module_provider = new_module_provider
 
-        self._module_provider = new_module_provider
+            for result, reference_bindings, new_reference_bindings in zip(
+                results, references_bindings, new_references_bindings, strict=True
+            ):
+                if new_reference_bindings is not None:
+                    self._fix_assertion_trace(
+                        result.assertion_trace, reference_bindings, new_reference_bindings
+                    )
 
-        for result, reference_bindings, new_reference_bindings in zip(
-            results, references_bindings, new_references_bindings, strict=True
-        ):
-            if new_reference_bindings is not None:
-                self._fix_assertion_trace(
-                    result.assertion_trace, reference_bindings, new_reference_bindings
-                )
-
-        self._tracer.state = new_tracer.state
+            self._tracer.state = new_tracer.state
 
         for test_case, result in zip(test_cases_tuple, results, strict=True):
             self._after_remote_test_case_execution(test_case, result)
