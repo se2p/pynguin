@@ -1678,12 +1678,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             instrumentation_finder.instrumentation_tracer.tracer = tracer
 
     @staticmethod
+    def _log_different_results(reason: str, obj: Any) -> None:
+        _LOGGER.warning(
+            "%s, final results might differ from classic execution with same seed: %s",
+            reason,
+            obj,
+        )
+
+    @staticmethod
     def _fix_result_for_pickle(result: ExecutionResult) -> None:  # noqa: C901
         try:
             if exception_bad_items := dill.detect.baditems(result.exceptions):
-                _LOGGER.warning(
-                    "Unpicklable exceptions, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable exceptions",
                     exception_bad_items,
                 )
                 result.exceptions = {
@@ -1692,86 +1699,76 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     if exception not in exception_bad_items
                 }
         except Exception as exception:  # noqa: BLE001
-            result.exceptions.clear()
-            _LOGGER.warning(
-                "Failed to fix exceptions for pickle, final results might differ"
-                " from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix exceptions for pickle",
                 exception,
             )
+            result.exceptions.clear()
 
         try:
             if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
-                _LOGGER.warning(
-                    "Unpicklable assertion trace, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable assertion trace",
                     assertion_trace_bad_items,
                 )
                 result.assertion_trace.clear()
         except Exception as exception:  # noqa: BLE001
-            result.assertion_trace.clear()
-            _LOGGER.warning(
-                "Failed to fix assertion trace for pickle, final results might differ"
-                " from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix assertion trace for pickle",
                 exception,
             )
+            result.assertion_trace.clear()
 
         try:
             if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
-                _LOGGER.warning(
-                    "Unpicklable execution trace, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable execution trace",
                     execution_trace_bad_items,
                 )
                 result.execution_trace.executed_assertions.clear()
         except Exception as exception:  # noqa: BLE001
-            result.execution_trace.executed_assertions.clear()
-            _LOGGER.warning(
-                "Failed to fix execution trace for pickle, final results might differ"
-                " from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix execution trace for pickle",
                 exception,
             )
+            result.execution_trace.executed_assertions.clear()
 
         try:
             if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
-                _LOGGER.warning(
-                    "Unpicklable proxy knowledge, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable proxy knowledge",
                     proxy_knowledge_bad_items,
                 )
                 result.proxy_knowledge.clear()
         except Exception as exception:  # noqa: BLE001
-            result.proxy_knowledge.clear()
-            _LOGGER.warning(
-                "Failed to fix proxy knowledge for pickle, final results might differ"
-                " from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix proxy knowledge for pickle",
                 exception,
             )
+            result.proxy_knowledge.clear()
 
         try:
             if proper_return_type_trace_bad_items := dill.detect.baditems(
                 result.proper_return_type_trace
             ):
-                _LOGGER.warning(
-                    "Unpicklable proper return type trace, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable proper return type trace",
                     proper_return_type_trace_bad_items,
                 )
                 result.proper_return_type_trace.clear()
         except Exception as exception:  # noqa: BLE001
-            result.proper_return_type_trace.clear()
-            _LOGGER.warning(
-                "Failed to fix proper return type trace for pickle, final results might"
-                " differ from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix proper return type trace for pickle",
                 exception,
             )
+            result.proper_return_type_trace.clear()
 
         try:
             if raw_return_type_generic_args_bad_items := dill.detect.baditems(
                 result.raw_return_type_generic_args
             ):
-                _LOGGER.warning(
-                    "Unpicklable raw return type generic args, final results might"
-                    " differ from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable raw return type generic args",
                     raw_return_type_generic_args_bad_items,
                 )
                 result.raw_return_type_generic_args = {
@@ -1783,18 +1780,16 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     )
                 }
         except Exception as exception:  # noqa: BLE001
-            result.raw_return_type_generic_args.clear()
-            _LOGGER.warning(
-                "Failed to fix raw return type generic args for pickle, final results"
-                " might differ from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix raw return type generic args for pickle",
                 exception,
             )
+            result.raw_return_type_generic_args.clear()
 
         try:
             if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
-                _LOGGER.warning(
-                    "Unpicklable raw return types, final results might differ"
-                    " from classic execution with same seed: %s",
+                SubprocessTestCaseExecutor._log_different_results(
+                    "Unpicklable raw return types",
                     raw_return_types_bad_items,
                 )
                 result.raw_return_types = {
@@ -1803,12 +1798,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     if type_ not in raw_return_types_bad_items
                 }
         except Exception as exception:  # noqa: BLE001
-            result.raw_return_types.clear()
-            _LOGGER.warning(
-                "Failed to fix raw return types for pickle, final results might differ"
-                " from classic execution with same seed: %s",
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix raw return types for pickle",
                 exception,
             )
+            result.raw_return_types.clear()
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
