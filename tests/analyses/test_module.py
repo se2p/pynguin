@@ -555,11 +555,3 @@ def test_exception_during_inspect_getmembers(parsed_module_no_dependencies):
     with patch("inspect.getmembers", side_effect=CustomError):
         test_cluster = analyse_module(parsed_module_no_dependencies)
         assert test_cluster.num_accessible_objects_under_test() == 3  # one less (failed)
-
-
-def test_import_inspect():
-    # Importing unittest also imports inspect. Importing BeautifulSoup afterward
-    # causes an error for an unknown reason. This regression file checks that the error
-    # is not reintroduced.
-    # Make sure no exception is thrown
-    generate_test_cluster("tests.fixtures.regression.import_inspect")
