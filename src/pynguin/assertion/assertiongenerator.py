@@ -86,8 +86,12 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         with self._plain_executor.temporarily_add_remote_observer(
             ato.RemoteAssertionTraceObserver()
         ):
-            for test in test_cases:
-                self._add_assertions_for(test, self._plain_executor.execute(test))
+            for test, result in zip(
+                test_cases,
+                self._plain_executor.execute_multiple(test_cases),
+                strict=False,
+            ):
+                self._add_assertions_for(test, result)
 
         # Perform filtering executions to remove trivially flaky assertions.
         with self._plain_executor.temporarily_add_remote_observer(
@@ -97,8 +101,12 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 # Create a copy of the list that is shuffled.
                 shuffled_copy = list(test_cases)
                 randomness.RNG.shuffle(shuffled_copy)
-                for test in shuffled_copy:
-                    self.__remove_non_holding_assertions(test, self._plain_executor.execute(test))
+                for test, result in zip(
+                    shuffled_copy,
+                    self._plain_executor.execute_multiple(shuffled_copy),
+                    strict=False,
+                ):
+                    self.__remove_non_holding_assertions(test, result)
 
     @staticmethod
     def __remove_non_holding_assertions(test: tc.TestCase, result: ex.ExecutionResult):

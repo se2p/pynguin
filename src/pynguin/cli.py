@@ -30,6 +30,7 @@ import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
+from pynguin.utils.configuration_writer import write_configuration
 
 
 if TYPE_CHECKING:
@@ -154,7 +155,6 @@ def _setup_logging(
         datefmt="[%X]",
         handlers=[handler],
     )
-
     return console
 
 
@@ -205,6 +205,7 @@ to see why this happens and what you must do to prevent it."""
     )
 
     set_configuration(parsed.config)
+    write_configuration()
     if console is not None:
         with console.status("Running Pynguin..."):
             return run_pynguin().value

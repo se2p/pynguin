@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import pprint
 import queue
 import time
 
@@ -396,8 +395,6 @@ class _SearchStatistics:
                         json.dump(obj, f)
                 except json.JSONDecodeError:
                     self._logger.error("Failed to parse signature infos")
-            cfg_file = report_dir / "pynguin-config.txt"
-            cfg_file.write_text(pprint.pformat(repr(config.configuration)))
         return True
 
     class _ChromosomeLengthOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):

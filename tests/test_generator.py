@@ -4,9 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import importlib
-import logging
-
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
@@ -226,32 +223,6 @@ def test_integrate_typetracing_union_type(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.OK
-
-
-@pytest.mark.skip(
-    reason="Bug with logging on shutdown. See "
-    "https://gitlab.infosun.fim.uni-passau.de/se2/pynguin/pynguin/-/issues/225."
-)
-def test_integrate_logging_example(tmp_path):
-    importlib.reload(logging)
-    project_path = Path().absolute()
-    if project_path.name == "tests":
-        project_path /= ".."  # pragma: no cover
-    project_path = project_path / "tests" / "fixtures" / "mocking"
-    configuration = config.Configuration(
-        algorithm=config.Algorithm.MOSA,
-        stopping=config.StoppingConfiguration(maximum_search_time=1),
-        module_name="log_to_null_handler",
-        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
-        project_path=str(project_path),
-        statistics_output=config.StatisticsOutputConfiguration(
-            report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
-        ),
-    )
-    gen.set_configuration(configuration)
-    result = gen.run_pynguin()
-    assert result == gen.ReturnCode.OK
-    logging.shutdown()
 
 
 class CustomError(Exception):
