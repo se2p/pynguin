@@ -14,6 +14,7 @@ import contextlib
 import copy
 import dataclasses
 import inspect
+import itertools
 import logging
 import os
 import signal
@@ -1752,12 +1753,15 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             result.exceptions.clear()
 
         try:
-            if assertion_trace_bad_items := dill.detect.baditems(result.assertion_trace):
+            if assertions_bad_items := dill.detect.baditems(
+                list(itertools.chain(*result.assertion_trace.trace.values()))
+            ):
                 SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable assertion trace",
-                    assertion_trace_bad_items,
+                    "Unpicklable assertions",
+                    assertions_bad_items,
                 )
-                result.assertion_trace.clear()
+                for assertions in result.assertion_trace.trace.values():
+                    assertions.difference_update(assertions_bad_items)
         except Exception as exception:  # noqa: BLE001
             SubprocessTestCaseExecutor._log_different_results(
                 "Failed to fix assertion trace for pickle",
@@ -1766,12 +1770,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             result.assertion_trace.clear()
 
         try:
-            if execution_trace_bad_items := dill.detect.baditems(result.execution_trace):
+            if executed_assertions_bad_items := dill.detect.baditems(
+                result.execution_trace.executed_assertions
+            ):
                 SubprocessTestCaseExecutor._log_different_results(
                     "Unpicklable execution trace",
-                    execution_trace_bad_items,
+                    executed_assertions_bad_items,
                 )
-                result.execution_trace.executed_assertions.clear()
+                result.execution_trace.executed_assertions = [
+                    assertion
+                    for assertion in result.execution_trace.executed_assertions
+                    if assertion not in executed_assertions_bad_items
+                ]
         except Exception as exception:  # noqa: BLE001
             SubprocessTestCaseExecutor._log_different_results(
                 "Failed to fix execution trace for pickle",
@@ -1785,7 +1795,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Unpicklable proxy knowledge",
                     proxy_knowledge_bad_items,
                 )
-                result.proxy_knowledge.clear()
+                result.proxy_knowledge = {
+                    position: proxy
+                    for position, proxy in result.proxy_knowledge.items()
+                    if proxy not in proxy_knowledge_bad_items
+                }
         except Exception as exception:  # noqa: BLE001
             SubprocessTestCaseExecutor._log_different_results(
                 "Failed to fix proxy knowledge for pickle",
@@ -1801,7 +1815,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Unpicklable proper return type trace",
                     proper_return_type_trace_bad_items,
                 )
-                result.proper_return_type_trace.clear()
+                result.proper_return_type_trace = {
+                    position: proper_return_type
+                    for position, proper_return_type in result.proper_return_type_trace.items()
+                    if proper_return_type not in proper_return_type_trace_bad_items
+                }
         except Exception as exception:  # noqa: BLE001
             SubprocessTestCaseExecutor._log_different_results(
                 "Failed to fix proper return type trace for pickle",
