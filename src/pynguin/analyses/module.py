@@ -127,6 +127,7 @@ MODULE_BLACKLIST = frozenset((
     "getpass",
     "glob",
     "importlib",
+    "inspect",
     "io",
     "itertools",
     "linecache",
