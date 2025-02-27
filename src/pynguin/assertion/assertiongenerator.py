@@ -89,7 +89,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             for test, result in zip(
                 test_cases,
                 self._plain_executor.execute_multiple(test_cases),
-                strict=False,
+                strict=True,
             ):
                 self._add_assertions_for(test, result)
 
@@ -104,7 +104,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 for test, result in zip(
                     shuffled_copy,
                     self._plain_executor.execute_multiple(shuffled_copy),
-                    strict=False,
+                    strict=True,
                 ):
                     self.__remove_non_holding_assertions(test, result)
 
