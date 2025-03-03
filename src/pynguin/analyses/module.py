@@ -127,7 +127,7 @@ MODULE_BLACKLIST = frozenset((
     "getpass",
     "glob",
     "importlib",
-    "inspect",
+    # "inspect",  # we want to keep inspect due its constructors
     "io",
     "itertools",
     "linecache",
@@ -205,7 +205,8 @@ def _is_blacklisted(element: Any) -> bool:
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
         return (
-            element.__module__ in module_blacklist
+            element.__module__ is None
+            or element.__module__ in module_blacklist
             or element.__qualname__.startswith((
                 "main",
                 "test",
