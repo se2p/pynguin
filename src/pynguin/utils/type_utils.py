@@ -284,6 +284,23 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
     )
 
 
+def is_arg_or_kwarg(inf_sig: InferredSignature, parameter_name: str) -> bool:
+    """Returns, whether a parameter is *args or **kwarg.
+
+    Args:
+        inf_sig: the inferred signature
+        parameter_name: the name of the parameter
+
+    Returns:
+        Whether this parameter is *arg or **kwarg.
+    """
+    parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
+    return parameter.kind in {
+        inspect.Parameter.VAR_POSITIONAL,
+        inspect.Parameter.VAR_KEYWORD,
+    }
+
+
 def given_exception_matches(err, exc) -> bool:
     """Returns whether a raised exception matches an exception class.
 
