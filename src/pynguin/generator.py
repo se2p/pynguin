@@ -32,6 +32,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+import numpy as np
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
@@ -62,6 +64,7 @@ from pynguin.testcase.execution import RemoteAssertionExecutionObserver
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.pynguinml import np_rng
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -199,6 +202,7 @@ def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
     randomness.RNG.seed(config.configuration.seeding.seed)
+    np_rng.NP_RNG = np.random.default_rng(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider | None]:
