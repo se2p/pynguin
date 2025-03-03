@@ -59,6 +59,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -69,6 +70,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.pynguinml.constraintsmanager import ConstraintsManager
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
@@ -83,6 +85,7 @@ if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
     from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.utils.pynguinml.mlparameter import MLParameter
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
@@ -1051,12 +1054,16 @@ class CallableData:
         tree: the AST of the callable, if any
         description: the function description of the callable, if any
         cyclomatic_complexity: the McCabe cyclomatic complexity of the callable, if any
+        parameters: A dictionary of parameters, if any
+        generation_order: The generation order of the callable (can be empty)
     """
 
     accessible: GenericAccessibleObject
     tree: AstroidFunctionDef | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
+    parameters: dict[str, MLParameter | None]
+    generation_order: list[str]
 
 
 def __analyse_function(
@@ -1088,11 +1095,25 @@ def __analyse_function(
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
+
+    parameters: dict[str, MLParameter | None] = {}
+    generation_order: list[str] = []
+    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+        try:
+            if module_tree is not None:
+                parameters, generation_order = ConstraintsManager().load_and_process_constraints(
+                    module_tree.name, func_name, list(inferred_signature.original_parameters.keys())
+                )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
     function_data = CallableData(
         accessible=generic_function,
         tree=func_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
+        parameters=parameters,
+        generation_order=generation_order,
     )
     test_cluster.add_generator(generic_function)
     if add_to_test:
@@ -1140,11 +1161,25 @@ def __analyse_class(
             type_info.raw_type
         )
 
+    parameters: dict[str, MLParameter | None] = {}
+    generation_order: list[str] = []
+    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+        try:
+            parameters, generation_order = ConstraintsManager().load_and_process_constraints(
+                type_info.module,
+                type_info.name,
+                list(generic.inferred_signature.original_parameters.keys()),  # type: ignore[union-attr]
+            )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
     method_data = CallableData(
         accessible=generic,
         tree=constructor_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
+        parameters=parameters,
+        generation_order=generation_order,
     )
     if not (
         type_info.is_abstract
@@ -1240,11 +1275,25 @@ def __analyse_method(
     generic_method = GenericMethod(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
+
+    parameters: dict[str, MLParameter | None] = {}
+    generation_order: list[str] = []
+    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+        callable_name = type_info.name + "." + method_name
+        try:
+            parameters, generation_order = ConstraintsManager().load_and_process_constraints(
+                type_info.module, callable_name, list(inferred_signature.original_parameters.keys())
+            )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
     method_data = CallableData(
         accessible=generic_method,
         tree=method_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
+        parameters=parameters,
+        generation_order=generation_order,
     )
     test_cluster.add_generator(generic_method)
     test_cluster.add_modifier(type_info, generic_method)
@@ -1264,6 +1313,22 @@ def __resolve_dependencies(
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
 ) -> None:
+    # Load necessary functions for building tensors
+    if ConstraintsManager().ml_testing_enabled():
+        ConstraintsManager().load_nparray_function(test_cluster, type_inference_strategy)
+
+        if (
+            config.configuration.pynguinml.constructor_function
+            and config.configuration.pynguinml.constructor_function_parameter
+        ):
+            ConstraintsManager().load_constructor_function(
+                config.configuration.pynguinml.constructor_function,
+                test_cluster,
+                type_inference_strategy,
+            )
+        else:
+            LOGGER.info("No constructor function available for building tensors.")
+
     parse_results: dict[str, _ModuleParseResult] = _ParseResults()
     parse_results[root_module.module_name] = root_module
 
