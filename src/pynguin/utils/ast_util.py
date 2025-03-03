@@ -203,8 +203,7 @@ def create_ast_keyword(arg, value) -> ast.keyword:
 
 
 def create_ast_for_nested_list(nested: list) -> ast.List | ast.Constant:
-    """
-    Recursively convert a nested list into a corresponding AST node.
+    """Recursively convert a nested list into a corresponding AST node.
 
     Args:
         nested: nested list
@@ -217,5 +216,4 @@ def create_ast_for_nested_list(nested: list) -> ast.List | ast.Constant:
             elts=[create_ast_for_nested_list(item) for item in nested],
             ctx=ast.Load(),
         )
-    else:
-        return ast.Constant(value=nested)
+    return ast.Constant(value=nested)
