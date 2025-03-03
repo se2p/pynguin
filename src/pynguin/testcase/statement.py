@@ -26,6 +26,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
@@ -33,9 +34,8 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
-from pynguin.pynguinml_utils import utils
+from pynguin.utils import mutation_utils
 from pynguin.utils import randomness
-from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -623,39 +623,34 @@ class CollectionStatement(VariableCreatingStatement, Generic[T]):
         Returns:
             True, iff an element was inserted.
         """
-        return alpha_exponent_insertion(self._elements, self._insertion_supplier)
+        return mutation_utils.alpha_exponent_insertion(self._elements, self._insertion_supplier)
 
 
 class NdArrayStatement(CollectionStatement):
     """Represents a n-dimensional list."""
 
-    def __init__(
+    nd_array_types = int | float | bool | complex
+
+    def __init__(  # noqa: D107
         self,
         test_case: tc.TestCase,
-        type_: ProperType,
-        elements: list[Any],  # Can contain nested lists or numbers
+        elements: list[list | nd_array_types],  # Can contain nested lists and numbers
         np_dtype: np.generic | str,
-        low,
-        high
+        low: float,
+        high: float,
     ):
-        super().__init__(
-            test_case,
-            type_,
-            elements
-        )
+        super().__init__(test_case, ANY, elements)
         self._np_dtype = np.dtype(np_dtype)
+        assert self._np_dtype.kind in "iufcb"
         self._low = low
         self._high = high
 
     def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
         references = set()
         references.add(self.ret_val)
-        # references.update(self._elements)
         return references
 
-    def replace(  # noqa: D102
-        self, old: vr.VariableReference, new: vr.VariableReference
-    ) -> None:
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:  # noqa: D102
         if self.ret_val == old:
             self.ret_val = new
         self._elements = [new if arg == old else arg for arg in self._elements]
@@ -667,221 +662,92 @@ class NdArrayStatement(CollectionStatement):
     ) -> NdArrayStatement:
         return NdArrayStatement(
             test_case,
-            self.ret_val.type,
             copy.deepcopy(self._elements),
-            self._np_dtype,
+            cast("np.generic", self._np_dtype),
             self._low,
-            self._high
+            self._high,
         )
 
     def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
         visitor.visit_ndarray_statement(self)
 
-    @staticmethod
-    def _get_shape(array) -> list:
-        """
-        Recursively computes the shape of a rectangular nested list.
-        For example, [[1,2,3],[4,5,6]] returns [2, 3].
-        """
-        shape = []
-        while isinstance(array, list) and len(array) > 0:
-            shape.append(len(array))
-            if len(array) == 0:
-                break
-            array = array[0]
-        return shape
-
-    def _remove_at_axis_multi(self, array, axis: int, deletion_indices: list):
-        """
-        Recursively removes the elements at the specified indices along the given axis.
-        If axis == 0, removes elements from the current list.
-        For deeper axes, applies the deletion mask to every sublist.
-        Returns the modified array.
-        """
-        if axis == 0:
-            # Remove elements at indices in deletion_indices.
-            return [elem for idx, elem in enumerate(array) if idx not in deletion_indices]
-        else:
-            # Recurse on each subarray.
-            return [self._remove_at_axis_multi(subarray, axis - 1, deletion_indices) for subarray in array]
-
     def _random_deletion(self) -> bool:
         """Randomly removes elements while keeping shape valid."""
-        shape = self._get_shape(self._elements)
-        if not shape:
-            return False
+        shape = mlpu.get_shape(self._elements)
 
         deletable_axes = [axis for axis, size in enumerate(shape) if size > 0]
         if not deletable_axes:
             return False
 
-        axis_choice = randomness.next_int(0, len(deletable_axes))
-        chosen_axis = deletable_axes[axis_choice]
+        axis_index = randomness.next_int(0, len(deletable_axes))
+        chosen_axis = deletable_axes[axis_index]
 
         axis_size = shape[chosen_axis]
-        p = 1.0 / axis_size
 
-        # Select indices to delete based on probability.
-        deletion_indices = [i for i in range(axis_size) if randomness.next_float() >= p]
+        deletion_indices = [i for i in range(axis_size) if randomness.next_float() >= 0.5]
 
-        # If no index was selected, force deletion of one.
-        if len(deletion_indices) == 0:
-            deletion_indices = [randomness.next_int(0, axis_size)]
+        if not deletion_indices:
+            return False
 
         deletion_indices.sort(reverse=True)
 
-        self._elements = self._remove_at_axis_multi(self._elements, chosen_axis, deletion_indices)
+        self._elements = mutation_utils.remove_indices_at_axis(
+            self._elements, chosen_axis, deletion_indices
+        )
         return True
 
-    def _replacement_supplier(self, element: T) -> T:
-        if self._np_dtype.kind in ('i', 'u'):
-            new_value = randomness.next_int(self._low, self._high + 1)
-            return new_value
-        elif self._np_dtype.kind == 'f':
-            new_value = self._low + (self._high - self._low) * randomness.next_float()
-            return new_value
-        elif self._np_dtype.kind == 'c':
-            real_part = self._low + (self._high - self._low) * randomness.next_float()
-            imag_part = self._low + (self._high - self._low) * randomness.next_float()
-            return complex(real_part, imag_part)
-        else:
-            return element
+    def _replacement_supplier(self, element: nd_array_types) -> nd_array_types:
+        if self._np_dtype.kind in {"i", "u"}:
+            return randomness.next_int(int(self._low), int(self._high) + 1)
+        if self._np_dtype.kind == "f":
+            value = self._low + (self._high - self._low) * randomness.next_float()
+            precision = randomness.next_int(0, 7)
+            return round(value, precision)
+        if self._np_dtype.kind == "c":
+            real = self._low + (self._high - self._low) * randomness.next_float()
+            imag = self._low + (self._high - self._low) * randomness.next_float()
+            precision_real = randomness.next_int(0, 7)
+            precision_imag = randomness.next_int(0, 7)
+            return complex(round(real, precision_real), round(imag, precision_imag))
+        if self._np_dtype.kind == "b":
+            return randomness.next_bool()
+        return element
 
     def _random_replacement(self) -> bool:
         """Replaces elements while keeping shape valid."""
-        shape = self._get_shape(self._elements)
-        if not shape or math.prod(shape) == 0:
+        shape = mlpu.get_shape(self._elements)
+        if shape[-1] == 0:
             return False
 
         total_leaves = math.prod(shape)
-        p = 1.0 / total_leaves
+        p = max(1.0 / total_leaves**0.5, 0.05)
 
-        def replace_recursive(array):
-            changed = False
-            new_array = []
-            for elem in array:
-                if isinstance(elem, list):
-                    # Recursively process subarrays.
-                    replaced_subarray, sub_changed = replace_recursive(elem)
-                    new_array.append(replaced_subarray)
-                    if sub_changed:
-                        changed = True
-                else:
-                    if randomness.next_float() < p:
-                        replacement = self._replacement_supplier(elem)
-                        new_array.append(replacement)
-                        if replacement != elem:
-                            changed = True
-                    else:
-                        new_array.append(elem)
-            return new_array, changed
+        self._elements, changed = mutation_utils.apply_random_replacement(
+            self._elements, p, self._replacement_supplier
+        )
 
-        self._elements, changed_ = replace_recursive(self._elements)
-        return changed_
+        return changed
 
-    def _insertion_supplier(self) -> T | None:
-        return self._replacement_supplier(None)
+    def _insertion_supplier(self) -> nd_array_types:
+        return self._replacement_supplier(0)
 
     def _random_insertion(self) -> bool:
-        """
-        Randomly insert new elements into the n-dimensional array using an alpha-exponent algorithm.
-        A random axis is chosen, and new elements are inserted along that axis in such a way
-        that the overall rectangular shape is maintained.
-        """
-        shape = self._get_shape(self._elements)
-        if not shape:
-            return False
+        """Insert elements while keeping shape valid."""
+        shape = mlpu.get_shape(self._elements)
 
-        # Allow insertion along any axis (0, 1, ..., len(shape)-1).
-        insertable_axes = list(range(len(shape)))
-        axis_choice = int(randomness.next_float() * len(insertable_axes))
-        chosen_axis = insertable_axes[axis_choice]
-        axis_size = shape[chosen_axis]
+        self._elements, changed = mutation_utils.multiple_alpha_exponent_insertion(
+            self._elements, shape, self._insertion_supplier
+        )
 
-        # Check if the chosen axis exceeds the maximum allowed dimension.
-        if axis_size >= utils.max_shape_dim():
-            return False
-
-        # Calculate the number of free slots available.
-        free_slots = utils.max_shape_dim() - axis_size
-        if free_slots <= 0:
-            return False
-
-        alpha = 0.5
-        exponent = 0
-        insertion_indices = []
-        while randomness.next_float() <= pow(alpha, exponent):
-            pos = randomness.next_int(0, axis_size + 1)
-            insertion_indices.append(pos)
-            exponent += 1
-
-        # If the number of planned insertions exceeds the free slots, trim the list.
-        if len(insertion_indices) > free_slots:
-            insertion_indices = insertion_indices[:free_slots]
-
-        if not insertion_indices:
-            return False
-
-        insertion_indices.sort()  # sort in ascending order for consistent insertion
-        self._elements = self._insert_at_axis_multi(self._elements, chosen_axis, insertion_indices)
-        return True
-
-    def _insert_at_axis_multi(self, array, axis: int, insertion_indices: list) -> list:
-        """
-        Recursively inserts new elements at the specified indices along the given axis.
-        - When axis == 0, we are at the level where insertion occurs: we insert new elements into the list.
-        - For deeper axes (axis > 0), apply recursively to each subarray.
-        """
-        if axis == 0:
-            new_array = []
-            current_index = 0
-            insertion_iter = iter(insertion_indices)
-            next_insertion = next(insertion_iter, None)
-            for i, elem in enumerate(array):
-                # Insert new element(s) before adding the current element if current index matches.
-                while next_insertion is not None and current_index == next_insertion:
-                    # To preserve rectangular shape, create a new subarray similar to elem.
-                    new_elem = self._create_subarray_like(elem) if array else self._insertion_supplier()
-                    if new_elem is not None:
-                        new_array.append(new_elem)
-                    current_index += 1
-                    next_insertion = next(insertion_iter, None)
-                new_array.append(elem)
-                current_index += 1
-            # If any insertion positions remain, append new elements at the end.
-            while next_insertion is not None:
-                new_elem = self._create_subarray_like(array[0]) if array else self._insertion_supplier()
-                if new_elem is not None:
-                    new_array.append(new_elem)
-                next_insertion = next(insertion_iter, None)
-            return new_array
-        else:
-            return [self._insert_at_axis_multi(subarray, axis - 1, insertion_indices)
-                    for subarray in array]
-
-    def _create_subarray_like(self, template):
-        """
-        Create a new subarray with the same structure as the template.
-        For a list template, recursively create a new list of the same length.
-        For a leaf (non-list) element, return a new value using _insertion_supplier.
-        """
-        if isinstance(template, list):
-            # Create a new list with the same length as the template.
-            # We assume all subarrays in this dimension have the same shape.
-            return [self._create_subarray_like(template[0]) for _ in range(len(template))]
-        else:
-            return self._insertion_supplier()
+        return changed
 
     def _nested_to_tuple(self, nested):
         """Recursively convert a nested list into a nested tuple."""
         if isinstance(nested, list):
             return tuple(self._nested_to_tuple(item) for item in nested)
-        else:
-            return nested
+        return nested
 
-    def structural_hash(  # noqa: D102
-        self, memo: dict[vr.VariableReference, int]
-    ) -> int:
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:  # noqa: D102
         ret_hash = self.ret_val.structural_hash(memo)
         nested_tuple = self._nested_to_tuple(self._elements)
         return hash((ret_hash, nested_tuple))
@@ -895,7 +761,7 @@ class NdArrayStatement(CollectionStatement):
         if not self.ret_val.structural_eq(other.ret_val, memo):
             return False
 
-        return self._elements == other._elements
+        return self._elements == other._elements  # noqa: SLF001
 
 
 class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
@@ -1663,6 +1529,26 @@ class MethodStatement(ParametrizedStatement):
 class FunctionStatement(ParametrizedStatement):
     """A statement that calls a function."""
 
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        generic_callable: gao.GenericCallableAccessibleObject,
+        args: dict[str, vr.VariableReference] | None = None,
+        *,
+        should_mutate: bool = True,
+    ):
+        super().__init__(test_case, generic_callable, args)
+        self.should_mutate = should_mutate
+
+    def mutate(self) -> bool:
+        """If the function should be mutated.
+
+        For ML-specific testing, certain function statements should not be mutated.
+        """
+        if self.should_mutate:
+            return super().mutate()
+        return False
+
     def accessible_object(self) -> gao.GenericFunction:
         """The used function.
 
@@ -1676,7 +1562,12 @@ class FunctionStatement(ParametrizedStatement):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> Statement:
-        return FunctionStatement(test_case, self.accessible_object(), self._clone_args(memo))
+        return FunctionStatement(
+            test_case,
+            self.accessible_object(),
+            self._clone_args(memo),
+            should_mutate=self.should_mutate,
+        )
 
     def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
         visitor.visit_function_statement(self)
@@ -1828,6 +1719,66 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
 
     def __repr__(self) -> str:
         return f"IntPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: int"
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_int_primitive_statement(self)
+
+
+class UIntPrimitiveStatement(PrimitiveStatement[int]):
+    """Primitive Statement that creates an unsigned int."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        value: int | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(int)),
+            value,
+            constant_provider=constant_provider,
+        )
+
+    def randomize_value(self) -> None:  # noqa: D102
+        if self._constant_provider:
+            seeded_value = self._constant_provider.get_constant_for(int)
+        else:
+            seeded_value = None
+
+        if (
+            randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and seeded_value is not None
+            and seeded_value >= 0
+        ):
+            self._value = seeded_value
+        else:
+            self._value = int(
+                abs(randomness.next_gaussian()) * config.configuration.test_creation.max_int
+            )
+
+    def delta(self) -> None:  # noqa: D102
+        assert self._value is not None
+        delta = math.floor(
+            abs(randomness.next_gaussian()) * config.configuration.test_creation.max_delta
+        )
+        self._value += delta
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> UIntPrimitiveStatement:
+        return UIntPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
+
+    def __repr__(self) -> str:
+        return f"UIntPrimitiveStatement({self._test_case}, {self._value})"
 
     def __str__(self) -> str:
         return f"{self._value}: int"
@@ -2364,3 +2315,56 @@ class NoneStatement(PrimitiveStatement[None]):
 
     def __str__(self) -> str:
         return "None"
+
+
+class AllowedValuesStatement(PrimitiveStatement):
+    """Primitive Statement that only allows certain values."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        allowed_values: list[int | float | bool | str],
+        *,
+        value: float | bool | str | None = None,
+    ) -> None:
+        super().__init__(
+            test_case,
+            ANY,
+            value,
+            constant_provider=None,
+        )
+        self._allowed_values = allowed_values
+
+    def mutate(self) -> bool:  # noqa: D102
+        self.randomize_value()
+        return True
+
+    def randomize_value(self) -> None:  # noqa: D102
+        self._value = randomness.choice(self._allowed_values)
+
+    def delta(self) -> None:
+        """Cannot compute a delta for allowed values."""
+
+    def clone(  # noqa: D102
+        self, test_case: tc.TestCase, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> AllowedValuesStatement:
+        return AllowedValuesStatement(test_case, self._allowed_values, value=self._value)
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        match type(self._value).__name__:
+            case "int":
+                visitor.visit_int_primitive_statement(self)
+            case "float":
+                visitor.visit_float_primitive_statement(self)
+            case "bool":
+                visitor.visit_boolean_primitive_statement(self)
+            case "str":
+                visitor.visit_string_primitive_statement(self)
+            case _:
+                visitor.visit_none_statement(self)
+
+    def __repr__(self) -> str:
+        return f"AllowedValuesStatement({self._test_case}, {self._allowed_values}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: any"
