@@ -383,7 +383,7 @@ class TypeInferenceConfiguration:
 
 @dataclasses.dataclass
 class PynguinMLConfiguration:
-    """Configuration related to PynguinML.""" #TODO(ah) do we need parameters model_test, check_nan,
+    """Configurations for PynguinML, specifically for machine learning API testing."""
 
     constraints_path: str = ""
     """
@@ -403,9 +403,17 @@ class PynguinMLConfiguration:
     """
     Optional constructor function for building tensors (e.g. torch.tensor or
     tensorflow.convert_to_tensor). Should be able to convert np.ndarray.
+    Note: Also specify the parameter name in 'constructor_function_parameter' that
+    should receive the np.ndarray.
     """
 
-    ignore_probability: float = 0.15
+    constructor_function_parameter: str = ""
+    """
+    The name of the parameter in the constructor function that should receive the
+    np.ndarray. This must be set when 'constructor_function' is specified.
+    """
+
+    ignore_probability: float = 0.15  # TODO(ah)
     """
     Probability of ignoring parameter constraints to trigger the standard Pynguin flow.
     Occasionally bypassing constraints allows PynguinML to explore additional code
