@@ -214,4 +214,8 @@ to see why this happens and what you must do to prevent it."""
 
 
 if __name__ == "__main__":
+    import multiprocess as mp
+
+    mp.set_start_method("spawn")
+
     sys.exit(main(sys.argv))
