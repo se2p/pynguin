@@ -36,8 +36,8 @@ if TYPE_CHECKING:
     from pynguin.testcase.statement import FunctionStatement
     from pynguin.testcase.statement import IntPrimitiveStatement
     from pynguin.testcase.statement import ListStatement
-    from pynguin.testcase.statement import NdArrayStatement
     from pynguin.testcase.statement import MethodStatement
+    from pynguin.testcase.statement import NdArrayStatement
     from pynguin.testcase.statement import NoneStatement
     from pynguin.testcase.statement import ParametrizedStatement
     from pynguin.testcase.statement import PrimitiveStatement
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     )
 
 
-class StatementToAstVisitor(StatementVisitor):
+class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
     """Visitor that transforms statements into a list of AST nodes."""
 
     def __init__(
@@ -288,7 +288,7 @@ class StatementToAstVisitor(StatementVisitor):
             ),
         )
 
-    def visit_ndarray_statement(self, stmt: NdArrayStatement) -> None:
+    def visit_ndarray_statement(self, stmt: NdArrayStatement) -> None:  # noqa: D102
         self._ast_node = ast.Assign(
             targets=[
                 au.create_full_name(
