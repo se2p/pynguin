@@ -39,6 +39,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
@@ -597,6 +598,13 @@ def plus_test_with_multiple_assertions():
         )
     )
     return test_case
+
+
+@pytest.fixture
+def result():
+    result = ExecutionResult()
+    result.num_executed_statements = 1
+    return result
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

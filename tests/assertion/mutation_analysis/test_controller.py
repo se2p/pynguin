@@ -4,8 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import threading
-
 import pytest
 
 import pynguin.assertion.assertiongenerator as ag
@@ -71,7 +69,6 @@ def test_create_mutants_instrumented(module_name, expected_mutants):
     )
     config.configuration.seeding.seed = 42
 
-    mutation_controller.tracer.current_thread_identifier = threading.current_thread().ident
     mutations = tuple(mutation_controller.create_mutants())
     mutant_count = mutation_controller.mutant_count()
 
