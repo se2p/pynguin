@@ -258,7 +258,7 @@ def test_create_primitive(type_, default_test_case):
         position=0,
         recursion_depth=0,
         constant_provider=provider,
-    )
+    )[0]
     assert default_test_case.test_cluster.type_system.is_subtype(result.type, proper)
 
 
