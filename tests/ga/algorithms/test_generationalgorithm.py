@@ -16,11 +16,11 @@ class DummyAlgorithm(GenerationAlgorithm):
         pass  # pragma: no cover
 
 
-def test_progress():
+def test_progress(result):
     strategy = DummyAlgorithm()
     stopping = MaxStatementExecutionsStoppingCondition(100)
     stopping.set_limit(10)
-    stopping.before_statement_execution(None, None, None)
+    stopping.after_remote_test_case_execution(None, result)
     strategy.stopping_conditions = [stopping]
     assert strategy.progress() == 0.1
 
