@@ -178,7 +178,7 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
         self._deleted_statement_indexes.update(primitive_remover.deleted_statement_indexes)
 
 
-class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):
+class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PLR0904
     """Visits all statements and removes the unused primitives and collections.
 
     Has to visit the statements in reverse order.
