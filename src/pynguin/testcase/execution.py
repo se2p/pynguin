@@ -1338,7 +1338,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Finished process exited with code %s and did not return a result.",
                     process.exitcode,
                 )
-                raise RuntimeError("Bug in Pynguin!")
+                _LOGGER.error("Bug in Pynguin!")
 
             return ExecutionResult(timeout=True)
 
@@ -1451,7 +1451,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     "Finished process exited with code %s and did not return the results.",
                     process.exitcode,
                 )
-                raise RuntimeError("Bug in Pynguin!")
+                _LOGGER.error("Bug in Pynguin!")
 
             # Fallback to executing each test-case in separate subprocesses
             # if the execution of multiple test-cases in a single subprocess failed.
