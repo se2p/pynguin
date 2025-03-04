@@ -1282,103 +1282,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
-        self._before_remote_test_case_execution(test_case)
-
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-
-        remote_observers = tuple(self._yield_remote_observers())
-
-        reference_bindings = self._create_variable_binding(test_case)
-
-        args = (
-            self._tracer,
-            self._module_provider,
-            self._maximum_test_execution_timeout,
-            self._test_execution_time_per_statement,
-            remote_observers,
-            test_case,
-            reference_bindings,
-            sending_connection,
-        )
-
-        process = mp.Process(
-            target=self._execute_test_case_in_subprocess,
-            args=args,
-            daemon=True,
-        )
-
-        process.start()
-
-        sending_connection.close()
-
-        # We need to use `poll` here because `recv` cannot take a timeout argument and
-        # `join` does not return until the pipe is closed in both processes.
-        has_results = receiving_connection.poll(
-            timeout=min(
-                self._maximum_test_execution_timeout,
-                self._test_execution_time_per_statement * len(test_case.statements),
-            ),
-        )
-
-        if not has_results:
-            receiving_connection.close()
-
-            if process.exitcode is None:
-                process.kill()
-                _LOGGER.warning("Experienced timeout from test-case execution")
-            elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
-                _LOGGER.warning(
-                    "%s. Saving the test-case that caused the crash and continuing as"
-                    " if a timeout occurred.",
-                    SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
-                )
-                self._save_crash_tests(test_case)
-            else:
-                _LOGGER.error(
-                    "Finished process exited with code %s and did not return a result.",
-                    process.exitcode,
-                )
-                _LOGGER.error("Bug in Pynguin!")
-
-            return ExecutionResult(timeout=True)
-
-        return_value: tuple[
-            ExecutionTracer,
-            ModuleProvider,
-            ExecutionResult,
-            dict[int, vr.VariableReference] | None,
-            tuple[Any, ...],
-        ] = receiving_connection.recv()
-
-        (
-            new_tracer,
-            new_module_provider,
-            result,
-            new_reference_bindings,
-            random_state,
-        ) = return_value
-
-        receiving_connection.close()
-
-        process.join(timeout=self._maximum_test_execution_timeout)
-
-        if process.exitcode is None:
-            process.kill()
-
-        randomness.RNG.setstate(random_state)
-
-        self._module_provider = new_module_provider
-
-        if new_reference_bindings is not None:
-            self._fix_assertion_trace(
-                result.assertion_trace, reference_bindings, new_reference_bindings
-            )
-
-        self._tracer.state = new_tracer.state
-
-        self._after_remote_test_case_execution(test_case, result)
-
-        return result
+        return next(iter(self.execute_multiple((test_case,))))
 
     def execute_multiple(  # noqa: D102, C901
         self, test_cases: Iterable[tc.TestCase]
@@ -1432,43 +1336,64 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             ),
         )
 
+        results: tuple[ExecutionResult, ...]
         if not has_results:
             receiving_connection.close()
 
-            if process.exitcode is None:
-                process.kill()
-                _LOGGER.warning(
-                    "Timeout occurred. Falling back to executing each test-case"
-                    " in a separate process."
-                )
-            elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
-                _LOGGER.warning(
-                    "%s. Falling back to executing each test-case in a separate process.",
-                    SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
-                )
+            if len(test_cases_tuple) == 1:
+                if process.exitcode is None:
+                    process.kill()
+                    _LOGGER.warning("Experienced timeout from test-case execution")
+                elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
+                    _LOGGER.warning(
+                        "%s. Saving the test-case that caused the crash and continuing as"
+                        " if a timeout occurred.",
+                        SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
+                    )
+                    self._save_crash_tests(test_case)
+                else:
+                    _LOGGER.error(
+                        "Finished process exited with code %s and did not return a result.",
+                        process.exitcode,
+                    )
+                    _LOGGER.error("Bug in Pynguin!")
+
+                results = (ExecutionResult(timeout=True),)
             else:
-                _LOGGER.error(
-                    "Finished process exited with code %s and did not return the results.",
-                    process.exitcode,
+                if process.exitcode is None:
+                    process.kill()
+                    _LOGGER.warning(
+                        "Timeout occurred. Falling back to executing each test-case"
+                        " in a separate process."
+                    )
+                elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
+                    _LOGGER.warning(
+                        "%s. Falling back to executing each test-case in a separate process.",
+                        SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
+                    )
+                else:
+                    _LOGGER.error(
+                        "Finished process exited with code %s and did not return the results.",
+                        process.exitcode,
+                    )
+                    _LOGGER.error("Bug in Pynguin!")
+
+                # Fallback to executing each test-case in separate subprocesses
+                # if the execution of multiple test-cases in a single subprocess failed.
+                # We need to use another executor because we already called
+                # `_before_remote_test_case_execution` so we only need to run the
+                # remote observers.
+                executor = SubprocessTestCaseExecutor(
+                    self._tracer,
+                    self._module_provider,
+                    self._maximum_test_execution_timeout,
+                    self._test_execution_time_per_statement,
                 )
-                _LOGGER.error("Bug in Pynguin!")
 
-            # Fallback to executing each test-case in separate subprocesses
-            # if the execution of multiple test-cases in a single subprocess failed.
-            # We need to use another executor because we already called
-            # `_before_remote_test_case_execution` so we only need to run the
-            # remote observers.
-            executor = SubprocessTestCaseExecutor(
-                self._tracer,
-                self._module_provider,
-                self._maximum_test_execution_timeout,
-                self._test_execution_time_per_statement,
-            )
+                for remote_observer in remote_observers:
+                    executor.add_remote_observer(remote_observer)
 
-            for remote_observer in remote_observers:
-                executor.add_remote_observer(remote_observer)
-
-            results = tuple(executor.execute(test_case) for test_case in test_cases_tuple)
+                results = tuple(executor.execute(test_case) for test_case in test_cases_tuple)
         else:
             return_value: tuple[
                 ExecutionTracer,
@@ -1573,55 +1498,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for position, assertions in all_assertions.items():
             for assertion in assertions:
                 assertion_trace.add_entry(position, assertion.clone(memo))
-
-    @staticmethod
-    def _execute_test_case_in_subprocess(  # noqa: PLR0917
-        tracer: ExecutionTracer,
-        module_provider: ModuleProvider,
-        maximum_test_execution_timeout: int,
-        test_execution_time_per_statement: int,
-        remote_observers: tuple[RemoteExecutionObserver, ...],
-        test_case: tc.TestCase,
-        reference_bindings: dict[int, vr.VariableReference],
-        sending_connection: mp_conn.Connection,
-    ) -> None:
-        SubprocessTestCaseExecutor._replace_tracer(tracer)
-
-        executor = TestCaseExecutor(
-            tracer,
-            module_provider,
-            maximum_test_execution_timeout,
-            test_execution_time_per_statement,
-        )
-
-        for remote_observer in remote_observers:
-            executor.add_remote_observer(remote_observer)
-
-        result = executor.execute(test_case)
-
-        # We need to set the current thread identifier to the current thread
-        # because pickle can execute code of the instrumented module and it would
-        # kill the subprocess which is not what we want.
-        tracer.current_thread_identifier = threading.current_thread().ident
-
-        SubprocessTestCaseExecutor._fix_result_for_pickle(result)
-
-        new_reference_bindings = SubprocessTestCaseExecutor._create_new_reference_bindings(
-            result,
-            reference_bindings,
-        )
-
-        sending_connection.send((
-            tracer,
-            module_provider,
-            result,
-            new_reference_bindings,
-            randomness.RNG.getstate(),
-        ))
-
-        sending_connection.close()
-
-        tracer.current_thread_identifier = -1
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
