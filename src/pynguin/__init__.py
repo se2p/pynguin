@@ -55,6 +55,8 @@ def _pickle_instr_location(
 copyreg.pickle(InstrLocation, _pickle_instr_location)
 
 
+# This function is required otherwise a TypeError is raised
+# because _UNSET is a singleton object and does not support pickle well.
 def _pickle_unset(unset: _UNSET) -> tuple[Callable[[], _UNSET], tuple]:  # noqa: ARG001
     return _UNSET, ()
 
