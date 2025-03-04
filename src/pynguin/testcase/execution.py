@@ -244,6 +244,9 @@ class ExecutionContext:
 
     def __getstate__(self):
         new_global_namespace = self._global_namespace.copy()
+        # Sometimes the `__builtins__` module appears in global_namespace and this
+        # module cannot be serialized. Therefore, it must be deleted manually to prevent
+        # the application from crashing.
         new_global_namespace.pop("__builtins__", None)
         return {
             "module_provider": self._module_provider,
