@@ -254,7 +254,7 @@ class ExecutionContext:
             "variable_names": self._variable_names,
             "module_aliases": self._module_aliases,
             "global_namespace": new_global_namespace,
-            "has_builtins": "__builtins__" in self._global_namespace,
+            "original_has_builtins": "__builtins__" in self._global_namespace,
         }
 
     def __setstate__(self, state: dict):
@@ -263,7 +263,7 @@ class ExecutionContext:
         self._variable_names = state["variable_names"]
         self._module_aliases = state["module_aliases"]
         self._global_namespace = state["global_namespace"]
-        if state["has_builtins"]:
+        if state["original_has_builtins"]:
             self.add_new_module_alias("builtins", "__builtins__")
 
 
