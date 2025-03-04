@@ -36,6 +36,8 @@ __all__ = [
 ]
 
 
+# This function is required otherwise a FrozenInstanceError is raised
+# because InstrLocation is a frozen dataclass that uses __slots__.
 def _pickle_instr_location(
     instr_location: InstrLocation,
 ) -> tuple[
