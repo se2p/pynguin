@@ -627,23 +627,29 @@ class CollectionStatement(VariableCreatingStatement, Generic[T]):
 
 
 class NdArrayStatement(CollectionStatement):
-    """Represents a n-dimensional list."""
+    """Represents an n-dimensional array, i.e., a nested list.
+
+    Is also used for 1 dimensional lists and tuples in ML testing.
+    """
 
     nd_array_types = int | float | bool | complex
 
     def __init__(  # noqa: D107
         self,
         test_case: tc.TestCase,
-        elements: list[list | nd_array_types],  # Can contain nested lists and numbers
+        elements: list | tuple,
         np_dtype: np.generic | str,
         low: float,
         high: float,
+        *,
+        should_be_tuple: bool,
     ):
-        super().__init__(test_case, ANY, elements)
+        super().__init__(test_case, ANY, elements)  # type: ignore[arg-type]
         self._np_dtype = np.dtype(np_dtype)
         assert self._np_dtype.kind in "iufcb"
         self._low = low
         self._high = high
+        self._should_be_tuple = should_be_tuple
 
     def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
         references = set()
@@ -666,6 +672,7 @@ class NdArrayStatement(CollectionStatement):
             cast("np.generic", self._np_dtype),
             self._low,
             self._high,
+            should_be_tuple=self._should_be_tuple,
         )
 
     def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
@@ -727,6 +734,20 @@ class NdArrayStatement(CollectionStatement):
         )
 
         return changed
+
+    def mutate(self) -> bool:  # noqa: D102
+        if self._should_be_tuple:
+            assert len(mlpu.get_shape(self._elements)) == 1
+            # convert tuple to list so that mutation works right
+            self._elements = list(self._elements)
+
+        mutated = super().mutate()
+
+        if self._should_be_tuple:
+            # convert it again into tuple
+            self._elements = tuple(self._elements)  # type: ignore[assignment]
+
+        return mutated
 
     def _insertion_supplier(self) -> nd_array_types:
         return self._replacement_supplier(0)
