@@ -88,6 +88,14 @@ max_dynamic_pool_size = 50
 type_inference_strategy = "TYPE_HINTS"
 type_tracing = false
 
+[pynguinml]
+constraints_path = ""
+dtype_mapping_path = ""
+constructor_function = ""
+constructor_function_parameter = ""
+max_ndim = 4
+max_shape_dim = 4
+
 [test_creation]
 max_recursion = 10
 max_delta = 20
@@ -322,6 +330,8 @@ def expected_parameter_list() -> list[str]:
         "--focused_config.number_of_mutations 10",
         "--max_sequence_length 10",
         "--max_sequences_combined 10",
+        "--max_ndim 4",
+        "--max_shape_dim 4",
     ]
     return sorted(parameter_list)
 

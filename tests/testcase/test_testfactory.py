@@ -60,7 +60,7 @@ def test_check_recursion_depth_guard(test_case_mock, method):
     [
         (MagicMock(stmt.ConstructorStatement)),
         (MagicMock(stmt.MethodStatement)),
-        (MagicMock(stmt.FunctionStatement)),
+        (MagicMock(stmt.FunctionStatement, should_mutate=True)),
         (MagicMock(stmt.FieldStatement)),
         (MagicMock(stmt.PrimitiveStatement)),
     ],

@@ -248,7 +248,12 @@ def test_provide_json_function(
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
+            parameters={},
+            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -291,7 +296,12 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
+            parameters={},
+            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -345,7 +355,12 @@ def test_provide_json_generic_method(file_name, function_node, signature, expect
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
+            parameters={},
+            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -389,7 +404,12 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
+            parameters={},
+            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
