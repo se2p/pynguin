@@ -62,6 +62,7 @@ from pynguin.instrumentation.instrumentation import ArtificialInstr
 from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
+from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
@@ -71,6 +72,8 @@ from pynguin.utils.mirror import Mirror
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Collection
     from collections.abc import Generator
     from collections.abc import Iterable
     from contextlib import AbstractContextManager
@@ -1604,6 +1607,28 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         )
 
     @staticmethod
+    def _fix_unpicklable(
+        obj: Any,
+        filter_bad_items_label: str,
+        filter_function: Callable[[Any], None],
+        clear_bad_items_label: str,
+        clear_function: Callable[[], None],
+    ) -> None:
+        try:
+            if bad_items := dill.detect.baditems(obj):
+                SubprocessTestCaseExecutor._log_different_results(
+                    filter_bad_items_label,
+                    bad_items,
+                )
+                filter_function(obj)
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                clear_bad_items_label,
+                exception,
+            )
+            clear_function()
+
+    @staticmethod
     def _fix_result_for_pickle(result: ExecutionResult) -> None:  # noqa: C901
         """Fix the result for pickling.
 
@@ -1613,139 +1638,137 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         Args:
             result: The result to fix
         """
-        try:
-            if exception_bad_items := dill.detect.baditems(result.exceptions):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable exceptions",
-                    exception_bad_items,
-                )
-                result.exceptions = {
-                    position: exception
-                    for position, exception in result.exceptions.items()
-                    if exception not in exception_bad_items
-                }
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix exceptions for pickle",
-                exception,
-            )
+
+        def filter_bad_exceptions(bad_exceptions: Collection[Exception]) -> None:
+            result.exceptions = {
+                position: exception
+                for position, exception in result.exceptions.items()
+                if exception not in bad_exceptions
+            }
+
+        def clear_bad_exceptions() -> None:
             result.exceptions.clear()
 
-        try:
-            if assertions_bad_items := dill.detect.baditems(
-                list(itertools.chain(*result.assertion_trace.trace.values()))
-            ):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable assertions",
-                    assertions_bad_items,
-                )
-                for assertions in result.assertion_trace.trace.values():
-                    assertions.difference_update(assertions_bad_items)
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix assertion trace for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.exceptions,
+            "Unpicklable exceptions",
+            filter_bad_exceptions,
+            "Failed to fix exceptions for pickle",
+            clear_bad_exceptions,
+        )
+
+        def filter_bad_assertions(bad_assertions: Collection[ass.Assertion]) -> None:
+            for assertions in result.assertion_trace.trace.values():
+                assertions.difference_update(bad_assertions)
+
+        def clear_bad_assertions() -> None:
             result.assertion_trace.clear()
 
-        try:
-            if executed_assertions_bad_items := dill.detect.baditems(
-                result.execution_trace.executed_assertions
-            ):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable execution trace",
-                    executed_assertions_bad_items,
-                )
-                result.execution_trace.executed_assertions = [
-                    assertion
-                    for assertion in result.execution_trace.executed_assertions
-                    if assertion not in executed_assertions_bad_items
-                ]
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix execution trace for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            list(itertools.chain(*result.assertion_trace.trace.values())),
+            "Unpicklable assertions",
+            filter_bad_assertions,
+            "Failed to fix assertions for pickle",
+            clear_bad_assertions,
+        )
+
+        def filter_bad_executed_assertions(
+            bad_executed_assertions: Collection[ExecutedAssertion],
+        ) -> None:
+            result.execution_trace.executed_assertions = [
+                assertion
+                for assertion in result.execution_trace.executed_assertions
+                if assertion not in bad_executed_assertions
+            ]
+
+        def clear_bad_executed_assertions() -> None:
             result.execution_trace.executed_assertions.clear()
 
-        try:
-            if proxy_knowledge_bad_items := dill.detect.baditems(result.proxy_knowledge):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable proxy knowledge",
-                    proxy_knowledge_bad_items,
-                )
-                result.proxy_knowledge = {
-                    position: proxy
-                    for position, proxy in result.proxy_knowledge.items()
-                    if proxy not in proxy_knowledge_bad_items
-                }
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix proxy knowledge for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.execution_trace.executed_assertions,
+            "Unpicklable executed assertions",
+            filter_bad_executed_assertions,
+            "Failed to fix executed assertions for pickle",
+            clear_bad_executed_assertions,
+        )
+
+        def filter_bad_proxy_knowledges(
+            bad_proxy_knowledges: Collection[tt.UsageTraceNode],
+        ) -> None:
+            result.proxy_knowledge = {
+                position: proxy
+                for position, proxy in result.proxy_knowledge.items()
+                if proxy not in bad_proxy_knowledges
+            }
+
+        def clear_bad_proxy_knowledges() -> None:
             result.proxy_knowledge.clear()
 
-        try:
-            if proper_return_type_trace_bad_items := dill.detect.baditems(
-                result.proper_return_type_trace
-            ):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable proper return type trace",
-                    proper_return_type_trace_bad_items,
-                )
-                result.proper_return_type_trace = {
-                    position: proper_return_type
-                    for position, proper_return_type in result.proper_return_type_trace.items()
-                    if proper_return_type not in proper_return_type_trace_bad_items
-                }
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix proper return type trace for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.proxy_knowledge,
+            "Unpicklable proxy knowledges",
+            filter_bad_proxy_knowledges,
+            "Failed to fix proxy knowledges for pickle",
+            clear_bad_proxy_knowledges,
+        )
+
+        def filter_bad_proper_return_type_traces(
+            bad_proper_return_type_traces: Collection[ProperType],
+        ) -> None:
+            result.proper_return_type_trace = {
+                position: proper_return_type
+                for position, proper_return_type in result.proper_return_type_trace.items()
+                if proper_return_type not in bad_proper_return_type_traces
+            }
+
+        def clear_bad_proper_return_type_traces() -> None:
             result.proper_return_type_trace.clear()
 
-        try:
-            if raw_return_type_generic_args_bad_items := dill.detect.baditems(
-                result.raw_return_type_generic_args
-            ):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable raw return type generic args",
-                    raw_return_type_generic_args_bad_items,
-                )
-                result.raw_return_type_generic_args = {
-                    position: generic_args
-                    for position, generic_args in result.raw_return_type_generic_args.items()
-                    if all(
-                        type_ not in raw_return_type_generic_args_bad_items
-                        for type_ in generic_args
-                    )
-                }
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix raw return type generic args for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.proper_return_type_trace,
+            "Unpicklable proper return type traces",
+            filter_bad_proper_return_type_traces,
+            "Failed to fix proper return type traces for pickle",
+            clear_bad_proper_return_type_traces,
+        )
+
+        def filter_bad_raw_return_type_generic_args(
+            bad_raw_return_type_generic_args: Collection[type],
+        ) -> None:
+            result.raw_return_type_generic_args = {
+                position: generic_args
+                for position, generic_args in result.raw_return_type_generic_args.items()
+                if all(type_ not in bad_raw_return_type_generic_args for type_ in generic_args)
+            }
+
+        def clear_bad_raw_return_type_generic_args() -> None:
             result.raw_return_type_generic_args.clear()
 
-        try:
-            if raw_return_types_bad_items := dill.detect.baditems(result.raw_return_types):
-                SubprocessTestCaseExecutor._log_different_results(
-                    "Unpicklable raw return types",
-                    raw_return_types_bad_items,
-                )
-                result.raw_return_types = {
-                    position: type_
-                    for position, type_ in result.raw_return_types.items()
-                    if type_ not in raw_return_types_bad_items
-                }
-        except Exception as exception:  # noqa: BLE001
-            SubprocessTestCaseExecutor._log_different_results(
-                "Failed to fix raw return types for pickle",
-                exception,
-            )
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.raw_return_type_generic_args,
+            "Unpicklable raw return type generic args",
+            filter_bad_raw_return_type_generic_args,
+            "Failed to fix raw return type generic args for pickle",
+            clear_bad_raw_return_type_generic_args,
+        )
+
+        def filter_bad_raw_return_types(bad_raw_return_types: Collection[type]) -> None:
+            result.raw_return_types = {
+                position: type_
+                for position, type_ in result.raw_return_types.items()
+                if type_ not in bad_raw_return_types
+            }
+
+        def clear_bad_raw_return_types() -> None:
             result.raw_return_types.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.raw_return_types,
+            "Unpicklable raw return types",
+            filter_bad_raw_return_types,
+            "Failed to fix raw return types for pickle",
+            clear_bad_raw_return_types,
+        )
 
 
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
