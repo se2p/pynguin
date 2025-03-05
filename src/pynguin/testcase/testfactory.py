@@ -96,9 +96,10 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
-        if isinstance(statement, stmt.NdArrayStatement | stmt.AllowedValuesStatement):
+        if mltu.is_ml_statement(statement):
+            # TODO(ah) Because of the current generation logic, we must skip such statements.
             pass
-        if isinstance(statement, stmt.ConstructorStatement):
+        elif isinstance(statement, stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
                 statement.accessible_object(),
@@ -113,15 +114,12 @@ class TestFactory:
                 allow_none=allow_none,
             )
         elif isinstance(statement, stmt.FunctionStatement):
-            if not statement.should_mutate:
-                pass
-            else:
-                self.add_function(
-                    test_case,
-                    statement.accessible_object(),
-                    position=new_position,
-                    allow_none=allow_none,
-                )
+            self.add_function(
+                test_case,
+                statement.accessible_object(),
+                position=new_position,
+                allow_none=allow_none,
+            )
         elif isinstance(statement, stmt.FieldStatement):
             self.add_field(
                 test_case,
@@ -706,11 +704,14 @@ class TestFactory:
                 alternatives = test_case.get_objects(typ, i)
                 with contextlib.suppress(ValueError):
                     alternatives.remove(variable)
-                if len(alternatives) > 0:
-                    statement = test_case.get_statement(i)
-                    if statement.references(variable):
-                        statement.replace(variable, randomness.choice(alternatives))
-                        changed = True
+                statement = test_case.get_statement(i)
+                if (
+                    len(alternatives) > 0
+                    and statement.references(variable)
+                    and not mltu.is_ml_statement(statement)
+                ):
+                    statement.replace(variable, randomness.choice(alternatives))
+                    changed = True
 
         deleted = TestFactory.delete_statement(test_case, position)
         return deleted or changed
@@ -1025,7 +1026,11 @@ class TestFactory:
         return parameters
 
     def _reuse_variable(
-        self, test_case: tc.TestCase, parameter_type: ProperType, position: int
+        self,
+        test_case: tc.TestCase,
+        parameter_type: ProperType,
+        position: int,
+        parameter_obj: MLParameter | None,
     ) -> vr.VariableReference | None:
         """Reuse an existing variable, if possible.
 
@@ -1033,16 +1038,17 @@ class TestFactory:
             test_case: the test case to take the variable from
             parameter_type: the type of the variable that is needed
             position: the position to limit the search
+            parameter_obj: the ML-specific parameter
 
         Returns:
             A matching existing variable, if existing
         """
-        # TODO(ah) evaluate if this is ok
-        if ConstraintsManager().ml_testing_enabled() and (
+        if parameter_obj is not None and (
             not isinstance(parameter_type, Instance)
             or not inspect.isclass(parameter_type.type.raw_type)
         ):
-            # Reuse logic does not work for ML testing. Only allow reuse of classes.
+            # TODO(ah) Reuse currently logic does not work for ML testing.
+            #  Only allow reuse of classes.
             return None
 
         objects = test_case.get_objects(parameter_type, position)
@@ -1116,18 +1122,29 @@ class TestFactory:
         parameter_obj: MLParameter | None = None,
     ) -> vr.VariableReference | None:
         if (
-            reused_variable := self._reuse_variable(test_case, parameter_type, position)
+            reused_variable := self._reuse_variable(
+                test_case, parameter_type, position, parameter_obj
+            )
         ) is not None:
             return reused_variable
 
+        created_variable = None
+
         if parameter_obj is not None:
-            created_variable = self._attempt_generation_by_constraints(
-                test_case, position, recursion_depth, parameter_obj
-            )
-        else:
+            try:
+                created_variable = self._attempt_generation_by_constraints(
+                    test_case, position, recursion_depth, parameter_obj
+                )
+            except ConstructionFailedException:
+                self._logger.warning(
+                    "Construction via constraints failed. Using default behaviour."
+                )
+
+        if created_variable is None:
             created_variable = self._attempt_generation(
                 test_case, parameter_type, position, recursion_depth, allow_none=allow_none
             )
+
         if created_variable is not None:
             return created_variable
         return self._get_variable_fallback(
@@ -1165,7 +1182,10 @@ class TestFactory:
 
         if selected_ndim == 0:
             unsigned = "uint" in selected_dtype
-            type_ = mlpu.convert_str_to_type(selected_dtype)
+            try:
+                type_ = mlpu.convert_str_to_type(selected_dtype)
+            except ValueError:
+                raise ConstructionFailedException  # noqa: B904
             typeinfo = self._test_cluster.type_system.to_type_info(type_)
             parameter_type = self._test_cluster.type_system.make_instance(typeinfo)
             var_ref, value = self._create_primitive(
@@ -1179,15 +1199,27 @@ class TestFactory:
             parameter_obj.current_data = value
             return var_ref
 
+        should_be_tuple = False
+        # structure constraint requires dim 1
+        if parameter_obj.structure == "tuple" and selected_ndim == 1:
+            should_be_tuple = True
+        # else it will automatically create a 1D list
+
         var_ref_ndarray = self._create_ndarray(
-            test_case, position, recursion_depth, parameter_obj, selected_shape, selected_dtype
+            test_case,
+            position,
+            recursion_depth,
+            parameter_obj,
+            selected_shape,
+            selected_dtype,
+            should_be_tuple=should_be_tuple,
         )
 
         if (
             parameter_obj.structure is not None
-            and selected_ndim == 1  # structure constraint requires 1D list
+            and selected_ndim == 1  # structure constraint requires dim 1
         ):
-            # Simply return the 1D list
+            # Simply return the 1D list/tuple
             return var_ref_ndarray
 
         position += 1
@@ -1263,10 +1295,16 @@ class TestFactory:
         parameter_obj: MLParameter,
         shape: list[int],
         dtype: str,
+        *,
+        should_be_tuple: bool,
     ) -> vr.VariableReference:
         ndarray, low, high = mltu.generate_ndarray(parameter_obj, shape, dtype)
-        collection_stmt = stmt.NdArrayStatement(test_case, ndarray, dtype, low, high)
-        ret = test_case.add_variable_creating_statement(collection_stmt, position)
+        if should_be_tuple:
+            ndarray = tuple(ndarray)
+        ndarray_stmt = stmt.NdArrayStatement(
+            test_case, ndarray, dtype, low, high, should_be_tuple=should_be_tuple
+        )
+        ret = test_case.add_variable_creating_statement(ndarray_stmt, position)
         ret.distance = recursion_depth
         return ret
 
