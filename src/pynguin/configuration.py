@@ -413,14 +413,6 @@ class PynguinMLConfiguration:
     np.ndarray. This must be set when 'constructor_function' is specified.
     """
 
-    ignore_probability: float = 0.15  # TODO(ah)
-    """
-    Probability of ignoring parameter constraints to trigger the standard Pynguin flow.
-    Occasionally bypassing constraints allows PynguinML to explore additional code
-    paths, potentially leading to exception handling and improved test coverage.
-    Expects values in [0,1].
-    """
-
     max_ndim: int = 4
     """
     Maximum number of dimensions of the tensors.
