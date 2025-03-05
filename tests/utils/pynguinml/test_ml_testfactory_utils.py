@@ -29,7 +29,7 @@ def test_select_dtype():
     assert selected_dtype in mock_param.valid_dtypes
 
     mock_param2 = MagicMock(spec=MLParameter)
-    mock_param2.current_data = np.array([1, 2, 3])
+    mock_param2.current_data = np.array([1, 2, 3], dtype="int32")
 
     mock_param.parameter_dependencies = {"param2": mock_param2}
     mock_param.valid_dtypes = ["dtype:&param2"]
