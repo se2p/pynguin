@@ -14,7 +14,7 @@ def test_pynguinml_integration(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":
         project_path /= ".."  # pragma: no cover
-    else:
+    elif project_path.name == "pynguinml":
         project_path /= "../../.."  # pragma: no cover
     project_path = project_path / "docs" / "source" / "_static" / "ml-example"
     dtype_mapping_file = project_path / "dtype_mapping.yaml"
