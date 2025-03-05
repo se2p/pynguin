@@ -1,0 +1,28 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+constraints:
+  x:
+    ndim:
+      - 2
+    shape:
+      - "[2,2]"
+    dtype:
+      - "int32"
+  y:
+    ndim:
+      - 2
+    shape:
+      - "[3,3]"
+    dtype:
+      - "float32"
+  z:
+    ndim:
+      - 3
+    shape:
+      - "[1,1,1]"
+    dtype:
+      - "int64"
