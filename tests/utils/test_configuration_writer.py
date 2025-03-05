@@ -199,13 +199,15 @@ def expected_txt(tmp_path):
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
  "'TYPE_HINTS'>, type_tracing=False), "
- 'test_creation=TestCreationConfiguration(max_recursion=10, max_delta=20, '
- 'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
- 'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
- 'none_weight=0, any_weight=0, original_type_weight=5, type_tracing_weight=10, '
- 'type4py_weight=10, type_tracing_kept_guesses=2, '
- 'wrap_var_param_type_probability=0.7, negate_type=0.1, '
- 'skip_optional_parameter_probability=0.7, max_attempts=1000, '
+ "pynguinml=PynguinMLConfiguration(constraints_path='', dtype_mapping_path='', "
+ "constructor_function='', constructor_function_parameter='', max_ndim=4, "
+ 'max_shape_dim=4), test_creation=TestCreationConfiguration(max_recursion=10, '
+ 'max_delta=20, max_int=2048, string_length=20, bytes_length=20, '
+ 'collection_size=5, primitive_reuse_probability=0.5, '
+ 'object_reuse_probability=0.9, none_weight=0, any_weight=0, '
+ 'original_type_weight=5, type_tracing_weight=10, type4py_weight=10, '
+ 'type_tracing_kept_guesses=2, wrap_var_param_type_probability=0.7, '
+ 'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=50, chromosome_length=40, '
