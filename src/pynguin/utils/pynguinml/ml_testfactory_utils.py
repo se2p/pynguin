@@ -18,6 +18,7 @@ from typing import cast
 import numpy as np
 
 import pynguin.configuration as config
+import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.constants import MLConstantPool
@@ -88,6 +89,7 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
     Raises:
         ConstructionFailedException: If a dependency cannot be resolved.
     """
+    # Always return 0 for str
     if "str" in selected_dtype:
         return 0
 
@@ -147,6 +149,10 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
 def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # noqa: C901
     """Generate a shape based on the parameter's shape constraints and the selected ndim.
 
+    Args:
+        parameter_obj: The parameter object.
+        selected_ndim: The selected dimension.
+
     Returns:
         list: The generated shape.
     """
@@ -170,7 +176,7 @@ def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # n
 
             for shape_token in shape_tokens:
                 value = _process_shape_token(parameter_obj, shape_token)
-                # Can be a tuple directly from a var dependency
+                # Can be a list directly from a var dependency
                 if isinstance(value, list):
                     return value
                 shape.append(value)
@@ -179,12 +185,12 @@ def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # n
             final_shape: list[int] = []
             for s in shape:
                 if s == -1:
-                    max_dim_fill = config.configuration.pynguinml.max_ndim - len(shape) - 1
-                    fill_size = randomness.next_int(max_dim_fill + 1)
-                    shape_dim = tuple(
+                    max_dim_fill = config.configuration.pynguinml.max_ndim - len(shape) + 1
+                    fill_size = randomness.next_int(0, max_dim_fill + 1)
+                    shape_dim = [
                         randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
                         for _ in range(fill_size)
-                    )
+                    ]
                     final_shape += shape_dim
                 else:
                     final_shape.append(s)
@@ -205,16 +211,17 @@ def _process_shape_token(parameter_obj: MLParameter, shape_token: str):  # noqa:
             shape_token = shape_token[1:]
             continue
         if shape_token.isnumeric():
-            shape_token = ""
             temp_value = int(shape_token)
+            shape_token = ""
         elif shape_token[0] == ">" or shape_token[0] == "<":  # implicitly 1D
-            sign, shape_bound = mlpu.parse_shape_bound(shape_token)
-            if sign == ">":
+            unequal_sign, shape_bound = mlpu.parse_shape_bound(shape_token)
+            if unequal_sign == ">":
                 temp_value = randomness.next_int(
                     shape_bound + 1, config.configuration.pynguinml.max_shape_dim + 1
                 )
             else:
-                temp_value = randomness.next_int(0, shape_bound - 1)
+                temp_value = randomness.next_int(0, shape_bound)
+            shape_token = ""
         elif shape_token[0] == ".":  # there's unknown number of dimensions
             shape_token = ""
             temp_value = -1
@@ -281,8 +288,6 @@ def _process_shape_token(parameter_obj: MLParameter, shape_token: str):  # noqa:
 
         if isinstance(temp_value, list):  # from a dependency
             return temp_value
-        if temp_value == "-1":
-            return -1
         if isinstance(temp_value, str) and not mlpu.str_is_int(temp_value):
             raise ConstructionFailedException(f"Given shape value {temp_value} is invalid.")
 
@@ -419,7 +424,7 @@ def _generate_float(np_dtype: str, shape: list, low: float, high: float):
     return np.round(
         get_rng().uniform(size=shape, low=float(low), high=float(high)),
         decimals=precision,
-    ).astype(np_dtype)  # TODO(ah) does everyhting work without problem?
+    ).astype(np_dtype)
 
 
 def _generate_complex(float_dtype: str, np_dtype: str, shape: list, low: float, high: float):
@@ -466,3 +471,10 @@ def reset_parameter_objects(parameters: dict[str, MLParameter | None]) -> None:
             parameter.current_data = None
 
     ml_constant_pool.reset()
+
+
+def is_ml_statement(statement: stmt.Statement):
+    """Returns if a statement is an ML-specific statement."""
+    if isinstance(statement, stmt.FunctionStatement) and not statement.should_mutate:
+        return True
+    return isinstance(statement, stmt.NdArrayStatement | stmt.AllowedValuesStatement)
