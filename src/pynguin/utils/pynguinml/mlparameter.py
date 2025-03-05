@@ -56,7 +56,7 @@ class MLParameter:
         self.parameter_dependencies: dict[str, MLParameter] = {}
         self.var_dep: set[str] = set()
 
-        self._logger.info("Started analysing constraints of parameter %s.", parameter_name)
+        self._logger.debug("Started analysing constraints of parameter %s.", parameter_name)
 
         self._parse_ndims()
         self._parse_shape()
@@ -98,6 +98,11 @@ class MLParameter:
                 continue
 
             if ndim_str.isnumeric():
+                if int(ndim_str) < 0:
+                    self._logger.warning(
+                        "Invalid ndim %s: negative values are not allowed.", ndim_str
+                    )
+                    continue
                 valid_ndims.add(ndim_str)
                 continue
 
@@ -105,7 +110,7 @@ class MLParameter:
                 self._logger.warning(
                     "The 'ndim' constraint contain floats. Please check and correct the YAML file."
                 )
-                raise ConstraintValidationError
+                continue
 
             def parse_ndim_after_operator(ndim_string, idx) -> int | None:
                 num = ndim_string[idx + 1 :]
@@ -119,7 +124,7 @@ class MLParameter:
                         self._logger.warning(
                             "Invalid ndim %s: negative values are not allowed.", num
                         )
-                        raise ConstraintValidationError
+                        return None
 
                     if num > config.configuration.pynguinml.max_ndim:
                         self._logger.warning(
@@ -127,7 +132,7 @@ class MLParameter:
                             num,
                             config.configuration.pynguinml.max_ndim,
                         )
-                        raise ConstraintValidationError
+                        return None
 
                 return num
 
@@ -138,7 +143,7 @@ class MLParameter:
                     valid_ndims.update(
                         map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
                     )
-                    continue
+                continue
 
             gt_idx = ndim_str.find(">")
             if gt_idx != -1:
@@ -148,14 +153,14 @@ class MLParameter:
                     valid_ndims.update(
                         map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
                     )
-                    continue
+                continue
 
             le_idx = ndim_str.find("<=")
             if le_idx != -1:
                 max_ndim = parse_ndim_after_operator(ndim_str, le_idx + 1)
                 if max_ndim is not None:
                     valid_ndims.update(map(str, range(max_ndim + 1)))
-                    continue
+                continue
 
             lt_idx = ndim_str.find("<")
             if lt_idx != -1:
@@ -163,7 +168,7 @@ class MLParameter:
                 if tmp is not None:
                     max_ndim = tmp - 1  # '<' means strictly less than, so subtract 1.
                     valid_ndims.update(map(str, range(max_ndim + 1)))
-                    continue
+                continue
 
             if "ndim:" in ndim_str:
                 _, ref, is_var = mlpu.parse_var_dependency(ndim_str, "ndim:")
@@ -208,6 +213,7 @@ class MLParameter:
             self._logger.warning(
                 "The 'shape' constraint must be a list. Please check and correct the YAML file."
             )
+            raise ConstraintValidationError
 
         var_dep = []
         final_shape_spec_list = []
@@ -360,7 +366,11 @@ class MLParameter:
         Returns:
             Range | None: A filled Range object or None if the format is not valid.
         """
-        if range_constraint[0] not in "([" or range_constraint[-1] not in "])":
+        if (
+            range_constraint[0] not in "(["
+            or range_constraint[-1] not in "])"
+            or "," not in range_constraint
+        ):
             self._logger.warning("Invalid range constraint: %s", range_constraint)
             return None
 
@@ -462,13 +472,19 @@ class MLParameter:
             )
             return
 
+        known_dtypes_dict = {
+            dtype: dtype_map[dtype] for dtype in dtype_constraints if dtype in dtype_map
+        }
+
         # Get all the NumPy dtypes
-        known_dtypes = [dtype_map[dtype] for dtype in dtype_constraints if dtype in dtype_map]
+        known_dtypes = list(known_dtypes_dict.values())
 
         if "str" in dtype_constraints or "string" in dtype_constraints:
             known_dtypes.append("str")
 
-        rest_dtypes = list(set(dtype_constraints) - set(known_dtypes))
+        rest_dtypes = list(
+            set(dtype_constraints) - set(known_dtypes_dict.keys()) - {"str", "string"}
+        )
 
         # If it is just int or float
         special_dtypes = [dtype for dtype in rest_dtypes if dtype.lower() in {"int", "float"}]
@@ -527,6 +543,9 @@ class MLParameter:
 
     def _parse_structure(self):
         """Parse 'structure' constraints from self.parameter_constraints.
+
+        Structure means the array should not be a classic tensor but a normal list or tuple.
+        It prioritizes list as a structure first.
 
         Raises:
             ConstraintValidationError: If the 'structure' constraint is not in the expected format.
