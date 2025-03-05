@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import math
 
 import pytest
 
@@ -117,12 +116,12 @@ def test_parse_shape_bound_invalid(tok):
     "values, expected",
     [
         (["42", "-7", "0"], [42, -7, 0]),  # Integers
-        (["3.14", "-0.001", "1e3"], [math.pi, -0.001, 1000.0]),  # Floats
+        (["3.1", "-0.001", "1e3"], [3.1, -0.001, 1000.0]),  # Floats
         (["True", "False", "true"], [True, False, True]),  # Booleans
         (["hello", "world", "42a", "3.14.5"], ["hello", "world", "42a", "3.14.5"]),  # Strings
-        (["42", "3.14", "True", "hello"], [42, math.pi, True, "hello"]),  # Mixed types
+        (["42", "3.1", "True", "hello"], [42, 3.1, True, "hello"]),  # Mixed types
         ([], []),  # Empty list
-        ([" 42 ", " 3.14 ", " True "], [42, math.pi, True]),  # Whitespace handling
+        ([" 42 ", " 3.1 ", " True "], [42, 3.1, True]),  # Whitespace handling
     ],
 )
 def test_convert_values(values, expected):
