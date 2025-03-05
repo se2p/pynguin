@@ -12,6 +12,7 @@ import logging
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
 import networkx as nx
@@ -30,9 +31,6 @@ if TYPE_CHECKING:
     from types import FunctionType
 
     from pynguin.analyses.module import ModuleTestCluster
-
-
-np.seterr(all="raise")
 
 
 class ConstraintsManager:
@@ -61,8 +59,7 @@ class ConstraintsManager:
             self._ml_testing_enabled = False
         else:
             self._ml_testing_enabled = True
-
-        self._datatype_map = self._load_dtype_map()
+            self._datatype_map = self._load_dtype_map()
 
         self._constructor_function: GenericFunction | None = None
         self._nparray_func: GenericFunction | None = None
@@ -143,7 +140,8 @@ class ConstraintsManager:
                 type_inference_strategy=type_inference_strategy,
             )
 
-            # If it is a built-in function, we will not have the right parameter names
+            # If it is a built-in function, we will not have the right parameter names.
+            # Therefore, create our own signature with parameter name from config.
             signature = inspect.Signature(
                 parameters=[
                     inspect.Parameter(
@@ -151,7 +149,7 @@ class ConstraintsManager:
                         inspect.Parameter.KEYWORD_ONLY,
                     )
                 ],
-                return_annotation=any,
+                return_annotation=Any,
             )
 
             inferred_signature.signature = signature
