@@ -108,12 +108,13 @@ def parse_var_dependency(tok: str, sp_str: str = "") -> tuple[str, str, bool]:
 
 
 def parse_unequal_signs(tok: str) -> tuple[str | None, bool]:
-    """Parses an inequality constraint token containing >, >=, <, or <=.
+    """Parses a variable dependency token containing >, >=, <, or <=.
 
-    For example, given a token like '>=5' or '<=len:&a':
-      - It extracts the part after the inequality sign(s).
+    For example, given a token like '>=5' or '<=&a':
+      - It extracts the part after the inequality sign.
       - If that part is numeric, it is treated as a constant.
       - Otherwise, it's (assumed) variable dependency is parsed.
+    This does NOT parse other operators such as "ndim:", "len:", etc.
 
     Parameters:
         tok: The token to be parsed, e.g. '>=5'
@@ -144,9 +145,9 @@ def parse_unequal_signs(tok: str) -> tuple[str | None, bool]:
             raise ConstraintValidationError(
                 f"Invalid constraint '{tok}' while parsing unequal signs."
             )
-        num_part, _ = parse_until(2, tok)
+        num_part = tok[2:]
     else:
-        num_part, _ = parse_until(1, tok)
+        num_part = tok[1:]
 
     # If num_part is not numeric, treat it as a variable dependency.
     if not num_part.isnumeric():
@@ -160,7 +161,7 @@ def parse_unequal_signs(tok: str) -> tuple[str | None, bool]:
 def parse_until(start_idx: int, text: str, stop_chars: str = "") -> tuple[str, int]:
     """Extracts characters from `text` starting at index `start_idx`.
 
-    Stops if a character in `stop_chars` is encountered.
+    Stops if a character in `stop_chars` is encountered. Also removes spaces.
 
     Args:
         start_idx (int): The index in `text` at which to start parsing.
@@ -169,14 +170,13 @@ def parse_until(start_idx: int, text: str, stop_chars: str = "") -> tuple[str, i
                                     parsing. Defaults to '' (i.e., no stop characters).
 
     Returns:
-        tuple[str, int]: A tuple where the first element is the accumulated string of
-                         characters, and the second element is the index immediately
-                         after the parsed segment.
+        tuple[str, int]: A tuple where the first element is the extracted string, and
+                         the second element is the index immediately after the string.
 
     Raises:
         ValueError: If `start_idx` is out of bounds for `text`.
     """
-    if start_idx >= len(text):
+    if start_idx > len(text) or start_idx < 0:
         raise ValueError(f"Start index {start_idx} is out of bounds for text {text}")
 
     result = ""
@@ -319,7 +319,7 @@ def _infer_type_from_str(value: str) -> str:
         return "int"
     if str_is_float(value):
         return "float"
-    if value.lower() in {"true", "false"}:
+    if value.lower().strip() in {"true", "false"}:
         return "bool"
 
     return "str"
@@ -344,7 +344,7 @@ def convert_values(values: list[str]) -> list[int | float | bool | str]:
         elif cast_type == "float":
             converted_values.append(float(value))
         elif cast_type == "bool":
-            converted_values.append(bool(value))
+            converted_values.append(value.lower().strip() == "true")
         else:
             converted_values.append(value)  # Keep as string
 
@@ -376,7 +376,7 @@ def convert_str_to_type(type_str: str) -> type:
             return complex
         if np.issubdtype(np_type, np.bool_):
             return bool
-        return np_type
+        raise ValueError(f"Cannot convert type '{type_str}' to Python type.")
     except TypeError as e:
         raise ValueError(f"Unknown type: {type_str}") from e
 
