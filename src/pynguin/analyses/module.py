@@ -1061,25 +1061,24 @@ class CallableData:
     cyclomatic_complexity: int | None
 
 
-def _find_lambda_assignment(module_tree, lambda_lineno):
-    """Locate a top-level lambda assigned to a simple name starting at the given line number.
-
-    Traverses the module AST to find an assignment where a lambda is assigned to a variable
-    and the lambda node's lineno matches the provided lambda_lineno.
-    Returns (True, variable_name) if found; otherwise, (False, None).
+def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
+    """Retrieve the variable name of a lambda assignment.
 
     Example:
         For a lambda defined at line 10:
-            y = lambda: 42  --> returns (True, "y") if its lambda node starts at line 10.
+            y = lambda: 42
+        this function will return "y" if the lambda node starts at line 10.
     """
     for node in module_tree.body:
         if isinstance(node, astroid.Assign) and len(node.targets) == 1:
             target = node.targets[0]
-            if hasattr(target, "name"):
-                var_name = target.name
-                if isinstance(node.value, astroid.Lambda) and node.value.lineno == lambda_lineno:
-                    return True, var_name
-    return False, None
+            if (
+                hasattr(target, "name")
+                and isinstance(node.value, astroid.Lambda)
+                and node.value.lineno == lambda_lineno
+            ):
+                return target.name
+    return None
 
 
 def __analyse_function(
@@ -1110,10 +1109,17 @@ def __analyse_function(
     description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
-    is_lambda, new_name = _find_lambda_assignment(module_tree, func.__code__.co_firstlineno)
-    if is_lambda:
-        func_name = new_name
-        func.__name__ = new_name
+    if (
+        getattr(func, "__name__", None) == "<lambda>"
+        and (
+            lambda_assigned_name := _get_lambda_assigned_name(
+                module_tree, func.__code__.co_firstlineno
+            )
+        )
+        is not None
+    ):
+        func_name = lambda_assigned_name
+        func.__name__ = lambda_assigned_name
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
     function_data = CallableData(
         accessible=generic_function,
