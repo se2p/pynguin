@@ -127,7 +127,6 @@ MODULE_BLACKLIST = frozenset((
     "getpass",
     "glob",
     "importlib",
-    "inspect",
     "io",
     "itertools",
     "linecache",
@@ -204,8 +203,11 @@ def _is_blacklisted(element: Any) -> bool:
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
+        # Importing certain modules such as inspect, that use or import C-functions can
+        # lead to __module__ being None. We want to exclude these functions as well.
         return (
-            element.__module__ in module_blacklist
+            element.__module__ is None
+            or element.__module__ in module_blacklist
             or element.__qualname__.startswith((
                 "main",
                 "test",
