@@ -13,14 +13,12 @@ from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
-import astroid
 import pytest
 
 from pynguin.analyses import module
 from pynguin.analyses.module import MODULE_BLACKLIST
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import TypeInferenceStrategy
-from pynguin.analyses.module import _find_lambda_assignment  # noqa: PLC2701
 from pynguin.analyses.module import _ModuleParseResult
 from pynguin.analyses.module import analyse_module
 from pynguin.analyses.module import generate_test_cluster
@@ -59,6 +57,11 @@ def parsed_module_no_any_annotation() -> _ModuleParseResult:
 @pytest.fixture(scope="module")
 def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
+
+
+@pytest.fixture(scope="module")
+def parsed_module_lambda() -> _ModuleParseResult:
+    return parse_module("tests.fixtures.cluster.lambda")
 
 
 @pytest.fixture
@@ -559,22 +562,13 @@ def test_exception_during_inspect_getmembers(parsed_module_no_dependencies):
         assert test_cluster.num_accessible_objects_under_test() == 3  # one less (failed)
 
 
-def test__find_lambda_assignment():
-    source = "x = lambda x: x\ny = lambda x, y, z: x + y + z\nno_lambda = 42\nz = lambda: 42\n"
-    tree = astroid.parse(source)
-
-    found, var_name = _find_lambda_assignment(tree, lambda_lineno=1)
-    assert found is True
-    assert var_name == "x"
-
-    found, var_name = _find_lambda_assignment(tree, lambda_lineno=2)
-    assert found is True
-    assert var_name == "y"
-
-    found, var_name = _find_lambda_assignment(tree, lambda_lineno=3)
-    assert found is False
-    assert var_name is None
-
-    found, var_name = _find_lambda_assignment(tree, lambda_lineno=4)
-    assert found is True
-    assert var_name == "z"
+def test_analyse_module_lambda(parsed_module_lambda):
+    test_cluster = analyse_module(parsed_module_lambda)
+    assert test_cluster.num_accessible_objects_under_test() == 3
+    objects = list(test_cluster.accessible_objects_under_test)
+    lambda1 = cast("GenericFunction", objects[0])
+    assert lambda1.function_name == "y"
+    lambda2 = cast("GenericFunction", objects[1])
+    assert lambda2.function_name == "abc"
+    lambda3 = cast("GenericFunction", objects[2])
+    assert lambda3.function_name == "salam_aleykum"
