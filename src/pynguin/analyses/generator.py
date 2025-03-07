@@ -8,12 +8,14 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
     from pynguin.analyses.typesystem import ProperType
-    from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 
 
 class GeneratorProvider:
@@ -24,3 +26,14 @@ class GeneratorProvider:
         self.generators: dict[ProperType, OrderedSet[GenericAccessibleObject]] = defaultdict(
             OrderedSet
         )
+
+    def add(self, generator: GenericAccessibleObject) -> None:
+        """Add a new generator.
+
+        Args:
+            generator: The generator to add.
+        """
+        generated_type = generator.generated_type()
+        if isinstance(generated_type, NoneType) or generated_type.accept(is_primitive_type):
+            return
+        self.generators[generated_type].add(generator)
