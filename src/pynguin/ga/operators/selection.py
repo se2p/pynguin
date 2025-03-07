@@ -16,7 +16,7 @@ import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
-T = TypeVar("T", bound=chrom.Chromosome)
+T = TypeVar("T", bound=chrom.Selectable)
 
 
 class SelectionFunction(Generic[T]):

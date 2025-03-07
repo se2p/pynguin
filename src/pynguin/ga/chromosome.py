@@ -14,7 +14,31 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 
 
-class Chromosome(ABC):  # noqa: PLR0904
+# TODO: Move to a separate file?
+class Selectable(ABC):
+    """An abstract base class for selectable objects."""
+
+    @abstractmethod
+    def get_fitness(self) -> float:
+        """Provide the fitness value of this selectable object.
+
+        Returns:
+            The fitness value of this selectable object.
+        """
+
+    @abstractmethod
+    def get_fitness_for(self, fitness_function) -> float:
+        """Provide the fitness value of this selectable object for a specific fitness function.
+
+        Args:
+            fitness_function: The fitness function to consider.
+
+        Returns:
+            The fitness value of this selectable object for the given fitness function.
+        """
+
+
+class Chromosome(Selectable):
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):

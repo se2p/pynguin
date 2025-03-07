@@ -20,7 +20,10 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicerfrom pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,9 +35,6 @@ if TYPE_CHECKING:
     from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
     from pynguin.testcase.statement import Statement
-    from pynguin.utils.generic.genericaccessibleobject import (
-        GenericCallableAccessibleObject,
-    )
 
 
 @dataclasses.dataclass(eq=False)
@@ -309,9 +309,7 @@ class GeneratorFitnessFunction:
     """Interface for a fitness function for type generators."""
 
     @abstractmethod
-    def compute_fitness(
-        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
-    ) -> float:
+    def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
         """Compute the fitness score for a generator.
 
         Args:
@@ -353,9 +351,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._param_penalty = param_penalty
         self._hierarchy_penalty = hierarchy_penalty
 
-    def compute_fitness(
-        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
-    ) -> float:
+    def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
         """Compute the fitness score for a generator. Lower is better."""
         fitness = 0.0
 
@@ -368,8 +364,9 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         fitness += self._param_penalty * param_count
 
         # Penalize deeper hierarchy distances
-        hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
-        fitness += self._hierarchy_penalty * hierarchy_depth
+        if isinstance(generator, GenericCallableAccessibleObject):
+            hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
+            fitness += self._hierarchy_penalty * hierarchy_depth
 
         return fitness
 

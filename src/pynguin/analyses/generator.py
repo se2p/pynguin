@@ -5,21 +5,63 @@
 #  SPDX-License-Identifier: MIT
 """Handles type generator functions and their fitness values."""
 
-import operator
-
 from collections import defaultdict
 
+from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeSystem
 from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.ga.chromosome import Selectable
 from pynguin.ga.computations import GeneratorFitnessFunction
 from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
+from pynguin.ga.operators.selection import SelectionFunction
+from pynguin.ga.operators.selection import TournamentSelection
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
 from pynguin.utils.orderedset import OrderedSet
+
+
+class Generator(Selectable):
+    """Represents a generator function for a specific type."""
+
+    def __init__(
+        self,
+        generator: GenericAccessibleObject,
+        generated_type: ProperType,
+        fitness_function: GeneratorFitnessFunction,
+    ):
+        """Create a new generator."""
+        self._generator = generator
+        self._generated_type = generated_type
+        self._fitness_function = fitness_function
+
+    @property
+    def generator(self) -> GenericAccessibleObject:
+        """Get the generator function."""
+        return self._generator
+
+    def get_fitness(self) -> float:
+        """Get the fitness value of this generator."""
+        return self.get_fitness_for(self._fitness_function)
+
+    def get_fitness_for(self, fitness_function: GeneratorFitnessFunction) -> float:
+        """Get the fitness value of this generator for a specific fitness function.
+
+        Args:
+            fitness_function: The fitness function to consider.
+        """
+        if isinstance(self._generated_type, Instance):
+            return fitness_function.compute_fitness(self._generated_type.type, self._generator)
+        return 20  # TODO: Adjust, return bad value
+
+    def __str__(self):
+        return str(self._generator)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class GeneratorProvider:
@@ -37,6 +79,7 @@ class GeneratorProvider:
         self._fitness_function: GeneratorFitnessFunction = HeuristicGeneratorFitnessFunction(
             type_system
         )
+        self._selection_function: SelectionFunction[Generator] = TournamentSelection()
 
     def add(self, generator: GenericAccessibleObject) -> None:
         """Add a new generator.
@@ -91,7 +134,7 @@ class GeneratorProvider:
 
     def select_generator(
         self, parameter_type: ProperType, type_generators: OrderedSet[GenericAccessibleObject]
-    ):
+    ) -> GenericAccessibleObject:
         """Select a generator from a set of generators.
 
         Args:
@@ -101,17 +144,8 @@ class GeneratorProvider:
         Returns:
             The selected generator.
         """
-        fitness_dict: dict[GenericAccessibleObject, float] = {}
-        for generator in type_generators:
-            if isinstance(generator, GenericCallableAccessibleObject) and hasattr(
-                parameter_type, "type"
-            ):
-                fitness = self._fitness_function.compute_fitness(parameter_type.type, generator)
-                fitness_dict[generator] = fitness
-            else:
-                fitness_dict[generator] = 0
-
-        # Sort the generators by fitness
-        sorted_generators = sorted(fitness_dict.items(), key=operator.itemgetter(1), reverse=True)
-
-        return type_generators[0] if sorted_generators else None
+        generator_objects = [
+            Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
+        ]
+        generator_objects.sort(key=lambda g: g.get_fitness(), reverse=True)
+        return generator_objects[0].generator if generator_objects else type_generators[0]
