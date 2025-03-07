@@ -7,9 +7,11 @@
 import graphviz
 import networkx as nx
 
+
 def _nx_to_dot(graph: nx.DiGraph) -> str:
     """Convert a NetworkX graph to a DOT string."""
     return nx.nx_pydot.to_pydot(graph).to_string()
+
 
 def show_nx_graph(graph: nx.DiGraph):
     """Show a graph using NetworkX."""
@@ -26,6 +28,7 @@ def show_dot_graph(dot_str: str):
 def show_graph(graph):
     """Show a graph using Graphviz."""
     graph.view()
+
 
 def print_dunder(obj):
     """Prints all dunder (__) attributes of an object row by row.

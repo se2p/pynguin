@@ -686,54 +686,6 @@ class _MaybeSubtypeVisitor(_SubtypeVisitor):
         raise NotImplementedError("This type shall not be used during runtime")
 
 
-class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
-    """A visitor to compute the subtype distance between two types."""
-
-    def __init__(self, graph: TypeSystem, right: ProperType):
-        """Create new visitor.
-
-        Args:
-            graph: The inheritance graph.
-            right: The target type.
-        """
-        self.graph = graph
-        self.right = right
-
-    def visit_any_type(self, left: AnyType) -> int:
-        # AnyType can be treated as 0 distance to anything TODO Adjust
-        return 0
-
-    def visit_none_type(self, left: NoneType) -> int | None:
-        # NoneType can only be a subtype of NoneType TODO Adjust
-        return 0 if isinstance(self.right, NoneType) else None
-
-    def visit_instance(self, left: Instance) -> int | None:
-        if isinstance(self.right, Instance):
-            try:
-                return self.graph.get_shortest_path_length(left.type, self.right.type)
-            except nx.NetworkXNoPath:
-                return None
-        return None
-
-    def visit_tuple_type(self, left: TupleType) -> int | None:
-        if isinstance(self.right, TupleType) and len(left.args) == len(self.right.args):
-            distances = list(map(self.graph.subtype_distance, left.args, self.right.args))
-            if None in distances:
-                return None
-            return sum(distances)  # Sum element-wise distances
-        return None
-
-    def visit_union_type(self, left: UnionType) -> int | None:
-        # Take the minimum distance from any element of the union
-        distances = [self.graph.subtype_distance(elem, self.right) for elem in left.items]
-        return min(filter(None, distances), default=None)
-
-    def visit_unsupported_type(self, left: Unsupported) -> int | None:
-        raise NotImplementedError(
-            "Unsupported type encountered during subtype distance computation"
-        )
-
-
 class _CollectionTypeVisitor(TypeVisitor[bool]):
     # No tuple because it is a separate type.
     Collections: ClassVar[set[type]] = {dict, list, set}
@@ -2005,32 +1957,8 @@ class TypeSystem:  # noqa: PLR0904
             return Instance(result.type, args)
         return result
 
-    # def subtype_distance(self, left: ProperType, right: ProperType) -> int | None:
-    #     """Computes the distance of types from left to right, considering Unions.
-    #
-    #     Args:
-    #         left: The starting type.
-    #         right: The target type.
-    #
-    #     Returns:
-    #         The number of subclassing steps from left to right, or None if no path exists.
-    #     """
-    #     if isinstance(left, UnionType):
-    #         # Compute the minimum distance from any union element
-    #         distances = [self.subtype_distance(elem, right) for elem in left.items]
-    #         return min(filter(None, distances), default=None)
-    #
-    #     if isinstance(right, UnionType):
-    #         # Compute the minimum distance to any element of the target union
-    #         distances = [self.subtype_distance(left, elem) for elem in right.items]
-    #         return min(filter(None, distances), default=None)
-    #
-    #     return left.accept(_SubtypeDistanceVisitor(self, right))
-
-    def subtype_distance(self, left: TypeInfo, right: TypeInfo) -> int | None:
+    def subtype_distance(self, left: TypeInfo, right: TypeInfo) -> int:
         """Computes the distance of types from left to right.
-
-        # TODO: Handle union type properly; see above.
 
         Examples:
             Foo < Bar -> 1
@@ -2048,5 +1976,5 @@ class TypeSystem:  # noqa: PLR0904
             raise ValueError(f"{left} is not a subclass of {right}")
         try:
             return nx.shortest_path_length(self._graph, right, left)
-        except nx.NetworkXNoPath:
-            raise ValueError(f"No path from {left} to {right}")
+        except nx.NetworkXNoPath as exc:
+            raise ValueError(f"No path from {left} to {right}") from exc

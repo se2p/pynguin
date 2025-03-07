@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 """Handles type generator functions and their fitness values."""
 
+import operator
+
 from collections import defaultdict
 
 from pynguin.analyses.typesystem import NoneType
@@ -66,7 +68,7 @@ class GeneratorProvider:
         Returns:
             The generators for the given type.
         """
-        return self._generators.get(proper_type)
+        return self._generators.get(proper_type, OrderedSet())
 
     def remove_all_generators_for(self, proper_type: ProperType) -> None:
         """Remove all generators for a specific type.
@@ -99,16 +101,17 @@ class GeneratorProvider:
         Returns:
             The selected generator.
         """
+        fitness_dict: dict[GenericAccessibleObject, float] = {}
         for generator in type_generators:
             if isinstance(generator, GenericCallableAccessibleObject) and hasattr(
                 parameter_type, "type"
             ):
                 fitness = self._fitness_function.compute_fitness(parameter_type.type, generator)
-                generator.fitness = fitness
+                fitness_dict[generator] = fitness
             else:
-                generator.fitness = 0
+                fitness_dict[generator] = 0
 
         # Sort the generators by fitness
-        type_generators = sorted(type_generators, key=lambda x: x.fitness, reverse=True)
+        sorted_generators = sorted(fitness_dict.items(), key=operator.itemgetter(1), reverse=True)
 
-        return type_generators[0] if type_generators else None
+        return type_generators[0] if sorted_generators else None

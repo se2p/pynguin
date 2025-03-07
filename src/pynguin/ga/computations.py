@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import math
 
-from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
@@ -377,8 +377,8 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
     ) -> int:
         """Compute depth in type hierarchy."""
-        if isinstance(generator.inferred_signature.return_type, AnyType):
-            return 5  # TODO: How bad is any?
+        if not isinstance(generator.inferred_signature.return_type, Instance):
+            return 5  # TODO: Handle properly (Union, Any, Tuple etc.)
         return_type = generator.inferred_signature.return_type.type
         assert return_type is not None, "Return type must not be None for a type generator"
         return self._type_system.subtype_distance(return_type, to_generate)
