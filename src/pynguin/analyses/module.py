@@ -833,13 +833,13 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
-        gens = self.generator_provider.generators.get(accessible.generated_type())
+        gens = self.generator_provider.get_for_type(accessible.generated_type())
         if gens is None:
             return
 
         gens.discard(accessible)
         if len(gens) == 0:
-            self.generator_provider.generators.pop(accessible.generated_type())
+            self.generator_provider.remove_all_generators_for(accessible.generated_type())
 
     @staticmethod
     def _add_or_make_union(
@@ -872,7 +872,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.get_generators_for.cache_clear()
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
-        self.generator_provider.generators[new_type].add(accessible)
+        self.generator_provider.add_for_type(new_type, accessible)
 
     def update_parameter_knowledge(  # noqa: D102
         self,
@@ -944,14 +944,14 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             # Just take everything when it's Any.
             return (
                 OrderedSet(
-                    itertools.chain.from_iterable(self.generator_provider.generators.values())
+                    itertools.chain.from_iterable(self.generator_provider.get_all().values())
                 ),
                 False,
             )
 
         results: OrderedSet[GenericAccessibleObject] = OrderedSet()
         only_any = True
-        for gen_type, generators in self.generator_provider.generators.items():
+        for gen_type, generators in self.generator_provider.get_all().items():
             if self.__type_system.is_maybe_subtype(gen_type, typ):
                 results.update(generators)
                 # Set flag to False as soon as we encounter a generator that is not
@@ -1000,7 +1000,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def generators(  # noqa: D102
         self,
     ) -> dict[ProperType, OrderedSet[GenericAccessibleObject]]:
-        return self.generator_provider.generators
+        return self.generator_provider.get_all()
 
     @property
     def modifiers(  # noqa: D102
@@ -1023,7 +1023,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     @functools.lru_cache(maxsize=128)
     def get_all_generatable_types(self) -> list[ProperType]:  # noqa: D102
-        generatable = OrderedSet(self.generator_provider.generators.keys())
+        generatable = self.generator_provider.get_all_types()
         generatable.update(self.type_system.primitive_proper_types)
         generatable.update(self.type_system.collection_proper_types)
         return list(generatable)
