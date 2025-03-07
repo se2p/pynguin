@@ -10,11 +10,14 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import math
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import math
+
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
@@ -22,12 +25,16 @@ from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pynguin.analyses.typesystem import TypeSystem
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
     from pynguin.testcase.statement import Statement
+    from pynguin.utils.generic.genericaccessibleobject import (
+        GenericCallableAccessibleObject,
+    )
 
 
 @dataclasses.dataclass(eq=False)
@@ -293,6 +300,88 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             merged_trace,
             self._executor.subject_properties,
         )
+
+    def is_maximisation_function(self) -> bool:  # noqa: D102
+        return False
+
+
+class GeneratorFitnessFunction:
+    """Interface for a fitness function for type generators."""
+
+    @abstractmethod
+    def compute_fitness(
+        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
+    ) -> float:
+        """Compute the fitness score for a generator.
+
+        Args:
+            to_generate: The type to generate
+            generator: The generator function
+
+        Returns:
+            The computed fitness score
+        """
+
+    @abstractmethod
+    def is_maximisation_function(self) -> bool:
+        """Do we need to maximise or minimise this function?
+
+        Returns:
+             Whether this is a maximisation function
+        """
+
+
+class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
+    """A fitness function for type generators.
+
+    A fitness function based on the type of the generator function, the number of
+    subtype layers and the number of parameters. A score of 0 is optimal and given for
+    a constructor of the exact type with no parameters. Everything else is penalized.
+    """
+
+    def __init__(
+        self,
+        type_system: TypeSystem,
+        *,
+        not_constructor_penalty: float = 1.0,
+        param_penalty: float = 1.0,
+        hierarchy_penalty: float = 1.0,
+    ) -> None:
+        """Create a new fitness function."""
+        self._type_system = type_system
+        self._constructor_penalty = not_constructor_penalty
+        self._param_penalty = param_penalty
+        self._hierarchy_penalty = hierarchy_penalty
+
+    def compute_fitness(
+        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
+    ) -> float:
+        """Compute the fitness score for a generator. Lower is better."""
+        fitness = 0.0
+
+        # Penalize non-constructors
+        if not generator.is_constructor():
+            fitness += self._constructor_penalty
+
+        # Penalize for each parameter
+        param_count = generator.get_num_parameters()
+        fitness += self._param_penalty * param_count
+
+        # Penalize deeper hierarchy distances
+        hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
+        fitness += self._hierarchy_penalty * hierarchy_depth
+
+        return fitness
+
+    def _compute_hierarchy_distance(
+        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
+    ) -> int:
+        """Compute depth in type hierarchy."""
+        if isinstance(generator.inferred_signature.return_type, AnyType):
+            return 5  # TODO: How bad is any?
+        return_type = generator.inferred_signature.return_type.type
+        assert return_type is not None, "Return type must not be None for a type generator"
+        return self._type_system.subtype_distance(return_type, to_generate)
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
         return False

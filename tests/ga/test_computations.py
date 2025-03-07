@@ -9,8 +9,13 @@ from unittest.mock import MagicMock, patch
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.instrumentation.tracer import ExecutionTrace
+, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 class DummyTestCaseChromosomeComputation(ff.TestCaseChromosomeComputation):
@@ -141,6 +146,52 @@ def test_test_suite_compute_checked_covered_fitness_values(
         run_suite_mock.return_value = [result]
         assert func.compute_fitness(indiv) == 0
         run_suite_mock.assert_called_with(indiv)
+
+
+@pytest.mark.parametrize(
+    "name, expected_fitness",
+    [
+        ("tests.fixtures.examples.constructors.Base", 0.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_args", 3.0),
+        ("tests.fixtures.examples.constructors.Base.static_constructor", 1.0),
+        ("tests.fixtures.examples.constructors.Overload", 1.0),
+        ("tests.fixtures.examples.constructors.Overload.instance_constructor", 2.0),
+        ("tests.fixtures.examples.constructors.Overload.static_constructor", 2.0),
+        ("tests.fixtures.examples.constructors.Derived1", 1.0),
+        ("tests.fixtures.examples.constructors.Derived2", 2.0),
+        ("external_constructor", 1.0),
+        ("external_overload_constructor", 2.0),
+    ],
+)
+def test_heuristic_generator_fitness_function(name, expected_fitness):
+    cluster = generate_test_cluster("tests.fixtures.examples.constructors")
+    type_system = cluster.type_system
+    base_type = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
+    generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
+
+    methods = {
+        method.owner.full_name + "." + method.method_name: method
+        for method in cluster.accessible_objects_under_test
+        if isinstance(method, GenericMethod)
+    }
+    constructors = {
+        constructor.owner.full_name: constructor
+        for constructor in cluster.accessible_objects_under_test
+        if isinstance(constructor, GenericConstructor)
+    }
+    functions = {
+        function.function_name: function
+        for function in cluster.accessible_objects_under_test
+        if isinstance(function, GenericFunction)
+    }
+    merged = {**methods, **constructors, **functions}
+    assert generator_ff.compute_fitness(base_type, merged[name]) == expected_fitness
+
+
+def test_heuristic_generator_fitness_function_is_minimisation():
+    mock = MagicMock()
+    func = ff.HeuristicGeneratorFitnessFunction(mock)
+    assert not func.is_maximisation_function()
 
 
 def test_run_test_suite_chromosome(executor_mock: MagicMock):

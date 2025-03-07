@@ -775,7 +775,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def __init__(self, linenos: int) -> None:  # noqa: D107
         self.__type_system = TypeSystem()
         self.__linenos = linenos
-        self.generator_provider = GeneratorProvider()
+        self.generator_provider: GeneratorProvider = GeneratorProvider(self.__type_system)
 
         # Modifier belong to a certain class, not type.
         self.__modifiers: dict[TypeInfo, OrderedSet[GenericAccessibleObject]] = defaultdict(
@@ -1073,6 +1073,10 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     accessible objects under test that are already fully covered, in order to focus
     the search on areas that are not yet fully covered.
     """
+
+    @property
+    def generator_provider(self) -> GeneratorProvider:  # noqa: D102
+        return self.__delegate.generator_provider
 
     @property
     def type_system(self) -> TypeSystem:  # noqa: D102
