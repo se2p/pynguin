@@ -53,27 +53,23 @@ if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
-from pynguin.analyses.syntaxtree import (
-    FunctionDescription,
-    astroid_to_ast,
-    get_class_node_from_ast,
-    get_function_description,
-    get_function_node_from_ast,
-)
-from pynguin.analyses.typesystem import (
-    ANY,
-    AnyType,
-    Instance,
-    NoneType,
-    ProperType,
-    TupleType,
-    TypeInfo,
-    TypeSystem,
-    TypeVisitor,
-    UnionType,
-    Unsupported,
-    is_primitive_type,
-)
+
+from pynguin.analyses.syntaxtree import FunctionDescription
+from pynguin.analyses.syntaxtree import astroid_to_ast
+from pynguin.analyses.syntaxtree import get_class_node_from_ast
+from pynguin.analyses.syntaxtree import get_function_description
+from pynguin.analyses.syntaxtree import get_function_node_from_ast
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import TypeSystem
+from pynguin.analyses.typesystem import TypeVisitor
+from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import Unsupported
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
@@ -903,11 +899,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def add_generator(self, generator: GenericAccessibleObject) -> None:  # noqa: D102
         if isinstance(generator, GenericCallableAccessibleObject):
             self.__callables.add(generator)
-
-        generated_type = generator.generated_type()
-        if isinstance(generated_type, NoneType) or generated_type.accept(is_primitive_type):
-            return
-        self.generator_provider.generators[generated_type].add(generator)
+        self.generator_provider.add(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
         self, objc: GenericAccessibleObject, data: CallableData
