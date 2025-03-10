@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import functools
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -351,6 +352,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._param_penalty = param_penalty
         self._hierarchy_penalty = hierarchy_penalty
 
+    @functools.lru_cache(maxsize=16384)
     def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
         """Compute the fitness score for a generator. Lower is better."""
         fitness = 0.0
