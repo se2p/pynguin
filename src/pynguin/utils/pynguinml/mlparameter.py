@@ -483,7 +483,9 @@ class MLParameter:
             known_dtypes.append("str")
 
         rest_dtypes = list(
-            set(dtype_constraints) - set(known_dtypes_dict.keys()) - {"str", "string"}
+            set(dtype_constraints)
+            - set(known_dtypes_dict.keys())
+            - {dtype for dtype in dtype_constraints if "str" in dtype.lower()}
         )
 
         # If it is just int or float
