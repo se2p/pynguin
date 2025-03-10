@@ -479,7 +479,7 @@ class MLParameter:
         # Get all the NumPy dtypes
         known_dtypes = list(known_dtypes_dict.values())
 
-        if "str" in dtype_constraints or "string" in dtype_constraints:
+        if any("str" in dtype.lower() for dtype in dtype_constraints):
             known_dtypes.append("str")
 
         rest_dtypes = list(
