@@ -7,6 +7,8 @@
 import graphviz
 import networkx as nx
 
+from pynguin.utils.orderedset import OrderedSet
+
 
 def _nx_to_dot(graph: nx.DiGraph) -> str:
     """Convert a NetworkX graph to a DOT string."""
@@ -44,3 +46,16 @@ def print_dunder(obj):
     for attr in dir(obj):
         if attr.startswith("__"):
             print(f"{attr}: {getattr(obj, attr)}")  # noqa: T201
+
+
+def find_generic_function(ordered_set: OrderedSet, target_str: str):
+    """Find a specific item in an ordered set.
+
+    :param ordered_set: The ordered set to search in.
+    :param target_str: The string representation of the item to search for.
+    :return: The item if found, None otherwise.
+    """
+    for item in ordered_set:
+        if str(item) == target_str:
+            return item
+    return None
