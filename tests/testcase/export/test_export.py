@@ -97,7 +97,7 @@ def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
 
 def test_case_0():
     int_0 = 1
-    int_1 = module_0.z(int_0)
+    int_1 = module_0.just_z(int_0)
 """
     )
 
@@ -118,6 +118,6 @@ def test_case_0():
     complex_1 = 1 + 0j
     float_0 = 0.1
     float_1 = 0.3
-    complex_2 = module_0.x(complex_0, complex_1, float_0, float_1)
+    complex_2 = module_0.weighted_avg(complex_0, complex_1, float_0, float_1)
 """
     )
