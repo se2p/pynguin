@@ -65,8 +65,7 @@ def test_generator_provider_integration(rand_mock):
     generators = provider.get_for_type(proper_type)
     generator = provider.select_generator(proper_type, generators)
 
-    assert isinstance(generator, GenericMethod)
-    assert generator.method_name == "instance_constructor"
+    assert str(generator) == "tests.fixtures.examples.constructors.Base"
 
 
 def test_generator_provider():
