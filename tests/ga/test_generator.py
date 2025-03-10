@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from pynguin.analyses.generator import Generator
 from pynguin.analyses.generator import GeneratorProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import Instance
@@ -28,6 +29,25 @@ def generator_provider() -> GeneratorProvider:
     fitness_function = MagicMock()
     selection_function = MagicMock(spec=SelectionFunction)
     return GeneratorProvider(fitness_function, selection_function)
+
+
+def test_generator():
+    generator_method = MagicMock()
+    type_to_generate = MagicMock()
+    fitness_function = MagicMock()
+    generator = Generator(generator_method, type_to_generate, fitness_function)
+    assert generator.generator == generator_method
+    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) == float("inf")
+    assert str(generator) == str(generator_method)
+
+
+def test_generator_get_fitness_for():
+    generator_method = MagicMock()
+    type_to_generate = MagicMock(Instance)
+    type_to_generate.type = MagicMock()
+    fitness_function = MagicMock()
+    generator = Generator(generator_method, type_to_generate, fitness_function)
+    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
 # TODO: Get rid of code duplicate

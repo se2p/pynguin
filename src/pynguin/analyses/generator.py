@@ -57,7 +57,8 @@ class Generator(Selectable):
         """
         if isinstance(self._type_to_generate, Instance):
             return fitness_function.compute_fitness(self._type_to_generate.type, self._generator)
-        return 20  # TODO: Adjust, return bad value
+        # We cannot compute a fitness value for AnyType, NoneType etc.
+        return float("inf")
 
     def __str__(self):
         return str(self._generator)
