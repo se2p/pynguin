@@ -70,6 +70,19 @@ class SelectionFunction(Generic[T]):
 class RankSelection(SelectionFunction[T]):
     """Rank selection."""
 
+    def __init__(self, bias: float | None = None) -> None:
+        """Create a new rank selection function.
+
+        Args:
+            bias: The bias to use for rank selection. If None, the default value from the
+                configuration is used.
+        """
+        super().__init__()
+        if bias is None:
+            self.bias = config.configuration.search_algorithm.rank_bias
+        else:
+            self.bias = bias
+
     def get_index(self, population: list[T]) -> int:
         """Provides an index in the population that is chosen by rank selection.
 
@@ -83,7 +96,7 @@ class RankSelection(SelectionFunction[T]):
             The index that should be used for selection
         """
         random_value = randomness.next_float()
-        bias = config.configuration.search_algorithm.rank_bias
+        bias = self.bias
         return int(
             len(population)
             * ((bias - sqrt(bias**2 - (4.0 * (bias - 1.0) * random_value))) / 2.0 / (bias - 1.0))
