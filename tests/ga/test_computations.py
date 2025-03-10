@@ -215,8 +215,14 @@ def test_heuristic_generator_fitness_function_caching():
     }
     merged = {**methods, **constructors, **functions}
 
-    assert generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"]) == 0.0
-    assert generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"]) == 0.0
+    assert (
+        generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"])
+        == 0.0
+    )
+    assert (
+        generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"])
+        == 0.0
+    )
     assert generator_ff.compute_fitness.cache_info().hits == 1
 
 
