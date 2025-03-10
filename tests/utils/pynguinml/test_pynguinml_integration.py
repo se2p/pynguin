@@ -28,7 +28,6 @@ def test_pynguinml_integration(tmp_path):
         statistics_output=config.StatisticsOutputConfiguration(
             report_dir=str(tmp_path),
             statistics_backend=config.StatisticsBackend.NONE,
-            coverage_metrics=[config.CoverageMetric(config.CoverageMetric.LINE)],
         ),
         pynguinml=config.PynguinMLConfiguration(
             constraints_path=str(project_path),
