@@ -777,7 +777,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__type_system = TypeSystem()
         self.__linenos = linenos
         self.generator_provider: GeneratorProvider = GeneratorProvider(
-            self.__type_system, RankSelection()
+            self.__type_system, RankSelection(100)
         )
 
         # Modifier belong to a certain class, not type.
@@ -837,7 +837,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
         gens = self.generator_provider.get_for_type(accessible.generated_type())
-        if gens is None:
+        if gens is None or len(gens) == 0:
             return
 
         gens.discard(accessible)

@@ -152,19 +152,19 @@ def test_test_suite_compute_checked_covered_fitness_values(
     "name, expected_fitness",
     [
         ("tests.fixtures.examples.constructors.Base", 0.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor", 1.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_args", 3.0),
-        ("tests.fixtures.examples.constructors.Base.static_constructor", 1.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union", 2.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union_2", 2.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor", 10.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_args", 12.0),
+        ("tests.fixtures.examples.constructors.Base.static_constructor", 10.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union", 11.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union_2", 11.0),
         ("tests.fixtures.examples.constructors.Overload", 1.0),
-        ("tests.fixtures.examples.constructors.Overload.instance_constructor", 2.0),
-        ("tests.fixtures.examples.constructors.Overload.static_constructor", 2.0),
+        ("tests.fixtures.examples.constructors.Overload.instance_constructor", 11.0),
+        ("tests.fixtures.examples.constructors.Overload.static_constructor", 11.0),
         ("tests.fixtures.examples.constructors.Derived1", 1.0),
         ("tests.fixtures.examples.constructors.Derived2", 2.0),
         ("tests.fixtures.examples.constructors.Multiple", 1.0),
-        ("external_constructor", 1.0),
-        ("external_overload_constructor", 2.0),
+        ("external_constructor", 10.0),
+        ("external_overload_constructor", 11.0),
     ],
 )
 def test_heuristic_generator_fitness_function(name, expected_fitness):
@@ -215,6 +215,7 @@ def test_heuristic_generator_fitness_function_caching():
     }
     merged = {**methods, **constructors, **functions}
 
+    generator_ff.compute_fitness.cache_clear()
     assert (
         generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"])
         == 0.0

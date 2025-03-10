@@ -342,7 +342,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self,
         type_system: TypeSystem,
         *,
-        not_constructor_penalty: float = 1.0,
+        not_constructor_penalty: float = 10.0,
         param_penalty: float = 1.0,
         hierarchy_penalty: float = 1.0,
     ) -> None:
