@@ -174,8 +174,12 @@ def function_mock(type_system) -> GenericFunction:
 
 @pytest.fixture
 def lambda_mock(type_system) -> GenericFunction:
+    # NOTE: module.py changes the lambda name, so we assume that at this point they are
+    # already renamed
+    just_z = lambda z: z  # noqa: E731
+    just_z.__name__ = "just_z"
     return GenericFunction(
-        function=lambda z: z,
+        function=just_z,
         inferred_signature=InferredSignature(
             signature=inspect.Signature(
                 parameters=[
@@ -198,6 +202,9 @@ weighted_avg = lambda x, y, w1, w2: (x * w1 + y * w2) / (w1 + w2)  # noqa: E731
 
 @pytest.fixture
 def lambda_mock_complex(type_system) -> GenericFunction:
+    # NOTE: module.py changes the lambda name, so we assume that at this point they are
+    # already renamed
+    weighted_avg.__name__ = "weighted_avg"
     return GenericFunction(
         function=weighted_avg,
         inferred_signature=InferredSignature(

@@ -59,6 +59,11 @@ def parsed_module_nested_functions() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.nested_functions")
 
 
+@pytest.fixture(scope="module")
+def parsed_module_lambda() -> _ModuleParseResult:
+    return parse_module("tests.fixtures.cluster.lambda")
+
+
 @pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster(linenos=-1)
@@ -555,3 +560,15 @@ def test_exception_during_inspect_getmembers(parsed_module_no_dependencies):
     with patch("inspect.getmembers", side_effect=CustomError):
         test_cluster = analyse_module(parsed_module_no_dependencies)
         assert test_cluster.num_accessible_objects_under_test() == 3  # one less (failed)
+
+
+def test_analyse_module_lambda(parsed_module_lambda):
+    test_cluster = analyse_module(parsed_module_lambda)
+    assert test_cluster.num_accessible_objects_under_test() == 3
+    objects = list(test_cluster.accessible_objects_under_test)
+    lambda1 = cast("GenericFunction", objects[0])
+    assert lambda1.function_name == "y"
+    lambda2 = cast("GenericFunction", objects[1])
+    assert lambda2.function_name == "abc"
+    lambda3 = cast("GenericFunction", objects[2])
+    assert lambda3.function_name == "salam_aleykum"
