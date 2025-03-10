@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Handles type generator functions and their fitness values."""
-
+import functools
 from collections import defaultdict
 
 from pynguin.analyses.typesystem import Instance
@@ -20,7 +20,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.orderedset import OrderedSet, FrozenOrderedSet
 
 
 class Generator(Selectable):
@@ -136,10 +136,22 @@ class GeneratorProvider:
         """
         self._generators[proper_type].add(generator)
 
+    @functools.lru_cache(maxsize=1024)
+    def _sorted_generators(self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]) -> list[Generator]:
+        generators = [
+            Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
+        ]
+        generators.sort(key=lambda x: x.get_fitness(), reverse=False)
+        return generators
+
     def select_generator(
-        self, parameter_type: ProperType, type_generators: OrderedSet[GenericAccessibleObject]
+        self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]
     ) -> GenericAccessibleObject:
         """Select a generator from a set of generators.
+
+        Compared to random selection this adds an overhead by computing a fitness value
+        for each generator and sorting them. We can cache both operations so the overhead
+        is mostly limited to the first iteration.
 
         Args:
             parameter_type: The type to select a generator for.
@@ -148,9 +160,7 @@ class GeneratorProvider:
         Returns:
             The selected generator.
         """
-        generator_objects = [
-            Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
-        ]
-        generator_objects.sort(key=lambda x: x.get_fitness(), reverse=False)
+        generator_objects = self._sorted_generators(parameter_type, type_generators)
         selected = self._selection_function.select(generator_objects)
         return selected[0].generator
+

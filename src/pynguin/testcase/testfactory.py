@@ -1271,7 +1271,7 @@ class TestFactory:  # noqa: PLR0904
         type_generators, only_any = self._test_cluster.get_generators_for(parameter_type)
         if type_generators and not only_any:
             type_generator = self._test_cluster.generator_provider.select_generator(
-                parameter_type, type_generators
+                parameter_type, type_generators.freeze()
             )
             return self.append_generic_accessible(
                 test_case,
