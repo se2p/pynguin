@@ -8,6 +8,7 @@ import copy
 
 import pytest
 
+from pynguin.utils.orderedset import FrozenOrderedSet
 from pynguin.utils.orderedset import OrderedSet, OrderedTypeSet
 
 
@@ -61,6 +62,13 @@ def test_ordereset_or_union(first, second, result):
 def test_ordereset_and_intersection(first, second, result):
     assert OrderedSet(first) & OrderedSet(second) == OrderedSet(result)
     assert OrderedSet(first).intersection(OrderedSet(second)) == OrderedSet(result)
+
+
+def test_orderedset_freeze():
+    ordered = OrderedSet([1, 2, 3])
+    frozen = ordered.freeze()
+    frozen_2 = FrozenOrderedSet([1, 2, 3])
+    assert frozen == frozen_2
 
 
 @pytest.mark.parametrize(
