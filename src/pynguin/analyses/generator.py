@@ -3,8 +3,10 @@
 #  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-"""Handles type generator functions and their fitness values."""
+"""Handles type generator functions."""
+
 import functools
+
 from collections import defaultdict
 
 from pynguin.analyses.typesystem import Instance
@@ -20,7 +22,8 @@ from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObjec
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.orderedset import OrderedSet, FrozenOrderedSet
+from pynguin.utils.orderedset import FrozenOrderedSet
+from pynguin.utils.orderedset import OrderedSet
 
 
 class Generator(Selectable):
@@ -137,7 +140,9 @@ class GeneratorProvider:
         self._generators[proper_type].add(generator)
 
     @functools.lru_cache(maxsize=1024)
-    def _sorted_generators(self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]) -> list[Generator]:
+    def _sorted_generators(
+        self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]
+    ) -> list[Generator]:
         generators = [
             Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
         ]
@@ -163,4 +168,3 @@ class GeneratorProvider:
         generator_objects = self._sorted_generators(parameter_type, type_generators)
         selected = self._selection_function.select(generator_objects)
         return selected[0].generator
-

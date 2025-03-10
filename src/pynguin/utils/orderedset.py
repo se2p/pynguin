@@ -306,6 +306,7 @@ class OrderedSet(_AbstractOrderedSet[T], MutableSet[T]):
         """Return a new FrozenOrderedSet with the same elements."""
         return FrozenOrderedSet(self)
 
+
 class OrderedTypeSet(Sequence[type]):  # noqa: PLR0904
     """A set that resolves | operators between types.
 

@@ -63,7 +63,7 @@ def test_generator_provider_integration(rand_mock):
 
     proper_type = Instance(base_type)
     generators = provider.get_for_type(proper_type)
-    generator = provider.select_generator(proper_type, generators)
+    generator = provider.select_generator(proper_type, generators.freeze())
 
     assert str(generator) == "tests.fixtures.examples.constructors.Base"
 
@@ -82,7 +82,7 @@ def test_generator_provider():
 
     provider.add(generator)
     retrieved_generators = provider.get_for_type(generated_type)
-    retrieved_generator = provider.select_generator(generated_type, retrieved_generators)
+    retrieved_generator = provider.select_generator(generated_type, retrieved_generators.freeze())
 
     assert retrieved_generator == generator
 
