@@ -71,6 +71,7 @@ from pynguin.analyses.typesystem import TypeVisitor
 from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.configuration import TypeInferenceStrategy
+from pynguin.ga.operators.selection import RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
     ConstraintValidationError,
@@ -775,7 +776,9 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def __init__(self, linenos: int) -> None:  # noqa: D107
         self.__type_system = TypeSystem()
         self.__linenos = linenos
-        self.generator_provider: GeneratorProvider = GeneratorProvider(self.__type_system)
+        self.generator_provider: GeneratorProvider = GeneratorProvider(
+            self.__type_system, RankSelection()
+        )
 
         # Modifier belong to a certain class, not type.
         self.__modifiers: dict[TypeInfo, OrderedSet[GenericAccessibleObject]] = defaultdict(

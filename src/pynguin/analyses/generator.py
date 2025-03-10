@@ -16,7 +16,6 @@ from pynguin.ga.chromosome import Selectable
 from pynguin.ga.computations import GeneratorFitnessFunction
 from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
 from pynguin.ga.operators.selection import SelectionFunction
-from pynguin.ga.operators.selection import TournamentSelection
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -30,12 +29,12 @@ class Generator(Selectable):
     def __init__(
         self,
         generator: GenericAccessibleObject,
-        generated_type: ProperType,
+        type_to_generate: ProperType,
         fitness_function: GeneratorFitnessFunction,
     ):
         """Create a new generator."""
         self._generator = generator
-        self._generated_type = generated_type
+        self._type_to_generate = type_to_generate
         self._fitness_function = fitness_function
 
     @property
@@ -53,8 +52,8 @@ class Generator(Selectable):
         Args:
             fitness_function: The fitness function to consider.
         """
-        if isinstance(self._generated_type, Instance):
-            return fitness_function.compute_fitness(self._generated_type.type, self._generator)
+        if isinstance(self._type_to_generate, Instance):
+            return fitness_function.compute_fitness(self._type_to_generate.type, self._generator)
         return 20  # TODO: Adjust, return bad value
 
     def __str__(self):
@@ -67,11 +66,16 @@ class Generator(Selectable):
 class GeneratorProvider:
     """Provides type generator functions and their fitness values."""
 
-    def __init__(self, type_system: TypeSystem) -> None:
+    def __init__(
+        self,
+        type_system: TypeSystem,
+        selection_function: SelectionFunction[Generator],
+    ):
         """Create a new generator provider.
 
         Args:
             type_system: The type system to use.
+            selection_function: The selection function to use.
         """
         self._generators: dict[ProperType, OrderedSet[GenericAccessibleObject]] = defaultdict(
             OrderedSet
@@ -79,7 +83,7 @@ class GeneratorProvider:
         self._fitness_function: GeneratorFitnessFunction = HeuristicGeneratorFitnessFunction(
             type_system
         )
-        self._selection_function: SelectionFunction[Generator] = TournamentSelection()
+        self._selection_function: SelectionFunction[Generator] = selection_function
 
     def add(self, generator: GenericAccessibleObject) -> None:
         """Add a new generator.
@@ -147,5 +151,5 @@ class GeneratorProvider:
         generator_objects = [
             Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
         ]
-        generator_objects.sort(key=lambda g: g.get_fitness(), reverse=True)
-        return generator_objects[0].generator if generator_objects else type_generators[0]
+        selected = self._selection_function.select(generator_objects)
+        return selected[0].generator
