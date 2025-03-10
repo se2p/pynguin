@@ -777,7 +777,8 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__type_system = TypeSystem()
         self.__linenos = linenos
         self.generator_provider: GeneratorProvider = GeneratorProvider(
-            self.__type_system, RankSelection(100)
+            self.__type_system,
+            RankSelection(100),  # TODO: Add to config
         )
 
         # Modifier belong to a certain class, not type.

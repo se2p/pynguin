@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import math
 
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation import version
@@ -345,12 +346,14 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         not_constructor_penalty: float = 10.0,
         param_penalty: float = 1.0,
         hierarchy_penalty: float = 1.0,
+        any_type_penalty: float = 100.0,
     ) -> None:
         """Create a new fitness function."""
         self._type_system = type_system
         self._constructor_penalty = not_constructor_penalty
         self._param_penalty = param_penalty
         self._hierarchy_penalty = hierarchy_penalty
+        self._any_type_penalty = any_type_penalty
 
     @functools.lru_cache(maxsize=16384)
     def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
@@ -367,8 +370,11 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
 
         # Penalize deeper hierarchy distances
         if isinstance(generator, GenericCallableAccessibleObject):
-            hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
-            fitness += self._hierarchy_penalty * hierarchy_depth
+            if isinstance(generator.inferred_signature.return_type, AnyType):
+                fitness += self._any_type_penalty
+            else:
+                hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
+                fitness += self._hierarchy_penalty * hierarchy_depth
 
         return fitness
 
@@ -376,6 +382,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
     ) -> int:
         """Compute depth in type hierarchy."""
+        # TODO: Make this properly for UnionTypes
         if not isinstance(generator.inferred_signature.return_type, Instance):
             return 5  # TODO: Handle properly (Union, Any, Tuple etc.)
         return_type = generator.inferred_signature.return_type.type

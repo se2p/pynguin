@@ -37,17 +37,40 @@ def test_generator():
     fitness_function = MagicMock()
     generator = Generator(generator_method, type_to_generate, fitness_function)
     assert generator.generator == generator_method
-    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) == float("inf")
     assert str(generator) == str(generator_method)
 
 
 def test_generator_get_fitness_for():
-    generator_method = MagicMock()
+    generator_method = MagicMock(GenericCallableAccessibleObject)
+    generator_method.inferred_signature = MagicMock()
+    generator_method.inferred_signature.return_type = MagicMock(Instance)
+
     type_to_generate = MagicMock(Instance)
     type_to_generate.type = MagicMock()
+
     fitness_function = MagicMock()
     generator = Generator(generator_method, type_to_generate, fitness_function)
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
+
+
+def test_generator_get_fitness_for_inf():
+    generator_method = MagicMock()
+    type_to_generate = MagicMock()
+    fitness_function = MagicMock()
+    generator = Generator(generator_method, type_to_generate, fitness_function)
+    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) == float("inf")
+
+
+def test_generator_get_fitness_for_no_inf():
+    generator_method = MagicMock()
+    fitness_function = MagicMock()
+
+    type_to_generate = MagicMock(Instance)
+    type_to_generate.type = MagicMock()
+
+    generator = Generator(generator_method, type_to_generate, fitness_function)
+    assert (generator.get_fitness() == generator.get_fitness_for(fitness_function) !=
+            float("inf"))
 
 
 # TODO: Get rid of code duplicate
@@ -99,6 +122,7 @@ def test_generator_provider():
     generated_type = Instance(TypeInfo(MyClass))
     generator = mock.MagicMock(spec=GenericCallableAccessibleObject)
     generator.generated_type.return_value = generated_type
+    generator.inferred_signature.return_type = generated_type
 
     provider.add(generator)
     retrieved_generators = provider.get_for_type(generated_type)
