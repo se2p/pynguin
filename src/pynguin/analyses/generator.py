@@ -151,5 +151,6 @@ class GeneratorProvider:
         generator_objects = [
             Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
         ]
+        generator_objects.sort(key=lambda x: x.get_fitness(), reverse=False)
         selected = self._selection_function.select(generator_objects)
         return selected[0].generator
