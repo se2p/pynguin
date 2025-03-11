@@ -972,6 +972,9 @@ def test__from_str_values():
     assert InferredSignature._from_str_values(knowledge) == StringSubtype(re.compile(r"^(?:bar)"))
 
 
+any_distance = config.configuration.generator_selection.any_distance
+
+
 @pytest.mark.parametrize(
     "left_hint,right_hint,subtype_distance",
     [
@@ -982,8 +985,8 @@ def test__from_str_values():
         (type(None), int, None),
         (int, type(None), None),
         # any
-        (Any, int, 100),
-        (int, Any, 100),
+        (Any, int, any_distance),
+        (int, Any, any_distance),
         # builtins
         (complex, int, 2),
         (float, int, 1),
@@ -1029,29 +1032,29 @@ def test__from_str_values():
         (object | Any, Super | Sub, 1),
         (object | type(None), Super | Sub, 1),
         # list
-        (list, list, 100),
-        (list[int], list, 100),
+        (list, list, any_distance),
+        (list[int], list, any_distance),
         (list[int], list[int], 0),
         (list[object], list[int], 1),
         (list[int], list[str], None),
         # set
-        (set, set, 100),
-        (set[int], set, 100),
+        (set, set, any_distance),
+        (set[int], set, any_distance),
         (set[int], set[int], 0),
         (set[object], set[int], 1),
         (set[int], set[str], None),
         # dict
-        (dict, dict, 200),
-        (dict[int, int], dict[int], 100),
-        (dict[int], dict[int, int], 100),
-        (dict[int, int], dict, 200),
+        (dict, dict, 2 * any_distance),
+        (dict[int, int], dict[int], any_distance),
+        (dict[int], dict[int, int], any_distance),
+        (dict[int, int], dict, 2 * any_distance),
         (dict[int, int], dict[int, int], 0),
         (dict[object, int], dict[int, int], 1),
         (dict[object, object], dict[int, int], 2),
         (dict[int, int], dict[str, int], None),
         # tuple
-        (tuple, tuple, 100),
-        (tuple[int], tuple, 100),
+        (tuple, tuple, any_distance),
+        (tuple[int], tuple, any_distance),
         (tuple[int], tuple[int], 0),
         (tuple[object], tuple[int], 1),
         (tuple[int], tuple[str], None),

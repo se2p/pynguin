@@ -15,6 +15,7 @@ import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
 
+import pynguin.configuration as config
 import math
 
 from pynguin.instrumentation import version
@@ -343,10 +344,10 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self,
         type_system: TypeSystem,
         *,
-        not_constructor_penalty: float = 10.0,
-        param_penalty: float = 1.0,
-        hierarchy_penalty: float = 1.0,
-        any_type_penalty: float = 100.0,
+        not_constructor_penalty: float = config.configuration.generator_selection.not_constructor_penalty,  # noqa: E501
+        param_penalty: float = config.configuration.generator_selection.param_penalty,
+        hierarchy_penalty: float = config.configuration.generator_selection.hierarchy_penalty,
+        any_type_penalty: float = config.configuration.generator_selection.any_type_penalty,
     ) -> None:
         """Create a new fitness function."""
         self._type_system = type_system
@@ -382,15 +383,18 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
     def _compute_hierarchy_distance(
         self, to_generate: ProperType, generator: GenericCallableAccessibleObject
     ) -> int | None:
-        """Compute depth in type hierarchy.
+        """The distance between the type to generate and the return type of the generator.
+
+        The hierarchy distance is the number of subtypes between the type to generate and
+        the return type of the generator. If the return type is not a subtype of the type
+        to generate, None is returned.
 
         Args:
-            to_generate: The type to generate
-            generator: The generator function
+            to_generate: The type to generate.
+            generator: The generator function to check the return type of.
 
         Returns:
-            The depth in the type hierarchy or None if there is no hierarchy between the
-            types.
+            The distance or None if the return type is not a subtype of the type.
         """
         return_type = generator.inferred_signature.return_type
         assert return_type is not None, "Return type must not be None for a type generator"

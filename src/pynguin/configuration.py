@@ -626,6 +626,39 @@ class TestCreationConfiguration:
 
 
 @dataclasses.dataclass
+class GeneratorSelectionConfiguration:
+    """Configuration related to selecting a generator for a certain type."""
+
+    selection_algorithm: Selection = Selection.RANK_SELECTION
+    """The selection algorithm to use for selecting the generator for a statement.
+    Currently only RANK_SELECTION is supported."""
+
+    selection_bias: float = 100.0
+    """The bias to use for rank selection when selecting the generator for a statement.
+    Expects values in [0, inf]. 1.0 is random selection, higher values bias towards
+    higher ranked generators."""
+
+    any_distance: int = 30
+    """The distance to and from the any type to any other type in the type hierarchy.
+    As the any type is a super- and subtype of all type but it is most likely not
+    the type we want, we want to punish it in the type selection process."""
+
+    not_constructor_penalty: float = 10.0
+    """Penalty for selecting a generator that is not a __init__ method."""
+
+    param_penalty: float = 1.0
+    """Penalty for each parameter of the generator."""
+
+    hierarchy_penalty: float = 1.0
+    """Penalty for the distance between the generators type and the desired type.
+    The penalty is multiplied with the distance in the type hierarchy."""
+
+    any_type_penalty: float = 100.0
+    """Penalty for selecting a generator that returns only Any.
+    While Any is always a valid type, we still want to avoid it as a generator."""
+
+
+@dataclasses.dataclass
 class SearchAlgorithmConfiguration:
     """General configuration for search algorithms."""
 
@@ -935,6 +968,10 @@ class Configuration:
         default_factory=TestCreationConfiguration
     )
     """Test creation configuration."""
+
+    generator_selection: GeneratorSelectionConfiguration = dataclasses.field(
+        default_factory=GeneratorSelectionConfiguration
+    )
 
     search_algorithm: SearchAlgorithmConfiguration = dataclasses.field(
         default_factory=SearchAlgorithmConfiguration

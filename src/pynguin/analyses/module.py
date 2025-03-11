@@ -776,9 +776,15 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def __init__(self, linenos: int) -> None:  # noqa: D107
         self.__type_system = TypeSystem()
         self.__linenos = linenos
+
+        if (
+            config.configuration.generator_selection.selection_algorithm
+            != config.Selection.RANK_SELECTION
+        ):
+            raise NotImplementedError("Only rank selection is supported at the moment.")
         self.generator_provider: GeneratorProvider = GeneratorProvider(
             self.__type_system,
-            RankSelection(100),  # TODO: Add to config
+            RankSelection(config.configuration.generator_selection.selection_bias),
         )
 
         # Modifier belong to a certain class, not type.

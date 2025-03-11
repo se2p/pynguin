@@ -153,6 +153,15 @@ insertion_uut = 0.5
 max_size = 100
 use_random_object_for_call = 0.0
 
+[generator_selection]
+selection_algorithm = "RANK_SELECTION"
+selection_bias = 100.0
+any_distance = 30
+not_constructor_penalty = 10.0
+param_penalty = 1.0
+hierarchy_penalty = 1.0
+any_type_penalty = 100.0
+
 [search_algorithm]
 min_initial_tests = 1
 max_initial_tests = 10
@@ -289,6 +298,10 @@ def expected_txt(tmp_path):
  'type_tracing_kept_guesses=2, wrap_var_param_type_probability=0.7, '
  'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
+ 'generator_selection=GeneratorSelectionConfiguration(selection_algorithm=<Selection.RANK_SELECTION: '
+ "'RANK_SELECTION'>, selection_bias=100.0, any_distance=30, "
+ 'not_constructor_penalty=10.0, param_penalty=1.0, hierarchy_penalty=1.0, '
+ 'any_type_penalty=100.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=10, chromosome_length=48, '
  'chop_max_length=True, elite=1, crossover_rate=0.648, '
@@ -628,6 +641,9 @@ def expected_parameter_list() -> list[str]:
         "--max_length_test_case 2500",
         "--assertion_generation MUTATION_ANALYSIS",
         "--allow_stale_assertions False",
+        "--any_distance 30",
+        "--any_type_penalty 100.0",
+        "--any_weight 0",
         "--mutation_strategy FIRST_ORDER_MUTANTS",
         "--mutation_order 1",
         "--post_process True",
@@ -635,6 +651,7 @@ def expected_parameter_list() -> list[str]:
         "--minimization.test_case_minimization_strategy CASE",
         "--float_precision 0.01",
         "--format_with_black True",
+        "--hierarchy_penalty 1.0",
         "--algorithm RANDOM",  # as defined in tests/conftest.py
         "--report_dir pynguin-report",
         "--statistics_backend CSV",
@@ -642,6 +659,7 @@ def expected_parameter_list() -> list[str]:
         "--timeline_interpolation True",
         "--coverage_metrics BRANCH",
         "--output_variables TargetModule\nCoverage",
+        "--param_penalty 1.0",
         "--create_coverage_report False",
         "--type_guess_top_n 10",
         "--maximum_search_time -1",
@@ -684,7 +702,7 @@ def expected_parameter_list() -> list[str]:
         "--primitive_reuse_probability 0.5",
         "--object_reuse_probability 0.9",
         "--none_weight 0",
-        "--any_weight 0",
+        "--not_constructor_penalty 10.0",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
         "--type_tracing_argument_type_weight 0.5",
@@ -717,6 +735,8 @@ def expected_parameter_list() -> list[str]:
         "--tournament_size 4",
         "--rank_bias 1.68",
         "--selection RANK_SELECTION",
+        "--selection_algorithm RANK_SELECTION",
+        "--selection_bias 100.0",
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
         "--number_of_mutations 3",

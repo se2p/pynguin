@@ -6,6 +6,7 @@
 #
 from unittest.mock import MagicMock, patch
 
+import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
@@ -149,6 +150,9 @@ def test_test_suite_compute_checked_covered_fitness_values(
         run_suite_mock.assert_called_with(indiv)
 
 
+any_distance = config.configuration.generator_selection.any_distance
+
+
 @pytest.mark.parametrize(
     "name, expected_fitness",
     [
@@ -165,7 +169,7 @@ def test_test_suite_compute_checked_covered_fitness_values(
         ("tests.fixtures.examples.constructors.Multiple", 1.0),
         ("external_constructor", 10.0),
         ("external_overload_constructor", 11.0),
-        ("any_constructor", 110.0),
+        ("any_constructor", any_distance + 10.0),
     ],
 )
 def test_heuristic_generator_fitness_function(name, expected_fitness):
