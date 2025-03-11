@@ -79,6 +79,22 @@ class CodeObjectMetaData:
     # CDG of this Code Object
     cdg: ControlDependenceGraph
 
+    def __getstate__(self) -> dict:
+        return {
+            "code_object": self.code_object,
+            "parent_code_object_id": self.parent_code_object_id,
+            "cfg": self.cfg,
+            "original_cfg": self.original_cfg,
+            "cdg": self.cdg,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self.code_object = state["code_object"]
+        self.parent_code_object_id = state["parent_code_object_id"]
+        self.cfg = state["cfg"]
+        self.original_cfg = state["original_cfg"]
+        self.cdg = state["cdg"]
+
 
 @dataclass
 class PredicateMetaData:

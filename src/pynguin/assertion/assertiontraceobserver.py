@@ -13,6 +13,7 @@ import threading
 
 from collections.abc import Sized
 from types import ModuleType
+from typing import Any
 from typing import cast
 
 from _pytest.outcomes import Failed  # noqa: PLC2701
@@ -286,6 +287,16 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
     def __init__(self):  # noqa: D107
         super().__init__()
         self._state = RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "trace": self._state.trace,
+        }
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._state.trace = state["trace"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
