@@ -164,9 +164,6 @@ class GeneratorProvider:
         Returns:
             The selected generator.
         """
-        if parameter_type is AnyType:
-            return randomness.choice(type_generators)
-
         generator_objects = self._sorted_generators(parameter_type, type_generators)
         selected = self._selection_function.select(generator_objects)
         return selected[0].generator
