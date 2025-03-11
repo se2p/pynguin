@@ -84,7 +84,6 @@ def test_generator_get_fitness_for_no_inf():
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
-# TODO: Get rid of code duplicate
 @mock.patch("pynguin.utils.randomness.next_float")
 def test_generator_provider_integration(rand_mock):
     rand_mock.side_effect = [0]
