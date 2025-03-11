@@ -44,6 +44,7 @@ def test_generator_get_fitness_for():
     generator_method = MagicMock(GenericCallableAccessibleObject)
     generator_method.inferred_signature = MagicMock()
     generator_method.inferred_signature.return_type = MagicMock(Instance)
+    generator_method.inferred_signature.return_type.type = MagicMock()
 
     type_to_generate = MagicMock(Instance)
     type_to_generate.type = MagicMock()
@@ -51,14 +52,6 @@ def test_generator_get_fitness_for():
     fitness_function = MagicMock()
     generator = Generator(generator_method, type_to_generate, fitness_function)
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
-
-
-def test_generator_get_fitness_for_inf():
-    generator_method = MagicMock()
-    type_to_generate = MagicMock()
-    fitness_function = MagicMock()
-    generator = Generator(generator_method, type_to_generate, fitness_function)
-    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) == float("inf")
 
 
 def test_generator_get_fitness_for_no_inf():
@@ -69,8 +62,7 @@ def test_generator_get_fitness_for_no_inf():
     type_to_generate.type = MagicMock()
 
     generator = Generator(generator_method, type_to_generate, fitness_function)
-    assert (generator.get_fitness() == generator.get_fitness_for(fitness_function) !=
-            float("inf"))
+    assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
 # TODO: Get rid of code duplicate

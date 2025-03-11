@@ -970,3 +970,74 @@ def _make_usage_trace_with_strings(strings_by_attr):
 def test__from_str_values():
     knowledge = _make_usage_trace_with_strings({"startswith": {"bar"}})
     assert InferredSignature._from_str_values(knowledge) == StringSubtype(re.compile(r"^(?:bar)"))
+
+
+@pytest.mark.parametrize(
+    "left_hint,right_hint,subtype_distance",
+    [
+        # basic
+        (int, int, 0),
+        (int, str, None),
+        # none
+        (type(None), int, None),
+        (int, type(None), None),
+        # any
+        (Any, int, 100),
+        (int, Any, 100),
+        # builtins
+        (complex, int, 2),
+        (float, int, 1),
+        (int, bool, 1),
+        (object, str, 1),
+        (object, bytes, 1),
+        (object, list, 1),
+        (object, tuple, None),  # TODO: Does this make sense?
+        (object, set, 1),
+        (object, dict, 1),
+        (object, int, 1),
+        (object, float, 1),
+        (object, bool, 2),
+        (object, complex, 1),
+        # classes
+        (object, Super, 1),
+        (object, Sub, 2),
+        (Super, Sub, 1),
+        (Sub, Super, None),
+        # union
+        (object, object | int, 0),
+        (object, Super | int, 1),
+        (object, Sub | int, 2),
+        (object, Super | Sub, 1),
+        (object, Super | Any, 1),
+        (object, Super | type(None), 1),
+        # list
+        (list, list, 0),  # TODO: Add penalty for missing type hint?
+        (list[int], list, 0),  # TODO: Add penalty for missing type hint?
+        (list[int], list[int], 0),
+        # (list[object], list[int], 1),  # TODO: Fix
+        # (list[int], list[str], None),  # TODO: Fix
+        # set
+        (set, set, 0),  # TODO: Add penalty for missing type hint?
+        (set[int], set, 0),  # TODO: Add penalty for missing type hint?
+        (set[int], set[int], 0),
+        # (set[object], set[int], 1),  # TODO: Fix
+        # (set[int], set[str], None),  # TODO: Fix
+        # dict
+        (dict, dict, 0),  # TODO: Add penalty for missing type hint?
+        (dict[int, int], dict, 0),  # TODO: Add penalty for missing type hint?
+        (dict[int, int], dict[int, int], 0),
+        # (dict[object, object], dict[int, int], 1),  # TODO: Fix
+        # (dict[int, int], dict[str, int], None),  # TODO: Fix
+        # tuple
+        (tuple, tuple, 100),
+        (tuple[int], tuple, 100),
+        (tuple[int], tuple[int], 0),
+        (tuple[object], tuple[int], 1),
+        (tuple[int], tuple[str], None),
+    ],
+)
+def test_subtype_distance(subtyping_cluster, left_hint, right_hint, subtype_distance):
+    type_system = subtyping_cluster.type_system
+    left = type_system.convert_type_hint(left_hint)
+    right = type_system.convert_type_hint(right_hint)
+    assert type_system.subtype_distance(left, right) == subtype_distance

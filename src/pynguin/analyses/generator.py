@@ -9,7 +9,7 @@ import functools
 
 from collections import defaultdict
 
-from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeSystem
@@ -18,6 +18,7 @@ from pynguin.ga.chromosome import Selectable
 from pynguin.ga.computations import GeneratorFitnessFunction
 from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
 from pynguin.ga.operators.selection import SelectionFunction
+from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -52,22 +53,10 @@ class Generator(Selectable):
     def get_fitness_for(self, fitness_function: GeneratorFitnessFunction) -> float:
         """Get the fitness value of this generator for a specific fitness function.
 
-        For the fitness function to work properly, both types, the _type_to_generate and the
-        return type of the generator, need to be Instance types.
-        When the _type_to_generate is not an Instance type, we cannot compute a fitness value
-        and thus return float("inf"). When the return type of the generator is not an Instance
-        type, we can still consider it as a possible generator even though it is a very unlikely
-        one. Thus we later add a heavy penalty.
-
-        TODO: Consider UnionType
-
         Args:
             fitness_function: The fitness function to consider.
         """
-        # We cannot compute a fitness value for AnyType, NoneType etc.
-        if not isinstance(self._type_to_generate, Instance):
-            return float("inf")
-        return fitness_function.compute_fitness(self._type_to_generate.type, self._generator)
+        return fitness_function.compute_fitness(self._type_to_generate, self._generator)
 
     def __str__(self):
         return str(self._generator)
@@ -175,6 +164,9 @@ class GeneratorProvider:
         Returns:
             The selected generator.
         """
+        if parameter_type is AnyType:
+            return randomness.choice(type_generators)
+
         generator_objects = self._sorted_generators(parameter_type, type_generators)
         selected = self._selection_function.select(generator_objects)
         return selected[0].generator

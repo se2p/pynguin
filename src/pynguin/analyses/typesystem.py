@@ -672,6 +672,77 @@ class _SubtypeVisitor(TypeVisitor[bool]):
         raise NotImplementedError("This type shall not be used during runtime")
 
 
+class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
+    """A visitor to compute the subtype distance between two types.
+
+    The subtype distance is the length of the shortest path in the inheritance graph
+    between the two types. For the UnionType, the minimum distance is returned. The
+    AnyType is treated as a subtype of everything, but with a high distance. For all not
+    supported types, None is returned indicating that the elements are not connected.
+    """
+
+    def __init__(self, graph: TypeSystem, right: ProperType, any_distance: int = 100):
+        """Create new visitor.
+
+        Args:
+            graph: The inheritance graph.
+            right: The target type.
+            any_distance: The distance for AnyType.
+        """
+        self.graph = graph
+        self.right = right
+        self.any_distance = any_distance
+
+    def visit_any_type(self, left: AnyType) -> int:
+        return self.any_distance
+
+    def visit_none_type(self, left: NoneType) -> int | None:
+        return None
+
+    def visit_instance(self, left: Instance) -> int | None:
+        if isinstance(self.right, Instance):
+            return self.graph.get_shortest_path_length(left.type, self.right.type)
+
+        if isinstance(self.right, UnionType):
+            distances = [
+                self.graph.subtype_distance(left, elem)
+                for elem in self.right.items
+                if elem not in {NONE_TYPE, UNSUPPORTED} and not elem.accept(is_primitive_type)
+            ]
+            valid_distances = [dist for dist in distances if dist is not None]
+            if valid_distances:
+                return min(valid_distances)
+            return None
+
+        if isinstance(self.right, AnyType):
+            return self.any_distance
+
+        return None
+
+    def visit_tuple_type(self, left: TupleType) -> int | None:
+        if isinstance(self.right, TupleType) and len(left.args) == len(self.right.args):
+            distances = list(map(self.graph.subtype_distance, left.args, self.right.args))
+            if any(dist is None for dist in distances):
+                return None
+            return sum(distances)  # type: ignore[arg-type]
+
+        return None
+
+    def visit_union_type(self, left: UnionType) -> int | None:
+        distances = [
+            self.graph.subtype_distance(elem, self.right)
+            for elem in left.items
+            if elem not in {NONE_TYPE, UNSUPPORTED} and not elem.accept(is_primitive_type)
+        ]
+        valid_distances = [dist for dist in distances if dist is not None]
+        if valid_distances:
+            return min(valid_distances)
+        return None
+
+    def visit_unsupported_type(self, left: Unsupported) -> int | None:
+        raise NotImplementedError("This type shall not be used during runtime")
+
+
 class _MaybeSubtypeVisitor(_SubtypeVisitor):
     """A weaker subtype check, which only checks if left may be a subtype of right.
 
@@ -1660,7 +1731,7 @@ class TypeSystem:  # noqa: PLR0904
         """
         return list(self._types.values())
 
-    def get_shortest_path_length(self, start: TypeInfo, end: TypeInfo) -> int:
+    def get_shortest_path_length(self, start: TypeInfo, end: TypeInfo) -> int | None:
         """Get the shortest path length between two types.
 
         Args:
@@ -1670,7 +1741,10 @@ class TypeSystem:  # noqa: PLR0904
         Returns:
             The shortest path length between the two types.
         """
-        return nx.shortest_path_length(self._graph, start, end)
+        try:
+            return nx.shortest_path_length(self._graph, start, end)
+        except nx.NetworkXNoPath:
+            return None
 
     def push_attributes_down(self) -> None:
         """Pushes attributes down in hierarchy.
@@ -1957,7 +2031,9 @@ class TypeSystem:  # noqa: PLR0904
             return Instance(result.type, args)
         return result
 
-    def subtype_distance(self, left: TypeInfo, right: TypeInfo) -> int:
+    @functools.lru_cache(maxsize=16384)
+    def subclass_distance(self, left: TypeInfo, right: TypeInfo) -> int:
+        # TODO: Remove unused?
         """Computes the distance of types from left to right.
 
         Examples:
@@ -1978,3 +2054,19 @@ class TypeSystem:  # noqa: PLR0904
             return nx.shortest_path_length(self._graph, right, left)
         except nx.NetworkXNoPath as exc:
             raise ValueError(f"No path from {left} to {right}") from exc
+
+    @functools.lru_cache(maxsize=16384)
+    def subtype_distance(self, left: ProperType, right: ProperType) -> int | None:
+        """Computes the distance of types from left to right.
+
+        # TODO: Switch parameter order?
+
+        Args:
+            left: The starting type.
+            right: The target type.
+
+        Returns:
+            The number of subclassing steps from left to right, or None if no path exists.
+        """
+        # TODO: Explain difference to subclass_distance; refer to is_subtype.
+        return left.accept(_SubtypeDistanceVisitor(self, right))

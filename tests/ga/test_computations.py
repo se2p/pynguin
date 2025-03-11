@@ -10,6 +10,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.typesystem import Instance
 from pynguin.instrumentation.tracer import ExecutionTrace
 , SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
@@ -155,8 +156,7 @@ def test_test_suite_compute_checked_covered_fitness_values(
         ("tests.fixtures.examples.constructors.Base.instance_constructor", 10.0),
         ("tests.fixtures.examples.constructors.Base.instance_constructor_with_args", 12.0),
         ("tests.fixtures.examples.constructors.Base.static_constructor", 10.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union", 11.0),
-        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union_2", 11.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union", 10.0),
         ("tests.fixtures.examples.constructors.Overload", 1.0),
         ("tests.fixtures.examples.constructors.Overload.instance_constructor", 11.0),
         ("tests.fixtures.examples.constructors.Overload.static_constructor", 11.0),
@@ -165,12 +165,13 @@ def test_test_suite_compute_checked_covered_fitness_values(
         ("tests.fixtures.examples.constructors.Multiple", 1.0),
         ("external_constructor", 10.0),
         ("external_overload_constructor", 11.0),
+        ("any_constructor", 110.0),
     ],
 )
 def test_heuristic_generator_fitness_function(name, expected_fitness):
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
-    base_type = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
+    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
 
     methods = {
@@ -195,7 +196,7 @@ def test_heuristic_generator_fitness_function(name, expected_fitness):
 def test_heuristic_generator_fitness_function_caching():
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
-    base_type = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
+    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
 
     methods = {
@@ -230,7 +231,7 @@ def test_heuristic_generator_fitness_function_caching():
 def test_heuristic_generator_fitness_function_not_connected():
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
-    base_type = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
+    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
 
     methods = {
@@ -250,17 +251,16 @@ def test_heuristic_generator_fitness_function_not_connected():
     }
     merged = {**methods, **constructors, **functions}
 
-    with pytest.raises(ValueError, match="is not a subclass of"):
-        generator_ff.compute_fitness(
-            base_type, merged["tests.fixtures.examples.constructors.Base2"]
-        )
+    assert generator_ff.compute_fitness(
+        base_type, merged["tests.fixtures.examples.constructors.Base2"]
+    ) == float("inf")
 
 
 # TODO: Remove
 def test_heuristic_generator_fitness_function_tmp():
     cluster = generate_test_cluster("tests.fixtures.examples.monkey")
     type_system = cluster.type_system
-    base_type = type_system.find_type_info("tests.fixtures.examples.monkey.Monkey")
+    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.monkey.Monkey"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
 
     methods = {

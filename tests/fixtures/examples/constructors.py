@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from typing import Any
 from typing import Union
 
 
@@ -17,10 +18,7 @@ class Base:
     def instance_constructor_with_args(self, a: int, b: str) -> 'Base':
         return Base()
 
-    def instance_constructor_with_union(self, a: Union[int, str]) -> 'Base':
-        return Base()
-
-    def instance_constructor_with_union_2(self, a: int | str) -> 'Base':
+    def instance_constructor_with_union(self) -> Union['Base', None, float, Any]:
         return Base()
 
     @staticmethod
@@ -63,3 +61,7 @@ class Derived2(Derived1):
 class Multiple(Base, Base2):
     def __init__(self):
         super().__init__()
+
+
+def any_constructor() -> Any:
+    return Base()

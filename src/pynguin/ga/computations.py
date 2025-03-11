@@ -17,12 +17,11 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import math
 
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import TypeInfo
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicerfrom pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicerfrom
+
+pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -30,6 +29,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from pynguin.analyses.typesystem import ProperType
     from pynguin.analyses.typesystem import TypeSystem
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
@@ -311,7 +311,7 @@ class GeneratorFitnessFunction:
     """Interface for a fitness function for type generators."""
 
     @abstractmethod
-    def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
+    def compute_fitness(self, to_generate: ProperType, generator: GenericAccessibleObject) -> float:
         """Compute the fitness score for a generator.
 
         Args:
@@ -356,7 +356,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._any_type_penalty = any_type_penalty
 
     @functools.lru_cache(maxsize=16384)
-    def compute_fitness(self, to_generate: TypeInfo, generator: GenericAccessibleObject) -> float:
+    def compute_fitness(self, to_generate: ProperType, generator: GenericAccessibleObject) -> float:
         """Compute the fitness score for a generator. Lower is better."""
         fitness = 0.0
 
@@ -369,25 +369,32 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         fitness += self._param_penalty * param_count
 
         # Penalize deeper hierarchy distances
+        # TODO: What if not is instance?
         if isinstance(generator, GenericCallableAccessibleObject):
-            if isinstance(generator.inferred_signature.return_type, AnyType):
-                fitness += self._any_type_penalty
-            else:
-                hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
+            hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
+            if hierarchy_depth is not None:
                 fitness += self._hierarchy_penalty * hierarchy_depth
+            else:
+                fitness = float("inf")
 
         return fitness
 
     def _compute_hierarchy_distance(
-        self, to_generate: TypeInfo, generator: GenericCallableAccessibleObject
-    ) -> int:
-        """Compute depth in type hierarchy."""
-        # TODO: Make this properly for UnionTypes
-        if not isinstance(generator.inferred_signature.return_type, Instance):
-            return 5  # TODO: Handle properly (Union, Any, Tuple etc.)
-        return_type = generator.inferred_signature.return_type.type
+        self, to_generate: ProperType, generator: GenericCallableAccessibleObject
+    ) -> int | None:
+        """Compute depth in type hierarchy.
+
+        Args:
+            to_generate: The type to generate
+            generator: The generator function
+
+        Returns:
+            The depth in the type hierarchy or None if there is no hierarchy between the
+            types.
+        """
+        return_type = generator.inferred_signature.return_type
         assert return_type is not None, "Return type must not be None for a type generator"
-        return self._type_system.subtype_distance(return_type, to_generate)
+        return self._type_system.subtype_distance(to_generate, return_type)
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
