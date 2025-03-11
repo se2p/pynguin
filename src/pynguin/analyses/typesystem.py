@@ -701,6 +701,11 @@ class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
 
     def visit_instance(self, left: Instance) -> int | None:
         if isinstance(self.right, Instance):
+            if left.args and self.right.args:
+                distances = list(map(self.graph.subtype_distance, left.args, self.right.args))
+                if any(dist is None for dist in distances):
+                    return None
+                return sum(distances)  # type: ignore[arg-type]
             return self.graph.get_shortest_path_length(left.type, self.right.type)
 
         if isinstance(self.right, UnionType):

@@ -1011,23 +1011,26 @@ def test__from_str_values():
         (object, Super | Any, 1),
         (object, Super | type(None), 1),
         # list
-        (list, list, 0),  # TODO: Add penalty for missing type hint?
-        (list[int], list, 0),  # TODO: Add penalty for missing type hint?
+        (list, list, 100),
+        (list[int], list, 100),
         (list[int], list[int], 0),
-        # (list[object], list[int], 1),  # TODO: Fix
-        # (list[int], list[str], None),  # TODO: Fix
+        (list[object], list[int], 1),
+        (list[int], list[str], None),
         # set
-        (set, set, 0),  # TODO: Add penalty for missing type hint?
-        (set[int], set, 0),  # TODO: Add penalty for missing type hint?
+        (set, set, 100),
+        (set[int], set, 100),
         (set[int], set[int], 0),
-        # (set[object], set[int], 1),  # TODO: Fix
-        # (set[int], set[str], None),  # TODO: Fix
+        (set[object], set[int], 1),
+        (set[int], set[str], None),
         # dict
-        (dict, dict, 0),  # TODO: Add penalty for missing type hint?
-        (dict[int, int], dict, 0),  # TODO: Add penalty for missing type hint?
+        (dict, dict, 200),
+        (dict[int, int], dict[int], 100),
+        (dict[int], dict[int, int], 100),
+        (dict[int, int], dict, 200),
         (dict[int, int], dict[int, int], 0),
-        # (dict[object, object], dict[int, int], 1),  # TODO: Fix
-        # (dict[int, int], dict[str, int], None),  # TODO: Fix
+        (dict[object, int], dict[int, int], 1),
+        (dict[object, object], dict[int, int], 2),
+        (dict[int, int], dict[str, int], None),
         # tuple
         (tuple, tuple, 100),
         (tuple[int], tuple, 100),
