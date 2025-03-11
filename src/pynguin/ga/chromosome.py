@@ -14,7 +14,6 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 
 
-# TODO: Move to a separate file?
 class Selectable(ABC):
     """An abstract base class for selectable objects."""
 

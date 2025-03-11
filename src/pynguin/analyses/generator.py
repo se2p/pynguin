@@ -3,7 +3,10 @@
 #  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-"""Handles type generator functions."""
+"""Handles type generator functions.
+
+Generators can be either GenericCallableAccessibleObjects or GenericEnum objects.
+"""
 
 import functools
 
@@ -54,6 +57,11 @@ class Generator(Selectable):
         Args:
             fitness_function: The fitness function to consider.
         """
+        # Can only be GenericEnum, as only GenericCallableAccessibleObjects and
+        # GenericEnums are added as generators
+        if not isinstance(self._generator, GenericCallableAccessibleObject):
+            return 0.0
+
         return fitness_function.compute_fitness(self._type_to_generate, self._generator)
 
     def __str__(self):
