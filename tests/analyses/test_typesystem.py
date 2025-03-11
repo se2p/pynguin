@@ -991,7 +991,8 @@ def test__from_str_values():
         (object, str, 1),
         (object, bytes, 1),
         (object, list, 1),
-        (object, tuple, None),  # TODO: Does this make sense?
+        (object, tuple, None),  # To match a tuple, both must be a tuple
+        (tuple, Any, None),  # To match a tuple, both must be a tuple
         (object, set, 1),
         (object, dict, 1),
         (object, int, 1),
@@ -1003,13 +1004,30 @@ def test__from_str_values():
         (object, Sub, 2),
         (Super, Sub, 1),
         (Sub, Super, None),
-        # union
+        # union-right
+        (int, bytes | str, None),
         (object, object | int, 0),
         (object, Super | int, 1),
-        (object, Sub | int, 2),
+        (object, Sub | Sub, 2),
         (object, Super | Sub, 1),
         (object, Super | Any, 1),
         (object, Super | type(None), 1),
+        # union-left
+        (bytes | int, str, None),
+        (object | int, object, 0),
+        (object | int, Super, 1),
+        (object | int, Sub, 2),
+        (object | Sub, Super, 1),
+        (object | Any, Super, 1),
+        (object | type(None), Super, 1),
+        # union-both
+        (int | bytes, str | type(None), None),
+        (object | int, object | str, 0),
+        (object | str, int | float, 1),
+        (object | int, Sub | Sub, 2),
+        (object | Super, Sub | Sub, 1),
+        (object | Any, Super | Sub, 1),
+        (object | type(None), Super | Sub, 1),
         # list
         (list, list, 100),
         (list[int], list, 100),

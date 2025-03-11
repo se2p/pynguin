@@ -709,11 +709,7 @@ class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
             return self.graph.get_shortest_path_length(left.type, self.right.type)
 
         if isinstance(self.right, UnionType):
-            distances = [
-                self.graph.subtype_distance(left, elem)
-                for elem in self.right.items
-                if elem not in {NONE_TYPE, UNSUPPORTED} and not elem.accept(is_primitive_type)
-            ]
+            distances = [self.graph.subtype_distance(left, elem) for elem in self.right.items]
             valid_distances = [dist for dist in distances if dist is not None]
             if valid_distances:
                 return min(valid_distances)
@@ -734,11 +730,7 @@ class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
         return None
 
     def visit_union_type(self, left: UnionType) -> int | None:
-        distances = [
-            self.graph.subtype_distance(elem, self.right)
-            for elem in left.items
-            if elem not in {NONE_TYPE, UNSUPPORTED} and not elem.accept(is_primitive_type)
-        ]
+        distances = [self.graph.subtype_distance(elem, self.right) for elem in left.items]
         valid_distances = [dist for dist in distances if dist is not None]
         if valid_distances:
             return min(valid_distances)
