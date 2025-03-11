@@ -24,6 +24,25 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
+def get_all_generators(cluster):
+    methods = {
+        method.owner.full_name + "." + method.method_name: method
+        for method in cluster.accessible_objects_under_test
+        if isinstance(method, GenericMethod)
+    }
+    constructors = {
+        constructor.owner.full_name: constructor
+        for constructor in cluster.accessible_objects_under_test
+        if isinstance(constructor, GenericConstructor)
+    }
+    functions = {
+        function.function_name: function
+        for function in cluster.accessible_objects_under_test
+        if isinstance(function, GenericFunction)
+    }
+    return {**methods, **constructors, **functions}
+
+
 @pytest.fixture
 def generator_provider() -> GeneratorProvider:
     fitness_function = MagicMock()
@@ -74,26 +93,11 @@ def test_generator_provider_integration(rand_mock):
     type_system = cluster.type_system
     base_type: TypeInfo = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
 
-    methods = {
-        method.owner.full_name + "." + method.method_name: method
-        for method in cluster.accessible_objects_under_test
-        if isinstance(method, GenericMethod)
-    }
-    constructors = {
-        constructor.owner.full_name: constructor
-        for constructor in cluster.accessible_objects_under_test
-        if isinstance(constructor, GenericConstructor)
-    }
-    functions = {
-        function.function_name: function
-        for function in cluster.accessible_objects_under_test
-        if isinstance(function, GenericFunction)
-    }
-    merged = {**methods, **constructors, **functions}
+    generators = get_all_generators(cluster)
 
     selection_function = RankSelection()
     provider = GeneratorProvider(type_system, selection_function=selection_function)
-    for generator in merged.values():
+    for generator in generators.values():
         provider.add(generator)
 
     proper_type = Instance(base_type)

@@ -15,9 +15,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.instrumentation.tracer import ExecutionTrace
 , SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from tests.ga.test_generator import get_all_generators
 
 
 class DummyTestCaseChromosomeComputation(ff.TestCaseChromosomeComputation):
@@ -177,24 +175,8 @@ def test_heuristic_generator_fitness_function(name, expected_fitness):
     type_system = cluster.type_system
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
-
-    methods = {
-        method.owner.full_name + "." + method.method_name: method
-        for method in cluster.accessible_objects_under_test
-        if isinstance(method, GenericMethod)
-    }
-    constructors = {
-        constructor.owner.full_name: constructor
-        for constructor in cluster.accessible_objects_under_test
-        if isinstance(constructor, GenericConstructor)
-    }
-    functions = {
-        function.function_name: function
-        for function in cluster.accessible_objects_under_test
-        if isinstance(function, GenericFunction)
-    }
-    merged = {**methods, **constructors, **functions}
-    assert generator_ff.compute_fitness(base_type, merged[name]) == expected_fitness
+    generators = get_all_generators(cluster)
+    assert generator_ff.compute_fitness(base_type, generators[name]) == expected_fitness
 
 
 def test_heuristic_generator_fitness_function_caching():
@@ -202,31 +184,18 @@ def test_heuristic_generator_fitness_function_caching():
     type_system = cluster.type_system
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
-
-    methods = {
-        method.owner.full_name + "." + method.method_name: method
-        for method in cluster.accessible_objects_under_test
-        if isinstance(method, GenericMethod)
-    }
-    constructors = {
-        constructor.owner.full_name: constructor
-        for constructor in cluster.accessible_objects_under_test
-        if isinstance(constructor, GenericConstructor)
-    }
-    functions = {
-        function.function_name: function
-        for function in cluster.accessible_objects_under_test
-        if isinstance(function, GenericFunction)
-    }
-    merged = {**methods, **constructors, **functions}
-
+    generators = get_all_generators(cluster)
     generator_ff.compute_fitness.cache_clear()
     assert (
-        generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"])
+        generator_ff.compute_fitness(
+            base_type, generators["tests.fixtures.examples.constructors.Base"]
+        )
         == 0.0
     )
     assert (
-        generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.constructors.Base"])
+        generator_ff.compute_fitness(
+            base_type, generators["tests.fixtures.examples.constructors.Base"]
+        )
         == 0.0
     )
     assert generator_ff.compute_fitness.cache_info().hits == 1
@@ -237,57 +206,10 @@ def test_heuristic_generator_fitness_function_not_connected():
     type_system = cluster.type_system
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
-
-    methods = {
-        method.owner.full_name + "." + method.method_name: method
-        for method in cluster.accessible_objects_under_test
-        if isinstance(method, GenericMethod)
-    }
-    constructors = {
-        constructor.owner.full_name: constructor
-        for constructor in cluster.accessible_objects_under_test
-        if isinstance(constructor, GenericConstructor)
-    }
-    functions = {
-        function.function_name: function
-        for function in cluster.accessible_objects_under_test
-        if isinstance(function, GenericFunction)
-    }
-    merged = {**methods, **constructors, **functions}
-
+    generators = get_all_generators(cluster)
     assert generator_ff.compute_fitness(
-        base_type, merged["tests.fixtures.examples.constructors.Base2"]
+        base_type, generators["tests.fixtures.examples.constructors.Base2"]
     ) == float("inf")
-
-
-# TODO: Remove
-def test_heuristic_generator_fitness_function_tmp():
-    cluster = generate_test_cluster("tests.fixtures.examples.monkey")
-    type_system = cluster.type_system
-    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.monkey.Monkey"))
-    generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
-
-    methods = {
-        method.owner.full_name + "." + method.method_name: method
-        for method in cluster.accessible_objects_under_test
-        if isinstance(method, GenericMethod)
-    }
-    constructors = {
-        constructor.owner.full_name: constructor
-        for constructor in cluster.accessible_objects_under_test
-        if isinstance(constructor, GenericConstructor)
-    }
-    functions = {
-        function.function_name: function
-        for function in cluster.accessible_objects_under_test
-        if isinstance(function, GenericFunction)
-    }
-    merged = {**methods, **constructors, **functions}
-
-    assert (
-        generator_ff.compute_fitness(base_type, merged["tests.fixtures.examples.monkey.Monkey"])
-        == 1.0
-    )
 
 
 def test_heuristic_generator_fitness_function_is_minimisation():
