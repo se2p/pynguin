@@ -407,7 +407,7 @@ def test__dependencies_satisfied(default_test_case, exist, req, result):
 
 def test__get_possible_calls_no_calls(type_system):
     cluster = MagicMock(ModuleTestCluster)
-    cluster.get_generators_for.return_value = OrderedSet(), False
+    cluster.get_generators_for.return_value = OrderedSet()
     assert (
         tf.TestFactory(cluster)._get_possible_calls(type_system.convert_type_hint(int), [], {})
         == []
@@ -416,7 +416,7 @@ def test__get_possible_calls_no_calls(type_system):
 
 def test__get_possible_calls_single_call(default_test_case, function_mock):
     cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda _: ({function_mock}, False)
+    cluster.get_generators_for = lambda _: ({function_mock})
     assert tf.TestFactory(cluster)._get_possible_calls(
         cluster.type_system.convert_type_hint(float),
         [vr.VariableReference(default_test_case, cluster.type_system.convert_type_hint(float))],
@@ -426,7 +426,7 @@ def test__get_possible_calls_single_call(default_test_case, function_mock):
 
 def test__get_possible_calls_no_match(default_test_case, function_mock):
     cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda _: ({function_mock}, False)
+    cluster.get_generators_for = lambda _: ({function_mock})
     assert (
         tf.TestFactory(cluster)._get_possible_calls(
             cluster.type_system.convert_type_hint(float),
@@ -847,7 +847,7 @@ def test_delete_statement_gracefully_ml_statements(function_mock, default_test_c
 
 def test_change_random_call_unknown_type(default_test_case):
     test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = [], False
+    test_cluster.get_generators_for.return_value = []
     test_factory = tf.TestFactory(test_cluster)
     none_statement = stmt.NoneStatement(default_test_case)
     default_test_case.add_statement(none_statement)
@@ -863,7 +863,7 @@ def test_change_random_call_no_calls(function_mock, default_test_case):
     default_test_case.add_statement(float_function1)
 
     test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = ({function_mock}, False)
+    test_cluster.get_generators_for.return_value = {function_mock}
     test_factory = tf.TestFactory(test_cluster)
     assert not test_factory.change_random_call(default_test_case, float_function1)
 
@@ -873,7 +873,7 @@ def test_change_random_call_primitive(function_mock, default_test_case):
     default_test_case.add_statement(float_prim)
 
     test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = ({function_mock}, False)
+    test_cluster.get_generators_for.return_value = {function_mock}
     test_factory = tf.TestFactory(test_cluster)
     assert not test_factory.change_random_call(default_test_case, float_prim)
 
@@ -893,7 +893,7 @@ def test_change_random_call_success(
     default_test_case.add_statement(float_function1)
 
     test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = ({function_mock, method_mock}, False)
+    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "change_call") as change_mock:
         assert test_factory.change_random_call(default_test_case, float_function1)
@@ -929,7 +929,7 @@ def test_change_random_call_failed(function_mock, method_mock, constructor_mock,
     default_test_case.add_statement(float_function1)
 
     test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = ({function_mock, method_mock}, False)
+    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
     test_factory = tf.TestFactory(test_cluster)
     with mock.patch.object(test_factory, "change_call") as change_mock:
         change_mock.side_effect = ConstructionFailedException()

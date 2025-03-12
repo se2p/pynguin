@@ -594,18 +594,14 @@ class TestCluster(abc.ABC):  # noqa: PLR0904
         """
 
     @abc.abstractmethod
-    def get_generators_for(
-        self, typ: ProperType
-    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
+    def get_generators_for(self, typ: ProperType) -> OrderedSet[GenericAccessibleObject]:
         """Retrieve all known generators for the given type.
 
         Args:
             typ: The type we want to have the generators for
 
         Returns:
-            The set of all generators for that type, as well as a boolean
-              that indicates if all generators have been matched through Any.
-              # noqa: DAR202
+            The set of all generators for that type.
         """
 
     @abc.abstractmethod
@@ -892,9 +888,9 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             # No change
             return
         self._drop_generator(accessible)
+        # TODO: Fix caching
         # Must invalidate entire cache, because subtype relationship might also change
         # the return values which are not new_type or old_type.
-        self.get_generators_for.cache_clear()
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.generator_provider.add_for_type(new_type, accessible)
@@ -961,30 +957,10 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
         return len(self.__accessible_objects_under_test)
 
-    # TODO: Make this a forwarder to the generator provider
-    @functools.lru_cache(maxsize=1024)
     def get_generators_for(  # noqa: D102
         self, typ: ProperType
-    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
-        if isinstance(typ, AnyType):
-            # Just take everything when it's Any.
-            return (
-                OrderedSet(
-                    itertools.chain.from_iterable(self.generator_provider.get_all().values())
-                ),
-                False,
-            )
-
-        results: OrderedSet[GenericAccessibleObject] = OrderedSet()
-        only_any = True
-        for gen_type, generators in self.generator_provider.get_all().items():
-            if self.__type_system.is_maybe_subtype(gen_type, typ):
-                results.update(generators)
-                # Set flag to False as soon as we encounter a generator that is not
-                # for Any.
-                only_any &= gen_type == ANY
-
-        return results, only_any
+    ) -> OrderedSet[GenericAccessibleObject]:
+        return self.generator_provider.get_for_type(typ)
 
     class _FindModifiers(TypeVisitor[OrderedSet[GenericAccessibleObject]]):
         """A visitor to find all modifiers for the given type."""
@@ -1241,7 +1217,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     def get_generators_for(  # noqa: D102
         self, typ: ProperType
-    ) -> tuple[OrderedSet[GenericAccessibleObject], bool]:
+    ) -> OrderedSet[GenericAccessibleObject]:
         return self.__delegate.get_generators_for(typ)
 
     def get_modifiers_for(  # noqa: D102

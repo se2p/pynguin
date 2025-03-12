@@ -1032,7 +1032,7 @@ class TestFactory:  # noqa: PLR0904
             A list of possible replacement calls
         """
         calls: list[gao.GenericAccessibleObject] = []
-        all_calls, _ = self._test_cluster.get_generators_for(return_type)
+        all_calls = self._test_cluster.get_generators_for(return_type)
         calls.extend(
             i
             for i in all_calls

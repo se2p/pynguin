@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 
 import astroid
 import pytest
+from pynguin.analyses.type_inference import HintInference
 
 import pynguin.configuration as config
-
 from pynguin.analyses import module
 from pynguin.analyses.module import (
     MODULE_BLACKLIST,
@@ -25,18 +25,19 @@ from pynguin.analyses.module import (
     generate_test_cluster,
     parse_module,
 )
-from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
 from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection
-from pynguin.utils.exceptions import ConstructionFailedException, CoroutineFoundException
+from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import CoroutineFoundException
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
-    GenericAccessibleObject,
-    GenericConstructor,
-    GenericEnum,
-    GenericFunction,
-    GenericMethod,
+    GenericCallableAccessibleObject,
 )
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericEnum
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
@@ -136,34 +137,39 @@ def test_add_generator_primitive(module_test_cluster):
     module_test_cluster.add_generator(generator)
     assert module_test_cluster.get_generators_for(
         module_test_cluster.type_system.convert_type_hint(int)
-    ) == (OrderedSet([]), True)
+    ) == (OrderedSet([]))
 
 
 def test_add_generator(module_test_cluster):
-    generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
-        MagicMock
-    )
+    type_hint = module_test_cluster.type_system.convert_type_hint(MagicMock)
+    generator = MagicMock(GenericCallableAccessibleObject)
+    generator.inferred_signature.return_type = type_hint
+    generator.generated_type.return_value = type_hint
+    generator.get_num_parameters.return_value = 0
     module_test_cluster.add_generator(generator)
     assert module_test_cluster.get_generators_for(
         module_test_cluster.type_system.convert_type_hint(MagicMock)
-    ) == (OrderedSet([generator]), False)
+    ) == (OrderedSet([generator]))
 
 
 def test_add_generator_two(module_test_cluster):
-    generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
-        MagicMock
-    )
+    type_hint = module_test_cluster.type_system.convert_type_hint(MagicMock)
+
+    generator = MagicMock(GenericCallableAccessibleObject)
+    generator.inferred_signature.return_type = type_hint
+    generator.generated_type.return_value = type_hint
+    generator.get_num_parameters.return_value = 0
     module_test_cluster.add_generator(generator)
-    generator_2 = MagicMock(GenericMethod)
-    generator_2.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
-        MagicMock
-    )
+
+    generator_2 = MagicMock(GenericCallableAccessibleObject)
+    generator_2.inferred_signature.return_type = type_hint
+    generator_2.generated_type.return_value = type_hint
+    generator_2.get_num_parameters.return_value = 0
     module_test_cluster.add_generator(generator_2)
-    assert module_test_cluster.get_generators_for(
+
+    assert module_test_cluster.generator_provider.get_generators_for(
         module_test_cluster.type_system.convert_type_hint(MagicMock)
-    ) == (OrderedSet([generator, generator_2]), False)
+    ) == (OrderedSet([generator, generator_2]))
 
 
 def test_add_accessible_object_under_test(module_test_cluster):
@@ -335,8 +341,22 @@ def test_nothing_included_multiple_times():
 
 def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
-    assert len(cluster.get_generators_for(cluster.type_system.convert_type_hint(int))[0]) == 0
-    assert len(cluster.get_generators_for(cluster.type_system.convert_type_hint(float))[0]) == 0
+    assert (
+        len(
+            cluster.generator_provider.get_generators_for(
+                cluster.type_system.convert_type_hint(int)
+            )
+        )
+        == 0
+    )
+    assert (
+        len(
+            cluster.generator_provider.get_generators_for(
+                cluster.type_system.convert_type_hint(float)
+            )
+        )
+        == 0
+    )
     assert __convert_to_str_count_dict(cluster.generators) == {"Test": 1, "object": 1}
     assert cluster.num_accessible_objects_under_test() == 4
 
@@ -363,41 +383,14 @@ def test_inheritance_generator():
         Foo,
     )
 
-    res_foo, only_any = cluster.get_generators_for(cluster.type_system.convert_type_hint(Foo))
-    assert len(res_foo) == 2
-    assert not only_any
-    res_bar, only_any = cluster.get_generators_for(cluster.type_system.convert_type_hint(Bar))
-    assert len(res_bar) == 1
-    assert not only_any
-
-
-def test_only_any_generator(module_test_cluster):
-    generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = ANY
-    module_test_cluster.add_generator(generator)
-    assert module_test_cluster.get_generators_for(
-        module_test_cluster.type_system.convert_type_hint(int)
-    ) == (OrderedSet([generator]), True)
-
-
-def test_only_any_generator_2(module_test_cluster):
-    assert module_test_cluster.get_generators_for(
-        module_test_cluster.type_system.convert_type_hint(int)
-    ) == (OrderedSet(), True)
-
-
-def test_only_any_generator_3(module_test_cluster):
-    generator = MagicMock(GenericMethod)
-    generator.generated_type.return_value = ANY
-    module_test_cluster.add_generator(generator)
-    generator2 = MagicMock(GenericMethod)
-    generator2.generated_type.return_value = module_test_cluster.type_system.convert_type_hint(
-        MagicMock
+    res_foo = cluster.generator_provider.get_generators_for(
+        cluster.type_system.convert_type_hint(Foo)
     )
-    module_test_cluster.add_generator(generator2)
-    assert module_test_cluster.get_generators_for(
-        module_test_cluster.type_system.convert_type_hint(MagicMock)
-    ) == (OrderedSet([generator, generator2]), False)
+    assert len(res_foo) == 2
+    res_bar = cluster.generator_provider.get_generators_for(
+        cluster.type_system.convert_type_hint(Bar)
+    )
+    assert len(res_bar) == 1
 
 
 def test_inheritance_modifier():

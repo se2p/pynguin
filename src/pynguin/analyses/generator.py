@@ -180,6 +180,7 @@ class GeneratorProvider:
         selected = self._selection_function.select(generator_objects)[0]
         return selected.generator
 
+    # TODO: Add/Move caching?
     def get_generators_for(  # noqa: D102
         self, typ: ProperType
     ) -> OrderedSet[GenericAccessibleObject]:
@@ -187,11 +188,15 @@ class GeneratorProvider:
             # Just take everything when it's Any.
             return OrderedSet(itertools.chain.from_iterable(self.get_all().values()))
 
-        results: OrderedSet[GenericAccessibleObject] = OrderedSet()
-        for generators in self.get_all().values():
-            results.update(generators)
+        if typ.accept(is_primitive_type):
+            return OrderedSet()
 
-        return results
+        all_generators_merged = OrderedSet(itertools.chain.from_iterable(self.get_all().values()))
+        sorted_generators = self._sorted_generators(typ, all_generators_merged.freeze())
+        generators_with_fitness: list[tuple[GenericAccessibleObject, float]] = [
+            (gen.generator, gen.get_fitness()) for gen in sorted_generators
+        ]
+        return OrderedSet(gen for gen, fitness in generators_with_fitness if fitness >= 0.0)
 
     def select_generator_for(self, parameter_type: ProperType) -> GenericAccessibleObject | None:
         """Select a generator for a specific type.
