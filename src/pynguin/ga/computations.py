@@ -337,11 +337,26 @@ class GeneratorFitnessFunction:
 
 
 class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
-    """A fitness function for type generators.
+    """A minimizing fitness function for type generators.
 
-    A fitness function based on the type of the generator function, the number of
-    subtype layers and the number of parameters. A score of 0 is optimal and given for
-    a constructor of the exact type with no parameters. Everything else is penalized.
+    Some type generator functions are better suited to generate objects of a specific
+    type than others. For example, the constructor of the class we want to generate might
+    be a good choice. However, to allow for diversity in the generated test cases,
+    we also want to consider other generator functions, while still preferring the
+    constructor.
+
+    This fitness function allows for a ranking regarding the `suitability` of a generator
+    function for a certain type based on the following heuristics:
+
+    1. A constructor (__init__) is better than any other type generator function, as it
+        is often specifically designed to generate objects of the type.
+    2. The more parameters a generator function has, the worse it is, as we need to provide
+        values for these parameters as well.
+    3. The deeper the hierarchy distance between the type to generate and the return type
+        of the generator function, the worse it is, as the match is less direct.
+
+    A score of 0 is optimal and given for a constructor of the exact type with no
+    parameters. Everything else is penalized and thus gets a higher score (= bad).
     """
 
     def __init__(
