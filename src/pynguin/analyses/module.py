@@ -961,6 +961,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
         return len(self.__accessible_objects_under_test)
 
+    # TODO: Make this a forwarder to the generator provider
     @functools.lru_cache(maxsize=1024)
     def get_generators_for(  # noqa: D102
         self, typ: ProperType

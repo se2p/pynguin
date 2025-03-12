@@ -9,9 +9,11 @@ Generators can be either GenericCallableAccessibleObjects or GenericEnum objects
 """
 
 import functools
+import itertools
 
 from collections import defaultdict
 
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeSystem
@@ -62,7 +64,8 @@ class Generator(Selectable):
         if not isinstance(self._generator, GenericCallableAccessibleObject):
             return 0.0
 
-        return fitness_function.compute_fitness(self._type_to_generate, self._generator)
+        fitness = fitness_function.compute_fitness(self._type_to_generate, self._generator)
+        return fitness if fitness is not None else -1
 
     def __str__(self):
         return str(self._generator)
@@ -151,6 +154,7 @@ class GeneratorProvider:
         generators = [
             Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
         ]
+        generators = [gen for gen in generators if gen.get_fitness() is not None]
         generators.sort(key=lambda x: x.get_fitness())
         return generators
 
@@ -175,3 +179,30 @@ class GeneratorProvider:
         # there is always at least one generator available
         selected = self._selection_function.select(generator_objects)[0]
         return selected.generator
+
+    def get_generators_for(  # noqa: D102
+        self, typ: ProperType
+    ) -> OrderedSet[GenericAccessibleObject]:
+        if isinstance(typ, AnyType):
+            # Just take everything when it's Any.
+            return OrderedSet(itertools.chain.from_iterable(self.get_all().values()))
+
+        results: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        for generators in self.get_all().values():
+            results.update(generators)
+
+        return results
+
+    def select_generator_for(self, parameter_type: ProperType) -> GenericAccessibleObject | None:
+        """Select a generator for a specific type.
+
+        Args:
+            parameter_type: The type to select a generator for.
+
+        Returns:
+            The selected generator.
+        """
+        type_generators = self.get_generators_for(parameter_type)
+        if type_generators:
+            return self.select_generator(parameter_type, type_generators.freeze())
+        return None

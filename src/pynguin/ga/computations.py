@@ -315,15 +315,15 @@ class GeneratorFitnessFunction:
     @abstractmethod
     def compute_fitness(
         self, to_generate: ProperType, generator: GenericCallableAccessibleObject
-    ) -> float:
+    ) -> float | None:
         """Compute the fitness score for a generator.
 
         Args:
-            to_generate: The type to generate
-            generator: The generator function
+            to_generate: The type to generate.
+            generator: The generator function.
 
         Returns:
-            The computed fitness score
+            The computed fitness score or None if the generator is not suitable.
         """
 
     @abstractmethod
@@ -376,9 +376,21 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
 
     def compute_fitness(
         self, to_generate: ProperType, generator: GenericCallableAccessibleObject
-    ) -> float:
-        """Compute the fitness score for a generator. Lower is better."""
-        fitness = 0.0
+    ) -> float | None:
+        """Compute the fitness score for a suitable generator. Lower is better.
+
+        Computes the fitness score for a generator function if it is suitable for the type
+        to generate. The generator is suitable if it may produce objects of the type to
+        generate or a subtype of it.
+
+        Args:
+            to_generate: The type to generate.
+            generator: The generator function.
+
+        Returns:
+            The computed fitness score or None if the generator is not suitable.
+        """
+        fitness: float = 0.0
 
         # Penalize non-constructors
         if not generator.is_constructor():
@@ -393,7 +405,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         if hierarchy_depth is not None:
             fitness += self._hierarchy_penalty * hierarchy_depth
         else:
-            fitness = float("inf")
+            return None
 
         return fitness
 
