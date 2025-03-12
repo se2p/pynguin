@@ -629,11 +629,11 @@ class TestCreationConfiguration:
 class GeneratorSelectionConfiguration:
     """Configuration related to selecting a generator for a certain type."""
 
-    selection_algorithm: Selection = Selection.RANK_SELECTION
+    generator_selection_algorithm: Selection = Selection.RANK_SELECTION
     """The selection algorithm to use for selecting the generator for a statement.
     Currently only RANK_SELECTION is supported."""
 
-    selection_bias: float = 100.0
+    generator_selection_bias: float = 100.0
     """The bias to use for rank selection when selecting the generator for a statement.
     Expects values in [0, inf]. 1.0 is random selection, higher values bias towards
     higher ranked generators."""

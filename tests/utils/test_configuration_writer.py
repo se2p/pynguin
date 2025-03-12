@@ -154,8 +154,8 @@ max_size = 100
 use_random_object_for_call = 0.0
 
 [generator_selection]
-selection_algorithm = "RANK_SELECTION"
-selection_bias = 100.0
+generator_selection_algorithm = "RANK_SELECTION"
+generator_selection_bias = 100.0
 any_distance = 30
 not_constructor_penalty = 10.0
 param_penalty = 1.0
@@ -298,8 +298,8 @@ def expected_txt(tmp_path):
  'type_tracing_kept_guesses=2, wrap_var_param_type_probability=0.7, '
  'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
- 'generator_selection=GeneratorSelectionConfiguration(selection_algorithm=<Selection.RANK_SELECTION: '
- "'RANK_SELECTION'>, selection_bias=100.0, any_distance=30, "
+ 'generator_selection=GeneratorSelectionConfiguration(generator_selection_algorithm=<Selection.RANK_SELECTION: '
+ "'RANK_SELECTION'>, generator_selection_bias=100.0, any_distance=30, "
  'not_constructor_penalty=10.0, param_penalty=1.0, hierarchy_penalty=1.0, '
  'any_type_penalty=100.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
@@ -735,8 +735,8 @@ def expected_parameter_list() -> list[str]:
         "--tournament_size 4",
         "--rank_bias 1.68",
         "--selection RANK_SELECTION",
-        "--selection_algorithm RANK_SELECTION",
-        "--selection_bias 100.0",
+        "--generator_selection_algorithm RANK_SELECTION",
+        "--generator_selection_bias 100.0",
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
         "--number_of_mutations 3",

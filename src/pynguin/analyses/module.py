@@ -778,13 +778,13 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__linenos = linenos
 
         if (
-            config.configuration.generator_selection.selection_algorithm
+            config.configuration.generator_selection.generator_selection_algorithm
             != config.Selection.RANK_SELECTION
         ):
             raise NotImplementedError("Only rank selection is supported at the moment.")
         self.generator_provider: GeneratorProvider = GeneratorProvider(
             self.__type_system,
-            RankSelection(config.configuration.generator_selection.selection_bias),
+            RankSelection(config.configuration.generator_selection.generator_selection_bias),
         )
 
         # Modifier belong to a certain class, not type.
