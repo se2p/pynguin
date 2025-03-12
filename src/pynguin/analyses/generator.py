@@ -171,5 +171,7 @@ class GeneratorProvider:
             The selected generator.
         """
         generator_objects = self._sorted_generators(parameter_type, type_generators)
+        # As builtins.object is a superclass of all classes, we can be sure that
+        # there is always at least one generator available
         selected = self._selection_function.select(generator_objects)[0]
         return selected.generator
