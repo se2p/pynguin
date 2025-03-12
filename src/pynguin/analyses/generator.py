@@ -151,7 +151,7 @@ class GeneratorProvider:
         generators = [
             Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
         ]
-        generators.sort(key=lambda x: x.get_fitness(), reverse=False)
+        generators.sort(key=lambda x: x.get_fitness())
         return generators
 
     def select_generator(
