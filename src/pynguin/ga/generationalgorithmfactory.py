@@ -45,6 +45,7 @@ from pynguin.ga.algorithms.randomsearchalgorithm import (
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.operators.crossover import SinglePointRelativeCrossOver
 from pynguin.ga.operators.ranking import RankBasedPreferenceSorting
+from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection, SelectionFunction, TournamentSelection
 from pynguin.ga.stoppingcondition import (
     CoveragePlateauStoppingCondition,
@@ -150,6 +151,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
     }
 
     _selections: ClassVar[dict[config.Selection, Callable[[], SelectionFunction]]] = {
+        config.Selection.RANDOM_SELECTION: RandomSelection,
         config.Selection.TOURNAMENT_SELECTION: TournamentSelection,
         config.Selection.RANK_SELECTION: RankSelection,
     }

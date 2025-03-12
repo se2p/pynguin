@@ -13,6 +13,8 @@ from unittest.mock import MagicMock, patch
 import astroid
 import pytest
 
+import pynguin.configuration as config
+
 from pynguin.analyses import module
 from pynguin.analyses.module import (
     MODULE_BLACKLIST,
@@ -25,6 +27,8 @@ from pynguin.analyses.module import (
 )
 from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
+from pynguin.ga.operators.selection import RandomSelection
+from pynguin.ga.operators.selection import RankSelection
 from pynguin.utils.exceptions import ConstructionFailedException, CoroutineFoundException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -679,3 +683,30 @@ def test_analyse_module_sets_c_extension_and_subprocess(
         f"Expected subprocess mode to be {expected_subprocess_value}, "
         f"but got {tracked[RuntimeVariable.SubprocessMode]}"
     )
+
+
+@pytest.mark.parametrize(
+    "config_selection_function, created_selection_function",
+    [
+        (config.Selection.RANDOM_SELECTION, RandomSelection),
+        (config.Selection.RANK_SELECTION, RankSelection),
+    ],
+)
+def test_create_module_test_cluster(config_selection_function, created_selection_function):
+    config.configuration.generator_selection.generator_selection_algorithm = (
+        config_selection_function
+    )
+    test_cluster = ModuleTestCluster(linenos=-1)
+    assert test_cluster.generator_provider is not None
+    assert test_cluster.generator_provider._selection_function is not None
+    assert isinstance(
+        test_cluster.generator_provider._selection_function, created_selection_function
+    )
+
+
+def test_create_module_test_cluster_tournament_selection():
+    config.configuration.generator_selection.generator_selection_algorithm = (
+        config.Selection.TOURNAMENT_SELECTION
+    )
+    with pytest.raises(ValueError, match="Unsupported generator selection algorithm"):
+        ModuleTestCluster(linenos=-1)

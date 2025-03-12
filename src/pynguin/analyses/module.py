@@ -71,6 +71,7 @@ from pynguin.analyses.typesystem import TypeVisitor
 from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.configuration import TypeInferenceStrategy
+from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
@@ -777,15 +778,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__type_system = TypeSystem()
         self.__linenos = linenos
 
-        if (
-            config.configuration.generator_selection.generator_selection_algorithm
-            != config.Selection.RANK_SELECTION
-        ):
-            raise NotImplementedError("Only rank selection is supported at the moment.")
-        self.generator_provider: GeneratorProvider = GeneratorProvider(
-            self.__type_system,
-            RankSelection(config.configuration.generator_selection.generator_selection_bias),
-        )
+        self.generator_provider = self._setup_generator_selection()
 
         # Modifier belong to a certain class, not type.
         self.__modifiers: dict[TypeInfo, OrderedSet[GenericAccessibleObject]] = defaultdict(
@@ -797,6 +790,28 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
+
+    def _setup_generator_selection(self) -> GeneratorProvider:
+        if (
+            config.configuration.generator_selection.generator_selection_algorithm
+            == config.Selection.RANK_SELECTION
+        ):
+            return GeneratorProvider(
+                self.__type_system,
+                RankSelection(config.configuration.generator_selection.generator_selection_bias),
+            )
+        if (
+            config.configuration.generator_selection.generator_selection_algorithm
+            == config.Selection.RANDOM_SELECTION
+        ):
+            return GeneratorProvider(
+                self.__type_system,
+                RandomSelection(),
+            )
+        raise ValueError(
+            "Unsupported generator selection algorithm: "
+            f"{config.configuration.generator_selection.generator_selection_algorithm}"
+        )
 
     def log_cluster_statistics(self) -> None:  # noqa: D102
         stats = TypeGuessingStats()

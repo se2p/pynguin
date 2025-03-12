@@ -214,6 +214,9 @@ class CoverageMetric(str, enum.Enum):
 class Selection(str, enum.Enum):
     """Different selection algorithms to select from."""
 
+    RANDOM_SELECTION = "RANDOM_SELECTION"
+    """Random selection."""
+
     RANK_SELECTION = "RANK_SELECTION"
     """Rank selection."""
 

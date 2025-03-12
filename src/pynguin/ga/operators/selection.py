@@ -67,6 +67,25 @@ class SelectionFunction(Generic[T]):
         self._maximize = new_value
 
 
+class RandomSelection(SelectionFunction[T]):
+    """Random selection."""
+
+    def get_index(self, population: list[T]) -> int:
+        """Provides an index in the population that is chosen randomly.
+
+        Args:
+            population: A list of chromosomes to select from
+
+        Returns:
+            The index that should be used for selection
+        """
+        return randomness.next_int(lower_bound=0, upper_bound=len(population))
+
+    def maximize(self):
+        """Random selection does not have a maximize property."""
+        raise NotImplementedError("Random selection does not have a maximize property")
+
+
 class RankSelection(SelectionFunction[T]):
     """Rank selection."""
 
