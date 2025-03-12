@@ -636,7 +636,7 @@ class GeneratorSelectionConfiguration:
     """The selection algorithm to use for selecting the generator for a statement.
     Currently only RANK_SELECTION is supported."""
 
-    generator_selection_bias: float = 100.0
+    generator_selection_bias: float = 1.7
     """The bias to use for rank selection when selecting the generator for a statement.
     Expects values in [0, inf]. 1.0 is random selection, higher values bias towards
     higher ranked generators."""
