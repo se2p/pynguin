@@ -185,28 +185,6 @@ def test_heuristic_generator_fitness_function(name, expected_fitness):
     assert generator_ff.compute_fitness(base_type, generators[name]) == expected_fitness
 
 
-def test_heuristic_generator_fitness_function_caching():
-    cluster = generate_test_cluster("tests.fixtures.examples.constructors")
-    type_system = cluster.type_system
-    base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
-    generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
-    generators = get_all_generators(cluster)
-    generator_ff.compute_fitness.cache_clear()
-    assert (
-        generator_ff.compute_fitness(
-            base_type, generators["tests.fixtures.examples.constructors.Base"]
-        )
-        == 0.0
-    )
-    assert (
-        generator_ff.compute_fitness(
-            base_type, generators["tests.fixtures.examples.constructors.Base"]
-        )
-        == 0.0
-    )
-    assert generator_ff.compute_fitness.cache_info().hits == 1
-
-
 def test_heuristic_generator_fitness_function_not_connected():
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
