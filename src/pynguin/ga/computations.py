@@ -375,7 +375,6 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._hierarchy_penalty = hierarchy_penalty
         self._any_type_penalty = any_type_penalty
 
-    @functools.lru_cache(maxsize=16384)
     def compute_fitness(
         self, to_generate: ProperType, generator: GenericCallableAccessibleObject
     ) -> float:
