@@ -171,5 +171,5 @@ class GeneratorProvider:
             The selected generator.
         """
         generator_objects = self._sorted_generators(parameter_type, type_generators)
-        selected = self._selection_function.select(generator_objects)
-        return selected[0].generator
+        selected = self._selection_function.select(generator_objects)[0]
+        return selected.generator
