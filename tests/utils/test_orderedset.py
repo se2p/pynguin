@@ -71,6 +71,18 @@ def test_orderedset_freeze():
     assert frozen == frozen_2
 
 
+def test_modify_ordered_set():
+    ordered = OrderedSet([1, 2, 3])
+    ordered.add(4)  # modifying unfrozen set is allowed
+    frozen = ordered.freeze()
+    with pytest.raises(AttributeError):
+        frozen.add(5)  # modifying frozen set is not allowed
+    # TODO: Do we need to prevent this? If yes, how can we do this while keeping
+    #  performance and hierarchy of OrderedSet and FrozenOrderedSet?
+    frozen._items[6] = None  # modifying frozen set should not be allowed, but is possible
+    assert frozen == FrozenOrderedSet([1, 2, 3, 4, 6])
+
+
 @pytest.mark.parametrize(
     "length, iterable", [(0, []), (3, [int, float, str]), (2, [int, float, int])]
 )
