@@ -15,7 +15,11 @@ import pynguin.ga.computations as ff
 
 
 class Selectable(ABC):
-    """An abstract base class for selectable objects."""
+    """An abstract base class for selectable objects.
+
+    Selectable objects are objects to which a SelectionFunction can be applied. In order
+    to apply a selection function, the object must provide a fitness value.
+    """
 
     @abstractmethod
     def get_fitness(self) -> float:
