@@ -7,8 +7,6 @@
 import graphviz
 import networkx as nx
 
-from pynguin.utils.orderedset import OrderedSet
-
 
 def _nx_to_dot(graph: nx.DiGraph) -> str:
     """Convert a NetworkX graph to a DOT string."""

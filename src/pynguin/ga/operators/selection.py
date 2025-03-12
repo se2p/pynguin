@@ -97,10 +97,7 @@ class RankSelection(SelectionFunction[T]):
                 configuration is used.
         """
         super().__init__()
-        if bias is None:
-            self.bias = config.configuration.search_algorithm.rank_bias
-        else:
-            self.bias = bias
+        self.bias = config.configuration.search_algorithm.rank_bias if bias is None else bias
 
     def get_index(self, population: list[T]) -> int:
         """Provides an index in the population that is chosen by rank selection.
