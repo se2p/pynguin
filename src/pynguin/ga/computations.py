@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import functools
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar

@@ -131,7 +131,7 @@ class GeneratorProvider:
         Args:
             proper_type: The type to remove the generators for.
         """
-        self._generators.pop(proper_type)
+        del self._generators[proper_type]
 
     def add_for_type(
         self, proper_type: ProperType, generator: GenericCallableAccessibleObject
