@@ -159,6 +159,12 @@ any_distance = config.configuration.generator_selection.any_distance
         ("tests.fixtures.examples.constructors.Base.instance_constructor_with_args", 12.0),
         ("tests.fixtures.examples.constructors.Base.static_constructor", 10.0),
         ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union", 10.0),
+        ("tests.fixtures.examples.constructors.Base.instance_constructor_with_union_2", 10.0),
+        # typing_extensions.Self results in typing.get_type_hints() returning Any
+        (
+            "tests.fixtures.examples.constructors.Base.instance_constructor_self",
+            any_distance + 10.0,
+        ),
         ("tests.fixtures.examples.constructors.Overload", 1.0),
         ("tests.fixtures.examples.constructors.Overload.instance_constructor", 11.0),
         ("tests.fixtures.examples.constructors.Overload.static_constructor", 11.0),
