@@ -252,8 +252,6 @@ def test_provide_json_function(
             accessible=accessible,
             description=None,
             cyclomatic_complexity=0,
-            parameters={},
-            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -300,8 +298,6 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
             accessible=accessible,
             description=None,
             cyclomatic_complexity=0,
-            parameters={},
-            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -359,8 +355,6 @@ def test_provide_json_generic_method(file_name, function_node, signature, expect
             accessible=accessible,
             description=None,
             cyclomatic_complexity=0,
-            parameters={},
-            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -408,8 +402,6 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
             accessible=accessible,
             description=None,
             cyclomatic_complexity=0,
-            parameters={},
-            generation_order=[],
         )
     }
     stats = TypeGuessingStats(signature_infos={})
