@@ -16,6 +16,8 @@ from pynguin.analyses.type_inference import HintInference
 
 import pynguin.configuration as config
 from pynguin.analyses import module
+from pynguin.analyses.generator import GeneratorProvider
+from pynguin.analyses.generator import RandomGeneratorProvider
 from pynguin.analyses.module import (
     MODULE_BLACKLIST,
     ModuleTestCluster,
@@ -180,6 +182,21 @@ def test_add_generator_two(module_test_cluster, generator_selection):
     )
     generator_methods = OrderedSet([gen.generator for gen in retrieved_generators])
     assert generator_methods == (OrderedSet([generator, generator_2]))
+
+
+@pytest.mark.parametrize("generator_provider", [GeneratorProvider, RandomGeneratorProvider])
+def test_get_generators_for_any_type(generator_provider):
+    type_system = MagicMock()
+    selection_function = MagicMock()
+    provider = generator_provider(type_system, selection_function)
+
+    mock_generators = OrderedSet([MagicMock(), MagicMock(), MagicMock()])
+    provider._get_all_generators = MagicMock(return_value=mock_generators)
+
+    result = provider._get_generators_for(AnyType())
+
+    provider._get_all_generators.assert_called_once_with(AnyType())
+    assert result == mock_generators
 
 
 def test_add_accessible_object_under_test(module_test_cluster):
