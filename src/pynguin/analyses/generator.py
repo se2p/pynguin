@@ -205,7 +205,7 @@ class GeneratorProvider:
         if typ.accept(is_primitive_type):
             return OrderedSet()
 
-        generators = OrderedSet()
+        generators: OrderedSet[_Generator] = OrderedSet()
         for generated_typ in self.get_all_types():
             if (distance := self._type_system.subtype_distance(typ, generated_typ)) is not None:
                 generators.update(self._get_for_type(generated_typ, distance))
