@@ -971,17 +971,15 @@ class TestFactory:
         parameter_objs: dict[str, MLParameter | None] = {}
 
         if ConstraintsManager().ml_testing_enabled():
-            callable_data = self._test_cluster.function_data_for_accessibles.get(
-                callable_accessible
-            )
+            ml_data = self._test_cluster.get_ml_data_for(callable_accessible)
 
             generation_order = []
 
-            if callable_data:
-                mltu.reset_parameter_objects(callable_data.parameters)
+            if ml_data:
+                mltu.reset_parameter_objects(ml_data.parameters)
 
-                parameter_objs = callable_data.parameters
-                generation_order = callable_data.generation_order
+                parameter_objs = ml_data.parameters
+                generation_order = ml_data.generation_order
 
             if generation_order:
                 param_types = mltu.change_generation_order(generation_order, param_types)

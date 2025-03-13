@@ -309,7 +309,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     )
 
 
-class TestCluster(abc.ABC):
+class TestCluster(abc.ABC):  # noqa: PLR0904
     """Interface for a test cluster."""
 
     @property
@@ -368,6 +368,14 @@ class TestCluster(abc.ABC):
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
         """Provides all function data for all accessibles."""
+
+    @abc.abstractmethod
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:
+        """Provides ML data for a accessible."""
+
+    @abc.abstractmethod
+    def get_ml_data_for(self, generic_accessible: GenericAccessibleObject) -> MLCallableData | None:
+        """Provides ML data for a accessible."""
 
     @abc.abstractmethod
     def num_accessible_objects_under_test(self) -> int:
@@ -570,6 +578,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         )
         self.__accessible_objects_under_test: OrderedSet[GenericAccessibleObject] = OrderedSet()
         self.__function_data_for_accessibles: dict[GenericAccessibleObject, CallableData] = {}
+        self.__ml_data_for_accessibles: dict[GenericAccessibleObject, MLCallableData] = {}
 
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
@@ -716,6 +725,12 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__function_data_for_accessibles
+
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:  # noqa: D102
+        self.__ml_data_for_accessibles[obj] = data
+
+    def get_ml_data_for(self, obj: GenericAccessibleObject) -> MLCallableData | None:  # noqa: D102
+        return self.__ml_data_for_accessibles.get(obj)
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
         return len(self.__accessible_objects_under_test)
@@ -899,6 +914,12 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__delegate.function_data_for_accessibles
 
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:  # noqa: D102
+        self.__delegate.add_ml_data(obj, data)
+
+    def get_ml_data_for(self, obj: GenericAccessibleObject) -> MLCallableData | None:  # noqa: D102
+        return self.__delegate.get_ml_data_for(obj)
+
     def track_statistics_values(  # noqa: D102
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
     ) -> None:
@@ -1056,14 +1077,23 @@ class CallableData:
         tree: the AST of the callable, if any
         description: the function description of the callable, if any
         cyclomatic_complexity: the McCabe cyclomatic complexity of the callable, if any
-        parameters: A dictionary of parameters, if any
-        generation_order: The generation order of the callable (can be empty)
     """
 
     accessible: GenericAccessibleObject
     tree: AstroidFunctionDef | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
+
+
+@dataclasses.dataclass
+class MLCallableData:
+    """Provides ML-specific information on callables.
+
+    Attributes:
+        parameters: A dictionary of parameters, if any
+        generation_order: The generation order of the callable (can be empty)
+    """
+
     parameters: dict[str, MLParameter | None]
     generation_order: list[str]
 
@@ -1131,7 +1161,7 @@ def __analyse_function(
 
     parameters: dict[str, MLParameter | None] = {}
     generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+    if ConstraintsManager().ml_testing_enabled():
         try:
             if module_tree is not None:
                 parameters, generation_order = ConstraintsManager().load_and_process_constraints(
@@ -1145,9 +1175,12 @@ def __analyse_function(
         tree=func_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
+    )
+    ml_data = MLCallableData(
         parameters=parameters,
         generation_order=generation_order,
     )
+    test_cluster.add_ml_data(generic_function, ml_data)
     test_cluster.add_generator(generic_function)
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
@@ -1160,6 +1193,7 @@ def __analyse_class(
     module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    store_ml_data: bool = False,
 ) -> None:
     LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
@@ -1196,7 +1230,7 @@ def __analyse_class(
 
     parameters: dict[str, MLParameter | None] = {}
     generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+    if ConstraintsManager().ml_testing_enabled() and store_ml_data:
         try:
             parameters, generation_order = ConstraintsManager().load_and_process_constraints(
                 type_info.module,
@@ -1211,8 +1245,6 @@ def __analyse_class(
         tree=constructor_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
-        parameters=parameters,
-        generation_order=generation_order,
     )
     if not (
         type_info.is_abstract
@@ -1222,6 +1254,11 @@ def __analyse_class(
         # Don't add constructors for abstract classes and for builtins. We generate
         # the latter ourselves.
         test_cluster.add_generator(generic)
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic, ml_data)
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
@@ -1240,6 +1277,7 @@ def __analyse_class(
             class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
+            store_ml_data=store_ml_data,
         )
 
 
@@ -1280,6 +1318,7 @@ def __analyse_method(
     class_tree: astroid.ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
+    store_ml_data: bool = False,
 ) -> None:
     if (
         __is_private(method_name)
@@ -1311,7 +1350,7 @@ def __analyse_method(
 
     parameters: dict[str, MLParameter | None] = {}
     generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled() and add_to_test:
+    if ConstraintsManager().ml_testing_enabled() and store_ml_data:
         callable_name = type_info.name + "." + method_name
         try:
             parameters, generation_order = ConstraintsManager().load_and_process_constraints(
@@ -1325,9 +1364,12 @@ def __analyse_method(
         tree=method_ast,
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
+    )
+    ml_data = MLCallableData(
         parameters=parameters,
         generation_order=generation_order,
     )
+    test_cluster.add_ml_data(generic_method, ml_data)
     test_cluster.add_generator(generic_method)
     test_cluster.add_modifier(type_info, generic_method)
     if add_to_test:
@@ -1402,6 +1444,7 @@ def __resolve_dependencies(
             test_cluster=test_cluster,
             seen_classes=seen_classes,
             parse_results=parse_results,
+            store_ml_data=True,
         )
 
         # Analyze all functions found in the current module
@@ -1438,6 +1481,7 @@ def __analyse_included_classes(
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_classes: set[type],
+    store_ml_data: bool = False,
 ) -> None:
     work_list = list(
         filter(
@@ -1479,6 +1523,7 @@ def __analyse_included_classes(
             module_tree=results.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
+            store_ml_data=store_ml_data,
         )
 
         if hasattr(current, "__bases__"):
