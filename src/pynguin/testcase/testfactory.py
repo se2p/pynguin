@@ -13,23 +13,26 @@ import inspect
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
+from pynguin.analyses.string_subtypes import generate_from_regex
+
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.string_subtypes import generate_from_regex
+from pynguin.analyses.constants import ConstantProvider
+from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import (
-    ANY,
-    InferredSignature,
-    Instance,
-    NoneType,
-    ProperType,
     StringSubtype,
-    TupleType,
     UnionType,
-    is_collection_type,
-    is_primitive_type,
 )
+from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import is_collection_type
+from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement, VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -1269,7 +1272,7 @@ class TestFactory:  # noqa: PLR0904
                 recursion_depth,
             )
         type_generator = self._test_cluster.generator_provider.select_generator_for(parameter_type)
-        if type_generator is not None:
+        if type_generator is not None and type_generator.generated_type() is not AnyType:
             return self.append_generic_accessible(
                 test_case,
                 type_generator,

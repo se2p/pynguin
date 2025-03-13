@@ -115,9 +115,10 @@ def test_generator_provider():
     selection_function.select = lambda x: x
     provider = GeneratorProvider(type_system, selection_function=selection_function)
     generated_type = Instance(TypeInfo(MyClass))
-    generator = mock.MagicMock(spec=GenericCallableAccessibleObject)
+    generator = mock.MagicMock()
     generator.generated_type.return_value = generated_type
     generator.inferred_signature.return_type = generated_type
+    generator.get_fitness.return_value = 0.0
 
     provider.add(generator)
     retrieved_generators = provider.get_for_type(generated_type)
