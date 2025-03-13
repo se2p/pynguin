@@ -140,7 +140,11 @@ def test_add_generator_primitive(module_test_cluster):
     ) == (OrderedSet([]))
 
 
-def test_add_generator(module_test_cluster):
+@pytest.mark.parametrize(
+    "generator_selection", [config.Selection.RANK_SELECTION, config.Selection.RANDOM_SELECTION]
+)
+def test_add_generator(module_test_cluster, generator_selection):
+    config.configuration.generator_selection.generator_selection_algorithm = generator_selection
     type_hint = module_test_cluster.type_system.convert_type_hint(MagicMock)
     generator = MagicMock(GenericCallableAccessibleObject)
     generator.inferred_signature.return_type = type_hint
@@ -152,7 +156,11 @@ def test_add_generator(module_test_cluster):
     ) == (OrderedSet([generator]))
 
 
-def test_add_generator_two(module_test_cluster):
+@pytest.mark.parametrize(
+    "generator_selection", [config.Selection.RANK_SELECTION, config.Selection.RANDOM_SELECTION]
+)
+def test_add_generator_two(module_test_cluster, generator_selection):
+    config.configuration.generator_selection.generator_selection_algorithm = generator_selection
     type_hint = module_test_cluster.type_system.convert_type_hint(MagicMock)
 
     generator = MagicMock(GenericCallableAccessibleObject)
@@ -341,7 +349,11 @@ def test_nothing_included_multiple_times():
     assert cluster.num_accessible_objects_under_test() == 1
 
 
-def test_generators():
+@pytest.mark.parametrize(
+    "generator_selection", [config.Selection.RANK_SELECTION, config.Selection.RANDOM_SELECTION]
+)
+def test_generators(generator_selection):
+    config.configuration.generator_selection.generator_selection_algorithm = generator_selection
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert (
         len(
@@ -378,7 +390,11 @@ def test_complex_dependencies():
     assert cluster.num_accessible_objects_under_test() == 1
 
 
-def test_inheritance_generator():
+@pytest.mark.parametrize(
+    "generator_selection", [config.Selection.RANK_SELECTION, config.Selection.RANDOM_SELECTION]
+)
+def test_inheritance_generator(generator_selection):
+    config.configuration.generator_selection.generator_selection_algorithm = generator_selection
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
     from tests.fixtures.cluster.inheritance import (  # noqa: PLC0415
         Bar,
