@@ -22,6 +22,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.orderedset import FrozenOrderedSet
 
 
 def get_all_generators(cluster):
@@ -100,8 +101,12 @@ def test_generator_provider_integration(rand_mock):
         provider.add(generator)
 
     proper_type = Instance(base_type)
-    generators = provider.get_for_type(proper_type)
-    generator = provider.select_generator(proper_type, generators.freeze())
+    generator_methods = provider.get_for_type(proper_type)
+    generators = FrozenOrderedSet([
+        Generator(generator, proper_type, provider._fitness_function)
+        for generator in generator_methods
+    ])
+    generator = provider.select_generator(generators)
 
     assert str(generator) == "tests.fixtures.examples.constructors.Base"
 
@@ -121,8 +126,12 @@ def test_generator_provider():
     generator.get_fitness.return_value = 0.0
 
     provider.add(generator)
-    retrieved_generators = provider.get_for_type(generated_type)
-    retrieved_generator = provider.select_generator(generated_type, retrieved_generators.freeze())
+    retrieved_generator_methods = provider.get_for_type(generated_type)
+    retrieved_generators = FrozenOrderedSet([
+        Generator(generator, generated_type, provider._fitness_function)
+        for generator in retrieved_generator_methods
+    ])
+    retrieved_generator = provider.select_generator(retrieved_generators)
 
     assert retrieved_generator == generator
 

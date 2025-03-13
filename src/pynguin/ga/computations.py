@@ -314,13 +314,18 @@ class GeneratorFitnessFunction:
 
     @abstractmethod
     def compute_fitness(
-        self, to_generate: ProperType, generator: GenericCallableAccessibleObject
+        self,
+        to_generate: ProperType,
+        generator: GenericCallableAccessibleObject,
+        type_distance: int | None = None,
     ) -> float | None:
         """Compute the fitness score for a generator.
 
         Args:
             to_generate: The type to generate.
             generator: The generator function.
+            type_distance: The distance between the type to generate and the return type
+                of the generator. If None, the distance must be computed.
 
         Returns:
             The computed fitness score or None if the generator is not suitable.
@@ -375,7 +380,10 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._any_type_penalty = any_type_penalty
 
     def compute_fitness(
-        self, to_generate: ProperType, generator: GenericCallableAccessibleObject
+        self,
+        to_generate: ProperType,
+        generator: GenericCallableAccessibleObject,
+        type_distance: int | None = None,
     ) -> float | None:
         """Compute the fitness score for a suitable generator. Lower is better.
 
@@ -386,6 +394,8 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         Args:
             to_generate: The type to generate.
             generator: The generator function.
+            type_distance: The distance between the type to generate and the return type
+                of the generator. If None, the distance is computed.
 
         Returns:
             The computed fitness score or None if the generator is not suitable.
@@ -401,9 +411,11 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         fitness += self._param_penalty * param_count
 
         # Penalize deeper hierarchy distances
-        hierarchy_depth = self._compute_hierarchy_distance(to_generate, generator)
-        if hierarchy_depth is not None:
-            fitness += self._hierarchy_penalty * hierarchy_depth
+        if type_distance is None:
+            type_distance = self._compute_hierarchy_distance(to_generate, generator)
+
+        if type_distance is not None:
+            fitness += self._hierarchy_penalty * type_distance
         else:
             return None
 

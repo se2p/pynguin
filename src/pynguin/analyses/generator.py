@@ -38,12 +38,14 @@ class Generator(Selectable):
         generator: GenericAccessibleObject,
         type_to_generate: ProperType,
         fitness_function: GeneratorFitnessFunction,
+        subtype_distance: int | None = None,
     ):
         """Create a new generator."""
         self.fitness: float | None = None
         self._generator = generator
         self._type_to_generate = type_to_generate
         self._fitness_function = fitness_function
+        self._subtype_distance = subtype_distance
 
     @property
     def generator(self) -> GenericAccessibleObject:
@@ -68,7 +70,9 @@ class Generator(Selectable):
         if not isinstance(self._generator, GenericCallableAccessibleObject):
             return 0.0
 
-        fitness = fitness_function.compute_fitness(self._type_to_generate, self._generator)
+        fitness = fitness_function.compute_fitness(
+            self._type_to_generate, self._generator, self._subtype_distance
+        )
         return fitness if fitness is not None else -1
 
     def __str__(self):
@@ -95,6 +99,7 @@ class GeneratorProvider:
         self._generators: dict[ProperType, OrderedSet[GenericAccessibleObject]] = defaultdict(
             OrderedSet
         )
+        self._type_system = type_system
         self._fitness_function: GeneratorFitnessFunction = HeuristicGeneratorFitnessFunction(
             type_system
         )
@@ -153,17 +158,13 @@ class GeneratorProvider:
 
     @functools.lru_cache(maxsize=1024)
     def _sorted_generators(
-        self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]
-    ) -> list[Generator]:
-        generators = [
-            Generator(gen, parameter_type, self._fitness_function) for gen in type_generators
-        ]
-        generators = [gen for gen in generators if gen.get_fitness() >= 0.0]
-        generators.sort(key=lambda x: x.get_fitness())
-        return generators
+        self, type_generators: FrozenOrderedSet[Generator]
+    ) -> OrderedSet[Generator]:
+        # TODO: Filter for fitness > 0.0 needed?
+        return OrderedSet(sorted(type_generators, key=lambda x: x.get_fitness()))
 
     def select_generator(
-        self, parameter_type: ProperType, type_generators: FrozenOrderedSet[GenericAccessibleObject]
+        self, type_generators: FrozenOrderedSet[Generator]
     ) -> GenericAccessibleObject:
         """Select a generator from a set of generators.
 
@@ -172,32 +173,44 @@ class GeneratorProvider:
         is mostly limited to the first iteration.
 
         Args:
-            parameter_type: The type to select a generator for.
             type_generators: The set of generators to select from.
 
         Returns:
             The selected generator.
         """
-        generator_objects = self._sorted_generators(parameter_type, type_generators)
+        generator_objects = self._sorted_generators(type_generators)
         # As builtins.object is a superclass of all classes, we can be sure that
         # there is always at least one generator available
-        selected = self._selection_function.select(generator_objects)[0]
+        # to list
+        selected = self._selection_function.select(list(generator_objects))[0]
         return selected.generator
 
     @functools.lru_cache(maxsize=1024)
     def get_generators_for(  # noqa: D102
         self, typ: ProperType
-    ) -> OrderedSet[GenericAccessibleObject]:
+    ) -> OrderedSet[Generator]:
         if isinstance(typ, AnyType):
             # Just take everything when it's Any.
-            return OrderedSet(itertools.chain.from_iterable(self.get_all().values()))
+            generators_2 = itertools.chain.from_iterable(self.get_all().values())
+            return OrderedSet(
+                Generator(generator, typ, self._fitness_function) for generator in generators_2
+            )
 
         if typ.accept(is_primitive_type):
             return OrderedSet()
 
-        generators = OrderedSet(itertools.chain.from_iterable(self.get_all().values()))
-        sorted_generators = self._sorted_generators(typ, generators.freeze())
-        return OrderedSet([gen.generator for gen in sorted_generators])
+        generated_types = self.get_all_types()
+        generators: OrderedSet[Generator] = OrderedSet()
+        for generated_typ in generated_types:
+            distance = self._type_system.subtype_distance(typ, generated_typ)
+            if distance is not None:
+                generator_objects = self.get_for_type(generated_typ)
+                for generator in generator_objects:
+                    generators.add(
+                        Generator(generator, generated_typ, self._fitness_function, distance)
+                    )
+
+        return self._sorted_generators(generators.freeze())
 
     def select_generator_for(self, parameter_type: ProperType) -> GenericAccessibleObject | None:
         """Select a generator for a specific type.
@@ -210,5 +223,5 @@ class GeneratorProvider:
         """
         type_generators = self.get_generators_for(parameter_type)
         if type_generators:
-            return self.select_generator(parameter_type, type_generators.freeze())
+            return self.select_generator(type_generators.freeze())
         return None

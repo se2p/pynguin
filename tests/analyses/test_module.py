@@ -167,9 +167,11 @@ def test_add_generator_two(module_test_cluster):
     generator_2.get_num_parameters.return_value = 0
     module_test_cluster.add_generator(generator_2)
 
-    assert module_test_cluster.generator_provider.get_generators_for(
+    retrieved_generators = module_test_cluster.generator_provider.get_generators_for(
         module_test_cluster.type_system.convert_type_hint(MagicMock)
-    ) == (OrderedSet([generator, generator_2]))
+    )
+    generator_methods = OrderedSet([gen.generator for gen in retrieved_generators])
+    assert generator_methods == (OrderedSet([generator, generator_2]))
 
 
 def test_add_accessible_object_under_test(module_test_cluster):
