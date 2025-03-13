@@ -72,6 +72,7 @@ from pynguin.analyses.typesystem import TypeVisitor
 from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.configuration import TypeInferenceStrategy
+from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
@@ -802,6 +803,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         ):
             return RandomGeneratorProvider(
                 self.__type_system,
+                RandomSelection(),
             )
         raise ValueError(
             "Unsupported generator selection algorithm: "

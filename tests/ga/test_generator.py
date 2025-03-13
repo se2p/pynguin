@@ -8,12 +8,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
+from pynguin.analyses.generator import GeneratorProvider
+from pynguin.analyses.generator import RandomGeneratorProvider
 from pynguin.analyses.generator import _Generator  # noqa: PLC2701
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection
 from pynguin.ga.operators.selection import SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -85,59 +87,24 @@ def test_generator_get_fitness_for_no_inf():
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
+@pytest.mark.parametrize(
+    "provider_class, selection_function, expected",
+    [
+        (GeneratorProvider, RankSelection(), "tests.fixtures.examples.constructors.Base"),
+        (
+            RandomGeneratorProvider,
+            RandomSelection(),
+            "tests.fixtures.examples.constructors.Base.instance_constructor",
+        ),
+    ],
+)
 @mock.patch("pynguin.utils.randomness.next_float")
-def test_generator_provider_integration(rand_mock):
-    rand_mock.side_effect = [0]
-
-    cluster = generate_test_cluster("tests.fixtures.examples.constructors")
-    type_system = cluster.type_system
-    base_type: TypeInfo = type_system.find_type_info("tests.fixtures.examples.constructors.Base")
-
-    generators = get_all_generators(cluster)
-
-    selection_function = RankSelection()
-    provider = GeneratorProvider(type_system, selection_function=selection_function)
-    for generator in generators.values():
-        provider.add(generator)
-
-    proper_type = Instance(base_type)
-    generator_methods = provider.get_for_type(proper_type)
-    generators = FrozenOrderedSet([
-        _Generator(generator, proper_type, provider._fitness_function)
-        for generator in generator_methods
-    ])
-    generator = provider._select_generator(generators)
-
-    assert str(generator) == "tests.fixtures.examples.constructors.Base"
-
-
-def test_generator_provider():
-    class MyClass:
-        pass
-
-    type_system = MagicMock()
-    selection_function = MagicMock(spec=SelectionFunction)
-    selection_function.select = lambda x: x
-    provider = GeneratorProvider(type_system, selection_function=selection_function)
-    generated_type = Instance(TypeInfo(MyClass))
-    generator = mock.MagicMock()
-    generator.generated_type.return_value = generated_type
-    generator.inferred_signature.return_type = generated_type
-    generator.get_fitness.return_value = 0.0
-
-    provider.add(generator)
-    retrieved_generator_methods = provider.get_for_type(generated_type)
-    retrieved_generators = FrozenOrderedSet([
-        _Generator(generator, generated_type, provider._fitness_function)
-        for generator in retrieved_generator_methods
-    ])
-    retrieved_generator = provider._select_generator(retrieved_generators)
-
-    assert retrieved_generator == generator
-
 @mock.patch("pynguin.utils.randomness.next_int")
-def test_random_generator_provider_integration(rand_mock):
-    rand_mock.side_effect = [0]
+def test_generator_provider_integration(
+    float_mock, int_mock, provider_class, selection_function, expected
+):
+    float_mock.side_effect = [0]
+    int_mock.side_effect = [0]
 
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
@@ -145,7 +112,7 @@ def test_random_generator_provider_integration(rand_mock):
 
     generators = get_all_generators(cluster)
 
-    provider = RandomGeneratorProvider(type_system)
+    provider = provider_class(type_system, selection_function=selection_function)
     for generator in generators.values():
         provider.add(generator)
 
@@ -157,17 +124,19 @@ def test_random_generator_provider_integration(rand_mock):
     ])
     generator = provider._select_generator(generators)
 
-    assert str(generator) == "tests.fixtures.examples.constructors.Base.instance_constructor"
+    assert str(generator) == expected
 
 
-def test_random_generator_provider():
+@pytest.mark.parametrize("provider_class", [GeneratorProvider, RandomGeneratorProvider])
+def test_generator_provider(provider_class):
     class MyClass:
         pass
 
     type_system = MagicMock()
     selection_function = MagicMock(spec=SelectionFunction)
     selection_function.select = lambda x: x
-    provider = RandomGeneratorProvider(type_system)
+
+    provider = provider_class(type_system, selection_function=selection_function)
     generated_type = Instance(TypeInfo(MyClass))
     generator = mock.MagicMock()
     generator.generated_type.return_value = generated_type
@@ -183,6 +152,7 @@ def test_random_generator_provider():
     retrieved_generator = provider._select_generator(retrieved_generators)
 
     assert retrieved_generator == generator
+
 
 def test_generator_provider_empty(generator_provider):
     generated_type = MagicMock()

@@ -21,7 +21,6 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.ga.chromosome import Selectable
 from pynguin.ga.computations import GeneratorFitnessFunction
 from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
-from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -249,13 +248,14 @@ class GeneratorProvider:
 class RandomGeneratorProvider(GeneratorProvider):
     """Provides type generator functions without considering fitness values."""
 
-    def __init__(self, type_system: TypeSystem):
+    def __init__(self, type_system: TypeSystem, selection_function: SelectionFunction[_Generator]):
         """Create a new generator provider.
 
         Args:
             type_system: The type system to use.
+            selection_function: The selection function to use.
         """
-        super().__init__(type_system, RandomSelection())
+        super().__init__(type_system, selection_function)
 
     @functools.lru_cache(maxsize=1024)
     def _get_generators_for(self, typ: ProperType) -> OrderedSet[_Generator]:
