@@ -21,7 +21,6 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
@@ -1272,7 +1271,7 @@ class TestFactory:  # noqa: PLR0904
                 recursion_depth,
             )
         type_generator = self._test_cluster.generator_provider.select_generator_for(parameter_type)
-        if type_generator is not None and type_generator.generated_type() is not AnyType:
+        if type_generator is not None:
             return self.append_generic_accessible(
                 test_case,
                 type_generator,

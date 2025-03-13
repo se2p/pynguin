@@ -39,6 +39,8 @@ class _Generator(Selectable):
     calculation or be provided directly.
     """
 
+    __slots__ = ("_fitness_function", "_generator", "_subtype_distance", "_type_to_generate")
+
     def __init__(
         self,
         generator: GenericAccessibleObject,
@@ -208,14 +210,15 @@ class GeneratorProvider:
         for generated_typ in generated_types:
             distance = self._type_system.subtype_distance(typ, generated_typ)
             if distance is not None:
-                generator_methods = self.get_for_type(generated_typ)
-                for generator_method in generator_methods:
-                    generators.add(
-                        _Generator(
-                            generator_method, generated_typ, self._fitness_function, distance
-                        )
-                    )
+                generators.update(self._get_for_type(generated_typ, distance))
 
+        return generators
+
+    @functools.lru_cache(maxsize=1024)
+    def _get_for_type(self, typ: ProperType, distance: int) -> OrderedSet[_Generator]:
+        generators: OrderedSet[_Generator] = OrderedSet()
+        for generator in self.get_for_type(typ):
+            generators.add(_Generator(generator, typ, self._fitness_function, distance))
         return generators
 
     def _get_all_generators(self, typ: ProperType) -> OrderedSet[_Generator]:
@@ -242,6 +245,7 @@ class GeneratorProvider:
         """Clear the generator cache."""
         self._get_generators_for.cache_clear()
         self._sorted_generators.cache_clear()
+        self._get_for_type.cache_clear()
 
 
 class RandomGeneratorProvider(GeneratorProvider):

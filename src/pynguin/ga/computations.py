@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import dataclasses
+import functools
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -379,6 +380,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self._hierarchy_penalty = hierarchy_penalty
         self._any_type_penalty = any_type_penalty
 
+    @functools.lru_cache(maxsize=16384)
     def compute_fitness(
         self,
         to_generate: ProperType,
@@ -390,6 +392,9 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         Computes the fitness score for a generator function if it is suitable for the type
         to generate. The generator is suitable if it may produce objects of the type to
         generate or a subtype of it.
+
+        This method is performance-critical - even calling get_num_parameters() repeatedly
+        can be expensive. Therefore, we use a cache to store the results of this function.
 
         Args:
             to_generate: The type to generate.
