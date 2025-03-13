@@ -21,6 +21,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.ga.chromosome import Selectable
 from pynguin.ga.computations import GeneratorFitnessFunction
 from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
+from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -241,3 +242,37 @@ class GeneratorProvider:
         """Clear the generator cache."""
         self._get_generators_for.cache_clear()
         self._sorted_generators.cache_clear()
+
+
+class RandomGeneratorProvider(GeneratorProvider):
+    """Provides type generator functions and their fitness values."""
+
+    def __init__(self, type_system: TypeSystem):
+        """Create a new generator provider.
+
+        Args:
+            type_system: The type system to use.
+        """
+        super().__init__(type_system, RandomSelection())
+
+    @functools.lru_cache(maxsize=1024)
+    def _get_generators_for(self, typ: ProperType) -> OrderedSet[_Generator]:
+        """Get all generators for a specific type."""
+        if isinstance(typ, AnyType):
+            # Just take everything when it's Any.
+            return self._get_all_generators(typ)
+
+        results: OrderedSet[GenericAccessibleObject] = OrderedSet()
+        for gen_type, generators in self.get_all().items():
+            if self._type_system.is_maybe_subtype(gen_type, typ):
+                results.update(generators)
+
+        return OrderedSet(
+            _Generator(generator, typ, self._fitness_function) for generator in results
+        )
+
+    @functools.lru_cache(maxsize=0)  # Required to avoid mypy error
+    def _sorted_generators(
+        self, type_generators: FrozenOrderedSet[_Generator]
+    ) -> OrderedSet[_Generator]:
+        return OrderedSet(type_generators)

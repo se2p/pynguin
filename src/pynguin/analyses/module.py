@@ -52,6 +52,7 @@ from pynguin.utils.llm import LLMProvider
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
+from pynguin.analyses.generator import GeneratorProvider
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 
 from pynguin.analyses.syntaxtree import FunctionDescription
@@ -71,7 +72,6 @@ from pynguin.analyses.typesystem import TypeVisitor
 from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.configuration import TypeInferenceStrategy
-from pynguin.ga.operators.selection import RandomSelection
 from pynguin.ga.operators.selection import RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
@@ -800,9 +800,8 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             config.configuration.generator_selection.generator_selection_algorithm
             == config.Selection.RANDOM_SELECTION
         ):
-            return GeneratorProvider(
+            return RandomGeneratorProvider(
                 self.__type_system,
-                RandomSelection(),
             )
         raise ValueError(
             "Unsupported generator selection algorithm: "
