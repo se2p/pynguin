@@ -685,7 +685,7 @@ class _SubtypeDistanceVisitor(TypeVisitor[int | None]):
         self,
         graph: TypeSystem,
         subtype: ProperType,
-        any_distance: int = config.configuration.generator_selection.any_distance,
+        any_distance: int = config.configuration.generator_selection.generator_any_distance,
     ):
         """Create a new visitor.
 

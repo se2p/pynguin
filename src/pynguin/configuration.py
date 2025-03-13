@@ -638,25 +638,26 @@ class GeneratorSelectionConfiguration:
 
     generator_selection_bias: float = 1.7
     """The bias to use for rank selection when selecting the generator for a statement.
-    Expects values in [0, inf]. 1.0 is random selection, higher values bias towards
-    higher ranked generators."""
+    Expects values in [1.0, 2.0]. 1.0 is random selection, higher values bias towards
+    higher ranked generators. A value above 2.0 leads to cutting off the lower ranked
+    generators."""
 
-    any_distance: int = 30
+    generator_any_distance: int = 30
     """The distance to and from the any type to any other type in the type hierarchy.
     As the any type is a super- and subtype of all type but it is most likely not
     the type we want, we want to punish it in the type selection process."""
 
-    not_constructor_penalty: float = 10.0
+    generator_not_constructor_penalty: float = 10.0
     """Penalty for selecting a generator that is not a __init__ method."""
 
-    param_penalty: float = 1.0
+    generator_param_penalty: float = 1.0
     """Penalty for each parameter of the generator."""
 
-    hierarchy_penalty: float = 1.0
+    generator_hierarchy_penalty: float = 1.0
     """Penalty for the distance between the generators type and the desired type.
     The penalty is multiplied with the distance in the type hierarchy."""
 
-    any_type_penalty: float = 100.0
+    generator_any_type_penalty: float = 100.0
     """Penalty for selecting a generator that returns only Any.
     While Any is always a valid type, we still want to avoid it as a generator."""
 

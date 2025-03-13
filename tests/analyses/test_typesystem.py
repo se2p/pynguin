@@ -972,7 +972,7 @@ def test__from_str_values():
     assert InferredSignature._from_str_values(knowledge) == StringSubtype(re.compile(r"^(?:bar)"))
 
 
-any_distance = config.configuration.generator_selection.any_distance
+any_distance = config.configuration.generator_selection.generator_any_distance
 
 
 @pytest.mark.parametrize(

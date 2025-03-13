@@ -148,7 +148,7 @@ def test_test_suite_compute_checked_covered_fitness_values(
         run_suite_mock.assert_called_with(indiv)
 
 
-any_distance = config.configuration.generator_selection.any_distance
+any_distance = config.configuration.generator_selection.generator_any_distance
 
 
 @pytest.mark.parametrize(

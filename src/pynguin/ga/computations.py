@@ -362,10 +362,10 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         self,
         type_system: TypeSystem,
         *,
-        not_constructor_penalty: float = config.configuration.generator_selection.not_constructor_penalty,  # noqa: E501
-        param_penalty: float = config.configuration.generator_selection.param_penalty,
-        hierarchy_penalty: float = config.configuration.generator_selection.hierarchy_penalty,
-        any_type_penalty: float = config.configuration.generator_selection.any_type_penalty,
+        not_constructor_penalty: float = config.configuration.generator_selection.generator_not_constructor_penalty,  # noqa: E501
+        param_penalty: float = config.configuration.generator_selection.generator_param_penalty,
+        hierarchy_penalty: float = config.configuration.generator_selection.generator_hierarchy_penalty,  # noqa: E501
+        any_type_penalty: float = config.configuration.generator_selection.generator_any_type_penalty,  # noqa: E501
     ) -> None:
         """Create a new fitness function."""
         self._type_system = type_system
