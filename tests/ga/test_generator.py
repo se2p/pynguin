@@ -8,8 +8,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.generator import Generator
 from pynguin.analyses.generator import GeneratorProvider
+from pynguin.analyses.generator import _Generator  # noqa: PLC2701
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
@@ -55,7 +55,7 @@ def test_generator():
     generator_method = MagicMock()
     type_to_generate = MagicMock()
     fitness_function = MagicMock()
-    generator = Generator(generator_method, type_to_generate, fitness_function)
+    generator = _Generator(generator_method, type_to_generate, fitness_function)
     assert generator.generator == generator_method
     assert str(generator) == str(generator_method)
 
@@ -70,7 +70,7 @@ def test_generator_get_fitness_for():
     type_to_generate.type = MagicMock()
 
     fitness_function = MagicMock()
-    generator = Generator(generator_method, type_to_generate, fitness_function)
+    generator = _Generator(generator_method, type_to_generate, fitness_function)
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
@@ -81,7 +81,7 @@ def test_generator_get_fitness_for_no_inf():
     type_to_generate = MagicMock(Instance)
     type_to_generate.type = MagicMock()
 
-    generator = Generator(generator_method, type_to_generate, fitness_function)
+    generator = _Generator(generator_method, type_to_generate, fitness_function)
     assert generator.get_fitness() == generator.get_fitness_for(fitness_function) != float("inf")
 
 
@@ -103,10 +103,10 @@ def test_generator_provider_integration(rand_mock):
     proper_type = Instance(base_type)
     generator_methods = provider.get_for_type(proper_type)
     generators = FrozenOrderedSet([
-        Generator(generator, proper_type, provider._fitness_function)
+        _Generator(generator, proper_type, provider._fitness_function)
         for generator in generator_methods
     ])
-    generator = provider.select_generator(generators)
+    generator = provider._select_generator(generators)
 
     assert str(generator) == "tests.fixtures.examples.constructors.Base"
 
@@ -128,10 +128,10 @@ def test_generator_provider():
     provider.add(generator)
     retrieved_generator_methods = provider.get_for_type(generated_type)
     retrieved_generators = FrozenOrderedSet([
-        Generator(generator, generated_type, provider._fitness_function)
+        _Generator(generator, generated_type, provider._fitness_function)
         for generator in retrieved_generator_methods
     ])
-    retrieved_generator = provider.select_generator(retrieved_generators)
+    retrieved_generator = provider._select_generator(retrieved_generators)
 
     assert retrieved_generator == generator
 

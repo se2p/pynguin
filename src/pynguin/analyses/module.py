@@ -890,7 +890,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self._drop_generator(accessible)
         # Must invalidate entire cache, because subtype relationship might also change
         # the return values which are not new_type or old_type
-        self.generator_provider.get_generators_for.cache_clear()
+        self.generator_provider.clear_generator_cache()
         self.get_all_generatable_types.cache_clear()
         accessible.inferred_signature.return_type = new_type
         self.generator_provider.add_for_type(new_type, accessible)

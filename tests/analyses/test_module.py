@@ -167,7 +167,7 @@ def test_add_generator_two(module_test_cluster):
     generator_2.get_num_parameters.return_value = 0
     module_test_cluster.add_generator(generator_2)
 
-    retrieved_generators = module_test_cluster.generator_provider.get_generators_for(
+    retrieved_generators = module_test_cluster.generator_provider._get_generators_for(
         module_test_cluster.type_system.convert_type_hint(MagicMock)
     )
     generator_methods = OrderedSet([gen.generator for gen in retrieved_generators])
@@ -345,7 +345,7 @@ def test_generators():
     cluster = generate_test_cluster("tests.fixtures.cluster.no_dependencies")
     assert (
         len(
-            cluster.generator_provider.get_generators_for(
+            cluster.generator_provider._get_generators_for(
                 cluster.type_system.convert_type_hint(int)
             )
         )
@@ -353,7 +353,7 @@ def test_generators():
     )
     assert (
         len(
-            cluster.generator_provider.get_generators_for(
+            cluster.generator_provider._get_generators_for(
                 cluster.type_system.convert_type_hint(float)
             )
         )
@@ -385,11 +385,11 @@ def test_inheritance_generator():
         Foo,
     )
 
-    res_foo = cluster.generator_provider.get_generators_for(
+    res_foo = cluster.generator_provider._get_generators_for(
         cluster.type_system.convert_type_hint(Foo)
     )
     assert len(res_foo) == 2
-    res_bar = cluster.generator_provider.get_generators_for(
+    res_bar = cluster.generator_provider._get_generators_for(
         cluster.type_system.convert_type_hint(Bar)
     )
     assert len(res_bar) == 1
