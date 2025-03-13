@@ -169,7 +169,6 @@ class GeneratorProvider:
     def _sorted_generators(
         self, type_generators: FrozenOrderedSet[_Generator]
     ) -> OrderedSet[_Generator]:
-        # TODO: Filter for fitness > 0.0 needed?
         return OrderedSet(sorted(type_generators, key=lambda x: x.get_fitness()))
 
     def _select_generator(
