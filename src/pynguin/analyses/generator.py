@@ -205,11 +205,9 @@ class GeneratorProvider:
         if typ.accept(is_primitive_type):
             return OrderedSet()
 
-        generated_types = self.get_all_types()
-        generators: OrderedSet[_Generator] = OrderedSet()
-        for generated_typ in generated_types:
-            distance = self._type_system.subtype_distance(typ, generated_typ)
-            if distance is not None:
+        generators = OrderedSet()
+        for generated_typ in self.get_all_types():
+            if (distance := self._type_system.subtype_distance(typ, generated_typ)) is not None:
                 generators.update(self._get_for_type(generated_typ, distance))
 
         return generators
@@ -249,7 +247,7 @@ class GeneratorProvider:
 
 
 class RandomGeneratorProvider(GeneratorProvider):
-    """Provides type generator functions and their fitness values."""
+    """Provides type generator functions without considering fitness values."""
 
     def __init__(self, type_system: TypeSystem):
         """Create a new generator provider.
