@@ -1230,7 +1230,11 @@ def __analyse_class(
 
     parameters: dict[str, MLParameter | None] = {}
     generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled() and store_ml_data:
+    if (
+        ConstraintsManager().ml_testing_enabled()
+        and store_ml_data
+        and not isinstance(generic, GenericEnum)
+    ):
         try:
             parameters, generation_order = ConstraintsManager().load_and_process_constraints(
                 type_info.module,
