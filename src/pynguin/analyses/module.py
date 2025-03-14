@@ -1239,7 +1239,7 @@ def __analyse_class(
             parameters, generation_order = ConstraintsManager().load_and_process_constraints(
                 type_info.module,
                 type_info.name,
-                list(generic.inferred_signature.original_parameters.keys()),  # type: ignore[union-attr]
+                list(generic.inferred_signature.original_parameters.keys()),
             )
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
