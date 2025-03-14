@@ -319,7 +319,7 @@ class GeneratorFitnessFunction:
         to_generate: ProperType,
         generator: GenericCallableAccessibleObject,
         type_distance: int | None = None,
-    ) -> float | None:
+    ) -> float:
         """Compute the fitness score for a generator.
 
         Args:
@@ -329,7 +329,7 @@ class GeneratorFitnessFunction:
                 of the generator. If None, the distance must be computed.
 
         Returns:
-            The computed fitness score or None if the generator is not suitable.
+            The computed fitness score or infinity if the generator is not suitable.
         """
 
     @abstractmethod
@@ -386,7 +386,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         to_generate: ProperType,
         generator: GenericCallableAccessibleObject,
         type_distance: int | None = None,
-    ) -> float | None:
+    ) -> float:
         """Compute the fitness score for a suitable generator. Lower is better.
 
         Computes the fitness score for a generator function if it is suitable for the type
@@ -403,7 +403,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
                 of the generator. If None, the distance is computed.
 
         Returns:
-            The computed fitness score or None if the generator is not suitable.
+            The computed fitness score or infinity if the generator is not suitable.
         """
         fitness: float = 0.0
 
@@ -422,7 +422,7 @@ class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
         if type_distance is not None:
             fitness += self._hierarchy_penalty * type_distance
         else:
-            return None
+            return float("inf")
 
         return fitness
 

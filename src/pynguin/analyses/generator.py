@@ -81,10 +81,9 @@ class _Generator(Selectable):
         if not isinstance(self._generator, GenericCallableAccessibleObject):
             return 0.0
 
-        fitness = fitness_function.compute_fitness(
+        return fitness_function.compute_fitness(
             self._type_to_generate, self._generator, self._subtype_distance
         )
-        return fitness if fitness is not None else -1
 
     def __str__(self):
         return str(self._generator)

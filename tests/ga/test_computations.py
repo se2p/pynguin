@@ -191,12 +191,9 @@ def test_heuristic_generator_fitness_function_not_connected():
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
     generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
     generators = get_all_generators(cluster)
-    assert (
-        generator_ff.compute_fitness(
-            base_type, generators["tests.fixtures.examples.constructors.Base2"]
-        )
-        is None
-    )
+    assert generator_ff.compute_fitness(
+        base_type, generators["tests.fixtures.examples.constructors.Base2"]
+    ) == float("inf")
 
 
 def test_heuristic_generator_fitness_function_is_minimisation():
