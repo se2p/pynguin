@@ -1775,6 +1775,19 @@ class TypeSystem:  # noqa: PLR0904
     def get_shortest_path_length(self, start: TypeInfo, end: TypeInfo) -> int | None:
         """Get the shortest path length between two types.
 
+        I tried adding @functools.lru_cache to this function does not improve performance,
+        because we cache subtype_distance anyway.
+        I tried using a _shortest_path_length_cache[(start, end)] along with using
+        shortest_path_length(graph, source), which returns all nodes reachable from start
+        and its length. However, probably the overhead from caching and having many
+        different starting nodes make this slower than just using shortest_path_length
+        with a target node (which can also leverage the quicker bidirectional_shortest_path
+        internally).
+        I also tried to come up with an own variant of nx.single_shortest_path_length
+        that would stop at the target node, thinking the overhead maybe comes form deeper
+        traversal, but this did not achieve better performance either.
+        Thus, I suggest we stick to the simple version.
+
         Args:
             start: The start type
             end: The end type
