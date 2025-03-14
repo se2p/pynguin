@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides an abstract base class for a test generation algorithm."""
+
 from __future__ import annotations
 
 import logging
@@ -17,14 +18,11 @@ from typing import Generic
 from typing import TypeVar
 
 import pynguin.ga.algorithms.archive as arch
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.parsing.deserializer import (
-    deserialize_code_to_testcases,
-)
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -60,15 +58,9 @@ class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
         self._stopping_conditions: list[StoppingCondition]
         self._crossover_function: CrossOverFunction
         self._ranking_function: RankingFunction
-        self._test_case_fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = (
-            OrderedSet()
-        )
-        self._test_suite_fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction] = (
-            OrderedSet()
-        )
-        self._test_suite_coverage_functions: OrderedSet[
-            ff.TestSuiteCoverageFunction
-        ] = OrderedSet()
+        self._test_case_fitness_functions: OrderedSet[ff.TestCaseFitnessFunction] = OrderedSet()
+        self._test_suite_fitness_functions: OrderedSet[ff.TestSuiteFitnessFunction] = OrderedSet()
+        self._test_suite_coverage_functions: OrderedSet[ff.TestSuiteCoverageFunction] = OrderedSet()
         self._branch_goal_pool: bg.BranchGoalPool
         self._search_observers: list[so.SearchObserver] = []
 
@@ -338,34 +330,3 @@ class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
         A value in [0,1].
         """
         return mean(sc.current_value() / sc.limit() for sc in self._stopping_conditions)
-
-    def _generate_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
-        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-        model = OpenAIModel()
-        llm_query_results = model.generate_tests_for_module_under_test()
-        llm_calls_with_python_code = (
-            model.llm_calls_counter - model.llm_calls_with_no_python_code
-        )
-        self._logger.info(
-            "%d out of %d LLM responses have got Python code.",
-            llm_calls_with_python_code,
-            model.llm_calls_counter,
-        )
-        self._logger.info("Total LLM call time is %s seconds", model.llm_calls_timer)
-
-        llm_test_cases_str = model.extract_test_cases(llm_query_results)
-
-        if llm_test_cases_str is not None:
-            test_cases = deserialize_code_to_testcases(
-                test_file_contents=llm_test_cases_str, test_cluster=self.test_cluster
-            )
-            if test_cases is not None:
-                for test_case in test_cases:
-                    test_case_chromosome = tcc.TestCaseChromosome(
-                        test_case=test_case, test_factory=self.test_factory
-                    )
-                    for func in self.test_case_fitness_functions:
-                        test_case_chromosome.add_fitness_function(func)
-                    llm_test_case_chromosomes.append(test_case_chromosome)
-                return llm_test_case_chromosomes
-        return []

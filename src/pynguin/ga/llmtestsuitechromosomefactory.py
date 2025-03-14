@@ -100,7 +100,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         for test_case in llm_test_cases:
             chromosome.add_test_case_chromosome(test_case)
 
-        self._logger.info("Merged %d of LLM test cases into the population.", len(llm_test_cases))
+        self._logger.info("Merged %d of LLM test cases into the population.", total_llm_test_cases)
 
         num_random_cases = config.configuration.search_algorithm.population - len(llm_test_cases)
 
