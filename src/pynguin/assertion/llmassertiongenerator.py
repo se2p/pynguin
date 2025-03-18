@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a Large Language Model (LLM) assertion generator."""
+from __future__ import annotations
 
 import logging
 import re
