@@ -81,13 +81,14 @@ class ReferenceAssertion(Assertion, ABC):
         """
         return self._source
 
-    def set_source(self, source: vr.Reference):
+    @source.setter
+    def source(self, value: vr.Reference) -> None:
         """Set the reference to be used for assertions.
 
         Args:
-            source (vr.Reference): The reference to set for assertions.
+            value (vr.Reference): The reference to set for assertions.
         """
-        self._source = source
+        self._source = value
 
 
 class TypeNameAssertion(ReferenceAssertion):
