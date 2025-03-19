@@ -1,19 +1,27 @@
-from unittest.mock import MagicMock, patch
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+from __future__ import annotations
+
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from pynguin.analyses.module import generate_test_cluster
-from pynguin.assertion.llmassertiongenerator import (extract_assertions,
-                                                     indent_assertions, \
-                                                     LLMAssertionGenerator,
-                                                     copy_test_case_references)
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.testcase as tc
-from pynguin.large_language_model.llmagent import LLMAgent
-import pynguin.testcase.statement as stmt
 import pynguin.assertion.assertion as ass
+import pynguin.testcase.statement as stmt
+import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
+
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.llmassertiongenerator import LLMAssertionGenerator
+from pynguin.assertion.llmassertiongenerator import copy_test_case_references
+from pynguin.assertion.llmassertiongenerator import extract_assertions
+from pynguin.assertion.llmassertiongenerator import indent_assertions
+from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -37,35 +45,6 @@ def test_indent_assertions():
     assert indent_assertions(assertions_list) == expected_result
 
 
-# @pytest.fixture
-# def test_case_chromosome() -> tcc.TestCaseChromosome:
-#     chromosome = MagicMock(spec=tcc.TestCaseChromosome)
-#
-#     test_case = MagicMock(spec=tc.TestCase)
-#     chromosome.test_case = test_case
-#
-#     test_case_statement = MagicMock(stmt.Statement)
-#     test_case_statement.get_position.return_value = 0
-#     test_case.statements = [test_case_statement]
-#
-#     test_case_statement_assertion = MagicMock(ass.Assertion)
-#     test_case_statement.assertions = [test_case_statement_assertion]
-#
-#     test_case_statement_assertion_source = MagicMock(vr.VariableReference)
-#     test_case_statement_assertion.source = test_case_statement_assertion_source
-#
-#     test_case_statement_assertion_object = MagicMock()
-#     test_case_statement_assertion.object = test_case_statement_assertion_object
-#
-#     return chromosome
-#
-#
-# @pytest.fixture
-# def test_suite_chromosome() -> tsc.TestSuiteChromosome:
-#     chromosome = MagicMock(tsc.TestSuiteChromosome)
-#     return chromosome
-
-
 @pytest.fixture
 def llm_agent():
     model = MagicMock(LLMAgent)
@@ -75,101 +54,84 @@ assert x == 1"""
     return model
 
 
-def test_llm_assertion_generator(llm_agent):
-    test_case_chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+@pytest.fixture
+def test_case_chromosome():
+    test_case_chromosome = MagicMock()
+    test_case_chromosome.test_case = MagicMock(spec=tc.TestCase)
+    return test_case_chromosome
 
+
+def create_test_case():
+    """Helper function to create a mock TestCase with one statement and one assertion."""
     test_case = MagicMock(spec=tc.TestCase)
-    test_case_chromosome.test_case = test_case
-
-    test_case_statement = MagicMock(stmt.Statement)
+    test_case_statement = MagicMock(spec=stmt.Statement)
     test_case_statement.get_position.return_value = 0
     test_case.statements = [test_case_statement]
 
-    test_case_statement_assertion = MagicMock(ass.Assertion)
-    test_case_statement.assertions = [test_case_statement_assertion]
+    test_case_statement.assertions = [MagicMock(spec=ass.Assertion)]
+    test_case_statement.assertions[0].source = MagicMock(spec=vr.VariableReference)
+    test_case_statement.assertions[0].object = MagicMock()
 
-    test_case_statement_assertion_source = MagicMock(vr.VariableReference)
-    test_case_statement_assertion.source = test_case_statement_assertion_source
+    return test_case
 
-    test_case_statement_assertion_object = MagicMock()
-    test_case_statement_assertion.object = test_case_statement_assertion_object
 
-    test_case_2 = MagicMock(spec=tc.TestCase)
+@pytest.fixture
+def test_case_from_llm():
+    return create_test_case()
 
-    test_case_statement_2 = MagicMock(spec=stmt.Statement)
-    test_case_statement_2.get_position.return_value = 0
-    test_case_2.statements = [test_case_statement_2]
 
-    test_case_statement_assertion_2 = MagicMock(ass.Assertion)
-    test_case_statement_2.assertions = [test_case_statement_assertion_2]
-
-    test_case_statement_assertion_source_2 = MagicMock(vr.VariableReference)
-    test_case_statement_assertion_2.source = test_case_statement_assertion_source_2
-
-    test_case_statement_assertion_object_2 = MagicMock()
-    test_case_statement_assertion_2.object = test_case_statement_assertion_object_2
-
+@pytest.fixture
+def llm_assertion_generator(llm_agent):
     test_cluster = generate_test_cluster("tests.fixtures.grammar.parameters")
-    llm_assertion_generator = LLMAssertionGenerator(test_cluster, llm_agent)
-    with (patch(
-            'pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases') as
-    deserialize_mock):
-        deserialize_mock.return_value = ([test_case_2], None, None, None)
+    return LLMAssertionGenerator(test_cluster, llm_agent)
+
+
+def test_llm_assertion_generator(llm_assertion_generator, test_case_chromosome, test_case_from_llm):
+    with patch(
+        "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
+    ) as deserialize_mock:
+        deserialize_mock.return_value = ([test_case_from_llm], None, None, None)
+
+        # Adds the assertion statements from test_case_from_llm to the
+        # test_case_chromosome
         llm_assertion_generator.visit_test_case_chromosome(test_case_chromosome)
 
-        assert (test_case_statement.assertions[0].object ==
-                test_case_statement_assertion_object_2)
-        assert (test_case_statement.assertions[0].source
-                == test_case_statement_assertion_source_2)
+        # Assert that the assertions are added correctly
+        assert (
+            test_case_chromosome.test_case.statements[0].assertions[0].object
+            == test_case_from_llm.statements[0].assertions[0].object
+        )
+        assert (
+            test_case_chromosome.test_case.statements[0].assertions[0].source
+            == test_case_from_llm.statements[0].assertions[0].source
+        )
+
+
+def create_mock_test_case():
+    test_case = MagicMock(spec=tc.TestCase)
+    var_ref = MagicMock(spec=vr.VariableReference)
+    statement = MagicMock(spec=stmt.Statement)
+
+    statement.get_position.return_value = 0
+    statement.ret_val = var_ref
+    statement.callee = var_ref
+    statement.args = {"arg1": var_ref}
+    statement.assertions = OrderedSet([ass.ObjectAssertion(var_ref, object())])
+
+    test_case.statements = [statement]
+
+    return test_case, var_ref
 
 
 def test_copy_test_case_references():
-    # Create mock original and target test cases
-    original_test_case = MagicMock(spec=tc.TestCase)
-    target_test_case = MagicMock(spec=tc.TestCase)
+    original_test_case, original_var_ref = create_mock_test_case()
+    target_test_case, target_var_ref = create_mock_test_case()
 
-    # Create mock variable references
-    original_var_ref = MagicMock(spec=vr.VariableReference)
-    target_var_ref = MagicMock(spec=vr.VariableReference)
-
-    # Create mock statements
-    original_statement = MagicMock(spec=stmt.Statement)
-    target_statement = MagicMock(spec=stmt.Statement)
-
-    # Setup statements to return positions correctly
-    original_statement.get_position.return_value = 0
-    target_statement.get_position.return_value = 0
-
-    # Assign return values (ret_val) to statements
-    original_statement.ret_val = original_var_ref
-    target_statement.ret_val = target_var_ref
-
-    # Assign function call references (callee)
-    original_statement.callee = original_var_ref
-    target_statement.callee = target_var_ref
-
-    # Assign function arguments
-    original_statement.args = {"arg1": original_var_ref}
-    target_statement.args = {"arg1": target_var_ref}
-
-    # Assign assertions with references
-    original_assertion = ass.ObjectAssertion(original_var_ref, object())
-    target_assertion = ass.ObjectAssertion(target_var_ref, object())
-
-    original_statement.assertions = OrderedSet([original_assertion])
-    target_statement.assertions = OrderedSet([target_assertion])
-
-    # Assign statements to test cases
-    original_test_case.statements = [original_statement]
-    target_test_case.statements = [target_statement]
-
-    # Dictionary to track replacements
     refs_replacement_dict = {}
-
-    # Call function to copy references
     copy_test_case_references(original_test_case, target_test_case, refs_replacement_dict)
 
-    # Assertions to ensure references were copied correctly
+    target_statement = target_test_case.statements[0]
+
     assert refs_replacement_dict[target_var_ref] == original_var_ref
     assert target_statement.ret_val == original_var_ref
     assert target_statement.callee == original_var_ref

@@ -5,10 +5,13 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides a Large Language Model (LLM) assertion generator."""
+
 from __future__ import annotations
 
 import logging
 import re
+
+from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
@@ -16,7 +19,6 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
-from pynguin.analyses.module import ModuleTestCluster
 
 from pynguin.assertion.assertion import FloatAssertion
 from pynguin.assertion.assertion import IsInstanceAssertion
@@ -28,6 +30,10 @@ from pynguin.large_language_model.parsing.deserializer import (
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
+
+if TYPE_CHECKING:
+    from pynguin.analyses.module import ModuleTestCluster
 
 
 _logger = logging.getLogger(__name__)
