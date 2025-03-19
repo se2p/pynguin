@@ -177,6 +177,11 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
     def _add_assertions_for(self, test_cases: list[tc.TestCase]):
         """Add assertions for the given list of test cases.
 
+        Generates assertions using the _model. Extracts assertions from the retrieved code
+        and deserializes the code into TestCase objects. Copies references from the original
+        test cases to the LLM-generated-deserialized ones. Replaces the original assertions
+        with the deserialized ones.
+
         Args:
             test_cases (list[tc.TestCase]): The test cases to add assertions for.
         """
