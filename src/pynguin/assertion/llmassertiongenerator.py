@@ -16,6 +16,7 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
+from pynguin.analyses.module import ModuleTestCluster
 
 from pynguin.assertion.assertion import FloatAssertion
 from pynguin.assertion.assertion import IsInstanceAssertion
@@ -141,13 +142,14 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
     This class generates regression assertions for test cases using an LLM.
     """
 
-    def __init__(self, test_cluster):
+    def __init__(self, test_cluster: ModuleTestCluster, model: LLMAgent | None = None):
         """Initialize the LLMAssertionGenerator with the given test cluster.
 
         Args:
             test_cluster (TestCluster): The test cluster used for generating assertions.
+            model (LLMAgent): The LLM model to use for generating assertions.
         """
-        self._model = LLMAgent()
+        self._model = model if model is not None else LLMAgent()
         self._test_cluster = test_cluster
 
     def visit_test_case_chromosome(self, chromosome: tcc.TestCaseChromosome) -> None:
