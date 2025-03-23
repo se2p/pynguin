@@ -81,6 +81,12 @@ pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
 pytest-sugar = "^1.0.0"
 
+[tool.poetry.group.openai]
+optional = true
+
+[tool.poetry.group.openai.dependencies]
+openai = "^1.68.2"
+
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
 
