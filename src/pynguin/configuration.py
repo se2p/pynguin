@@ -37,6 +37,11 @@ class Algorithm(str, enum.Enum):
     test case generation as a many-objective optimisation problem with dynamic selection
     of the targets.  TSE vol. 44 issue 2)."""
 
+    LLM = "LLM"
+    """Query a large language model for tests.  NOTE: This does not execute the usual test and
+    assertion generation stages of Pynguin but queries an LLM and writes the resulting test cases to
+    the output file."""
+
     MIO = "MIO"
     """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
     Objective (MIO) Algorithm for Test Suite Generation.  Proc. SBSE 2017)."""
