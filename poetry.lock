@@ -1658,17 +1658,6 @@ sphinxcontrib-jquery = ">=4,<5"
 dev = ["bump2version", "transifex-client", "twine", "wheel"]
 
 [[package]]
-name = "sphinx-selective-exclude"
-version = "1.0.3"
-description = "Sphinx eager \".. only::\" directive and other selective rendition extensions"
-optional = false
-python-versions = "*"
-groups = ["docs"]
-files = [
-    {file = "sphinx_selective_exclude-1.0.3.tar.gz", hash = "sha256:76fc8fd7c24311e0ca2199a9e4db2156585acd7652a5cead98b07ef4f70f9b78"},
-]
-
-[[package]]
 name = "sphinxcontrib-applehelp"
 version = "2.0.0"
 description = "sphinxcontrib-applehelp is a Sphinx extension which outputs Apple help books"
@@ -1956,4 +1945,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.11"
-content-hash = "1538c848009054b10283e8a4c5d19d26460dc74bde4a2cced337a5f9f3d02d61"
+content-hash = "4b436b4888f24540543211452bad0ce58940acc086abbc4717b31314708e9de3"
