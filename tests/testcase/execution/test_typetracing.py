@@ -99,3 +99,25 @@ def test_type_tracing_test_case_executor_integration():
     assert "__rmul__" in acc.inferred_signature.usage_trace["a"].children
     assert int in acc.inferred_signature.usage_trace["a"].type_checks
     assert acc.inferred_signature.return_type == UnionType((NoneType(),))
+
+
+def test_type_tracing_test_case_executor_probability_integration():
+    test_cluster = generate_test_cluster("tests.fixtures.type_tracing.guess_params")
+    visitor = AstToTestCaseTransformer(
+        test_cluster,
+        False,  # noqa: FBT003
+        EmptyConstantProvider(),
+    )
+    visitor.visit(
+        ast.parse("def test_case():\n    int_0 = 0\n    var_0 = module_0.foo(int_0, int_0, int_0)")
+    )
+    test_case = visitor.testcases[0]
+    executor = TestCaseExecutor(ExecutionTracer())
+    t_executor = TypeTracingTestCaseExecutor(executor, test_cluster, 0.0)
+    t_executor.execute(test_case)
+    acc = cast(
+        "GenericCallableAccessibleObject",
+        test_cluster.accessible_objects_under_test[0],
+    )
+    assert "__rmul__" not in acc.inferred_signature.usage_trace["a"].children
+    assert int not in acc.inferred_signature.usage_trace["a"].type_checks
