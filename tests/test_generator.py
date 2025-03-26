@@ -218,7 +218,7 @@ def test_integrate_typetracing_union_type(tmp_path):
         statistics_output=config.StatisticsOutputConfiguration(
             report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
         ),
-        type_inference=config.TypeInferenceConfiguration(type_tracing=True),
+        type_inference=config.TypeInferenceConfiguration(type_tracing=1.0),
     )
     gen.set_configuration(configuration)
     result = gen.run_pynguin()

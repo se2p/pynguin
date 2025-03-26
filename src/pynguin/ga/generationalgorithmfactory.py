@@ -165,8 +165,10 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             test_cluster: The test cluster
             constant_provider: An optional constant provider from seeding
         """
-        if config.configuration.type_inference.type_tracing:
-            executor = TypeTracingTestCaseExecutor(executor, test_cluster)
+        if config.configuration.type_inference.type_tracing > 0:
+            executor = TypeTracingTestCaseExecutor(
+                executor, test_cluster, config.configuration.type_inference.type_tracing
+            )
         self._executor = executor
         self._test_cluster = test_cluster
         if constant_provider is None:
