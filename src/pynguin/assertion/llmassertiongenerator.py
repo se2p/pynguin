@@ -64,7 +64,7 @@ def indent_assertions(assertions_list: list[str]) -> str:
     return "\n".join("    " + assertion.strip() for assertion in assertions_list)
 
 
-def copy_test_case_references(  # noqa: C901
+def copy_test_case_references(  # noqa: PLR0915, C901
     original: tc.TestCase, target: tc.TestCase, refs_replacement_dict: dict
 ):
     """Copy references from the original test case to the target test case."""
@@ -115,11 +115,11 @@ def copy_test_case_references(  # noqa: C901
                     if isinstance(target_assertion, FloatAssertion):
                         new_assertion = FloatAssertion(target_source, target_assertion.value)
                     elif isinstance(target_assertion, IsInstanceAssertion):
-                        new_assertion = IsInstanceAssertion(
+                        new_assertion = IsInstanceAssertion(  # type: ignore[assignment]
                             target_source, target_assertion.expected_type
                         )
                     else:
-                        new_assertion = ObjectAssertion(
+                        new_assertion = ObjectAssertion(  # type: ignore[assignment]
                             target_source,
                             target_assertion.object,
                         )
