@@ -1229,9 +1229,12 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return self._delegate.tracer
 
     def execute(self, test_case: tc.TestCase) -> ExecutionResult:  # noqa: D102
+        if not (randomness.next_float() < self._type_tracing_probability):
+            return self._delegate.execute(test_case)
+
         with self._delegate.temporarily_add_observer(self._return_type_observer):
             result = self._delegate.execute(test_case)
-        if not result.timeout and randomness.next_float() < self._type_tracing_probability:
+        if not result.timeout:
             # Only execute with proxies if the test case doesn't time out.
             # There is no need to stall another thread.
             with (
