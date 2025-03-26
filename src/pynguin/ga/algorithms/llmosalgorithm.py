@@ -79,8 +79,7 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
 
             llm_chromosomes = self.target_uncovered_callables()
 
-            self._population = llm_chromosomes + self._population
-
+            self._population += llm_chromosomes
             self._logger.info(
                 "Added %d LLM test case chromosomes to the population.",
                 len(llm_chromosomes),
