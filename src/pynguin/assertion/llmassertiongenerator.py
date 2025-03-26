@@ -35,7 +35,6 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
 
-
 _logger = logging.getLogger(__name__)
 
 
@@ -68,78 +67,74 @@ def indent_assertions(assertions_list: list[str]) -> str:
 def copy_test_case_references(  # noqa: C901
     original: tc.TestCase, target: tc.TestCase, refs_replacement_dict: dict
 ):
-    """Copy references from the original test case to the target test case.
+    """Copy references from the original test case to the target test case."""
 
-    Args:
-        original (tc.TestCase): The original test case to copy references from.
-        target (tc.TestCase): The target test case to update references in.
-        refs_replacement_dict (dict): A dictionary mapping original references
-        to replacements.
-    """
-    for target_statement in target.statements:
-        original_statement = original.statements[target_statement.get_position()]
-
-        if hasattr(target_statement, "ret_val") and hasattr(original_statement, "ret_val"):
-            target_ret_val = target_statement.ret_val
-            original_ret_val = original_statement.ret_val
+    def handle_ret_val(target_stmt, original_stmt):
+        if hasattr(target_stmt, "ret_val") and hasattr(original_stmt, "ret_val"):
+            target_ret_val = target_stmt.ret_val
+            original_ret_val = original_stmt.ret_val
             refs_replacement_dict[target_ret_val] = original_ret_val
-            target_statement.ret_val = original_ret_val
+            target_stmt.ret_val = original_ret_val
 
-        if hasattr(target_statement, "callee") and hasattr(original_statement, "callee"):
-            target_callee = target_statement.callee
-            original_callee = original_statement.callee
-            # Check if already replaced
+    def handle_callee(target_stmt, original_stmt):
+        if hasattr(target_stmt, "callee") and hasattr(original_stmt, "callee"):
+            target_callee = target_stmt.callee
+            original_callee = original_stmt.callee
             if target_callee in refs_replacement_dict:
-                target_statement.callee = refs_replacement_dict[target_callee]
+                target_stmt.callee = refs_replacement_dict[target_callee]
             else:
-                # Replace the whole instance and store in dictionary
                 refs_replacement_dict[target_callee] = original_callee
-                target_statement.callee = original_callee
+                target_stmt.callee = original_callee
 
-        if hasattr(target_statement, "args") and hasattr(original_statement, "args"):
-            for arg_key, target_arg_value in target_statement.args.items():
-                original_arg_value = original_statement.args.get(arg_key)
-                # Check if already replaced
+    def handle_args(target_stmt, original_stmt):
+        if hasattr(target_stmt, "args") and hasattr(original_stmt, "args"):
+            for arg_key, target_arg_value in target_stmt.args.items():
+                original_arg_value = original_stmt.args.get(arg_key)
                 if target_arg_value in refs_replacement_dict:
-                    target_statement.args[arg_key] = refs_replacement_dict[target_arg_value]
+                    target_stmt.args[arg_key] = refs_replacement_dict[target_arg_value]
                 else:
-                    # Replace the whole instance and store in dictionary
                     refs_replacement_dict[target_arg_value] = original_arg_value
-                    target_statement.args[arg_key] = original_arg_value
+                    target_stmt.args[arg_key] = original_arg_value
 
-        if hasattr(target_statement, "assertions"):
+    def handle_assertions(target_stmt):
+        if hasattr(target_stmt, "assertions"):
             new_assertions: OrderedSet = OrderedSet()
-            for target_assertion in target_statement.assertions:
+            for target_assertion in target_stmt.assertions:
                 target_source: vr.Reference | None = None
-                if isinstance(target_assertion.source, vr.VariableReference):  # type: ignore[attr-defined]
-                    target_source = target_assertion.source  # type: ignore[attr-defined]
-                    if target_assertion.source in refs_replacement_dict:  # type: ignore[attr-defined]
-                        target_source = refs_replacement_dict[target_assertion.source]  # type: ignore[attr-defined]
-                if isinstance(target_assertion.source, vr.FieldReference):  # type: ignore[attr-defined]
-                    ref = target_assertion.source  # type: ignore[attr-defined]
+                if isinstance(target_assertion.source, vr.VariableReference):
+                    target_source = target_assertion.source
+                    if target_assertion.source in refs_replacement_dict:
+                        target_source = refs_replacement_dict[target_assertion.source]
+                elif isinstance(target_assertion.source, vr.FieldReference):
+                    ref = target_assertion.source
                     var_ref = ref.get_variable_reference()
                     if var_ref in refs_replacement_dict:
                         target_source = vr.FieldReference(refs_replacement_dict[var_ref], ref.field)
-                # Check if already replaced
+
                 if target_source:
-                    # Replace the assertion with a new ObjectAssertion using
-                    # the replaced source
                     if isinstance(target_assertion, FloatAssertion):
                         new_assertion = FloatAssertion(target_source, target_assertion.value)
                     elif isinstance(target_assertion, IsInstanceAssertion):
-                        new_assertion = IsInstanceAssertion(  # type: ignore[assignment]
+                        new_assertion = IsInstanceAssertion(
                             target_source, target_assertion.expected_type
                         )
                     else:
-                        new_assertion = ObjectAssertion(  # type: ignore[assignment]
+                        new_assertion = ObjectAssertion(
                             target_source,
-                            target_assertion.object,  # type: ignore[attr-defined]
+                            target_assertion.object,
                         )
                     new_assertions.add(new_assertion)
                 else:
-                    # Keep the original assertion if no replacement is found
                     new_assertions.add(target_assertion)
-            target_statement.assertions = new_assertions
+
+            target_stmt.assertions = new_assertions
+
+    for target_statement in target.statements:
+        original_statement = original.statements[target_statement.get_position()]
+        handle_ret_val(target_statement, original_statement)
+        handle_callee(target_statement, original_statement)
+        handle_args(target_statement, original_statement)
+        handle_assertions(target_statement)
 
 
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
