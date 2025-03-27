@@ -8,6 +8,9 @@
 
 VariableReferences In place of variable names, used to support
 uninterpreted statements.
+
+The logic is adapted from the CodaMosa repository with additional refactoring.
+https://github.com/microsoft/codamosa
 """
 
 import ast

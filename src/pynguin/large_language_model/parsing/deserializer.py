@@ -4,7 +4,11 @@
 #
 # SPDX-License-Identifier: MIT
 #
-"""A class to deserialize AST nodes into Statements in a TestCase."""
+"""A class to deserialize AST nodes into Statements in a TestCase.
+
+The logic is adapted from the CodaMosa repository with additional refactoring.
+https://github.com/microsoft/codamosa
+"""
 
 from __future__ import annotations
 
