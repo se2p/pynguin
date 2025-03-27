@@ -27,6 +27,8 @@ from pynguin.utils.exceptions import ConstructionFailedException
 
 
 if TYPE_CHECKING:
+    import pynguin.ga.chromosomefactory as cf
+
     from pynguin.utils.orderedset import OrderedSet
 
 
@@ -40,7 +42,12 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
         self._population: list[tcc.TestCaseChromosome] = []
         self._number_of_goals = -1
 
-    def _breed_next_generation(self) -> list[tcc.TestCaseChromosome]:  # noqa: C901
+    def _breed_next_generation(  # noqa: C901
+        self,
+        factory: cf.ChromosomeFactory | None = None,
+    ) -> list[tcc.TestCaseChromosome]:
+        if factory is None:
+            factory = self._chromosome_factory
         offspring_population: list[tcc.TestCaseChromosome] = []
         for _ in range(int(config.configuration.search_algorithm.population / 2)):
             parent_1 = self._selection_function.select(self._population)[0]
@@ -76,7 +83,7 @@ class AbstractMOSAAlgorithm(GenerationAlgorithm[CoverageArchive], ABC):
             )
         ):
             if len(self._archive.covered_goals) == 0 or randomness.next_bool():
-                tch: tcc.TestCaseChromosome = self._chromosome_factory.get_chromosome()
+                tch: tcc.TestCaseChromosome = factory.get_chromosome()
             else:
                 tch = randomness.choice(self._archive.solutions).clone()
                 tch.mutate()
