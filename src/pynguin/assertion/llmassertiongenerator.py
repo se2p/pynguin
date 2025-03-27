@@ -16,19 +16,16 @@ from typing import TYPE_CHECKING
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.large_language_model.helpers.testcasereferencecopier as trc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
 
-from pynguin.assertion.assertion import FloatAssertion
-from pynguin.assertion.assertion import IsInstanceAssertion
-from pynguin.assertion.assertion import ObjectAssertion
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
-from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -62,79 +59,6 @@ def indent_assertions(assertions_list: list[str]) -> str:
         str: The indented assertions string.
     """
     return "\n".join("    " + assertion.strip() for assertion in assertions_list)
-
-
-def copy_test_case_references(  # noqa: PLR0915, C901
-    original: tc.TestCase, target: tc.TestCase, refs_replacement_dict: dict
-):
-    """Copy references from the original test case to the target test case."""
-
-    def handle_ret_val(target_stmt, original_stmt):
-        if hasattr(target_stmt, "ret_val") and hasattr(original_stmt, "ret_val"):
-            target_ret_val = target_stmt.ret_val
-            original_ret_val = original_stmt.ret_val
-            refs_replacement_dict[target_ret_val] = original_ret_val
-            target_stmt.ret_val = original_ret_val
-
-    def handle_callee(target_stmt, original_stmt):
-        if hasattr(target_stmt, "callee") and hasattr(original_stmt, "callee"):
-            target_callee = target_stmt.callee
-            original_callee = original_stmt.callee
-            if target_callee in refs_replacement_dict:
-                target_stmt.callee = refs_replacement_dict[target_callee]
-            else:
-                refs_replacement_dict[target_callee] = original_callee
-                target_stmt.callee = original_callee
-
-    def handle_args(target_stmt, original_stmt):
-        if hasattr(target_stmt, "args") and hasattr(original_stmt, "args"):
-            for arg_key, target_arg_value in target_stmt.args.items():
-                original_arg_value = original_stmt.args.get(arg_key)
-                if target_arg_value in refs_replacement_dict:
-                    target_stmt.args[arg_key] = refs_replacement_dict[target_arg_value]
-                else:
-                    refs_replacement_dict[target_arg_value] = original_arg_value
-                    target_stmt.args[arg_key] = original_arg_value
-
-    def handle_assertions(target_stmt):
-        if hasattr(target_stmt, "assertions"):
-            new_assertions: OrderedSet = OrderedSet()
-            for target_assertion in target_stmt.assertions:
-                target_source: vr.Reference | None = None
-                if isinstance(target_assertion.source, vr.VariableReference):
-                    target_source = target_assertion.source
-                    if target_assertion.source in refs_replacement_dict:
-                        target_source = refs_replacement_dict[target_assertion.source]
-                elif isinstance(target_assertion.source, vr.FieldReference):
-                    ref = target_assertion.source
-                    var_ref = ref.get_variable_reference()
-                    if var_ref in refs_replacement_dict:
-                        target_source = vr.FieldReference(refs_replacement_dict[var_ref], ref.field)
-
-                if target_source:
-                    if isinstance(target_assertion, FloatAssertion):
-                        new_assertion = FloatAssertion(target_source, target_assertion.value)
-                    elif isinstance(target_assertion, IsInstanceAssertion):
-                        new_assertion = IsInstanceAssertion(  # type: ignore[assignment]
-                            target_source, target_assertion.expected_type
-                        )
-                    else:
-                        new_assertion = ObjectAssertion(  # type: ignore[assignment]
-                            target_source,
-                            target_assertion.object,
-                        )
-                    new_assertions.add(new_assertion)
-                else:
-                    new_assertions.add(target_assertion)
-
-            target_stmt.assertions = new_assertions
-
-    for target_statement in target.statements:
-        original_statement = original.statements[target_statement.get_position()]
-        handle_ret_val(target_statement, original_statement)
-        handle_callee(target_statement, original_statement)
-        handle_args(target_statement, original_statement)
-        handle_assertions(target_statement)
 
 
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
@@ -214,9 +138,11 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
 
                     if tcs and len(tcs) > 0:
                         deserialized_test_case: tc.TestCase = tcs[0]
-                        copy_test_case_references(
-                            test_case, deserialized_test_case, refs_replacement_dict
-                        )
+                        trc.TestCaseReferenceCopier(
+                            original=test_case,
+                            target=deserialized_test_case,
+                            refs_replacement_dict=refs_replacement_dict,
+                        ).copy()
                         for statement in deserialized_test_case.statements:
                             if len(statement.assertions):
                                 original_statement = test_case.statements[statement.get_position()]

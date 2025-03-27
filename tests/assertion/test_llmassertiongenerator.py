@@ -12,13 +12,13 @@ from unittest.mock import patch
 import pytest
 
 import pynguin.assertion.assertion as ass
+import pynguin.large_language_model.helpers.testcasereferencecopier as trc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.llmassertiongenerator import LLMAssertionGenerator
-from pynguin.assertion.llmassertiongenerator import copy_test_case_references
 from pynguin.assertion.llmassertiongenerator import extract_assertions
 from pynguin.assertion.llmassertiongenerator import indent_assertions
 from pynguin.large_language_model.llmagent import LLMAgent
@@ -128,7 +128,7 @@ def test_copy_test_case_references():
     target_test_case, target_var_ref = create_mock_test_case()
 
     refs_replacement_dict = {}
-    copy_test_case_references(original_test_case, target_test_case, refs_replacement_dict)
+    trc.TestCaseReferenceCopier(original_test_case, target_test_case, refs_replacement_dict).copy()
 
     target_statement = target_test_case.statements[0]
 
