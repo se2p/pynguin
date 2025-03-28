@@ -56,6 +56,7 @@ from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from pynguin.utils import randomness
 from pynguin.utils.mirror import Mirror
 
 
@@ -1177,16 +1178,23 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     and one time with proxies in order to refine parameter types.
     """
 
-    def __init__(self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster):
+    def __init__(
+        self,
+        delegate: AbstractTestCaseExecutor,
+        cluster: module.ModuleTestCluster,
+        type_tracing_probability: float = 1.0,
+    ):
         """Initializes the executor.
 
         Args:
             delegate: The delegate
             cluster: The test cluster
+            type_tracing_probability: The probability to use type tracing during execution
         """
         self._delegate = delegate
         self._type_tracing_observer = TypeTracingObserver(cluster)
         self._return_type_observer = ReturnTypeObserver(cluster)
+        self._type_tracing_probability = type_tracing_probability
 
     @property
     def module_provider(self) -> ModuleProvider:  # noqa: D102
@@ -1221,6 +1229,9 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return self._delegate.tracer
 
     def execute(self, test_case: tc.TestCase) -> ExecutionResult:  # noqa: D102
+        if not (randomness.next_float() < self._type_tracing_probability):
+            return self._delegate.execute(test_case)
+
         with self._delegate.temporarily_add_observer(self._return_type_observer):
             result = self._delegate.execute(test_case)
         if not result.timeout:

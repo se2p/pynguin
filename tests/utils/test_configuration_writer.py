@@ -86,7 +86,7 @@ max_dynamic_pool_size = 50
 
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
-type_tracing = false
+type_tracing = 0.0
 
 [test_creation]
 max_recursion = 10
@@ -190,7 +190,7 @@ def expected_txt(tmp_path):
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
- "'TYPE_HINTS'>, type_tracing=False), "
+ "'TYPE_HINTS'>, type_tracing=0.0), "
  'test_creation=TestCreationConfiguration(max_recursion=10, max_delta=20, '
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
@@ -271,7 +271,7 @@ def expected_parameter_list() -> list[str]:
         "--max_dynamic_length 1000",
         "--max_dynamic_pool_size 50",
         "--type_inference_strategy TYPE_HINTS",
-        "--type_tracing False",
+        "--type_tracing 0.0",
         "--max_recursion 10",
         "--max_delta 20",
         "--max_int 2048",

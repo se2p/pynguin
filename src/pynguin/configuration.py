@@ -377,8 +377,11 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    type_tracing: bool = False
-    """Trace usage of parameters with unknown types to improve type guesses."""
+    type_tracing: bool | float = 0.0
+    """Probability to trace usage of parameters with unknown types to improve type
+    guesses during test execution. Type tracing requires a separate second.
+    The value should be a float in [0,1]. Boolean is kept for backwards compatibility
+    as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
 
 @dataclasses.dataclass
