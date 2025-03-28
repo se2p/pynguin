@@ -9,11 +9,10 @@
 from __future__ import annotations
 
 import abc
+import enum
 import logging
 import os
 import re
-
-from pydantic import SecretStr
 
 
 try:
@@ -21,6 +20,7 @@ try:
 
     from openai.types.chat import ChatCompletionDeveloperMessageParam
     from openai.types.chat import ChatCompletionUserMessageParam
+    from pydantic import SecretStr
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -28,6 +28,12 @@ except ImportError:
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+class LLMProvider(str, enum.Enum):
+    """An enum for the available LLM service providers."""
+
+    OPENAI = "openai"
 
 
 class LLM(abc.ABC):
@@ -59,7 +65,7 @@ class LLM(abc.ABC):
         """
 
     @classmethod
-    def create(cls, provider: str) -> LLM:
+    def create(cls, provider: LLMProvider) -> LLM:
         """Creates the LLM communication interface based on the given provider.
 
         Args:
@@ -69,7 +75,12 @@ class LLM(abc.ABC):
             The concrete LLM communication interface
         """
         match provider:
-            case "openai":
+            case LLMProvider.OPENAI:
+                if not OPENAI_AVAILABLE:
+                    raise ValueError(
+                        "OpenAI API library is not available. You can install it with poetry "
+                        "install --with openai."
+                    )
                 return OpenAI()
             case _:
                 raise NotImplementedError(f"Unknown provider {provider}")
@@ -84,8 +95,8 @@ def extract_code(llm_response: str) -> str:
     Returns:
         the extracted answer, i.e., the extracted pytest code
     """
-    pattern = r"^```(?:\w+)?\s*\n(.*?)(?=^```)```"
-    result = re.findall(pattern, llm_response, re.DOTALL | re.MULTILINE)
+    md_source_block_pattern = r"^```(?:\w+)?\s*\n(.*?)(?=^```)```"
+    result = re.findall(md_source_block_pattern, llm_response, re.DOTALL | re.MULTILINE)
     return "\n".join(result)
 
 
@@ -107,8 +118,7 @@ if OPENAI_AVAILABLE:
         ) -> None:
             if not api_key:
                 raise AssertionError(
-                    "OpenAI API key not set, either provide it as an CLI argument or via the "
-                    "OPENAI_API_KEY environment variable."
+                    "OpenAI API key not set, provide via the OPENAI_API_KEY environment variable."
                 )
             super().__init__(api_key, temperature, system_prompt)
             self.__client = openai.OpenAI(api_key=str(api_key))

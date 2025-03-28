@@ -63,6 +63,7 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.llm import LLM
+from pynguin.utils.llm import LLMProvider
 from pynguin.utils.llm import extract_code
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
@@ -554,7 +555,7 @@ def _run_llm() -> ReturnCode:
         sut_file = project_path / module_name
         return sut_file.read_text()
 
-    model = LLM.create("openai")
+    model = LLM.create(LLMProvider.OPENAI)
     user_prompt = "Generate test cases for the following Python code:\n\n"
     user_prompt += "```\n"
     user_prompt += load_sut_code()
