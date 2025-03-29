@@ -16,8 +16,7 @@ from typing import TYPE_CHECKING
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
 
-from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
-from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
+from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -41,7 +40,7 @@ from pynguin.utils.report import LineAnnotation
 from pynguin.utils.report import get_coverage_report
 
 
-class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
+class LLMOSAAlgorithm(MOSAAlgorithm):
     """Implements the Many-Objective Sorting Algorithm MOSA with LLM."""
 
     _logger = logging.getLogger(__name__)
@@ -49,6 +48,25 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
         self.model = LLMAgent()
+
+    def _target_initial_uncovered_goals(self) -> None:
+        """Performs an LLM intervention to improve coverage before search iteration."""
+        coverage_before = self.create_test_suite(self._archive.solutions).get_coverage()
+
+        if (
+            config.configuration.large_language_model.call_llm_for_uncovered_targets
+            and coverage_before < 1.0
+        ):
+            self._logger.info("Coverage before LLM call: %5f", coverage_before)
+            stat.track_output_variable(RuntimeVariable.CoverageBeforeLLMCall, coverage_before)
+
+            llm_chromosomes = self.target_uncovered_callables()
+            self._population += llm_chromosomes
+            self._archive.update(self._population)
+
+            coverage_after = self.create_test_suite(self._archive.solutions).get_coverage()
+            self._logger.info("Coverage after LLM call: %5f", coverage_after)
+            stat.track_output_variable(RuntimeVariable.CoverageAfterLLMCall, coverage_after)
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:  # noqa: D102
         self.before_search_start()
@@ -58,50 +76,9 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._population = self._get_random_population()
         self._archive.update(self._population)
 
-        # Use LLM to target uncovered functions
-        coverage_before_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-        if (
-            config.configuration.large_language_model.call_llm_for_uncovered_targets
-            and coverage_before_llm_call < 1.0
-        ):
-            self._logger.info(
-                "Coverage before LLM call for uncovered targets: %5f",
-                coverage_before_llm_call,
-            )
-            stat.track_output_variable(
-                RuntimeVariable.CoverageBeforeLLMCall, coverage_before_llm_call
-            )
+        self._target_initial_uncovered_goals()
 
-            llm_chromosomes = self.target_uncovered_callables()
-
-            self._population += llm_chromosomes
-            self._logger.info(
-                "Added %d LLM test case chromosomes to the population.",
-                len(llm_chromosomes),
-            )
-
-            self._archive.update(self._population)
-
-            coverage_after_llm_call = self.create_test_suite(self._archive.solutions).get_coverage()
-            self._logger.info(
-                "Coverage after LLM call for uncovered targets: %5f",
-                coverage_after_llm_call,
-            )
-            stat.track_output_variable(
-                RuntimeVariable.CoverageAfterLLMCall, coverage_after_llm_call
-            )
-
-        # Calculate dominance ranks and crowding distance
-        fronts = self._ranking_function.compute_ranking_assignment(
-            self._population,
-            self._archive.uncovered_goals,  # type: ignore[arg-type]
-        )
-        for i in range(fronts.get_number_of_sub_fronts()):
-            fast_epsilon_dominance_assignment(
-                fronts.get_sub_front(i),
-                self._archive.uncovered_goals,  # type: ignore[arg-type]
-            )
-
+        self._compute_dominance()
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
 
         last_length_of_covered_goals = len(self._archive.covered_goals)
@@ -122,21 +99,16 @@ class LLMOSAAlgorithm(AbstractMOSAAlgorithm):
                             "Added %d LLM test case chromosomes to the population.",
                             len(llm_chromosomes),
                         )
-                length_of_covered_goals = len(self._archive.covered_goals)
-                if length_of_covered_goals == last_length_of_covered_goals:
+                current_covered = len(self._archive.covered_goals)
+                if current_covered == last_length_of_covered_goals:
                     plateau_counter += 1
                 else:
                     plateau_counter = 0
-                last_length_of_covered_goals = length_of_covered_goals
+                last_length_of_covered_goals = current_covered
             self.evolve()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
-        self.after_search_finish()
-        return self.create_test_suite(
-            self._archive.solutions
-            if len(self._archive.solutions) > 0
-            else self._get_best_individuals()
-        )
+        return self._finalize_generation()
 
     def target_uncovered_callables(self) -> list[tcc.TestCaseChromosome]:
         """Identifies uncovered targets, queries an LLM for test cases.
