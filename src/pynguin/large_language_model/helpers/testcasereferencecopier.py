@@ -37,6 +37,29 @@ class TestCaseReferenceCopier:
         self.target = target
         self.refs_replacement_dict = refs_replacement_dict
 
+    def _get_target_source(
+        self, source: vr.VariableReference
+    ) -> vr.FieldReference | vr.VariableReference:
+        """Get the corresponding variable or field reference from the replacement dict.
+
+        Args:
+            source: The original source reference from the assertion.
+
+        Returns:
+            The updated reference if found in the replacement dict; otherwise, the original.
+        """
+        if isinstance(source, vr.VariableReference):
+            return self.refs_replacement_dict.get(source, source)
+
+        if isinstance(source, vr.FieldReference):
+            var_ref = source.get_variable_reference()
+            if var_ref in self.refs_replacement_dict:
+                return vr.FieldReference(
+                    self.refs_replacement_dict[var_ref],
+                    source.field,  # type: ignore[attr-defined]
+                )
+        return source
+
     def copy(self):
         """Perform the copy operation for all statements in the target test case."""
         for target_stmt in self.target.statements:
@@ -90,42 +113,35 @@ class TestCaseReferenceCopier:
                     target_stmt.args[arg_key] = original_arg
 
     def _handle_assertions(self, target_stmt):
-        """Copy and update assertion references in the target statement.
-
-        Args:
-            target_stmt: The statement in the target test case to update assertions for.
-        """
+        """Copy and update assertion references in the target statement."""
         if not hasattr(target_stmt, "assertions"):
             return
 
         new_assertions: OrderedSet = OrderedSet()
         for target_assertion in target_stmt.assertions:
-            target_source = None
+            source = target_assertion.source
+            target_source = self._get_target_source(source)
 
-            if isinstance(target_assertion.source, vr.VariableReference):
-                ref = target_assertion.source
-                target_source = self.refs_replacement_dict.get(ref, ref)
-
-            elif isinstance(target_assertion.source, vr.FieldReference):
-                ref = target_assertion.source  # type: ignore[assignment]
-                var_ref = ref.get_variable_reference()
-                if var_ref in self.refs_replacement_dict:
-                    target_source = vr.FieldReference(
-                        self.refs_replacement_dict[var_ref],
-                        ref.field,  # type: ignore[attr-defined]
-                    )
-
-            if target_source:
-                if isinstance(target_assertion, FloatAssertion):
-                    new_assertion = FloatAssertion(target_source, target_assertion.value)
-                elif isinstance(target_assertion, IsInstanceAssertion):
-                    new_assertion = IsInstanceAssertion(  # type: ignore[assignment]
-                        target_source, target_assertion.expected_type
-                    )
-                else:
-                    new_assertion = ObjectAssertion(target_source, target_assertion.object)  # type: ignore[assignment]
-                new_assertions.add(new_assertion)
-            else:
-                new_assertions.add(target_assertion)
+            new_assertion = create_new_assertion(target_assertion, target_source)
+            new_assertions.add(new_assertion)
 
         target_stmt.assertions = new_assertions
+
+
+def create_new_assertion(target_assertion, target_source):
+    """Create a new assertion object with the updated source reference.
+
+    Args:
+        target_assertion: The original assertion from the target statement.
+        target_source: The updated source reference.
+
+    Returns:
+        A new assertion object or the original if the type is unsupported.
+    """
+    if isinstance(target_assertion, FloatAssertion):
+        return FloatAssertion(target_source, target_assertion.value)
+    if isinstance(target_assertion, IsInstanceAssertion):
+        return IsInstanceAssertion(target_source, target_assertion.expected_type)
+    if isinstance(target_assertion, ObjectAssertion):
+        return ObjectAssertion(target_source, target_assertion.object)
+    return target_assertion  # fallback if unknown type
