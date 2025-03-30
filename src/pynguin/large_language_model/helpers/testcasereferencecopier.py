@@ -56,7 +56,7 @@ class TestCaseReferenceCopier:
             if var_ref in self.refs_replacement_dict:
                 return vr.FieldReference(
                     self.refs_replacement_dict[var_ref],
-                    source.field,  # type: ignore[attr-defined]
+                    source.field,
                 )
         return source
 
