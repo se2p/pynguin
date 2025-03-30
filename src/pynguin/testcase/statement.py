@@ -2168,8 +2168,12 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
         self.rhs = self.rhs.replace_var_ref(old, new)
 
     def structural_hash(self, memo) -> int:  # noqa: D102
+        arbitrary_prime_1 = 31
+        arbitrary_prime_2 = 17
         return (
-            31 + 17 * self.ret_val.structural_hash(memo) + 17 * hash(self.rhs.structural_hash(memo))
+            arbitrary_prime_1
+            + arbitrary_prime_2 * self.ret_val.structural_hash(memo)
+            + arbitrary_prime_2 * hash(self.rhs.structural_hash(memo))
         )
 
     def structural_eq(  # noqa: D102
