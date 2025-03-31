@@ -71,7 +71,6 @@ sphinx = "^8.1.3"
 sphinx-autodoc-typehints = "^3.0"
 sphinx-hoverxref = "^1.4.2"
 sphinx-rtd-theme = "^3.0.2"
-sphinx-selective-exclude = "^1.0.3"
 
 [tool.poetry.group.test.dependencies]
 coverage = "^7.6.12"
@@ -80,6 +79,12 @@ pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
 pytest-sugar = "^1.0.0"
+
+[tool.poetry.group.openai]
+optional = true
+
+[tool.poetry.group.openai.dependencies]
+openai = "^1.68.2"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"

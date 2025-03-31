@@ -62,6 +62,9 @@ from pynguin.testcase.execution import RemoteAssertionExecutionObserver
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.llm import LLM
+from pynguin.utils.llm import LLMProvider
+from pynguin.utils.llm import extract_code
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -115,6 +118,8 @@ def run_pynguin() -> ReturnCode:
     """
     try:
         _LOGGER.info("Start Pynguin Test Generation…")
+        if config.configuration.algorithm == config.Algorithm.LLM:
+            return _run_llm()
         return _run()
     finally:
         _LOGGER.info("Stop Pynguin Test Generation…")
@@ -540,6 +545,31 @@ def _run() -> ReturnCode:
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
+    return ReturnCode.OK
+
+
+def _run_llm() -> ReturnCode:
+    def load_sut_code() -> str:
+        project_path = Path(config.configuration.project_path)
+        module_name = config.configuration.module_name.replace(".", "/") + ".py"
+        sut_file = project_path / module_name
+        return sut_file.read_text()
+
+    model = LLM.create(LLMProvider.OPENAI)
+    user_prompt = "Generate test cases for the following Python code:\n\n"
+    user_prompt += "```\n"
+    user_prompt += load_sut_code()
+    user_prompt += "\n```\n"
+    response = model.chat(user_prompt)
+    if not response:
+        return ReturnCode.NO_TESTS_GENERATED
+
+    code = extract_code(response)
+    module_name = config.configuration.module_name.replace(".", "_")
+    target_file = (
+        Path(config.configuration.test_case_output.output_path).resolve() / f"test_{module_name}.py"
+    )
+    target_file.write_text(code)
     return ReturnCode.OK
 
 
