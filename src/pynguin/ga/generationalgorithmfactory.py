@@ -54,10 +54,10 @@ from pynguin.ga.operators.selection import TournamentSelection
 from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxMemoryStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
-from pynguin.ga.stoppingcondition import MemoryExceededStoppingCondition
 from pynguin.ga.stoppingcondition import MinimumCoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import StoppingCondition
 from pynguin.testcase.execution import AbstractTestCaseExecutor
@@ -115,8 +115,6 @@ class GenerationAlgorithmFactory(ABC, Generic[C]):
             conditions.append(
                 MinimumCoveragePlateauStoppingCondition(min_coverage, plateau_iterations)
             )
-        # TODO: Wrap using configuration
-        conditions.append(MemoryExceededStoppingCondition())
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")
             self._logger.info(
@@ -126,6 +124,12 @@ class GenerationAlgorithmFactory(ABC, Generic[C]):
             conditions.append(
                 MaxSearchTimeStoppingCondition(GenerationAlgorithmFactory._DEFAULT_MAX_SEARCH_TIME)
             )
+
+        optional_conditions: list[StoppingCondition] = []
+        if (max_memory := stopping.maximum_memory) >= 0:
+            optional_conditions.append(MaxMemoryStoppingCondition(max_memory))
+        conditions.extend(optional_conditions)
+
         return conditions
 
     @abstractmethod

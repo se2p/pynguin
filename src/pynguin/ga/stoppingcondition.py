@@ -543,24 +543,33 @@ class MaxSearchTimeStoppingCondition(StoppingCondition):
         return f"Used search time: {self.current_value()}/{self.limit()}"
 
 
-class MemoryExceededStoppingCondition(StoppingCondition):
+class MaxMemoryStoppingCondition(StoppingCondition):
     """Stop the search once the memory limit is exceeded.
 
     The search is only stopped if the memory limit is exceeded after an iteration. In
     case the memory limit is exceeded during an iteration and the memory is limited
-    by the environment (e.g. by the operating system/slurm/docker) Pynguin will crash.
-    Thus, it is recommended to set the memory limit for this stopping condition lower
-    than the actual memory limit of the environment.
+    by the environment (e.g. by the operating system/slurm/docker) Pynguin will crash as
+    the environment will kill the process. Thus, it is recommended to set the memory
+    limit for this stopping condition lower than the actual memory limit of the
+    environment.
 
-    TODO: Add MemoryLimit (data)class for mb to bytes conversion?
-    TODO: Estimate memory usage of next iteration using heuristic to improve early
-        stopping?
-    TODO: Remove default value and add to configuration
+    Pynguin itself requires less than 1GB of memory in almost all cases. However, the
+    tests generated for the SUT can do memory allocations of underlying libraries
+    (e.g. numpy, pandas, etc.) which might not get cleaned up properly after the test
+    execution due to bugs in the SUT library.
+    As Pynguin executes the tests multiple times, this leads to an increasing memory usage
+    over time (and could lead to a memory leak). In case the environment kills the process
+    no results are available, but if this stopping condition is used (and triggered
+    before) Pynguin can finish as usual.
+
+    We could also track the memory usage of the last iteration(s) and estimate the memory
+    usage of the next iteration(s), but for now we keep it simple and similar to the
+    other stopping conditions.
     """
 
     MB_TO_BYTES = 1024 * 1024
 
-    def __init__(self, memory_limit_mb: int = 1000):
+    def __init__(self, memory_limit_mb: int):
         """Create new MemoryExceededStoppingCondition.
 
         Args:
@@ -612,5 +621,7 @@ class MemoryExceededStoppingCondition(StoppingCondition):
         return process.memory_info().rss  # Resident Set Size (physical memory)
 
     def __str__(self):
-        return (f"Used memory: {self.current_value() / self.MB_TO_BYTES}/"
-                f"{self.limit() / self.MB_TO_BYTES} MB")
+        return (
+            f"Used memory: {self.current_value() / self.MB_TO_BYTES}/"
+            f"{self.limit() / self.MB_TO_BYTES} MB"
+        )

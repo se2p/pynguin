@@ -582,6 +582,10 @@ class StoppingConfiguration:
     """Minimum iterations without a coverage change to stop early.  Expects values
     larger than 0; also requires the setting of minimum_coverage."""
 
+    maximum_memory: int = 3000
+    """Maximum memory usage in MB after which the generation shall stop.
+    Expects values in MB greater than 0 of -1 to disable the check."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""
