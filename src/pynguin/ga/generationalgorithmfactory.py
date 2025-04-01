@@ -57,6 +57,7 @@ from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
+from pynguin.ga.stoppingcondition import MemoryExceededStoppingCondition
 from pynguin.ga.stoppingcondition import MinimumCoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import StoppingCondition
 from pynguin.testcase.execution import AbstractTestCaseExecutor
@@ -114,6 +115,8 @@ class GenerationAlgorithmFactory(ABC, Generic[C]):
             conditions.append(
                 MinimumCoveragePlateauStoppingCondition(min_coverage, plateau_iterations)
             )
+        # TODO: Wrap using configuration
+        conditions.append(MemoryExceededStoppingCondition())
         if len(conditions) == 0:
             self._logger.info("No stopping condition configured!")
             self._logger.info(

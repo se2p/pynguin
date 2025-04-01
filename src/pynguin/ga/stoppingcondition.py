@@ -20,6 +20,8 @@ from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import psutil
+
 import pynguin.ga.searchobserver as so
 
 from pynguin.testcase.execution import ExecutionContext
@@ -539,3 +541,76 @@ class MaxSearchTimeStoppingCondition(StoppingCondition):
 
     def __str__(self):
         return f"Used search time: {self.current_value()}/{self.limit()}"
+
+
+class MemoryExceededStoppingCondition(StoppingCondition):
+    """Stop the search once the memory limit is exceeded.
+
+    The search is only stopped if the memory limit is exceeded after an iteration. In
+    case the memory limit is exceeded during an iteration and the memory is limited
+    by the environment (e.g. by the operating system/slurm/docker) Pynguin will crash.
+    Thus, it is recommended to set the memory limit for this stopping condition lower
+    than the actual memory limit of the environment.
+
+    TODO: Add MemoryLimit (data)class for mb to bytes conversion?
+    TODO: Estimate memory usage of next iteration using heuristic to improve early
+        stopping?
+    TODO: Remove default value and add to configuration
+    """
+
+    MB_TO_BYTES = 1024 * 1024
+
+    def __init__(self, memory_limit_mb: int = 1000):
+        """Create new MemoryExceededStoppingCondition.
+
+        Args:
+            memory_limit_mb: the memory limit in MB
+        """
+        super().__init__()
+        self._memory_limit_bytes = memory_limit_mb * self.MB_TO_BYTES
+        self._memory_usage = 0
+
+    def current_value(self) -> int:  # noqa: D102
+        return self._memory_usage
+
+    def limit(self) -> int:  # noqa: D102
+        return self._memory_limit_bytes
+
+    def is_fulfilled(self) -> bool:  # noqa: D102
+        return self._memory_usage > self._memory_limit_bytes
+
+    def reset(self) -> None:  # noqa: D102
+        self._memory_usage = 0
+
+    def set_limit(self, limit_mb: int) -> None:
+        """Set the memory limit in MB.
+
+        Args:
+            limit_mb: the memory limit in MB
+        """
+        self._memory_limit_bytes = limit_mb * self.MB_TO_BYTES
+
+    def before_search_start(self, start_time_ns: int) -> None:  # noqa: D102
+        self._memory_usage = 0
+
+    def after_search_iteration(self, best: tsc.TestSuiteChromosome) -> None:
+        """Check the memory usage after each iteration and stop if exceeded.
+
+        Args:
+            best: The best test suite chromosome. Unused.
+        """
+        self._memory_usage = self._get_memory_usage()
+
+    @staticmethod
+    def _get_memory_usage() -> int:
+        """Get the memory usage of the current process in bytes.
+
+        Returns:
+            The memory usage in bytes.
+        """
+        process = psutil.Process()
+        return process.memory_info().rss  # Resident Set Size (physical memory)
+
+    def __str__(self):
+        return (f"Used memory: {self.current_value() / self.MB_TO_BYTES}/"
+                f"{self.limit() / self.MB_TO_BYTES} MB")
