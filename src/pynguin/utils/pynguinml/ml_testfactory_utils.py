@@ -58,6 +58,9 @@ def select_dtype(parameter_obj: MLParameter) -> str:
         if not (parameter_obj.tensor_expected and dtype == "str")
     ]
 
+    if not filtered_dtypes:
+        return "None"
+
     picked_dtype = randomness.choice(filtered_dtypes)
 
     if "dtype:" in picked_dtype:
