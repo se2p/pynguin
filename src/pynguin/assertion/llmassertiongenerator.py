@@ -21,6 +21,7 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
 
+from pynguin.assertion.assertiongenerator import MutationAnalysisAssertionGenerator
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
@@ -155,3 +156,10 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalAssertionsReceivedFromLLM, total_assertions_from_llm
         )
+
+
+class MutationAnalysisLLMAssertionGenerator(MutationAnalysisAssertionGenerator):
+    """Uses mutation analysis to filter out less relevant assertions."""
+
+    def _add_assertions(self, test_cases: list[tc.TestCase]):
+        super()._handle_add_assertions(test_cases)

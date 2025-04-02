@@ -633,7 +633,13 @@ def _setup_mutation_analysis_assertion_generator(
     mutation_controller = ag.InstrumentedMutationController(
         mutant_generator, module_ast, module, mutation_tracer
     )
-    assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
+    assertion_generator: ag.MutationAnalysisAssertionGenerator
+    if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
+        assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
+            executor, mutation_controller
+        )
+    else:
+        assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator

@@ -304,11 +304,10 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self._testing_mutation_summary: _MutationSummary = _MutationSummary()
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
-        if (
-            config.configuration.test_case_output.assertion_generation
-            is not config.AssertionGenerator.LLM
-        ):
-            super()._add_assertions(test_cases)
+        super()._add_assertions(test_cases)
+        self._handle_add_assertions(test_cases)
+
+    def _handle_add_assertions(self, test_cases: list[tc.TestCase]):
         tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
             (test, []) for test in test_cases
         ]
