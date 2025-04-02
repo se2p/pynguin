@@ -1620,7 +1620,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     filter_bad_items_label,
                     bad_items,
                 )
-                filter_function(obj)
+                filter_function(bad_items)
         except Exception as exception:  # noqa: BLE001
             SubprocessTestCaseExecutor._log_different_results(
                 clear_bad_items_label,
