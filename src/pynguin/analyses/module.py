@@ -1487,10 +1487,11 @@ def __analyse_included_classes(
     seen_classes: set[type],
     store_ml_data: bool = False,
 ) -> None:
+    values = list(vars(module).values())
     work_list = list(
         filter(
             lambda x: inspect.isclass(x) and not _is_blacklisted(x),
-            vars(module).values(),
+            values,
         )
     )
 
