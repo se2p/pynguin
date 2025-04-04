@@ -29,9 +29,11 @@ module_name = ""
 algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
+subprocess = false
 
 [test_case_output]
 output_path = ""
+crash_path = ""
 export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
@@ -161,7 +163,7 @@ number_of_mutations = 10
 def expected_txt(tmp_path):
     expected_txt = Path(tmp_path) / f"expected-{PYNGUIN_CONFIG_TXT}"
     expected = """("Configuration(project_path='', module_name='', "
- "test_case_output=TestCaseOutputConfiguration(output_path='', "
+ "test_case_output=TestCaseOutputConfiguration(output_path='', crash_path='', "
  "export_strategy=<ExportStrategy.PY_TEST: 'PY_TEST'>, "
  'max_length_test_case=2500, '
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
@@ -218,7 +220,8 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[])')"""  # noqa:E501
+ 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[], '
+ 'subprocess=False)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)

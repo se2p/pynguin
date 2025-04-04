@@ -19,6 +19,7 @@ import time
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from typing import Any
 
 import psutil
 
@@ -440,6 +441,18 @@ class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
         self._state = (
             RemoteMaxStatementExecutionsObserver.RemoteMaxStatementExecutionsObserverState()
         )
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "num_executed_statements": self._state._num_executed_statements  # noqa: SLF001
+        }
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._state._num_executed_statements = state[  # noqa: SLF001
+            "num_executed_statements"
+        ]
 
     def before_statement_execution(  # noqa: D102
         self,

@@ -59,6 +59,7 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
+from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
@@ -264,11 +265,18 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
-    executor = TestCaseExecutor(
-        tracer,
-        maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
-        test_execution_time_per_statement=stop.test_execution_time_per_statement,
-    )
+    if config.configuration.subprocess:
+        executor: TestCaseExecutor = SubprocessTestCaseExecutor(
+            tracer,
+            maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
+            test_execution_time_per_statement=stop.test_execution_time_per_statement,
+        )
+    else:
+        executor = TestCaseExecutor(
+            tracer,
+            maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
+            test_execution_time_per_statement=stop.test_execution_time_per_statement,
+        )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
     return executor, test_cluster, wrapped_constant_provider

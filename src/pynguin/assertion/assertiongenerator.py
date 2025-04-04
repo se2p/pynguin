@@ -325,7 +325,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         super().__init__(plain_executor)
 
         # We use a separate tracer and executor to execute tests on the mutants.
-        self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
+        if config.configuration.subprocess:
+            self._mutation_executor: ex.TestCaseExecutor = ex.SubprocessTestCaseExecutor(
+                mutation_controller.tracer
+            )
+        else:
+            self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
+
         self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
 
         self._mutation_controller = mutation_controller
