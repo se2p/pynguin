@@ -1244,14 +1244,27 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._tracer.enable()
 
 
-SUPPORTED_EXIT_CODE_MESSAGES = {
-    -signal.SIGILL: "Illegal instruction signal detected",
-    -signal.SIGABRT: "Abort signal detected",
-    -signal.SIGBUS: "Bus error signal detected",
-    -signal.SIGFPE: "Floating-point exception signal detected",
-    -signal.SIGKILL: "Kill signal detected, most likely due to an out of memory",
-    -signal.SIGSEGV: "Segmentation fault detected",
-}
+SUPPORTED_EXIT_CODE_MESSAGES = {}
+
+if hasattr(signal, "SIGILL"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGILL] = "Illegal instruction signal detected"
+
+if hasattr(signal, "SIGABRT"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGABRT] = "Abort signal detected"
+
+if hasattr(signal, "SIGBUS"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGBUS] = "Bus error signal detected"
+
+if hasattr(signal, "SIGFPE"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGFPE] = "Floating-point exception signal detected"
+
+if hasattr(signal, "SIGKILL"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGKILL] = (
+        "Kill signal detected, most likely due to an out of memory"
+    )
+
+if hasattr(signal, "SIGSEGV"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGSEGV] = "Segmentation fault detected"
 
 
 class SubprocessTestCaseExecutor(TestCaseExecutor):
