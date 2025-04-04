@@ -29,7 +29,7 @@ jobs:
           poetry-version: ${{ matrix.poetry-version }}
 
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --with openai
 
       - name: Run the hooks from pre-commit
         run: poetry run pre-commit run --all-files

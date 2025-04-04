@@ -37,6 +37,11 @@ class Algorithm(str, enum.Enum):
     test case generation as a many-objective optimisation problem with dynamic selection
     of the targets.  TSE vol. 44 issue 2)."""
 
+    LLM = "LLM"
+    """Query a large language model for tests.  NOTE: This does not execute the usual test and
+    assertion generation stages of Pynguin but queries an LLM and writes the resulting test cases to
+    the output file."""
+
     MIO = "MIO"
     """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
     Objective (MIO) Algorithm for Test Suite Generation.  Proc. SBSE 2017)."""
@@ -382,8 +387,11 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    type_tracing: bool = False
-    """Trace usage of parameters with unknown types to improve type guesses."""
+    type_tracing: bool | float = 0.0
+    """Probability to trace usage of parameters with unknown types to improve type
+    guesses during test execution. Type tracing requires a separate second.
+    The value should be a float in [0,1]. Boolean is kept for backwards compatibility
+    as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
 
 @dataclasses.dataclass
@@ -578,6 +586,10 @@ class StoppingConfiguration:
     minimum_plateau_iterations: int = -1
     """Minimum iterations without a coverage change to stop early.  Expects values
     larger than 0; also requires the setting of minimum_coverage."""
+
+    maximum_memory: int = 3000
+    """Maximum memory usage in MB after which the generation shall stop.
+    Expects values in MB greater than 0 of -1 to disable the check."""
 
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run

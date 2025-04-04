@@ -386,22 +386,7 @@ class GenericFunction(GenericCallableAccessibleObject):
             function_name: The optional name of the function
         """
         self._function_name = function_name
-        self._rename_lambda(function)
         super().__init__(None, function, inferred_signature, raised_exceptions)
-
-    @staticmethod
-    def _rename_lambda(function: FunctionType) -> None:
-        """Renames a lambda function to its parameter name.
-
-        If a lambda is defined at top level in a module, it is named "<lambda>" and
-        the first co_varname is the actual name. To allow calling the function by its
-        name, we rename it.
-
-        Example:
-            y = lambda x: x => Rename <lambda> to y.
-        """
-        if getattr(function, "__name__", None) == "<lambda>":
-            function.__name__ = function.__code__.co_varnames[0]
 
     def is_function(self) -> bool:  # noqa: D102
         return True

@@ -87,7 +87,7 @@ def function_name(function_node) -> str:
 
 
 def test_convert_return(file_name, function_node, signature, function_name):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
     actual = convert_return(file_name, function_node, signature, function_name, is_function=True)
     expected = TypeEvalPySchemaFunctionReturn(
         file=file_name,
@@ -100,7 +100,7 @@ def test_convert_return(file_name, function_node, signature, function_name):
 
 
 def test_convert_parameter(file_name, function_node, signature, function_name):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
     actual = convert_parameter(file_name, function_node, "b", signature, function_name, None)
     expected = TypeEvalPySchemaParameter(
         file=file_name,
@@ -146,7 +146,7 @@ def signature_kwargs() -> InferredSignature:
 
 
 def test_convert_parameter_kwargs(file_name, function_node_kwargs, signature_kwargs, function_name):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
     actual = convert_parameter(
         file_name, function_node_kwargs, "kwargs", signature_kwargs, function_name, None
     )
@@ -162,7 +162,7 @@ def test_convert_parameter_kwargs(file_name, function_node_kwargs, signature_kwa
 
 
 def test_convert_parameter_with_guessed_types(file_name, function_node, signature, function_name):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
     signature_info = MagicMock(SignatureInfo)
     signature_info.guessed_parameter_types = {"b": {"decimal.Decimal", "float"}}
 
@@ -237,7 +237,7 @@ def expected_function_json(file_name, function_name):
 def test_provide_json_function(
     file_name, function_node, signature, function_name, expected_function_json
 ):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
 
     accessible = GenericFunction(
         function=Callable[[int, float | complex], str],
@@ -280,7 +280,7 @@ def expected_constructor_json(file_name):
 
 
 def test_provide_json_constructor(file_name, function_node, signature, expected_constructor_json):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
 
     mock_owner = MagicMock()
     mock_owner.name = "TestClass"
@@ -330,7 +330,7 @@ def expected_method_json():
 
 
 def test_provide_json_generic_method(file_name, function_node, signature, expected_method_json):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
 
     mock_owner = MagicMock()
     mock_owner.name = "TestClass"
@@ -378,7 +378,7 @@ def test_provide_json_unknown_accessible(file_name):
 
 
 def test_provide_json_parameter_conversion_exception(file_name, function_node, signature):
-    config.configuration.type_inference.type_tracing = True
+    config.configuration.type_inference.type_tracing = 1.0
 
     accessible = GenericFunction(
         function=Callable[[int, float | complex], str],

@@ -198,7 +198,7 @@ def convert_parameter(  # noqa: PLR0917
                     visitor  # type: ignore[arg-type]
                 )
             )
-        if config.configuration.type_inference.type_tracing:
+        if config.configuration.type_inference.type_tracing > 0:
             guessed_types = sig.current_guessed_parameters.get(param_name)
             if guessed_types is not None:
                 result.update(
@@ -254,7 +254,7 @@ def convert_return(
             result.update(
                 sig.original_return_type.accept(visitor)  # type: ignore[arg-type]
             )
-        if config.configuration.type_inference.type_tracing:
+        if config.configuration.type_inference.type_tracing > 0:
             result.update(sig.return_type.accept(visitor))  # type: ignore[arg-type]
         return sorted(result)
 

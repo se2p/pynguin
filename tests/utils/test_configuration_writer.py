@@ -68,6 +68,7 @@ maximum_coverage = 100
 maximum_coverage_plateau = -1
 minimum_coverage = 100
 minimum_plateau_iterations = -1
+maximum_memory = 3000
 test_execution_time_per_statement = 1
 
 [seeding]
@@ -88,7 +89,7 @@ max_dynamic_pool_size = 50
 
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
-type_tracing = false
+type_tracing = 0.0
 
 [test_creation]
 max_recursion = 10
@@ -182,7 +183,8 @@ def expected_txt(tmp_path):
  'maximum_slicing_time=600, maximum_iterations=-1, '
  'maximum_test_execution_timeout=5, maximum_coverage=100, '
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
- 'minimum_plateau_iterations=-1, test_execution_time_per_statement=1), '
+ 'minimum_plateau_iterations=-1, maximum_memory=3000, '
+ 'test_execution_time_per_statement=1), '
  'seeding=SeedingConfiguration(seed={SEED}, '
  'constant_seeding=True, initial_population_seeding=False, '
  "initial_population_data='', seeded_testcases_reuse_probability=0.9, "
@@ -192,7 +194,7 @@ def expected_txt(tmp_path):
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
- "'TYPE_HINTS'>, type_tracing=False), "
+ "'TYPE_HINTS'>, type_tracing=0.0), "
  'test_creation=TestCreationConfiguration(max_recursion=10, max_delta=20, '
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
@@ -254,6 +256,7 @@ def expected_parameter_list() -> list[str]:
         "--maximum_statement_executions -1",
         "--maximum_slicing_time 600",
         "--maximum_iterations -1",
+        "--maximum_memory 3000",
         "--maximum_test_execution_timeout 5",
         "--maximum_coverage 100",
         "--maximum_coverage_plateau -1",
@@ -274,7 +277,7 @@ def expected_parameter_list() -> list[str]:
         "--max_dynamic_length 1000",
         "--max_dynamic_pool_size 50",
         "--type_inference_strategy TYPE_HINTS",
-        "--type_tracing False",
+        "--type_tracing 0.0",
         "--max_recursion 10",
         "--max_delta 20",
         "--max_int 2048",

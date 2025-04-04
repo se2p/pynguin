@@ -24,6 +24,7 @@ from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxMemoryStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
@@ -74,6 +75,12 @@ def test_stopping_condition(condition, cls, algorithm_factory):
     setattr(config.configuration.stopping, condition, 5)
     strategy = algorithm_factory.get_search_algorithm()
     assert isinstance(strategy.stopping_conditions[0], cls)
+
+
+def test_optional_stopping_condition(algorithm_factory):
+    config.configuration.stopping.maximum_memory = 1000
+    strategy = algorithm_factory.get_search_algorithm()
+    assert isinstance(strategy.stopping_conditions[1], MaxMemoryStoppingCondition)
 
 
 def test_stopping_condition_not_set(algorithm_factory):
