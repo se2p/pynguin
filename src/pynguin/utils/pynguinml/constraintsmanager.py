@@ -221,7 +221,7 @@ class ConstraintsManager:
         # load yaml constraints file
         yaml_file = Path(self._root_path) / f"{module_name}.{callable_name}.yaml"
         if not Path(yaml_file).exists():
-            self._logger.info(
+            self._logger.debug(
                 "No constraints file found for module %s and callable %s",
                 module_name,
                 callable_name,
@@ -232,7 +232,7 @@ class ConstraintsManager:
             with Path(yaml_file).open(encoding="utf-8") as f:
                 constraints_data = yaml.safe_load(f)
         except Exception as e:  # noqa: BLE001
-            self._logger.warning("Could not load file %s: %s", yaml_file, e)
+            self._logger.warning("Could not load yaml file %s: %s", yaml_file, e)
             return {}, []
 
         constraints = constraints_data.get("constraints", {})
