@@ -197,7 +197,9 @@ def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # n
                     final_shape += shape_dim
                 else:
                     final_shape.append(s)
-            return final_shape
+
+            # Clamp each dimension of the shape to be within [0, max_dim]
+            return [min(config.configuration.pynguinml.max_shape_dim, max(0, dim)) for dim in shape]
 
     return [
         randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
