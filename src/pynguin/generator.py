@@ -351,7 +351,10 @@ def _reload_instrumentation_loader(
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
-    importlib.reload(module)
+    try:
+        importlib.reload(module)
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Reload of module {module.__name__} failed: %s", e)
 
 
 def _reset_cache_for_result(generation_result):
