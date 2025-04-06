@@ -19,7 +19,6 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.module import TestCluster
 from pynguin.ga.computations import CoverageFunction
 from pynguin.ga.computations import FitnessFunction
-from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
@@ -35,7 +34,7 @@ _logger = logging.getLogger(__name__)
 class LLMTestCaseHandler:
     """Class that holds logic for converting LLM output to test cases."""
 
-    def __init__(self, model: LLMAgent):
+    def __init__(self, model):
         """Initializes the LLMTestCaseHandler."""
         self._model = model
 
