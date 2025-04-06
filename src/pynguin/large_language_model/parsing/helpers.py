@@ -130,7 +130,9 @@ def unparse_test_case(test_case: tc.TestCase) -> str | None:
     """
     naming = ns.NamingScope("module")
 
-    visitor = tta.TestCaseToAstVisitor(module_aliases=naming, common_modules=set())
+    visitor = tta.TestCaseToAstVisitor(
+        module_aliases=naming, common_modules=set(), store_call_return=True
+    )
     try:
         test_case.accept(visitor)
         test_case_ast = visitor.test_case_ast

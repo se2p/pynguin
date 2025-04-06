@@ -746,7 +746,11 @@ def _export_chromosome(
         Path(config.configuration.test_case_output.output_path).resolve()
         / f"test_{module_name}{file_name_suffix}.py"
     )
-    export_visitor = export.PyTestChromosomeToAstVisitor()
+    store_call_return = (
+        config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM
+    )
+    export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
+
     chromosome.accept(export_visitor)
     export.save_module_to_file(
         export_visitor.to_module(),

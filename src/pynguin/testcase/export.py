@@ -31,12 +31,13 @@ class _AstConversionResult:
 class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
     """Visits chromosomes and builds a module AST containing all visited test cases."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, store_call_return: bool = False) -> None:
         """The module aliases are shared between test cases."""
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = set()
         self._conversion_results: list[_AstConversionResult] = []
+        self._store_call_return: bool = store_call_return
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -67,6 +68,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             module_aliases=self._module_aliases,
             common_modules=self._common_modules,
             exec_result=chromosome.get_last_execution_result(),
+            store_call_return=self._store_call_return,
         )
         chromosome.test_case.accept(visitor)
         self._conversion_results.append(
