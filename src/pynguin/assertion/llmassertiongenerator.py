@@ -32,7 +32,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
-
+    from pynguin.testcase.statement import Statement
 _logger = logging.getLogger(__name__)
 
 
@@ -60,6 +60,13 @@ def indent_assertions(assertions_list: list[str]) -> str:
         str: The indented assertions string.
     """
     return "\n".join("    " + assertion.strip() for assertion in assertions_list)
+
+
+def add_assertions_for_test_case(statement: Statement, test_case: tc.TestCase):
+    """Adds assertion to testcase if they exist on the statement."""
+    if statement.assertions:
+        original_statement = test_case.statements[statement.get_position()]
+        original_statement.assertions = statement.assertions
 
 
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
@@ -146,9 +153,8 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
                         ).copy()
                         for statement in deserialized_test_case.statements:
                             if len(statement.assertions):
-                                original_statement = test_case.statements[statement.get_position()]
+                                add_assertions_for_test_case(statement, test_case)
                                 total_assertions_added += len(statement.assertions)
-                                original_statement.assertions = statement.assertions
 
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalAssertionsAddedFromLLM, total_assertions_added
