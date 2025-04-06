@@ -21,9 +21,6 @@ import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import (
-    get_test_case_chromosomes_from_llm_results,
-)
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -123,7 +120,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
         model = LLMAgent()
         llm_query_results = model.generate_tests_for_module_under_test()
         if llm_query_results is not None:
-            return get_test_case_chromosomes_from_llm_results(
+            return model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
                 llm_query_results=llm_query_results,
                 test_cluster=self._test_cluster,
                 test_factory=self._test_factory,

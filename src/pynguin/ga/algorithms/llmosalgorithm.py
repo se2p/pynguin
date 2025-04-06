@@ -29,9 +29,6 @@ import operator
 import pynguin.configuration as config
 
 from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import (
-    get_test_case_chromosomes_from_llm_results,
-)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
@@ -187,7 +184,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
 
         llm_query_results = self.model.call_llm_for_uncovered_targets(filtered_gao_coverage_map)
 
-        return get_test_case_chromosomes_from_llm_results(
+        return self.model.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
             llm_query_results=llm_query_results,
             test_cluster=self.test_cluster,
             test_factory=self._test_factory,
