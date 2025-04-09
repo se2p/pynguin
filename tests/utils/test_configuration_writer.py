@@ -95,6 +95,7 @@ constructor_function = ""
 constructor_function_parameter = ""
 max_ndim = 4
 max_shape_dim = 4
+ignore_constraints_probability = 0.25
 
 [test_creation]
 max_recursion = 10
@@ -334,6 +335,7 @@ def expected_parameter_list() -> list[str]:
         "--max_sequences_combined 10",
         "--max_ndim 4",
         "--max_shape_dim 4",
+        "--ignore_constraints_probability 0.25",
     ]
     return sorted(parameter_list)
 

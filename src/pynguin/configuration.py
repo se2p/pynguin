@@ -425,6 +425,11 @@ class PynguinMLConfiguration:
     If set too big, it can cause memory errors due to large tensor sizes.
     """
 
+    ignore_constraints_probability: float = 0.25
+    """
+    Probability of ignoring constraints when constructing statements.
+    """
+
 
 @dataclasses.dataclass
 class TestCreationConfiguration:

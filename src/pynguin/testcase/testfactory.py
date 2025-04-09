@@ -970,7 +970,11 @@ class TestFactory:
 
         parameter_objs: dict[str, MLParameter | None] = {}
 
-        if ConstraintsManager().ml_testing_enabled():
+        if (
+            ConstraintsManager().ml_testing_enabled()
+            and randomness.next_float()
+            >= config.configuration.pynguinml.ignore_constraints_probability
+        ):
             ml_data = self._test_cluster.get_ml_data_for(callable_accessible)
 
             generation_order = []
