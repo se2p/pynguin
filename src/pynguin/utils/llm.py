@@ -134,7 +134,7 @@ if OPENAI_AVAILABLE:
             ]
             try:
                 response = self.__client.chat.completions.create(
-                    messages=messages,  # type: ignore[arg-type]
+                    messages=messages,
                     model=self.__model,
                 )
                 return response.choices[0].message.content

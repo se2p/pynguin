@@ -156,7 +156,7 @@ class UsageTraceNode:
             self.children[attr].merge(knowledge)
 
 
-class DepthDefaultDict(dict[str, UsageTraceNode]):
+class DepthDefaultDict(dict[str, UsageTraceNode]):  # noqa: FURB189
     """A dictionary creating a UsageTraceNode automatically for each key.
 
     The implementation creates a UsageTraceNode for each requested and non-existing key.

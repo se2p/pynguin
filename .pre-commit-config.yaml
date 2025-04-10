@@ -26,20 +26,20 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/python-poetry/poetry
-    rev: 2.0.1
+    rev: 2.1.2
     hooks:
       - id: poetry-check
       - id: poetry-lock
       - id: poetry-install
 
   - repo: https://github.com/PyCQA/isort
-    rev: 6.0.0
+    rev: 6.0.1
     hooks:
       - id: isort
         args: [ --profile, black ]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.6
+    rev: v0.11.4
     hooks:
       - id: ruff
         args: [ --fix ]

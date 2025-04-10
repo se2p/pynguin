@@ -737,7 +737,7 @@ class ExecutionResult:
         )
         self.exceptions = ExecutionResult.shift_dict(self.exceptions, deleted_statements)
 
-    T = TypeVar("T")
+    T = TypeVar("T")  # noqa: RUF045
 
     @staticmethod
     def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:

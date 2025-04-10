@@ -444,7 +444,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
 
-        reversed_cfg._graph = cfg._graph.reverse(copy=True)  # noqa: SLF001
+        reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
     def reversed(self) -> CFG:
@@ -467,7 +467,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         copy = CFG(ControlFlowGraph())  # TODO(fk) Cloning the bytecode cfg is complicated.
 
-        copy._graph = cfg._graph.copy()  # noqa: SLF001
+        copy._graph = cfg._graph.copy()
         return copy
 
     def copy(self) -> CFG:

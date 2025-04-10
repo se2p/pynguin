@@ -44,29 +44,29 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.11"
-astroid = "^3.3.8"
+astroid = "^3.3.9"
 black = "^25.1.0"
 bytecode = "^0.16.1"
-dill = "^0.3.8"
-Jinja2 = "^3.1.5"
+dill = "^0.3.9"
+Jinja2 = "^3.1.6"
 networkx = "^3.4"
 multiprocess = "^0.70.16"
-rich = "^13.9.4"
+rich = "^14.0.0"
 Pygments = "^2.19.1"
-pytest = "^8.3.4"
+pytest = "^8.3.5"
 simple-parsing = "^0.1.7"
 typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
-libcst = "^1.6.0"
-setuptools = "^75.8"
+libcst = "^1.7.0"
+setuptools = "^78.1"
 toml = "^0.10.2"
 psutil = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
-isort = { extras = ["pyproject"], version = "^6.0.0" }
+isort = { extras = ["pyproject"], version = "^6.0.1" }
 mypy = "^1.15.0"
-pre-commit = "^4.1.0"
-ruff = "^0.9"
+pre-commit = "^4.2.0"
+ruff = "^0.11"
 types-toml = "^0.10.8.20240310"
 
 [tool.poetry.group.docs.dependencies]
@@ -76,9 +76,9 @@ sphinx-hoverxref = "^1.4.2"
 sphinx-rtd-theme = "^3.0.2"
 
 [tool.poetry.group.test.dependencies]
-coverage = "^7.6.12"
-hypothesis = "^6.125"
-pytest-cov = "^6.0.0"
+coverage = "^7.8.0"
+hypothesis = "^6.131"
+pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
 pytest-sugar = "^1.0.0"
@@ -87,7 +87,7 @@ pytest-sugar = "^1.0.0"
 optional = true
 
 [tool.poetry.group.openai.dependencies]
-openai = "^1.68.2"
+openai = "^1.72.0"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
