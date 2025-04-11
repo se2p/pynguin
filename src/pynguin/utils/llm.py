@@ -13,12 +13,21 @@ import enum
 import logging
 import os
 import re
+import typing
+
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 try:
     import openai
 
+    from openai.types.chat import ChatCompletionAssistantMessageParam
     from openai.types.chat import ChatCompletionDeveloperMessageParam
+    from openai.types.chat import ChatCompletionFunctionMessageParam
+    from openai.types.chat import ChatCompletionSystemMessageParam
+    from openai.types.chat import ChatCompletionToolMessageParam
     from openai.types.chat import ChatCompletionUserMessageParam
     from pydantic import SecretStr
 
@@ -106,6 +115,15 @@ if OPENAI_AVAILABLE:
     Provide the generated tests inside a Markdown-style code block."""
     OPENAI_API_KEY = SecretStr(os.environ.get("OPENAI_API_KEY", ""))
 
+    MessageTypes: typing.TypeAlias = (
+        ChatCompletionDeveloperMessageParam
+        | ChatCompletionSystemMessageParam
+        | ChatCompletionUserMessageParam
+        | ChatCompletionAssistantMessageParam
+        | ChatCompletionToolMessageParam
+        | ChatCompletionFunctionMessageParam
+    )
+
     class OpenAI(LLM):
         """An interface for communication with OpenAI."""
 
@@ -128,7 +146,7 @@ if OPENAI_AVAILABLE:
             if not system_prompt:
                 system_prompt = self._system_prompt
 
-            messages = [
+            messages: Iterable[MessageTypes] = [
                 ChatCompletionDeveloperMessageParam(content=system_prompt, role="developer"),
                 ChatCompletionUserMessageParam(content=prompt, role="user"),
             ]
