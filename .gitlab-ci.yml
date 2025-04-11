@@ -94,6 +94,7 @@ mypy:
   stage: lint
   image: python:3.10-bookworm
   script:
+    - poetry run mypy --version
     - poetry run mypy
   needs: ["pre-commit"]
 
