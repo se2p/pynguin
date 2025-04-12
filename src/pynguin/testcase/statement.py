@@ -2181,7 +2181,9 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
     ) -> bool:
         if not isinstance(other, ASTAssignStatement):
             return False
-        return self.ret_val.structural_eq(other.ret_val, memo) and self.rhs.structural_eq(other.rhs)
+        return self.ret_val.structural_eq(other.ret_val, memo) and self.rhs.structural_eq(
+            other.rhs, memo
+        )
 
     def get_rhs_as_normal_ast(
         self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
