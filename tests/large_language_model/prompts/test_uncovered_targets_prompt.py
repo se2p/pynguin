@@ -1,12 +1,20 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+
+from unittest.mock import MagicMock
+
 import pytest
 
-from pynguin.large_language_model.prompts.uncoveredtargetsprompt import UncoveredTargetsPrompt
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericFunction,
-    GenericMethod,
-    GenericConstructor,
+from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
+    UncoveredTargetsPrompt,
 )
-from unittest.mock import MagicMock
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 @pytest.fixture

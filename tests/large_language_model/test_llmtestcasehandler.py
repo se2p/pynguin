@@ -1,5 +1,15 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+"""Tests for the LLMTestCaseHandler class."""
+
+from unittest.mock import MagicMock
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
 
@@ -16,8 +26,12 @@ def handler(mock_model):
 
 def test_extract_test_cases_from_llm_output(handler, mock_model):
     mock_model.extract_python_code_from_llm_output.return_value = "some_code"
-    with patch("pynguin.large_language_model.llmtestcasehandler.rewrite_tests") as mock_rewrite, \
-         patch("pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file") as mock_save:
+    with (
+        patch("pynguin.large_language_model.llmtestcasehandler.rewrite_tests") as mock_rewrite,
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file"
+        ) as mock_save,
+    ):
         mock_rewrite.return_value = {"test1": "def test_something(): pass"}
 
         result = handler.extract_test_cases_from_llm_output("LLM raw output")
@@ -38,9 +52,17 @@ def test_get_test_case_chromosomes_from_llm_results_none_returns_empty(handler):
 def test_get_test_case_chromosomes_from_llm_results_deserialization_none(handler, mock_model):
     mock_model.extract_python_code_from_llm_output.return_value = "some_code"
 
-    with patch("pynguin.large_language_model.llmtestcasehandler.rewrite_tests", return_value={"test": "code"}), \
-         patch("pynguin.large_language_model.llmtestcasehandler.deserialize_code_to_testcases", return_value=None), \
-         patch("pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file"):
+    with (
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.rewrite_tests",
+            return_value={"test": "code"},
+        ),
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.deserialize_code_to_testcases",
+            return_value=None,
+        ),
+        patch("pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file"),
+    ):
         result = handler.get_test_case_chromosomes_from_llm_results(
             "some LLM output", MagicMock(), MagicMock(), [], []
         )
@@ -55,11 +77,23 @@ def test_get_test_case_chromosomes_from_llm_results_success(handler, mock_model)
     coverage_function = MagicMock()
     mock_chromosome = MagicMock()
 
-    with patch("pynguin.large_language_model.llmtestcasehandler.rewrite_tests", return_value={"test": "code"}), \
-         patch("pynguin.large_language_model.llmtestcasehandler.deserialize_code_to_testcases") as mock_deserialize, \
-         patch("pynguin.large_language_model.llmtestcasehandler.unparse_test_case", return_value="code"), \
-         patch("pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file"), \
-         patch("pynguin.large_language_model.llmtestcasehandler.tcc.TestCaseChromosome", return_value=mock_chromosome):
+    with (
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.rewrite_tests",
+            return_value={"test": "code"},
+        ),
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.deserialize_code_to_testcases"
+        ) as mock_deserialize,
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.unparse_test_case", return_value="code"
+        ),
+        patch("pynguin.large_language_model.llmtestcasehandler.save_llm_tests_to_file"),
+        patch(
+            "pynguin.large_language_model.llmtestcasehandler.tcc.TestCaseChromosome",
+            return_value=mock_chromosome,
+        ),
+    ):
         mock_deserialize.return_value = ([test_case], 10, 5, 1)
 
         result = handler.get_test_case_chromosomes_from_llm_results(

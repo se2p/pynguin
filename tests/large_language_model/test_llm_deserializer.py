@@ -4,29 +4,39 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+"""Tests for the LLM Deserializer."""
 
 import ast
+import inspect
+import math
 import textwrap
 
-from unittest.mock import MagicMock, patch, create_autospec, call
+from unittest.mock import MagicMock
+from unittest.mock import call
+from unittest.mock import create_autospec
+from unittest.mock import patch
 
 import pytest
 
-from pynguin.analyses.typesystem import AnyType, Instance, TypeInfo
-from pynguin.assertion.assertion import ObjectAssertion, FloatAssertion
+import pynguin.testcase.statement as stmt
+
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.assertion.assertion import FloatAssertion
+from pynguin.assertion.assertion import ObjectAssertion
 from pynguin.large_language_model.parsing.deserializer import AstToTestCaseTransformer
+from pynguin.large_language_model.parsing.deserializer import StatementDeserializer
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
-from pynguin.large_language_model.parsing.rewriter import rewrite_tests, rewrite_test
 from pynguin.testcase import defaulttestcase as dtc
-import inspect
-from unittest.mock import MagicMock
-from pynguin.large_language_model.parsing.deserializer import StatementDeserializer
 from pynguin.testcase import variablereference as vr
-import pynguin.testcase.statement as stmt
-from pynguin.testcase.variablereference import FieldReference, VariableReference
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor, GenericMethod, GenericFunction
+from pynguin.testcase.variablereference import FieldReference
+from pynguin.testcase.variablereference import VariableReference
+from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 @pytest.fixture
@@ -43,10 +53,10 @@ def test_cluster():
 
     return mock_cluster
 
+
 @pytest.fixture
 def deserializer(test_cluster):
-    deserializer = StatementDeserializer(test_cluster)
-    return deserializer
+    return StatementDeserializer(test_cluster)
 
 
 def test_assign_constant(deserializer):
@@ -101,6 +111,7 @@ def test_deserializer_handles_invalid_code(test_cluster):
     result = deserialize_code_to_testcases(invalid_code, test_cluster)
     assert result is None
 
+
 def test_visit_assert_with_or_logic(test_cluster):
     code = """
 def test_or_assert():
@@ -121,16 +132,19 @@ def test_try_generating_specific_function_all_paths(deserializer):
         return ast.Call(func=ast.Name(id=func_id, ctx=ast.Load()), args=args or [], keywords=[])
 
     # --- Case 1: func_id in builtins_dict ---
-    with patch.object(deserializer, "create_ast_assign_stmt", return_value="assign_stmt") as ast_assign_mock:
+    with patch.object(
+        deserializer, "create_ast_assign_stmt", return_value="assign_stmt"
+    ) as ast_assign_mock:
         call = call_with_func("print")  # 'print' should exist in real builtins
         result = deserializer.try_generating_specific_function(call)
         assert result == "assign_stmt"
         ast_assign_mock.assert_called_once_with(call)
 
     # --- Patch builtins to test 'set', 'list', 'tuple', 'dict' branches ---
-    with patch("pynguin.large_language_model.parsing.deserializer.__builtins__", {}), \
-         patch.object(deserializer, "create_stmt_from_collection", return_value="collection_stmt") as coll_mock:
-
+    with (
+        patch("pynguin.large_language_model.parsing.deserializer.__builtins__", {}),
+        patch.object(deserializer, "create_stmt_from_collection", return_value="collection_stmt"),
+    ):
         # Case 2: "set"
         call = call_with_func("set", args=[ast.Constant(value=1)])
         assert deserializer.try_generating_specific_function(call) == "collection_stmt"
@@ -162,6 +176,7 @@ def test_try_generating_specific_function_all_paths(deserializer):
     call = ast.Call(func=ast.Constant(value="broken"), args=[], keywords=[])
     assert deserializer.try_generating_specific_function(call) is None
 
+
 def make_dummy_type_and_elems():
     return "fake_type", ["ref1", "ref2"]
 
@@ -178,7 +193,6 @@ def test_create_set_statement(deserializer):
 
 
 def test_create_dict_statement(deserializer):
-
     coll_node = ast.Dict(keys=[], values=[])
 
     kv_pairs = [(MagicMock(), MagicMock())]
@@ -209,13 +223,18 @@ def test_create_statement_unknown_node_type(deserializer):
 
     assert stmt_obj is None
 
+
 def test_create_assert_stmt_all_branches(deserializer):
     # Patch _get_source_reference to always return a mock reference
     ref = MagicMock()
-    with patch.object(deserializer, "_get_source_reference", return_value=ref), \
-         patch.object(deserializer, "create_assertion", return_value=MagicMock()), \
-         patch("pynguin.large_language_model.parsing.deserializer.ass.IsInstanceAssertion", return_value="isinstance_assertion"):
-
+    with (
+        patch.object(deserializer, "_get_source_reference", return_value=ref),
+        patch.object(deserializer, "create_assertion", return_value=MagicMock()),
+        patch(
+            "pynguin.large_language_model.parsing.deserializer.ass.IsInstanceAssertion",
+            return_value="isinstance_assertion",
+        ),
+    ):
         # Branch 1: isinstance assert
         isinstance_code = "assert isinstance(x, int)"
         isinstance_node = ast.parse(isinstance_code).body[0]
@@ -262,11 +281,11 @@ def test_create_assertion_with_various_ast_nodes(deserializer):
     source = MagicMock()
 
     # 1. Constant float → FloatAssertion
-    float_node = ast.Constant(value=3.14)
+    float_node = ast.Constant(value=math.pi)
     result = deserializer.create_assertion(source, float_node)
     assert isinstance(result, FloatAssertion)
     assert result.source == source
-    assert result.value == 3.14
+    assert result.value == math.pi
 
     # 2. Constant str → ObjectAssertion
     str_node = ast.Constant(value="hi")
@@ -286,7 +305,6 @@ def test_create_assertion_with_various_ast_nodes(deserializer):
 
     with pytest.raises(ValueError, match="Unsupported AST node type"):
         deserializer._extract_value_from_ast(UnknownNode())
-
 
 
 def test_create_variable_references_from_call_args(deserializer):
@@ -324,12 +342,10 @@ def test_create_variable_references_from_call_args(deserializer):
     # AST inputs
     call_args = [
         ast.Name(id="a", ctx=ast.Load()),  # matches param_a
-        ast.Starred(value=ast.Name(id="b", ctx=ast.Load()), ctx=ast.Load())  # matches param_b
+        ast.Starred(value=ast.Name(id="b", ctx=ast.Load()), ctx=ast.Load()),  # matches param_b
     ]
 
-    call_keywords = [
-        ast.keyword(arg="k", value=ast.Name(id="c", ctx=ast.Load()))
-    ]
+    call_keywords = [ast.keyword(arg="k", value=ast.Name(id="c", ctx=ast.Load()))]
 
     # Execute
     result = deserializer.create_variable_references_from_call_args(
@@ -344,16 +360,17 @@ def test_create_variable_references_from_call_args(deserializer):
         "k": var_ref_c,
     }
 
+
 def test_create_elements_all_paths(deserializer):
     # Mock variable reference for ast.Name case
     mock_ref = MagicMock(name="VarRef")
     deserializer._ref_dict = {"x": mock_ref}
 
     # Patch all `create_*` methods to return distinct mock objects
-    deserializer.create_stmt_from_constant = lambda node: MagicMock(name="const_stmt")
-    deserializer.create_stmt_from_unaryop = lambda node: MagicMock(name="unary_stmt")
-    deserializer.create_stmt_from_call = lambda node: MagicMock(name="call_stmt")
-    deserializer.create_stmt_from_collection = lambda node: MagicMock(name="coll_stmt")
+    deserializer.create_stmt_from_constant = lambda _: MagicMock(name="const_stmt")
+    deserializer.create_stmt_from_unaryop = lambda _: MagicMock(name="unary_stmt")
+    deserializer.create_stmt_from_call = lambda _: MagicMock(name="call_stmt")
+    deserializer.create_stmt_from_collection = lambda _: MagicMock(name="coll_stmt")
     deserializer._testcase.add_variable_creating_statement = lambda stmt: f"VR_{stmt._mock_name}"
 
     # AST elements for every branch
@@ -363,13 +380,7 @@ def test_create_elements_all_paths(deserializer):
     list_node = ast.List(elts=[], ctx=ast.Load())
     name_node = ast.Name(id="x", ctx=ast.Load())
 
-    result = deserializer.create_elements([
-        const_node,
-        unary_node,
-        call_node,
-        list_node,
-        name_node
-    ])
+    result = deserializer.create_elements([const_node, unary_node, call_node, list_node, name_node])
 
     assert result == [
         "VR_const_stmt",
@@ -383,18 +394,22 @@ def test_create_elements_all_paths(deserializer):
 @pytest.mark.parametrize(
     "obj_type, match_name, in_ref_dict, should_match",
     [
-        ("constructor", "MyClass", False, True),   # ✅ constructor match
-        ("method", "my_method", True, True),       # ✅ method match
-        ("function", "my_func", False, True),      # ✅ function match
-        ("unknown", "nothing", False, False),      # ❌ no match
-    ]
+        ("constructor", "MyClass", False, True),  # ✅ constructor match
+        ("method", "my_method", True, True),  # ✅ method match
+        ("function", "my_func", False, True),  # ✅ function match
+        ("unknown", "nothing", False, False),  # ❌ no match
+    ],
 )
-def test_find_gen_callable_variants(test_cluster, deserializer, obj_type, match_name, in_ref_dict, should_match):
+def test_find_gen_callable_variants(  # noqa: PLR0917
+    test_cluster, deserializer, obj_type, match_name, in_ref_dict, should_match
+):
     deserializer._ref_dict = {"obj": MagicMock(type=AnyType())} if in_ref_dict else {}
 
     # Create fake ast.Call node depending on type
     if obj_type in {"method", "constructor"}:
-        func = ast.Attribute(value=ast.Name(id="obj", ctx=ast.Load()), attr=match_name, ctx=ast.Load())
+        func = ast.Attribute(
+            value=ast.Name(id="obj", ctx=ast.Load()), attr=match_name, ctx=ast.Load()
+        )
     else:
         func = ast.Name(id=match_name, ctx=ast.Load())
     call = ast.Call(func=func, args=[], keywords=[])
@@ -420,7 +435,6 @@ def test_find_gen_callable_variants(test_cluster, deserializer, obj_type, match_
         assert result == obj
     else:
         assert result is None
-
 
 
 def test_add_assert_stmt_all_branches(deserializer):
@@ -459,17 +473,16 @@ def test_add_assert_stmt_all_branches(deserializer):
     assert get_statement_mock.add_assertion.call_count == 2
 
 
-
 @pytest.mark.parametrize(
     "value, expected_type",
     [
         (None, stmt.NoneStatement),
         (True, stmt.BooleanPrimitiveStatement),
         (42, stmt.IntPrimitiveStatement),
-        (3.14, stmt.FloatPrimitiveStatement),
+        (math.pi, stmt.FloatPrimitiveStatement),
         ("hello", stmt.StringPrimitiveStatement),
         (b"bytes", stmt.BytesPrimitiveStatement),
-        (complex(1, 2), None)
+        (complex(1, 2), None),
     ],
 )
 def test_create_stmt_from_constant(value, expected_type, deserializer):
@@ -509,12 +522,14 @@ def test_create_assert_stmt_all_paths(deserializer):
     # Create a field reference return for .attr
     mock_attr_ref = MagicMock(spec=FieldReference)
     mock_attr_ref.get_variable_reference.return_value = mock_ref
-    deserializer._get_source_reference = MagicMock(side_effect=[
-        mock_ref,  # for assert x == 1
-        mock_ref,  # for isinstance(x, int)
-        mock_ref,  # for assert str(x) == '1'
-        mock_ref,  # for fallback
-    ])
+    deserializer._get_source_reference = MagicMock(
+        side_effect=[
+            mock_ref,  # for assert x == 1
+            mock_ref,  # for isinstance(x, int)
+            mock_ref,  # for assert str(x) == '1'
+            mock_ref,  # for fallback
+        ]
+    )
 
     # Code with all assertion shapes
     code = """
@@ -534,17 +549,19 @@ def test_all_assertions():
     assert isinstance(function, ast.FunctionDef)
 
     # Visit all assert statements manually
-    for stmt in function.body:
-        if isinstance(stmt, ast.Assert):
-            assert deserializer.add_assert_stmt(stmt) is True
+    for statement in function.body:
+        if isinstance(statement, ast.Assert):
+            assert deserializer.add_assert_stmt(statement) is True
 
 
-def test_create_stmt_from_collection(test_cluster, deserializer):
-    module = ast.parse(textwrap.dedent("""
+def test_create_stmt_from_collection(deserializer):
+    module = ast.parse(
+        textwrap.dedent("""
         def test_collections():
             a = [1, 2, 3]
             b = {"x": 1, "y": 2}
-    """))
+    """)
+    )
     fn_body = module.body[0].body
     list_node = fn_body[0].value  # [1, 2, 3]
     dict_node = fn_body[1].value  # {"x": 1, "y": 2}
@@ -555,6 +572,7 @@ def test_create_stmt_from_collection(test_cluster, deserializer):
 
     assert isinstance(list_stmt, stmt.ListStatement)
     assert isinstance(dict_stmt, stmt.DictStatement)
+
 
 def test_assemble_stmt_from_gen_callable_function(deserializer):
     # Setup deserializer
