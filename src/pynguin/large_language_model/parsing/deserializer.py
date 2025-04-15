@@ -182,6 +182,8 @@ class StatementDeserializer:  # noqa: PLR0904
         """
         assertion: ass.Assertion | None = None
         try:
+            # Assertion on attribute access
+            # Example: assert x.attr == 5
             if (
                 hasattr(assert_node, "left")
                 and hasattr(assert_node, "ops")
@@ -192,6 +194,8 @@ class StatementDeserializer:  # noqa: PLR0904
                 )  # Adjusted to handle ast.Attribute
                 val_elem = assert_node.comparators[0]
                 operator = assert_node.ops[0]
+            # Isinstance assertion
+            # Example: assert isinstance(x, int)
             elif (
                 hasattr(assert_node, "test")
                 and hasattr(assert_node.test, "func")
@@ -201,6 +205,8 @@ class StatementDeserializer:  # noqa: PLR0904
                 type_elem = assert_node.test.args[1]  # type: ignore[attr-defined]
                 assertion = ass.IsInstanceAssertion(source, type_elem)
                 return assertion, source
+            # Assertion with function call on the left side
+            # Example: assert some_function() == expected_value
             elif (
                 hasattr(assert_node, "test")
                 and hasattr(assert_node.test, "left")
@@ -213,12 +219,16 @@ class StatementDeserializer:  # noqa: PLR0904
                 )  # Adjusted to handle ast.Attribute
                 val_elem = assert_node.test.comparators[0]
                 operator = assert_node.test.ops[0]
+            # Standard double-equals comparison
+            # Example: assert x == 5
             else:
                 source = self._get_source_reference(
                     assert_node.test.left  # type: ignore[attr-defined]
                 )  # Adjusted to handle ast.Attribute
                 val_elem = assert_node.test.comparators[0]  # type: ignore[attr-defined]
                 operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
+        # Invalid or not beneficial assert structure
+        # Example: assert True
         except (KeyError, AttributeError):
             return None
 
