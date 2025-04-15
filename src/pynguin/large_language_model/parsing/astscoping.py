@@ -8,12 +8,16 @@
 
 VariableReferences In place of variable names, used to support
 uninterpreted statements.
+
+The logic is adapted from the CodaMosa repository with additional refactoring.
+https://github.com/microsoft/codamosa
 """
+
 import ast
 import copy
 
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 import pynguin.testcase.variablereference as vr
 
@@ -144,9 +148,7 @@ class FreeVariableOperator(VariableReferenceVisitor):
             ast.keyword(arg=copy.deepcopy(kwarg.arg), value=self.visit(kwarg.value))
             for kwarg in node.keywords
         ]
-        return ast.Call(
-            func=copy.deepcopy(node.func), args=new_args, keywords=new_kwargs
-        )
+        return ast.Call(func=copy.deepcopy(node.func), args=new_args, keywords=new_kwargs)
 
     def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:  # noqa:N802
         """Visits an ast.Lambda node.
@@ -286,9 +288,7 @@ def copy_and_operate_on_variable_references(
     return VariableReferenceVisitor(copy=True, operation=operation).visit(node)
 
 
-def operate_on_free_variables(
-    node: ast.AST, operation: Callable[[ast.Name], Any]
-) -> ast.AST:
+def operate_on_free_variables(node: ast.AST, operation: Callable[[ast.Name], Any]) -> ast.AST:
     """Visits `node` and applies an operation on all the free variables in `node`.
 
     Replacing any `ast.Name` node n that is a free variable with the result of
@@ -322,9 +322,7 @@ def _replace_with_var_refs(node: ast.AST, ref_dict: dict[str, vr.VariableReferen
 
     def replacer(name_node: ast.Name):
         if name_node.id not in ref_dict:
-            raise ValueError(
-                f"The Name node with name: {ast.unparse} is an unresolved reference"
-            )
+            raise ValueError(f"The Name node with name: {ast.unparse} is an unresolved reference")
         return ref_dict[name_node.id]
 
     return operate_on_free_variables(node, replacer)
@@ -346,7 +344,7 @@ class VariableRefAST:
         """
         self._node = _replace_with_var_refs(node, ref_dict)
 
-    def structural_hash(self):
+    def structural_hash(self, memo: dict[vr.VariableReference, int]):
         """Compute a structural hash for this object.
 
         Uses structural_hash() for variable references.
@@ -359,7 +357,7 @@ class VariableRefAST:
             if isinstance(value, ast.AST):
                 current_hash += hash_ast_helper(current_hash, value)
             elif isinstance(value, vr.VariableReference):
-                current_hash += 17 * value.structural_hash()  # type: ignore[call-arg]
+                current_hash += 17 * value.structural_hash(memo)
             else:
                 current_hash += 17 * hash(value)
             return current_hash
@@ -391,7 +389,7 @@ class VariableRefAST:
         """
 
         def value_equal_helper(first: Any, second: Any) -> bool:
-            if type(first) != type(second):
+            if type(first) is not type(second):
                 return False
             if isinstance(first, ast.AST):
                 return equal_helper_ast(first, second)
@@ -400,7 +398,7 @@ class VariableRefAST:
             return first == second
 
         def equal_helper_ast(first: ast.AST, second: ast.AST) -> bool:
-            if type(first) != type(second):
+            if type(first) is not type(second):
                 return False
             first_fields = dict(ast.iter_fields(first))
             second_fields = dict(ast.iter_fields(second))
@@ -422,9 +420,7 @@ class VariableRefAST:
 
         return True
 
-    def clone(
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
-    ) -> "VariableRefAST":
+    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> "VariableRefAST":
         """Clone the node as an ast, doing any replacement given in memo.
 
         Args:

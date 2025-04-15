@@ -4,16 +4,15 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import logging
 
 import pytest
 
 import pynguin.configuration as config
 
-from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.openaimodel import is_api_key_present
-from pynguin.large_language_model.openaimodel import is_api_key_valid
-from pynguin.large_language_model.openaimodel import set_api_key
+from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmagent import is_api_key_present
+from pynguin.large_language_model.llmagent import is_api_key_valid
+from pynguin.large_language_model.llmagent import set_api_key
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )
@@ -23,10 +22,10 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     not is_api_key_present() or not is_api_key_valid(),
     reason="OpenAI API key is not provided in the configuration.",
 )
-def test_extract_python_code_from_llm_output_valid():
+def test_extract_python_code_valid():
     llm_output = "Some text\n```python\nprint('Hello, world!')\n```"
     expected_code = "\nprint('Hello, world!')\n"
-    model = OpenAIModel()
+    model = LLMAgent()
     assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
 
@@ -34,16 +33,16 @@ def test_extract_python_code_from_llm_output_valid():
     not is_api_key_present() or not is_api_key_valid(),
     reason="OpenAI API key is not provided in the configuration.",
 )
-def test_extract_python_code_from_llm_output_multiple_blocks():
+def test_extract_python_code_multiple_blocks():
     llm_output = "Text\n```python\nprint('Hello')\n```\nMore text\n```python\nprint('World')\n```"
     expected_code = "\nprint('Hello')\n\n\nprint('World')\n"
-    model = OpenAIModel()
+    model = LLMAgent()
     assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
 
 def test_set_api_key_missing(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
-    with pytest.raises(ValueError, match="OpenAI API key is missing."):
+    with pytest.raises(ValueError, match="OpenAI API key is missing"):
         set_api_key()
 
 
@@ -57,9 +56,7 @@ def test_is_api_key_present(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "    ")
     assert is_api_key_present() is False
 
-    monkeypatch.setattr(
-        config.configuration.large_language_model, "api_key", "valid_api_key"
-    )
+    monkeypatch.setattr(config.configuration.large_language_model, "api_key", "valid_api_key")
     assert is_api_key_present() is True
 
 
@@ -71,11 +68,9 @@ def test_openai_model_query_success():
     module_code = "def example_function():\n    return 'Hello, World!'"
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
-    model = OpenAIModel()
-    try:
-        model.clear_cache()
-    except Exception as e:
-        pass
+    model = LLMAgent()
+    model.clear_cache()
+
     response = model.query(prompt)
 
     assert response is not None
@@ -93,7 +88,7 @@ def test_openai_model_query_cache(mocker):
     module_code = "def example_function():\n    return 'Hello, World!'"
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
-    model = OpenAIModel()
+    model = LLMAgent()
     model.clear_cache()
 
     mock_response = mocker.Mock()

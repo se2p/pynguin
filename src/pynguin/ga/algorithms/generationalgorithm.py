@@ -18,14 +18,11 @@ from typing import Generic
 from typing import TypeVar
 
 import pynguin.ga.algorithms.archive as arch
-import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.large_language_model.openaimodel import OpenAIModel
-from pynguin.large_language_model.parsing.deserializer import (
-    deserialize_code_to_testcases,
-)
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -333,35 +330,3 @@ class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
         A value in [0,1].
         """
         return mean(sc.current_value() / sc.limit() for sc in self._stopping_conditions)
-
-    def _generate_llm_test_cases(self) -> list[tcc.TestCaseChromosome]:
-        llm_test_case_chromosomes: list[tcc.TestCaseChromosome] = []
-        model = OpenAIModel()
-        llm_query_results = model.generate_tests_for_module_under_test()
-        llm_calls_with_python_code = (
-            model.llm_calls_counter - model.llm_calls_with_no_python_code
-        )
-        self._logger.info(
-            "%d out of %d LLM responses have got Python code.",
-            llm_calls_with_python_code,
-            model.llm_calls_counter,
-        )
-        self._logger.info("Total LLM call time is %s seconds", model.llm_calls_timer)
-        if llm_query_results is not None:
-            llm_test_cases_str = model.extract_test_cases_from_llm_output(
-                llm_query_results
-            )
-
-            test_cases = deserialize_code_to_testcases(
-                llm_test_cases_str, test_cluster=self.test_cluster
-            )
-
-            for test_case in test_cases:
-                test_case_chromosome = tcc.TestCaseChromosome(
-                    test_case=test_case, test_factory=self.test_factory
-                )
-                for func in self.test_case_fitness_functions:
-                    test_case_chromosome.add_fitness_function(func)
-                llm_test_case_chromosomes.append(test_case_chromosome)
-            return llm_test_case_chromosomes
-        return []

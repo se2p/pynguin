@@ -17,6 +17,7 @@ from typing import cast
 
 import pynguin.utils.ast_util as au
 
+from pynguin.testcase.statement import ASTAssignStatement
 from pynguin.testcase.statement import ClassPrimitiveStatement
 from pynguin.testcase.statement import StatementVisitor
 
@@ -48,7 +49,7 @@ if TYPE_CHECKING:
     )
 
 
-class StatementToAstVisitor(StatementVisitor):
+class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
     """Visitor that transforms statements into a list of AST nodes."""
 
     def __init__(
@@ -268,6 +269,22 @@ class StatementToAstVisitor(StatementVisitor):
             ],
             value=au.create_full_name(
                 self._variable_names, self._module_aliases, stmt.rhs, load=True
+            ),
+        )
+
+    def visit_ast_assign_statement(  # noqa: D102
+        self, stmt: ASTAssignStatement
+    ) -> None:
+        self._ast_node = ast.Assign(
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
+                )
+            ],
+            value=stmt.get_rhs_as_normal_ast(  # type: ignore[arg-type]
+                lambda x: au.create_full_name(
+                    self._variable_names, self._module_aliases, x, load=True
+                )
             ),
         )
 

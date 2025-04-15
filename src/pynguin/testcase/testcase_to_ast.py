@@ -38,6 +38,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         module_aliases: ns.NamingScope,
         common_modules: set[str],
         exec_result: ex.ExecutionResult | None = None,
+        *,
+        store_call_return: bool = False,
     ) -> None:
         """The module aliases are shared between test cases.
 
@@ -45,6 +47,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             module_aliases: The aliases for used modules
             common_modules: The names of common modules that are not aliased
             exec_result: An optional execution result for the test case.
+            store_call_return: Whether to store the call return.
         """
         self._module_aliases: ns.NamingScope = module_aliases
         # Common modules (e.g. math) are not aliased.
@@ -52,6 +55,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._exec_result = exec_result
         self._test_case_ast: list[stmt] = []
         self._is_failing_test: bool = False
+        self._store_call_return: bool = store_call_return
 
     def visit_default_test_case(  # noqa: D102
         self, test_case: dtc.DefaultTestCase
@@ -67,9 +71,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 self._exec_result is not None
                 and self._exec_result.get_first_position_of_thrown_exception() == idx
             ):
-                # If a statement causes an exception and defines a new name, we don't
-                # actually want to create that name, as it will not be stored anyway.
-                store_call_return = False
+                store_call_return = self._store_call_return
+
             statement_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases, variables, store_call_return=store_call_return
             )

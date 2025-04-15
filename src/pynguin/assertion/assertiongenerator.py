@@ -305,6 +305,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
+        self._handle_add_assertions(test_cases)
+
+    def _handle_add_assertions(self, test_cases: list[tc.TestCase]):
         tests_and_results: list[tuple[tc.TestCase, list[ex.ExecutionResult | None]]] = [
             (test, []) for test in test_cases
         ]

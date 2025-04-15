@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import abc
+import ast
 import logging
 import math
 
@@ -30,6 +31,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.large_language_model.parsing import astscoping
 from pynguin.utils import randomness
 from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
@@ -37,6 +39,8 @@ from pynguin.utils.type_utils import is_optional_parameter
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pynguin.testcase.testcase as tc
 
     from pynguin.analyses import constants
@@ -371,6 +375,14 @@ class StatementVisitor(abc.ABC):
     @abstractmethod
     def visit_assignment_statement(self, stmt) -> None:
         """Visit assignment.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_ast_assign_statement(self, stmt: ASTAssignStatement) -> None:
+        """Visit ASTAssignStatement.
 
         Args:
             stmt: the statement to visit
@@ -2080,3 +2092,111 @@ class NoneStatement(PrimitiveStatement[None]):
 
     def __str__(self) -> str:
         return "None"
+
+
+class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
+    """A statement creating a variable on the LHS.
+
+    with an uninterpreted AST node as its RHS. These statements might
+    not execute successfully.
+    """
+
+    def __init__(
+        self,
+        test_case: tc.TestCase,
+        rhs: ast.AST | astscoping.VariableRefAST,
+        ref_dict: dict[str, vr.VariableReference],
+    ):
+        """Initializes the ASTAssignStatement.
+
+        Args:
+            test_case: The test case to which this statement belongs.
+            rhs: The right-hand side as an AST or VariableRefAST.
+            ref_dict: A dictionary of variable references.
+        """
+        super().__init__(test_case, vr.VariableReference(test_case, ANY))
+        if isinstance(rhs, astscoping.VariableRefAST):
+            self._rhs = rhs
+        elif isinstance(rhs, ast.AST):
+            self._rhs = astscoping.VariableRefAST(rhs, ref_dict)
+        else:
+            raise ValueError(
+                f"Tried to create an ASTAssignStatement with a RHS of type {type(rhs)}"
+            )
+
+    @property
+    def rhs(self):
+        """Provides access to the right-hand side (RHS) of the statement.
+
+        Returns:
+            astscoping.VariableRefAST: The RHS of the statement.
+        """
+        return self._rhs
+
+    @rhs.setter
+    def rhs(self, value: astscoping.VariableRefAST):
+        """Updates the right-hand side (RHS) of the statement.
+
+        Args:
+            value (astscoping.VariableRefAST): The new RHS value.
+        """
+        self._rhs = value
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> Statement:
+        new_rhs = self.rhs.clone(memo)
+        return ASTAssignStatement(test_case, new_rhs, {})
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_ast_assign_statement(self)
+
+    def accessible_object(self) -> gao.GenericAccessibleObject | None:  # noqa: D102
+        return None
+
+    def mutate(self) -> bool:  # noqa: D102
+        return self.rhs.mutate_var_ref(set(self._test_case.get_all_objects(self.get_position())))
+
+    def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
+        return self.rhs.get_all_var_refs()
+
+    def replace(  # noqa: D102
+        self, old: vr.VariableReference, new: vr.VariableReference
+    ) -> None:
+        self.rhs = self.rhs.replace_var_ref(old, new)
+
+    def structural_hash(self, memo) -> int:  # noqa: D102
+        return hash((self.ret_val.structural_hash(memo), self.rhs.structural_hash(memo)))
+
+    def structural_eq(  # noqa: D102
+        self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, ASTAssignStatement):
+            return False
+        return self.ret_val.structural_eq(other.ret_val, memo) and self.rhs.structural_eq(
+            other.rhs, memo
+        )
+
+    def get_rhs_as_normal_ast(
+        self, vr_replacer: Callable[[vr.VariableReference], ast.Name | ast.Attribute]
+    ) -> ast.AST:
+        """Converts the RHS into a standard AST.
+
+        Args:
+            vr_replacer: A function that replaces VariableReferences with ast.Names
+                         or ast.Attributes.
+
+        Returns:
+            ast.AST: The converted AST.
+        """
+        return self.rhs.get_normal_ast(vr_replacer)
+
+    def rhs_is_call(self) -> bool:
+        """Checks if the RHS is a function call.
+
+        Returns:
+            bool: True if the RHS represents a function call, otherwise False.
+        """
+        return self.rhs.is_call()

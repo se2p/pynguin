@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 #
 """This module provides a simple caching mechanism using the filesystem."""
+
 import hashlib
 import pathlib
 import tempfile

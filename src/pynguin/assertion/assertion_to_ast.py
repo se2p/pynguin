@@ -195,6 +195,29 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
                 au.create_ast_assert(au.create_ast_compare(left, ast.Eq(), comp))
             )
 
+    def visit_isinstance_assertion(self, assertion: ass.IsInstanceAssertion) -> None:
+        """Creates an assertion that checks if a reference is a given type.
+
+        Creates an assertion of form:
+        assert isinstance(var_0, ExpectedType)
+
+        Args:
+            assertion: the assertion that is visited.
+        """
+        var_name = au.create_full_name(
+            self._variable_names, self._module_aliases, assertion.source, load=True
+        )
+
+        isinstance_call = ast.Call(
+            func=ast.Name(id="isinstance", ctx=ast.Load()),
+            args=[var_name, assertion.expected_type],
+            keywords=[],
+        )
+
+        assert_stmt = au.create_ast_assert(isinstance_call)
+
+        self._assertion_nodes.append(assert_stmt)
+
     def _create_assertable_object(self, value: Any):
         """Recursively constructs an assertable object.
 
