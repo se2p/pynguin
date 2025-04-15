@@ -235,18 +235,22 @@ def test_create_assert_stmt_all_branches(deserializer):
             return_value="isinstance_assertion",
         ),
     ):
-        # Branch 1: isinstance assert
+        # Branch 1: assert on variable equals constant
+        assert_node = MagicMock(spec=ast.Assert)
+        assert_node.left = MagicMock(spec=ast.Name)
+        assert_node.ops = [ast.Eq()]
+        assert_node.comparators = [ast.Constant(value=5)]
+        result = deserializer.create_assert_stmt(assert_node)
+        assert result is not None
+        assert isinstance(result, tuple)
+        assert result[0] is not None
+        assert result[1] == ref
+
+        # Branch 2: isinstance assert
         isinstance_code = "assert isinstance(x, int)"
         isinstance_node = ast.parse(isinstance_code).body[0]
         result = deserializer.create_assert_stmt(isinstance_node)
         assert result == ("isinstance_assertion", ref)
-
-        # Branch 2: normal binary comparison (assert x == 5)
-        binary_code = "assert x == 5"
-        binary_node = ast.parse(binary_code).body[0]
-        result = deserializer.create_assert_stmt(binary_node)
-        assert result is not None
-        assert isinstance(result, tuple)
 
         # Branch 3: complex assert with function on LHS (mocked)
         class FakeFunc:
@@ -259,6 +263,13 @@ def test_create_assert_stmt_all_branches(deserializer):
         complex_node = ast.Assert(test=FakeFunc())
         result = deserializer.create_assert_stmt(complex_node)
         assert result is not None
+
+        # Branch 4: normal binary comparison (assert x == 5) -> else branch
+        binary_code = "assert x == 5"
+        binary_node = ast.parse(binary_code).body[0]
+        result = deserializer.create_assert_stmt(binary_node)
+        assert result is not None
+        assert isinstance(result, tuple)
 
         # Branch 4: fallback else branch (with mock structure)
         class Fallback:
