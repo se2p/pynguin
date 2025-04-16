@@ -105,7 +105,7 @@ LLM agents (Junie) **must**:
 - Add **full type hints** (`from __future__ import annotations`)
 - Add **SPDX headers** to new files:
     - `SPDX-FileCopyrightText: 2025 Pynguin Contributors`
-    - `SPDX-License-Identifier: CC-BY-4.0`
+    - Example: `SPDX-License-Identifier:` followed by `CC-BY-4.0`
 - Modify only files in `src/`, `tests/`, or `docs/`
 - Follow existing module and file structure
 - Write or update **unit tests** for all changes
@@ -121,4 +121,3 @@ LLM agents (Junie) **must not**:
 - Modify `poetry.lock` or `pyproject.toml` unless explicitly instructed
 - Modify files outside the `src/`, `tests/`, or `docs/` directories
 - Introduce dependencies without prior discussion in code comments
-
