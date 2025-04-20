@@ -11,7 +11,7 @@ import pathlib
 import tempfile
 
 
-def _sanitize_key(key: str) -> str:
+def sanitize_key(key: str) -> str:
     """Sanitizes the key to create a valid filename by hashing it.
 
     Args:
@@ -40,7 +40,7 @@ class Cache:
         Returns:
             The path to the cache file.
         """
-        sanitized_key = _sanitize_key(key)
+        sanitized_key = sanitize_key(key)
         return self.cache_dir / f"{sanitized_key}.cache"
 
     def get(self, key: str) -> str | None:
