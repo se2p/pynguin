@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -19,6 +19,7 @@ import itertools
 import json
 import logging
 import queue
+import types
 import typing
 
 from collections import defaultdict
@@ -72,6 +73,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
 from pynguin.utils.type_utils import get_class_that_defined_method
+from pynguin.utils.typeevalpy_json_schema import provide_json
 
 
 if typing.TYPE_CHECKING:
@@ -80,10 +82,9 @@ if typing.TYPE_CHECKING:
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
 
-    from pynguin.testcase.execution import SubjectProperties
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -202,8 +203,11 @@ def _is_blacklisted(element: Any) -> bool:
     if inspect.isfunction(element):
         # Some modules can be run standalone using a main function or provide a small
         # set of tests ('test'). We don't want to include those functions.
+        # Importing certain modules such as inspect, that use or import C-functions can
+        # lead to __module__ being None. We want to exclude these functions as well.
         return (
-            element.__module__ in module_blacklist
+            element.__module__ is None
+            or element.__module__ in module_blacklist
             or element.__qualname__.startswith((
                 "main",
                 "test",
@@ -287,7 +291,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
         )
         linenos = len(source_code.splitlines())
 
-    except (TypeError, OSError) as error:
+    except (TypeError, OSError, RuntimeError) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "
@@ -329,7 +333,7 @@ class TestCluster(abc.ABC):
 
     @abc.abstractmethod
     def add_accessible_object_under_test(
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         """Add accessible object to the objects under test.
 
@@ -359,7 +363,7 @@ class TestCluster(abc.ABC):
     @abc.abstractmethod
     def function_data_for_accessibles(
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         """Provides all function data for all accessibles."""
 
     @abc.abstractmethod
@@ -562,7 +566,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
             OrderedSet
         )
         self.__accessible_objects_under_test: OrderedSet[GenericAccessibleObject] = OrderedSet()
-        self.__function_data_for_accessibles: dict[GenericAccessibleObject, _CallableData] = {}
+        self.__function_data_for_accessibles: dict[GenericAccessibleObject, CallableData] = {}
 
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
@@ -574,7 +578,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
                 accessible.inferred_signature.log_stats_and_guess_signature(
                     accessible.is_constructor(), str(accessible), stats
                 )
-
         stat.track_output_variable(
             RuntimeVariable.SignatureInfos,
             json.dumps(
@@ -585,6 +588,31 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         stat.track_output_variable(
             RuntimeVariable.NumberOfConstructors,
             str(stats.number_of_constructors),
+        )
+        self.__write_type_eval_py_output(stats)
+
+    def __write_type_eval_py_output(self, stats: TypeGuessingStats):
+        # Create a folder for the inferred types
+        signatures_folder = Path(config.configuration.statistics_output.report_dir) / "signatures"
+        signatures_folder.mkdir(parents=True, exist_ok=True)
+        project_folder = signatures_folder / config.configuration.statistics_output.project_name
+        project_folder.mkdir(parents=True, exist_ok=True)
+        module_folder = project_folder / config.configuration.module_name.split(".")[-1]
+        module_folder.mkdir(parents=True, exist_ok=True)
+
+        # Dump the captured type information to a JSON file
+        types_json = (
+            module_folder / f"{config.configuration.module_name.split('.')[-1]}_result.json"
+        )
+
+        types_json.write_text(
+            provide_json(
+                f"{config.configuration.module_name.split('.')[-1]}.py",
+                self.__accessible_objects_under_test,
+                self.__function_data_for_accessibles,
+                stats,
+            ),
+            encoding="utf-8",
         )
 
     def _drop_generator(self, accessible: GenericCallableAccessibleObject):
@@ -661,7 +689,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__generators[generated_type].add(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         self.__accessible_objects_under_test.add(objc)
         self.__function_data_for_accessibles[objc] = data
@@ -683,7 +711,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__function_data_for_accessibles
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
@@ -804,7 +832,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
 
     @staticmethod
     def __compute_cyclomatic_complexities(
-        callable_data: typing.Iterable[_CallableData],
+        callable_data: typing.Iterable[CallableData],
     ) -> list[int]:
         # Collect complexities only for callables that had an AST.  Their minimal
         # complexity is 1, the value None symbolises a callable that had no AST present,
@@ -853,7 +881,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
         self.__delegate.add_generator(generator)
 
     def add_accessible_object_under_test(  # noqa: D102
-        self, objc: GenericAccessibleObject, data: _CallableData
+        self, objc: GenericAccessibleObject, data: CallableData
     ) -> None:
         self.__delegate.add_accessible_object_under_test(objc, data)
 
@@ -865,7 +893,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     @property
     def function_data_for_accessibles(  # noqa: D102
         self,
-    ) -> dict[GenericAccessibleObject, _CallableData]:
+    ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__delegate.function_data_for_accessibles
 
     def track_statistics_values(  # noqa: D102
@@ -1008,16 +1036,49 @@ def __is_private(method_name: str) -> bool:
     return method_name.startswith("__") and not method_name.endswith("__")
 
 
-def __is_method_defined_in_class(class_: type, method: object) -> bool:
+def __is_method_defined_in_class(class_: type | types.UnionType, method: object) -> bool:
     return class_ == get_class_that_defined_method(method)
 
 
 @dataclasses.dataclass
-class _CallableData:
+class CallableData:
+    """Provides all information on callables.
+
+    While the accessible is available for every callable, the other fields are only
+    filled for methods that are available in (Python) source code because their
+    information is retrieved from the abstract syntax tree.
+
+    Attributes:
+        accessible: the accessible object itself
+        tree: the AST of the callable, if any
+        description: the function description of the callable, if any
+        cyclomatic_complexity: the McCabe cyclomatic complexity of the callable, if any
+    """
+
     accessible: GenericAccessibleObject
     tree: AstroidFunctionDef | None
     description: FunctionDescription | None
     cyclomatic_complexity: int | None
+
+
+def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
+    """Retrieve the variable name of a lambda assignment.
+
+    Example:
+        For a lambda defined at line 10:
+            y = lambda: 42
+        this function will return "y" if the lambda node starts at line 10.
+    """
+    for node in module_tree.body:
+        if isinstance(node, astroid.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if (
+                hasattr(target, "name")
+                and isinstance(node.value, astroid.Lambda)
+                and node.value.lineno == lambda_lineno
+            ):
+                return target.name
+    return None
 
 
 def __analyse_function(
@@ -1048,8 +1109,19 @@ def __analyse_function(
     description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
+    if (
+        getattr(func, "__name__", None) == "<lambda>"
+        and (
+            lambda_assigned_name := _get_lambda_assigned_name(
+                module_tree, func.__code__.co_firstlineno
+            )
+        )
+        is not None
+    ):
+        func_name = lambda_assigned_name
+        func.__name__ = lambda_assigned_name
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
-    function_data = _CallableData(
+    function_data = CallableData(
         accessible=generic_function,
         tree=func_ast,
         description=description,
@@ -1080,7 +1152,7 @@ def __analyse_class(
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
-    if issubclass(type_info.raw_type, enum.Enum):
+    if issubclass(type_info.raw_type, enum.Enum):  # type: ignore[arg-type]
         generic: GenericEnum | GenericConstructor = GenericEnum(type_info)
         if isinstance(generic, GenericEnum) and len(generic.names) == 0:
             LOGGER.debug(
@@ -1092,7 +1164,7 @@ def __analyse_class(
         generic = GenericConstructor(
             type_info,
             test_cluster.type_system.infer_type_info(
-                type_info.raw_type.__init__,
+                type_info.raw_type.__init__,  # type: ignore[misc]
                 type_inference_strategy=type_inference_strategy,
             ),
             raised_exceptions,
@@ -1101,7 +1173,7 @@ def __analyse_class(
             type_info.raw_type
         )
 
-    method_data = _CallableData(
+    method_data = CallableData(
         accessible=generic,
         tree=constructor_ast,
         description=description,
@@ -1118,7 +1190,13 @@ def __analyse_class(
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
-    for method_name, method in inspect.getmembers(type_info.raw_type, inspect.isfunction):
+    try:
+        methods_with_names = inspect.getmembers(type_info.raw_type, inspect.isfunction)
+    except Exception as ex:  # noqa: BLE001
+        LOGGER.error("Could not get members for class %s: %s", type_info.full_name, str(ex))
+        return
+
+    for method_name, method in methods_with_names:
         __analyse_method(
             type_info=type_info,
             method_name=method_name,
@@ -1195,7 +1273,7 @@ def __analyse_method(
     generic_method = GenericMethod(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
-    method_data = _CallableData(
+    method_data = CallableData(
         accessible=generic_method,
         tree=method_ast,
         description=description,

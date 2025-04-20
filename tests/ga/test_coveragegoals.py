@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -27,11 +27,11 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import LineMetaData
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.execution import ExecutionTracer
-from pynguin.testcase.execution import LineMetaData
-from pynguin.testcase.execution import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 
 

@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -14,7 +14,7 @@ from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.operators.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking import RankingFunction
 from pynguin.ga.operators.selection import SelectionFunction
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
 
 

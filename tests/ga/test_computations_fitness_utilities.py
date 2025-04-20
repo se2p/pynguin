@@ -1,12 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -21,13 +21,13 @@ from hypothesis import given
 import pynguin.ga.computations as ff
 
 from pynguin.instrumentation.instrumentation import PredicateMetaData
+from pynguin.instrumentation.tracer import ExecutedAssertion
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import LineMetaData
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
-from pynguin.testcase.execution import ExecutedAssertion
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import ExecutionTrace
-from pynguin.testcase.execution import LineMetaData
-from pynguin.testcase.execution import SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
 
 

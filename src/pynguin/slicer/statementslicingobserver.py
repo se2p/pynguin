@@ -1,13 +1,12 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """Provides an observer that can be used to calculate the checked lines of a test."""
 
 import ast
-import logging
 import threading
 
 import pynguin.testcase.execution as ex
@@ -20,11 +19,8 @@ from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
-_LOGGER = logging.getLogger(__name__)
-
-
-class StatementSlicingObserver(ex.ExecutionObserver):
-    """Observer that updates the checked lines of a testcase.
+class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
+    """Remote observer that updates the checked lines of a testcase.
 
     Observes the execution of a test case and calculates the
     slices of its statements.
@@ -32,21 +28,17 @@ class StatementSlicingObserver(ex.ExecutionObserver):
 
     _STORE_INSTRUCTION_OFFSET = 3
 
-    class SlicingLocalState(threading.local):
+    class RemoteSlicingLocalState(threading.local):
         """Stores thread-local slicing data."""
 
         def __init__(self):  # noqa: D107
             super().__init__()
             self.slicing_criteria: dict[int, SlicingCriterion] = {}
 
-    def __init__(self, tracer: ex.ExecutionTracer) -> None:
-        """Initializes the observer.
-
-        Args:
-            tracer: The execution tracer
-        """
-        self._tracer = tracer
-        self._slicing_local_state = StatementSlicingObserver.SlicingLocalState()
+    def __init__(self) -> None:
+        """Initializes the observer."""
+        super().__init__()
+        self._slicing_local_state = RemoteStatementSlicingObserver.RemoteSlicingLocalState()
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -69,11 +61,11 @@ class StatementSlicingObserver(ex.ExecutionObserver):
     ) -> None:
         if exception is None:
             assert isinstance(statement, st.VariableCreatingStatement)
-            trace = self._tracer.get_trace()
+            trace = executor.tracer.get_trace()
             last_traced_instr = trace.executed_instructions[-2]
             assert last_traced_instr.opcode == op.STORE_NAME
 
-            code_object = self._tracer.get_subject_properties().existing_code_objects[
+            code_object = executor.tracer.get_subject_properties().existing_code_objects[
                 last_traced_instr.code_object_id
             ]
             slicing_instruction = UniqueInstruction(
@@ -92,23 +84,16 @@ class StatementSlicingObserver(ex.ExecutionObserver):
             )
             self._slicing_local_state.slicing_criteria[statement.get_position()] = slicing_criterion
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: ex.TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
     ) -> None:
         checked_lines = compute_statement_checked_lines(
             test_case.statements,
             result.execution_trace,
-            self._tracer.get_subject_properties(),
+            executor.tracer.get_subject_properties(),
             self._slicing_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ) -> None:
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """

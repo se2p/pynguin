@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -13,6 +13,7 @@ import threading
 
 from collections.abc import Sized
 from types import ModuleType
+from typing import Any
 from typing import cast
 
 from _pytest.outcomes import Failed  # noqa: PLC2701
@@ -36,13 +37,13 @@ from pynguin.utils.type_utils import is_primitive_type
 _LOGGER = logging.getLogger(__name__)
 
 
-class AssertionTraceObserver(ex.ExecutionObserver):
-    """Observer that creates assertions.
+class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
+    """Remote observer that creates assertions.
 
     Observes the execution of a test case and generates assertions from it.
     """
 
-    class AssertionLocalState(threading.local):
+    class RemoteAssertionLocalState(threading.local):
         """Stores thread-local assertion data."""
 
         def __init__(self):  # noqa: D107
@@ -51,7 +52,8 @@ class AssertionTraceObserver(ex.ExecutionObserver):
             self.watch_list: list[vr.VariableReference] = []
 
     def __init__(self) -> None:  # noqa: D107
-        self._assertion_local_state = AssertionTraceObserver.AssertionLocalState()
+        super().__init__()
+        self._assertion_local_state = RemoteAssertionTraceObserver.RemoteAssertionLocalState()
 
     def get_trace(self) -> at.AssertionTrace:
         """Get a copy of the gathered trace.
@@ -83,40 +85,38 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         if exception is not None:
-            self._assertion_local_state.trace.add_entry(
-                statement.get_position(),
-                ass.ExceptionAssertion(
-                    module=type(exception).__module__,
-                    exception_type_name=type(exception).__name__,
-                ),
-            )
+            if self._is_module_exposed(executor.module_provider, type(exception).__module__):
+                self._assertion_local_state.trace.add_entry(
+                    statement.get_position(),
+                    ass.ExceptionAssertion(
+                        module=type(exception).__module__,
+                        exception_type_name=type(exception).__name__,
+                    ),
+                )
             return
         if statement.affects_assertions:
             stmt = cast("st.VariableCreatingStatement", statement)
-            self._handle(stmt, exec_ctx)
+            self._handle(stmt, executor.module_provider, exec_ctx)
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: ex.TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
     ):
         result.assertion_trace = self.get_trace()
 
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ):
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """
-
     def _handle(  # noqa: C901
-        self, statement: st.VariableCreatingStatement, exec_ctx: ex.ExecutionContext
+        self,
+        statement: st.VariableCreatingStatement,
+        module_provider: ex.ModuleProvider,
+        exec_ctx: ex.ExecutionContext,
     ) -> None:
         """Actually handle the statement.
 
         Args:
             exec_ctx: the execution context.
+            module_provider: the module provider.
             statement: the statement that is visited.
         """
         position = statement.get_position()
@@ -126,13 +126,13 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         if not statement.ret_val.is_none_type():
             if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
                 # Primitives won't change, so we only check them once.
-                self._check_reference(exec_ctx, statement.ret_val, position, trace)
+                self._check_reference(module_provider, exec_ctx, statement.ret_val, position, trace)
             elif type(exec_ctx.get_reference_value(statement.ret_val)).__module__ != "builtins":
                 # Everything else is continually checked, unless it is from builtins.
                 self._assertion_local_state.watch_list.append(statement.ret_val)
 
         for var in self._assertion_local_state.watch_list:
-            self._check_reference(exec_ctx, var, position, trace)
+            self._check_reference(module_provider, exec_ctx, var, position, trace)
 
         # Check all used modules.
         for module_name, alias in exec_ctx.module_aliases:
@@ -147,6 +147,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    module_provider,
                     exec_ctx,
                     vr.StaticModuleFieldReference(
                         # Type information is not used here, so use Any.
@@ -175,6 +176,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 if self._should_ignore(field, value):
                     continue
                 self._check_reference(
+                    module_provider,
                     exec_ctx,
                     vr.StaticFieldReference(
                         # Type information is not used here, so use Any.
@@ -186,6 +188,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
 
     def _check_reference(
         self,
+        module_provider: ex.ModuleProvider,
         exec_ctx: ex.ExecutionContext,
         ref: vr.Reference,
         position: int,
@@ -200,6 +203,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         on the attributes of the given object.
 
         Args:
+            module_provider: The module provider.
             exec_ctx: The execution context.
             ref: The reference that should be checked.
             position: The position of the test case after which the assertions are made.
@@ -216,7 +220,11 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         else:
             # No precise assertion possible, so assert on type.
             typ = type(value)
-            if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
+            if (
+                hasattr(typ, "__module__")
+                and hasattr(typ, "__qualname__")
+                and self._is_module_exposed(module_provider, typ.__module__)
+            ):
                 trace.add_entry(
                     position,
                     ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
@@ -235,6 +243,7 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                 for field, field_value in vars(value).items():
                     if not self._should_ignore(field, field_value):
                         self._check_reference(
+                            module_provider,
                             exec_ctx,
                             vr.FieldReference(
                                 ref,
@@ -247,6 +256,15 @@ class AssertionTraceObserver(ex.ExecutionObserver):
                         )
 
     @staticmethod
+    def _is_module_exposed(module_provider: ex.ModuleProvider, module_name: str) -> bool:
+        try:
+            module_provider.get_module(module_name)
+        except KeyError:
+            return False
+
+        return True
+
+    @staticmethod
     def _should_ignore(field, attr_value):
         return (
             field.startswith("_")
@@ -256,10 +274,10 @@ class AssertionTraceObserver(ex.ExecutionObserver):
         )
 
 
-class AssertionVerificationObserver(ex.ExecutionObserver):
-    """This observer is used to check if assertions hold."""
+class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
+    """This remote observer is used to check if assertions hold."""
 
-    class AssertionExecutorLocalState(threading.local):
+    class RemoteAssertionExecutorLocalState(threading.local):
         """Local state for assertion executor."""
 
         def __init__(self):  # noqa: D107
@@ -267,7 +285,18 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             self.trace = at.AssertionVerificationTrace()
 
     def __init__(self):  # noqa: D107
-        self.state = AssertionVerificationObserver.AssertionExecutorLocalState()
+        super().__init__()
+        self._state = RemoteAssertionVerificationObserver.RemoteAssertionExecutorLocalState()
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "trace": self._state.trace,
+        }
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._state.trace = state["trace"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -276,20 +305,13 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             test_case: Not used
         """
 
-    def after_test_case_execution_inside_thread(  # noqa: D102
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
+    def after_test_case_execution(  # noqa: D102
+        self,
+        executor: ex.TestCaseExecutor,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
     ) -> None:
-        result.assertion_verification_trace = self.state.trace
-
-    def after_test_case_execution_outside_thread(
-        self, test_case: tc.TestCase, result: ex.ExecutionResult
-    ) -> None:
-        """Not used.
-
-        Args:
-            test_case: Not used
-            result: Not used
-        """
+        result.assertion_verification_trace = self._state.trace
 
     def before_statement_execution(  # noqa: D102
         self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
@@ -312,9 +334,9 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
             # exception.
             if isinstance(exception, Failed):
                 # Failed indicates that the expected assertion was not raised
-                self.state.trace.failed[statement.get_position()].add(0)
+                self._state.trace.failed[statement.get_position()].add(0)
             else:
-                self.state.trace.error[statement.get_position()].add(0)
+                self._state.trace.error[statement.get_position()].add(0)
         else:
             # Other assertions are executed after the statement.
             for idx, assertion in enumerate(statement.assertions):
@@ -328,6 +350,6 @@ class AssertionVerificationObserver(ex.ExecutionObserver):
                     continue
 
                 if isinstance(exc, AssertionError):
-                    self.state.trace.failed[statement.get_position()].add(idx)
+                    self._state.trace.failed[statement.get_position()].add(idx)
                 else:
-                    self.state.trace.error[statement.get_position()].add(idx)
+                    self._state.trace.error[statement.get_position()].add(idx)

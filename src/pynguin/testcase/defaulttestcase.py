@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -104,7 +104,7 @@ class DefaultTestCase(tc.TestCase):
                 # If the original statement created a variable, then so does the clone
                 # Thus we know that clone.ret_val is not None
                 memo[statement.ret_val] = copy.ret_val  # type: ignore[assignment]
-            test_case._statements.append(copy)  # noqa: SLF001
+            test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
         return test_case
 

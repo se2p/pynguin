@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 """Provides the DynaMOSA test-generation strategy."""
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
 
     from pynguin.ga.algorithms.archive import CoverageArchive
-    from pynguin.testcase.execution import SubjectProperties
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 
 class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):

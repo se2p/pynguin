@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -9,6 +9,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from bytecode import BasicBlock
+from bytecode.instr import Instr
+
+import pynguin.utils.opcodes as op
 
 from pynguin.analyses.controlflow import ProgramGraph
 from pynguin.analyses.controlflow import ProgramGraphNode
@@ -149,3 +152,36 @@ def test_predicate_id_set():
     node = ProgramGraphNode(index=42)
     node.predicate_id = 1337
     assert node.predicate_id == 1337
+
+
+def test_yield_nodes():
+    graph = ProgramGraph()
+    yield_instr = Instr(name="YIELD_VALUE")
+    yield_instr.opcode = op.YIELD_VALUE
+    instructions = [yield_instr]
+    basic_block = BasicBlock(instructions=instructions)
+    node = ProgramGraphNode(index=42, basic_block=basic_block)
+    graph.add_node(node)
+    yield_nodes = graph.yield_nodes
+    assert len(yield_nodes) == 1
+
+
+def test_yield_nodes_2():
+    graph = ProgramGraph()
+
+    yield_instr = Instr(name="YIELD_VALUE")
+    yield_instr.opcode = op.YIELD_VALUE
+    instructions = [yield_instr]
+    basic_block = BasicBlock(instructions=instructions)
+    node = ProgramGraphNode(index=42, basic_block=basic_block)
+    graph.add_node(node)
+
+    yield_instr_2 = Instr(name="YIELD_VALUE")
+    yield_instr_2.opcode = op.YIELD_VALUE
+    instructions_2 = [yield_instr_2]
+    basic_block_2 = BasicBlock(instructions=instructions_2)
+    node_2 = ProgramGraphNode(index=43, basic_block=basic_block_2)
+    graph.add_node(node_2)
+
+    yield_nodes = graph.yield_nodes
+    assert len(yield_nodes) == 2

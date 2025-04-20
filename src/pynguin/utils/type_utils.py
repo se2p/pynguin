@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -303,3 +303,54 @@ def given_exception_matches(err, exc) -> bool:
     if not isclass(err):
         err = type(err)
     return issubclass(err, exc)
+
+
+def string_distance(string1: str, string2: str) -> float:
+    """Returns the distance between two strings.
+
+    Unlike the Levenshtein distance, this calculates not just the
+    number of edits, but the character distance for left aligned strings.
+    Since we count each missing character as distance 1, character distances
+    are normalised in [0,1].
+    """
+    if string1 == string2:
+        return 0.0
+
+    min_length = min(len(string1), len(string2))
+    max_length = max(len(string1), len(string2))
+    differences: float = max_length - min_length
+
+    for pos in range(min_length):
+        if string1[pos] != string2[pos]:
+            difference = abs(ord(string1[pos]) - ord(string2[pos]))
+            differences += difference / (difference + 1.0)
+
+    return differences
+
+
+def string_lt_distance(string1: str, string2: str) -> int:
+    """Returns the strict ordered distance between two strings."""
+    if string1 < string2:
+        return 0
+
+    min_length = min(len(string1), len(string2))
+
+    for pos in range(min_length):
+        if string1[pos] > string2[pos]:
+            return ord(string1[pos]) - ord(string2[pos]) + 1
+
+    return 1
+
+
+def string_le_distance(string1: str, string2: str) -> int:
+    """Returns the ordered distance between two strings."""
+    if string1 <= string2:
+        return 0
+
+    min_length = min(len(string1), len(string2))
+
+    for pos in range(min_length):
+        if string1[pos] > string2[pos]:
+            return ord(string1[pos]) - ord(string2[pos])
+
+    return 1

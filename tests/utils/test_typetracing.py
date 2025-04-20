@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -112,7 +112,7 @@ def test_dont_record_objectproxy_instance_check():
 def test_dont_record_objectproxy_instance_check_2():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (tt.ObjectProxy, bytes))  # noqa: UP038
+        assert isinstance(proxy, (tt.ObjectProxy, bytes))
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 0
 
 
@@ -127,7 +127,7 @@ def test_dont_record_objectproxy_instance_check_3():
 def test_dont_record_objectproxy_instance_check_4():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance(), pytest.raises(TypeError):
-        assert isinstance(proxy, (tt.ObjectProxy(int), float))  # noqa: UP038
+        assert isinstance(proxy, (tt.ObjectProxy(int), float))
     assert inspect.isbuiltin(isinstance)
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 0
 
@@ -135,7 +135,7 @@ def test_dont_record_objectproxy_instance_check_4():
 def test_objectproxy_instance_check():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (int, float))  # noqa: UP038
+        assert isinstance(proxy, (int, float))
     assert len(tt.UsageTraceNode.from_proxy(proxy).type_checks) == 2
 
 
@@ -165,7 +165,7 @@ def test_isinstance_check():
 def test_isinstance_check_2():
     proxy = tt.ObjectProxy(42)
     with tt.shim_isinstance():
-        assert isinstance(proxy, (int, str))  # noqa: UP038
+        assert isinstance(proxy, (int, str))
     assert int in tt.UsageTraceNode.from_proxy(proxy).type_checks
     assert str in tt.UsageTraceNode.from_proxy(proxy).type_checks
 

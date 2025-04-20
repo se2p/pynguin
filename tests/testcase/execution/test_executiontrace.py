@@ -1,14 +1,14 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 from unittest.mock import MagicMock
 
+from pynguin.instrumentation.tracer import ExecutedAssertion
+from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.slicer.executedinstruction import ExecutedInstruction
-from pynguin.testcase.execution import ExecutedAssertion
-from pynguin.testcase.execution import ExecutionTrace
 
 
 def test_merge():

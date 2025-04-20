@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -1763,7 +1763,7 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
             and len(working_on) < config.configuration.test_creation.string_length
         ):
             exponent += 1
-            working_on = working_on[:pos] + [randomness.next_char()] + working_on[pos:]
+            working_on = [*working_on[:pos], randomness.next_char(), *working_on[pos:]]
         return working_on
 
     def clone(  # noqa: D102
@@ -1853,7 +1853,7 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
             and len(working_on) < config.configuration.test_creation.bytes_length
         ):
             exponent += 1
-            working_on = working_on[:pos] + [randomness.next_byte()] + working_on[pos:]
+            working_on = [*working_on[:pos], randomness.next_byte(), *working_on[pos:]]
         return working_on
 
     def clone(  # noqa: D102

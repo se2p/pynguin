@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -278,3 +278,43 @@ def test_load_configuration_from_file(tmp_path):
     expected.stopping.maximum_search_time = 50
     expected.statistics_output.configuration_id = "merge checker"
     assert configuration == expected
+
+
+@pytest.mark.parametrize(
+    "input_value, expected_bool, expected_float",
+    [
+        ("True", True, 1),
+        ("False", False, 0),
+        ("0", False, 0),
+        ("1", True, 1),
+    ],
+)
+def test_parse_arguments_type_tracing_bool(tmp_path, input_value, expected_bool, expected_float):
+    parser = _create_argument_parser()
+    parsed = parser.parse_args([
+        "--module_name",
+        "hurz",
+        "--project_path",
+        str(tmp_path),
+        "--output_path",
+        str(tmp_path),
+        "--type-tracing",
+        input_value,
+    ])
+    assert parsed.config.type_inference.type_tracing == expected_bool
+    assert parsed.config.type_inference.type_tracing == expected_float
+
+
+def test_parse_arguments_type_tracing_float(tmp_path):
+    parser = _create_argument_parser()
+    parsed = parser.parse_args([
+        "--module_name",
+        "hurz",
+        "--project_path",
+        str(tmp_path),
+        "--output_path",
+        str(tmp_path),
+        "--type-tracing",
+        "0.1",
+    ])
+    assert parsed.config.type_inference.type_tracing == 0.1

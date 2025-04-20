@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -39,11 +39,11 @@ if TYPE_CHECKING:
     from pynguin.analyses.controlflow import ControlDependenceGraph
     from pynguin.analyses.controlflow import ProgramGraphNode
     from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+    from pynguin.instrumentation.tracer import ExecutedAssertion
+    from pynguin.instrumentation.tracer import ExecutionTrace
+    from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import LastInstrState
-    from pynguin.testcase.execution import ExecutedAssertion
-    from pynguin.testcase.execution import ExecutionTrace
-    from pynguin.testcase.execution import SubjectProperties
 
 
 @dataclass

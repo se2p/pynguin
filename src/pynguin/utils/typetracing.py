@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -30,6 +30,7 @@ from asciitree import LeftAligned
 from asciitree.drawing import BOX_LIGHT
 
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.orderedset import OrderedTypeSet
 
 
 LOGGER = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class UsageTraceNode:
     children: dict[str, UsageTraceNode] = dataclasses.field(init=False)
 
     # The type against which this proxy was checked.
-    type_checks: OrderedSet[type] = dataclasses.field(default_factory=OrderedSet)
+    type_checks: OrderedTypeSet = dataclasses.field(default_factory=OrderedTypeSet)
 
     # Maps argument positions to their types.
     arg_types: dict[int, OrderedSet[type]] = dataclasses.field(
@@ -155,7 +156,7 @@ class UsageTraceNode:
             self.children[attr].merge(knowledge)
 
 
-class DepthDefaultDict(dict[str, UsageTraceNode]):
+class DepthDefaultDict(dict[str, UsageTraceNode]):  # noqa: FURB189
     """A dictionary creating a UsageTraceNode automatically for each key.
 
     The implementation creates a UsageTraceNode for each requested and non-existing key.

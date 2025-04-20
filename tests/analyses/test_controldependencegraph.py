@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -11,7 +11,8 @@ from pynguin.analyses.controlflow import ControlDependency
 from pynguin.analyses.controlflow import ProgramGraphNode
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutionTracer
+from tests.fixtures.programgraph.yield_fun import yield_fun
 
 
 def test_integration(small_control_flow_graph):
@@ -83,3 +84,17 @@ def test_get_control_dependencies_asserts(node):
     cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)
+
+
+def test_yield_instrumented():
+    tracer = ExecutionTracer()
+    adapter = BranchCoverageInstrumentation(tracer)
+    transformer = InstrumentationTransformer(tracer, [adapter])
+    transformer.instrument_module(yield_fun.__code__)
+    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
+    assert cdg
+
+
+def test_yield(yield_control_flow_graph):
+    cdg = ControlDependenceGraph.compute(yield_control_flow_graph)
+    assert cdg.entry_node is not None

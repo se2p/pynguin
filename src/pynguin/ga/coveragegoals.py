@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -20,10 +20,10 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
 
+    from pynguin.instrumentation.tracer import ExecutionTracer
+    from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
-    from pynguin.testcase.execution import ExecutionTracer
-    from pynguin.testcase.execution import SubjectProperties
 
 
 class AbstractCoverageGoal:

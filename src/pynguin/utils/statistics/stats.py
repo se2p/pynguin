@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import logging
-import pprint
 import queue
 import time
 
@@ -389,12 +388,13 @@ class _SearchStatistics:
         ):
             report_dir = Path(config.configuration.statistics_output.report_dir).resolve()
             if "SignatureInfos" in output_variables_map:
-                obj = json.loads(output_variables_map["SignatureInfos"].value)
-                output_file = report_dir / "signature-infos.json"
-                with output_file.open(mode="w") as f:
-                    json.dump(obj, f)
-            cfg_file = report_dir / "pynguin-config.txt"
-            cfg_file.write_text(pprint.pformat(repr(config.configuration)))
+                try:
+                    obj = json.loads(output_variables_map["SignatureInfos"].value)
+                    output_file = report_dir / "signature-infos.json"
+                    with output_file.open(mode="w") as f:
+                        json.dump(obj, f)
+                except json.JSONDecodeError:
+                    self._logger.error("Failed to parse signature infos")
         return True
 
     class _ChromosomeLengthOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):

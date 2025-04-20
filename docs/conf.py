@@ -1,10 +1,11 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """Sphinx configuration."""
+
 import datetime
 import os
 import sys
@@ -22,7 +23,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "hoverxref.extension",
     "sphinx_autodoc_typehints",
-    "sphinx_selective_exclude.eager_only",
 ]
 
 project = "pynguin"

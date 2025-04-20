@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -36,6 +36,11 @@ class Algorithm(str, enum.Enum):
     """The dynamic many-objective sorting algorithm (cf. Panichella et al. Automated
     test case generation as a many-objective optimisation problem with dynamic selection
     of the targets.  TSE vol. 44 issue 2)."""
+
+    LLM = "LLM"
+    """Query a large language model for tests.  NOTE: This does not execute the usual test and
+    assertion generation stages of Pynguin but queries an LLM and writes the resulting test cases to
+    the output file."""
 
     MIO = "MIO"
     """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
@@ -226,6 +231,11 @@ class TestCaseOutputConfiguration:
     output_path: str
     """Path to an output folder for the generated test cases."""
 
+    crash_path: str = ""
+    """Path to an output folder for the generated test cases that caused a crash.
+    Only works when running in a subprocess.
+    """
+
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the
     generated tests should fit."""
@@ -263,7 +273,7 @@ class TestCaseOutputConfiguration:
 class SeedingConfiguration:
     """Configuration related to seeding."""
 
-    seed: int = time.time_ns()  # noqa: RUF009
+    seed: int = time.time_ns()
     """A predefined seed value for the random number generator that is used."""
 
     constant_seeding: bool = True
@@ -377,8 +387,11 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    type_tracing: bool = False
-    """Trace usage of parameters with unknown types to improve type guesses."""
+    type_tracing: bool | float = 0.0
+    """Probability to trace usage of parameters with unknown types to improve type
+    guesses during test execution. Type tracing requires a separate second.
+    The value should be a float in [0,1]. Boolean is kept for backwards compatibility
+    as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
 
 @dataclasses.dataclass
@@ -574,6 +587,10 @@ class StoppingConfiguration:
     """Minimum iterations without a coverage change to stop early.  Expects values
     larger than 0; also requires the setting of minimum_coverage."""
 
+    maximum_memory: int = 3000
+    """Maximum memory usage in MB after which the generation shall stop.
+    Expects values in MB greater than 0 of -1 to disable the check."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""
@@ -657,6 +674,9 @@ class Configuration:
 
     ignore_methods: list[str] = dataclasses.field(default_factory=list)
     """Ignore the methods specified here from the module analysis."""
+
+    subprocess: bool = False
+    """Run the test generation in a subprocess."""
 
 
 # Singleton instance of the configuration.

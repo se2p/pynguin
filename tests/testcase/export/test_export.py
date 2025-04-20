@@ -1,9 +1,11 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
+
+
 from pynguin.testcase import export
 
 
@@ -78,5 +80,44 @@ import tests.fixtures.accessibles.accessible as module_0
 def test_case_0():
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)
+"""
+    )
+
+
+def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
+    path = tmp_path / "generated_with_unexpected_exception.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case_with_lambda.accept(exporter)
+    export.save_module_to_file(exporter.to_module(), path)
+    assert (
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import tests.conftest as module_0
+
+
+def test_case_0():
+    int_0 = 1
+    int_1 = module_0.just_z(int_0)
+"""
+    )
+
+
+def test_export_lambda_complex(exportable_test_case_with_lambda_complex, tmp_path):
+    path = tmp_path / "generated_with_unexpected_exception.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case_with_lambda_complex.accept(exporter)
+    export.save_module_to_file(exporter.to_module(), path)
+    assert (
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import tests.conftest as module_0
+
+
+def test_case_0():
+    complex_0 = 3 + 4j
+    complex_1 = 1 + 0j
+    float_0 = 0.1
+    float_1 = 0.3
+    complex_2 = module_0.weighted_avg(complex_0, complex_1, float_0, float_1)
 """
     )

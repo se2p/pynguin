@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -29,7 +29,7 @@ class DummyStopping(StoppingCondition):
 
 def test_nothing_on_after_test_case_execution():
     stopping = DummyStopping()
-    stopping.after_test_case_execution_inside_thread(None, None)
+    stopping.after_remote_test_case_execution(None, None)
     # Nothing really to assert on
 
 

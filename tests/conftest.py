@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -39,6 +39,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
@@ -172,6 +173,78 @@ def function_mock(type_system) -> GenericFunction:
 
 
 @pytest.fixture
+def lambda_mock(type_system) -> GenericFunction:
+    # NOTE: module.py changes the lambda name, so we assume that at this point they are
+    # already renamed
+    just_z = lambda z: z  # noqa: E731
+    just_z.__name__ = "just_z"
+    return GenericFunction(
+        function=just_z,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="z",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=int,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(int)),
+            original_parameters={"z": Instance(TypeInfo(int))},
+            type_system=type_system,
+        ),
+    )
+
+
+weighted_avg = lambda x, y, w1, w2: (x * w1 + y * w2) / (w1 + w2)  # noqa: E731
+
+
+@pytest.fixture
+def lambda_mock_complex(type_system) -> GenericFunction:
+    # NOTE: module.py changes the lambda name, so we assume that at this point they are
+    # already renamed
+    weighted_avg.__name__ = "weighted_avg"
+    return GenericFunction(
+        function=weighted_avg,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(
+                parameters=[
+                    inspect.Parameter(
+                        name="x",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=complex,
+                    ),
+                    inspect.Parameter(
+                        name="y",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=complex,
+                    ),
+                    inspect.Parameter(
+                        name="w1",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                    inspect.Parameter(
+                        name="w2",
+                        kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        annotation=float,
+                    ),
+                ]
+            ),
+            original_return_type=Instance(TypeInfo(complex)),
+            original_parameters={
+                "x": Instance(TypeInfo(complex)),
+                "y": Instance(TypeInfo(complex)),
+                "w1": Instance(TypeInfo(float)),
+                "w2": Instance(TypeInfo(float)),
+            },
+            type_system=type_system,
+        ),
+    )
+
+
+@pytest.fixture
 def field_mock() -> GenericField:
     return GenericField(owner=TypeInfo(SomeType), field="y", field_type=Instance(TypeInfo(float)))
 
@@ -241,6 +314,31 @@ def small_control_flow_graph() -> CFG:
     cfg.add_edge(n4, n2)
     cfg.add_edge(n3, n2)
     cfg.add_edge(n2, exit_node)
+    return cfg
+
+
+@pytest.fixture(scope="module")
+def yield_control_flow_graph() -> CFG:
+    cfg = CFG(MagicMock())
+    entry = ProgramGraphNode(index=-1)
+    y_assign_0_node = ProgramGraphNode(index=0)
+    y_eq_0_node = ProgramGraphNode(index=1)
+    yield_y_node = ProgramGraphNode(index=2)  # yield_y_node, 2
+    jmp_node = ProgramGraphNode(index=3)
+
+    cfg.add_node(entry)
+    cfg.add_node(y_assign_0_node)
+    cfg.add_node(y_eq_0_node)
+    cfg.add_node(yield_y_node)
+    cfg.add_node(jmp_node)
+
+    cfg.add_edge(entry, y_assign_0_node)
+    cfg.add_edge(y_assign_0_node, y_eq_0_node)
+    cfg.add_edge(y_eq_0_node, yield_y_node, label="True")
+    cfg.add_edge(y_eq_0_node, jmp_node, label="False")
+    cfg.add_edge(yield_y_node, jmp_node)
+    # No outgoing edge - will be constructed from yield node
+
     return cfg
 
 
@@ -507,6 +605,13 @@ def plus_test_with_multiple_assertions():
         )
     )
     return test_case
+
+
+@pytest.fixture
+def result():
+    result = ExecutionResult()
+    result.num_executed_statements = 1
+    return result
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

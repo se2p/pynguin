@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 # SPDX-License-Identifier: MIT
 
@@ -27,7 +27,7 @@ before_script:
   - python --version
   - pip install poetry
   - poetry config virtualenvs.in-project true
-  - poetry install
+  - poetry install --with openai
 
 .unit-tests: &unit-tests
   stage: test
@@ -58,10 +58,10 @@ unit-tests:python-3.10:
     - python --version
     - pip install poetry
     - poetry config virtualenvs.in-project true
-    - poetry install
+    - poetry install --with openai
     - poetry add --group dev pytest-random-order
   script:
-    - for ((i=1; i<=10; i++)); do echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; done
+    - for ((i=1; i<=10; i++)); do SECONDS=0; echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; elapsed=$SECONDS; echo "=== required ${elapsed} seconds for run ${i} ===\n\n" ; done
   needs: ["unit-tests:python-3.10"]
 
 nightly-tests:python-3.10:
@@ -77,7 +77,7 @@ memory-profile:
   before_script:
     - pip install poetry
     - poetry config virtualenvs.in-project true
-    - poetry install
+    - poetry install --with openai
     - poetry add --group dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/
@@ -94,6 +94,7 @@ mypy:
   stage: lint
   image: python:3.10-bookworm
   script:
+    - poetry run mypy --version
     - poetry run mypy
   needs: ["pre-commit"]
 

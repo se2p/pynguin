@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -30,6 +30,7 @@ import pynguin.configuration as config
 from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
+from pynguin.utils.configuration_writer import write_configuration
 
 
 if TYPE_CHECKING:
@@ -204,6 +205,7 @@ to see why this happens and what you must do to prevent it."""
     )
 
     set_configuration(parsed.config)
+    write_configuration()
     if console is not None:
         with console.status("Running Pynguin..."):
             return run_pynguin().value
@@ -212,4 +214,8 @@ to see why this happens and what you must do to prevent it."""
 
 
 if __name__ == "__main__":
+    import multiprocess as mp
+
+    mp.set_start_method("spawn")
+
     sys.exit(main(sys.argv))

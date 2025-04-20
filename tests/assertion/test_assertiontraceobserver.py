@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -16,7 +16,7 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import Statement
 
 
-class FooObserver(ato.AssertionTraceObserver):
+class FooObserver(ato.RemoteAssertionTraceObserver):
     def before_statement_execution(
         self, statement: Statement, node: ast.stmt, exec_ctx: ExecutionContext
     ) -> ast.stmt:
@@ -48,5 +48,5 @@ def test_after_test_case_execution():
     with mock.patch.object(observer._assertion_local_state, "trace") as trace_mock:
         clone = object()
         trace_mock.clone.return_value = clone
-        observer.after_test_case_execution_inside_thread(MagicMock(), result)
+        observer.after_test_case_execution(MagicMock(), MagicMock(), result)
         assert result.assertion_trace == clone

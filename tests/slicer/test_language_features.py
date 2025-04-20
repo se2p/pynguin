@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -242,7 +242,7 @@ def test_with_extended_arg():
     def func():
         p = [1, 2, 3, 4, 5, 6]
         unused = p  # noqa: F841
-        q, r, *s, t = p  # With extended argument  # noqa: F841
+        q, r, *_, __ = p  # With extended argument
 
         result = q, r
         return result  # noqa: RET504

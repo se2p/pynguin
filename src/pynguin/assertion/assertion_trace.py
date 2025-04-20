@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -79,6 +79,12 @@ class AssertionTrace:
             for entry in stmt_value:
                 copy.trace[stmt_key].add(entry)
         return copy
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, AssertionTrace) and self.trace == other.trace
+
+    def __hash__(self) -> int:
+        return hash(self.trace)
 
 
 @dataclasses.dataclass

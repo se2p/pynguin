@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -55,13 +55,17 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.slicer.statementslicingobserver import StatementSlicingObserver
+from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
-from pynguin.testcase.execution import AssertionExecutionObserver
-from pynguin.testcase.execution import ExecutionTracer
+from pynguin.testcase.execution import RemoteAssertionExecutionObserver
+from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.llm import LLM
+from pynguin.utils.llm import LLMProvider
+from pynguin.utils.llm import extract_code
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -115,6 +119,8 @@ def run_pynguin() -> ReturnCode:
     """
     try:
         _LOGGER.info("Start Pynguin Test Generation…")
+        if config.configuration.algorithm == config.Algorithm.LLM:
+            return _run_llm()
         return _run()
     finally:
         _LOGGER.info("Stop Pynguin Test Generation…")
@@ -169,9 +175,9 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
         importlib.import_module(config.configuration.module_name)
-    except ImportError as ex:
+    except Exception as ex:
         # A module could not be imported because some dependencies
-        # are missing or it is malformed
+        # are missing or it is malformed or any error is raised during the import
         _LOGGER.exception("Failed to load SUT: %s", ex)
         return False
     return True
@@ -259,11 +265,18 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
-    executor = TestCaseExecutor(
-        tracer,
-        maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
-        test_execution_time_per_statement=stop.test_execution_time_per_statement,
-    )
+    if config.configuration.subprocess:
+        executor: TestCaseExecutor = SubprocessTestCaseExecutor(
+            tracer,
+            maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
+            test_execution_time_per_statement=stop.test_execution_time_per_statement,
+        )
+    else:
+        executor = TestCaseExecutor(
+            tracer,
+            maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
+            test_execution_time_per_statement=stop.test_execution_time_per_statement,
+        )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
     return executor, test_cluster, wrapped_constant_provider
@@ -400,7 +413,7 @@ def _track_final_metrics(
     if RuntimeVariable.AssertionCheckedCoverage in output_variables:
         metrics_for_reinstrumenation.add(config.CoverageMetric.CHECKED)
         executor.set_instrument(True)
-        executor.add_observer(AssertionExecutionObserver(executor.tracer))
+        executor.add_remote_observer(RemoteAssertionExecutionObserver())
         assertion_checked_coverage_ff = ff.TestSuiteAssertionCheckedCoverageFunction(executor)
         to_calculate.append((
             RuntimeVariable.AssertionCheckedCoverage,
@@ -487,7 +500,7 @@ def _run() -> ReturnCode:
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        executor.add_observer(StatementSlicingObserver(executor.tracer))
+        executor.add_remote_observer(RemoteStatementSlicingObserver())
 
     algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
         executor, test_cluster, constant_provider
@@ -505,6 +518,7 @@ def _run() -> ReturnCode:
     # Executions that happen after this point should not influence the
     # search statistics
     executor.clear_observers()
+    executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)
@@ -539,6 +553,31 @@ def _run() -> ReturnCode:
     if generation_result.size() == 0:
         # not able to generate one test case
         return ReturnCode.NO_TESTS_GENERATED
+    return ReturnCode.OK
+
+
+def _run_llm() -> ReturnCode:
+    def load_sut_code() -> str:
+        project_path = Path(config.configuration.project_path)
+        module_name = config.configuration.module_name.replace(".", "/") + ".py"
+        sut_file = project_path / module_name
+        return sut_file.read_text()
+
+    model = LLM.create(LLMProvider.OPENAI)
+    user_prompt = "Generate test cases for the following Python code:\n\n"
+    user_prompt += "```\n"
+    user_prompt += load_sut_code()
+    user_prompt += "\n```\n"
+    response = model.chat(user_prompt)
+    if not response:
+        return ReturnCode.NO_TESTS_GENERATED
+
+    code = extract_code(response)
+    module_name = config.configuration.module_name.replace(".", "_")
+    target_file = (
+        Path(config.configuration.test_case_output.output_path).resolve() / f"test_{module_name}.py"
+    )
+    target_file.write_text(code)
     return ReturnCode.OK
 
 

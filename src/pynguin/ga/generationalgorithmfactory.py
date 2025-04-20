@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 
@@ -55,6 +55,7 @@ from pynguin.ga.operators.selection import TournamentSelection
 from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
 from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
+from pynguin.ga.stoppingcondition import MaxMemoryStoppingCondition
 from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
 from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
@@ -124,6 +125,12 @@ class GenerationAlgorithmFactory(ABC, Generic[C]):
             conditions.append(
                 MaxSearchTimeStoppingCondition(GenerationAlgorithmFactory._DEFAULT_MAX_SEARCH_TIME)
             )
+
+        optional_conditions: list[StoppingCondition] = []
+        if (max_memory := stopping.maximum_memory) >= 0:
+            optional_conditions.append(MaxMemoryStoppingCondition(max_memory))
+        conditions.extend(optional_conditions)
+
         return conditions
 
     @abstractmethod
@@ -166,8 +173,10 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             test_cluster: The test cluster
             constant_provider: An optional constant provider from seeding
         """
-        if config.configuration.type_inference.type_tracing:
-            executor = TypeTracingTestCaseExecutor(executor, test_cluster)
+        if config.configuration.type_inference.type_tracing > 0:
+            executor = TypeTracingTestCaseExecutor(
+                executor, test_cluster, config.configuration.type_inference.type_tracing
+            )
         self._executor = executor
         self._test_cluster = test_cluster
         if constant_provider is None:

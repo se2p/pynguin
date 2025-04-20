@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -257,6 +257,29 @@ class ProgramGraph(Generic[N]):
                 exit_nodes.add(node)
         return exit_nodes
 
+    @property
+    def yield_nodes(self) -> set[N]:
+        """Provides the yield nodes of the graph.
+
+        Iterates over all nodes and checks if any of the instructions in the basic block
+        is a yield instruction. If so, the node is added to the set of yield nodes. Then
+        we ignore the rest of the instructions in this basic block and continue with the
+        next node.
+
+        Returns:
+            The set of yield nodes of the graph
+        """
+        yield_nodes: set[N] = set()
+        for node in self._graph.nodes:
+            if node.basic_block:
+                for instr in node.basic_block:
+                    if instr.opcode == op.YIELD_VALUE:
+                        yield_nodes.add(node)
+                        # exist the inner loop (over instructions)
+                        # the node is already added thus continue with the next node
+                        break
+        return yield_nodes
+
     def get_transitive_successors(self, node: N) -> set[N]:
         """Calculates the transitive closure (the transitive successors) of a node.
 
@@ -421,7 +444,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
 
-        reversed_cfg._graph = cfg._graph.reverse(copy=True)  # noqa: SLF001
+        reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
     def reversed(self) -> CFG:
@@ -444,7 +467,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         copy = CFG(ControlFlowGraph())  # TODO(fk) Cloning the bytecode cfg is complicated.
 
-        copy._graph = cfg._graph.copy()  # noqa: SLF001
+        copy._graph = cfg._graph.copy()
         return copy
 
     def copy(self) -> CFG:
@@ -562,12 +585,23 @@ class CFG(ProgramGraph[ProgramGraphNode]):
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
         dummy_exit_node = ProgramGraphNode(index=sys.maxsize, is_artificial=True)
         exit_nodes = cfg.exit_nodes
-        assert exit_nodes, (
-            "Control flow must have at least one exit node. Offending CFG: " + cfg.dot
+        yield_nodes = cfg.yield_nodes
+        assert exit_nodes.union(yield_nodes), (
+            "Control flow must have at least one exit or yield node. Offending CFG: " + cfg.dot
         )
+
+        # Add the dummy exit node to the graph
         cfg.add_node(dummy_exit_node)
+
+        # Connect the dummy exit node to all yield nodes
+        for yield_node in yield_nodes:
+            cfg.add_edge(yield_node, dummy_exit_node)
+
+        # Connect the dummy exit node to all exit nodes
         for exit_node in exit_nodes:
-            cfg.add_edge(exit_node, dummy_exit_node)
+            if exit_node is not dummy_exit_node:
+                cfg.add_edge(exit_node, dummy_exit_node)
+
         for infinite_loop_node in CFG._infinite_loop_nodes(cfg):
             cfg.add_edge(infinite_loop_node, dummy_exit_node)
         return cfg
@@ -599,6 +633,52 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 # If the diameter computation fails for some reason, use an upper bound
                 self._diameter = len(self._graph.edges)
         return self._diameter
+
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
+                for source, target, data in self._graph.edges(data=True)
+            ),
+            "bytecode_cfg": self._bytecode_cfg,
+            "diameter": self._diameter,
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+            node = ProgramGraphNode(
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
+            )
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
+        self._bytecode_cfg = state["bytecode_cfg"]
+        self._diameter = state["diameter"]
 
 
 class DominatorTree(ProgramGraph[ProgramGraphNode]):
@@ -832,6 +912,48 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
             if self._is_control_dependent_on_root(pred, visited):
                 return True
         return False
+
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
+                for source, target, data in self._graph.edges(data=True)
+            ),
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+            node = ProgramGraphNode(
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
+            )
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
 
     @staticmethod
     def _create_augmented_graph(graph: CFG) -> CFG:
