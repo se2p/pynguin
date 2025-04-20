@@ -126,7 +126,6 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
                 test_factory=self._test_factory,
                 fitness_functions=self._fitness_functions,
                 coverage_functions=self._coverage_functions,
-                model=model,
             )
 
         return []

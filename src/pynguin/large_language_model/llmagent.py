@@ -15,11 +15,18 @@ import time
 
 from pathlib import Path
 
-import openai
 
-from openai.types.chat import ChatCompletionMessageParam
-from openai.types.chat import ChatCompletionSystemMessageParam
-from openai.types.chat import ChatCompletionUserMessageParam
+try:
+    import openai
+
+    from openai.types.chat import ChatCompletionMessageParam
+    from openai.types.chat import ChatCompletionSystemMessageParam
+    from openai.types.chat import ChatCompletionUserMessageParam
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
@@ -111,6 +118,11 @@ def set_api_key():
     Raises:
         ValueError: If the OpenAI API key is missing or invalid.
     """
+    if not OPENAI_AVAILABLE:
+        raise ValueError(
+            "OpenAI API library is not available. You can install it with poetry "
+            "install --with openai."
+        )
     if not is_api_key_present():
         raise ValueError("OpenAI API key is missing.")
 
