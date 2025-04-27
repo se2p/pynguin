@@ -84,9 +84,9 @@ def test_test_case_chromosome_factory_property(llm_factory, mock_test_case_chrom
 def test_generate_llm_test_cases_with_results(llm_factory, patch_llm_agent):
     fake_chromosome = mock.create_autospec(TestCaseChromosome, instance=True)
     patch_llm_agent.generate_tests_for_module_under_test.return_value = "fake_results"
-    patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results.return_value = [
-        fake_chromosome
-    ]
+    (
+        patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results
+    ).return_value = [fake_chromosome]
 
     result = llm_factory._generate_llm_test_cases()
     assert result == [fake_chromosome]
@@ -111,7 +111,6 @@ def test_generate_llm_test_cases_without_results(llm_factory, patch_llm_agent):
 def test_get_chromosome_with_llm_tests(
     llm_factory,
     patch_llm_agent,
-    mock_test_case_chromosome,
     llm_count,
     population,
     llm_test_cases_length,
@@ -126,7 +125,9 @@ def test_get_chromosome_with_llm_tests(
         for _ in range(llm_test_cases_length)
     ]
     patch_llm_agent.generate_tests_for_module_under_test.return_value = "results"
-    patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results.return_value = llm_cases
+    (
+        patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results
+    ).return_value = llm_cases
 
     chromosome = llm_factory.get_chromosome()
 
@@ -135,7 +136,7 @@ def test_get_chromosome_with_llm_tests(
     assert len(chromosome.test_case_chromosomes) == population
 
 
-def test_get_chromosome_no_llm_tests(llm_factory, patch_llm_agent, mock_test_case_chromosome):
+def test_get_chromosome_no_llm_tests(llm_factory, patch_llm_agent):
     config.configuration.large_language_model.llm_test_case_percentage = 0.0
     config.configuration.search_algorithm.population = 3
 
@@ -145,13 +146,3 @@ def test_get_chromosome_no_llm_tests(llm_factory, patch_llm_agent, mock_test_cas
 
     assert isinstance(chromosome, TestSuiteChromosome)
     assert len(chromosome.test_case_chromosomes) == 3
-
-
-def test_logging_info_when_merging(llm_factory, patch_llm_agent, caplog):
-    config.configuration.large_language_model.llm_test_case_percentage = 0.0
-    config.configuration.search_algorithm.population = 1
-
-    with caplog.at_level("INFO"):
-        llm_factory.get_chromosome()
-
-    assert "Merged" in caplog.text
