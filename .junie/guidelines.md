@@ -85,9 +85,11 @@ requires Python 3.10.
 
 ## LLM Agent Instructions
 
-These rules are strictly enforced for automated code generation agents such as Junie:
+These rules are strictly enforced for all automated code generation agents (e.g., Junie, Claude Code, GitHub Copilot, etc.) used with the Pynguin project:
 
-LLM agents (Junie) **may**:
+### General Guidelines for All LLM Agents
+
+LLM agents **may**:
 
 - Analyse existing code and documentation
 - Suggest improvements or refactors
@@ -97,7 +99,7 @@ LLM agents (Junie) **may**:
 - Edit documentation in `docs/`
 - Create new modules that follow the established structure and best practices
 
-LLM agents (Junie) **must**:
+LLM agents **must**:
 
 - Use **ruff-format** for formatting (100-char lines)
 - Use **Google-style docstrings**
@@ -111,7 +113,7 @@ LLM agents (Junie) **must**:
 - Pass `pre-commit run --all-files`
 - Keep diffs small and focused
 
-LLM agents (Junie) **must not**:
+LLM agents **must not**:
 
 - Push any changes to the repository
 - Create, close, or comment on merge/pull requests
