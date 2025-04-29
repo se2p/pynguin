@@ -89,7 +89,7 @@ These rules are strictly enforced for automated code generation agents such as J
 
 LLM agents (Junie) **may**:
 
-- Analyze existing code and documentation
+- Analyse existing code and documentation
 - Suggest improvements or refactors
 - Add new functions, methods, or classes within the existing structure
 - Write unit tests for existing or new code
