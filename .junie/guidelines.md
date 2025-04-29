@@ -30,10 +30,9 @@ requires Python 3.10.
 - **Python 3.10**: Required version
 - **Poetry**: Dependency management
 - **pytest**: Testing framework
-- **Black**: Code formatting
+- **ruff**: Linting and code formatting
 - **isort**: Import sorting
 - **mypy**: Type checking
-- **ruff**: Linting
 - **Sphinx**: Documentation
 
 ## Development Setup
@@ -57,7 +56,7 @@ requires Python 3.10.
 ## Best Practices
 
 1. **Code Style**:
-    - Follow Black code style (88 characters per line)
+    - Follow ruff-format code style (100 characters per line)
     - Use Google Python Style Guide for docstrings
     - Keep functions and methods small and focused
     - Use pathlib instead of os.path or strings for file paths
@@ -100,7 +99,7 @@ LLM agents (Junie) **may**:
 
 LLM agents (Junie) **must**:
 
-- Use **Black** for formatting (88-char lines)
+- Use **ruff-format** for formatting (100-char lines)
 - Use **Google-style docstrings**
 - Add **full type hints** (`from __future__ import annotations`)
 - Add **SPDX headers** to new files:
