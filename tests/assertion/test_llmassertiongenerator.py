@@ -18,10 +18,16 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.assertiongenerator import InstrumentedMutationController
 from pynguin.assertion.llmassertiongenerator import LLMAssertionGenerator
+from pynguin.assertion.llmassertiongenerator import (
+    MutationAnalysisLLMAssertionGenerator,
+)
 from pynguin.assertion.llmassertiongenerator import extract_assertions
 from pynguin.assertion.llmassertiongenerator import indent_assertions
+from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -107,6 +113,52 @@ def test_llm_assertion_generator(llm_assertion_generator, test_case_chromosome, 
         )
 
 
+def test_visit_test_suite_chromosome(
+    llm_assertion_generator, test_case_chromosome, test_case_from_llm
+):
+    with patch(
+        "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
+    ) as deserialize_mock:
+        deserialize_mock.return_value = ([test_case_from_llm], None, None, None)
+
+        # Create a test suite chromosome with the test case chromosome
+        test_suite_chromosome = TestSuiteChromosome()
+        test_suite_chromosome.add_test_case_chromosome(test_case_chromosome)
+
+        # Call the method to test
+        llm_assertion_generator.visit_test_suite_chromosome(test_suite_chromosome)
+
+        # Assert that the assertions are added correctly
+        assert (
+            test_case_chromosome.test_case.statements[0].assertions[0].object
+            == test_case_from_llm.statements[0].assertions[0].object
+        )
+        assert (
+            test_case_chromosome.test_case.statements[0].assertions[0].source
+            == test_case_from_llm.statements[0].assertions[0].source
+        )
+
+
+def test_deserialize_failure(llm_assertion_generator, test_case_chromosome):
+    with (
+        patch(
+            "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
+        ) as deserialize_mock,
+        patch("pynguin.assertion.llmassertiongenerator._logger") as logger_mock,
+    ):
+        # Set up the mock to return None, simulating a deserialization failure
+        deserialize_mock.return_value = None
+
+        # Call the method to test
+        llm_assertion_generator.visit_test_case_chromosome(test_case_chromosome)
+
+        # Verify that the error was logged
+        logger_mock.error.assert_called_once()
+
+        # Verify that execution continued without raising an exception
+        # This is implicit since we reached this point without an exception
+
+
 def create_mock_test_case():
     test_case = MagicMock(spec=tc.TestCase)
     var_ref = MagicMock(spec=vr.VariableReference)
@@ -138,3 +190,27 @@ def test_copy_test_case_references():
     assert target_statement.args["arg1"] == original_var_ref
     assert len(target_statement.assertions) == 1
     assert next(iter(target_statement.assertions)).source == original_var_ref
+
+
+def test_mutation_analysis_llm_assertion_generator():
+    # Create mock objects for the required arguments
+    plain_executor = MagicMock(spec=TestCaseExecutor)
+    mutation_controller = MagicMock(spec=InstrumentedMutationController)
+
+    # Create a mock for the parent class's _handle_add_assertions method
+    with patch(
+        "pynguin.assertion.assertiongenerator.MutationAnalysisAssertionGenerator._handle_add_assertions"
+    ) as mock_handle_add_assertions:
+        # Create an instance of MutationAnalysisLLMAssertionGenerator with the required arguments
+        generator = MutationAnalysisLLMAssertionGenerator(
+            plain_executor=plain_executor, mutation_controller=mutation_controller
+        )
+
+        # Create a mock test case
+        test_case = MagicMock(spec=tc.TestCase)
+
+        # Call the _add_assertions method
+        generator._add_assertions([test_case])
+
+        # Verify that the parent class's _handle_add_assertions method was called with the test case
+        mock_handle_add_assertions.assert_called_once_with([test_case])

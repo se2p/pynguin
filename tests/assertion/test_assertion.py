@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import ast
+
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -36,12 +38,24 @@ def test_reference_assertion_source():
     assert foo.source == ref
 
 
+def test_reference_assertion_source_setter():
+    ref1 = MagicMock()
+    ref2 = MagicMock()
+    foo = FooReferenceAssertion(ref1)
+    foo.source = ref2
+    assert foo.source == ref2
+
+
 @pytest.mark.parametrize(
     "assertion,method",
     [
         (ass.TypeNameAssertion(MagicMock(), "", ""), "visit_type_name_assertion"),
         (ass.FloatAssertion(MagicMock(), 3.7), "visit_float_assertion"),
         (ass.ObjectAssertion(MagicMock(), [1]), "visit_object_assertion"),
+        (
+            ass.IsInstanceAssertion(MagicMock(), ast.Name(id="int", ctx=ast.Load())),
+            "visit_isinstance_assertion",
+        ),
         (
             ass.CollectionLengthAssertion(MagicMock(), 5),
             "visit_collection_length_assertion",
@@ -64,6 +78,11 @@ def test_assertion_accept(assertion, method):
         (ass.TypeNameAssertion(vr.VariableReference(MagicMock(), int), "builtins", "int")),
         (ass.FloatAssertion(vr.VariableReference(MagicMock(), int), 3.7)),
         (ass.ObjectAssertion(vr.VariableReference(MagicMock(), int), [1])),
+        (
+            ass.IsInstanceAssertion(
+                vr.VariableReference(MagicMock(), int), ast.Name(id="int", ctx=ast.Load())
+            )
+        ),
         (ass.CollectionLengthAssertion(vr.VariableReference(MagicMock(), int), 5)),
     ],
 )
@@ -100,6 +119,14 @@ def test_assertion_clone(assertion):
         (ass.ObjectAssertion(0, [1]), ass.ObjectAssertion(1, [1])),
         (ass.ObjectAssertion(0, [1]), ass.ObjectAssertion(1, [2])),
         (
+            ass.IsInstanceAssertion(0, ast.Name(id="int", ctx=ast.Load())),
+            ass.IsInstanceAssertion(1, ast.Name(id="int", ctx=ast.Load())),
+        ),
+        (
+            ass.IsInstanceAssertion(0, ast.Name(id="int", ctx=ast.Load())),
+            ass.IsInstanceAssertion(0, ast.Name(id="str", ctx=ast.Load())),
+        ),
+        (
             ass.CollectionLengthAssertion(0, 5),
             ass.CollectionLengthAssertion(1, 5),
         ),
@@ -133,3 +160,9 @@ def test_exception_assertion():
     assertion = ass.ExceptionAssertion("builtin", "foo")
     assert assertion.module == "builtin"
     assert assertion.exception_type_name == "foo"
+
+
+def test_isinstance_assertion_expected_type():
+    expected_type = ast.Name(id="int", ctx=ast.Load())
+    assertion = ass.IsInstanceAssertion(MagicMock(), expected_type)
+    assert assertion.expected_type == expected_type

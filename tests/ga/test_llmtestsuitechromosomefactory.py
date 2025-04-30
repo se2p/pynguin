@@ -146,3 +146,45 @@ def test_get_chromosome_no_llm_tests(llm_factory, patch_llm_agent):
 
     assert isinstance(chromosome, TestSuiteChromosome)
     assert len(chromosome.test_case_chromosomes) == 3
+
+
+def test_get_chromosome_more_llm_tests_than_needed(llm_factory, patch_llm_agent):
+    """Test when there are more LLM test cases than needed."""
+    # Configure to use 50% LLM test cases in a population of 2
+    config.configuration.large_language_model.llm_test_case_percentage = 0.5
+    config.configuration.search_algorithm.population = 2
+
+    # Generate 3 LLM test cases (more than the 1 needed)
+    llm_cases = [mock.create_autospec(TestCaseChromosome, instance=True) for _ in range(3)]
+    patch_llm_agent.generate_tests_for_module_under_test.return_value = "results"
+    (
+        patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results
+    ).return_value = llm_cases
+
+    chromosome = llm_factory.get_chromosome()
+
+    # Should have exactly 2 test cases (population size)
+    assert isinstance(chromosome, TestSuiteChromosome)
+    assert len(chromosome.test_case_chromosomes) == 2
+
+
+def test_get_chromosome_fewer_llm_tests_than_needed(llm_factory, patch_llm_agent):
+    """Test when there are fewer LLM test cases than needed."""
+    # Configure to use 50% LLM test cases in a population of 4
+    config.configuration.large_language_model.llm_test_case_percentage = 0.5
+    config.configuration.search_algorithm.population = 4
+
+    # Generate only 1 LLM test case (fewer than the 2 needed)
+    llm_case = mock.create_autospec(TestCaseChromosome, instance=True)
+    llm_case.clone.return_value = mock.create_autospec(TestCaseChromosome, instance=True)
+
+    patch_llm_agent.generate_tests_for_module_under_test.return_value = "results"
+    (
+        patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results
+    ).return_value = [llm_case]
+
+    chromosome = llm_factory.get_chromosome()
+
+    # Should have exactly 4 test cases (population size)
+    assert isinstance(chromosome, TestSuiteChromosome)
+    assert len(chromosome.test_case_chromosomes) == 4
