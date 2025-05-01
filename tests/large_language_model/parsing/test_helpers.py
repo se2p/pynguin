@@ -99,7 +99,7 @@ def test_key_in_dict_with_boolean_true():
     d = {True: "value"}
 
     # Call key_in_dict with True
-    result = key_in_dict(key=True, d=d)
+    result = key_in_dict(value=True, d=d)
 
     # Verify the result is True
     assert result is True
@@ -111,7 +111,7 @@ def test_key_in_dict_with_boolean_false():
     d = {False: "value"}
 
     # Call key_in_dict with False
-    result = key_in_dict(key=False, d=d)
+    result = key_in_dict(value=False, d=d)
 
     # Verify the result is True
     assert result is True

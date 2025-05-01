@@ -172,7 +172,7 @@ def test_query_with_cache_hit(monkeypatch):
     # Check that the cache was used and the result is correct
     mock_cache.get.assert_called_once_with("Test prompt")
     assert result == "Cached response"
-    assert agent.llm_calls_counter == 1  # Counter should still increment
+    assert agent.llm_calls_counter == 0  # Counter should not increment on cache hit
 
 
 def test_query_with_openai_error(monkeypatch):

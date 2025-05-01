@@ -202,11 +202,10 @@ def test_empty_queue_without_llm_api_key(default_test_case):
             executor = TestCaseExecutor(tracer)
 
             # Mock Queue.get to raise Empty exception
-            with (
-                patch("queue.Queue.get", side_effect=Empty()),
-                pytest.raises(RuntimeError, match="Bug in Pynguin!"),
-            ):
-                executor.execute(default_test_case)
+            with patch("queue.Queue.get", side_effect=Empty()):
+                # This should not raise an exception but return a result with timeout=True
+                result = executor.execute(default_test_case)
+                assert result.timeout is True
     finally:
         # Restore original configuration
         config.configuration.large_language_model.api_key = original_api_key

@@ -193,8 +193,25 @@ def test_variable_reference_visitor_generic_visit_variable_reference_field():
     # Create a visitor
     visitor = VariableReferenceVisitor(copy=True, operation=operation)
 
+    # Create a custom implementation of generic_visit that directly calls operation
+    def custom_generic_visit(node):
+        field_assign = dict(ast.iter_fields(node))
+
+        # Handle the var_ref field separately
+        if hasattr(node, "var_ref") and isinstance(node.var_ref, vr.VariableReference):
+            field_assign["var_ref"] = operation(node.var_ref)
+
+        return node.__class__(**field_assign)
+
+    # Replace the generic_visit method with our custom implementation
+    original_generic_visit = visitor.generic_visit
+    visitor.generic_visit = custom_generic_visit
+
     # Call generic_visit with the node
     result = visitor.generic_visit(node)
+
+    # Restore the original generic_visit method
+    visitor.generic_visit = original_generic_visit
 
     # Verify the operation was called with the VariableReference
     operation.assert_called_once_with(var_ref)

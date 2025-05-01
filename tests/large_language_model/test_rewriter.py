@@ -311,7 +311,9 @@ def test_visit_ann_assign():
     # The method should return an Assign node when value is not None
     assert isinstance(result, ast.Assign)
     assert result.targets[0] == target
-    assert result.value == value
+    # Check that the value has the same Python value, not necessarily the same object
+    assert isinstance(result.value, ast.Constant)
+    assert result.value.value == value.value
 
 
 def test_visit_aug_assign():
@@ -324,14 +326,36 @@ def test_visit_aug_assign():
     value = ast.Constant(value=5)
     aug_assign = ast.AugAssign(target=target, op=op, value=value)
 
+    # Mock the generic_visit method to return a modified node
+    original_generic_visit = visitor.generic_visit
+
+    def mock_generic_visit(_node):
+        # Create a new AugAssign node with the same fields
+        new_target = ast.Name(id=target.id, ctx=ast.Store())
+        new_value = ast.Constant(value=value.value)
+        return ast.AugAssign(target=new_target, op=op, value=new_value)
+
+    # Replace the generic_visit method with our mock
+    visitor.generic_visit = mock_generic_visit
+
     result = visitor.visit_AugAssign(aug_assign)
+
+    # Restore the original generic_visit method
+    visitor.generic_visit = original_generic_visit
+
     # The method should return an Assign node with a BinOp as the value
     assert isinstance(result, ast.Assign)
-    assert result.targets[0] == target
+    # Check that the target has the same name, not necessarily the same object
+    assert isinstance(result.targets[0], ast.Name)
+    assert result.targets[0].id == target.id
     assert isinstance(result.value, ast.BinOp)
-    assert result.value.left == target
+    # Check that the left operand has the same name, not necessarily the same object
+    assert isinstance(result.value.left, ast.Name)
+    assert result.value.left.id == target.id
     assert isinstance(result.value.op, ast.Add)
-    assert result.value.right == value
+    # Check that the right operand has the same value, not necessarily the same object
+    assert isinstance(result.value.right, ast.Constant)
+    assert result.value.right.value == value.value
 
 
 def test_visit_named_expr():
@@ -351,8 +375,12 @@ def test_visit_named_expr():
     assert result == target
     assert len(visitor.stmts_to_add) == 1
     assert isinstance(visitor.stmts_to_add[0], ast.Assign)
-    assert visitor.stmts_to_add[0].targets[0] == target
-    assert visitor.stmts_to_add[0].value == value
+    # Check that the target has the same name, not necessarily the same object
+    assert isinstance(visitor.stmts_to_add[0].targets[0], ast.Name)
+    assert visitor.stmts_to_add[0].targets[0].id == target.id
+    # Check that the value has the same Python value, not necessarily the same object
+    assert isinstance(visitor.stmts_to_add[0].value, ast.Constant)
+    assert visitor.stmts_to_add[0].value.value == value.value
 
 
 def test_visit_lambda():
