@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 
 from unittest.mock import MagicMock
+from unittest.mock import Mock
 
 import pytest
 
@@ -17,6 +18,7 @@ import pynguin.testcase.variablereference as vr
 
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
 from pynguin.testcase.defaulttestcase import DefaultTestCase
+from pynguin.testcase.statement import StatementVisitor
 
 
 @pytest.fixture
@@ -330,3 +332,54 @@ def test_ast_assign_statement_structural_eq_different_rhs(default_test_case):
     finally:
         # Restore original method
         statement1.rhs.structural_eq = original_structural_eq
+
+
+def test_ast_assign_statement_accept(default_test_case):
+    """Test the accept method of ASTAssignStatement."""
+    # Create a statement
+    ast_node = ast.Constant(value=42)
+    statement = stmt.ASTAssignStatement(default_test_case, ast_node, {})
+
+    # Create a mock visitor
+    visitor = Mock(spec=StatementVisitor)
+
+    # Call accept
+    statement.accept(visitor)
+
+    # Verify the visitor's visit_ast_assign_statement method was called with the statement
+    visitor.visit_ast_assign_statement.assert_called_once_with(statement)
+
+
+def test_ast_assign_statement_accessible_object(default_test_case):
+    """Test the accessible_object method of ASTAssignStatement."""
+    # Create a statement
+    ast_node = ast.Constant(value=42)
+    statement = stmt.ASTAssignStatement(default_test_case, ast_node, {})
+
+    # Call accessible_object
+    result = statement.accessible_object()
+
+    # Verify it returns None
+    assert result is None
+
+
+def test_ast_assign_statement_rhs_is_call(default_test_case):
+    """Test the rhs_is_call method of ASTAssignStatement."""
+    # Create a statement with a non-call AST node
+    ast_node = ast.Constant(value=42)
+    statement = stmt.ASTAssignStatement(default_test_case, ast_node, {})
+
+    # Mock the is_call method of the RHS
+    original_is_call = statement.rhs.is_call
+    statement.rhs.is_call = Mock(return_value=True)
+
+    try:
+        # Call rhs_is_call
+        result = statement.rhs_is_call()
+
+        # Verify it returns the result of rhs.is_call()
+        assert result is True
+        statement.rhs.is_call.assert_called_once()
+    finally:
+        # Restore original method
+        statement.rhs.is_call = original_is_call

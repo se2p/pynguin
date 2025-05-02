@@ -110,3 +110,14 @@ def test_raises_exception(assertion_to_ast_ref):
         __create_source_from_ast(assertion_to_ast.nodes)
         == "with pytest.raises(AssertionError):\n    var_0 = 5"
     )
+
+
+def test_isinstance_assertion(assertion_to_ast_ref):
+    assertion_to_ast, ref = assertion_to_ast_ref
+    expected_type = ast.Name(id="int", ctx=ast.Load())
+    assertion = ass.IsInstanceAssertion(source=ref, expected_type=expected_type)
+    assertion.accept(assertion_to_ast)
+    assert (
+        __create_source_from_ast(assertion_to_ast.nodes)
+        == "var_0 = 5\nassert isinstance(var_0, int)"
+    )

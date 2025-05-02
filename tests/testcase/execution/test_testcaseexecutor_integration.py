@@ -10,7 +10,9 @@ import ast
 import importlib
 import threading
 
+from queue import Empty
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -149,3 +151,61 @@ def test_killing_endless_loop():
             if "_execute_test_case" in thread.name:
                 thread.join()
         assert len(threading.enumerate()) == 1  # Only main thread should be alive.
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_empty_queue_with_llm_api_key(default_test_case):
+    """Test handling of Empty exception when LLM API key is configured."""
+    # Set up LLM API key configuration
+    original_api_key = config.configuration.large_language_model.api_key
+    config.configuration.large_language_model.api_key = "test_api_key"
+
+    try:
+        config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+        tracer = ExecutionTracer()
+        tracer.current_thread_identifier = threading.current_thread().ident
+
+        with install_import_hook(config.configuration.module_name, tracer):
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
+            default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
+            executor = TestCaseExecutor(tracer)
+
+            # Mock Queue.get to raise Empty exception
+            with patch("queue.Queue.get", side_effect=Empty()):
+                # This should not raise an exception but return a result with timeout=True
+                result = executor.execute(default_test_case)
+                assert result.timeout is True
+    finally:
+        # Restore original configuration
+        config.configuration.large_language_model.api_key = original_api_key
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_empty_queue_without_llm_api_key(default_test_case):
+    """Test handling of Empty exception when LLM API key is not configured."""
+    # Ensure LLM API key is not configured
+    original_api_key = config.configuration.large_language_model.api_key
+    config.configuration.large_language_model.api_key = None
+
+    try:
+        config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+        tracer = ExecutionTracer()
+        tracer.current_thread_identifier = threading.current_thread().ident
+
+        with install_import_hook(config.configuration.module_name, tracer):
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
+            default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
+            executor = TestCaseExecutor(tracer)
+
+            # Mock Queue.get to raise Empty exception
+            with patch("queue.Queue.get", side_effect=Empty()):
+                # This should not raise an exception but return a result with timeout=True
+                result = executor.execute(default_test_case)
+                assert result.timeout is True
+    finally:
+        # Restore original configuration
+        config.configuration.large_language_model.api_key = original_api_key
