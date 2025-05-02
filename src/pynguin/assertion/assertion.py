@@ -15,6 +15,8 @@ from typing import Any
 
 
 if TYPE_CHECKING:
+    import ast
+
     import pynguin.testcase.variablereference as vr
 
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
@@ -78,6 +80,15 @@ class ReferenceAssertion(Assertion, ABC):
             The reference on which we assert something.
         """
         return self._source
+
+    @source.setter
+    def source(self, value: vr.Reference) -> None:
+        """Set the reference to be used for assertions.
+
+        Args:
+            value (vr.Reference): The reference to set for assertions.
+        """
+        self._source = value
 
 
 class TypeNameAssertion(ReferenceAssertion):
@@ -229,6 +240,46 @@ class ObjectAssertion(ReferenceAssertion):
         return f"ObjectAssertion({self._source!r}, {self._object!r})"
 
 
+class IsInstanceAssertion(ReferenceAssertion):
+    """An assertion that checks if a reference is an instance of a given type."""
+
+    def __init__(  # noqa: D107
+        self, source: vr.Reference, expected_type: ast.Attribute | ast.Name
+    ):
+        super().__init__(source)
+        self._expected_type = expected_type
+
+    @property
+    def expected_type(self) -> ast.Attribute | ast.Name:
+        """Provides the expected type.
+
+        Returns:
+            The expected type
+        """
+        return self._expected_type
+
+    def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
+        visitor.visit_isinstance_assertion(self)
+
+    def clone(  # noqa: D102
+        self, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> IsInstanceAssertion:
+        return IsInstanceAssertion(self.source.clone(memo), self._expected_type)
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, IsInstanceAssertion)
+            and self._source == other._source
+            and self._expected_type == other._expected_type
+        )
+
+    def __hash__(self) -> int:
+        return hash((self._source, self._expected_type))
+
+    def __repr__(self):
+        return f"IsInstanceAssertion({self._source!r}, {self._expected_type!r})"
+
+
 class CollectionLengthAssertion(ReferenceAssertion):
     """An assertion on the length of a reference.
 
@@ -356,6 +407,15 @@ class AssertionVisitor:
     @abstractmethod
     def visit_object_assertion(self, assertion: ObjectAssertion) -> None:
         """Visit an object assertion.
+
+        Args:
+            assertion: the visited assertion
+
+        """
+
+    @abstractmethod
+    def visit_isinstance_assertion(self, assertion: IsInstanceAssertion) -> None:
+        """Visit an isInstance assertion.
 
         Args:
             assertion: the visited assertion

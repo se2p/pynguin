@@ -384,6 +384,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
     def _add_assertions(self, test_cases: list[tc.TestCase]):
         super()._add_assertions(test_cases)
+        self._handle_add_assertions(test_cases)
+
+    def _handle_add_assertions(self, test_cases: list[tc.TestCase]):
         tests_mutants_results: list[list[ex.ExecutionResult | None]] = [[] for _ in test_cases]
 
         mutant_count = self._mutation_controller.mutant_count()

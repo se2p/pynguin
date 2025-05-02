@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import ast
+
 from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import call
@@ -17,6 +19,7 @@ import pynguin.testcase.statement as stmt
 
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.large_language_model.parsing.astscoping import VariableRefAST
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -164,6 +167,39 @@ def test_remove_integration(constructor_mock):
     assert test_case.statements == [int0, list0, float0, ctor0]
 
 
+def test_visit_ast_assign_statement():
+    """Test that the visit_ast_assign_statement method is called correctly."""
+    # Create a test case
+    cluster = ModuleTestCluster(0)
+    test_case = dtc.DefaultTestCase(cluster)
+
+    # Create an ASTAssignStatement with a variable reference
+    # First, create a variable reference
+    int_stmt = stmt.IntPrimitiveStatement(test_case)
+    test_case.add_statement(int_stmt)
+    var_ref = int_stmt.ret_val
+
+    # Create a name node and ref_dict for the variable reference
+    name_node = ast.Name(id="test_var", ctx=ast.Load())
+    ref_dict = {"test_var": var_ref}
+
+    # Create the ASTAssignStatement that uses the variable reference
+    var_ref_ast = VariableRefAST(name_node, ref_dict)
+    ast_assign = stmt.ASTAssignStatement(test_case, var_ref_ast, {})
+    test_case.add_statement(ast_assign)
+
+    # Create a visitor and visit the ASTAssignStatement
+    visitor = pp.UnusedPrimitiveOrCollectionStatementVisitor()
+    ast_assign.accept(visitor)
+
+    # Verify that _handle_remaining was called by checking that the variable reference
+    # was added to the _used_references set
+    assert var_ref in visitor._used_references
+
+    # Also verify that the statement was not removed
+    assert ast_assign in test_case.statements
+
+
 @pytest.mark.parametrize(
     "statement_type, func",
     [
@@ -181,6 +217,7 @@ def test_remove_integration(constructor_mock):
         ("visit_set_statement", "_handle_collection_or_primitive"),
         ("visit_tuple_statement", "_handle_collection_or_primitive"),
         ("visit_dict_statement", "_handle_collection_or_primitive"),
+        ("visit_ast_assign_statement", "_handle_remaining"),
     ],
 )
 def test_all_statements(statement_type, func):
