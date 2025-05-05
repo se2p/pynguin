@@ -132,6 +132,7 @@ of the [University of Passau](https://www.uni-passau.de).
 Maintainer: [Stephan Lukasczyk](https://github.com/stephanlukasczyk)
 
 Contributors:
+- [Abdelillah Aissani](https://github.com/Abassion)
 - [Juan Altmayer Pizzorno](https://github.com/jaltmayerpizzorno)
 - [Lucas Berg](https://github.com/BergLucas)
 - [Tucker Blue](https://github.com/tuckcodes)
