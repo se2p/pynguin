@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Sphinx configuration."""
+
 import datetime
 import os
 import sys
@@ -22,7 +23,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "hoverxref.extension",
     "sphinx_autodoc_typehints",
-    "sphinx_selective_exclude.eager_only",
 ]
 
 project = "pynguin"

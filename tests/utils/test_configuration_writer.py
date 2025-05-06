@@ -29,9 +29,11 @@ module_name = ""
 algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
+subprocess = false
 
 [test_case_output]
 output_path = ""
+crash_path = ""
 export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
@@ -66,7 +68,21 @@ maximum_coverage = 100
 maximum_coverage_plateau = -1
 minimum_coverage = 100
 minimum_plateau_iterations = -1
+maximum_memory = 3000
 test_execution_time_per_statement = 1
+
+[large_language_model]
+api_key = ""
+model_name = "gpt-4o-mini"
+temperature = 0.8
+hybrid_initial_population = false
+llm_test_case_percentage = 0.5
+enable_response_caching = false
+call_llm_for_uncovered_targets = false
+coverage_threshold = 1
+call_llm_on_stall_detection = false
+max_plateau_len = 25
+max_llm_interventions = 1
 
 [seeding]
 seed = {SEED}
@@ -86,7 +102,7 @@ max_dynamic_pool_size = 50
 
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
-type_tracing = false
+type_tracing = 0.0
 
 [pynguinml]
 constraints_path = ""
@@ -169,7 +185,7 @@ number_of_mutations = 10
 def expected_txt(tmp_path):
     expected_txt = Path(tmp_path) / f"expected-{PYNGUIN_CONFIG_TXT}"
     expected = """("Configuration(project_path='', module_name='', "
- "test_case_output=TestCaseOutputConfiguration(output_path='', "
+ "test_case_output=TestCaseOutputConfiguration(output_path='', crash_path='', "
  "export_strategy=<ExportStrategy.PY_TEST: 'PY_TEST'>, "
  'max_length_test_case=2500, '
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
@@ -189,7 +205,14 @@ def expected_txt(tmp_path):
  'maximum_slicing_time=600, maximum_iterations=-1, '
  'maximum_test_execution_timeout=5, maximum_coverage=100, '
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
- 'minimum_plateau_iterations=-1, test_execution_time_per_statement=1), '
+ 'minimum_plateau_iterations=-1, maximum_memory=3000, '
+ 'test_execution_time_per_statement=1), '
+ "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
+ 'temperature=0.8, hybrid_initial_population=False, '
+ 'llm_test_case_percentage=0.5, enable_response_caching=False, '
+ 'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
+ 'call_llm_on_stall_detection=False, max_plateau_len=25, '
+ 'max_llm_interventions=1), '
  'seeding=SeedingConfiguration(seed={SEED}, '
  'constant_seeding=True, initial_population_seeding=False, '
  "initial_population_data='', seeded_testcases_reuse_probability=0.9, "
@@ -199,7 +222,7 @@ def expected_txt(tmp_path):
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
- "'TYPE_HINTS'>, type_tracing=False), "
+ "'TYPE_HINTS'>, type_tracing=0.0), "
  "pynguinml=PynguinMLConfiguration(constraints_path='', dtype_mapping_path='', "
  "constructor_function='', constructor_function_parameter='', max_ndim=4, "
  'max_shape_dim=4), test_creation=TestCreationConfiguration(max_recursion=10, '
@@ -227,7 +250,8 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[])')"""  # noqa:E501
+ 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[], '
+ 'subprocess=False)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -262,6 +286,7 @@ def expected_parameter_list() -> list[str]:
         "--maximum_statement_executions -1",
         "--maximum_slicing_time 600",
         "--maximum_iterations -1",
+        "--maximum_memory 3000",
         "--maximum_test_execution_timeout 5",
         "--maximum_coverage 100",
         "--maximum_coverage_plateau -1",
@@ -282,7 +307,7 @@ def expected_parameter_list() -> list[str]:
         "--max_dynamic_length 1000",
         "--max_dynamic_pool_size 50",
         "--type_inference_strategy TYPE_HINTS",
-        "--type_tracing False",
+        "--type_tracing 0.0",
         "--max_recursion 10",
         "--max_delta 20",
         "--max_int 2048",
@@ -333,6 +358,16 @@ def expected_parameter_list() -> list[str]:
         "--focused_config.number_of_mutations 10",
         "--max_sequence_length 10",
         "--max_sequences_combined 10",
+        "--model_name gpt-4o-mini",
+        "--temperature 0.8",
+        "--hybrid_initial_population False",
+        "--llm_test_case_percentage 0.5",
+        "--enable_response_caching False",
+        "--call_llm_for_uncovered_targets False",
+        "--coverage_threshold 1",
+        "--call_llm_on_stall_detection False",
+        "--max_plateau_len 25",
+        "--max_llm_interventions 1",
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",

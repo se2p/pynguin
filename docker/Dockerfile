@@ -59,6 +59,7 @@ COPY --from=build /pynguin-build/pynguin-docker.sh .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
+    python-tk \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \

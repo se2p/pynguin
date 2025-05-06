@@ -218,7 +218,7 @@ def test_integrate_typetracing_union_type(tmp_path):
         statistics_output=config.StatisticsOutputConfiguration(
             report_dir=str(tmp_path), statistics_backend=config.StatisticsBackend.NONE
         ),
-        type_inference=config.TypeInferenceConfiguration(type_tracing=True),
+        type_inference=config.TypeInferenceConfiguration(type_tracing=1.0),
     )
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
@@ -254,3 +254,75 @@ def test_integrate_exception_on_import(tmp_path):
     gen.set_configuration(configuration)
     result = gen.run_pynguin()
     assert result == gen.ReturnCode.SETUP_FAILED
+
+
+def test_setup_and_check_no_subprocess():
+    """Test the _setup_and_check function with subprocess=False to cover line 278."""
+    # Mock the necessary dependencies
+    with (
+        mock.patch.object(gen, "_setup_path", return_value=True),
+        mock.patch.object(gen, "_setup_constant_seeding", return_value=(MagicMock(), None)),
+        mock.patch.object(gen, "_setup_import_hook", return_value=MagicMock()),
+        mock.patch.object(gen, "_load_sut", return_value=True),
+        mock.patch.object(gen, "_setup_report_dir", return_value=True),
+        mock.patch.object(gen, "_setup_test_cluster") as setup_test_cluster_mock,
+        mock.patch.object(gen, "_track_sut_data"),
+        mock.patch.object(gen, "_setup_random_number_generator"),
+        mock.patch.object(gen, "_detect_llm_strategy", return_value="test-strategy"),
+        mock.patch.object(gen.stat, "track_output_variable"),
+    ):
+        # Mock the test cluster
+        test_cluster_mock = MagicMock()
+        setup_test_cluster_mock.return_value = test_cluster_mock
+
+        # Configure subprocess=False to hit line 278
+        config.configuration = MagicMock(
+            subprocess=False,
+            stopping=MagicMock(
+                maximum_test_execution_timeout=10, test_execution_time_per_statement=1
+            ),
+            large_language_model=MagicMock(
+                hybrid_initial_population=False,
+                call_llm_on_stall_detection=False,
+                call_llm_for_uncovered_targets=False,
+            ),
+            test_case_output=MagicMock(
+                assertion_generation=config.AssertionGenerator.MUTATION_ANALYSIS
+            ),
+        )
+
+        # Call the function
+        result = gen._setup_and_check()
+
+        # Verify the result
+        assert result is not None
+        executor, cluster, _provider = result
+        assert isinstance(executor, gen.TestCaseExecutor)
+        assert not isinstance(executor, gen.SubprocessTestCaseExecutor)
+        assert cluster == test_cluster_mock
+
+
+def test_setup_mutant_generator_invalid_strategy():
+    """Test the _setup_mutant_generator function with an invalid strategy to cover lines 654-655."""
+    # Configure an invalid mutation strategy
+    config.configuration = MagicMock(
+        test_case_output=MagicMock(mutation_strategy="INVALID_STRATEGY", mutation_order=2)
+    )
+
+    # Call the function and expect a ConfigurationException
+    with pytest.raises(gen.ConfigurationException, match=r"No suitable mutation strategy found."):
+        gen._setup_mutant_generator()
+
+
+def test_setup_mutant_generator_invalid_order():
+    """Test the _setup_mutant_generator function with an invalid order to cover line 638."""
+    # Configure a valid strategy but invalid order
+    config.configuration = MagicMock(
+        test_case_output=MagicMock(
+            mutation_strategy=config.MutationStrategy.FIRST_TO_LAST, mutation_order=0
+        )
+    )
+
+    # Call the function and expect a ConfigurationException
+    with pytest.raises(gen.ConfigurationException, match=r"Mutation order should be > 0."):
+        gen._setup_mutant_generator()

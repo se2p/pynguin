@@ -835,6 +835,22 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             The line numbers.
         """
 
+    @abstractmethod
+    def __getstate__(self) -> dict:
+        """Gets the state.
+
+        Returns:
+            The state
+        """
+
+    @abstractmethod
+    def __setstate__(self, state: dict) -> None:
+        """Sets the state.
+
+        Args:
+            state: The state
+        """
+
 
 def _eq(val1, val2) -> float:
     """Distance computation for '=='.
@@ -1022,6 +1038,37 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
         return self.subject_properties
+
+    @property
+    def state(self) -> dict:
+        """Get the current state.
+
+        Returns:
+            The current state
+        """
+        return {
+            "subject_properties": self.subject_properties,
+            "import_trace": self._import_trace,
+            "current_thread_identifier": self._current_thread_identifier,
+            "thread_local_state": {
+                "enabled": self._thread_local_state.enabled,
+                "trace": self._thread_local_state.trace,
+            },
+        }
+
+    @state.setter
+    def state(self, state: dict) -> None:
+        """Set the current state.
+
+        Args:
+            state: The state to set
+        """
+        self.subject_properties = state["subject_properties"]
+        self._import_trace = state["import_trace"]
+        self._current_thread_identifier = state["current_thread_identifier"]
+        self._thread_local_state = ExecutionTracer.TracerLocalState()
+        self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
+        self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
     def reset(self) -> None:  # noqa: D102
         self.subject_properties = SubjectProperties()
@@ -1469,6 +1516,12 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.subject_properties.existing_lines[line_id].line_number for line_id in line_ids
         ])
 
+    def __getstate__(self) -> dict:
+        return self.state
+
+    def __setstate__(self, state: dict) -> None:
+        self.state = state
+
 
 class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     """An `InstrumentationExecutionTracer` is a sort of proxy for an `ExecutionTracer`.
@@ -1670,3 +1723,9 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def __repr__(self) -> str:
         return "InstrumentationExecutionTracer"
+
+    def __getstate__(self) -> dict:
+        return {"tracer": self._tracer}
+
+    def __setstate__(self, state: dict) -> None:
+        self._tracer = state["tracer"]

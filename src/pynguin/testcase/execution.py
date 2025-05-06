@@ -14,13 +14,16 @@ import contextlib
 import copy
 import dataclasses
 import inspect
+import itertools
 import logging
 import os
+import signal
 import sys
 import threading
 
 from abc import abstractmethod
 from importlib import reload
+from pathlib import Path
 from queue import Empty
 from queue import Queue
 from types import ModuleType
@@ -28,6 +31,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 from typing import cast
+
+import dill  # noqa: S403
+import multiprocess as mp
+import multiprocess.connection as mp_conn
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
@@ -38,6 +45,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
@@ -53,13 +61,19 @@ from pynguin.analyses.typesystem import TupleType
 from pynguin.instrumentation.instrumentation import ArtificialInstr
 from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.machinery import InstrumentationFinder
+from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from pynguin.testcase import export
+from pynguin.utils import randomness
 from pynguin.utils.mirror import Mirror
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from collections.abc import Collection
     from collections.abc import Generator
     from collections.abc import Iterable
     from contextlib import AbstractContextManager
@@ -231,6 +245,30 @@ class ExecutionContext:
         """
         self._global_namespace[alias] = self._module_provider.get_module(module_name)
 
+    def __getstate__(self):
+        new_global_namespace = self._global_namespace.copy()
+        # Sometimes the `__builtins__` module appears in global_namespace and this
+        # module cannot be serialized. Therefore, it must be deleted manually to prevent
+        # the application from crashing.
+        new_global_namespace.pop("__builtins__", None)
+        return {
+            "module_provider": self._module_provider,
+            "local_namespace": self._local_namespace,
+            "variable_names": self._variable_names,
+            "module_aliases": self._module_aliases,
+            "global_namespace": new_global_namespace,
+            "original_has_builtins": "__builtins__" in self._global_namespace,
+        }
+
+    def __setstate__(self, state: dict):
+        self._module_provider = state["module_provider"]
+        self._local_namespace = state["local_namespace"]
+        self._variable_names = state["variable_names"]
+        self._module_aliases = state["module_aliases"]
+        self._global_namespace = state["global_namespace"]
+        if state["original_has_builtins"]:
+            self.add_new_module_alias("builtins", "__builtins__")
+
 
 class RemoteExecutionObserver(abc.ABC):
     """A remote observer that can be used to observe the execution of a test case.
@@ -257,6 +295,23 @@ class RemoteExecutionObserver(abc.ABC):
 
     def __init__(self) -> None:  # noqa: B027
         """Initializes the remote observer."""
+
+    @property
+    def state(self) -> dict[str, Any]:
+        """The state of the observer.
+
+        Returns:
+            The state of the observer
+        """
+        return {}
+
+    @state.setter  # noqa: B027
+    def state(self, state: dict[str, Any]) -> None:
+        """Set the state of the observer.
+
+        Args:
+            state: The new state
+        """
 
     @abstractmethod
     def before_test_case_execution(self, test_case: tc.TestCase):
@@ -318,6 +373,13 @@ class RemoteExecutionObserver(abc.ABC):
             exec_ctx: the current execution context.
             exception: the exception that was thrown, if any.
         """
+
+    def __getstate__(self) -> dict[str, Any]:
+        return self.state
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__init__()  # type: ignore[misc]
+        self.state = state
 
 
 class ExecutionObserver(abc.ABC):
@@ -459,6 +521,18 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
         """Initializes the remote observer."""
         super().__init__()
         self._return_type_local_state = RemoteReturnTypeObserver.RemoteReturnTypeLocalState()
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return {
+            "return_type_trace": self._return_type_local_state.return_type_trace,
+            "return_type_generic_args": self._return_type_local_state.return_type_generic_args,
+        }
+
+    @state.setter
+    def state(self, state: dict[str, Any]):  # noqa: RUF100
+        self._return_type_local_state.return_type_trace = state["return_type_trace"]
+        self._return_type_local_state.return_type_generic_args = state["return_type_generic_args"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.
@@ -663,7 +737,7 @@ class ExecutionResult:
         )
         self.exceptions = ExecutionResult.shift_dict(self.exceptions, deleted_statements)
 
-    T = TypeVar("T")
+    T = TypeVar("T")  # noqa: RUF045
 
     @staticmethod
     def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:
@@ -1170,6 +1244,556 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._tracer.enable()
 
 
+SUPPORTED_EXIT_CODE_MESSAGES = {}
+
+if hasattr(signal, "SIGILL"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGILL] = "Illegal instruction signal detected"
+
+if hasattr(signal, "SIGABRT"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGABRT] = "Abort signal detected"
+
+if hasattr(signal, "SIGBUS"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGBUS] = "Bus error signal detected"
+
+if hasattr(signal, "SIGFPE"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGFPE] = "Floating-point exception signal detected"
+
+if hasattr(signal, "SIGKILL"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGKILL] = (
+        "Kill signal detected, most likely due to an out of memory"
+    )
+
+if hasattr(signal, "SIGSEGV"):
+    SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGSEGV] = "Segmentation fault detected"
+
+
+class SubprocessTestCaseExecutor(TestCaseExecutor):
+    """An executor that executes the generated test cases in a subprocess."""
+
+    def __init__(
+        self,
+        tracer: ExecutionTracer,
+        module_provider: ModuleProvider | None = None,
+        maximum_test_execution_timeout: int = 5,
+        test_execution_time_per_statement: int = 1,
+    ) -> None:
+        """Create new subprocess test case executor.
+
+        Args:
+            tracer: the execution tracer
+            module_provider: The used module provider
+            maximum_test_execution_timeout: The minimum timeout time (in seconds)
+                before a test case execution times out.
+            test_execution_time_per_statement: The amount of time (in seconds) that is
+                added to the timeout per statement, up to minimum_test_execution_timeout
+        """
+        super().__init__(
+            tracer,
+            module_provider,
+            maximum_test_execution_timeout,
+            test_execution_time_per_statement,
+        )
+
+    def execute(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+    ) -> ExecutionResult:
+        return next(iter(self.execute_multiple((test_case,))))
+
+    def execute_multiple(  # noqa: D102
+        self, test_cases: Iterable[tc.TestCase]
+    ) -> Iterable[ExecutionResult]:
+        test_cases_tuple = tuple(test_cases)
+
+        if not test_cases_tuple:
+            return ()
+
+        for test_case in test_cases_tuple:
+            self._before_remote_test_case_execution(test_case)
+
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+
+        remote_observers = tuple(self._yield_remote_observers())
+
+        references_bindings = tuple(
+            self._create_variable_binding(test_case) for test_case in test_cases_tuple
+        )
+
+        args = (
+            self._tracer,
+            self._module_provider,
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement,
+            remote_observers,
+            test_cases_tuple,
+            references_bindings,
+            sending_connection,
+        )
+
+        process = mp.Process(
+            target=self._execute_test_cases_in_subprocess,
+            args=args,
+            daemon=True,
+        )
+
+        process.start()
+
+        sending_connection.close()
+
+        # We need to use `poll` here because `recv` cannot take a timeout argument and
+        # `join` does not return until the pipe is closed in both processes.
+        has_results = receiving_connection.poll(
+            timeout=min(
+                self._maximum_test_execution_timeout * len(test_cases_tuple),
+                sum(
+                    self._test_execution_time_per_statement * len(test_case.statements)
+                    for test_case in test_cases_tuple
+                ),
+            ),
+        )
+
+        results: tuple[ExecutionResult, ...]
+        if not has_results:
+            receiving_connection.close()
+            results = self._fallback_on_failure(test_cases_tuple, process, remote_observers)
+        else:
+            try:
+                return_value: tuple[
+                    ExecutionTracer,
+                    ModuleProvider,
+                    tuple[ExecutionResult, ...],
+                    tuple[dict[int, vr.VariableReference] | None, ...],
+                    tuple[Any, ...],
+                ] = receiving_connection.recv()
+            except EOFError:
+                _LOGGER.error("EOFError during receiving results from subprocess")
+                receiving_connection.close()
+                results = self._fallback_on_failure(test_cases_tuple, process, remote_observers)
+            else:
+                (
+                    new_tracer,
+                    new_module_provider,
+                    results,
+                    new_references_bindings,
+                    random_state,
+                ) = return_value
+
+                receiving_connection.close()
+
+                process.join(timeout=self._maximum_test_execution_timeout)
+
+                if process.exitcode is None:
+                    process.kill()
+
+                randomness.RNG.setstate(random_state)
+
+                self._module_provider = new_module_provider
+
+                for result, reference_bindings, new_reference_bindings in zip(
+                    results, references_bindings, new_references_bindings, strict=True
+                ):
+                    if new_reference_bindings is not None:
+                        self._fix_assertion_trace(
+                            result.assertion_trace, reference_bindings, new_reference_bindings
+                        )
+
+                self._tracer.state = new_tracer.state
+
+        for test_case, result in zip(test_cases_tuple, results, strict=True):
+            self._after_remote_test_case_execution(test_case, result)
+
+        return results
+
+    def _fallback_on_failure(
+        self,
+        test_cases_tuple: tuple[tc.TestCase, ...],
+        process: mp.Process,
+        remote_observers: tuple[RemoteExecutionObserver, ...],
+    ) -> tuple[ExecutionResult, ...]:
+        if len(test_cases_tuple) == 1:
+            if process.exitcode is None:
+                process.kill()
+                _LOGGER.warning("Experienced timeout from test-case execution")
+            elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
+                _LOGGER.warning(
+                    "%s. Saving the test-case that caused the crash and continuing as"
+                    " if a timeout occurred.",
+                    SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
+                )
+                self._save_crash_tests(test_cases_tuple[0])
+            else:
+                _LOGGER.error(
+                    "Finished process exited with code %s and did not return a result.",
+                    process.exitcode,
+                )
+                _LOGGER.error("Bug in Pynguin!")
+
+            return (ExecutionResult(timeout=True),)
+        if process.exitcode is None:
+            process.kill()
+            _LOGGER.warning(
+                "Timeout occurred. Falling back to executing each test-case in a separate process."
+            )
+        elif process.exitcode in SUPPORTED_EXIT_CODE_MESSAGES:
+            _LOGGER.warning(
+                "%s. Falling back to executing each test-case in a separate process.",
+                SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
+            )
+        else:
+            _LOGGER.error(
+                "Finished process exited with code %s and did not return the results.",
+                process.exitcode,
+            )
+            _LOGGER.error("Bug in Pynguin!")
+
+        # Fallback to executing each test-case in separate subprocesses
+        # if the execution of multiple test-cases in a single subprocess failed.
+        # We need to use another executor because we already called
+        # `_before_remote_test_case_execution` so we only need to run the
+        # remote observers.
+        executor = SubprocessTestCaseExecutor(
+            self._tracer,
+            self._module_provider,
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement,
+        )
+
+        for remote_observer in remote_observers:
+            executor.add_remote_observer(remote_observer)
+
+        return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
+
+    @staticmethod
+    def _save_crash_tests(test_case: tc.TestCase) -> None:
+        chromosome = tcc.TestCaseChromosome(test_case)
+
+        exporter = export.PyTestChromosomeToAstVisitor()
+
+        chromosome.accept(exporter)
+
+        target_file = (
+            Path(config.configuration.test_case_output.crash_path).resolve()
+            / f"crash_test_{hash(test_case)}.py"
+        )
+
+        export.save_module_to_file(exporter.to_module(), target_file)
+
+    @staticmethod
+    def _create_variable_binding(
+        test_case: TestCase,
+    ) -> dict[int, vr.VariableReference]:
+        """Create binding between statement positions and variable references.
+
+        This is important because the `Assertion`s added to the `AssertionTrace` use
+        `Reference`s to indicate on which line they should be used. This causes a
+        problem because when data is returned from the subprocess to the main process,
+        it creates new references and so we need a way to link the old references to
+        the new ones.
+
+        Args:
+            test_case: The test case
+        """
+        return {
+            position: reference
+            for position, statement in enumerate(test_case.statements)
+            if (reference := statement.ret_val) is not None and not reference.is_none_type()
+        }
+
+    @staticmethod
+    def _fix_assertion_trace(
+        assertion_trace: at.AssertionTrace,
+        old_reference_bindings: dict[int, vr.VariableReference],
+        new_reference_bindings: dict[int, vr.VariableReference],
+    ) -> None:
+        """Fix the assertion trace after the test case execution.
+
+        See the docstring of `_create_variable_binding` for more information.
+
+        Args:
+            assertion_trace: The assertion trace
+            old_reference_bindings: The old reference bindings
+            new_reference_bindings: The new reference bindings
+        """
+        memo = {
+            new_reference: old_reference_bindings[position]
+            for position, new_reference in new_reference_bindings.items()
+        }
+
+        all_assertions = assertion_trace.get_all_assertions()
+        assertion_trace.clear()
+        for position, assertions in all_assertions.items():
+            for assertion in assertions:
+                assertion_trace.add_entry(position, assertion.clone(memo))
+
+    @staticmethod
+    def _execute_test_cases_in_subprocess(  # noqa: PLR0917
+        tracer: ExecutionTracer,
+        module_provider: ModuleProvider,
+        maximum_test_execution_timeout: int,
+        test_execution_time_per_statement: int,
+        remote_observers: tuple[RemoteExecutionObserver, ...],
+        test_cases: tuple[tc.TestCase, ...],
+        references_bindings: tuple[dict[int, vr.VariableReference], ...],
+        sending_connection: mp_conn.Connection,
+    ) -> None:
+        SubprocessTestCaseExecutor._replace_tracer(tracer)
+
+        executor = TestCaseExecutor(
+            tracer,
+            module_provider,
+            maximum_test_execution_timeout,
+            test_execution_time_per_statement,
+        )
+
+        for remote_observer in remote_observers:
+            executor.add_remote_observer(remote_observer)
+
+        results = tuple(executor.execute_multiple(test_cases))
+
+        # We need to set the current thread identifier to the current thread
+        # because pickle can execute code of the instrumented module and it would
+        # kill the subprocess which is not what we want.
+        tracer.current_thread_identifier = threading.current_thread().ident
+
+        for result in results:
+            SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+
+        new_references_bindings = tuple(
+            SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
+                result,
+                reference_bindings,
+            )
+            for result, reference_bindings in zip(results, references_bindings, strict=True)
+        )
+
+        sending_connection.send((
+            tracer,
+            module_provider,
+            results,
+            new_references_bindings,
+            randomness.RNG.getstate(),
+        ))
+
+        sending_connection.close()
+
+        tracer.current_thread_identifier = -1
+
+    @staticmethod
+    def _create_new_reference_bindings(
+        result: ExecutionResult,
+        reference_bindings: dict[int, vr.VariableReference],
+    ) -> dict[int, vr.VariableReference] | None:
+        """Create new reference bindings.
+
+        See the docstring of `_create_variable_binding` for more information.
+
+        Args:
+            result: The result to create new reference bindings for
+            reference_bindings: The old reference bindings
+
+        Returns:
+            The new reference bindings
+        """
+        try:
+            return (
+                reference_bindings
+                if result.assertion_trace.trace and not dill.detect.baditems(reference_bindings)
+                else None
+            )
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                "Failed to fix reference bindings for pickle",
+                exception,
+            )
+            return None
+
+    @staticmethod
+    def _replace_tracer(tracer: ExecutionTracer) -> None:
+        """Replace the tracer used for instrumentation.
+
+        This is necessary because the tracer used in the instrumented module is
+        inaccessible from the function running in the subprocess and we need to have
+        access to it otherwise it would kill the subprocess because we would not be able
+        to change the `current_thread_identifier`.
+        """
+        instrumentation_finder = sys.meta_path[0]
+
+        if isinstance(instrumentation_finder, InstrumentationFinder):
+            instrumentation_finder.instrumentation_tracer.tracer = tracer
+
+    @staticmethod
+    def _log_different_results(reason: str, obj: Any) -> None:
+        _LOGGER.warning(
+            "%s, final results might differ from classic execution with same seed: %s",
+            reason,
+            obj,
+        )
+
+    @staticmethod
+    def _fix_unpicklable(
+        obj: Any,
+        filter_bad_items_label: str,
+        filter_function: Callable[[Any], None],
+        clear_bad_items_label: str,
+        clear_function: Callable[[], None],
+    ) -> None:
+        try:
+            if bad_items := dill.detect.baditems(obj):
+                SubprocessTestCaseExecutor._log_different_results(
+                    filter_bad_items_label,
+                    bad_items,
+                )
+                filter_function(bad_items)
+        except Exception as exception:  # noqa: BLE001
+            SubprocessTestCaseExecutor._log_different_results(
+                clear_bad_items_label,
+                exception,
+            )
+            clear_function()
+
+    @staticmethod
+    def _fix_result_for_pickle(result: ExecutionResult) -> None:  # noqa: C901
+        """Fix the result for pickling.
+
+        This method removes unpicklable objects from the result because it would cause
+        the subprocess to crash when sending the result back to the main process.
+
+        Args:
+            result: The result to fix
+        """
+
+        def filter_bad_exceptions(bad_exceptions: Collection[Exception]) -> None:
+            result.exceptions = {
+                position: exception
+                for position, exception in result.exceptions.items()
+                if exception not in bad_exceptions
+            }
+
+        def clear_bad_exceptions() -> None:
+            result.exceptions.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.exceptions,
+            "Unpicklable exceptions",
+            filter_bad_exceptions,
+            "Failed to fix exceptions for pickle",
+            clear_bad_exceptions,
+        )
+
+        def filter_bad_assertions(bad_assertions: Collection[ass.Assertion]) -> None:
+            for assertions in result.assertion_trace.trace.values():
+                assertions.difference_update(bad_assertions)
+
+        def clear_bad_assertions() -> None:
+            result.assertion_trace.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            list(itertools.chain(*result.assertion_trace.trace.values())),
+            "Unpicklable assertions",
+            filter_bad_assertions,
+            "Failed to fix assertions for pickle",
+            clear_bad_assertions,
+        )
+
+        def filter_bad_executed_assertions(
+            bad_executed_assertions: Collection[ExecutedAssertion],
+        ) -> None:
+            result.execution_trace.executed_assertions = [
+                assertion
+                for assertion in result.execution_trace.executed_assertions
+                if assertion not in bad_executed_assertions
+            ]
+
+        def clear_bad_executed_assertions() -> None:
+            result.execution_trace.executed_assertions.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.execution_trace.executed_assertions,
+            "Unpicklable executed assertions",
+            filter_bad_executed_assertions,
+            "Failed to fix executed assertions for pickle",
+            clear_bad_executed_assertions,
+        )
+
+        def filter_bad_proxy_knowledges(
+            bad_proxy_knowledges: Collection[tt.UsageTraceNode],
+        ) -> None:
+            result.proxy_knowledge = {
+                position: proxy
+                for position, proxy in result.proxy_knowledge.items()
+                if proxy not in bad_proxy_knowledges
+            }
+
+        def clear_bad_proxy_knowledges() -> None:
+            result.proxy_knowledge.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.proxy_knowledge,
+            "Unpicklable proxy knowledges",
+            filter_bad_proxy_knowledges,
+            "Failed to fix proxy knowledges for pickle",
+            clear_bad_proxy_knowledges,
+        )
+
+        def filter_bad_proper_return_type_traces(
+            bad_proper_return_type_traces: Collection[ProperType],
+        ) -> None:
+            result.proper_return_type_trace = {
+                position: proper_return_type
+                for position, proper_return_type in result.proper_return_type_trace.items()
+                if proper_return_type not in bad_proper_return_type_traces
+            }
+
+        def clear_bad_proper_return_type_traces() -> None:
+            result.proper_return_type_trace.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.proper_return_type_trace,
+            "Unpicklable proper return type traces",
+            filter_bad_proper_return_type_traces,
+            "Failed to fix proper return type traces for pickle",
+            clear_bad_proper_return_type_traces,
+        )
+
+        def filter_bad_raw_return_type_generic_args(
+            bad_raw_return_type_generic_args: Collection[type],
+        ) -> None:
+            result.raw_return_type_generic_args = {
+                position: generic_args
+                for position, generic_args in result.raw_return_type_generic_args.items()
+                if all(type_ not in bad_raw_return_type_generic_args for type_ in generic_args)
+            }
+
+        def clear_bad_raw_return_type_generic_args() -> None:
+            result.raw_return_type_generic_args.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.raw_return_type_generic_args,
+            "Unpicklable raw return type generic args",
+            filter_bad_raw_return_type_generic_args,
+            "Failed to fix raw return type generic args for pickle",
+            clear_bad_raw_return_type_generic_args,
+        )
+
+        def filter_bad_raw_return_types(bad_raw_return_types: Collection[type]) -> None:
+            result.raw_return_types = {
+                position: type_
+                for position, type_ in result.raw_return_types.items()
+                if type_ not in bad_raw_return_types
+            }
+
+        def clear_bad_raw_return_types() -> None:
+            result.raw_return_types.clear()
+
+        SubprocessTestCaseExecutor._fix_unpicklable(
+            result.raw_return_types,
+            "Unpicklable raw return types",
+            filter_bad_raw_return_types,
+            "Failed to fix raw return types for pickle",
+            clear_bad_raw_return_types,
+        )
+
+
 class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     """A test case executor that delegates to another executor.
 
@@ -1177,16 +1801,23 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     and one time with proxies in order to refine parameter types.
     """
 
-    def __init__(self, delegate: AbstractTestCaseExecutor, cluster: module.ModuleTestCluster):
+    def __init__(
+        self,
+        delegate: AbstractTestCaseExecutor,
+        cluster: module.ModuleTestCluster,
+        type_tracing_probability: float = 1.0,
+    ):
         """Initializes the executor.
 
         Args:
             delegate: The delegate
             cluster: The test cluster
+            type_tracing_probability: The probability to use type tracing during execution
         """
         self._delegate = delegate
         self._type_tracing_observer = TypeTracingObserver(cluster)
         self._return_type_observer = ReturnTypeObserver(cluster)
+        self._type_tracing_probability = type_tracing_probability
 
     @property
     def module_provider(self) -> ModuleProvider:  # noqa: D102
@@ -1221,6 +1852,9 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return self._delegate.tracer
 
     def execute(self, test_case: tc.TestCase) -> ExecutionResult:  # noqa: D102
+        if not (randomness.next_float() < self._type_tracing_probability):
+            return self._delegate.execute(test_case)
+
         with self._delegate.temporarily_add_observer(self._return_type_observer):
             result = self._delegate.execute(test_case)
         if not result.timeout:
@@ -1251,6 +1885,16 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
         """Initializes the remote observer."""
         super().__init__()
         self._local_state = RemoteTypeTracingObserver.RemoteTypeTracingLocalState()
+
+    @property
+    def state(self) -> dict[str, Any]:  # noqa: D102
+        return dict(  # noqa: C408
+            proxies=self._local_state.proxies,
+        )
+
+    @state.setter
+    def state(self, state: dict[str, Any]) -> None:
+        self._local_state.proxies = state["proxies"]
 
     def before_test_case_execution(self, test_case: tc.TestCase):
         """Not used.

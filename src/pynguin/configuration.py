@@ -37,6 +37,11 @@ class Algorithm(str, enum.Enum):
     test case generation as a many-objective optimisation problem with dynamic selection
     of the targets.  TSE vol. 44 issue 2)."""
 
+    LLM = "LLM"
+    """Query a large language model for tests.  NOTE: This does not execute the usual test and
+    assertion generation stages of Pynguin but queries an LLM and writes the resulting test cases to
+    the output file."""
+
     MIO = "MIO"
     """The MIO test suite generation algorithm (cf. Andrea Arcuri. Many Independent
     Objective (MIO) Algorithm for Test Suite Generation.  Proc. SBSE 2017)."""
@@ -44,6 +49,9 @@ class Algorithm(str, enum.Enum):
     MOSA = "MOSA"
     """The many-objective sorting algorithm (cf. Panichella et al. Reformulating Branch
     Coverage as a Many-Objective Optimization Problem.  Proc. ICST 2015)."""
+
+    LLMOSA = "LLMOSA"
+    """The many-objective sorting algorithm with LLM."""
 
     RANDOM = "RANDOM"
     """A feedback-direct random test generation approach similar to the algorithm
@@ -71,6 +79,9 @@ class Algorithm(str, enum.Enum):
 
 class AssertionGenerator(str, enum.Enum):
     """Different approaches for assertion generation supported by Pynguin."""
+
+    LLM = "LLM"
+    """Use Large Language Model(LLM) for assertion generation."""
 
     MUTATION_ANALYSIS = "MUTATION_ANALYSIS"
     """Use the mutation analysis approach for assertion generation."""
@@ -182,9 +193,7 @@ class StatisticsOutputConfiguration:
     """Interpolate timeline values"""
 
     coverage_metrics: list[CoverageMetric] = dataclasses.field(
-        default_factory=lambda: [
-            CoverageMetric.BRANCH,
-        ]
+        default_factory=lambda: [CoverageMetric.BRANCH]
     )
     """List of coverage metrics that are optimised during the search"""
 
@@ -225,6 +234,11 @@ class TestCaseOutputConfiguration:
 
     output_path: str
     """Path to an output folder for the generated test cases."""
+
+    crash_path: str = ""
+    """Path to an output folder for the generated test cases that caused a crash.
+    Only works when running in a subprocess.
+    """
 
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the
@@ -377,8 +391,11 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    type_tracing: bool = False
-    """Trace usage of parameters with unknown types to improve type guesses."""
+    type_tracing: bool | float = 0.0
+    """Probability to trace usage of parameters with unknown types to improve type
+    guesses during test execution. Type tracing requires a separate second.
+    The value should be a float in [0,1]. Boolean is kept for backwards compatibility
+    as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
 
 @dataclasses.dataclass
@@ -624,9 +641,54 @@ class StoppingConfiguration:
     """Minimum iterations without a coverage change to stop early.  Expects values
     larger than 0; also requires the setting of minimum_coverage."""
 
+    maximum_memory: int = 3000
+    """Maximum memory usage in MB after which the generation shall stop.
+    Expects values in MB greater than 0 of -1 to disable the check."""
+
     test_execution_time_per_statement: int = 1
     """The time (in seconds) per statement that a test is allowed to run
     (up to maximum_test_execution_timeout)."""
+
+
+@dataclasses.dataclass
+class LLMConfiguration:
+    """Configuration for the LLM."""
+
+    api_key: str = ""
+    """The api key to call OpenAI LLM with."""
+
+    model_name: str = "gpt-4o-mini"
+    """The OpenAI Model to use for completions."""
+
+    temperature: float = 0.8
+    """The temperature to use when querying the model.
+    The value must be from [0.0, 1.0]."""
+
+    hybrid_initial_population: bool = False
+    """Whether to include the LLM test cases in the initial population."""
+
+    llm_test_case_percentage: float = 0.5
+    """The percentage of LLM test cases in on the initial population. The value must
+     be from [0.0, 1.0]."""
+
+    enable_response_caching: bool = False
+    """Whether to enable caching for responses of the model."""
+
+    call_llm_for_uncovered_targets: bool = False
+    """Whether to call the LLM for the uncovered targets initially."""
+
+    coverage_threshold: float = 1
+    """The coverage threshold when to call the LLM for low-coverage targets.
+    The value must be from [0.0, 1.0]."""
+
+    call_llm_on_stall_detection: bool = False
+    """Whether to call the LLM for the uncovered targets in coverage stalls."""
+
+    max_plateau_len: int = 25
+    """The number of iterations to allow before soliciting the LLM."""
+
+    max_llm_interventions: int = 1
+    """The maximum number of allowed LLM interventions."""
 
 
 @dataclasses.dataclass
@@ -652,6 +714,9 @@ class Configuration:
 
     stopping: StoppingConfiguration = dataclasses.field(default_factory=StoppingConfiguration)
     """Stopping configuration."""
+
+    large_language_model: LLMConfiguration = dataclasses.field(default_factory=LLMConfiguration)
+    """Large Language Model(LLM) configuration."""
 
     seeding: SeedingConfiguration = dataclasses.field(default_factory=SeedingConfiguration)
     """Seeding configuration."""
@@ -685,6 +750,9 @@ class Configuration:
 
     ignore_methods: list[str] = dataclasses.field(default_factory=list)
     """Ignore the methods specified here from the module analysis."""
+
+    subprocess: bool = False
+    """Run the test generation in a subprocess."""
 
 
 # Singleton instance of the configuration.

@@ -444,7 +444,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         reversed_cfg = CFG(cfg.bytecode_cfg())
 
-        reversed_cfg._graph = cfg._graph.reverse(copy=True)  # noqa: SLF001
+        reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
 
     def reversed(self) -> CFG:
@@ -467,7 +467,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         """
         copy = CFG(ControlFlowGraph())  # TODO(fk) Cloning the bytecode cfg is complicated.
 
-        copy._graph = cfg._graph.copy()  # noqa: SLF001
+        copy._graph = cfg._graph.copy()
         return copy
 
     def copy(self) -> CFG:
@@ -633,6 +633,52 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 # If the diameter computation fails for some reason, use an upper bound
                 self._diameter = len(self._graph.edges)
         return self._diameter
+
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
+                for source, target, data in self._graph.edges(data=True)
+            ),
+            "bytecode_cfg": self._bytecode_cfg,
+            "diameter": self._diameter,
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+            node = ProgramGraphNode(
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
+            )
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
+        self._bytecode_cfg = state["bytecode_cfg"]
+        self._diameter = state["diameter"]
 
 
 class DominatorTree(ProgramGraph[ProgramGraphNode]):
@@ -866,6 +912,48 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
             if self._is_control_dependent_on_root(pred, visited):
                 return True
         return False
+
+    def __getstate__(self):
+        return {
+            "nodes": tuple(
+                (
+                    node.index,
+                    node.offset,
+                    node.basic_block,
+                    node.is_artificial,
+                    node.predicate_id,
+                    data,
+                )
+                for node, data in self._graph.nodes(data=True)
+            ),
+            "edges": tuple(
+                (
+                    source.index,
+                    target.index,
+                    data,
+                )
+                for source, target, data in self._graph.edges(data=True)
+            ),
+        }
+
+    def __setstate__(self, state: dict):
+        self._graph = nx.DiGraph()
+        nodes: dict[int, ProgramGraphNode] = {}
+        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+            node = ProgramGraphNode(
+                index,
+                offset=offset,
+                basic_block=basic_block,
+                is_artificial=is_artificial,
+            )
+            if predicate_id is not None:
+                node.predicate_id = predicate_id
+            self._graph.add_node(node, **data)
+            nodes[index] = node
+        for source_index, target_index, data in state["edges"]:
+            source = nodes[source_index]
+            target = nodes[target_index]
+            self._graph.add_edge(source, target, **data)
 
     @staticmethod
     def _create_augmented_graph(graph: CFG) -> CFG:

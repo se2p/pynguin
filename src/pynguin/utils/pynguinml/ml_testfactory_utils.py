@@ -70,7 +70,7 @@ def select_dtype(parameter_obj: MLParameter) -> str:
         # generate value from dependency param
         dependency_obj = parameter_obj.parameter_dependencies[ref]
 
-        if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):  # noqa: UP038
+        if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
             picked_dtype = cast("np.ndarray", dependency_obj.current_data).dtype.name
         else:
             picked_dtype = type(dependency_obj.current_data).__name__
@@ -108,7 +108,7 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
             # generate value from dependency param
             dependency_obj = parameter_obj.parameter_dependencies[ref]
 
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):  # noqa: UP038
+            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
                 return cast("np.ndarray", dependency_obj.current_data).ndim
 
             if np.isscalar(dependency_obj.current_data):
@@ -127,7 +127,7 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
                     f"Referred value {ref} is a boolean value. "
                     f"Cannot be used to decide another var."
                 )
-            if not isinstance(value, (int, float)):  # noqa: UP038
+            if not isinstance(value, (int, float)):
                 raise ConstructionFailedException(
                     f"Referred value {ref} is not a single numeric value. "
                     f"Cannot be used to decide another var."
@@ -241,7 +241,7 @@ def _process_shape_token(parameter_obj: MLParameter, shape_token: str):  # noqa:
             shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "ndim:")
             dependency_obj = parameter_obj.parameter_dependencies[ref]
 
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):  # noqa: UP038
+            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
                 temp_value = dependency_obj.current_data.ndim
             elif np.isscalar(dependency_obj.current_data):
                 temp_value = 0
@@ -260,7 +260,7 @@ def _process_shape_token(parameter_obj: MLParameter, shape_token: str):  # noqa:
             shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "shape:")
             dependency_obj = parameter_obj.parameter_dependencies[ref]
 
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):  # noqa: UP038
+            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
                 temp_value = list(cast("np.ndarray", dependency_obj.current_data).shape)  # type: ignore[assignment]
             elif isinstance(dependency_obj.current_data, int | float | complex | str):
                 temp_value = []  # type: ignore[assignment]

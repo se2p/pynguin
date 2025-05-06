@@ -671,7 +671,7 @@ class TypeInfo:
         return f"TypeInfo({self.full_name})"
 
 
-class NamedDefaultDict(dict[str, tt.UsageTraceNode]):
+class NamedDefaultDict(dict[str, tt.UsageTraceNode]):  # noqa: FURB189
     """A default dictionary that automatically creates nodes for keys.
 
     Default dict which automatically creates a UsageTraceNode for each requested

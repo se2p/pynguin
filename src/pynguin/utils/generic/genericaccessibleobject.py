@@ -92,6 +92,14 @@ class GenericAccessibleObject(abc.ABC):
         """
         return False
 
+    def is_classmethod(self) -> bool:
+        """Is this a classmethod?
+
+        Returns:
+            Whether this is a classmethod
+        """
+        return False
+
     def is_function(self) -> bool:
         """Is this a function?
 
@@ -279,6 +287,9 @@ class GenericConstructor(GenericCallableAccessibleObject):
     def is_constructor(self) -> bool:  # noqa: D102
         return True
 
+    def is_classmethod(self) -> bool:  # noqa: D102
+        return False
+
     def __eq__(self, other):
         if self is other:
             return True
@@ -337,6 +348,9 @@ class GenericMethod(GenericCallableAccessibleObject):
 
     def is_method(self) -> bool:  # noqa: D102
         return True
+
+    def is_classmethod(self) -> bool:  # noqa: D102
+        return isinstance(self._callable, ClassMethodDescriptorType)
 
     def get_dependencies(  # noqa: D102
         self, memo: dict[InferredSignature, dict[str, ProperType]]
