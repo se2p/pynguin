@@ -21,7 +21,6 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    # "sphinx.ext.linkcode",
     "hoverxref.extension",
     "sphinx_autodoc_typehints",
 ]
@@ -70,42 +69,3 @@ intersphinx_mapping = {
     "pytest": ("https://docs.pytest.org/en/stable/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
 }
-
-# def linkcode_resolve(domain, info):
-#     """
-#     Resolve a linkcode reference to a GitHub URL.
-#
-#     This function maps Python objects to their corresponding GitHub URLs.
-#     """
-#     if domain != 'py':
-#         return None
-#
-#     modname = info['module']
-#     fullname = info['fullname']
-#
-#     # Find the module
-#     try:
-#         obj = sys.modules[modname]
-#         for part in fullname.split('.'):
-#             obj = getattr(obj, part)
-#
-#         # Get the source file
-#         import inspect
-#         filepath = inspect.getsourcefile(obj)
-#         if filepath is None:
-#             return None
-#
-#         # Convert filepath to relative path within the repository
-#         filepath = os.path.relpath(filepath, start=os.path.dirname(pynguin.__file__))
-#         filepath = f"src/pynguin/{filepath}"
-#
-#         # Get line numbers
-#         try:
-#             _, lineno = inspect.getsourcelines(obj)
-#             # Create GitHub URL
-#             return f"{_repo}blob/main/{filepath}#L{lineno}"
-#         except TypeError:
-#             # Handle objects that don't support getsourcelines (like Algorithm)
-#             return f"{_repo}blob/main/{filepath}"
-#     except (ImportError, AttributeError, KeyError, TypeError):
-#         return None
