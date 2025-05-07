@@ -68,7 +68,7 @@ The :class:`pynguin.testcase.execution.TestCaseExecutor` class is responsible fo
 **Ignoring Code**: The :attr:`pynguin.configuration.Configuration.ignore_methods` and :attr:`pynguin.configuration.Configuration.ignore_modules` options create a blacklist that prevents analysis and inclusion in the test cluster.
 This is useful for code that should not be executed, but not suitable for code that should be omitted as a coverage goal.
 
-**Fitness Function**: The :class:`pynguin.ga.computation.FitnessFunction` class is responsible for evaluating the fitness of generated test cases:
+**Fitness Function**: The :class:`pynguin.ga.computations.FitnessFunction` class is responsible for evaluating the fitness of generated test cases:
 
 - The :class:`pynguin.instrumentation.tracer.ExecutionTracer` instruments conditional jumps
 - For equality comparisons, Levenshtein distance is used
@@ -104,7 +104,7 @@ Dynamic seeding helps Pynguin generate effective test inputs by collecting value
 
 **Instrumentation**: The :class:`pynguin.instrumentation.instrumentation.DynamicSeedingInstrumentation` class:
 
-- Instruments comparison operations (:meth:`pynguin.instrumentation.instrumentation.DynamicSeedingInstrumentation._instrument_compare_op`)
+- Instruments comparison operations
 - Adds values from both sides of equality comparisons
 - Handles string operations like ``.endswith()`` and ``.startswith()``
 
@@ -117,8 +117,8 @@ Pynguin requires a second test execution, but allows for refining parameter type
 - First execution: For regular results
 - Second execution: With proxies to refine parameter types
 - The :class:`pynguin.testcase.execution.TypeTracingObserver` monitors execution to collect type information
-- It creates :class:`pynguin.analyses.typesystem.UsageTraceNode` objects to store the traced type information (based on type checks, argument types and child nodes in the execution tree)
-- :meth:`pynguin.analyses.typesystem.InferredSignature._guess_parameter_type_from` and :meth:`pynguin.analyses.typesystem.InferredSignature.get_parameter_type` methods update guesses based on usage traces
+- It creates :class:`pynguin.utils.typetracing.UsageTraceNode` objects to store the traced type information (based on type checks, argument types and child nodes in the execution tree)
+- :meth:`pynguin.analyses.typesystem.InferredSignature.get_parameter_types` methods update guesses based on usage traces
 
 .. _SBSE 2024 repository: https://github.com/se2p/sbse2024
 .. _Search-Based Test Generation - Part 1: https://github.com/se2p/sbse2024/blob/main/Search-Based%20Test%20Generation%20-%20Part%201.ipynb

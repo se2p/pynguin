@@ -109,3 +109,10 @@ pynguin.instrumentation.instrumentation
 
 .. automodule:: pynguin.instrumentation.instrumentation
     :members:
+
+
+pynguin.utils.typetracing
+--------------------------
+
+.. automodule:: pynguin.utils.typetracing
+    :members:
