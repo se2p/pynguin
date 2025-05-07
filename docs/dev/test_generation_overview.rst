@@ -5,9 +5,9 @@ Test Generation Overview
 
 This document provides a high-level overview of how Pynguin's test generation works. It covers the key components and processes involved in generating test cases for Python modules.
 
-Genetic Algorithm
------------------
-A good reference is the `SBSE 2024 repository`_, which contains Jupyter notebooks on search-based test generation:
+Genetic Algorithms for Test Generation
+--------------------------------------
+To get an conceptual overview of Genetic Algorithms and Search Based Software Testing take a look at the `SBSE 2024 repository`_. In particular, the following Jupyter notebooks on search-based test generation might be of interest:
 
 * `Search-Based Test Generation - Part 1`_: Introduction to search-based test generation
 * `Search-Based Test Generation - Part 2`_: Advanced topics in search-based test generation
@@ -17,59 +17,86 @@ Pynguin's Test Generation Process
 
 .. image:: ../source/_static/pynguin-overview.png
 
-Function Analysis
-~~~~~~~~~~~~~~~~
+Python Module
+~~~~~~~~~~~~
 
-Before generating tests, Pynguin analyzes the code to build a test cluster containing all accessible objects:
+Pynguin takes as input a Python module. Usually, a module in Python is equivalent to a source file.
 
-**Module Test Cluster**: The :class:`pynguin.analyses.module.ModuleTestCluster` class maintains a collection of accessible objects under test
+Analysis
+~~~~~~~
 
-- Objects are added via :meth:`pynguin.analyses.module.ModuleTestCluster.add_accessible_object_under_test`
+Pynguin then analyzes the module to extract information. The extracted information consists, among others, of the declared classes, functions, and methods. From this information, Pynguin builds the so-called test cluster.
 
-**Analysis Process**: The module analysis is performed by several functions:
+Furthermore, Pynguin inspects the modules that are transitively included by the module under test.
 
-- ``__analyse_class``: Analyzes a class using AST generation, including type annotations if available
-- ``__analyse_included_classes``: Processes all classes in a module
-- ``__resolve_dependencies``: Identifies dependencies between modules
-- :func:`pynguin.analyses.module.analyse_module`: Entry point for module analysis
+From the context, Pynguin extracts the types they define by searching for those class definitions that are available in the namespace of the module under test. These types are then used as input-type candidates during the test-generation phase.
 
-Goals, Coverage, and Instrumentation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The entry point for this analysis is the :func:`pynguin.analyses.module.analyse_module`.
 
-Pynguin uses code instrumentation to track coverage and guide the test generation process:
+The :class:`pynguin.analyses.typesystem.TypeSystem` and the :class:`pynguin.analyses.typesystem.InferredSignature` classes handles the inference of parameter and return types based on the analysis and other information gained during Pynguin execution.
 
-**Ignoring Code**: The :attr:`pynguin.configuration.Configuration.ignore_methods` and :attr:`pynguin.configuration.Configuration.ignore_modules` options create a blacklist that prevents analysis and inclusion in the test cluster
 
-- This is useful for code that should not be executed
-- Not suitable for code that should be accessible but not covered
+Test Cluster
+~~~~~~~~~~~
 
-Fitness and Distance Calculation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The test cluster contains all information about the module under test, most importantly, which classes, functions, and methods are declared, and what their parameters are.
 
-To guide the search for test cases, Pynguin uses fitness functions and distance metrics:
+The :class:`pynguin.analyses.module.ModuleTestCluster` class maintains a collection of accessible objects under test.
+
+Test Case Construction
+~~~~~~~~~~~~~~~~~~~~~
+
+When constructing a test case, Pynguin selects a function or method from the module under test.
+
+Afterwards, Pynguin aims to fulfill the requirements of the function's parameters in a backwards fashion. If the function requires integer parameters (based on type annotations), Pynguin generates one to three variable assignment statements of the form ``var = <num>`` and adds them to the test case before the function-call statement. The number of integer statements as well as the generated values are chosen randomly by Pynguin, because variable values can be used for more than one parameter.
+
+In case a more complex object is required as a parameter, Pynguin will attempt to generate it by recursively fulfilling the parameters of the involved methods; the necessary statements are also prepended to the list of statements of the test case.
+
+Pynguin then uses an genetic algorithm, such as for example the DynaMOSA algorithm, to mutate, select and do crossover.
+
+Test Case Execution
+~~~~~~~~~~~~~~~~~~~
+
+Pynguin then executes the newly generated test cases against the module under test to measure the achieved coverage by instrumenting Python's byte code on-the-fly to trace which parts of the module under test have been executed by a generated test.
+
+It then continues with the next iteration of the test-generation algorithm. This process stops once a configurable stopping condition is satisfied.
+
+**Ignoring Code**: The :attr:`pynguin.configuration.Configuration.ignore_methods` and :attr:`pynguin.configuration.Configuration.ignore_modules` options create a blacklist that prevents analysis and inclusion in the test cluster.
+This is useful for code that should not be executed, but not suitable for code that should be omitted as a coverage goal.
+
+**Fitness Function**: The :class:`pynguin.ga.computation.FitnessFunction` class is responsible for evaluating the fitness of generated test cases:
 
 - The :class:`pynguin.instrumentation.tracer.ExecutionTracer` instruments conditional jumps
 - For equality comparisons, Levenshtein distance is used
-- Support for other comparisons (``<``, ``>``) is limited
-- String comparison uses character-based distance metrics
+- For Strings comparison character distance based on left-aligned strings is used
 
-Assertion Generation through Mutation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Assertion Generation
+~~~~~~~~~~~~~~~~~~~
 
-Pynguin generates assertions by applying mutations to the code under test:
+After the test case generation, Pynguin optionally attempts to generate regression assertions to not only execute the code under test but also check its results. The approach implemented in Pynguin is based on mutation testing.
 
-The process involves:
+
+
+Mutation Engine
+~~~~~~~~~~~~~~~
+
+The generated tests are executed against generated mutants as well as the original module. By tracing the values of object attributes and function returns, Pynguin determines which values change on the mutated version, compared to the original module. For these values, Pynguin generates assertions that interpret the returned values on the original module as the ground truth.
+
+Important classes for Mutation are:
 
 - :class:`pynguin.assertion.assertiongenerator.InstrumentedMutationController` which coordinates the mutation process
 - :class:`pynguin.assertion.mutation_analysis.controller.MutationController` that creates mutants
 - :class:`pynguin.assertion.mutation_analysis.mutators.FirstOrderMutator` that applies mutations to the code
 
-- This approach allows Pynguin to generate assertions for complex data types by observing how mutations affect the program's behavior
+Further Implementation Details
+------------------------------
+
+In the following you can find an incomplete list of more specific implementation details.
 
 Dynamic Seeding
---------------
+~~~~~~~~~~~~~~~
 
-Dynamic seeding helps Pynguin generate effective test inputs by collecting values from the code under test:
+Dynamic seeding helps Pynguin generate effective test inputs by collecting values from the code under test.
 
 **Instrumentation**: The :class:`pynguin.instrumentation.instrumentation.DynamicSeedingInstrumentation` class:
 
@@ -77,40 +104,17 @@ Dynamic seeding helps Pynguin generate effective test inputs by collecting value
 - Adds values from both sides of equality comparisons
 - Handles string operations like ``.endswith()`` and ``.startswith()``
 
-Type Analysis
-------------
-
-Type Inference
-~~~~~~~~~~~~~
-
-Pynguin uses a sophisticated type inference system to determine the types of parameters and return values for functions and methods. This is crucial for generating appropriate test inputs.
-
-The type inference process involves:
-
-**Inferred Signatures**: The :class:`pynguin.analyses.typesystem.InferredSignature` class handles the inference of parameter and return types.
-
-- :meth:`pynguin.analyses.typesystem.InferredSignature._guess_parameter_type_from` and :meth:`pynguin.analyses.typesystem.InferredSignature.get_parameter_type` methods update guesses based on usage traces
-- These methods add possible type guesses to a pool where a random choice is made
-
-**Type System**: The inference process is managed by the :class:`pynguin.analyses.typesystem.TypeSystem` class:
-- :meth:`pynguin.analyses.typesystem.TypeSystem.infer_type_info` method determines type information based on the selected strategy
-- :meth:`pynguin.analyses.typesystem.TypeSystem.infer_signature` method creates an inferred signature for a callable
-
 Type Tracing
-~~~~~~~~~~~
+~~~~~~~~~~~~
 
-Pynguin executes each test case twice to refine parameter types:
 
-- The :class:`pynguin.testcase.execution.TypeTracingTestCaseExecutor` class delegates to another executor
+Pynguin requires a second test execution, but allows for refining parameter types:
+
 - First execution: For regular results
 - Second execution: With proxies to refine parameter types
 - The :class:`pynguin.testcase.execution.TypeTracingObserver` monitors execution to collect type information
-
-When Type Tracing is enabled, the system uses :class:`pynguin.analyses.typesystem.UsageTraceNode` objects that contain information about:
-
-- Type checks performed
-- Argument types observed
-- Child nodes in the execution tree
+- It creates :class:`pynguin.analyses.typesystem.UsageTraceNode` objects to store the traced type information (based on type checks, argument types and child nodes in the execution tree)
+- :meth:`pynguin.analyses.typesystem.InferredSignature._guess_parameter_type_from` and :meth:`pynguin.analyses.typesystem.InferredSignature.get_parameter_type` methods update guesses based on usage traces
 
 .. _SBSE 2024 repository: https://github.com/se2p/sbse2024
 .. _Search-Based Test Generation - Part 1: https://github.com/se2p/sbse2024/blob/main/Search-Based%20Test%20Generation%20-%20Part%201.ipynb
