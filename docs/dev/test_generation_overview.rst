@@ -63,7 +63,7 @@ Pynguin then executes the newly generated test cases against the module under te
 
 It then continues with the next iteration of the test-generation algorithm. This process stops once a configurable stopping condition is satisfied.
 
-The :class:`pynguin.testcase.execution.TestCaseExecutor` class is responsible for executing test cases, with :class:`pynguin.testcase.execution.SubprocessTestCaseExecutor` providing execution in a separate process for isolation. The :class:`pynguin.instrumentation.tracer.ExecutionTracer` handles the instrumentation and tracing of code execution during test runs.
+The :class:`pynguin.testcase.execution.TestCaseExecutor` class is responsible for executing test cases. The :class:`pynguin.instrumentation.tracer.ExecutionTracer` handles the instrumentation and tracing of code execution during test runs.
 
 **Ignoring Code**: The :attr:`pynguin.configuration.Configuration.ignore_methods` and :attr:`pynguin.configuration.Configuration.ignore_modules` options create a blacklist that prevents analysis and inclusion in the test cluster.
 This is useful for code that should not be executed, but not suitable for code that should be omitted as a coverage goal.
