@@ -50,6 +50,7 @@ If you want to contribute to the project, this part of the documentation is for 
 
    dev/contributing
    dev/development
+   dev/test_generation_overview
 
 The API Documentation
 ---------------------
