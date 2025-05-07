@@ -155,7 +155,7 @@ purpose.
             """
 
 Code Formatting
---------------
+---------------
 
 We use ``ruff-format`` for code formatting. This replaced the previously used ``black`` formatter.
 The formatting is automatically applied when running ``make codestyle``.

@@ -50,6 +50,14 @@ todo_include_todos = False
 # See https://sphinx-hoverxref.readthedocs.io/en/latest/configuration.html
 hoverxref_auto_ref = True
 hoverxref_domains = ["py"]
+hoverxref_role_types = {
+    "class": "tooltip",
+    "ref": "tooltip",
+    "mod": "tooltip",
+    "meth": "tooltip",
+    "func": "tooltip",
+    "attr": "tooltip",
+}
 
 # This config value must be a dictionary of external sites, mapping unique short
 # alias names to a base URL and a prefix.
