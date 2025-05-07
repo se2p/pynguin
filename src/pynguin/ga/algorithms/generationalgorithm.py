@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 
 from abc import abstractmethod
@@ -17,6 +18,7 @@ from typing import Generic
 from typing import TypeVar
 
 import pynguin.ga.algorithms.archive as arch
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 
 from pynguin.utils.orderedset import OrderedSet
@@ -29,7 +31,6 @@ if TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.ga.coveragegoals as bg
     import pynguin.ga.searchobserver as so
-    import pynguin.ga.testcasechromosome as tcc
     import pynguin.testcase.testfactory as tf
 
     from pynguin.analyses.module import ModuleTestCluster
@@ -44,6 +45,8 @@ A = TypeVar("A", bound=arch.Archive)
 
 class GenerationAlgorithm(Generic[A]):  # noqa: PLR0904
     """Provides an abstract base class for a test generation algorithm."""
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:  # noqa: D107
         self._archive: A

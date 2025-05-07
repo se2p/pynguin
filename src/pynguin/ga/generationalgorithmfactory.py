@@ -26,6 +26,7 @@ import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.coveragegoals as bg
+import pynguin.ga.llmtestsuitechromosomefactory as ltscf
 import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
@@ -40,6 +41,7 @@ from pynguin.analyses.module import FilteredModuleTestCluster
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
@@ -148,6 +150,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSAAlgorithm,
+        config.Algorithm.LLMOSA: LLMOSAAlgorithm,
         config.Algorithm.RANDOM: RandomAlgorithm,
         config.Algorithm.RANDOM_TEST_SUITE_SEARCH: RandomTestSuiteSearchAlgorithm,
         config.Algorithm.RANDOM_TEST_CASE_SEARCH: RandomTestCaseSearchAlgorithm,
@@ -222,6 +225,14 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             self._logger.info("Using archive seeding")
             test_case_chromosome_factory = tccf.ArchiveReuseTestCaseChromosomeFactory(
                 test_case_chromosome_factory, strategy.archive
+            )
+        if config.configuration.algorithm == config.Algorithm.LLMOSA:
+            return ltscf.LLMTestSuiteChromosomeFactory(
+                test_case_chromosome_factory,
+                strategy.test_factory,
+                strategy.test_cluster,
+                strategy.test_case_fitness_functions,
+                strategy.test_suite_coverage_functions,
             )
         if config.configuration.algorithm in {
             config.Algorithm.DYNAMOSA,
@@ -361,6 +372,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             config.Algorithm.DYNAMOSA,
             config.Algorithm.MIO,
             config.Algorithm.MOSA,
+            config.Algorithm.LLMOSA,
             config.Algorithm.RANDOM_TEST_CASE_SEARCH,
             config.Algorithm.WHOLE_SUITE,
         }:

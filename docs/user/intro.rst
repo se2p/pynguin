@@ -94,6 +94,10 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* A. Abdelillah: **Exploring LLM Integration into Automated Unit Test Generation**.
+  Master Thesis.  University of Passau, 2025.
+
+  Integrated LLM querying, including prompting, parsing and the LLMOSAAlgorithm.
 * S. Labrenz: **Using Checked Coverage as Fitness Function for Test Generation in
   Python**.  Master Thesis.  University of Passau, 2022.
 

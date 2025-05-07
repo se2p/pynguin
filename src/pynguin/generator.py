@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.strategies as ms
@@ -279,7 +280,25 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
+
+    # Detect which LLM strategy is used
+    stat.track_output_variable(RuntimeVariable.LLMStrategy, _detect_llm_strategy())
     return executor, test_cluster, wrapped_constant_provider
+
+
+def _detect_llm_strategy() -> str:
+    if config.configuration.large_language_model.hybrid_initial_population:
+        return (
+            f"Hybrid-Initial-Population-"
+            f"{config.configuration.large_language_model.llm_test_case_percentage}"
+        )
+    if config.configuration.large_language_model.call_llm_on_stall_detection:
+        return "LLM-On-Stall-Detection"
+    if config.configuration.large_language_model.call_llm_for_uncovered_targets:
+        return "LLM-For-Initial-Uncovered-Targets"
+    if config.configuration.test_case_output.assertion_generation == config.AssertionGenerator.LLM:
+        return "LLM-Assertion-Generator"
+    return ""
 
 
 def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
@@ -522,7 +541,7 @@ def _run() -> ReturnCode:
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
     _remove_statements_after_exceptions(generation_result)
-    _generate_assertions(executor, generation_result)
+    _generate_assertions(executor, generation_result, test_cluster)
     tracked_metrics = _track_final_metrics(
         algorithm, executor, generation_result, constant_provider
     )
@@ -653,18 +672,27 @@ def _setup_mutation_analysis_assertion_generator(
     mutation_controller = ag.InstrumentedMutationController(
         mutant_generator, module_ast, module, mutation_tracer
     )
-    assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
+    assertion_generator: ag.MutationAnalysisAssertionGenerator
+    if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
+        assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
+            executor, mutation_controller
+        )
+    else:
+        assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator
 
 
-def _generate_assertions(executor, generation_result):
+def _generate_assertions(executor, generation_result, test_cluster):
     ass_gen = config.configuration.test_case_output.assertion_generation
     if ass_gen != config.AssertionGenerator.NONE:
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
-        if ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
+        if ass_gen == config.AssertionGenerator.LLM:
+            generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
+            generator = _setup_mutation_analysis_assertion_generator(executor)
+        elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
             generator = _setup_mutation_analysis_assertion_generator(executor)
         else:
             generator = ag.AssertionGenerator(executor)
@@ -757,7 +785,11 @@ def _export_chromosome(
         Path(config.configuration.test_case_output.output_path).resolve()
         / f"test_{module_name}{file_name_suffix}.py"
     )
-    export_visitor = export.PyTestChromosomeToAstVisitor()
+    store_call_return = (
+        config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM
+    )
+    export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
+
     chromosome.accept(export_visitor)
     export.save_module_to_file(
         export_visitor.to_module(),

@@ -71,6 +71,19 @@ minimum_plateau_iterations = -1
 maximum_memory = 3000
 test_execution_time_per_statement = 1
 
+[large_language_model]
+api_key = ""
+model_name = "gpt-4o-mini"
+temperature = 0.8
+hybrid_initial_population = false
+llm_test_case_percentage = 0.5
+enable_response_caching = false
+call_llm_for_uncovered_targets = false
+coverage_threshold = 1
+call_llm_on_stall_detection = false
+max_plateau_len = 25
+max_llm_interventions = 1
+
 [seeding]
 seed = {SEED}
 constant_seeding = true
@@ -185,6 +198,12 @@ def expected_txt(tmp_path):
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
+ "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
+ 'temperature=0.8, hybrid_initial_population=False, '
+ 'llm_test_case_percentage=0.5, enable_response_caching=False, '
+ 'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
+ 'call_llm_on_stall_detection=False, max_plateau_len=25, '
+ 'max_llm_interventions=1), '
  'seeding=SeedingConfiguration(seed={SEED}, '
  'constant_seeding=True, initial_population_seeding=False, '
  "initial_population_data='', seeded_testcases_reuse_probability=0.9, "
@@ -328,6 +347,16 @@ def expected_parameter_list() -> list[str]:
         "--focused_config.number_of_mutations 10",
         "--max_sequence_length 10",
         "--max_sequences_combined 10",
+        "--model_name gpt-4o-mini",
+        "--temperature 0.8",
+        "--hybrid_initial_population False",
+        "--llm_test_case_percentage 0.5",
+        "--enable_response_caching False",
+        "--call_llm_for_uncovered_targets False",
+        "--coverage_threshold 1",
+        "--call_llm_on_stall_detection False",
+        "--max_plateau_len 25",
+        "--max_llm_interventions 1",
     ]
     return sorted(parameter_list)
 

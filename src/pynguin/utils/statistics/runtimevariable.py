@@ -181,5 +181,48 @@ class RuntimeVariable(str, enum.Enum):
     # they do not increase the resulting checked coverage
     DeletedAssertions = "DeletedAssertions"
 
+    # Which LLM strategy is applied. This is mainly
+    # for final result grouping
+    LLMStrategy = "LLMStrategy"
+
+    # Number of total LLM calls
+    TotalLLMCalls = "TotalLLMCalls"
+
+    # Number of input tokens sent LLM to model
+    TotalLLMInputTokens = "TotalLLMInputTokens"
+
+    # Number of input tokens sent LLM to model
+    TotalLLMOutputTokens = "TotalLLMOutputTokens"
+
+    # Number of LLM responses with no python code within them
+    TotalCodelessLLMResponses = "TotalCodelessLLMResponses"
+
+    # Number of seconds LLM queries took
+    LLMQueryTime = "LLMQueryTime"
+
+    # Total of LLM test cases tha are merged into the population
+    TotalLTCs = "TotalLTCs"
+
+    # Number of parsed statements from LLM output
+    LLMTotalParsedStatements = "LLMTotalParsedStatements"
+
+    # Total number of statements from LLM output
+    LLMTotalStatements = "LLMTotalStatements"
+
+    # Number of uninterpreted statements
+    LLMUninterpretedStatements = "LLMUninterpretedStatements"
+
+    # The coverage before LLM call for uncovered targets (initial coverage)
+    CoverageBeforeLLMCall = "CoverageBeforeLLMCall"
+
+    # The coverage after LLM call for uncovered targets
+    CoverageAfterLLMCall = "CoverageAfterLLMCall"
+
+    # Total assertions added to test cases that were received from the LLM
+    TotalAssertionsAddedFromLLM = "TotalAssertionsAddedFromLLM"
+
+    # Total assertions added to test cases
+    TotalAssertionsReceivedFromLLM = "TotalAssertionsReceivedFromLLM"
+
     def __repr__(self):
         return f"{self.name}"

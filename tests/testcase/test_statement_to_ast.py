@@ -648,3 +648,19 @@ def test_statement_to_ast_dict_empty(statement_to_ast_visitor, default_test_case
     )
     statement_to_ast_visitor.visit_dict_statement(dict_stmt)
     assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = {}"
+
+
+def test_statement_to_ast_ast_assign(statement_to_ast_visitor, default_test_case):
+    """Test the visit_ast_assign_statement method."""
+    # Create a simple AST node (constant)
+    ast_node = ast.Constant(value=42)
+    ref_dict = {}
+
+    # Create the ASTAssignStatement
+    ast_assign_stmt = stmt.ASTAssignStatement(default_test_case, ast_node, ref_dict)
+
+    # Visit the statement
+    statement_to_ast_visitor.visit_ast_assign_statement(ast_assign_stmt)
+
+    # Verify the generated AST node
+    assert __create_source_from_ast(statement_to_ast_visitor.ast_node) == "var_0 = 42"

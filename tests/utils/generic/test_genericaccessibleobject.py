@@ -4,10 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from types import ClassMethodDescriptorType
 from unittest.mock import MagicMock
 
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import TypeInfo
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
@@ -158,3 +160,32 @@ def test_generic_field_dependencies(field_mock, type_system):
 def test_generic_function_raised_exceptions():
     func = GenericFunction(MagicMock(), MagicMock(), {"FooError"})
     assert func.raised_exceptions == {"FooError"}
+
+
+def test_generic_accessible_object_is_classmethod():
+    """Test is_classmethod on GenericAccessibleObject."""
+    acc = TestAccessibleObject(None)
+    assert not acc.is_classmethod()
+
+
+def test_generic_constructor_is_classmethod(constructor_mock):
+    """Test is_classmethod on GenericConstructor."""
+    assert not constructor_mock.is_classmethod()
+
+
+def test_generic_method_is_classmethod_with_class_method_descriptor(type_system):
+    """Test is_classmethod on GenericMethod with a ClassMethodDescriptorType."""
+    mock_signature = MagicMock()
+    mock_signature.return_type = type_system.convert_type_hint(None)
+
+    # Create a method with a mock callable
+    method = GenericMethod(
+        owner=TypeInfo(dict),
+        method=MagicMock(),
+        inferred_signature=mock_signature,
+    )
+
+    # Replace the _callable attribute with a mock that is an instance of ClassMethodDescriptorType
+    method._callable = MagicMock(spec=ClassMethodDescriptorType)
+
+    assert method.is_classmethod()
