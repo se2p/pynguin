@@ -380,3 +380,44 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PL
 
     def visit_ast_assign_statement(self, stmt) -> None:  # noqa: D102
         self._handle_remaining(stmt)
+
+
+class EmptyTestCaseRemover(cv.ChromosomeVisitor):
+    """Removes empty test cases from a test suite.
+
+    If a test case is empty after minimization, it should be removed entirely.
+    """
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self):  # noqa: D107
+        self._removed_test_cases = 0
+
+    @property
+    def removed_test_cases(self) -> int:
+        """Provides the number of removed test cases.
+
+        Returns:
+            The number of removed test cases
+        """
+        return self._removed_test_cases
+
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
+        original_size = chromosome.size()
+        chromosome.test_case_chromosomes = [
+            test for test in chromosome.test_case_chromosomes if test.size() > 0
+        ]
+        self._removed_test_cases = original_size - chromosome.size()
+        if self._removed_test_cases > 0:
+            chromosome.changed = True
+            self._logger.info(
+                "Removed %d empty test case(s) from test suite", self._removed_test_cases
+            )
+
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
+        # Nothing to do for individual test cases
+        pass

@@ -671,6 +671,10 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
             unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
             generation_result.accept(unused_primitives_removal)
 
+    # Remove empty test cases after minimization
+    empty_test_case_remover = pp.EmptyTestCaseRemover()
+    generation_result.accept(empty_test_case_remover)
+
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
     _LOGGER.info("Minimizing assertions based on checked coverage")
