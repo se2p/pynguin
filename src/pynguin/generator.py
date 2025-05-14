@@ -606,27 +606,27 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
     if config.configuration.test_case_output.post_process:
         unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
         if config.configuration.test_case_output.iterative_minimization and algorithm is not None:
-            try:
-                fitness_function = _get_coverage_ff_from_algorithm(
-                    algorithm, ff.TestSuiteBranchCoverageFunction
-                )
-                iterative_minimizer = pp.IterativeMinimizationVisitor(fitness_function)
+            # try:
+            fitness_function = _get_coverage_ff_from_algorithm(
+                algorithm, ff.TestSuiteBranchCoverageFunction
+            )
+            iterative_minimizer = pp.IterativeMinimizationVisitor(fitness_function)
 
-                # Apply both minimization strategies
-                test_case_minimizer = pp.TestCasePostProcessor([
-                    unused_vars_minimizer,
-                    iterative_minimizer,
-                ])
-                generation_result.accept(test_case_minimizer)
+            # Apply both minimization strategies
+            test_case_minimizer = pp.TestCasePostProcessor([
+                unused_vars_minimizer,
+                iterative_minimizer,
+            ])
+            generation_result.accept(test_case_minimizer)
 
-                _LOGGER.info(
-                    "Removed %d statement(s) from test cases",
-                    iterative_minimizer.removed_statements,
-                )
-            except RuntimeError as error:
-                _LOGGER.warning("Could not apply iterative minimization: %s", error)
-                unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
-                generation_result.accept(unused_primitives_removal)
+            _LOGGER.info(
+                "Removed %d statement(s) from test cases",
+                iterative_minimizer.removed_statements,
+            )
+            # except RuntimeError as error:
+            #     _LOGGER.warning("Could not apply iterative minimization: %s", error)
+            #     unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
+            #     generation_result.accept(unused_primitives_removal)
         else:
             unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
             generation_result.accept(unused_primitives_removal)
