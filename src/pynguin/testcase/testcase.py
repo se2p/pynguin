@@ -226,6 +226,19 @@ class TestCase(ABC):  # noqa: PLR0904
             a set of variables on which var depends on. # noqa: DAR202
         """
 
+    @abstractmethod
+    def get_forward_dependencies(
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
+        """Provides all variables that depend on var.
+
+        Args:
+            var: the variable for which we look for all dependent statements of
+
+        Returns:
+            a set of variables that depend on var. # noqa: DAR202
+        """
+
     def get_objects(self, parameter_type: ProperType, position: int) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type.
 
