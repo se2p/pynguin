@@ -14,6 +14,8 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcasevisitor as tcv
 
 from pynguin.assertion.assertion import Assertion
@@ -23,8 +25,7 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
-    import pynguin.ga.testcasechromosome as tcc
-    import pynguin.ga.testsuitechromosome as tsc
+    import pynguin.ga.computations as ff
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -157,6 +158,98 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
             The deleted statement indexes
         """
         return self._deleted_statement_indexes
+
+
+class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all forward dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
+        super().__init__()
+        self._fitness_function = fitness_function
+        self._removed_statements = 0
+
+    @property
+    def removed_statements(self) -> int:
+        """Provides the number of removed statements.
+
+        Returns:
+            The number of removed statements
+        """
+        return self._removed_statements
+
+    def visit_default_test_case(self, test_case) -> None:  # noqa: D102
+        self._deleted_statement_indexes.clear()
+        original_size = test_case.size()
+
+        # We need to iterate over a copy of the statements because we'll be modifying the test case
+        statements = list(test_case.statements)
+
+        # For each statement, try to remove it and see if fitness is preserved
+        for stmt in statements:
+            if stmt.get_position() >= test_case.size():
+                continue
+
+            ret_val = stmt.ret_val
+
+            # Create a clone of the test case for testing
+            test_clone = test_case.clone()
+            clone_stmt = test_clone.get_statement(stmt.get_position())
+            clone_ret_val = clone_stmt.ret_val
+
+            # Get forward dependencies in the clone
+            forward_dependencies = []
+            if clone_ret_val is not None:
+                forward_dependencies = list(test_clone.get_forward_dependencies(clone_ret_val))
+
+            # Remove the statement and its forward dependencies from the clone
+            # Remove in reverse order to avoid index issues
+            positions_to_remove = sorted(
+                [dep.get_statement_position() for dep in forward_dependencies]
+                + [clone_stmt.get_position()],
+                reverse=True,
+            )
+
+            for pos in positions_to_remove:
+                test_clone.remove(pos)
+
+            # Calculate fitness with the modified clone
+            test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
+            test_suite_chromosome = tsc.TestSuiteChromosome()
+            test_suite_chromosome.add_test_case_chromosome(test_case_chromosome)
+            original_coverage = self._fitness_function.compute_coverage(test_suite_chromosome)
+
+            # If coverage is preserved or improved, remove the statement + dependencies
+            if original_coverage >= 1.0:
+                forward_dependencies = []
+                if ret_val is not None:
+                    forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
+
+                # Remove the statement and its forward dependencies
+                # We need to remove them one by one, updating positions after each removal
+                # Start with the statement itself
+                self._deleted_statement_indexes.add(stmt.get_position())
+                test_case.remove(stmt.get_position())
+                self._removed_statements += 1
+
+                for dep in forward_dependencies:
+                    current_pos = dep.get_statement_position()
+                    test_case.remove(current_pos)
+                    self._deleted_statement_indexes.add(current_pos)
+                    self._removed_statements += 1
+
+        self._logger.debug(
+            "Removed %s statement(s) from test case using iterative minimization",
+            original_size - test_case.size(),
+        )
 
 
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):

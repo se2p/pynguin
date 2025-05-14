@@ -540,7 +540,7 @@ def _run() -> ReturnCode:
     executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
-    _remove_statements_after_exceptions(generation_result)
+    _remove_statements_after_exceptions(generation_result, algorithm)
     _generate_assertions(executor, generation_result, test_cluster)
     tracked_metrics = _track_final_metrics(
         algorithm, executor, generation_result, constant_provider
@@ -600,13 +600,36 @@ def _run_llm() -> ReturnCode:
     return ReturnCode.OK
 
 
-def _remove_statements_after_exceptions(generation_result):
+def _remove_statements_after_exceptions(generation_result, algorithm=None):
     truncation = pp.ExceptionTruncation()
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
-        unused_primitives_removal = pp.TestCasePostProcessor([pp.UnusedStatementsTestCaseVisitor()])
-        generation_result.accept(unused_primitives_removal)
-        # TODO(fk) add more postprocessing stuff.
+        unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
+        if config.configuration.test_case_output.iterative_minimization and algorithm is not None:
+            try:
+                fitness_function = _get_coverage_ff_from_algorithm(
+                    algorithm, ff.TestSuiteBranchCoverageFunction
+                )
+                iterative_minimizer = pp.IterativeMinimizationVisitor(fitness_function)
+
+                # Apply both minimization strategies
+                test_case_minimizer = pp.TestCasePostProcessor([
+                    unused_vars_minimizer,
+                    iterative_minimizer,
+                ])
+                generation_result.accept(test_case_minimizer)
+
+                _LOGGER.info(
+                    "Removed %d statement(s) from test cases",
+                    iterative_minimizer.removed_statements,
+                )
+            except RuntimeError as error:
+                _LOGGER.warning("Could not apply iterative minimization: %s", error)
+                unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
+                generation_result.accept(unused_primitives_removal)
+        else:
+            unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
+            generation_result.accept(unused_primitives_removal)
 
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):

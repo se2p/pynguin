@@ -128,6 +128,40 @@ class DefaultTestCase(tc.TestCase):
 
         return dependencies
 
+    def get_forward_dependencies(
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
+        """Find all variables that depend on the given variable.
+
+        This method finds all statements that come after the given variable's
+        statement and that reference the variable, directly or indirectly.
+
+        Args:
+            var: The variable to find forward dependencies for
+
+        Returns:
+            A set of variables that depend on the given variable
+        """
+        dependencies: OrderedSet[vr.VariableReference] = OrderedSet()
+
+        # Start with the variable itself
+        dependencies.add(var)
+
+        # Iterate forward from the variable's statement position
+        for idx in range(var.get_statement_position() + 1, self.size()):
+            statement = self.get_statement(idx)
+            # Check if this statement references any of the dependencies we've found so far
+            if (
+                any(statement.references(dep) for dep in dependencies)
+                and statement.ret_val is not None
+            ):
+                dependencies.add(statement.ret_val)
+
+        # Remove the original variable from the dependencies
+        dependencies.remove(var)
+
+        return dependencies
+
     def get_assertions(self) -> list[ass.Assertion]:  # noqa: D102
         assertions: list[ass.Assertion] = []
         for statement in self._statements:

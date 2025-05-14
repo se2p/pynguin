@@ -266,6 +266,10 @@ class TestCaseOutputConfiguration:
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""
 
+    iterative_minimization: bool = True
+    """Apply iterative minimization to test cases to remove redundant statements
+    while preserving fitness."""
+
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
