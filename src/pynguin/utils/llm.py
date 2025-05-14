@@ -139,7 +139,7 @@ if OPENAI_AVAILABLE:
                     "OpenAI API key not set, provide via the OPENAI_API_KEY environment variable."
                 )
             super().__init__(api_key, temperature, system_prompt)
-            self.__client = openai.OpenAI(api_key=str(api_key))
+            self.__client = openai.OpenAI(api_key=api_key.get_secret_value())
             self.__model = model
 
         def chat(self, prompt: str, system_prompt: str | None = None) -> str | None:  # noqa: D102
