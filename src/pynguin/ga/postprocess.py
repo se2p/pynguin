@@ -26,6 +26,9 @@ from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
+    import pynguin.testcase.statement as stmt
+    import pynguin.testcase.testcase as tc
+    import pynguin.testcase.variablereference as vr
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -186,7 +189,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         """
         return self._removed_statements
 
-    def visit_default_test_case(self, test_case) -> None:  # noqa: D102
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
         original_size = test_case.size()
         statements = list(test_case.statements)
@@ -216,7 +219,9 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             original_size - test_case.size(),
         )
 
-    def _remove_stmt(self, ret_val, stmt, test_case):
+    def _remove_stmt(
+        self, ret_val: vr.VariableReference | None, stmt: stmt.Statement, test_case: tc.TestCase
+    ) -> None:
         forward_dependencies = []
         if ret_val is not None:
             forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
@@ -229,7 +234,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             self._removed_statements += 1
 
     @staticmethod
-    def _create_clone_without_stmt(stmt, test_case):
+    def _create_clone_without_stmt(stmt: stmt.Statement, test_case: tc.TestCase) -> tc.TestCase:
         test_clone = test_case.clone()
         clone_stmt = test_clone.get_statement(stmt.get_position())
         clone_ret_val = clone_stmt.ret_val
@@ -244,7 +249,9 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         return test_clone
 
     @staticmethod
-    def _positions_to_remove(clone_stmt, forward_dependencies):
+    def _positions_to_remove(
+        clone_stmt: stmt.Statement, forward_dependencies: list[vr.VariableReference]
+    ) -> list[int]:
         # Get the positions to remove and its forward dependencies in reverse order
         # to avoid index issues
         return sorted(
@@ -253,7 +260,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             reverse=True,
         )
 
-    def _compare_coverage(self, test_case, test_clone):
+    def _compare_coverage(self, test_case: tc.TestCase, test_clone: tc.TestCase) -> bool:
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
         original_test_suite = tsc.TestSuiteChromosome()
         original_test_suite.add_test_case_chromosome(original_test_case)
