@@ -192,27 +192,34 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
         original_size = test_case.size()
-        statements = list(test_case.statements)
+        statements_changed = True
 
-        # For each statement, try to remove it and see if fitness is preserved
-        i = 0
-        while i < len(statements):
-            stmt = statements[i]
-            if stmt.get_position() >= test_case.size():
-                i += 1
-                continue
-            ret_val = stmt.ret_val
+        while statements_changed:
+            statements_changed = False
+            statements = list(test_case.statements)
 
-            test_clone = self._create_clone_without_stmt(stmt, test_case)
-            coverage_reduced = self._compare_coverage(test_case, test_clone)
-            if not coverage_reduced:
-                self._remove_stmt(ret_val, stmt, test_case)
+            i = 0
+            while i < len(statements):
+                stmt = statements[i]
+                if stmt.get_position() >= test_case.size():
+                    i += 1
+                    continue
+                ret_val = stmt.ret_val
 
-                # Update the statements list to reflect the changes in the test case
-                statements = list(test_case.statements)
-                # Don't increment i since we've removed elements and the list has shifted
-            else:
-                i += 1
+                test_clone = self._create_clone_without_stmt(stmt, test_case)
+                coverage_reduced = self._compare_coverage(test_case, test_clone)
+                if not coverage_reduced:
+                    self._remove_stmt(ret_val, stmt, test_case)
+
+                    # Update the statements list to reflect the changes in the test case
+                    statements = list(test_case.statements)
+                    # Don't increment i since we've removed elements and the list has shifted
+                    statements_changed = True
+                else:
+                    i += 1
+
+            if not statements_changed:
+                break
 
         self._logger.debug(
             "Removed %s statement(s) from test case using iterative minimization",
