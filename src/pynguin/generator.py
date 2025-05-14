@@ -606,7 +606,6 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
     if config.configuration.test_case_output.post_process:
         unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
         if config.configuration.test_case_output.iterative_minimization and algorithm is not None:
-            # try:
             fitness_function = _get_coverage_ff_from_algorithm(
                 algorithm, ff.TestSuiteBranchCoverageFunction
             )
@@ -623,10 +622,6 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
                 "Removed %d statement(s) from test cases",
                 iterative_minimizer.removed_statements,
             )
-            # except RuntimeError as error:
-            #     _LOGGER.warning("Could not apply iterative minimization: %s", error)
-            #     unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
-            #     generation_result.accept(unused_primitives_removal)
         else:
             unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
             generation_result.accept(unused_primitives_removal)

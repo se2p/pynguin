@@ -189,71 +189,81 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     def visit_default_test_case(self, test_case) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
         original_size = test_case.size()
-
-        # We need to iterate over a copy of the statements because we'll be modifying the test case
         statements = list(test_case.statements)
 
         # For each statement, try to remove it and see if fitness is preserved
-        for stmt in statements:
+        i = 0
+        while i < len(statements):
+            stmt = statements[i]
             if stmt.get_position() >= test_case.size():
+                i += 1
                 continue
             ret_val = stmt.ret_val
 
             test_clone = self._create_clone_without_stmt(stmt, test_case)
             coverage_reduced = self._compare_coverage(test_case, test_clone)
             if not coverage_reduced:
-                forward_dependencies = []
-                if ret_val is not None:
-                    forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
-                # Remove the statement and its forward dependencies
-                # We need to remove them one by one, updating positions after each removal
-                # Start with the statement itself
-                self._deleted_statement_indexes.add(stmt.get_position())
-                test_case.remove(stmt.get_position())
-                self._removed_statements += 1
-                for dep in forward_dependencies:
-                    current_pos = dep.get_statement_position()
-                    test_case.remove(current_pos)
-                    self._deleted_statement_indexes.add(current_pos)
-                    self._removed_statements += 1
+                self._remove_stmt(ret_val, stmt, test_case)
+
+                # Update the statements list to reflect the changes in the test case
+                statements = list(test_case.statements)
+                # Don't increment i since we've removed elements and the list has shifted
+            else:
+                i += 1
 
         self._logger.debug(
             "Removed %s statement(s) from test case using iterative minimization",
             original_size - test_case.size(),
         )
 
-    def _create_clone_without_stmt(self, stmt, test_case):
-        # Create a clone of the test case for testing
+    def _remove_stmt(self, ret_val, stmt, test_case):
+        forward_dependencies = []
+        if ret_val is not None:
+            forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
+        positions_to_remove = IterativeMinimizationVisitor._positions_to_remove(
+            stmt, forward_dependencies
+        )
+        for pos in positions_to_remove:
+            test_case.remove(pos)
+            self._deleted_statement_indexes.add(pos)
+            self._removed_statements += 1
+
+    @staticmethod
+    def _create_clone_without_stmt(stmt, test_case):
         test_clone = test_case.clone()
         clone_stmt = test_clone.get_statement(stmt.get_position())
         clone_ret_val = clone_stmt.ret_val
-        # Get forward dependencies in the clone
         forward_dependencies = []
         if clone_ret_val is not None:
             forward_dependencies = list(test_clone.get_forward_dependencies(clone_ret_val))
-        # Remove the statement and its forward dependencies from the clone
-        # Remove in reverse order to avoid index issues
-        positions_to_remove = sorted(
-            [dep.get_statement_position() for dep in forward_dependencies]
-            + [clone_stmt.get_position()],
-            reverse=True,
+        positions_to_remove = IterativeMinimizationVisitor._positions_to_remove(
+            clone_stmt, forward_dependencies
         )
         for pos in positions_to_remove:
             test_clone.remove(pos)
         return test_clone
 
+    @staticmethod
+    def _positions_to_remove(clone_stmt, forward_dependencies):
+        # Get the positions to remove and its forward dependencies in reverse order
+        # to avoid index issues
+        return sorted(
+            [dep.get_statement_position() for dep in forward_dependencies]
+            + [clone_stmt.get_position()],
+            reverse=True,
+        )
+
     def _compare_coverage(self, test_case, test_clone):
-        # Calculate fitness with the modified clone
-        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
-        # Get all test case chromosomes from the original test suite
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
         original_test_suite = tsc.TestSuiteChromosome()
         original_test_suite.add_test_case_chromosome(original_test_case)
         original_coverage = self._fitness_function.compute_coverage(original_test_suite)
-        # Create a test suite with the modified clone and all other test case chromosomes
-        test_suite_chromosome = tsc.TestSuiteChromosome()
-        test_suite_chromosome.add_test_case_chromosome(test_case_chromosome)
-        modified_coverage = self._fitness_function.compute_coverage(test_suite_chromosome)
+
+        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
+        modified_test_suite = tsc.TestSuiteChromosome()
+        modified_test_suite.add_test_case_chromosome(test_case_chromosome)
+        modified_coverage = self._fitness_function.compute_coverage(modified_test_suite)
+
         return modified_coverage < original_coverage
 
 

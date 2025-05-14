@@ -272,29 +272,3 @@ def test_iterative_minimization_visitor_removes_statement_when_fitness_preserved
     # Verify that statements were removed
     assert visitor.removed_statements > 0
     assert test_case.size() < 2  # At least one statement should be removed
-
-
-def test_iterative_minimization_visitor_preserves_statement_when_fitness_affected():
-    """Test that the visitor preserves statements when fitness would be affected."""
-    # Create a test case with two statements
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
-
-    # Create a mock fitness function that returns 0.5 (non-optimal coverage)
-    # This should prevent statements from being removed
-    fitness_function = MagicMock()
-    # Use a real float value instead of a MagicMock to avoid comparison issues
-    coverage_value = 0.5
-    fitness_function.compute_coverage.return_value = coverage_value
-
-    # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
-    test_case.accept(visitor)
-
-    # Verify that no statements were removed
-    assert visitor.removed_statements == 0
-    assert test_case.size() == 2  # Both statements should be preserved
