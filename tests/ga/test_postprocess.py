@@ -19,7 +19,10 @@ import pynguin.testcase.statement as stmt
 
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.ga.computations import TestSuiteCoverageFunction
+from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
+from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -291,8 +294,7 @@ def test_iterative_minimization_visitor_keeps_statement_when_fitness_reduced():
         if test_suite.test_case_chromosomes[0].size() == 2:
             return 1.0
         # If any statement is removed, return reduced coverage
-        else:
-            return 0.5
+        return 0.5
 
     fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
@@ -348,11 +350,15 @@ def test_iterative_minimization_visitor_with_dependencies():
     def compute_coverage_side_effect(test_suite):
         test_size = test_suite.test_case_chromosomes[0].size()
         # Full test case or test case without string statement has full coverage
-        if test_size == 3 or (test_size == 2 and isinstance(test_suite.test_case_chromosomes[0].test_case.statements[1], stmt.ListStatement)):
+        if test_size == 3 or (
+            test_size == 2
+            and isinstance(
+                test_suite.test_case_chromosomes[0].test_case.statements[1], stmt.ListStatement
+            )
+        ):
             return 1.0
         # Any other modification reduces coverage
-        else:
-            return 0.5
+        return 0.5
 
     fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
@@ -369,10 +375,6 @@ def test_iterative_minimization_visitor_with_dependencies():
 
 def test_positions_to_remove():
     """Test the _positions_to_remove static method."""
-    # Create a test case with statements
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-
     # Create a statement and some mock forward dependencies
     statement = MagicMock()
     statement.get_position.return_value = 2
@@ -489,11 +491,6 @@ def test_remove_stmt():
 
 def test_iterative_minimization_visitor_integration():
     """Integration test for IterativeMinimizationVisitor with a real fitness function."""
-    from pynguin.ga.computations import TestSuiteCoverageFunction
-    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
-    from pynguin.ga.testcasechromosome import TestCaseChromosome
-    from pynguin.testcase.execution import ExecutionResult
-
     # Create a mock executor
     mock_executor = MagicMock()
     mock_executor.execute.return_value = ExecutionResult()
@@ -508,8 +505,9 @@ def test_iterative_minimization_visitor_integration():
             # Count the number of unique statement types as a simple coverage metric
             statement_types = set()
             for test_case_chromosome in individual.test_case_chromosomes:
-                for statement in test_case_chromosome.test_case.statements:
-                    statement_types.add(type(statement))
+                statement_types.update(
+                    type(statement) for statement in test_case_chromosome.test_case.statements
+                )
 
             # Normalize to [0, 1]
             max_types = 3  # We'll use at most 3 types in our test
@@ -531,7 +529,7 @@ def test_iterative_minimization_visitor_integration():
     test_case.add_statement(int_stmt2)
 
     # Create a test case chromosome and test suite
-    test_case_chromosome = TestCaseChromosome(test_case=test_case)
+    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
     test_suite = TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_chromosome)
 
@@ -553,9 +551,8 @@ def test_iterative_minimization_visitor_integration():
     assert stmt.FloatPrimitiveStatement in statement_types
 
 
-def test_iterative_minimization_visitor_dependencies_preserved():
-    """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
-    # Create a test case with a chain of dependencies
+def _create_test_case_with_dependencies():
+    """Helper function to create a test case with dependencies."""
     cluster = ModuleTestCluster(0)
     test_case = dtc.DefaultTestCase(cluster)
 
@@ -568,9 +565,9 @@ def test_iterative_minimization_visitor_dependencies_preserved():
 
     # Create a list that depends on both int and float statements
     list_stmt = stmt.ListStatement(
-        test_case, 
-        cluster.type_system.convert_type_hint(list), 
-        [int_stmt.ret_val, float_stmt.ret_val]
+        test_case,
+        cluster.type_system.convert_type_hint(list),
+        [int_stmt.ret_val, float_stmt.ret_val],
     )
     test_case.add_statement(list_stmt)
 
@@ -584,10 +581,16 @@ def test_iterative_minimization_visitor_dependencies_preserved():
     none_stmt = stmt.NoneStatement(test_case)
     test_case.add_statement(none_stmt)
 
+    return test_case
+
+
+def test_iterative_minimization_visitor_dependencies_preserved():
+    """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
+    # Create a test case with a chain of dependencies
+    test_case = _create_test_case_with_dependencies()
+
     # Create a test case chromosome and test suite
-    from pynguin.ga.testcasechromosome import TestCaseChromosome
-    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
-    test_case_chromosome = TestCaseChromosome(test_case=test_case)
+    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
     test_suite = TestSuiteChromosome()
     test_suite.add_test_case_chromosome(test_case_chromosome)
 
@@ -627,7 +630,7 @@ def test_iterative_minimization_visitor_dependencies_preserved():
     assert test_case.size() < original_size
 
     # Verify that the list statement and its dependencies are still present
-    statement_types = [type(stmt) for stmt in test_case.statements]
+    statement_types = [type(s) for s in test_case.statements]
     assert stmt.ListStatement in statement_types
     assert stmt.IntPrimitiveStatement in statement_types
     assert stmt.FloatPrimitiveStatement in statement_types
@@ -640,8 +643,12 @@ def test_iterative_minimization_visitor_dependencies_preserved():
     var_refs = list_statement.get_variable_references()
 
     # Verify that the list statement uses variables from int and float statements
-    int_vars = [s.ret_val for s in test_case.statements if isinstance(s, stmt.IntPrimitiveStatement)]
-    float_vars = [s.ret_val for s in test_case.statements if isinstance(s, stmt.FloatPrimitiveStatement)]
+    int_vars = [
+        s.ret_val for s in test_case.statements if isinstance(s, stmt.IntPrimitiveStatement)
+    ]
+    float_vars = [
+        s.ret_val for s in test_case.statements if isinstance(s, stmt.FloatPrimitiveStatement)
+    ]
 
     assert any(int_var in var_refs for int_var in int_vars)
     assert any(float_var in var_refs for float_var in float_vars)

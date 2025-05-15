@@ -312,3 +312,71 @@ def test_get_assertions_multiple_statements(default_test_case_with_assertions):
 def test_get_size_with_assertions(default_test_case_with_assertions):
     test_case, _assertions = default_test_case_with_assertions
     assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions
+
+
+def test_get_forward_dependencies_empty(default_test_case):
+    """Test get_forward_dependencies with no forward dependencies."""
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
+    assert dependencies == OrderedSet()
+
+
+def test_get_forward_dependencies_direct(default_test_case, function_mock):
+    """Test get_forward_dependencies with direct forward dependencies."""
+    # Create a variable
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+
+    # Create a statement that uses the variable
+    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+    default_test_case.add_statement(func0)
+
+    # Check that the function's return value is a forward dependency of int0
+    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
+    assert dependencies == OrderedSet([func0.ret_val])
+
+
+def test_get_forward_dependencies_indirect(default_test_case, function_mock):
+    """Test get_forward_dependencies with indirect forward dependencies."""
+    # Create a variable
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+
+    # Create a statement that uses the variable
+    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+    default_test_case.add_statement(func0)
+
+    # Create another statement that uses the result of the first function
+    func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
+    default_test_case.add_statement(func1)
+
+    # Check that both function return values are forward dependencies of int0
+    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
+    assert dependencies == OrderedSet([func0.ret_val, func1.ret_val])
+
+
+def test_get_forward_dependencies_mixed(default_test_case, function_mock):
+    """Test get_forward_dependencies with a mix of dependent and independent statements."""
+    # Create two independent variables
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+
+    float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
+    default_test_case.add_statement(float0)
+
+    # Create a statement that uses only int0
+    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+    default_test_case.add_statement(func0)
+
+    # Create a statement that uses only float0
+    func1 = st.FunctionStatement(default_test_case, function_mock, {"a": float0.ret_val})
+    default_test_case.add_statement(func1)
+
+    # Check that only func0 is a forward dependency of int0
+    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
+    assert dependencies == OrderedSet([func0.ret_val])
+
+    # Check that only func1 is a forward dependency of float0
+    dependencies = default_test_case.get_forward_dependencies(float0.ret_val)
+    assert dependencies == OrderedSet([func1.ret_val])
