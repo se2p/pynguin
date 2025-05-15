@@ -137,12 +137,8 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
     ) -> None:
         for visitor in self._test_case_visitors:
             chromosome.test_case.accept(visitor)
-            if (last_exec := chromosome.get_last_execution_result()) is not None:
-                # We don't want to re-execute the test cases here, so we also remove
-                # information about the deleted statements from the execution result.
-                # TODO(fk) we could also re-execute, but with flakiness this could
-                #  cause inconsistent results
-                last_exec.delete_statement_data(visitor.deleted_statement_indexes)
+            # Remove the last execution result to force re-execution of the test case
+            chromosome.remove_last_execution_result()
 
 
 class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
@@ -199,9 +195,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             while i < len(statements):
                 stmt = statements[i]
                 if stmt.get_position() >= test_case.size():
-                    # TODO: Break instead?
-                    i += 1
-                    continue
+                    break
 
                 test_clone = test_case.clone()
                 clone_stmt = test_clone.get_statement(stmt.get_position())
@@ -209,9 +203,6 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 coverage_reduced = compare_coverage(test_case, test_clone, self._fitness_function)
                 if not coverage_reduced:
                     removed = test_case.remove_statement_safely(stmt)
-                    # TODO (lk): When statements are removed, the indexes are updated
-                    #  and thus the stored indexes here are not correct
-                    self.deleted_statement_indexes.update(removed)
                     self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case
