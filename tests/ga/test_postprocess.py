@@ -25,7 +25,6 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.assertion import ExceptionAssertion
 from pynguin.ga.computations import TestSuiteBranchCoverageFunction
 from pynguin.ga.computations import TestSuiteLineCoverageFunction
-from pynguin.ga.postprocess import compare_coverage
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
@@ -431,25 +430,6 @@ def two_test_cases(basic_test_cluster):
     test_case2.add_statement(int_stmt2)
 
     return test_case1, test_case2
-
-
-def test_compare_coverage(two_test_cases, mock_fitness_function):
-    """Test the compare_coverage function."""
-    test_case1, test_case2 = two_test_cases
-
-    # Set up the mock fitness function to return different coverage values
-    mock_fitness_function.compute_coverage.side_effect = [1.0, 0.5]  # Original, modified
-
-    # Test when coverage is reduced
-    result = compare_coverage(test_case1, test_case2, mock_fitness_function)
-    assert result is True  # Coverage is reduced
-
-    # Reset the side effect for the next test
-    mock_fitness_function.compute_coverage.side_effect = [0.5, 0.5]  # Original, modified
-
-    # Test when coverage is the same
-    result = compare_coverage(test_case1, test_case2, mock_fitness_function)
-    assert result is False  # Coverage is not reduced
 
 
 @pytest.fixture

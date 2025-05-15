@@ -184,6 +184,11 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         return self._removed_statements
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
+        original_test_suite = tsc.TestSuiteChromosome()
+        original_test_suite.add_test_case_chromosome(original_test_case)
+        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+
         original_size = test_case.size()
         statements_changed = True
 
@@ -200,8 +205,11 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 test_clone = test_case.clone()
                 clone_stmt = test_clone.get_statement(stmt.get_position())
                 test_clone.remove_statement_safely(clone_stmt)
-                coverage_reduced = compare_coverage(test_case, test_clone, self._fitness_function)
-                if not coverage_reduced:
+                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
+                minimized_test_suite = tsc.TestSuiteChromosome()
+                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
+                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
+                if not minimized_coverage < original_coverage:
                     removed = test_case.remove_statement_safely(stmt)
                     self._removed_statements += len(removed)
 
@@ -238,32 +246,6 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
             size_before - test_case.size(),
         )
         self._deleted_statement_indexes.update(primitive_remover.deleted_statement_indexes)
-
-
-def compare_coverage(
-    test_case: tc.TestCase, test_clone: tc.TestCase, fitness_function: ff.CoverageFunction
-) -> bool:
-    """Compares the coverage of the original test case with a modified test case.
-
-    Args:
-        test_case: The original test case
-        test_clone: The modified test case
-        fitness_function: The fitness function to use for comparison
-
-    Returns:
-        True if the coverage is reduced, False otherwise
-    """
-    original_test_case = tcc.TestCaseChromosome(test_case=test_case)
-    original_test_suite = tsc.TestSuiteChromosome()
-    original_test_suite.add_test_case_chromosome(original_test_case)
-    original_coverage = fitness_function.compute_coverage(original_test_suite)
-
-    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
-    modified_test_suite = tsc.TestSuiteChromosome()
-    modified_test_suite.add_test_case_chromosome(test_case_chromosome)
-    modified_coverage = fitness_function.compute_coverage(modified_test_suite)
-
-    return modified_coverage < original_coverage
 
 
 class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PLR0904
