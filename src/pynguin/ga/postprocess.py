@@ -157,6 +157,9 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         return self._deleted_statement_indexes
 
 
+EPSILON = 0.0001
+
+
 class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     """Iteratively tries to remove statements while preserving fitness.
 
@@ -209,7 +212,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
                 minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
-                if not minimized_coverage < original_coverage:
+                if original_coverage - minimized_coverage < EPSILON:
                     removed = test_case.remove_statement_safely(stmt)
                     self._removed_statements += len(removed)
 
