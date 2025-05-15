@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
+import importlib
+import threading
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -12,17 +14,22 @@ from unittest.mock import call
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 
 from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.assertion import ExceptionAssertion
-from pynguin.ga.computations import TestSuiteCoverageFunction
+from pynguin.ga.computations import TestSuiteBranchCoverageFunction
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
-from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -491,64 +498,61 @@ def test_remove_stmt():
 
 def test_iterative_minimization_visitor_integration():
     """Integration test for IterativeMinimizationVisitor with a real fitness function."""
-    # Create a mock executor
-    mock_executor = MagicMock()
-    mock_executor.execute.return_value = ExecutionResult()
-    mock_executor.execute_multiple.return_value = [ExecutionResult()]
+    # Set up the module name for testing
+    config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
 
-    # Create a simple implementation of TestSuiteCoverageFunction
-    class SimpleTestSuiteCoverageFunction(TestSuiteCoverageFunction):
-        def __init__(self):
-            super().__init__(mock_executor)
+    # Create a real tracer and executor
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
 
-        def compute_coverage(self, individual):
-            # Count the number of unique statement types as a simple coverage metric
-            statement_types = set()
-            for test_case_chromosome in individual.test_case_chromosomes:
-                statement_types.update(
-                    type(statement) for statement in test_case_chromosome.test_case.statements
-                )
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+        first_function = module.first
 
-            # Normalize to [0, 1]
-            max_types = 3  # We'll use at most 3 types in our test
-            return min(1.0, len(statement_types) / max_types)
+        # Create a real executor
+        executor = TestCaseExecutor(tracer)
 
-    # Create a test case with different statement types
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
+        # Create a test case with multiple statements
+        cluster = generate_test_cluster(config.configuration.module_name)
+        test_case = dtc.DefaultTestCase(cluster)
 
-    # Add statements of different types
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
+        # Find the GenericFunction object for the first_function
+        first_function_generic: GenericFunction | None = None
+        for obj in cluster.accessible_objects_under_test:
+            if isinstance(obj, GenericFunction) and obj._callable == first_function:
+                first_function_generic = obj
+                break
 
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
+        if first_function_generic is None:
+            raise ValueError("Could not find GenericFunction for first_function")
 
-    # Add a duplicate int statement that should be removable without affecting coverage
-    int_stmt2 = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt2)
+        # Add several statements to ensure some will be removed
+        for i in range(3):
+            int_stmt = stmt.IntPrimitiveStatement(test_case, i - 1)
+            test_case.add_statement(int_stmt)
+            func_stmt = stmt.FunctionStatement(
+                test_case, first_function_generic, {"a": int_stmt.ret_val}
+            )
+            test_case.add_statement(func_stmt)
 
-    # Create a test case chromosome and test suite
-    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
-    test_suite = TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(test_case_chromosome)
+        # Create a test case chromosome and test suite
+        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
+        test_suite = TestSuiteChromosome()
+        test_suite.add_test_case_chromosome(test_case_chromosome)
 
-    # Create the fitness function and visitor
-    fitness_function = SimpleTestSuiteCoverageFunction()
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+        # Execute the test case to ensure it has coverage
+        executor.execute(test_case)
 
-    # Apply the visitor to the test case
-    test_case.accept(visitor)
+        # Create a real line coverage function and visitor
+        fitness_function = TestSuiteBranchCoverageFunction(executor)
+        visitor = pp.IterativeMinimizationVisitor(fitness_function)
 
-    # Verify that one of the duplicate int statements was removed
-    assert visitor.removed_statements == 1
-    assert test_case.size() == 2
+        # Apply the visitor to the test case
+        test_case.accept(visitor)
 
-    # Verify that we still have both types of statements (int and float)
-    statement_types = {type(stmt) for stmt in test_case.statements}
-    assert len(statement_types) == 2
-    assert stmt.IntPrimitiveStatement in statement_types
-    assert stmt.FloatPrimitiveStatement in statement_types
+        # Verify that statements were removed but not all of them
+        assert visitor.removed_statements == 2
 
 
 def _create_test_case_with_dependencies():
