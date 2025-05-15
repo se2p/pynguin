@@ -452,21 +452,6 @@ def test_compare_coverage(two_test_cases, mock_fitness_function):
     assert result is False  # Coverage is not reduced
 
 
-def test_remove_stmt(tc_with_dependencies, minimization_visitor):
-    """Test the _remove_stmt method."""
-    test_case, int_stmt, _, _ = tc_with_dependencies
-
-    # Remove the int statement (which should also remove the list statement due to dependency)
-    minimization_visitor._remove_stmt(int_stmt.ret_val, int_stmt, test_case)
-
-    # Verify the statements were removed
-    assert test_case.size() == 1
-    assert isinstance(test_case.statements[0], stmt.StringPrimitiveStatement)
-    assert minimization_visitor.removed_statements == 2
-    assert 0 in minimization_visitor.deleted_statement_indexes
-    assert 1 in minimization_visitor.deleted_statement_indexes
-
-
 @pytest.fixture
 def tc_with_complex_dependencies(basic_test_cluster):
     """Fixture for a test case with complex dependencies between statements."""

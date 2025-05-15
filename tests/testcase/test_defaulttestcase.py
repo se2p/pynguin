@@ -441,17 +441,72 @@ def tc_with_three_statements(default_test_case):
     return default_test_case, int_stmt, float_stmt, str_stmt
 
 
-def test_create_clone_without_stmt(tc_with_three_statements):
-    """Test the create_clone_without_stmt method."""
-    test_case, _, float_stmt, _ = tc_with_three_statements
+def test_remove_safely(tc_with_three_statements):
+    """Test the remove_safely method."""
+    test_case, int_stmt, _, str_stmt = tc_with_three_statements
 
-    # Create a clone without the float statement
-    clone = TestCase.create_clone_without_stmt(float_stmt, test_case)
+    # Remove the float statement at position 1
+    positions_removed = test_case.remove_safely(1)
 
-    # Verify the clone has the correct statements
-    assert clone.size() == 2
-    assert isinstance(clone.statements[0], st.IntPrimitiveStatement)
-    assert isinstance(clone.statements[1], st.StringPrimitiveStatement)
+    # Verify the positions removed
+    assert positions_removed == [1]
 
-    # Verify the original test case is unchanged
-    assert test_case.size() == 3
+    # Verify the test case has the correct statements
+    assert test_case.size() == 2
+    assert test_case.statements[0] == int_stmt
+    assert test_case.statements[1] == str_stmt
+
+
+def test_remove_safely_with_dependencies(default_test_case, function_mock):
+    """Test the remove_safely method with forward dependencies."""
+    # Set up a test case with dependencies
+    setup_forward_dependency_test_case(default_test_case, function_mock, "indirect")
+
+    # Initial size should be 3 (int0, func0, func1)
+    assert default_test_case.size() == 3
+
+    # Remove the int0 statement at position 0, which should also remove func0 and func1
+    positions_removed = default_test_case.remove_safely(0)
+
+    # Verify the positions removed (in reverse order)
+    assert sorted(positions_removed, reverse=True) == [2, 1, 0]
+
+    # Verify the test case is now empty
+    assert default_test_case.size() == 0
+
+
+def test_remove_statement_safely(tc_with_three_statements):
+    """Test the remove_statement_safely method."""
+    test_case, int_stmt, float_stmt, str_stmt = tc_with_three_statements
+
+    # Remove the float statement
+    positions_removed = test_case.remove_statement_safely(float_stmt)
+
+    # Verify the positions removed
+    assert positions_removed == [1]
+
+    # Verify the test case has the correct statements
+    assert test_case.size() == 2
+    assert test_case.statements[0] == int_stmt
+    assert test_case.statements[1] == str_stmt
+
+
+def test_remove_statement_safely_with_dependencies(default_test_case, function_mock):
+    """Test the remove_statement_safely method with forward dependencies."""
+    # Set up a test case with dependencies
+    setup_forward_dependency_test_case(default_test_case, function_mock, "indirect")
+
+    # Get the int0 statement
+    int0_stmt = default_test_case.get_statement(0)
+
+    # Initial size should be 3 (int0, func0, func1)
+    assert default_test_case.size() == 3
+
+    # Remove the int0 statement, which should also remove func0 and func1
+    positions_removed = default_test_case.remove_statement_safely(int0_stmt)
+
+    # Verify the positions removed (in reverse order)
+    assert sorted(positions_removed, reverse=True) == [2, 1, 0]
+
+    # Verify the test case is now empty
+    assert default_test_case.size() == 0

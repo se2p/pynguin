@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
 
-class DefaultTestCase(tc.TestCase):
+class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
     """A default implementation of a test case."""
 
     _logger = logging.getLogger(__name__)
@@ -72,6 +72,24 @@ class DefaultTestCase(tc.TestCase):
 
     def remove_statement(self, statement: stmt.Statement) -> None:  # noqa: D102
         self._statements.remove(statement)
+
+    def remove_safely(self, position: int) -> list[int]:  # noqa: D102
+        if position >= self.size():
+            return []
+        statement = self.get_statement(position)
+        return self.remove_statement_safely(statement)
+
+    def remove_statement_safely(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
+        if not self.contains(statement):
+            return []
+        ret_val = statement.ret_val
+        forward_dependencies = []
+        if ret_val is not None:
+            forward_dependencies = list(self.get_forward_dependencies(ret_val))
+        positions_to_remove = tc.TestCase.positions_to_remove(statement, forward_dependencies)
+        for pos in positions_to_remove:
+            self.remove(pos)
+        return positions_to_remove
 
     def chop(self, pos: int) -> None:  # noqa: D102
         assert pos >= 0

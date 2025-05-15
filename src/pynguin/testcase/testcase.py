@@ -130,6 +130,28 @@ class TestCase(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
+    def remove_safely(self, position: int) -> list[int]:
+        """Removes a statement at the given position along with all its forward dependencies.
+
+        Args:
+            position: The position of the statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+        """
+
+    @abstractmethod
+    def remove_statement_safely(self, statement: stmt.Statement) -> list[int]:
+        """Removes the given statement along with all its forward dependencies.
+
+        Args:
+            statement: The statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+        """
+
+    @abstractmethod
     def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 
@@ -327,25 +349,3 @@ class TestCase(ABC):  # noqa: PLR0904
             + [statement.get_position()],
             reverse=True,
         )
-
-    @staticmethod
-    def create_clone_without_stmt(statement: stmt.Statement, test_case: TestCase) -> TestCase:
-        """Creates a clone of a test case without a specific statement and its forward dependencies.
-
-        Args:
-            statement: The statement to remove
-            test_case: The test case to clone
-
-        Returns:
-            A clone of the test case without the statement and its forward dependencies
-        """
-        test_clone = test_case.clone()
-        clone_stmt = test_clone.get_statement(statement.get_position())
-        clone_ret_val = clone_stmt.ret_val
-        forward_dependencies = []
-        if clone_ret_val is not None:
-            forward_dependencies = list(test_clone.get_forward_dependencies(clone_ret_val))
-        positions_to_remove = TestCase.positions_to_remove(clone_stmt, forward_dependencies)
-        for pos in positions_to_remove:
-            test_clone.remove(pos)
-        return test_clone

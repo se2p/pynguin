@@ -27,8 +27,6 @@ from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
-    import pynguin.testcase.statement as stmt
-    import pynguin.testcase.variablereference as vr
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -190,7 +188,6 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         return self._removed_statements
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
-        self._deleted_statement_indexes.clear()
         original_size = test_case.size()
         statements_changed = True
 
@@ -202,14 +199,20 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             while i < len(statements):
                 stmt = statements[i]
                 if stmt.get_position() >= test_case.size():
+                    # TODO: Break instead?
                     i += 1
                     continue
-                ret_val = stmt.ret_val
 
-                test_clone = tc.TestCase.create_clone_without_stmt(stmt, test_case)
+                test_clone = test_case.clone()
+                clone_stmt = test_clone.get_statement(stmt.get_position())
+                test_clone.remove_statement_safely(clone_stmt)
                 coverage_reduced = compare_coverage(test_case, test_clone, self._fitness_function)
                 if not coverage_reduced:
-                    self._remove_stmt(ret_val, stmt, test_case)
+                    removed = test_case.remove_statement_safely(stmt)
+                    # TODO (lk): When statements are removed, the indexes are updated
+                    #  and thus the stored indexes here are not correct
+                    self.deleted_statement_indexes.update(removed)
+                    self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case
                     statements = list(test_case.statements)
@@ -225,18 +228,6 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             "Removed %s statement(s) from test case using iterative minimization",
             original_size - test_case.size(),
         )
-
-    def _remove_stmt(
-        self, ret_val: vr.VariableReference | None, stmt: stmt.Statement, test_case: tc.TestCase
-    ) -> None:
-        forward_dependencies = []
-        if ret_val is not None:
-            forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
-        positions_to_remove = tc.TestCase.positions_to_remove(stmt, forward_dependencies)
-        for pos in positions_to_remove:
-            test_case.remove(pos)
-            self._deleted_statement_indexes.add(pos)
-            self._removed_statements += 1
 
 
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
