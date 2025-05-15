@@ -250,110 +250,147 @@ def test_not_implemented_statements(statement_type):
         visitor.__getattribute__(statement_type)(MagicMock())  # noqa: PLC2801
 
 
-def test_iterative_minimization_visitor_init():
+@pytest.fixture
+def basic_test_cluster():
+    """Fixture for a basic test cluster."""
+    return ModuleTestCluster(0)
+
+
+@pytest.fixture
+def basic_test_case(basic_test_cluster):
+    """Fixture for a basic test case with a test cluster."""
+    return dtc.DefaultTestCase(basic_test_cluster)
+
+
+@pytest.fixture
+def tc_with_statements(basic_test_case):
+    """Fixture for a test case with int and float statements."""
+    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(int_stmt)
+    float_stmt = stmt.FloatPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(float_stmt)
+    return basic_test_case, int_stmt, float_stmt
+
+
+@pytest.fixture
+def mock_fitness_function():
+    """Fixture for a mock fitness function."""
+    return MagicMock()
+
+
+@pytest.fixture
+def minimization_visitor(mock_fitness_function):
+    """Fixture for an IterativeMinimizationVisitor with a mock fitness function."""
+    return pp.IterativeMinimizationVisitor(mock_fitness_function)
+
+
+@pytest.fixture
+def create_test_suite():
+    """Fixture that returns a function to create a test suite from a test case."""
+
+    def _create_test_suite(test_case):
+        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
+        test_suite = TestSuiteChromosome()
+        test_suite.add_test_case_chromosome(test_case_chromosome)
+        return test_suite
+
+    return _create_test_suite
+
+
+def test_iterative_minimization_visitor_init(mock_fitness_function, minimization_visitor):
     """Test that the IterativeMinimizationVisitor initializes correctly."""
-    fitness_function = MagicMock()
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
-    assert visitor._fitness_function == fitness_function
-    assert visitor._removed_statements == 0
-    assert visitor.removed_statements == 0
+    assert minimization_visitor._fitness_function == mock_fitness_function
+    assert minimization_visitor._removed_statements == 0
+    assert minimization_visitor.removed_statements == 0
 
 
-def test_iterative_minimization_visitor_removes_statement_when_fitness_preserved():
-    """Test that the visitor removes statements when fitness is preserved."""
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
+@pytest.mark.parametrize(
+    "fitness_behavior,expected_removed,expected_size",
+    [
+        # Case 1: Fitness preserved when statements are removed
+        (
+            lambda _: 1.0,  # Constant coverage
+            2,  # All statements removed
+            0,  # Final size is 0
+        ),
+        # Case 2: Fitness reduced when statements are removed
+        (
+            lambda test_suite: 1.0 if test_suite.test_case_chromosomes[0].size() == 2 else 0.5,
+            0,  # No statements removed
+            2,  # Final size is 2
+        ),
+    ],
+    ids=["fitness_preserved", "fitness_reduced"],
+)
+def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
+    tc_with_statements,
+    mock_fitness_function,
+    minimization_visitor,
+    fitness_behavior,
+    expected_removed,
+    expected_size,
+):
+    """Test that the visitor correctly handles statement removal based on fitness changes."""
+    test_case, _, _ = tc_with_statements
 
-    # Create a mock fitness function that returns 1.0 (optimal coverage)
-    fitness_function = MagicMock()
-    coverage_value = 1.0
-    fitness_function.compute_coverage.return_value = coverage_value
+    # Set up the mock fitness function behavior
+    if callable(fitness_behavior):
+        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+    else:
+        mock_fitness_function.compute_coverage.return_value = fitness_behavior
 
-    # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
-    test_case.accept(visitor)
+    # Apply the visitor to the test case
+    test_case.accept(minimization_visitor)
 
-    # Verify that statements were removed
-    assert visitor.removed_statements > 0
-    assert test_case.size() == 0
-
-
-def test_iterative_minimization_visitor_keeps_statement_when_fitness_reduced():
-    """Test that the visitor keeps statements when removing them would reduce fitness."""
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
-
-    # Create a mock fitness function that returns different coverage values
-    # Original test case has coverage 1.0, but removing any statement reduces it to 0.5
-    fitness_function = MagicMock()
-
-    # Set up the compute_coverage method to return different values based on test case size
-    def compute_coverage_side_effect(test_suite):
-        # If the test case has both statements (size 2), return full coverage
-        if test_suite.test_case_chromosomes[0].size() == 2:
-            return 1.0
-        # If any statement is removed, return reduced coverage
-        return 0.5
-
-    fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
-
-    # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
-    test_case.accept(visitor)
-
-    # Verify that no statements were removed
-    assert visitor.removed_statements == 0
-    assert test_case.size() == 2
+    # Verify the expected results
+    assert minimization_visitor.removed_statements == expected_removed
+    assert test_case.size() == expected_size
 
 
-def test_iterative_minimization_visitor_with_empty_test_case():
+def test_iterative_minimization_visitor_with_empty_test_case(
+    basic_test_case, mock_fitness_function, minimization_visitor
+):
     """Test that the visitor handles empty test cases correctly."""
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
+    # Set up the mock fitness function
+    mock_fitness_function.compute_coverage.return_value = 0.0
 
-    # Create a mock fitness function
-    fitness_function = MagicMock()
-    fitness_function.compute_coverage.return_value = 0.0
-
-    # Create the visitor and apply it to the empty test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
-    test_case.accept(visitor)
+    # Apply the visitor to the empty test case
+    basic_test_case.accept(minimization_visitor)
 
     # Verify that no statements were removed (since there were none to begin with)
-    assert visitor.removed_statements == 0
-    assert test_case.size() == 0
+    assert minimization_visitor.removed_statements == 0
+    assert basic_test_case.size() == 0
 
 
-def test_iterative_minimization_visitor_with_dependencies():
-    """Test that the visitor correctly handles dependencies between statements."""
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-
+@pytest.fixture
+def tc_with_dependencies(basic_test_cluster, basic_test_case):
+    """Fixture for a test case with dependencies between statements."""
     # Create statements with dependencies
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
+    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(int_stmt)
 
     # Create a list that depends on the int statement
     list_stmt = stmt.ListStatement(
-        test_case, cluster.type_system.convert_type_hint(list[int]), [int_stmt.ret_val]
+        basic_test_case,
+        basic_test_cluster.type_system.convert_type_hint(list[int]),
+        [int_stmt.ret_val],
     )
-    test_case.add_statement(list_stmt)
+    basic_test_case.add_statement(list_stmt)
 
     # Create a string statement that will be removed
-    str_stmt = stmt.StringPrimitiveStatement(test_case)
-    test_case.add_statement(str_stmt)
+    str_stmt = stmt.StringPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(str_stmt)
 
-    # Create a mock fitness function that allows removing only the string statement
-    fitness_function = MagicMock()
+    return basic_test_case, int_stmt, list_stmt, str_stmt
 
+
+def test_iterative_minimization_visitor_with_dependencies(
+    tc_with_dependencies, mock_fitness_function
+):
+    """Test that the visitor correctly handles dependencies between statements."""
+    test_case, _, _, _ = tc_with_dependencies
+
+    # Set up the mock fitness function to allow removing only the string statement
     def compute_coverage_side_effect(test_suite):
         test_size = test_suite.test_case_chromosomes[0].size()
         # Full test case or test case without string statement has full coverage
@@ -367,10 +404,10 @@ def test_iterative_minimization_visitor_with_dependencies():
         # Any other modification reduces coverage
         return 0.5
 
-    fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+    visitor = pp.IterativeMinimizationVisitor(mock_fitness_function)
     test_case.accept(visitor)
 
     # Verify that only the string statement was removed
@@ -399,28 +436,27 @@ def test_positions_to_remove():
     assert positions == [5, 3, 2]
 
 
-def test_create_clone_without_stmt():
+@pytest.fixture
+def tc_with_three_statements(basic_test_case):
+    """Fixture for a test case with three statements."""
+    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(int_stmt)
+
+    float_stmt = stmt.FloatPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(float_stmt)
+
+    str_stmt = stmt.StringPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(str_stmt)
+
+    return basic_test_case, int_stmt, float_stmt, str_stmt
+
+
+def test_create_clone_without_stmt(tc_with_three_statements, minimization_visitor):
     """Test the _create_clone_without_stmt method."""
-    # Create a test case with statements
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-
-    # Add some statements
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
-
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
-
-    str_stmt = stmt.StringPrimitiveStatement(test_case)
-    test_case.add_statement(str_stmt)
-
-    # Create a visitor
-    fitness_function = MagicMock()
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+    test_case, _, float_stmt, _ = tc_with_three_statements
 
     # Create a clone without the float statement
-    clone = visitor._create_clone_without_stmt(float_stmt, test_case)
+    clone = minimization_visitor._create_clone_without_stmt(float_stmt, test_case)
 
     # Verify the clone has the correct statements
     assert clone.size() == 2
@@ -431,134 +467,58 @@ def test_create_clone_without_stmt():
     assert test_case.size() == 3
 
 
-def test_compare_coverage():
-    """Test the _compare_coverage method."""
-    # Create test cases
-    cluster = ModuleTestCluster(0)
-    test_case1 = dtc.DefaultTestCase(cluster)
+@pytest.fixture
+def two_test_cases(basic_test_cluster):
+    """Fixture for two test cases used in compare_coverage test."""
+    test_case1 = dtc.DefaultTestCase(basic_test_cluster)
     int_stmt1 = stmt.IntPrimitiveStatement(test_case1)
     test_case1.add_statement(int_stmt1)
 
-    test_case2 = dtc.DefaultTestCase(cluster)
+    test_case2 = dtc.DefaultTestCase(basic_test_cluster)
     int_stmt2 = stmt.IntPrimitiveStatement(test_case2)
     test_case2.add_statement(int_stmt2)
 
-    # Create a fitness function that returns different coverage values
-    fitness_function = MagicMock()
-    fitness_function.compute_coverage.side_effect = [1.0, 0.5]  # Original, modified
+    return test_case1, test_case2
 
-    # Create a visitor
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+
+def test_compare_coverage(two_test_cases, mock_fitness_function, minimization_visitor):
+    """Test the _compare_coverage method."""
+    test_case1, test_case2 = two_test_cases
+
+    # Set up the mock fitness function to return different coverage values
+    mock_fitness_function.compute_coverage.side_effect = [1.0, 0.5]  # Original, modified
 
     # Test when coverage is reduced
-    result = visitor._compare_coverage(test_case1, test_case2)
+    result = minimization_visitor._compare_coverage(test_case1, test_case2)
     assert result is True  # Coverage is reduced
 
     # Reset the side effect for the next test
-    fitness_function.compute_coverage.side_effect = [0.5, 0.5]  # Original, modified
+    mock_fitness_function.compute_coverage.side_effect = [0.5, 0.5]  # Original, modified
 
     # Test when coverage is the same
-    result = visitor._compare_coverage(test_case1, test_case2)
+    result = minimization_visitor._compare_coverage(test_case1, test_case2)
     assert result is False  # Coverage is not reduced
 
 
-def test_remove_stmt():
+def test_remove_stmt(tc_with_dependencies, minimization_visitor):
     """Test the _remove_stmt method."""
-    # Create a test case with statements
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-
-    # Add some statements with dependencies
-    int_stmt = stmt.IntPrimitiveStatement(test_case)
-    test_case.add_statement(int_stmt)
-
-    float_stmt = stmt.FloatPrimitiveStatement(test_case)
-    test_case.add_statement(float_stmt)
-
-    # Create a list that depends on the int statement
-    list_stmt = stmt.ListStatement(
-        test_case, cluster.type_system.convert_type_hint(list[int]), [int_stmt.ret_val]
-    )
-    test_case.add_statement(list_stmt)
-
-    # Create a visitor
-    fitness_function = MagicMock()
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+    test_case, int_stmt, _, _ = tc_with_dependencies
 
     # Remove the int statement (which should also remove the list statement due to dependency)
-    visitor._remove_stmt(int_stmt.ret_val, int_stmt, test_case)
+    minimization_visitor._remove_stmt(int_stmt.ret_val, int_stmt, test_case)
 
     # Verify the statements were removed
     assert test_case.size() == 1
-    assert isinstance(test_case.statements[0], stmt.FloatPrimitiveStatement)
-    assert visitor.removed_statements == 2
-    assert 0 in visitor.deleted_statement_indexes
-    assert 2 in visitor.deleted_statement_indexes
+    assert isinstance(test_case.statements[0], stmt.StringPrimitiveStatement)
+    assert minimization_visitor.removed_statements == 2
+    assert 0 in minimization_visitor.deleted_statement_indexes
+    assert 1 in minimization_visitor.deleted_statement_indexes
 
 
-def test_iterative_minimization_visitor_integration():
-    """Integration test for IterativeMinimizationVisitor with a real fitness function."""
-    # Set up the module name for testing
-    config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
-
-    # Create a real tracer and executor
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-
-    with install_import_hook(config.configuration.module_name, tracer):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
-        first_function = module.first
-
-        # Create a real executor
-        executor = TestCaseExecutor(tracer)
-
-        # Create a test case with multiple statements
-        cluster = generate_test_cluster(config.configuration.module_name)
-        test_case = dtc.DefaultTestCase(cluster)
-
-        # Find the GenericFunction object for the first_function
-        first_function_generic: GenericFunction | None = None
-        for obj in cluster.accessible_objects_under_test:
-            if isinstance(obj, GenericFunction) and obj._callable == first_function:
-                first_function_generic = obj
-                break
-
-        if first_function_generic is None:
-            raise ValueError("Could not find GenericFunction for first_function")
-
-        # Add several statements to ensure some will be removed
-        for i in range(3):
-            int_stmt = stmt.IntPrimitiveStatement(test_case, i - 1)
-            test_case.add_statement(int_stmt)
-            func_stmt = stmt.FunctionStatement(
-                test_case, first_function_generic, {"a": int_stmt.ret_val}
-            )
-            test_case.add_statement(func_stmt)
-
-        # Create a test case chromosome and test suite
-        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
-        test_suite = TestSuiteChromosome()
-        test_suite.add_test_case_chromosome(test_case_chromosome)
-
-        # Execute the test case to ensure it has coverage
-        executor.execute(test_case)
-
-        # Create a real line coverage function and visitor
-        fitness_function = TestSuiteBranchCoverageFunction(executor)
-        visitor = pp.IterativeMinimizationVisitor(fitness_function)
-
-        # Apply the visitor to the test case
-        test_case.accept(visitor)
-
-        # Verify that statements were removed but not all of them
-        assert visitor.removed_statements == 2
-
-
-def _create_test_case_with_dependencies():
-    """Helper function to create a test case with dependencies."""
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
+@pytest.fixture
+def tc_with_complex_dependencies(basic_test_cluster):
+    """Fixture for a test case with complex dependencies between statements."""
+    test_case = dtc.DefaultTestCase(basic_test_cluster)
 
     # Create statements with dependencies
     int_stmt = stmt.IntPrimitiveStatement(test_case)
@@ -570,7 +530,7 @@ def _create_test_case_with_dependencies():
     # Create a list that depends on both int and float statements
     list_stmt = stmt.ListStatement(
         test_case,
-        cluster.type_system.convert_type_hint(list),
+        basic_test_cluster.type_system.convert_type_hint(list),
         [int_stmt.ret_val, float_stmt.ret_val],
     )
     test_case.add_statement(list_stmt)
@@ -588,18 +548,11 @@ def _create_test_case_with_dependencies():
     return test_case
 
 
-def test_iterative_minimization_visitor_dependencies_preserved():
+def test_iterative_minimization_visitor_dependencies_preserved(
+    tc_with_complex_dependencies, mock_fitness_function
+):
     """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
-    # Create a test case with a chain of dependencies
-    test_case = _create_test_case_with_dependencies()
-
-    # Create a test case chromosome and test suite
-    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
-    test_suite = TestSuiteChromosome()
-    test_suite.add_test_case_chromosome(test_case_chromosome)
-
-    # Create a mock fitness function that preserves the list statement and its dependencies
-    fitness_function = MagicMock()
+    test_case = tc_with_complex_dependencies
 
     # Set up the compute_coverage method to return different values based on test case content
     def compute_coverage_side_effect(test_suite):
@@ -622,10 +575,10 @@ def test_iterative_minimization_visitor_dependencies_preserved():
         # List statement missing, return reduced coverage
         return 0.5
 
-    fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+    visitor = pp.IterativeMinimizationVisitor(mock_fitness_function)
     original_size = test_case.size()
     test_case.accept(visitor)
 
@@ -656,3 +609,65 @@ def test_iterative_minimization_visitor_dependencies_preserved():
 
     assert any(int_var in var_refs for int_var in int_vars)
     assert any(float_var in var_refs for float_var in float_vars)
+
+
+@pytest.fixture
+def integration_test():
+    """Fixture for setting up the integration test environment."""
+    # Set up the module name for testing
+    config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
+
+    # Create a real tracer and executor
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+        first_function = module.first
+
+        # Create a real executor
+        executor = TestCaseExecutor(tracer)
+
+        # Create a test case with multiple statements
+        cluster = generate_test_cluster(config.configuration.module_name)
+        test_case = dtc.DefaultTestCase(cluster)
+
+        # Find the GenericFunction object for the first_function
+        first_function_generic: GenericFunction | None = None
+        for obj in cluster.accessible_objects_under_test:
+            if isinstance(obj, GenericFunction) and obj._callable == first_function:
+                first_function_generic = obj
+                break
+
+        if first_function_generic is None:
+            raise ValueError("Could not find GenericFunction for first_function")
+
+        return executor, test_case, first_function_generic
+
+
+def test_iterative_minimization_visitor_integration(integration_test):
+    """Integration test for IterativeMinimizationVisitor with a real fitness function."""
+    executor, test_case, first_function_generic = integration_test
+
+    # Add three statement tuples where the second one can be removed
+    for i in range(3):
+        int_stmt = stmt.IntPrimitiveStatement(test_case, i - 1)
+        test_case.add_statement(int_stmt)
+        func_stmt = stmt.FunctionStatement(
+            test_case, first_function_generic, {"a": int_stmt.ret_val}
+        )
+        test_case.add_statement(func_stmt)
+
+    # Execute the test case to ensure it has coverage
+    executor.execute(test_case)
+
+    # Create a real line coverage function and visitor
+    fitness_function = TestSuiteBranchCoverageFunction(executor)
+    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+
+    # Apply the visitor to the test case
+    test_case.accept(visitor)
+
+    # Verify that the second statement tuple (=2 statements) is removed
+    assert visitor.removed_statements == 2
