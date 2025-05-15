@@ -306,3 +306,46 @@ class TestCase(ABC):  # noqa: PLR0904
                 f"Found no variables of type {parameter_type} at position {position}"
             )
         return randomness.choice(variables)
+
+    @staticmethod
+    def positions_to_remove(
+        statement: stmt.Statement, forward_dependencies: list[vr.VariableReference]
+    ) -> list[int]:
+        """Get the positions to remove and its forward dependencies in reverse order.
+
+        This is done to avoid index issues when removing multiple statements.
+
+        Args:
+            statement: The statement to remove
+            forward_dependencies: The forward dependencies of the statement
+
+        Returns:
+            A list of positions to remove in reverse order
+        """
+        return sorted(
+            [dep.get_statement_position() for dep in forward_dependencies]
+            + [statement.get_position()],
+            reverse=True,
+        )
+
+    @staticmethod
+    def create_clone_without_stmt(statement: stmt.Statement, test_case: TestCase) -> TestCase:
+        """Creates a clone of a test case without a specific statement and its forward dependencies.
+
+        Args:
+            statement: The statement to remove
+            test_case: The test case to clone
+
+        Returns:
+            A clone of the test case without the statement and its forward dependencies
+        """
+        test_clone = test_case.clone()
+        clone_stmt = test_clone.get_statement(statement.get_position())
+        clone_ret_val = clone_stmt.ret_val
+        forward_dependencies = []
+        if clone_ret_val is not None:
+            forward_dependencies = list(test_clone.get_forward_dependencies(clone_ret_val))
+        positions_to_remove = TestCase.positions_to_remove(clone_stmt, forward_dependencies)
+        for pos in positions_to_remove:
+            test_clone.remove(pos)
+        return test_clone

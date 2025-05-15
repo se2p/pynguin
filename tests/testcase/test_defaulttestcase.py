@@ -15,6 +15,7 @@ import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
+from pynguin.testcase.testcase import TestCase
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -404,3 +405,53 @@ def test_get_forward_dependencies(
     # Check the dependencies
     dependencies = default_test_case.get_forward_dependencies(var)
     assert dependencies == expected_dependencies
+
+
+def test_positions_to_remove():
+    """Test the positions_to_remove static method."""
+    # Create a statement and some mock forward dependencies
+    statement = MagicMock()
+    statement.get_position.return_value = 2
+
+    dep1 = MagicMock()
+    dep1.get_statement_position.return_value = 3
+
+    dep2 = MagicMock()
+    dep2.get_statement_position.return_value = 5
+
+    # Call the method directly
+    positions = TestCase.positions_to_remove(statement, [dep1, dep2])
+
+    # Verify the positions are correct and in reverse order
+    assert positions == [5, 3, 2]
+
+
+@pytest.fixture
+def tc_with_three_statements(default_test_case):
+    """Fixture for a test case with three statements."""
+    int_stmt = st.IntPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(int_stmt)
+
+    float_stmt = st.FloatPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(float_stmt)
+
+    str_stmt = st.StringPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(str_stmt)
+
+    return default_test_case, int_stmt, float_stmt, str_stmt
+
+
+def test_create_clone_without_stmt(tc_with_three_statements):
+    """Test the create_clone_without_stmt method."""
+    test_case, _, float_stmt, _ = tc_with_three_statements
+
+    # Create a clone without the float statement
+    clone = TestCase.create_clone_without_stmt(float_stmt, test_case)
+
+    # Verify the clone has the correct statements
+    assert clone.size() == 2
+    assert isinstance(clone.statements[0], st.IntPrimitiveStatement)
+    assert isinstance(clone.statements[1], st.StringPrimitiveStatement)
+
+    # Verify the original test case is unchanged
+    assert test_case.size() == 3

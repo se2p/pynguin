@@ -24,6 +24,8 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.assertion import ExceptionAssertion
 from pynguin.ga.computations import TestSuiteBranchCoverageFunction
+from pynguin.ga.computations import TestSuiteLineCoverageFunction
+from pynguin.ga.postprocess import compare_coverage
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
@@ -417,56 +419,6 @@ def test_iterative_minimization_visitor_with_dependencies(
     assert isinstance(test_case.statements[1], stmt.ListStatement)
 
 
-def test_positions_to_remove():
-    """Test the _positions_to_remove static method."""
-    # Create a statement and some mock forward dependencies
-    statement = MagicMock()
-    statement.get_position.return_value = 2
-
-    dep1 = MagicMock()
-    dep1.get_statement_position.return_value = 3
-
-    dep2 = MagicMock()
-    dep2.get_statement_position.return_value = 5
-
-    # Call the method directly
-    positions = pp.IterativeMinimizationVisitor._positions_to_remove(statement, [dep1, dep2])
-
-    # Verify the positions are correct and in reverse order
-    assert positions == [5, 3, 2]
-
-
-@pytest.fixture
-def tc_with_three_statements(basic_test_case):
-    """Fixture for a test case with three statements."""
-    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
-    basic_test_case.add_statement(int_stmt)
-
-    float_stmt = stmt.FloatPrimitiveStatement(basic_test_case)
-    basic_test_case.add_statement(float_stmt)
-
-    str_stmt = stmt.StringPrimitiveStatement(basic_test_case)
-    basic_test_case.add_statement(str_stmt)
-
-    return basic_test_case, int_stmt, float_stmt, str_stmt
-
-
-def test_create_clone_without_stmt(tc_with_three_statements, minimization_visitor):
-    """Test the _create_clone_without_stmt method."""
-    test_case, _, float_stmt, _ = tc_with_three_statements
-
-    # Create a clone without the float statement
-    clone = minimization_visitor._create_clone_without_stmt(float_stmt, test_case)
-
-    # Verify the clone has the correct statements
-    assert clone.size() == 2
-    assert isinstance(clone.statements[0], stmt.IntPrimitiveStatement)
-    assert isinstance(clone.statements[1], stmt.StringPrimitiveStatement)
-
-    # Verify the original test case is unchanged
-    assert test_case.size() == 3
-
-
 @pytest.fixture
 def two_test_cases(basic_test_cluster):
     """Fixture for two test cases used in compare_coverage test."""
@@ -481,22 +433,22 @@ def two_test_cases(basic_test_cluster):
     return test_case1, test_case2
 
 
-def test_compare_coverage(two_test_cases, mock_fitness_function, minimization_visitor):
-    """Test the _compare_coverage method."""
+def test_compare_coverage(two_test_cases, mock_fitness_function):
+    """Test the compare_coverage function."""
     test_case1, test_case2 = two_test_cases
 
     # Set up the mock fitness function to return different coverage values
     mock_fitness_function.compute_coverage.side_effect = [1.0, 0.5]  # Original, modified
 
     # Test when coverage is reduced
-    result = minimization_visitor._compare_coverage(test_case1, test_case2)
+    result = compare_coverage(test_case1, test_case2, mock_fitness_function)
     assert result is True  # Coverage is reduced
 
     # Reset the side effect for the next test
     mock_fitness_function.compute_coverage.side_effect = [0.5, 0.5]  # Original, modified
 
     # Test when coverage is the same
-    result = minimization_visitor._compare_coverage(test_case1, test_case2)
+    result = compare_coverage(test_case1, test_case2, mock_fitness_function)
     assert result is False  # Coverage is not reduced
 
 
@@ -611,8 +563,7 @@ def test_iterative_minimization_visitor_dependencies_preserved(
     assert any(float_var in var_refs for float_var in float_vars)
 
 
-@pytest.fixture
-def integration_test():
+def _setup_integration_test(coverage_metric):
     """Fixture for setting up the integration test environment."""
     # Set up the module name for testing
     config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
@@ -621,7 +572,7 @@ def integration_test():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
 
-    with install_import_hook(config.configuration.module_name, tracer):
+    with install_import_hook(config.configuration.module_name, tracer, {coverage_metric}):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         first_function = module.first
@@ -646,9 +597,22 @@ def integration_test():
         return executor, test_case, first_function_generic
 
 
-def test_iterative_minimization_visitor_integration(integration_test):
-    """Integration test for IterativeMinimizationVisitor with a real fitness function."""
-    executor, test_case, first_function_generic = integration_test
+@pytest.mark.parametrize(
+    "coverage_metric,expected_removed",
+    [
+        (config.CoverageMetric.BRANCH, 2),
+        (config.CoverageMetric.LINE, 2),
+    ],
+)
+def test_iterative_minimization_visitor_integration(coverage_metric, expected_removed):
+    """Integration test for IterativeMinimizationVisitor with different coverage functions."""
+    executor, test_case, first_function_generic = _setup_integration_test(coverage_metric)
+    if coverage_metric == config.CoverageMetric.BRANCH:
+        coverage_function_class = TestSuiteBranchCoverageFunction
+    elif coverage_metric == config.CoverageMetric.LINE:
+        coverage_function_class = TestSuiteLineCoverageFunction
+    else:
+        raise ValueError(f"Unknown coverage metric: {coverage_metric}")
 
     # Add three statement tuples where the second one can be removed
     for i in range(3):
@@ -662,12 +626,12 @@ def test_iterative_minimization_visitor_integration(integration_test):
     # Execute the test case to ensure it has coverage
     executor.execute(test_case)
 
-    # Create a real line coverage function and visitor
-    fitness_function = TestSuiteBranchCoverageFunction(executor)
+    # Create a coverage function and visitor based on the parameter
+    fitness_function = coverage_function_class(executor)
     visitor = pp.IterativeMinimizationVisitor(fitness_function)
 
     # Apply the visitor to the test case
     test_case.accept(visitor)
 
-    # Verify that the second statement tuple (=2 statements) is removed
-    assert visitor.removed_statements == 2
+    # Verify that the expected number of statements is removed
+    assert visitor.removed_statements == expected_removed

@@ -128,20 +128,9 @@ class DefaultTestCase(tc.TestCase):
 
         return dependencies
 
-    def get_forward_dependencies(
+    def get_forward_dependencies(  # noqa: D102
         self, var: vr.VariableReference
     ) -> OrderedSet[vr.VariableReference]:
-        """Find all variables that depend on the given variable.
-
-        This method finds all statements that come after the given variable's
-        statement and that reference the variable, directly or indirectly.
-
-        Args:
-            var: The variable to find forward dependencies for
-
-        Returns:
-            A set of variables that depend on the given variable
-        """
         dependencies: OrderedSet[vr.VariableReference] = OrderedSet()
 
         # Start with the variable itself

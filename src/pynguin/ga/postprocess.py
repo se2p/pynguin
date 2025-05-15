@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
 
 from pynguin.assertion.assertion import Assertion
@@ -27,7 +28,6 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
     import pynguin.testcase.statement as stmt
-    import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
 
 
@@ -206,8 +206,8 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
                     continue
                 ret_val = stmt.ret_val
 
-                test_clone = self._create_clone_without_stmt(stmt, test_case)
-                coverage_reduced = self._compare_coverage(test_case, test_clone)
+                test_clone = tc.TestCase.create_clone_without_stmt(stmt, test_case)
+                coverage_reduced = compare_coverage(test_case, test_clone, self._fitness_function)
                 if not coverage_reduced:
                     self._remove_stmt(ret_val, stmt, test_case)
 
@@ -232,53 +232,11 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         forward_dependencies = []
         if ret_val is not None:
             forward_dependencies = list(test_case.get_forward_dependencies(ret_val))
-        positions_to_remove = IterativeMinimizationVisitor._positions_to_remove(
-            stmt, forward_dependencies
-        )
+        positions_to_remove = tc.TestCase.positions_to_remove(stmt, forward_dependencies)
         for pos in positions_to_remove:
             test_case.remove(pos)
             self._deleted_statement_indexes.add(pos)
             self._removed_statements += 1
-
-    @staticmethod
-    def _create_clone_without_stmt(stmt: stmt.Statement, test_case: tc.TestCase) -> tc.TestCase:
-        test_clone = test_case.clone()
-        clone_stmt = test_clone.get_statement(stmt.get_position())
-        clone_ret_val = clone_stmt.ret_val
-        forward_dependencies = []
-        if clone_ret_val is not None:
-            forward_dependencies = list(test_clone.get_forward_dependencies(clone_ret_val))
-        positions_to_remove = IterativeMinimizationVisitor._positions_to_remove(
-            clone_stmt, forward_dependencies
-        )
-        for pos in positions_to_remove:
-            test_clone.remove(pos)
-        return test_clone
-
-    @staticmethod
-    def _positions_to_remove(
-        clone_stmt: stmt.Statement, forward_dependencies: list[vr.VariableReference]
-    ) -> list[int]:
-        # Get the positions to remove and its forward dependencies in reverse order
-        # to avoid index issues
-        return sorted(
-            [dep.get_statement_position() for dep in forward_dependencies]
-            + [clone_stmt.get_position()],
-            reverse=True,
-        )
-
-    def _compare_coverage(self, test_case: tc.TestCase, test_clone: tc.TestCase) -> bool:
-        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
-        original_test_suite = tsc.TestSuiteChromosome()
-        original_test_suite.add_test_case_chromosome(original_test_case)
-        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
-
-        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
-        modified_test_suite = tsc.TestSuiteChromosome()
-        modified_test_suite.add_test_case_chromosome(test_case_chromosome)
-        modified_coverage = self._fitness_function.compute_coverage(modified_test_suite)
-
-        return modified_coverage < original_coverage
 
 
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
@@ -298,6 +256,32 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
             size_before - test_case.size(),
         )
         self._deleted_statement_indexes.update(primitive_remover.deleted_statement_indexes)
+
+
+def compare_coverage(
+    test_case: tc.TestCase, test_clone: tc.TestCase, fitness_function: ff.CoverageFunction
+) -> bool:
+    """Compares the coverage of the original test case with a modified test case.
+
+    Args:
+        test_case: The original test case
+        test_clone: The modified test case
+        fitness_function: The fitness function to use for comparison
+
+    Returns:
+        True if the coverage is reduced, False otherwise
+    """
+    original_test_case = tcc.TestCaseChromosome(test_case=test_case)
+    original_test_suite = tsc.TestSuiteChromosome()
+    original_test_suite.add_test_case_chromosome(original_test_case)
+    original_coverage = fitness_function.compute_coverage(original_test_suite)
+
+    test_case_chromosome = tcc.TestCaseChromosome(test_case=test_clone)
+    modified_test_suite = tsc.TestSuiteChromosome()
+    modified_test_suite.add_test_case_chromosome(test_case_chromosome)
+    modified_coverage = fitness_function.compute_coverage(modified_test_suite)
+
+    return modified_coverage < original_coverage
 
 
 class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PLR0904
