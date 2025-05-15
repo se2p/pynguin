@@ -314,69 +314,93 @@ def test_get_size_with_assertions(default_test_case_with_assertions):
     assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions
 
 
-def test_get_forward_dependencies_empty(default_test_case):
-    """Test get_forward_dependencies with no forward dependencies."""
-    int0 = st.IntPrimitiveStatement(default_test_case, 5)
-    default_test_case.add_statement(int0)
-    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
-    assert dependencies == OrderedSet()
+def setup_forward_dependency_test_case(default_test_case, function_mock=None, scenario="empty"):
+    """Helper function to set up test cases for forward dependency tests.
 
+    Args:
+        default_test_case: The test case to set up
+        function_mock: Mock function to use in statements
+        scenario: The dependency scenario to set up:
+            - "empty": No forward dependencies
+            - "direct": Direct forward dependencies
+            - "indirect": Indirect forward dependencies
+            - "mixed": Mix of dependent and independent statements
 
-def test_get_forward_dependencies_direct(default_test_case, function_mock):
-    """Test get_forward_dependencies with direct forward dependencies."""
-    # Create a variable
-    int0 = st.IntPrimitiveStatement(default_test_case, 5)
-    default_test_case.add_statement(int0)
-
-    # Create a statement that uses the variable
-    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
-    default_test_case.add_statement(func0)
-
-    # Check that the function's return value is a forward dependency of int0
-    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
-    assert dependencies == OrderedSet([func0.ret_val])
-
-
-def test_get_forward_dependencies_indirect(default_test_case, function_mock):
-    """Test get_forward_dependencies with indirect forward dependencies."""
-    # Create a variable
+    Returns:
+        A tuple containing the variable references and expected dependencies
+    """
+    # Create the first variable (used in all scenarios)
     int0 = st.IntPrimitiveStatement(default_test_case, 5)
     default_test_case.add_statement(int0)
 
-    # Create a statement that uses the variable
-    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
-    default_test_case.add_statement(func0)
+    if scenario == "empty":
+        return {"int0": int0.ret_val}, {}
 
-    # Create another statement that uses the result of the first function
-    func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
-    default_test_case.add_statement(func1)
+    if scenario == "direct":
+        # Create a statement that uses the variable
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
 
-    # Check that both function return values are forward dependencies of int0
-    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
-    assert dependencies == OrderedSet([func0.ret_val, func1.ret_val])
+        return {"int0": int0.ret_val}, {"int0": OrderedSet([func0.ret_val])}
+
+    if scenario == "indirect":
+        # Create a statement that uses the variable
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
+
+        # Create another statement that uses the result of the first function
+        func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
+        default_test_case.add_statement(func1)
+
+        return {"int0": int0.ret_val}, {"int0": OrderedSet([func0.ret_val, func1.ret_val])}
+
+    if scenario == "mixed":
+        # Create a second independent variable
+        float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
+        default_test_case.add_statement(float0)
+
+        # Create a statement that uses only int0
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
+
+        # Create a statement that uses only float0
+        func1 = st.FunctionStatement(default_test_case, function_mock, {"a": float0.ret_val})
+        default_test_case.add_statement(func1)
+
+        return {"int0": int0.ret_val, "float0": float0.ret_val}, {
+            "int0": OrderedSet([func0.ret_val]),
+            "float0": OrderedSet([func1.ret_val]),
+        }
+
+    raise ValueError(f"{scenario}: Value not supported.")
 
 
-def test_get_forward_dependencies_mixed(default_test_case, function_mock):
-    """Test get_forward_dependencies with a mix of dependent and independent statements."""
-    # Create two independent variables
-    int0 = st.IntPrimitiveStatement(default_test_case, 5)
-    default_test_case.add_statement(int0)
+@pytest.mark.parametrize(
+    "scenario, var_key, expected_dependencies",
+    [
+        ("empty", "int0", OrderedSet()),
+        ("direct", "int0", None),  # Will be filled from the setup function
+        ("indirect", "int0", None),  # Will be filled from the setup function
+        ("mixed", "int0", None),  # Will be filled from the setup function
+        ("mixed", "float0", None),  # Will be filled from the setup function
+    ],
+)
+def test_get_forward_dependencies(
+    default_test_case, function_mock, scenario, var_key, expected_dependencies
+):
+    """Test get_forward_dependencies with various dependency scenarios."""
+    # Set up the test case according to the scenario
+    variables, expected_deps_dict = setup_forward_dependency_test_case(
+        default_test_case, function_mock, scenario
+    )
 
-    float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
-    default_test_case.add_statement(float0)
+    # If expected_dependencies is None, get it from the expected_deps_dict
+    if expected_dependencies is None:
+        expected_dependencies = expected_deps_dict[var_key]
 
-    # Create a statement that uses only int0
-    func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
-    default_test_case.add_statement(func0)
+    # Get the variable to check dependencies for
+    var = variables[var_key]
 
-    # Create a statement that uses only float0
-    func1 = st.FunctionStatement(default_test_case, function_mock, {"a": float0.ret_val})
-    default_test_case.add_statement(func1)
-
-    # Check that only func0 is a forward dependency of int0
-    dependencies = default_test_case.get_forward_dependencies(int0.ret_val)
-    assert dependencies == OrderedSet([func0.ret_val])
-
-    # Check that only func1 is a forward dependency of float0
-    dependencies = default_test_case.get_forward_dependencies(float0.ret_val)
-    assert dependencies == OrderedSet([func1.ret_val])
+    # Check the dependencies
+    dependencies = default_test_case.get_forward_dependencies(var)
+    assert dependencies == expected_dependencies
