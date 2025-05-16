@@ -477,6 +477,112 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
         pass
 
 
+class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
+    """Combines test suite and test case minimization for optimal results.
+
+    This visitor applies a combined approach that minimizes both test cases and the test suite
+    by checking statements against the entire test suite coverage:
+
+    For each statement in each test case:
+       a. Create a clone of the entire test suite
+       b. Remove the statement from the clone
+       c. Compute the coverage of the modified test suite
+       d. If the coverage doesn't decrease, remove the statement from the original test case
+    """
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
+        self._fitness_function = fitness_function
+        self._removed_statements = 0
+
+    @property
+    def removed_statements(self) -> int:
+        """Provides the number of removed statements.
+
+        Returns:
+            The number of removed statements
+        """
+        return self._removed_statements
+
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
+        original_coverage = self._fitness_function.compute_coverage(chromosome)
+        self._minimize_statements_across_test_suite(chromosome, original_coverage)
+        if self._removed_statements > 0:
+            chromosome.changed = True
+
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
+        # Nothing to do for individual test cases
+        pass
+
+    def _minimize_statements_across_test_suite(
+        self, chromosome: tsc.TestSuiteChromosome, original_coverage: float
+    ) -> None:
+        """Minimize statements across the entire test suite.
+
+        Args:
+            chromosome: The test suite to minimize
+            original_coverage: The original coverage to preserve
+        """
+        statements_changed = True
+
+        while statements_changed:
+            statements_changed = False
+
+            # Iterate through each test case in the test suite
+            for test_case_idx, test_case_chrom in enumerate(chromosome.test_case_chromosomes):
+                test_case = test_case_chrom.test_case
+                statements = list(test_case.statements)
+
+                i = 0
+                while i < len(statements):
+                    stmt = statements[i]
+                    if stmt.get_position() >= test_case.size():
+                        break
+
+                    # Create a clone of the entire test suite
+                    test_suite_clone = chromosome.clone()
+                    # Get the corresponding test case and statement in the clone
+                    clone_test_case_chrom: tcc.TestCaseChromosome = (
+                        test_suite_clone.get_test_case_chromosome(test_case_idx)
+                    )
+                    clone_test_case = clone_test_case_chrom.test_case
+                    clone_stmt = clone_test_case.get_statement(stmt.get_position())
+
+                    # Remove the statement from the clone
+                    clone_test_case.remove_statement_safely(clone_stmt)
+                    test_suite_clone.set_test_case_chromosome(
+                        test_case_idx, tcc.TestCaseChromosome(clone_test_case)
+                    )
+
+                    # Compute the coverage of the modified test suite
+                    minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
+
+                    # If coverage is not affected, remove the statement from the original test case
+                    if original_coverage - minimized_coverage < EPSILON:
+                        removed = test_case.remove_statement_safely(stmt)
+                        self._removed_statements += len(removed)
+
+                        # Update the statements list to reflect the changes in the test case
+                        statements = list(test_case.statements)
+                        # Update the test suite
+                        chromosome.set_test_case_chromosome(
+                            test_case_idx, tcc.TestCaseChromosome(test_case)
+                        )
+                        # Don't increment i since we've removed elements and the list has shifted
+                        statements_changed = True
+                    else:
+                        i += 1
+
+            # If no statements were changed in this iteration, we're done
+            if not statements_changed:
+                break
+
+
 class EmptyTestCaseRemover(cv.ChromosomeVisitor):
     """Removes empty test cases from a test suite.
 

@@ -313,6 +313,10 @@ class TestCaseOutputConfiguration:
     """Apply test suite minimization to remove redundant test cases while preserving
     fitness."""
 
+    combined_minimization: bool = True
+    """Apply a combined approach that minimizes both test cases and the test suite
+    by checking statements against the entire test suite coverage."""
+
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 
