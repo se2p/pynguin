@@ -45,6 +45,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
+import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
@@ -1463,12 +1464,36 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
-    @staticmethod
-    def _save_crash_tests(test_case: tc.TestCase) -> None:
-        chromosome = tcc.TestCaseChromosome(test_case)
+    def _save_crash_tests(self, test_case: tc.TestCase) -> None:
+        if config.configuration.test_case_output.test_case_minimization:
+            # Create a copy of the test case to minimize
+            test_case_to_minimize = test_case.clone()
+            chromosome = tcc.TestCaseChromosome(test_case_to_minimize)
+
+            # Apply crash-preserving minimization
+            minimizer = pp.CrashPreservingMinimizationVisitor(self)
+            test_case_to_minimize.accept(minimizer)
+
+            # Verify that the minimized test case still crashes
+            result = self.execute(test_case_to_minimize)
+
+            if result.has_test_exceptions():
+                # If the minimized test case still crashes, use it
+                _LOGGER.info(
+                    "Minimized crashed test case from %d to %d statements",
+                    test_case.size(),
+                    test_case_to_minimize.size(),
+                )
+                chromosome = tcc.TestCaseChromosome(test_case_to_minimize)
+            else:
+                # If the minimized test case doesn't crash, use the original
+                _LOGGER.warning("Minimized test case no longer crashes, using original test case")
+                chromosome = tcc.TestCaseChromosome(test_case)
+        else:
+            # Skip minimization when test_case_minimization is False
+            chromosome = tcc.TestCaseChromosome(test_case)
 
         exporter = export.PyTestChromosomeToAstVisitor()
-
         chromosome.accept(exporter)
 
         output_path = (
