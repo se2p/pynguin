@@ -35,6 +35,7 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
+import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
@@ -70,7 +71,6 @@ from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.pynguinml.constraintsmanager import ConstraintsManager
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
@@ -1159,16 +1159,22 @@ def __analyse_function(
         func.__name__ = lambda_assigned_name
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
 
-    parameters: dict[str, MLParameter | None] = {}
-    generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled():
+    if config.configuration.pynguinml.ml_testing_enabled and module_tree is not None:
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
         try:
-            if module_tree is not None:
-                parameters, generation_order = ConstraintsManager().load_and_process_constraints(
-                    module_tree.name, func_name, list(inferred_signature.original_parameters.keys())
-                )
+            parameters, generation_order = tr.load_and_process_constraints(
+                module_tree.name, func_name, list(inferred_signature.original_parameters.keys())
+            )
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic_function, ml_data)
 
     function_data = CallableData(
         accessible=generic_function,
@@ -1176,11 +1182,6 @@ def __analyse_function(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    ml_data = MLCallableData(
-        parameters=parameters,
-        generation_order=generation_order,
-    )
-    test_cluster.add_ml_data(generic_function, ml_data)
     test_cluster.add_generator(generic_function)
     if add_to_test:
         test_cluster.add_accessible_object_under_test(generic_function, function_data)
@@ -1193,7 +1194,6 @@ def __analyse_class(
     module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
-    store_ml_data: bool = False,
 ) -> None:
     LOGGER.debug("Analysing class %s", type_info)
     class_ast = get_class_node_from_ast(module_tree, type_info.name)
@@ -1228,21 +1228,28 @@ def __analyse_class(
             type_info.raw_type
         )
 
-    parameters: dict[str, MLParameter | None] = {}
-    generation_order: list[str] = []
     if (
-        ConstraintsManager().ml_testing_enabled()
-        and store_ml_data
+        config.configuration.pynguinml.ml_testing_enabled
+        and type_info.raw_type.__module__ != "builtins"
         and not isinstance(generic, GenericEnum)
     ):
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
         try:
-            parameters, generation_order = ConstraintsManager().load_and_process_constraints(
+            parameters, generation_order = tr.load_and_process_constraints(
                 type_info.module,
                 type_info.name,
                 list(generic.inferred_signature.original_parameters.keys()),
             )
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic, ml_data)
 
     method_data = CallableData(
         accessible=generic,
@@ -1258,11 +1265,6 @@ def __analyse_class(
         # Don't add constructors for abstract classes and for builtins. We generate
         # the latter ourselves.
         test_cluster.add_generator(generic)
-        ml_data = MLCallableData(
-            parameters=parameters,
-            generation_order=generation_order,
-        )
-        test_cluster.add_ml_data(generic, ml_data)
         if add_to_test:
             test_cluster.add_accessible_object_under_test(generic, method_data)
 
@@ -1281,7 +1283,6 @@ def __analyse_class(
             class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
-            store_ml_data=store_ml_data,
         )
 
 
@@ -1322,7 +1323,6 @@ def __analyse_method(
     class_tree: astroid.ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
-    store_ml_data: bool = False,
 ) -> None:
     if (
         __is_private(method_name)
@@ -1352,16 +1352,23 @@ def __analyse_method(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
 
-    parameters: dict[str, MLParameter | None] = {}
-    generation_order: list[str] = []
-    if ConstraintsManager().ml_testing_enabled() and store_ml_data:
+    if config.configuration.pynguinml.ml_testing_enabled:
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
         callable_name = type_info.name + "." + method_name
         try:
-            parameters, generation_order = ConstraintsManager().load_and_process_constraints(
+            parameters, generation_order = tr.load_and_process_constraints(
                 type_info.module, callable_name, list(inferred_signature.original_parameters.keys())
             )
         except ConstraintValidationError as e:
             LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic_method, ml_data)
 
     method_data = CallableData(
         accessible=generic_method,
@@ -1369,11 +1376,6 @@ def __analyse_method(
         description=description,
         cyclomatic_complexity=cyclomatic_complexity,
     )
-    ml_data = MLCallableData(
-        parameters=parameters,
-        generation_order=generation_order,
-    )
-    test_cluster.add_ml_data(generic_method, ml_data)
     test_cluster.add_generator(generic_method)
     test_cluster.add_modifier(type_info, generic_method)
     if add_to_test:
@@ -1392,22 +1394,6 @@ def __resolve_dependencies(
     type_inference_strategy: TypeInferenceStrategy,
     test_cluster: ModuleTestCluster,
 ) -> None:
-    # Load necessary functions for building tensors
-    if ConstraintsManager().ml_testing_enabled():
-        ConstraintsManager().load_nparray_function(test_cluster, type_inference_strategy)
-
-        if (
-            config.configuration.pynguinml.constructor_function
-            and config.configuration.pynguinml.constructor_function_parameter
-        ):
-            ConstraintsManager().load_constructor_function(
-                config.configuration.pynguinml.constructor_function,
-                test_cluster,
-                type_inference_strategy,
-            )
-        else:
-            LOGGER.info("No constructor function available for building tensors.")
-
     parse_results: dict[str, _ModuleParseResult] = _ParseResults()
     parse_results[root_module.module_name] = root_module
 
@@ -1448,7 +1434,6 @@ def __resolve_dependencies(
             test_cluster=test_cluster,
             seen_classes=seen_classes,
             parse_results=parse_results,
-            store_ml_data=True,
         )
 
         # Analyze all functions found in the current module
@@ -1485,7 +1470,6 @@ def __analyse_included_classes(
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_classes: set[type],
-    store_ml_data: bool = False,
 ) -> None:
     values = list(vars(module).values())
     work_list = list(
@@ -1528,7 +1512,6 @@ def __analyse_included_classes(
             module_tree=results.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
-            store_ml_data=store_ml_data,
         )
 
         if hasattr(current, "__bases__"):
