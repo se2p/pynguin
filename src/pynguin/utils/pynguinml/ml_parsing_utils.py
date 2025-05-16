@@ -55,12 +55,8 @@ def convert_to_num(s: str) -> int | float:
     """Converts a string to an integer, float, or infinity."""
     if str_is_int(s):
         return int(s)
-    if str_is_float(s):
+    if str_is_float(s):  # also includes inf/-inf
         return float(s)
-    if s == "inf":
-        return np.inf
-    if s == "-inf":
-        return -np.inf
 
     raise ValueError(f"Invalid numeric string: {s}")
 
@@ -258,15 +254,18 @@ def get_default_range(np_dtype: str) -> tuple[float, float]:
     Raises:
         ValueError: If np_dtype is invalid.
     """
-    if "float" in np_dtype:
-        low = float(np.finfo(np_dtype).min)
-        high = float(np.finfo(np_dtype).max)
-    elif "int" in np_dtype:
-        low = float(np.iinfo(np_dtype).min)
-        high = float(np.iinfo(np_dtype).max)
+    try:
+        np_dtype_obj = np.dtype(np_dtype)
+    except TypeError:
+        raise ValueError(f"Invalid NumPy dtype: {np_dtype}") from None
+
+    if np.issubdtype(np_dtype_obj, np.floating):
+        info = np.finfo(np_dtype_obj)
+    elif np.issubdtype(np_dtype_obj, np.integer):
+        info = np.iinfo(np_dtype_obj)  # type: ignore[assignment]
     else:
         raise ValueError(f"Cannot get range for dtype {np_dtype}")
-    return low, high
+    return float(info.min), float(info.max)
 
 
 def pick_all_integer_types(dtype_list: list[str], only_unsigned=False) -> list[str]:  # noqa: FBT002
@@ -368,17 +367,18 @@ def convert_str_to_type(type_str: str) -> type:
 
     try:
         np_type = np.dtype(type_str).type
-        if np.issubdtype(np_type, np.integer):
-            return int
-        if np.issubdtype(np_type, np.floating):
-            return float
-        if np.issubdtype(np_type, np.complexfloating):
-            return complex
-        if np.issubdtype(np_type, np.bool_):
-            return bool
-        raise ValueError(f"Cannot convert type '{type_str}' to Python type.")
     except TypeError as e:
         raise ValueError(f"Unknown type: {type_str}") from e
+
+    if np.issubdtype(np_type, np.integer):
+        return int
+    if np.issubdtype(np_type, np.floating):
+        return float
+    if np.issubdtype(np_type, np.complexfloating):
+        return complex
+    if np.issubdtype(np_type, np.bool_):
+        return bool
+    raise ValueError(f"Cannot convert type '{type_str}' to Python type.")
 
 
 def get_shape(array: list) -> list[int]:
