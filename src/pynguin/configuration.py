@@ -402,32 +402,38 @@ class TypeInferenceConfiguration:
 class PynguinMLConfiguration:
     """Configurations for PynguinML, specifically for machine learning API testing."""
 
+    ml_testing_enabled: bool = False
+    """
+    Enables ML-based test generation using API constraints. When set to True, PynguinML
+    will use constraints and other ML-specific behaviours during input generation.
+
+    Note: 'constraints_path' must also be set to locate the constraints files.
+    """
+
     constraints_path: str = ""
     """
-    The directory path where YAML API constraints are located. If empty, PynguinML will
-    not consider constraints.
+    Directory path to YAML/JSON constraints files.
     """
 
     dtype_mapping_path: str = ""
     """
-    Path to a YAML file that maps library-specific datatypes to NumPy datatypes.
-    PynguinML uses these string values for input generation. Only specify existing
-    NumPy datatypes. Specify NumPy dtypes without the "np." prefix.
-    Example: "torch.int32" -> "int32".
+    Path to a YAML/JSON file that maps library-specific datatypes to NumPy datatypes.
+    Used by PynguinML for input generation. Specify only valid NumPy dtypes without
+    the "np." prefix. Example: "torch.int32" -> "int32".
     """
 
     constructor_function: str = ""
     """
-    Optional constructor function for building tensors (e.g. torch.tensor or
-    tensorflow.convert_to_tensor). Should be able to convert np.ndarray.
-    Note: Also specify the parameter name in 'constructor_function_parameter' that
-    should receive the np.ndarray.
+    Optional constructor function to build tensors (e.g., torch.tensor or
+    tensorflow.convert_to_tensor). Must accept a np.ndarray as input.
+    Note: Also set 'constructor_function_parameter' to specify which parameter
+    receives the np.ndarray.
     """
 
     constructor_function_parameter: str = ""
     """
-    The name of the parameter in the constructor function that should receive the
-    np.ndarray. This must be set when 'constructor_function' is specified.
+    Name of the parameter in the constructor function that receives the np.ndarray.
+    Must be set when 'constructor_function' is specified.
     """
 
     max_ndim: int = 4
@@ -444,7 +450,8 @@ class PynguinMLConfiguration:
 
     ignore_constraints_probability: float = 0.25
     """
-    Probability of ignoring constraints when constructing statements.
+    Probability of ignoring constraints and falling back to Pynguin's default
+    behavior when constructing statements.
     """
 
 
