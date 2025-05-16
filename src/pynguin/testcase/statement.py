@@ -269,7 +269,7 @@ class VariableCreatingStatement(Statement, abc.ABC):
         self.ret_val: vr.VariableReference = ret_val
 
 
-class StatementVisitor(abc.ABC):
+class StatementVisitor(abc.ABC):  # noqa: PLR0904
     """An abstract statement visitor."""
 
     @abstractmethod
@@ -403,6 +403,14 @@ class StatementVisitor(abc.ABC):
     @abstractmethod
     def visit_ndarray_statement(self, stmt) -> None:
         """Visit ndarray.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_allowed_values_statement(self, stmt) -> None:
+        """Visit allowed values.
 
         Args:
             stmt: the statement to visit
@@ -2492,17 +2500,7 @@ class AllowedValuesStatement(PrimitiveStatement):
         return AllowedValuesStatement(test_case, self._allowed_values, value=self._value)
 
     def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
-        match type(self._value).__name__:
-            case "int":
-                visitor.visit_int_primitive_statement(self)
-            case "float":
-                visitor.visit_float_primitive_statement(self)
-            case "bool":
-                visitor.visit_boolean_primitive_statement(self)
-            case "str":
-                visitor.visit_string_primitive_statement(self)
-            case _:
-                visitor.visit_none_statement(self)
+        visitor.visit_allowed_values_statement(self)
 
     def __repr__(self) -> str:
         return f"AllowedValuesStatement({self._test_case}, {self._allowed_values}, {self._value})"
