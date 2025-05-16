@@ -319,6 +319,9 @@ class TestCaseOutputConfiguration:
     format_with_black: bool = True
     """Format the generated test cases using black."""
 
+    remove_unused_references: bool = True
+    """Remove references to return values that are not used by subsequent statements."""
+
 
 @dataclasses.dataclass
 class SeedingConfiguration:

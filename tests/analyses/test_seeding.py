@@ -56,7 +56,7 @@ def test_case_0():
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
     chromosome = tcc.TestCaseChromosome(transformer.testcases[0])
-    exporter = export.PyTestChromosomeToAstVisitor()
+    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
     chromosome.accept(exporter)
     export.save_module_to_file(exporter.to_module(), export_path)
     content = export_path.read_text(encoding="locale")

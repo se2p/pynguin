@@ -49,7 +49,7 @@ assert str_1 == 'foo bar'""",
 float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
 assert module_0.static_state == 0
-str_1 = human_0.get_name()""",
+human_0.get_name()""",
         ),
     ],
 )
@@ -177,7 +177,7 @@ _MUTANTS = [
             "tests.fixtures.mutation.mutation",
             "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
             "    int_3 = 0\n    float_0 = module_0.foo(int_3)",
-            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 0\nfloat_0 = module_0.foo(int_3)",
+            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 0\nmodule_0.foo(int_3)",
             _MUTANTS,
             ag._MutationMetrics(5, 0, 0),
             set(),
@@ -186,7 +186,7 @@ _MUTANTS = [
         (
             "tests.fixtures.mutation.exception",
             "def test_case_0():\n    float_0 = module_0.foo()",
-            "none_type_0 = module_0.foo()",
+            "module_0.foo()",
             [
                 "def foo() -> None:\n"
                 "    alist = [1, 2]\n"

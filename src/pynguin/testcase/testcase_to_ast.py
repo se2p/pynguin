@@ -73,6 +73,16 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             ):
                 store_call_return = self._store_call_return
 
+            # Only store the return value if it's used by subsequent statements or has assertions
+            # If store_call_return is True, we always store the return value
+            elif (
+                not self._store_call_return
+                and statement.ret_val is not None
+                and not test_case.get_forward_dependencies(statement.ret_val)
+                and not statement.assertions  # No assertions
+            ):
+                store_call_return = False
+
             statement_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases, variables, store_call_return=store_call_return
             )

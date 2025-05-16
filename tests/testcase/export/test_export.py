@@ -86,7 +86,7 @@ def test_case_0():
 
 def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
     path = tmp_path / "generated_with_unexpected_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
+    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
     exportable_test_case_with_lambda.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (
@@ -104,7 +104,7 @@ def test_case_0():
 
 def test_export_lambda_complex(exportable_test_case_with_lambda_complex, tmp_path):
     path = tmp_path / "generated_with_unexpected_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
+    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
     exportable_test_case_with_lambda_complex.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (

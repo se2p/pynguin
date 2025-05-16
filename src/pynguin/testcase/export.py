@@ -31,8 +31,17 @@ class _AstConversionResult:
 class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
     """Visits chromosomes and builds a module AST containing all visited test cases."""
 
-    def __init__(self, *, store_call_return: bool = False) -> None:
-        """The module aliases are shared between test cases."""
+    def __init__(
+        self,
+        *,
+        store_call_return: bool = False,
+    ) -> None:
+        """The module aliases are shared between test cases.
+
+        Args:
+            store_call_return: Whether to store the return value of function calls
+                when the references are not used by the following statements.
+        """
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = set()
