@@ -226,10 +226,8 @@ def load_and_process_constraints(
         with constraints_file.open(encoding="utf-8") as f:
             if constraints_file.suffix.lower() in {".yaml", ".yml"}:
                 constraints_data = yaml.safe_load(f)
-            elif constraints_file.suffix.lower() == ".json":
-                constraints_data = json.load(f)
             else:
-                raise ValueError(f"Unsupported file format: {constraints_file.suffix}")
+                constraints_data = json.load(f)
     except Exception as e:  # noqa: BLE001
         LOGGER.warning("Could not load constraint file %s: %s", constraints_file, e)
         return {}, []
