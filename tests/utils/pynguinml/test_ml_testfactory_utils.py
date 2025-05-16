@@ -5,10 +5,12 @@
 #  SPDX-License-Identifier: MIT
 #
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
+import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
 
 from pynguin.analyses.typesystem import AnyType
@@ -21,6 +23,13 @@ from pynguin.utils.pynguinml.mlparameter import Range
 def test_select_dtype():
     # The data is already validated beforehand by MLParameter
     mock_param = MagicMock(spec=MLParameter)
+    mock_param.valid_dtypes = []
+    mock_param.tensor_expected = False
+
+    selected_dtype = mltu.select_dtype(mock_param)
+
+    assert selected_dtype == "None"
+
     mock_param.valid_dtypes = ["int32", "float64", "bool"]
     mock_param.tensor_expected = False
 
@@ -116,6 +125,13 @@ def test_generate_shape():  # noqa: PLR0915
     assert isinstance(generated_shape, list)
     assert len(generated_shape) == 3
 
+    mock_param.valid_shapes = ["dummy_shape"]
+    # Patch _select_shape_constraint to return None explicitly
+    with patch.object(mltu, "_select_shape_constraint", return_value=None):
+        generated_shape = mltu.generate_shape(mock_param, 3)
+    assert isinstance(generated_shape, list)
+    assert len(generated_shape) == 3
+
     # normal valid shape
     mock_param.valid_shapes = ["1,2,3"]
     generated_shape = mltu.generate_shape(mock_param, 3)
@@ -208,6 +224,16 @@ def test_generate_shape():  # noqa: PLR0915
     assert isinstance(mltu.ml_constant_pool.get_value("num_labels"), int)
 
 
+def test_select_shape_constraint_returns_none():
+    # Setup: no "...", no ":", wrong ndim
+    mock_param = MagicMock(spec=MLParameter)
+    mock_param.valid_shapes = ["1,2"]  # len=2
+
+    result = mltu._select_shape_constraint(mock_param, selected_ndim=3)
+
+    assert result is None
+
+
 def test__get_range():
     mock_param = MagicMock(spec=MLParameter)
 
@@ -234,6 +260,12 @@ def test__get_range():
     low, high = mltu._get_range(mock_param, "uint32")
     assert low == 0
     assert high == 100
+
+    # Range has negative high (-10), which would make `high = max(-10, 0)` → 0
+    mock_param.valid_ranges = [Range(None, -100, -10)]
+    low, high = mltu._get_range(mock_param, "uint32")
+    assert low == 0
+    assert high == 0
 
 
 def test_generate_ndarray():
@@ -308,3 +340,41 @@ def test_change_generation_order():
 
     # "d" is missing in generation_order, so it should be at the end
     assert list(sorted_params.keys()) == ["c", "b", "e", "a", "d"]
+
+
+def test_reset_parameter_objects():
+    param1 = MagicMock(spec=MLParameter)
+    param1.current_data = "dummy"
+    param2 = MagicMock(spec=MLParameter)
+    param2.current_data = "dummy"
+
+    params = {"param1": param1, "param2": param2, "param_none": None}
+
+    # Patch the constant pool reset
+    with patch.object(mltu.ml_constant_pool, "reset") as mock_reset:
+        mltu.reset_parameter_objects(params)
+
+    assert param1.current_data is None
+    assert param2.current_data is None
+
+    # Ensure constant pool reset was called
+    mock_reset.assert_called_once()
+
+
+def test_is_ml_statement():
+    mock_stmt = MagicMock(spec=stmt.FunctionStatement)
+    mock_stmt.should_mutate = False
+    assert mltu.is_ml_statement(mock_stmt) is True
+
+    mock_stmt = MagicMock(spec=stmt.FunctionStatement)
+    mock_stmt.should_mutate = True
+    assert mltu.is_ml_statement(mock_stmt) is False
+
+    mock_stmt = MagicMock(spec=stmt.NdArrayStatement)
+    assert mltu.is_ml_statement(mock_stmt) is True
+
+    mock_stmt = MagicMock(spec=stmt.AllowedValuesStatement)
+    assert mltu.is_ml_statement(mock_stmt) is True
+
+    mock_stmt = MagicMock(spec=stmt.ListStatement)
+    assert mltu.is_ml_statement(mock_stmt) is False

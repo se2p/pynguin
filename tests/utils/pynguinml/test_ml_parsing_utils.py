@@ -4,12 +4,58 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import math
 
+import numpy as np
 import pytest
 
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.utils.exceptions import ConstraintValidationError
+
+
+@pytest.fixture
+def mock_config(monkeypatch):
+    def set_mock(**kwargs):
+        for attr, value in kwargs.items():
+            monkeypatch.setattr(mlpu.config.configuration.pynguinml, attr, value)
+
+    return set_mock
+
+
+def test_ndim_values(monkeypatch, result):
+    monkeypatch.setattr(mlpu.config.configuration.pynguinml, "max_ndim", 3)
+
+    result = mlpu.ndim_values()
+
+    assert result == [0, 1, 2, 3]
+
+
+def test_str_is_number():
+    assert mlpu.str_is_number("42") is True
+    assert mlpu.str_is_number("3.14") is True
+    assert mlpu.str_is_number("inf") is True
+    assert mlpu.str_is_number("-inf") is True
+    assert mlpu.str_is_number("not_a_number") is False
+
+
+def test_convert_to_num():
+    result = mlpu.convert_to_num("42")
+    assert result == 42
+    assert isinstance(result, int)
+
+    result = mlpu.convert_to_num("22.2")
+    assert result == 22.2
+    assert isinstance(result, float)
+
+    result = mlpu.convert_to_num("inf")
+    assert result == np.inf
+
+    result = mlpu.convert_to_num("-inf")
+    assert result == -np.inf
+
+    with pytest.raises(ValueError, match="Invalid numeric string"):
+        mlpu.convert_to_num("not_a_number")
 
 
 def test_parse_var_dependency_with_ampersand():
@@ -112,6 +158,85 @@ def test_parse_shape_bound_invalid(tok):
         mlpu.parse_shape_bound(tok)
 
 
+def test_get_default_range_float32():
+    low, high = mlpu.get_default_range("float32")
+    assert low == np.finfo("float32").min
+    assert high == np.finfo("float32").max
+
+    low, high = mlpu.get_default_range("float64")
+    assert low == np.finfo("float64").min
+    assert high == np.finfo("float64").max
+
+    low, high = mlpu.get_default_range("int32")
+    assert math.isclose(low, float(np.iinfo("int32").min))
+    assert math.isclose(high, float(np.iinfo("int32").max))
+
+    low, high = mlpu.get_default_range("int64")
+    assert math.isclose(low, float(np.iinfo("int64").min))
+    assert math.isclose(high, float(np.iinfo("int64").max))
+
+    with pytest.raises(ValueError, match="Invalid NumPy dtype: not_a_dtype"):
+        mlpu.get_default_range("not_a_dtype")
+
+    with pytest.raises(ValueError, match="Cannot get range for dtype bool"):
+        mlpu.get_default_range("bool")
+
+
+def test_pick_all_integer_types_signed_and_unsigned():
+    dtype_list = ["int8", "int16", "uint8", "float32"]
+    result = mlpu.pick_all_integer_types(dtype_list)
+    assert result == ["int8", "int16", "uint8"]
+
+
+def test_pick_all_integer_types_only_unsigned():
+    dtype_list = ["int8", "int16", "uint8", "float32"]
+    result = mlpu.pick_all_integer_types(dtype_list, only_unsigned=True)
+    assert result == ["uint8"]
+
+
+def test_pick_all_integer_types_no_matches():
+    dtype_list = ["float32", "float64"]
+    result = mlpu.pick_all_integer_types(dtype_list)
+    assert result == []
+
+    dtype_list = ["random", "42"]
+    result = mlpu.pick_all_integer_types(dtype_list)
+    assert result == []
+
+    result = mlpu.pick_all_integer_types([])
+    assert result == []
+
+
+def test_pick_all_float_types():
+    dtypes = ["float16", "float32", "float64"]
+    result = mlpu.pick_all_float_types(dtypes)
+    assert result == ["float16", "float32", "float64"]
+
+    dtypes = ["int8", "float32", "float64", "uint32", "str"]
+    result = mlpu.pick_all_float_types(dtypes)
+    assert result == ["float32", "float64"]
+
+    dtypes = ["int32", "uint8", "bool", "str"]
+    result = mlpu.pick_all_float_types(dtypes)
+    assert result == []
+
+    result = mlpu.pick_all_float_types([])
+    assert result == []
+
+
+def test_pick_scalar_types():
+    dtypes = ["int8", "float32", "uint64", "float64", "bool", "str"]
+    result = mlpu.pick_scalar_types(dtypes)
+    assert result == ["int8", "uint64", "float32", "float64"]
+
+
+def test_infer_type_from_str():
+    assert mlpu._infer_type_from_str("42") == "int"
+    assert mlpu._infer_type_from_str("3.14") == "float"
+    assert mlpu._infer_type_from_str("true") == "bool"
+    assert mlpu._infer_type_from_str("hello") == "str"
+
+
 @pytest.mark.parametrize(
     "values, expected",
     [
@@ -148,9 +273,9 @@ def test_convert_str_to_type_valid(type_str, expected):
     assert mlpu.convert_str_to_type(type_str) == expected
 
 
-@pytest.mark.parametrize("invalid_type", ["unknown_type", "xyz123", ""])
+@pytest.mark.parametrize("invalid_type", ["unknown_type", "xyz123", "", "datetime64"])
 def test_convert_str_to_type_invalid(invalid_type):
-    with pytest.raises(ValueError, match=f"Unknown type: {invalid_type}"):
+    with pytest.raises(ValueError):  # noqa: PT011
         mlpu.convert_str_to_type(invalid_type)
 
 

@@ -105,6 +105,7 @@ type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
 
 [pynguinml]
+ml_testing_enabled = false
 constraints_path = ""
 dtype_mapping_path = ""
 constructor_function = ""
@@ -292,6 +293,7 @@ def expected_parameter_list() -> list[str]:
         "--maximum_coverage_plateau -1",
         "--minimum_coverage 100",
         "--minimum_plateau_iterations -1",
+        "--ml_testing_enabled False",
         "--test_execution_time_per_statement 1",
         "--seed 12345",
         "--constant_seeding True",
