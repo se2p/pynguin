@@ -441,7 +441,7 @@ def _get_range(parameter_obj: MLParameter, np_dtype: str):
     else:
         high = picked_range.upper_bound
 
-    if low < 0 and "uint" in np_dtype:
+    if (low < 0 or high < 0) and "uint" in np_dtype:
         low = 0
         high = max(high, low)
 
