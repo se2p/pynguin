@@ -268,6 +268,7 @@ def test_setup_and_check_no_subprocess():
         mock.patch.object(gen, "_setup_test_cluster") as setup_test_cluster_mock,
         mock.patch.object(gen, "_track_sut_data"),
         mock.patch.object(gen, "_setup_random_number_generator"),
+        mock.patch.object(gen, "_setup_ml_testing_environment"),
         mock.patch.object(gen, "_detect_llm_strategy", return_value="test-strategy"),
         mock.patch.object(gen.stat, "track_output_variable"),
     ):
