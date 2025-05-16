@@ -78,7 +78,7 @@ def select_dtype(parameter_obj: MLParameter) -> str:
     return picked_dtype
 
 
-def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa: C901
+def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:
     """Randomly select a dimension for the given parameter.
 
     If valid ndims are defined in the parameter, one is randomly chosen. For ndim
@@ -102,38 +102,11 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
             return int(selected_ndim)
 
         if "ndim:" in selected_ndim:
-            # depends on another param
-            _, ref, _ = mlpu.parse_var_dependency(selected_ndim, "ndim:")
-
-            # generate value from dependency param
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
-
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
-                return cast("np.ndarray", dependency_obj.current_data).ndim
-
-            if np.isscalar(dependency_obj.current_data):
-                return 0
-
-            raise ConstructionFailedException(f"Unable to get ndim of {ref}.")
+            return _resolve_ndim_dependency_for_ndim(parameter_obj, selected_ndim)
 
         _, ref, is_var = mlpu.parse_var_dependency(selected_ndim, "")
-
         if is_var:
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
-
-            value = dependency_obj.current_data
-            if isinstance(value, (bool | np.bool_)):
-                raise ConstructionFailedException(
-                    f"Referred value {ref} is a boolean value. "
-                    f"Cannot be used to decide another var."
-                )
-            if not isinstance(value, (int, float)):
-                raise ConstructionFailedException(
-                    f"Referred value {ref} is not a single numeric value. "
-                    f"Cannot be used to decide another var."
-                )
-
-            return int(value)
+            return _resolve_value_dependency_for_ndim(parameter_obj, ref)
 
         if ml_constant_pool.get_value(ref) is None:
             value = randomness.next_int(0, config.configuration.pynguinml.max_ndim + 1)
@@ -141,15 +114,40 @@ def select_ndim(parameter_obj: MLParameter, selected_dtype: str) -> int:  # noqa
 
         return ml_constant_pool.get_value(ref)  # type: ignore[return-value]
 
-    # If it must be a tensor, exclude 0 as a dimension
-    valid_ndim_values = [
-        n for n in mlpu.ndim_values() if not (parameter_obj.tensor_expected and n == 0)
-    ]
+    valid_ndim_values = mlpu.ndim_values()
 
     return randomness.choice(valid_ndim_values)
 
 
-def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # noqa: C901
+def _resolve_ndim_dependency_for_ndim(parameter_obj: MLParameter, selected_ndim: str) -> int:
+    _, ref, _ = mlpu.parse_var_dependency(selected_ndim, "ndim:")
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+
+    if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
+        return cast("np.ndarray", dependency_obj.current_data).ndim
+
+    if np.isscalar(dependency_obj.current_data):
+        return 0
+
+    raise ConstructionFailedException(f"Unable to get ndim of {ref}.")
+
+
+def _resolve_value_dependency_for_ndim(parameter_obj: MLParameter, ref: str) -> int:
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+    value = dependency_obj.current_data
+    if isinstance(value, (bool, np.bool_)):
+        raise ConstructionFailedException(
+            f"Referred value {ref} is a boolean value. Cannot be used to decide another var."
+        )
+    if not isinstance(value, (int, float)):
+        raise ConstructionFailedException(
+            f"Referred value {ref} is not a single numeric value. "
+            f"Cannot be used to decide another var."
+        )
+    return int(value)
+
+
+def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:
     """Generate a shape based on the parameter's shape constraints and the selected ndim.
 
     Args:
@@ -159,157 +157,194 @@ def generate_shape(parameter_obj: MLParameter, selected_ndim: int) -> list:  # n
     Returns:
         list: The generated shape.
     """
-    if parameter_obj.valid_shapes:
-        shape_constraints = None
-        for valid_shape in parameter_obj.valid_shapes:
-            if "..." in valid_shape and len(valid_shape.split(",")) <= selected_ndim:
-                shape_constraints = valid_shape
-                break
-            if len(valid_shape.split(",")) == selected_ndim:
-                shape_constraints = valid_shape
-                break
-            if ":" in valid_shape:  # param dependency
-                shape_constraints = valid_shape
-                break
-
-        if shape_constraints:
-            shape_tokens = shape_constraints.split(",")
-
-            shape: list[int] = []
-
-            for shape_token in shape_tokens:
-                value = _process_shape_token(parameter_obj, shape_token)
-                # Can be a list directly from a var dependency
-                if isinstance(value, list):
-                    return value
-                shape.append(value)
-
-            # since -1 may exist in shape (due to '...'), process it
-            final_shape: list[int] = []
-            for s in shape:
-                if s == -1:
-                    max_dim_fill = config.configuration.pynguinml.max_ndim - len(shape) + 1
-                    fill_size = randomness.next_int(0, max_dim_fill + 1)
-                    shape_dim = [
-                        randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
-                        for _ in range(fill_size)
-                    ]
-                    final_shape += shape_dim
-                else:
-                    final_shape.append(s)
-
-            # Clamp each dimension of the shape to be within [0, max_dim]
-            return [min(config.configuration.pynguinml.max_shape_dim, max(0, dim)) for dim in shape]
-
-    return [
+    random_shape = [
         randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
         for _ in range(selected_ndim)
     ]
 
+    if not parameter_obj.valid_shapes:
+        return random_shape
 
-def _process_shape_token(parameter_obj: MLParameter, shape_token: str):  # noqa: C901, PLR0915
+    shape_constraints = _select_shape_constraint(parameter_obj, selected_ndim)
+
+    if shape_constraints is None:
+        return random_shape
+
+    shape_tokens = shape_constraints.split(",")
+
+    shape: list[int] = []
+
+    for shape_token in shape_tokens:
+        value = _process_shape_token(parameter_obj, shape_token)
+        # Can be a list directly from a var dependency
+        if isinstance(value, list):
+            return value
+        shape.append(value)
+
+    # since -1 may exist in shape (due to '...'), process it
+    final_shape: list[int] = []
+    for s in shape:
+        if s == -1:
+            max_dim_fill = config.configuration.pynguinml.max_ndim - len(shape) + 1
+            fill_size = randomness.next_int(0, max_dim_fill + 1)
+            shape_dim = [
+                randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
+                for _ in range(fill_size)
+            ]
+            final_shape += shape_dim
+        else:
+            final_shape.append(s)
+
+    # Clamp each dimension of the shape to be within [0, max_dim]
+    return [min(config.configuration.pynguinml.max_shape_dim, max(0, dim)) for dim in shape]
+
+
+def _select_shape_constraint(parameter_obj: MLParameter, selected_ndim: int) -> str | None:
+    for valid_shape in parameter_obj.valid_shapes:
+        if "..." in valid_shape and len(valid_shape.split(",")) <= selected_ndim:
+            return valid_shape
+        if len(valid_shape.split(",")) == selected_ndim:
+            return valid_shape
+        if ":" in valid_shape:
+            return valid_shape
+    return None
+
+
+def _process_shape_token(parameter_obj: MLParameter, shape_token: str):
     shape_value = 0
     sign = "+"
+
     while shape_token:  # process until shape_token is empty
         if shape_token[0] in "+-*/":
             sign = shape_token[0]
             shape_token = shape_token[1:]
             continue
-        if shape_token.isnumeric():
-            temp_value = int(shape_token)
-            shape_token = ""
-        elif shape_token[0] == ">" or shape_token[0] == "<":  # implicitly 1D
-            unequal_sign, shape_bound = mlpu.parse_shape_bound(shape_token)
-            if unequal_sign == ">":
-                temp_value = randomness.next_int(
-                    shape_bound + 1, config.configuration.pynguinml.max_shape_dim + 1
-                )
-            else:
-                temp_value = randomness.next_int(0, shape_bound)
-            shape_token = ""
-        elif shape_token[0] == ".":  # there's unknown number of dimensions
-            shape_token = ""
-            temp_value = -1
-        elif shape_token[0] == "l" and "len:" in shape_token:
-            shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "len:")
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
-            try:
-                temp_value = len(dependency_obj.current_data)
-            except TypeError:
-                raise ConstructionFailedException(f"Unable to get length of {ref}.")  # noqa: B904
-        elif shape_token[0] == "n" and "ndim:" in shape_token:
-            shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "ndim:")
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
 
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
-                temp_value = dependency_obj.current_data.ndim
-            elif np.isscalar(dependency_obj.current_data):
-                temp_value = 0
-            else:
-                raise ConstructionFailedException(f"Unable to get ndim of {ref}.")
-        elif shape_token[0] == "m" and "max_value:" in shape_token:  # implicitly 1D
-            shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "max_value:")
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
-            try:
-                temp_value = int(max(dependency_obj.current_data))
-            except (TypeError, ValueError):
-                raise ConstructionFailedException(  # noqa: B904
-                    f"Unable to get max value of {ref} with value {dependency_obj.current_data}."
-                )
-        elif shape_token[0] == "s" and "shape:" in shape_token:
-            shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "shape:")
-            dependency_obj = parameter_obj.parameter_dependencies[ref]
+        temp_value, shape_token = _resolve_shape_token(parameter_obj, shape_token)
 
-            if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
-                temp_value = list(cast("np.ndarray", dependency_obj.current_data).shape)  # type: ignore[assignment]
-            elif isinstance(dependency_obj.current_data, int | float | complex | str):
-                temp_value = []  # type: ignore[assignment]
-            else:
-                raise ConstructionFailedException(
-                    f"Unable to get shape of {ref} with value {dependency_obj.current_data}."
-                )
-        else:
-            # referring to another var or constant value e.g. [batch_size,num_labels]
-            shape_token, ref, is_var = mlpu.parse_var_dependency(shape_token, "")
-            if is_var:
-                dependency_obj = parameter_obj.parameter_dependencies[ref]
-                temp_value = dependency_obj.current_data
-                if isinstance(temp_value, np.bool_ | bool):
-                    raise ConstructionFailedException(
-                        f"Referred value of {ref} is a boolean value. "
-                        f"Cannot be used to decide another var."
-                    )
-                if not isinstance(temp_value, int | float):
-                    raise ConstructionFailedException(
-                        f"Referred value of {ref} is not a single numeric value. "
-                        f"Cannot be used to decide another var."
-                    )
-            else:
-                if ml_constant_pool.get_value(ref) is None:
-                    value = randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
-                    ml_constant_pool.add(ref, value)
-                shape_token = ""
-                temp_value = ml_constant_pool.get_value(ref)  # type: ignore[assignment]
-
-        if isinstance(temp_value, list):  # from a dependency
+        if isinstance(temp_value, list):
             return temp_value
+
         if isinstance(temp_value, str) and not mlpu.str_is_int(temp_value):
             raise ConstructionFailedException(f"Given shape value {temp_value} is invalid.")
 
         temp_value = int(temp_value)
 
-        # check for special values
-        if sign == "+":
-            shape_value += temp_value
-        elif sign == "-":
-            shape_value = max(0, shape_value - temp_value)
-        elif sign == "*":
-            shape_value *= temp_value
-        else:  # sign is '/'
-            if temp_value == 0:
-                raise ConstructionFailedException("Attempting to divide by 0.")
-            shape_value = math.ceil(shape_value / temp_value)
+        shape_value = _apply_sign(shape_value, temp_value, sign)
+
     return shape_value
+
+
+def _resolve_shape_token(parameter_obj: MLParameter, shape_token: str):
+    if shape_token.isnumeric():
+        return int(shape_token), ""
+
+    if shape_token[0] in "><":
+        return _resolve_shape_bound(shape_token)
+
+    if shape_token.startswith("."):
+        return -1, ""
+
+    if shape_token.startswith("len:"):
+        return _resolve_len_dependency(parameter_obj, shape_token)
+
+    if shape_token.startswith("ndim:"):
+        return _resolve_ndim_dependency_for_shape(parameter_obj, shape_token)
+
+    if shape_token.startswith("max_value:"):
+        return _resolve_max_value_dependency(parameter_obj, shape_token)
+
+    if shape_token.startswith("shape:"):
+        return _resolve_shape_dependency(parameter_obj, shape_token)
+
+    return _resolve_value_or_constant(parameter_obj, shape_token)
+
+
+def _resolve_shape_bound(shape_token):
+    unequal_sign, shape_bound = mlpu.parse_shape_bound(shape_token)
+    if unequal_sign == ">":
+        temp_value = randomness.next_int(
+            shape_bound + 1, config.configuration.pynguinml.max_shape_dim + 1
+        )
+    else:
+        temp_value = randomness.next_int(0, shape_bound)
+    return temp_value, ""
+
+
+def _resolve_len_dependency(parameter_obj, shape_token):
+    shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "len:")
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+    try:
+        return len(dependency_obj.current_data), shape_token
+    except TypeError:
+        raise ConstructionFailedException(f"Unable to get length of {ref}.") from None
+
+
+def _resolve_ndim_dependency_for_shape(parameter_obj, shape_token):
+    shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "ndim:")
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+    if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
+        return dependency_obj.current_data.ndim, shape_token
+    if np.isscalar(dependency_obj.current_data):
+        return 0, shape_token
+    raise ConstructionFailedException(f"Unable to get ndim of {ref}.")
+
+
+def _resolve_max_value_dependency(parameter_obj, shape_token):
+    shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "max_value:")
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+    try:
+        return int(max(dependency_obj.current_data)), shape_token
+    except (TypeError, ValueError):
+        raise ConstructionFailedException(
+            f"Unable to get max value of {ref} with value {dependency_obj.current_data}."
+        ) from None
+
+
+def _resolve_shape_dependency(parameter_obj, shape_token):
+    shape_token, ref, _ = mlpu.parse_var_dependency(shape_token, "shape:")
+    dependency_obj = parameter_obj.parameter_dependencies[ref]
+    if isinstance(dependency_obj.current_data, (np.ndarray, np.generic)):
+        return list(cast("np.ndarray", dependency_obj.current_data).shape), shape_token
+    if isinstance(dependency_obj.current_data, (int, float, complex, str)):
+        return [], shape_token
+    raise ConstructionFailedException(
+        f"Unable to get shape of {ref} with value {dependency_obj.current_data}."
+    )
+
+
+def _resolve_value_or_constant(parameter_obj, shape_token):
+    shape_token, ref, is_var = mlpu.parse_var_dependency(shape_token, "")
+    if is_var:
+        dependency_obj = parameter_obj.parameter_dependencies[ref]
+        temp_value = dependency_obj.current_data
+        if isinstance(temp_value, (bool, np.bool_)):
+            raise ConstructionFailedException(
+                f"Referred value of {ref} is a boolean value. Cannot be used to decide another var."
+            )
+        if not isinstance(temp_value, (int, float)):
+            raise ConstructionFailedException(
+                f"Referred value of {ref} is not a single numeric value. "
+                f"Cannot be used to decide another var."
+            )
+        return temp_value, shape_token
+
+    if ml_constant_pool.get_value(ref) is None:
+        value = randomness.next_int(0, config.configuration.pynguinml.max_shape_dim + 1)
+        ml_constant_pool.add(ref, value)
+    return ml_constant_pool.get_value(ref), ""
+
+
+def _apply_sign(shape_value, temp_value, sign):
+    if sign == "+":
+        return shape_value + temp_value
+    if sign == "-":
+        return max(0, shape_value - temp_value)
+    if sign == "*":
+        return shape_value * temp_value
+    if temp_value == 0:
+        raise ConstructionFailedException("Attempting to divide by 0.")
+    return math.ceil(shape_value / temp_value)
 
 
 def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
@@ -336,22 +371,19 @@ def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
     high: int | float | None = None
     ndarray: np.ndarray | None = None
 
-    # int/uint
-    m = re.search(r"^(?:int|uint)", dtype)
-    if m:
+    int_or_uint = re.search(r"^(?:int|uint)", dtype)
+    if int_or_uint:
         low, high = _get_range(parameter_obj, dtype)
         ndarray = _generate_int(dtype, shape, low, high)  # type: ignore[arg-type]
 
-    # float
-    m = re.search(r"^float", dtype)
-    if m:
+    float_ = re.search(r"^float", dtype)
+    if float_:
         low, high = _get_range(parameter_obj, dtype)
         ndarray = _generate_float(dtype, shape, low, high)  # type: ignore[arg-type]
 
-    # complex
-    m = re.search(r"^complex(?P<num>[0-9]*)", dtype)
-    if m:
-        n_bit_str = m.group("num")
+    complex_ = re.search(r"^complex(?P<num>[0-9]*)", dtype)
+    if complex_:
+        n_bit_str = complex_.group("num")
         half = int(n_bit_str) // 2 if n_bit_str else 64
         # Ensure half is one of the allowed values, otherwise default to 64.
         half = half if half in {32, 64} else 64
@@ -362,7 +394,6 @@ def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
 
         ndarray = _generate_complex(float_dtype, dtype, shape, low, high)  # type: ignore[arg-type]
 
-    # bool
     if dtype == "bool":
         low = 0
         high = 0
@@ -469,7 +500,11 @@ def change_generation_order(generation_order: list, param_types: dict[str, Prope
 
 
 def reset_parameter_objects(parameters: dict[str, MLParameter | None]) -> None:
-    """Resets all parameter objects and clears the ML constant pool."""
+    """Reset all parameter objects and clear the ML constant pool.
+
+    This removes any cached data used for parameter dependencies, ensuring a clean
+    state before processing a new callable.
+    """
     # Remove all the generated data in each parameter object
     for parameter in parameters.values():
         if parameter is not None:
