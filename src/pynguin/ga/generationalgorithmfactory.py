@@ -438,4 +438,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
 
     @staticmethod
     def _get_test_factory(strategy: GenerationAlgorithm, constant_provider: ConstantProvider):
+        if config.configuration.pynguinml.ml_testing_enabled:
+            return tf.MLTestFactory(strategy.test_cluster, constant_provider=constant_provider)
+
         return tf.TestFactory(strategy.test_cluster, constant_provider=constant_provider)

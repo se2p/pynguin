@@ -21,6 +21,7 @@ import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
+import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
@@ -34,7 +35,6 @@ from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.pynguinml.constraintsmanager import ConstraintsManager
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -96,10 +96,7 @@ class TestFactory:
             ConstructionFailedException: if construction of an object failed
         """
         new_position = test_case.size() if position == -1 else position
-        if mltu.is_ml_statement(statement):
-            # TODO(ah) Because of the current generation logic, we must skip such statements.
-            pass
-        elif isinstance(statement, stmt.ConstructorStatement):
+        if isinstance(statement, stmt.ConstructorStatement):
             self.add_constructor(
                 test_case,
                 statement.accessible_object(),
@@ -704,14 +701,11 @@ class TestFactory:
                 alternatives = test_case.get_objects(typ, i)
                 with contextlib.suppress(ValueError):
                     alternatives.remove(variable)
-                statement = test_case.get_statement(i)
-                if (
-                    len(alternatives) > 0
-                    and statement.references(variable)
-                    and not mltu.is_ml_statement(statement)
-                ):
-                    statement.replace(variable, randomness.choice(alternatives))
-                    changed = True
+                if len(alternatives) > 0:
+                    statement = test_case.get_statement(i)
+                    if statement.references(variable):
+                        statement.replace(variable, randomness.choice(alternatives))
+                        changed = True
 
         deleted = TestFactory.delete_statement(test_case, position)
         return deleted or changed
@@ -938,7 +932,7 @@ class TestFactory:
         position: int = -1,
         recursion_depth: int = 0,
         allow_none: bool = True,
-        callable_accessible: gao.GenericCallableAccessibleObject,
+        callable_accessible: gao.GenericCallableAccessibleObject | None = None,
     ) -> dict[str, vr.VariableReference]:
         """Satisfy a list of parameters by reusing or creating variables.
 
@@ -966,29 +960,7 @@ class TestFactory:
             position,
         )
 
-        param_types = signature.get_parameter_types({})
-
-        parameter_objs: dict[str, MLParameter | None] = {}
-
-        if (
-            ConstraintsManager().ml_testing_enabled()
-            and randomness.next_float()
-            >= config.configuration.pynguinml.ignore_constraints_probability
-        ):
-            ml_data = self._test_cluster.get_ml_data_for(callable_accessible)
-
-            generation_order = []
-
-            if ml_data:
-                mltu.reset_parameter_objects(ml_data.parameters)
-
-                parameter_objs = ml_data.parameters
-                generation_order = ml_data.generation_order
-
-            if generation_order:
-                param_types = mltu.change_generation_order(generation_order, param_types)
-
-        for parameter_name, parameter_type in param_types.items():
+        for parameter_name, parameter_type in signature.get_parameter_types({}).items():
             self._logger.debug("Current parameter type: %s", parameter_type)
 
             previous_length = test_case.size()
@@ -1000,19 +972,12 @@ class TestFactory:
             ):
                 continue
 
-            parameter_obj = parameter_objs.get(parameter_name)
-
-            if parameter_obj is not None and is_arg_or_kwarg(signature, parameter_name):
-                # Skip *args and **kwargs to simplify ML-specific test generation.
-                continue
-
             var = self._create_or_reuse_variable(
                 test_case,
                 parameter_type,
                 position,
                 recursion_depth,
                 allow_none=allow_none,
-                parameter_obj=parameter_obj,
             )
 
             if not var:
@@ -1028,11 +993,7 @@ class TestFactory:
         return parameters
 
     def _reuse_variable(
-        self,
-        test_case: tc.TestCase,
-        parameter_type: ProperType,
-        position: int,
-        parameter_obj: MLParameter | None,
+        self, test_case: tc.TestCase, parameter_type: ProperType, position: int
     ) -> vr.VariableReference | None:
         """Reuse an existing variable, if possible.
 
@@ -1040,19 +1001,10 @@ class TestFactory:
             test_case: the test case to take the variable from
             parameter_type: the type of the variable that is needed
             position: the position to limit the search
-            parameter_obj: the ML-specific parameter
 
         Returns:
             A matching existing variable, if existing
         """
-        if parameter_obj is not None and (
-            not isinstance(parameter_type, Instance)
-            or not inspect.isclass(parameter_type.type.raw_type)
-        ):
-            # TODO(ah) Reuse currently logic does not work for ML testing.
-            #  Only allow reuse of classes.
-            return None
-
         objects = test_case.get_objects(parameter_type, position)
         probability: float = (
             config.configuration.test_creation.primitive_reuse_probability
@@ -1121,194 +1073,24 @@ class TestFactory:
         recursion_depth: int,
         *,
         allow_none: bool,
-        parameter_obj: MLParameter | None = None,
     ) -> vr.VariableReference | None:
         if (
-            reused_variable := self._reuse_variable(
-                test_case, parameter_type, position, parameter_obj
-            )
+            reused_variable := self._reuse_variable(test_case, parameter_type, position)
         ) is not None:
             return reused_variable
-
-        created_variable = None
-
-        if parameter_obj is not None:
-            try:
-                created_variable = self._attempt_generation_by_constraints(
-                    test_case, position, recursion_depth, parameter_obj
-                )
-            except ConstructionFailedException:
-                self._logger.warning(
-                    "Construction via constraints failed. Using default behaviour."
-                )
-
-        if created_variable is None:
-            created_variable = self._attempt_generation(
-                test_case, parameter_type, position, recursion_depth, allow_none=allow_none
+        if (
+            created_variable := self._attempt_generation(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+                allow_none=allow_none,
             )
-
-        if created_variable is not None:
+        ) is not None:
             return created_variable
         return self._get_variable_fallback(
             test_case, parameter_type, position, recursion_depth, allow_none=allow_none
         )
-
-    def _attempt_generation_by_constraints(  # noqa: PLR0914
-        self,
-        test_case: tc.TestCase,
-        position: int,
-        recursion_depth: int,
-        parameter_obj: MLParameter,
-    ) -> vr.VariableReference | None:
-        """Generates ML-specific statements by constraints."""
-        if parameter_obj.valid_enum_values:
-            allowed_list = mlpu.convert_values(parameter_obj.valid_enum_values)
-            value = randomness.choice(allowed_list)
-            parameter_obj.current_data = value
-            statement = stmt.AllowedValuesStatement(test_case, allowed_list, value=value)
-
-            ret = test_case.add_variable_creating_statement(statement, position)
-            ret.distance = recursion_depth
-            return ret
-
-        selected_dtype = mltu.select_dtype(parameter_obj)
-
-        if "None" in selected_dtype:
-            return self._create_none(test_case, position, recursion_depth)
-
-        selected_ndim = mltu.select_ndim(parameter_obj, selected_dtype)
-
-        selected_shape = mltu.generate_shape(parameter_obj, selected_ndim)
-        # A var dependency can change the ndim so pick ndim again based on shape
-        selected_ndim = len(selected_shape)
-
-        if selected_ndim == 0:
-            unsigned = "uint" in selected_dtype
-            try:
-                type_ = mlpu.convert_str_to_type(selected_dtype)
-            except ValueError:
-                raise ConstructionFailedException  # noqa: B904
-            typeinfo = self._test_cluster.type_system.to_type_info(type_)
-            parameter_type = self._test_cluster.type_system.make_instance(typeinfo)
-            var_ref, value = self._create_primitive(
-                test_case,
-                cast("Instance", parameter_type),
-                position,
-                recursion_depth,
-                constant_provider=self._constant_provider,
-                unsigned=unsigned,
-            )
-            parameter_obj.current_data = value
-            return var_ref
-
-        should_be_tuple = False
-        # structure constraint requires dim 1
-        if parameter_obj.structure == "tuple" and selected_ndim == 1:
-            should_be_tuple = True
-        # else it will automatically create a 1D list
-
-        var_ref_ndarray = self._create_ndarray(
-            test_case,
-            position,
-            recursion_depth,
-            parameter_obj,
-            selected_shape,
-            selected_dtype,
-            should_be_tuple=should_be_tuple,
-        )
-
-        if (
-            parameter_obj.structure is not None
-            and selected_ndim == 1  # structure constraint requires dim 1
-        ):
-            # Simply return the 1D list/tuple
-            return var_ref_ndarray
-
-        position += 1
-
-        dtype_statement = stmt.AllowedValuesStatement(
-            test_case, [selected_dtype], value=selected_dtype
-        )
-        var_ref_dtype = test_case.add_variable_creating_statement(dtype_statement, position)
-        var_ref_dtype.distance = recursion_depth
-
-        position += 1
-
-        return self._create_tensor(
-            test_case, var_ref_ndarray, var_ref_dtype, position, recursion_depth
-        )
-
-    @staticmethod
-    def _create_tensor(
-        test_case: tc.TestCase,
-        ndarray: vr.VariableReference,
-        dtype: vr.VariableReference,
-        position: int = -1,
-        recursion_depth: int = 0,
-    ) -> vr.VariableReference:
-        """Creates a tensor statement from an existing ndarray and its dtype.
-
-        This method works in two steps:
-            1. It first creates the NumPy array function statement with the provided
-             ndarray and dtype to create a np.ndarray.
-            2. If a tensor constructor function is available, it then calls this
-             constructor (using a designated parameter name from configuration) to
-             convert the np.ndarray into a tensor. Otherwise, it simply uses the
-             np.ndarray directly.
-        """
-        if position < 0:
-            position = test_case.size()
-
-        parameters: dict[str, vr.VariableReference] = {"object": ndarray, "dtype": dtype}
-
-        nparray_statement = stmt.FunctionStatement(
-            test_case=test_case,
-            generic_callable=ConstraintsManager().nparray_function(),
-            args=parameters,
-            should_mutate=False,
-        )
-        var_ref_nparray = test_case.add_variable_creating_statement(nparray_statement, position)
-        var_ref_nparray.distance = recursion_depth
-
-        if ConstraintsManager().constructor_function() is None:
-            # No constructor function, simply use the np.ndarray as input
-            return var_ref_nparray
-
-        position += 1
-
-        parameter_name = config.configuration.pynguinml.constructor_function_parameter
-        tensor_statement = stmt.FunctionStatement(
-            test_case=test_case,
-            generic_callable=ConstraintsManager().constructor_function(),
-            args={parameter_name: var_ref_nparray},
-            should_mutate=False,
-        )
-
-        var_ref_tensor = test_case.add_variable_creating_statement(tensor_statement, position)
-        var_ref_tensor.distance = recursion_depth
-
-        return var_ref_tensor
-
-    @staticmethod
-    def _create_ndarray(  # noqa: PLR0917
-        test_case: tc.TestCase,
-        position: int,
-        recursion_depth: int,
-        parameter_obj: MLParameter,
-        shape: list[int],
-        dtype: str,
-        *,
-        should_be_tuple: bool,
-    ) -> vr.VariableReference:
-        ndarray, low, high = mltu.generate_ndarray(parameter_obj, shape, dtype)
-        if should_be_tuple:
-            ndarray = tuple(ndarray)
-        ndarray_stmt = stmt.NdArrayStatement(
-            test_case, ndarray, dtype, low, high, should_be_tuple=should_be_tuple
-        )
-        ret = test_case.add_variable_creating_statement(ndarray_stmt, position)
-        ret.distance = recursion_depth
-        return ret
 
     def _attempt_generation(
         self,
@@ -1420,6 +1202,7 @@ class TestFactory:
                 raise RuntimeError(f"Unknown primitive {parameter_type}")
         ret = test_case.add_variable_creating_statement(statement, position)
         ret.distance = recursion_depth
+
         return ret, statement.value
 
     def _create_collection(
@@ -1546,3 +1329,433 @@ class TestFactory:
             if statement.accessible_object() in self._test_cluster.accessible_objects_under_test:
                 return True
         return False
+
+
+class MLTestFactory(TestFactory):
+    """A factory for ML-specific test case generation."""
+
+    def append_statement(
+        self,
+        test_case: tc.TestCase,
+        statement: stmt.Statement,
+        *,
+        position: int = -1,
+        allow_none: bool = True,
+    ) -> None:
+        """Appends a statement to a test case.
+
+        Ignore appending of ML-specific statements.
+
+        Args:
+            test_case: The test case
+            statement: The statement to append
+            position: The position to insert the statement, default is at the end
+                of the test case
+            allow_none: Whether parameter variables can hold None values
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
+        """
+        # For ML-testing, we do not need to append ML-specific statements during crossover
+        if not mltu.is_ml_statement(statement):
+            super().append_statement(test_case, statement, position=position, allow_none=allow_none)
+
+    @staticmethod
+    def delete_statement_gracefully(test_case: tc.TestCase, position: int) -> bool:
+        """Try to delete the statement that is defined at the given index.
+
+        We try to find replacements for the variable that is provided by this statement
+        except for ML-specific statements.
+
+        Args:
+            test_case: The test case
+            position: The position
+
+        Returns:
+            Whether the deletion was successful
+        """
+        variable = test_case.get_statement(position).ret_val
+
+        changed = False
+        if variable is not None:
+            for i in range(position + 1, test_case.size()):
+                typ = (
+                    ANY
+                    if randomness.next_float()
+                    < config.configuration.test_creation.use_random_object_for_call
+                    else variable.type
+                )
+                alternatives = test_case.get_objects(typ, i)
+                with contextlib.suppress(ValueError):
+                    alternatives.remove(variable)
+                statement = test_case.get_statement(i)
+                if (
+                    len(alternatives) > 0
+                    and statement.references(variable)
+                    and not mltu.is_ml_statement(statement)
+                ):
+                    statement.replace(variable, randomness.choice(alternatives))
+                    changed = True
+
+        deleted = TestFactory.delete_statement(test_case, position)
+        return deleted or changed
+
+    def satisfy_parameters(
+        self,
+        test_case: tc.TestCase,
+        signature: InferredSignature,
+        *,
+        position: int = -1,
+        recursion_depth: int = 0,
+        allow_none: bool = True,
+        callable_accessible: gao.GenericCallableAccessibleObject | None = None,
+    ) -> dict[str, vr.VariableReference]:
+        """Satisfy a list of parameters by reusing or creating variables.
+
+        Also loads and forwards the validated ML data.
+
+        Args:
+            test_case: The test case
+            signature: The inferred signature of the method
+            position: The current position in the test case
+            recursion_depth: The recursion depth
+            allow_none: Whether a variable can be a None value
+            callable_accessible: The callable accessible
+
+        Returns:
+            A dict of variable references for the parameters
+
+        Raises:
+            ConstructionFailedException: if construction of an object failed
+        """
+        if position < 0:
+            position = test_case.size()
+
+        parameters: dict[str, vr.VariableReference] = {}
+        self._logger.debug(
+            "Trying to satisfy %d parameters at position %d",
+            len(signature.original_parameters),
+            position,
+        )
+
+        param_types = signature.get_parameter_types({})
+
+        parameter_objs: dict[str, MLParameter | None] = {}
+
+        if (
+            config.configuration.pynguinml.ml_testing_enabled
+            and randomness.next_float()
+            >= config.configuration.pynguinml.ignore_constraints_probability
+            and callable_accessible
+        ):
+            param_types, parameter_objs = self._prepare_parameters_for_ml_testing(
+                callable_accessible, param_types, parameter_objs
+            )
+
+        for parameter_name, parameter_type in param_types.items():
+            self._logger.debug("Current parameter type: %s", parameter_type)
+
+            previous_length = test_case.size()
+
+            if (
+                is_optional_parameter(signature, parameter_name)
+                and randomness.next_float()
+                < config.configuration.test_creation.skip_optional_parameter_probability
+            ):
+                continue
+
+            parameter_obj = parameter_objs.get(parameter_name)
+
+            if parameter_obj is not None and is_arg_or_kwarg(signature, parameter_name):
+                # Skip *args and **kwargs to simplify ML-specific test generation.
+                # "parameter_obj" will be None if ml testing is deactivated.
+                continue
+
+            var = self._create_or_reuse_variable(
+                test_case,
+                parameter_type,
+                position,
+                recursion_depth,
+                allow_none=allow_none,
+                parameter_obj=parameter_obj,
+            )
+
+            if not var:
+                raise ConstructionFailedException(
+                    (f"Failed to create variable for type {parameter_type} at position {position}"),
+                )
+
+            parameters[parameter_name] = var
+            current_length = test_case.size()
+            position += current_length - previous_length
+
+        self._logger.debug("Satisfied %d parameters", len(parameters))
+        return parameters
+
+    def _prepare_parameters_for_ml_testing(
+        self,
+        callable_accessible: gao.GenericCallableAccessibleObject,
+        param_types: dict[str, ProperType],
+        parameter_objs: dict[str, MLParameter | None],
+    ) -> tuple[dict[str, ProperType], dict[str, MLParameter | None]]:
+        """Prepares ML parameter objects for testing with ML constraints.
+
+        This method retrieves ML metadata for the given callable, resets the associated
+        parameter objects, and reorders the parameters if a generation order is specified.
+
+        Args:
+            callable_accessible: The callable for which to retrieve ML data.
+            param_types: A dictionary mapping parameter names to their types.
+            parameter_objs: A dictionary mapping parameter names to MLParameter objects or None.
+
+        Returns:
+            A tuple containing the possibly reordered parameter types and the updated
+            ML parameter objects.
+        """
+        ml_data = self._test_cluster.get_ml_data_for(callable_accessible)
+        generation_order = []
+        if ml_data:
+            mltu.reset_parameter_objects(ml_data.parameters)
+
+            parameter_objs = ml_data.parameters
+            generation_order = ml_data.generation_order
+        if generation_order:
+            param_types = mltu.change_generation_order(generation_order, param_types)
+        return param_types, parameter_objs
+
+    def _reuse_variable(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: ProperType,
+        position: int,
+        parameter_obj: MLParameter | None = None,
+    ) -> vr.VariableReference | None:
+        if parameter_obj is not None and (
+            not isinstance(parameter_type, Instance)
+            or not inspect.isclass(parameter_type.type.raw_type)
+        ):
+            # For ML testing, restrict reuse to classes only,
+            # as reuse logic ignores additional properties beyond type
+            return None
+
+        return super()._reuse_variable(test_case, parameter_type, position)
+
+    def _create_or_reuse_variable(
+        self,
+        test_case: tc.TestCase,
+        parameter_type: ProperType,
+        position: int,
+        recursion_depth: int,
+        *,
+        allow_none: bool,
+        parameter_obj: MLParameter | None = None,
+    ) -> vr.VariableReference | None:
+        if (
+            reused_variable := self._reuse_variable(
+                test_case, parameter_type, position, parameter_obj
+            )
+        ) is not None:
+            return reused_variable
+
+        created_variable = None
+
+        if parameter_obj is not None:
+            try:
+                created_variable = self._attempt_generation_by_constraints(
+                    test_case, position, recursion_depth, parameter_obj
+                )
+            except ConstructionFailedException:
+                self._logger.warning(
+                    "Construction via constraints failed. Using default behaviour."
+                )
+
+        if created_variable is None:
+            created_variable = self._attempt_generation(
+                test_case, parameter_type, position, recursion_depth, allow_none=allow_none
+            )
+
+        if created_variable is not None:
+            return created_variable
+        return self._get_variable_fallback(
+            test_case, parameter_type, position, recursion_depth, allow_none=allow_none
+        )
+
+    def _attempt_generation_by_constraints(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        recursion_depth: int,
+        parameter_obj: MLParameter,
+    ) -> vr.VariableReference | None:
+        """Generates ML-specific statements by constraints."""
+        if parameter_obj.valid_enum_values:
+            return self._create_ml_enum_value(test_case, position, recursion_depth, parameter_obj)
+
+        selected_dtype = mltu.select_dtype(parameter_obj)
+
+        if "None" in selected_dtype:
+            return self._create_none(test_case, position, recursion_depth)
+
+        selected_ndim = mltu.select_ndim(parameter_obj, selected_dtype)
+
+        selected_shape = mltu.generate_shape(parameter_obj, selected_ndim)
+        # A var dependency can change the ndim so pick ndim again based on shape
+        selected_ndim = len(selected_shape)
+
+        if selected_ndim == 0:
+            return self._create_ml_primitive_value(
+                test_case,
+                position,
+                recursion_depth,
+                selected_dtype,
+                parameter_obj,
+            )
+
+        should_be_tuple = False
+        # structure constraint requires dim 1
+        if parameter_obj.structure == "tuple" and selected_ndim == 1:
+            should_be_tuple = True
+        # else it will automatically create a 1D list
+
+        var_ref_ndarray = self._create_ndarray(
+            test_case,
+            position,
+            recursion_depth,
+            parameter_obj,
+            selected_shape,
+            selected_dtype,
+            should_be_tuple=should_be_tuple,
+        )
+
+        if (
+            parameter_obj.structure is not None
+            and selected_ndim == 1  # structure constraint requires dim 1
+        ):
+            # Simply return the 1D list/tuple
+            return var_ref_ndarray
+
+        position += 1
+
+        dtype_statement = stmt.AllowedValuesStatement(
+            test_case, [selected_dtype], value=selected_dtype
+        )
+        var_ref_dtype = test_case.add_variable_creating_statement(dtype_statement, position)
+        var_ref_dtype.distance = recursion_depth
+
+        position += 1
+
+        return self._create_tensor(
+            test_case, var_ref_ndarray, var_ref_dtype, position, recursion_depth
+        )
+
+    def _create_ml_primitive_value(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        recursion_depth: int,
+        selected_dtype: str,
+        parameter_obj: MLParameter,
+    ) -> vr.VariableReference:
+        """Creates a primitive value for ML testing based on the selected dtype."""
+        unsigned = "uint" in selected_dtype
+        try:
+            type_ = mlpu.convert_str_to_type(selected_dtype)
+        except ValueError:
+            raise ConstructionFailedException  # noqa: B904
+
+        typeinfo = self._test_cluster.type_system.to_type_info(type_)
+        parameter_type = self._test_cluster.type_system.make_instance(typeinfo)
+
+        var_ref, value = self._create_primitive(
+            test_case,
+            cast("Instance", parameter_type),
+            position,
+            recursion_depth,
+            constant_provider=self._constant_provider,
+            unsigned=unsigned,
+        )
+        parameter_obj.current_data = value
+        return var_ref
+
+    @staticmethod
+    def _create_ml_enum_value(test_case, position, recursion_depth, parameter_obj):
+        allowed_list = mlpu.convert_values(parameter_obj.valid_enum_values)
+        value = randomness.choice(allowed_list)
+        parameter_obj.current_data = value
+        statement = stmt.AllowedValuesStatement(test_case, allowed_list, value=value)
+        ret = test_case.add_variable_creating_statement(statement, position)
+        ret.distance = recursion_depth
+        return ret
+
+    def _create_tensor(
+        self,
+        test_case: tc.TestCase,
+        ndarray: vr.VariableReference,
+        dtype: vr.VariableReference,
+        position: int = -1,
+        recursion_depth: int = 0,
+    ) -> vr.VariableReference:
+        """Creates a tensor statement from an existing ndarray and its dtype.
+
+        This method works in two steps:
+            1. It first creates the NumPy array function statement with the provided
+             ndarray and dtype to create a np.ndarray.
+            2. If a tensor constructor function is available, it then calls this
+             constructor (using a designated parameter name from configuration) to
+             convert the np.ndarray into a tensor. Otherwise, it simply uses the
+             np.ndarray directly.
+        """
+        if position < 0:
+            position = test_case.size()
+
+        parameters: dict[str, vr.VariableReference] = {"object": ndarray, "dtype": dtype}
+
+        nparray_statement = stmt.FunctionStatement(
+            test_case=test_case,
+            generic_callable=tr.get_nparray_function(self._test_cluster),
+            args=parameters,
+            should_mutate=False,
+        )
+        var_ref_nparray = test_case.add_variable_creating_statement(nparray_statement, position)
+        var_ref_nparray.distance = recursion_depth
+
+        constructor_function = tr.get_constructor_function(self._test_cluster)
+        if constructor_function is None:
+            # No constructor function, simply use the np.ndarray as input
+            return var_ref_nparray
+
+        position += 1
+
+        parameter_name = config.configuration.pynguinml.constructor_function_parameter
+        tensor_statement = stmt.FunctionStatement(
+            test_case=test_case,
+            generic_callable=constructor_function,
+            args={parameter_name: var_ref_nparray},
+            should_mutate=False,
+        )
+
+        var_ref_tensor = test_case.add_variable_creating_statement(tensor_statement, position)
+        var_ref_tensor.distance = recursion_depth
+
+        return var_ref_tensor
+
+    @staticmethod
+    def _create_ndarray(  # noqa: PLR0917
+        test_case: tc.TestCase,
+        position: int,
+        recursion_depth: int,
+        parameter_obj: MLParameter,
+        shape: list[int],
+        dtype: str,
+        *,
+        should_be_tuple: bool,
+    ) -> vr.VariableReference:
+        ndarray, low, high = mltu.generate_ndarray(parameter_obj, shape, dtype)
+        if should_be_tuple:
+            ndarray = tuple(ndarray)
+        ndarray_stmt = stmt.NdArrayStatement(
+            test_case, ndarray, dtype, low, high, should_be_tuple=should_be_tuple
+        )
+        ret = test_case.add_variable_creating_statement(ndarray_stmt, position)
+        ret.distance = recursion_depth
+        return ret
