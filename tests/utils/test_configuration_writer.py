@@ -43,6 +43,7 @@ mutation_order = 1
 post_process = true
 float_precision = 0.01
 format_with_black = true
+remove_unused_references = true
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
@@ -123,8 +124,8 @@ bytes_length = 20
 collection_size = 5
 primitive_reuse_probability = 0.5
 object_reuse_probability = 0.9
-none_weight = 0
-any_weight = 0
+none_weight = 1
+any_weight = 5
 original_type_weight = 5
 type_tracing_weight = 10
 type4py_weight = 10
@@ -135,7 +136,7 @@ skip_optional_parameter_probability = 0.7
 max_attempts = 1000
 insertion_uut = 0.5
 max_size = 100
-use_random_object_for_call = 0.0
+use_random_object_for_call = 0.1
 
 [search_algorithm]
 min_initial_tests = 1
@@ -237,11 +238,11 @@ def expected_txt(tmp_path):
  'test_creation=TestCreationConfiguration(max_recursion=10, max_delta=20, '
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
- 'none_weight=0, any_weight=0, original_type_weight=5, type_tracing_weight=10, '
+ 'none_weight=1, any_weight=5, original_type_weight=5, type_tracing_weight=10, '
  'type4py_weight=10, type_tracing_kept_guesses=2, '
  'wrap_var_param_type_probability=0.7, negate_type=0.1, '
  'skip_optional_parameter_probability=0.7, max_attempts=1000, '
- 'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
+ 'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.1), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=50, chromosome_length=40, '
  'chop_max_length=True, elite=1, crossover_rate=0.75, '
@@ -329,8 +330,8 @@ def expected_parameter_list() -> list[str]:
         "--collection_size 5",
         "--primitive_reuse_probability 0.5",
         "--object_reuse_probability 0.9",
-        "--none_weight 0",
-        "--any_weight 0",
+        "--none_weight 1",
+        "--any_weight 5",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
         "--type4py_weight 10",
@@ -341,7 +342,7 @@ def expected_parameter_list() -> list[str]:
         "--max_attempts 1000",
         "--insertion_uut 0.5",
         "--max_size 100",
-        "--use_random_object_for_call 0.0",
+        "--use_random_object_for_call 0.1",
         "--min_initial_tests 1",
         "--max_initial_tests 10",
         "--population 50",
@@ -391,6 +392,10 @@ def expected_parameter_list() -> list[str]:
 def test_write_configuration(expected_toml, expected_txt, tmp_path):
     config.configuration.statistics_output.statistics_backend = StatisticsBackend.CSV
     config.configuration.statistics_output.report_dir = str(tmp_path)
+    config.configuration.algorithm = config.Algorithm.RANDOM
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 5
+    config.configuration.test_creation.use_random_object_for_call = 0.1
 
     write_configuration()
 
@@ -452,6 +457,9 @@ def test_extract_parameter_list_from_config(expected_parameter_list):
     config.configuration.module_name = "dummy"
     config.configuration.project_path = "/tmp"  # noqa: S108
     config.configuration.seeding.seed = 12345
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 5
+    config.configuration.test_creation.use_random_object_for_call = 0.1
 
     parameter_list = extract_parameter_list_from_config(verbosity=False)
 
