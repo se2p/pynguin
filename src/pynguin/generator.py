@@ -46,6 +46,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import ConstantProvider
@@ -242,6 +243,13 @@ def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider
     return wrapped_provider, dynamic_constant_provider
 
 
+def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
+    # load resources once so they get cached
+    tr.get_datatype_mapping()
+    tr.get_nparray_function(test_cluster)
+    tr.get_constructor_function(test_cluster)
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -284,6 +292,9 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
+
+    if config.configuration.pynguinml.ml_testing_enabled:
+        _setup_ml_testing_environment(test_cluster)
 
     # Detect which LLM strategy is used
     stat.track_output_variable(RuntimeVariable.LLMStrategy, _detect_llm_strategy())
