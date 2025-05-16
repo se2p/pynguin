@@ -109,12 +109,11 @@ class MLParameter:
             if ndim_str == "?":
                 continue
 
+            if ndim_str.startswith("-"):
+                self._logger.warning("Invalid ndim %s: negative values are not allowed.", ndim_str)
+                continue
+
             if ndim_str.isnumeric():
-                if int(ndim_str) < 0:
-                    self._logger.warning(
-                        "Invalid ndim %s: negative values are not allowed.", ndim_str
-                    )
-                    continue
                 valid_ndims.add(ndim_str)
                 continue
 
@@ -356,6 +355,10 @@ class MLParameter:
             self._logger.warning("Invalid range constraint: %s", range_constraint)
             return None
 
+        # epsilon when inclusivity is false
+        float_epsilon = 1e-8
+        int_epsilon = 1
+
         lower_bound_inclusive = range_constraint[0] == "["
         lower_bound_value = self._parse_bound_value(
             range_constraint,
@@ -366,6 +369,10 @@ class MLParameter:
         if lower_bound_value is None:
             return None
 
+        lower_bound_value = self._add_epsilon_for_lower_bound(
+            float_epsilon, int_epsilon, lower_bound_inclusive, lower_bound_value
+        )
+
         upper_bound_inclusive = range_constraint[-1] == "]"
         upper_bound_value = self._parse_bound_value(
             range_constraint,
@@ -375,6 +382,13 @@ class MLParameter:
         )
         if upper_bound_value is None:
             return None
+
+        upper_bound_value = self._add_epsilon_for_upper_bound(
+            float_epsilon, int_epsilon, upper_bound_inclusive, upper_bound_value
+        )
+
+        assert lower_bound_value is not None
+        assert upper_bound_value is not None
 
         if lower_bound_value > upper_bound_value:
             self._logger.warning(
@@ -395,6 +409,28 @@ class MLParameter:
             upper_bound=upper_bound_value,
         )
 
+    @staticmethod
+    def _add_epsilon_for_upper_bound(
+        float_epsilon, int_epsilon, upper_bound_inclusive, upper_bound_value
+    ):
+        if not upper_bound_inclusive:
+            if isinstance(upper_bound_value, int):
+                upper_bound_value -= int_epsilon
+            elif isinstance(upper_bound_value, float):
+                upper_bound_value -= float_epsilon
+        return upper_bound_value
+
+    @staticmethod
+    def _add_epsilon_for_lower_bound(
+        float_epsilon, int_epsilon, lower_bound_inclusive, lower_bound_value
+    ):
+        if not lower_bound_inclusive:
+            if isinstance(lower_bound_value, int):
+                lower_bound_value += int_epsilon
+            elif isinstance(lower_bound_value, float):
+                lower_bound_value += float_epsilon
+        return lower_bound_value
+
     def _parse_bound_value(
         self,
         range_constraint: str,
@@ -407,15 +443,8 @@ class MLParameter:
         if not mlpu.str_is_number(bound_str):
             self._logger.warning("Bound values of range constraint must be int, float or inf.")
             return None
-        bound_value = mlpu.convert_to_num(bound_str)
-        if not inclusive:
-            float_epsilon = 1e-8
-            int_epsilon = 1
-            if isinstance(bound_value, int):
-                bound_value += int_epsilon
-            elif isinstance(bound_value, float):
-                bound_value += float_epsilon
-        return bound_value
+
+        return mlpu.convert_to_num(bound_str)
 
     def _parse_enum(self):
         """Parse 'enum' constraints from self.parameter_constraints."""
