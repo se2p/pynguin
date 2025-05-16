@@ -13,16 +13,10 @@ constraints:
     dtype:
       - "int32"
   y:
-    ndim:
-      - 2
-    shape:
-      - "[3,3]"
-    dtype:
-      - "float32"
+    enum:
+      - "mean"
   z:
     ndim:
-      - 3
-    shape:
-      - "[1,1,1]"
+      - 0
     dtype:
-      - "int64"
+      - "int"

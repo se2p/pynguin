@@ -30,6 +30,7 @@ def test_pynguinml_integration(tmp_path):
             statistics_backend=config.StatisticsBackend.NONE,
         ),
         pynguinml=config.PynguinMLConfiguration(
+            ml_testing_enabled=True,
             constraints_path=str(project_path),
             dtype_mapping_path=str(dtype_mapping_file),
             constructor_function="example._tensor_builder",
