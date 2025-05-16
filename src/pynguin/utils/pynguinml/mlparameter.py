@@ -20,6 +20,18 @@ import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 from pynguin.utils.exceptions import ConstraintValidationError
 
 
+COMMON_NUMPY_DTYPES = [
+    "int32",
+    "int64",
+    "float32",
+    "float64",
+    "complex64",
+    "complex128",
+    "bool",
+    "str",
+]
+
+
 class MLParameter:
     """Parameter class for storing ML specific information."""
 
@@ -29,7 +41,7 @@ class MLParameter:
         self,
         parameter_name: str,
         parameter_constraints: dict,
-        dtype_map: dict[str, str],
+        dtype_map: dict[str, str] | None,
     ):
         """Initialize a Parameter object.
 
@@ -38,7 +50,7 @@ class MLParameter:
         Args:
             parameter_name: the name of the parameter.
             parameter_constraints: a dictionary of constraints.
-            dtype_map: a dictionary of dtypes.
+            dtype_map: a dictionary from library-specific dtypes to NumPy dtypes, or None.
         """
         self.current_data: Any = None
 
@@ -66,7 +78,7 @@ class MLParameter:
         self._parse_tensor_t()
         self._parse_structure()
 
-    def _parse_ndims(self):  # noqa: C901, PLR0915
+    def _parse_ndims(self):
         """Parse and validate 'ndim' constraints from self.parameter_constraints.
 
         This method extracts dimension constraints specified under the 'ndim' key,
@@ -112,83 +124,88 @@ class MLParameter:
                 )
                 continue
 
-            def parse_ndim_after_operator(ndim_string, idx) -> int | None:
-                num = ndim_string[idx + 1 :]
-                try:
-                    num = int(num)
-                except ValueError:
-                    num = None
-
-                if num is not None:
-                    if num < 0:
-                        self._logger.warning(
-                            "Invalid ndim %s: negative values are not allowed.", num
-                        )
-                        return None
-
-                    if num > config.configuration.pynguinml.max_ndim:
-                        self._logger.warning(
-                            "The ndim value %s is greater than configured max ndim value %s.",
-                            num,
-                            config.configuration.pynguinml.max_ndim,
-                        )
-                        return None
-
-                return num
-
-            ge_idx = ndim_str.find(">=")
-            if ge_idx != -1:
-                min_ndim = parse_ndim_after_operator(ndim_str, ge_idx + 1)
-                if min_ndim is not None:
-                    valid_ndims.update(
-                        map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
-                    )
-                continue
-
-            gt_idx = ndim_str.find(">")
-            if gt_idx != -1:
-                tmp = parse_ndim_after_operator(ndim_str, gt_idx)
-                if tmp is not None:
-                    min_ndim = tmp + 1  # '>' means strictly greater than, so add 1.
-                    valid_ndims.update(
-                        map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
-                    )
-                continue
-
-            le_idx = ndim_str.find("<=")
-            if le_idx != -1:
-                max_ndim = parse_ndim_after_operator(ndim_str, le_idx + 1)
-                if max_ndim is not None:
-                    valid_ndims.update(map(str, range(max_ndim + 1)))
-                continue
-
-            lt_idx = ndim_str.find("<")
-            if lt_idx != -1:
-                tmp = parse_ndim_after_operator(ndim_str, lt_idx)
-                if tmp is not None:
-                    max_ndim = tmp - 1  # '<' means strictly less than, so subtract 1.
-                    valid_ndims.update(map(str, range(max_ndim + 1)))
+            if self._handle_inequality(ndim_str, valid_ndims):
                 continue
 
             if "ndim:" in ndim_str:
-                _, ref, is_var = mlpu.parse_var_dependency(ndim_str, "ndim:")
-                if not is_var:
-                    self._logger.warning(
-                        'Expected a variable (with "&") in "ndim:xx", got constant "%s" instead.',
-                        ref,
-                    )
-                    raise ConstraintValidationError
-                self.var_dep.add(ref)
-                valid_ndims.add(ndim_str)
+                self._handle_ndim_var_dependency(ndim_str, valid_ndims)
                 continue
 
-            _, ref, is_var = mlpu.parse_var_dependency(ndim_str)
-            if is_var:
-                self.var_dep.add(ref)
-
-            valid_ndims.add(ndim_str)
+            self._handle_var_dependency(ndim_str, valid_ndims)
 
         self.valid_ndims = list(valid_ndims)
+
+    def _handle_inequality(self, ndim_str, valid_ndims) -> bool:
+        if ">=" in ndim_str:
+            min_ndim = self._parse_ndim_after_operator(ndim_str, ndim_str.find(">=") + 1)
+            if min_ndim is not None:
+                valid_ndims.update(
+                    map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
+                )
+            return True
+
+        if ">" in ndim_str:
+            tmp = self._parse_ndim_after_operator(ndim_str, ndim_str.find(">"))
+            if tmp is not None:
+                min_ndim = tmp + 1
+                valid_ndims.update(
+                    map(str, range(min_ndim, config.configuration.pynguinml.max_ndim + 1))
+                )
+            return True
+
+        if "<=" in ndim_str:
+            max_ndim = self._parse_ndim_after_operator(ndim_str, ndim_str.find("<=") + 1)
+            if max_ndim is not None:
+                valid_ndims.update(map(str, range(max_ndim + 1)))
+            return True
+
+        if "<" in ndim_str:
+            tmp = self._parse_ndim_after_operator(ndim_str, ndim_str.find("<"))
+            if tmp is not None:
+                max_ndim = tmp - 1
+                valid_ndims.update(map(str, range(max_ndim + 1)))
+            return True
+
+        return False
+
+    def _parse_ndim_after_operator(self, ndim_string, idx) -> int | None:
+        num = ndim_string[idx + 1 :]
+        try:
+            num = int(num)
+        except ValueError:
+            num = None
+
+        if num is not None:
+            if num < 0:
+                self._logger.warning("Invalid ndim %s: negative values are not allowed.", num)
+                return None
+
+            if num > config.configuration.pynguinml.max_ndim:
+                self._logger.warning(
+                    "The ndim value %s is greater than configured max ndim value %s.",
+                    num,
+                    config.configuration.pynguinml.max_ndim,
+                )
+                return None
+
+        return num
+
+    def _handle_ndim_var_dependency(self, ndim_str, valid_ndims):
+        _, ref, is_var = mlpu.parse_var_dependency(ndim_str, "ndim:")
+        if not is_var:
+            self._logger.warning(
+                'Expected a variable (with "&") in "ndim:xx", got constant "%s" instead.',
+                ref,
+            )
+            raise ConstraintValidationError
+        self.var_dep.add(ref)
+        valid_ndims.add(ndim_str)
+
+    def _handle_var_dependency(self, ndim_str, valid_ndims):
+        _, ref, is_var = mlpu.parse_var_dependency(ndim_str)
+        if is_var:
+            self.var_dep.add(ref)
+        valid_ndims.add(ndim_str)
 
     def _parse_shape(self):
         """Parse and validate 'shape' constraints from self.parameter_constraints.
@@ -242,18 +259,7 @@ class MLParameter:
         self.var_dep.update(var_dep)
 
     @staticmethod
-    def _process_shape_dependencies(shape_tokens: list[str]) -> list[str]:  # noqa: C901
-        """Process the shape tokens to extract variables dependencies.
-
-        Args:
-            shape_tokens: A str list of shape tokens.
-
-        Returns:
-            list: Any occurring variables dependencies.
-
-        Raises:
-            ConstraintValidationError: If shape constraints are not in the expected format.
-        """
+    def _process_shape_dependencies(shape_tokens: list[str]) -> list[str]:
         var_dep = []
 
         for shape_token in shape_tokens:
@@ -262,7 +268,7 @@ class MLParameter:
                     f"Empty shape constraint token found: {shape_token}."
                 )
 
-            if shape_token.isnumeric():
+            if shape_token.isnumeric() or shape_token[0] == ".":
                 continue
 
             if mlpu.str_is_float(shape_token):
@@ -270,48 +276,40 @@ class MLParameter:
                     f"Shape constraint token cannot be a float number: {shape_token}."
                 )
 
-            if shape_token[0] == ".":  # uncertain number of dimensions
-                continue
-
-            if shape_token[0] == ">" or shape_token[0] == "<":
-                ref, is_var = mlpu.parse_unequal_signs(shape_token)
-            elif shape_token[0] == "&":  # depends on another 0D int var
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token)
-            elif "len:" in shape_token:
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token, "len:")
-                if not is_var:
-                    raise ConstraintValidationError(
-                        f'Expected a variable (with "&") in "len:xx", got constant "{ref}" instead.'
-                    )
-            elif "ndim:" in shape_token:
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token, "ndim:")
-                if not is_var:
-                    raise ConstraintValidationError(
-                        f'Expected a variable (with "&") in "ndim:xx", '
-                        f'got constant "{ref}" instead.'
-                    )
-            elif "max_value:" in shape_token:
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token, "max_value:")
-                if not is_var:
-                    raise ConstraintValidationError(
-                        f'Expected a variable (with "&") in "max_value:xx", '
-                        f'got constant "{ref}" instead.'
-                    )
-            elif "shape:" in shape_token:
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token, "shape:")
-                if not is_var:
-                    raise ConstraintValidationError(
-                        f'Expected a variable (with "&") in "shape:xx", '
-                        f'got constant "{ref}" instead.'
-                    )
-            else:
-                # referring to another constant value e.g. [batch_size,num_labels]
-                _, ref, is_var = mlpu.parse_var_dependency(shape_token)
+            ref, is_var = MLParameter._parse_token_dependency(shape_token)
 
             if ref is not None and is_var:
                 var_dep.append(ref)
 
         return var_dep
+
+    @staticmethod
+    def _parse_token_dependency(shape_token: str) -> tuple[str | None, bool]:
+        if shape_token[0] in "><":
+            return mlpu.parse_unequal_signs(shape_token)
+        if shape_token[0] == "&":
+            _, ref, is_var = mlpu.parse_var_dependency(shape_token)
+            return ref, is_var
+        if "len:" in shape_token:
+            return MLParameter._validate_named_dependency(shape_token, "len:")
+        if "ndim:" in shape_token:
+            return MLParameter._validate_named_dependency(shape_token, "ndim:")
+        if "max_value:" in shape_token:
+            return MLParameter._validate_named_dependency(shape_token, "max_value:")
+        if "shape:" in shape_token:
+            return MLParameter._validate_named_dependency(shape_token, "shape:")
+        # fallback to generic dependency
+        _, ref, is_var = mlpu.parse_var_dependency(shape_token)
+        return ref, is_var
+
+    @staticmethod
+    def _validate_named_dependency(shape_token: str, prefix: str) -> tuple[str, bool]:
+        _, ref, is_var = mlpu.parse_var_dependency(shape_token, prefix)
+        if not is_var:
+            raise ConstraintValidationError(
+                f'Expected a variable (with "&") in "{prefix}xx", got constant "{ref}" instead.'
+            )
+        return ref, is_var
 
     def _parse_range(self):
         """Parse and process 'range' constraints from self.parameter_constraints.
@@ -347,25 +345,9 @@ class MLParameter:
             if range_ is not None:
                 self.valid_ranges.append(range_)
 
-    def _process_range_constraint(  # noqa: C901
+    def _process_range_constraint(
         self, expected_dtype: str | None, range_constraint: str
     ) -> Range | None:
-        """Process a numeric range constraint string and return a Range object.
-
-        This method parses a range constraint expression (e.g. "[0, 10]", "[0, inf)")
-        and extracts its lower and upper bound values, along with their inclusivity.
-        Both bound values must be numeric. For non-inclusive bounds, a small epsilon is
-        applied (1e-8 for floats and 1 for integers) to adjust the bound value so that
-        the range remains non-inclusive.
-
-        Args:
-            expected_dtype (str | None): The expected data type for the range values
-                                         (e.g., "int" or "float").
-            range_constraint (str): The range constraint expression (e.g., "[0, 10]").
-
-        Returns:
-            Range | None: A filled Range object or None if the format is not valid.
-        """
         if (
             range_constraint[0] not in "(["
             or range_constraint[-1] not in "])"
@@ -374,37 +356,25 @@ class MLParameter:
             self._logger.warning("Invalid range constraint: %s", range_constraint)
             return None
 
-        # epsilon to add when inclusivity is false
-        float_epsilon = 1e-8
-        int_epsilon = 1
-
         lower_bound_inclusive = range_constraint[0] == "["
-        # starting from index 1, get the lower bound string
-        lower_bound_str, next_start_idx = mlpu.parse_until(1, range_constraint, ",")
-        if not mlpu.str_is_number(lower_bound_str):
-            self._logger.warning("Bound values of range constraint must be int, float or inf.")
+        lower_bound_value = self._parse_bound_value(
+            range_constraint,
+            1,
+            ",",
+            inclusive=lower_bound_inclusive,
+        )
+        if lower_bound_value is None:
             return None
-        lower_bound_value = mlpu.convert_to_num(lower_bound_str)
-
-        if not lower_bound_inclusive:
-            if isinstance(lower_bound_value, int):
-                lower_bound_value += int_epsilon
-            elif isinstance(lower_bound_value, float):
-                lower_bound_value += float_epsilon
 
         upper_bound_inclusive = range_constraint[-1] == "]"
-        # starting from the next_start_idx, get the upper bound string
-        upper_bound_str, _ = mlpu.parse_until(next_start_idx, range_constraint, ")]")
-        if not mlpu.str_is_number(upper_bound_str):
-            self._logger.warning("Bound values of range constraint must be int, float or inf.")
+        upper_bound_value = self._parse_bound_value(
+            range_constraint,
+            range_constraint.find(",") + 1,
+            ")]",
+            inclusive=upper_bound_inclusive,
+        )
+        if upper_bound_value is None:
             return None
-        upper_bound_value = mlpu.convert_to_num(upper_bound_str)
-
-        if not upper_bound_inclusive:
-            if isinstance(upper_bound_value, int):
-                upper_bound_value -= int_epsilon
-            elif isinstance(upper_bound_value, float):
-                upper_bound_value -= float_epsilon
 
         if lower_bound_value > upper_bound_value:
             self._logger.warning(
@@ -425,58 +395,55 @@ class MLParameter:
             upper_bound=upper_bound_value,
         )
 
+    def _parse_bound_value(
+        self,
+        range_constraint: str,
+        start_idx: int,
+        stop_chars: str,
+        *,
+        inclusive: bool,
+    ) -> float | int | None:
+        bound_str, _ = mlpu.parse_until(start_idx, range_constraint, stop_chars)
+        if not mlpu.str_is_number(bound_str):
+            self._logger.warning("Bound values of range constraint must be int, float or inf.")
+            return None
+        bound_value = mlpu.convert_to_num(bound_str)
+        if not inclusive:
+            float_epsilon = 1e-8
+            int_epsilon = 1
+            if isinstance(bound_value, int):
+                bound_value += int_epsilon
+            elif isinstance(bound_value, float):
+                bound_value += float_epsilon
+        return bound_value
+
     def _parse_enum(self):
         """Parse 'enum' constraints from self.parameter_constraints."""
         if "enum" in self.parameter_constraints:
             self.valid_enum_values = self.parameter_constraints["enum"]
 
-    def _parse_dtype(self, dtype_map: dict[str, str]):  # noqa: C901
-        """Parse 'dtype' constraints from self.parameter_constraints.
-
-        For each constraint:
-          - If a constraint matches a key in dtype_map, its corresponding value is added.
-          - If the constraint is "str" or "string", "str" is added.
-          - Special keywords such as 'int', 'float', 'tensorshape', 'scalar', and 'numeric'
-            are expanded via helper functions to include appropriate data types.
-          - Dtype dependencies specified in the form "dtype:..." are parsed and added,
-            and variable dependencies are registered in self.var_dep.
-
-        Any unrecognized dtypes are logged as warnings. Finally, duplicate entries are
-        removed and the final list is stored in self.valid_dtypes.
-
-        If no dtype can be parsed, it will use the default values, i.e., all the values
-        form the dtype_map.
-
-        Raises:
-            ConstraintValidationError: If the 'dtype' constraint is not in the expected format.
-        """
-        # all library specific values from the datatype mapping where there
-        # exists a corresponding NumPy datatype
-        default_dtypes = list(set(dtype_map.values()))
-
+    def _parse_dtype(self, dtype_map: dict[str, str] | None):
+        default_dtypes = COMMON_NUMPY_DTYPES if dtype_map is None else list(set(dtype_map.values()))
         self.valid_dtypes = default_dtypes
 
-        if "dtype" not in self.parameter_constraints:
+        if "dtype" not in self.parameter_constraints or dtype_map is None:
             return
 
         dtype_constraints = self.parameter_constraints.get("dtype")
-
         if dtype_constraints is None:
             self._logger.warning("A dtype constraint is None. Using the default datatype list.")
             return
 
         if not isinstance(dtype_constraints, list):
             self._logger.warning(
-                "The 'dtype' constraint must be a list. Please check and correct the "
-                "YAML file. Using the default datatype list."
+                "The 'dtype' constraint must be a list. Please check and correct the YAML file. "
+                "Using the default datatype list."
             )
             return
 
         known_dtypes_dict = {
             dtype: dtype_map[dtype] for dtype in dtype_constraints if dtype in dtype_map
         }
-
-        # Get all the NumPy dtypes
         known_dtypes = list(known_dtypes_dict.values())
 
         if any("str" in dtype.lower() for dtype in dtype_constraints):
@@ -488,24 +455,8 @@ class MLParameter:
             - {dtype for dtype in dtype_constraints if "str" in dtype.lower()}
         )
 
-        # If it is just int or float
-        special_dtypes = [dtype for dtype in rest_dtypes if dtype.lower() in {"int", "float"}]
-
-        special_dtypes += [
-            dtype for dtype in rest_dtypes if dtype.lower() in {"tensorshape", "scalar", "numeric"}
-        ]
-
-        dtype_dep_list = [dtype for dtype in rest_dtypes if "dtype:" in dtype]
-        for dtype_dep in dtype_dep_list:
-            _, ref, is_var = mlpu.parse_var_dependency(dtype_dep, "dtype:")
-            if not is_var:
-                self._logger.warning(
-                    'Expected a variable (with "&") in "dtype:xx", got constant %s instead.', ref
-                )
-                raise ConstraintValidationError
-            self.var_dep.add(ref)
-
-            known_dtypes.append(dtype_dep)
+        special_dtypes = self._extract_special_dtypes(rest_dtypes)
+        self._extract_dtype_dependencies(rest_dtypes, known_dtypes)
 
         rest_dtypes = list(set(rest_dtypes) - set(special_dtypes) - set(known_dtypes))
         if rest_dtypes:
@@ -515,27 +466,47 @@ class MLParameter:
             self._logger.warning("All dtypes are unrecognizable. Using the default dtypes.")
             return
 
+        dtype_list = self._expand_special_dtypes(special_dtypes, default_dtypes)
+        dtype_list += known_dtypes
+        self.valid_dtypes = list(set(dtype_list))
+
+    @staticmethod
+    def _extract_special_dtypes(dtype_list):
+        return [
+            dtype
+            for dtype in dtype_list
+            if dtype.lower() in {"int", "float", "tensorshape", "scalar", "numeric"}
+        ]
+
+    def _extract_dtype_dependencies(self, dtype_list, known_dtypes):
+        dtype_dep_list = [dtype for dtype in dtype_list if "dtype:" in dtype]
+        for dtype_dep in dtype_dep_list:
+            _, ref, is_var = mlpu.parse_var_dependency(dtype_dep, "dtype:")
+            if not is_var:
+                self._logger.warning(
+                    'Expected a variable (with "&") in "dtype:xx", got constant %s instead.', ref
+                )
+                raise ConstraintValidationError
+            self.var_dep.add(ref)
+            known_dtypes.append(dtype_dep)
+
+    def _expand_special_dtypes(self, special_dtypes, default_dtypes):
         dtype_list = []
         for dtype in special_dtypes:
-            if dtype.lower() == "int":
-                dtype_list += mlpu.pick_all_integer_types(default_dtypes)
-            elif dtype.lower() == "float":
-                dtype_list += mlpu.pick_all_float_types(default_dtypes)
-            elif dtype.lower() == "tensorshape":
-                dtype_list += mlpu.pick_all_integer_types(default_dtypes, only_unsigned=True)
-                self.valid_ndims = ["1"]
-            elif dtype.lower() == "scalar":
-                dtype_list += mlpu.pick_scalar_types(default_dtypes)
-                # only allow 0D for 'scalar' type
-                self.valid_ndims = ["0"]
-            elif dtype.lower() == "numeric":
-                dtype_list += mlpu.pick_scalar_types(default_dtypes)
-
-        dtype_list += known_dtypes
-        # remove the duplicates
-        dtype_list = list(set(dtype_list))
-
-        self.valid_dtypes = dtype_list
+            match dtype.lower():
+                case "int":
+                    dtype_list += mlpu.pick_all_integer_types(default_dtypes)
+                case "float":
+                    dtype_list += mlpu.pick_all_float_types(default_dtypes)
+                case "tensorshape":
+                    dtype_list += mlpu.pick_all_integer_types(default_dtypes, only_unsigned=True)
+                    self.valid_ndims = ["1"]
+                case "scalar":
+                    dtype_list += mlpu.pick_scalar_types(default_dtypes)
+                    self.valid_ndims = ["0"]
+                case "numeric":
+                    dtype_list += mlpu.pick_scalar_types(default_dtypes)
+        return dtype_list
 
     def _parse_tensor_t(self):
         """Parse 'tensor_t' constraints from self.parameter_constraints."""
