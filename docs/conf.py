@@ -27,7 +27,7 @@ extensions = [
 
 project = "pynguin"
 author = "Pynguin Contributors"
-copyright = f"2019–{datetime.datetime.utcnow().year}, {author}"
+copyright = f"2019–{datetime.datetime.now(datetime.timezone.utc).year}, {author}"
 html_theme = "sphinx_rtd_theme"
 
 _d = {}
