@@ -309,6 +309,10 @@ class TestCaseOutputConfiguration:
     )
     """Strategy to apply for minimizing test cases."""
 
+    test_suite_minimization: bool = True
+    """Apply test suite minimization to remove redundant test cases while preserving
+    fitness."""
+
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""
 

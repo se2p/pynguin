@@ -292,6 +292,12 @@ def backward_minimization_visitor(mock_fitness_function):
 
 
 @pytest.fixture
+def test_suite_minimization_visitor(mock_fitness_function):
+    """Fixture for a TestSuiteMinimizationVisitor."""
+    return pp.TestSuiteMinimizationVisitor(mock_fitness_function)
+
+
+@pytest.fixture
 def create_test_suite():
     """Fixture that returns a function to create a test suite from a test case."""
 
@@ -664,3 +670,144 @@ def test_iterative_minimization_visitor_integration(
 
     # Verify that the expected number of statements is removed
     assert visitor.removed_statements == expected_removed
+
+
+def test_suite_minimization_visitor_init(mock_fitness_function, test_suite_minimization_visitor):
+    """Test that the TestSuiteMinimizationVisitor initializes correctly."""
+    assert test_suite_minimization_visitor._fitness_function == mock_fitness_function
+    assert test_suite_minimization_visitor._removed_test_cases == 0
+    assert test_suite_minimization_visitor.removed_test_cases == 0
+
+
+@pytest.mark.parametrize(
+    "fitness_behavior,expected_results",
+    [
+        # Case 1: Fitness preserved when test cases are removed
+        (
+            lambda _: 1.0,  # Constant coverage
+            {"removed": 1, "size": 1},  # One test case removed, final size is 1
+        ),
+        # Case 2: Fitness reduced when test cases are removed
+        (
+            lambda test_suite: 1.0 if test_suite.size() == 2 else 0.5,
+            {"removed": 0, "size": 2},  # No test cases removed, final size is 2
+        ),
+    ],
+    ids=["fitness_preserved", "fitness_reduced"],
+)
+def test_suite_minimization_visitor_test_case_removal(
+    mock_fitness_function,
+    test_suite_minimization_visitor,
+    fitness_behavior,
+    expected_results,
+    basic_test_case,
+):
+    """Test that the visitor correctly handles test case removal based on fitness changes."""
+    # Create a test suite with two identical test cases
+    test_suite = TestSuiteChromosome()
+    test_case1 = tcc.TestCaseChromosome(test_case=basic_test_case.clone())
+    test_case2 = tcc.TestCaseChromosome(test_case=basic_test_case.clone())
+    test_suite.add_test_case_chromosome(test_case1)
+    test_suite.add_test_case_chromosome(test_case2)
+
+    # Set up the mock fitness function behavior
+    if callable(fitness_behavior):
+        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+    else:
+        mock_fitness_function.compute_coverage.return_value = fitness_behavior
+
+    # Apply the visitor to the test suite
+    test_suite.accept(test_suite_minimization_visitor)
+
+    # Verify the expected results
+    assert test_suite_minimization_visitor.removed_test_cases == expected_results["removed"]
+    assert test_suite.size() == expected_results["size"]
+
+
+def test_test_suite_minimization_visitor_with_single_test_case(
+    mock_fitness_function,
+    test_suite_minimization_visitor,
+    basic_test_case,
+):
+    """Test that the visitor handles test suites with a single test case correctly."""
+    # Create a test suite with a single test case
+    test_suite = TestSuiteChromosome()
+    test_case = tcc.TestCaseChromosome(test_case=basic_test_case.clone())
+    test_suite.add_test_case_chromosome(test_case)
+
+    # Set up the mock fitness function
+    mock_fitness_function.compute_coverage.return_value = 1.0
+
+    # Apply the visitor to the test suite
+    test_suite.accept(test_suite_minimization_visitor)
+
+    # Verify that no test cases were removed (since there's only one)
+    assert test_suite_minimization_visitor.removed_test_cases == 0
+    assert test_suite.size() == 1
+
+
+def _create_test_case_with_calls(base_test_case, function_generic, values):
+    """Helper function to create a test case with function calls.
+
+    Args:
+        base_test_case: The base test case to clone
+        function_generic: The function to call
+        values: The values to pass to the function
+
+    Returns:
+        The created test case
+    """
+    test_case = base_test_case.clone()
+
+    for value in values:
+        int_stmt = stmt.IntPrimitiveStatement(test_case, value)
+        test_case.add_statement(int_stmt)
+        func_stmt = stmt.FunctionStatement(test_case, function_generic, {"a": int_stmt.ret_val})
+        test_case.add_statement(func_stmt)
+
+    return test_case
+
+
+@pytest.mark.parametrize(
+    "coverage_metric,expected_removed",
+    [
+        (config.CoverageMetric.BRANCH, 1),
+        (config.CoverageMetric.LINE, 1),
+    ],
+)
+def test_suite_minimization_visitor_integration(coverage_metric, expected_removed):
+    """Integration test for TestSuiteMinimizationVisitor with different coverage functions."""
+    executor, test_case, first_function_generic = _setup_integration_test(coverage_metric)
+    if coverage_metric == config.CoverageMetric.BRANCH:
+        coverage_function_class = TestSuiteBranchCoverageFunction
+    elif coverage_metric == config.CoverageMetric.LINE:
+        coverage_function_class = TestSuiteLineCoverageFunction
+    else:
+        raise ValueError(f"Unknown coverage metric: {coverage_metric}")
+
+    # Create two test cases that achieve the same coverage
+    test_suite = TestSuiteChromosome()
+
+    # Create test cases with calls to first(-1) and first(0)
+    values = [-1, 0]
+    test_case1 = _create_test_case_with_calls(test_case, first_function_generic, values)
+    test_case2 = _create_test_case_with_calls(test_case, first_function_generic, values)
+
+    # Add both test cases to the test suite
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case1))
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case2))
+
+    # Execute the test cases to ensure they have coverage
+    for test_case_chrom in test_suite.test_case_chromosomes:
+        executor.execute(test_case_chrom.test_case)
+
+    # Create a coverage function and visitor based on the parameter
+    fitness_function = coverage_function_class(executor)
+    visitor = pp.TestSuiteMinimizationVisitor(fitness_function)
+
+    # Apply the visitor to the test suite
+    test_suite.accept(visitor)
+
+    # Verify that the expected number of test cases is removed
+    assert visitor.removed_test_cases == expected_removed
+    assert test_suite.size() == 1  # Only one test case should remain
