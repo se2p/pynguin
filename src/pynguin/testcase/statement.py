@@ -13,6 +13,7 @@ import ast
 import copy
 import logging
 import math
+import typing
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -21,7 +22,13 @@ from typing import Generic
 from typing import TypeVar
 from typing import cast
 
-import numpy as np
+
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -658,12 +665,16 @@ class NdArrayStatement(CollectionStatement):
         self,
         test_case: tc.TestCase,
         elements: list | tuple,
-        np_dtype: np.generic | str,
+        np_dtype: typing.Any,  # np.generic | str
         low: float,
         high: float,
         *,
         should_be_tuple: bool,
     ):
+        if not NUMPY_AVAILABLE:
+            raise ValueError(
+                "NumPy is not available. You can install it with poetry install --with numpy."
+            )
         super().__init__(test_case, ANY, elements)  # type: ignore[arg-type]
         self._np_dtype = np.dtype(np_dtype)
         assert self._np_dtype.kind in "iufcb"

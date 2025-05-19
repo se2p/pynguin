@@ -15,9 +15,21 @@ import re
 from typing import TYPE_CHECKING
 from typing import cast
 
-import numpy as np
-
 import pynguin.configuration as config
+
+
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+if not NUMPY_AVAILABLE:
+    raise ImportError(
+        "NumPy is not available. You can install it with poetry install --with numpy."
+    )
+
 import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 

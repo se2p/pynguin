@@ -32,8 +32,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-import numpy as np
-
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -210,7 +208,8 @@ def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
     randomness.RNG.seed(config.configuration.seeding.seed)
-    np_rng.NP_RNG = np.random.default_rng(config.configuration.seeding.seed)
+    if config.configuration.pynguinml.ml_testing_enabled:
+        np_rng.init_rng(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider | None]:

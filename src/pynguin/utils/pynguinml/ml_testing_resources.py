@@ -18,8 +18,20 @@ from typing import Any
 from typing import cast
 
 import networkx as nx
-import numpy as np
-import yaml  # type: ignore[import-untyped]
+import yaml
+
+
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+if not NUMPY_AVAILABLE:
+    raise ImportError(
+        "NumPy is not available. You can install it with poetry install --with numpy."
+    )
 
 import pynguin.configuration as config
 

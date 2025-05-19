@@ -10,9 +10,18 @@ import re
 
 from functools import cache
 
-import numpy as np
-
 import pynguin.configuration as config
+
+
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+if not NUMPY_AVAILABLE:
+    raise ValueError("NumPy is not available. You can install it with poetry install --with numpy.")
 
 from pynguin.utils.exceptions import ConstraintValidationError
 
@@ -260,12 +269,12 @@ def get_default_range(np_dtype: str) -> tuple[float, float]:
         raise ValueError(f"Invalid NumPy dtype: {np_dtype}") from None
 
     if np.issubdtype(np_dtype_obj, np.floating):
-        info = np.finfo(np_dtype_obj)
-    elif np.issubdtype(np_dtype_obj, np.integer):
-        info = np.iinfo(np_dtype_obj)  # type: ignore[assignment]
-    else:
-        raise ValueError(f"Cannot get range for dtype {np_dtype}")
-    return float(info.min), float(info.max)
+        finfo = np.finfo(np_dtype_obj)
+        return float(finfo.min), float(finfo.max)
+    if np.issubdtype(np_dtype_obj, np.integer):
+        iinfo = np.iinfo(np_dtype_obj)
+        return float(iinfo.min), float(iinfo.max)
+    raise ValueError(f"Cannot get range for dtype {np_dtype}")
 
 
 def pick_all_integer_types(dtype_list: list[str], only_unsigned=False) -> list[str]:  # noqa: FBT002
@@ -365,6 +374,12 @@ def convert_str_to_type(type_str: str) -> type:
     if type_str in python_type_map:
         return python_type_map[type_str]
 
+    if not NUMPY_AVAILABLE:
+        raise ValueError(
+            f"Cannot convert NumPy type '{type_str}' because NumPy is not available. "
+            "You can install it with poetry install --with numpy."
+        )
+
     try:
         np_type = np.dtype(type_str).type
     except TypeError as e:
@@ -389,5 +404,13 @@ def get_shape(array: list) -> list[int]:
 
     Returns:
         list[int]: A list of integers representing the shape of the array.
+
+    Raises:
+        ValueError: If NumPy is not available.
     """
+    if not NUMPY_AVAILABLE:
+        raise ValueError(
+            "NumPy is not available for computing array shape. "
+            "You can install it with poetry install --with numpy."
+        )
     return list(np.shape(array))

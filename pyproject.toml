@@ -59,7 +59,6 @@ typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
 libcst = "^1.7.0"
 setuptools = "^78.1"
-numpy = "^1.26.4"
 toml = "^0.10.2"
 psutil = "^7.0.0"
 
@@ -69,6 +68,7 @@ mypy = "^1.15.0"
 pre-commit = "^4.2.0"
 ruff = "^0.11"
 types-toml = "^0.10.8.20240310"
+types-pyyaml = "^6.0.12.20250516"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
@@ -89,6 +89,12 @@ optional = true
 
 [tool.poetry.group.openai.dependencies]
 openai = "^1.72.0"
+
+[tool.poetry.group.numpy]
+optional = true
+
+[tool.poetry.group.numpy.dependencies]
+numpy = "^1.26.4"
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
