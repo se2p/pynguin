@@ -94,6 +94,12 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* A. Hajdari: **Enhancing Automated Unit Testing for Machine Learning Libraries
+  Based on API Constraints**. Master Thesis. University of Passau, 2025.
+
+  Added API-Documentation parsing and test generation for libraries which require
+  tensor inputs based on the parsed constraints.
+
 * A. Abdelillah: **Exploring LLM Integration into Automated Unit Test Generation**.
   Master Thesis.  University of Passau, 2025.
 
