@@ -129,7 +129,7 @@ Pynguin is developed at the
 [Chair of Software Engineering II](https://www.fim.uni-passau.de/lehrstuhl-fuer-software-engineering-ii/)
 of the [University of Passau](https://www.uni-passau.de).
 
-Maintainer: [Stephan Lukasczyk](https://github.com/stephanlukasczyk)
+Maintainers: [Stephan Lukasczyk](https://github.com/stephanlukasczyk), [Lukas Krodinger](https://github.com/LuKrO2011)
 
 Contributors:
 - [Altin Hajdari](https://github.com/AltinHajdari)
@@ -140,7 +140,6 @@ Contributors:
 - [Gordon Fraser](https://github.com/gofraser)
 - [Abdur-Rahmaan Janhangeer](https://github.com/Abdur-rahmaanJ)
 - [Maximilian Königseder](https://github.com/mak1ng)
-- [Lukas Krodinger](https://github.com/LuKrO2011)
 - [Florian Kroiß](https://github.com/Wooza)
 - [Simon Labrenz](https://github.com/labrenz)
 - [Roman Levin](https://github.com/romanlevin)
