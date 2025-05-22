@@ -236,6 +236,41 @@ def test__load_sut_custom_exception():
         assert gen._load_sut(MagicMock()) is False
 
 
+def test__load_sut_already_imported():
+    """Test that an already imported module gets reloaded."""
+    module_name = "test_module"
+    mock_module = MagicMock()
+
+    with (
+        mock.patch.dict("sys.modules", {module_name: mock_module}),
+        mock.patch("importlib.reload") as reload_mock,
+        mock.patch("importlib.import_module") as import_mock,
+    ):
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name=module_name))
+        tracer = MagicMock()
+
+        assert gen._load_sut(tracer) is True
+        reload_mock.assert_called_once_with(mock_module)
+        import_mock.assert_not_called()
+
+
+def test__load_sut_not_imported():
+    """Test that a not yet imported module gets imported."""
+    module_name = "test_module"
+
+    with (
+        mock.patch.dict("sys.modules", {}),
+        mock.patch("importlib.reload") as reload_mock,
+        mock.patch("importlib.import_module") as import_mock,
+    ):
+        gen.set_configuration(configuration=MagicMock(log_file=None, module_name=module_name))
+        tracer = MagicMock()
+
+        assert gen._load_sut(tracer) is True
+        reload_mock.assert_not_called()
+        import_mock.assert_called_once_with(module_name)
+
+
 def test_integrate_exception_on_import(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":
