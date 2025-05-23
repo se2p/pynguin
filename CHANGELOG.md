@@ -11,6 +11,33 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.41.0
+
+- Fix `subject_properties` aren't registered when running Pynguin on an imported module
+- Update documentation (Codestyle, Code Overview)
+- Add LLM-Agent guidelines
+- Add PynguinML mode: Parsing and test generation for libraries which require tensor
+  inputs based on API constraints
+- Add LLM capabilities: Prompting, parsing, and the LLMOSAAlgorithm
+- Add subprocess execution (cf. GitHub Issue #82): Executing test cases in subprocess
+  adds an overhead but makes Pynguin more crash resistant
+- Refactor TestCaseExecutor and Observer (cf. GitHub Issue #90): Restructuring observers
+  into main-thread and remote variants to support safe subprocess execution, better
+  performance, and introducing batch test execution and improved error handling for
+  unexposed modules and timeouts
+- Refactor Tracer (cf. GitHub Issue #89): Proxy tracer to allow for subprocess
+  instrumentation without costly reinstrumentation
+- Add MaxMemoryStoppingCondition: Graceful termination in case of exceeding a memory
+  threshold
+- Add probabilistic TypeTracing
+- Add minimal LLM mode: Minimal LLM test generator using GPT-4o
+- Improve configuration export
+- Improve crash-resistance for `getmembers`, importing the SUT, SystemExit in the SUT,
+  loggers of the SUT, and crashes in SUT
+- Fix bugs related to UnionTypes, lambda parsing, yield statements, getmembers of SUT,
+  import of SUT, and SystemExit in SUT
+- Improve string distance using left-aligned character distance
+
 ## Pynguin 0.40.0
 
 - Provide a (normalised) area under curve for timeline output variables.
@@ -538,7 +565,7 @@ for the source-code artifacts of each version.
 - Add a random sampling algorithm based on test cases.
 
   The algorithm is available by setting `--algorithm RANDOM_TEST_CASE_SEARCH`.  It
-  randomly picks one test case, adds all available fitness functions to it and adds
+  randomly picks one test case, adds all available fitness functions to it, and adds
   it to the MOSA archive.  If the test case is covering one fitness target it is
   retrieved by the archive.  If it covers an already covered target but is shorter
   than the currently covering test case for that target, it replaces the latter.
