@@ -22,6 +22,60 @@ All contributions to Pynguin should keep these important rules in mind.
 Publications on Pynguin
 -----------------------
 
+* P. Straubinger, M. Kreis, S. Lukasczyk, and G. Fraser.
+  **Mutation Testing via Iterative Large Language Model-Driven Scientific Debugging**.
+  In *IEEE International Conference on Software Testing, Verification and Validation Workshops.*
+  IEEE, 2025.
+  DOI: `10.1109/ICSTW64639.2025.10962485 <https://doi.org/10.1109/ICSTW64639.2025.10962485>`_.
+  `arXiv:2503.08182 <https://arxiv.org/abs/2503.08182>`_.
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+      @inproceedings{DBLP:conf/icst/StraubingerKL025,
+        author       = {Philipp Straubinger and
+                        Marvin Kreis and
+                        Stephan Lukasczyk and
+                        Gordon Fraser},
+        title        = {Mutation Testing via Iterative Large Language Model-Driven Scientific
+                        Debugging},
+        booktitle    = {{IEEE} International Conference on Software Testing, Verification
+                        and Validation, {ICST} 2025 - Workshops, Naples, Italy, March 31 -
+                        April 4, 2025},
+        pages        = {358--367},
+        publisher    = {{IEEE}},
+        year         = {2025},
+        doi          = {10.1109/ICSTW64639.2025.10962485},
+      }
+
+* N. Erni, M. Al-Ameen, C. Birchler, P. Derakhshanfar, S. Lukasczyk, and S. Panichella.
+  **SBFT Tool Competition 2024 - Python Test Case Generation Track**.
+  In *Proceedings of the 17th ACM/IEEE International Workshop on Search-Based and Fuzz Testing.*
+  ACM, 2024.
+  DOI: `10.1145/3643659.3643930 <https://doi.org/10.1145/3643659.3643930>`_.
+  `arXiv:2401.15189 <https://arxiv.org/abs/2401.15189>`_.
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+      @inproceedings{DBLP:conf/sbst/ErniABDLP24,
+        author       = {Nicolas Erni and
+                        Mohammed Al{-}Ameen and
+                        Christian Birchler and
+                        Pouria Derakhshanfar and
+                        Stephan Lukasczyk and
+                        Sebastiano Panichella},
+        title        = {{SBFT} Tool Competition 2024 - Python Test Case Generation Track},
+        booktitle    = {Proceedings of the 17th {ACM/IEEE} International Workshop on Search-Based
+                        and Fuzz Testing, {SBFT} 2024, Lisbon, Portugal, 14 April 2024},
+        pages        = {37--40},
+        publisher    = {{ACM}},
+        year         = {2024},
+        doi          = {10.1145/3643659.3643930},
+      }
+
 * S. Lukasczyk, F. Kroiß, and G. Fraser.
   **An Empirical Study of Automated Unit Test Generation for Python**.
   Empirical Software Engineering **28**, 36 (2023).
