@@ -95,45 +95,59 @@ Theses on Pynguin
 This is an (incomplete) list of theses done on Pynguin.
 
 * A. Hajdari: **Enhancing Automated Unit Testing for Machine Learning Libraries
-  Based on API Constraints**. Master Thesis. University of Passau, 2025.
+  Based on API Constraints**. Master's Thesis. University of Passau, 2025.
 
   Added API-Documentation parsing and test generation for libraries which require
   tensor inputs based on the parsed constraints.
 
 * A. Abdelillah: **Exploring LLM Integration into Automated Unit Test Generation**.
-  Master Thesis.  University of Passau, 2025.
+  Master's Thesis.  University of Passau, 2025.
 
   Integrated LLM querying, including prompting, parsing and the LLMOSAAlgorithm.
+* G. Oberreuter Álvarez: **Effects of the Implementation of a Graph-Based Object Synthesis
+  Heuristic on Pynguin**. Master's Thesis.  University of Passau, 2024.
+
+  Adds a object-synthesis heuristic for the test generation based on generation graphs.
+* L. Berg: **Improving automated unit test generation for machine learning libraries using
+  structured input data**.  Master's Thesis.  University of Namur, 2024.
+
+  Provides an approach to generate more structured input data and to run Pynguin more reliably on
+  native-code libraries.
+* F. Kroiß: **Type Tracing: Using Runtime Information to Improve Automated Unit-test Generation
+  for Python**. Master's Thesis.  University of Passau, 2023.
+
+  Provides an approach to infer and refine missing and existing type information based on the
+  execution of the generated test cases.
 * S. Labrenz: **Using Checked Coverage as Fitness Function for Test Generation in
-  Python**.  Master Thesis.  University of Passau, 2022.
+  Python**.  Master's Thesis.  University of Passau, 2022.
 
   Provides checked coverage both as a fitness function for test generation as well as an
   optimisation criterion for assertion minimisation.
 * M. Königseder: **DeepTyper für Python und der Einfluss von Typvorhersagen auf die
-  automatische Testgenerierung**. Bachelor Thesis.  University of Passau, 2022.
+  automatische Testgenerierung**. Bachelor's Thesis.  University of Passau, 2022.
 
-* M. Reichenberger: **Measuring Oracle Quality in Python**.  Master Thesis.  University
+* M. Reichenberger: **Measuring Oracle Quality in Python**.  Master's Thesis.  University
   of Passau, 2022.
 
   Although this work did not directly contribute to Pynguin, its implementation of
   Checked Coverage was the basis for the thesis of S. Labrenz.
 * F. Straubinger: **Mutation Analysis to Improve the Generation of Assertions for
-  Automatically Generated Python Unit-tests**.  Bachelor Thesis.  University of Passau,
+  Automatically Generated Python Unit-tests**.  Bachelor's Thesis.  University of Passau,
   2021.
 
   Provided the mutation-based assertion generation for improved regression tests.
 * L. Steffens: **Seeding Strategies in Search-Based Unit Test Generation for Python**.
-  Bachelor Thesis.  University of Passau, 2021.
+  Bachelor's Thesis.  University of Passau, 2021.
 
   Provided the dynamic seeding as well as the seeding from existing test cases to
   Pynguin.
-* F. Kroiß: **Automatic Generation of Whole Test Suites in Python**.  Bachelor Thesis.
+* F. Kroiß: **Automatic Generation of Whole Test Suites in Python**.  Bachelor's Thesis.
   University of Passau, 2020.
 
   Provided the whole-suite test generation algorithm as well as large parts of the core
   parts of Pynguin, e.g., instrumentation, test-case representation, and execution.
 * C. Frädrich: **Combining Test Generation and Type Inference for Testing Dynamically
-  Typed Programming Language**.  Master Thesis.  University of Passau, 2019.
+  Typed Programming Language**.  Master's Thesis.  University of Passau, 2019.
 
   Implemented a proof-of-concept using a Randoop-like test-generation algorithm and
   incorporated several ideas for type inference.  Although this work was done before
