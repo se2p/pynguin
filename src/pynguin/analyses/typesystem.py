@@ -1433,7 +1433,7 @@ class TypeSystem:  # noqa: PLR0904
     def wrap_var_param_type(self, typ: ProperType, param_kind) -> ProperType:
         """Wrap parameter types.
 
-        Wrap the parameter type of *args and **kwargs in List[...] or Dict[str, ...],
+        Wrap the parameter type of ``*args`` and ``**kwargs`` in List[...] or Dict[str, ...],
         respectively.
 
         Args:

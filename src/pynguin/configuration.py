@@ -510,7 +510,7 @@ class TestCreationConfiguration:
     is used."""
 
     wrap_var_param_type_probability: float = 0.7
-    """Probability to wrap the type required for a *arg or **kwargs parameter
+    """Probability to wrap the type required for a ``*arg`` or ``**kwargs`` parameter
     in a list or dict, respectively. Expects values in [0,1]"""
 
     negate_type: float = 0.1

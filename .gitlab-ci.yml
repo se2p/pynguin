@@ -108,6 +108,19 @@ sphinx:
     paths:
       - docs/_build
 
+# Deploy the documentation to GitLab Pages
+pages:
+  stage: deploy
+  image: python:3.10-bookworm
+  script:
+    - poetry install
+    - poetry run sphinx-build docs public
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
+
 # check license declarations etc.
 reuse:
   stage: lint
