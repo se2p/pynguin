@@ -130,10 +130,20 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
-    test_cluster = generate_test_cluster(
-        config.configuration.module_name,
-        config.configuration.type_inference.type_inference_strategy,
-    )
+    try:
+        test_cluster = generate_test_cluster(
+            config.configuration.module_name,
+            config.configuration.type_inference.type_inference_strategy,
+        )
+    except ModuleNotFoundError as ex:
+        _LOGGER.exception(
+            """Module %s could not be found. This is likely due to a missing dependency.
+            It may also be caused by a bug in the SUT, especially if it uses C-modules.
+            """,
+            ex.name,
+        )
+        return None
+
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
