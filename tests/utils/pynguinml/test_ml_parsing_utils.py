@@ -23,12 +23,13 @@ def mock_config(monkeypatch):
     return set_mock
 
 
-def test_ndim_values(monkeypatch, result):
+def test_ndim_values(monkeypatch):
+    mlpu.ndim_values.cache_clear()
     monkeypatch.setattr(mlpu.config.configuration.pynguinml, "max_ndim", 3)
 
-    result = mlpu.ndim_values()
+    actual = mlpu.ndim_values()
 
-    assert result == [0, 1, 2, 3]
+    assert actual == [0, 1, 2, 3]
 
 
 def test_str_is_number():
