@@ -822,3 +822,10 @@ configuration = Configuration(
     module_name="",
     test_case_output=TestCaseOutputConfiguration(output_path=""),
 )
+
+
+@dataclasses.dataclass
+class LocalSearchConfiguration:
+
+    local_search_probability: float = 0.02
+    """Probability of starting local search on the specific candidate"""

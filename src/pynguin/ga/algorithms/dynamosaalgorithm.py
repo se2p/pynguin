@@ -19,9 +19,12 @@ from networkx.drawing.nx_pydot import to_pydot
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
 import pynguin.utils.statistics.stats as stat
+from pynguin.ga import testcasechromosome
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
+from pynguin.testcase.localsearch import TestCaseLocalSearch
+from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -69,6 +72,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while self.resources_left() and len(self._archive.uncovered_goals) > 0:
             self.evolve()
+            self.local_search()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
         self.after_search_finish()
@@ -125,6 +129,24 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             self._population.extend(front[k] for k in range(remain))
 
         self._goals_manager.update(self._population)
+
+    def local_search(self) -> None:
+        """Runs local search."""
+        global_search_coverage = self.create_test_suite(self._archive.solutions).get_coverage()
+        self._logger.debug("Starting local search")
+
+        for chromosome in self._population:  #TODO Population?
+            if not self.resources_left():
+                break
+            #TODO LOCAL SEARCH BUDGET?
+
+            if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability:
+                test_case_local_search = TestCaseLocalSearch()
+                test_case_local_search.local_search(chromosome)
+
+        self._logger.debug("Local search complete, increased coverage from %f to %f", global_search_coverage,
+                           self.create_test_suite(self._archive.solutions).get_coverage())
+
 
 
 class _GoalsManager:
@@ -261,7 +283,7 @@ class _BranchFitnessGraph:
 
         Args:
             search_in: The list to search in
-            goal: The goal to search for
+            goal: The goal to search for<<
 
         Returns:
             The found fitness function.
