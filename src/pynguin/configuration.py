@@ -829,3 +829,6 @@ class LocalSearchConfiguration:
 
     local_search_probability: float = 0.02
     """Probability of starting local search on the specific candidate"""
+
+    local_search_time: int = 20000
+    """The Budget which each local search iteration has in ms."""

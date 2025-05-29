@@ -23,7 +23,7 @@ from pynguin.ga import testcasechromosome
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
-from pynguin.testcase.localsearch import TestCaseLocalSearch
+from pynguin.testcase.localsearch import TestCaseLocalSearch, LocalSearchTimer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -134,11 +134,14 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         """Runs local search."""
         global_search_coverage = self.create_test_suite(self._archive.solutions).get_coverage()
         self._logger.debug("Starting local search")
+        LocalSearchTimer.__new__(LocalSearchTimer).start_local_search()
+
 
         for chromosome in self._population:  #TODO Population?
             if not self.resources_left():
                 break
-            #TODO LOCAL SEARCH BUDGET?
+            if LocalSearchTimer.__new__(LocalSearchTimer).limit_reached():
+                break
 
             if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability:
                 test_case_local_search = TestCaseLocalSearch()
