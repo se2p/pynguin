@@ -540,7 +540,11 @@ def _run() -> ReturnCode:
     executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
-    _remove_statements_after_exceptions(generation_result, algorithm)
+    try:
+        _LOGGER.info("Minimizing test cases")
+        _minimize(generation_result, algorithm)
+    except Exception as ex:
+        _LOGGER.exception("Minimization failed: %s", ex)
     _generate_assertions(executor, generation_result, test_cluster)
     tracked_metrics = _track_final_metrics(
         algorithm, executor, generation_result, constant_provider
@@ -625,7 +629,7 @@ def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool
     return is_same
 
 
-def _remove_statements_after_exceptions(generation_result, algorithm=None):
+def _minimize(generation_result, algorithm=None):
     truncation = pp.ExceptionTruncation()
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:

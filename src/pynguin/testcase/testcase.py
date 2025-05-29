@@ -138,6 +138,9 @@ class TestCase(ABC):  # noqa: PLR0904
 
         Returns:
             A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the position is out of bounds for this test case
         """
 
     @abstractmethod
@@ -149,6 +152,9 @@ class TestCase(ABC):  # noqa: PLR0904
 
         Returns:
             A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the statement is not contained in the test case
         """
 
     @abstractmethod
@@ -160,6 +166,9 @@ class TestCase(ABC):  # noqa: PLR0904
 
         Returns:
             A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the position is out of bounds for this test case
         """
 
     @abstractmethod
@@ -171,6 +180,9 @@ class TestCase(ABC):  # noqa: PLR0904
 
         Returns:
             A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the statement is not contained in the test case
         """
 
     @abstractmethod

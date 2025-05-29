@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import abc
 import logging
 
 from abc import ABC
@@ -186,8 +187,13 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         """
         return self._removed_statements
 
-    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
-        raise NotImplementedError("Subclasses must implement this method")
+    @abc.abstractmethod
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:
+        """Visits a test case and tries to minimize it.
+
+        Args:
+            test_case: The test case to minimize
+        """
 
 
 class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
@@ -201,6 +207,8 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
     3. Execute the clone and calculate its fitness
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
+
+    _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
@@ -259,6 +267,8 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
     3. Execute the clone and calculate its fitness
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
+
+    _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)

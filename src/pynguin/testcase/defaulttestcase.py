@@ -75,13 +75,15 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
 
     def remove_with_forward_dependencies(self, position: int) -> list[int]:  # noqa: D102
         if position >= self.size():
-            return []  # TODO: raise an exception?
+            raise ValueError(
+                f"Position {position} is out of bounds for test case of size {self.size()}."
+            )
         statement = self.get_statement(position)
         return self.remove_statement_with_forward_dependencies(statement)
 
     def remove_statement_with_forward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
         if not self.contains(statement):
-            return []
+            raise ValueError(f"Statement {statement} not found in test case.")
         ret_val = statement.ret_val
         forward_dependencies = []
         if ret_val is not None:
@@ -93,13 +95,15 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
 
     def remove_with_backward_dependencies(self, position: int) -> list[int]:  # noqa: D102
         if position >= self.size():
-            return []
+            raise ValueError(
+                f"Position {position} is out of bounds for test case of size {self.size()}."
+            )
         statement = self.get_statement(position)
         return self.remove_statement_with_backward_dependencies(statement)
 
     def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
         if not self.contains(statement):
-            return []
+            raise ValueError(f"Statement {statement} not found in test case.")
         ret_val = statement.ret_val
         backward_dependencies = []
         if ret_val is not None:
