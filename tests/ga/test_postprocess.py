@@ -280,9 +280,15 @@ def mock_fitness_function():
 
 
 @pytest.fixture
-def minimization_visitor(mock_fitness_function):
-    """Fixture for an IterativeMinimizationVisitor with a mock fitness function."""
-    return pp.IterativeMinimizationVisitor(mock_fitness_function)
+def forward_minimization_visitor(mock_fitness_function):
+    """Fixture for a ForwardIterativeMinimizationVisitor with a mock fitness function."""
+    return pp.ForwardIterativeMinimizationVisitor(mock_fitness_function)
+
+
+@pytest.fixture
+def backward_minimization_visitor(mock_fitness_function):
+    """Fixture for a BackwardIterativeMinimizationVisitor with a mock fitness function."""
+    return pp.BackwardIterativeMinimizationVisitor(mock_fitness_function)
 
 
 @pytest.fixture
@@ -298,13 +304,30 @@ def create_test_suite():
     return _create_test_suite
 
 
-def test_iterative_minimization_visitor_init(mock_fitness_function, minimization_visitor):
-    """Test that the IterativeMinimizationVisitor initializes correctly."""
-    assert minimization_visitor._fitness_function == mock_fitness_function
-    assert minimization_visitor._removed_statements == 0
-    assert minimization_visitor.removed_statements == 0
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_init(mock_fitness_function, request, visitor_fixture):
+    """Test that the iterative minimization visitors initialize correctly."""
+    visitor = request.getfixturevalue(visitor_fixture)
+    assert visitor._fitness_function == mock_fitness_function
+    assert visitor._removed_statements == 0
+    assert visitor.removed_statements == 0
 
 
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
 @pytest.mark.parametrize(
     "fitness_behavior,expected_removed,expected_size",
     [
@@ -326,7 +349,8 @@ def test_iterative_minimization_visitor_init(mock_fitness_function, minimization
 def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
     tc_with_statements,
     mock_fitness_function,
-    minimization_visitor,
+    request,
+    visitor_fixture,
     fitness_behavior,
     expected_removed,
     expected_size,
@@ -340,26 +364,40 @@ def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
     else:
         mock_fitness_function.compute_coverage.return_value = fitness_behavior
 
+    # Get the visitor from the fixture
+    visitor = request.getfixturevalue(visitor_fixture)
+
     # Apply the visitor to the test case
-    test_case.accept(minimization_visitor)
+    test_case.accept(visitor)
 
     # Verify the expected results
-    assert minimization_visitor.removed_statements == expected_removed
+    assert visitor.removed_statements == expected_removed
     assert test_case.size() == expected_size
 
 
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
 def test_iterative_minimization_visitor_with_empty_test_case(
-    basic_test_case, mock_fitness_function, minimization_visitor
+    basic_test_case, mock_fitness_function, request, visitor_fixture
 ):
     """Test that the visitor handles empty test cases correctly."""
     # Set up the mock fitness function
     mock_fitness_function.compute_coverage.return_value = 0.0
 
+    # Get the visitor from the fixture
+    visitor = request.getfixturevalue(visitor_fixture)
+
     # Apply the visitor to the empty test case
-    basic_test_case.accept(minimization_visitor)
+    basic_test_case.accept(visitor)
 
     # Verify that no statements were removed (since there were none to begin with)
-    assert minimization_visitor.removed_statements == 0
+    assert visitor.removed_statements == 0
     assert basic_test_case.size() == 0
 
 
@@ -385,8 +423,16 @@ def tc_with_dependencies(basic_test_cluster, basic_test_case):
     return basic_test_case, int_stmt, list_stmt, str_stmt
 
 
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
 def test_iterative_minimization_visitor_with_dependencies(
-    tc_with_dependencies, mock_fitness_function
+    tc_with_dependencies, mock_fitness_function, visitor_class
 ):
     """Test that the visitor correctly handles dependencies between statements."""
     test_case, _, _, _ = tc_with_dependencies
@@ -408,7 +454,7 @@ def test_iterative_minimization_visitor_with_dependencies(
     mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(mock_fitness_function)
+    visitor = visitor_class(mock_fitness_function)
     test_case.accept(visitor)
 
     # Verify that only the string statement was removed
@@ -465,8 +511,16 @@ def tc_with_complex_dependencies(basic_test_cluster):
     return test_case
 
 
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
 def test_iterative_minimization_visitor_dependencies_preserved(
-    tc_with_complex_dependencies, mock_fitness_function
+    tc_with_complex_dependencies, mock_fitness_function, visitor_class
 ):
     """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
     test_case = tc_with_complex_dependencies
@@ -495,7 +549,7 @@ def test_iterative_minimization_visitor_dependencies_preserved(
     mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = pp.IterativeMinimizationVisitor(mock_fitness_function)
+    visitor = visitor_class(mock_fitness_function)
     original_size = test_case.size()
     test_case.accept(visitor)
 
@@ -563,14 +617,24 @@ def _setup_integration_test(coverage_metric):
 
 
 @pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
+@pytest.mark.parametrize(
     "coverage_metric,expected_removed",
     [
         (config.CoverageMetric.BRANCH, 2),
         (config.CoverageMetric.LINE, 2),
     ],
 )
-def test_iterative_minimization_visitor_integration(coverage_metric, expected_removed):
-    """Integration test for IterativeMinimizationVisitor with different coverage functions."""
+def test_iterative_minimization_visitor_integration(
+    coverage_metric, expected_removed, visitor_class
+):
+    """Integration test for iterative minimization visitors with different coverage metrics."""
     executor, test_case, first_function_generic = _setup_integration_test(coverage_metric)
     if coverage_metric == config.CoverageMetric.BRANCH:
         coverage_function_class = TestSuiteBranchCoverageFunction
@@ -591,9 +655,9 @@ def test_iterative_minimization_visitor_integration(coverage_metric, expected_re
     # Execute the test case to ensure it has coverage
     executor.execute(test_case)
 
-    # Create a coverage function and visitor based on the parameter
+    # Create a coverage function and visitor based on the parameters
     fitness_function = coverage_function_class(executor)
-    visitor = pp.IterativeMinimizationVisitor(fitness_function)
+    visitor = visitor_class(fitness_function)
 
     # Apply the visitor to the test case
     test_case.accept(visitor)

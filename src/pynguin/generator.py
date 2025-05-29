@@ -630,7 +630,9 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
         unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
-        if config.configuration.test_case_output.iterative_minimization and algorithm is not None:
+        minimization_strategy = config.configuration.test_case_output.minimization
+
+        if minimization_strategy != config.MinimizationStrategy.NONE and algorithm is not None:
             fitness_function = _get_coverage_ff_from_algorithm(
                 algorithm, ff.TestSuiteBranchCoverageFunction
             )
@@ -639,7 +641,13 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
             # Save a copy of the original test suite before minimization
             original_test_suite = generation_result.clone()
 
-            iterative_minimizer = pp.IterativeMinimizationVisitor(fitness_function)
+            # Select the appropriate minimization visitor based on the strategy
+            if minimization_strategy == config.MinimizationStrategy.FORWARD:
+                iterative_minimizer: pp.IterativeMinimizationVisitor = (
+                    pp.ForwardIterativeMinimizationVisitor(fitness_function)
+                )
+            else:
+                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_function)
 
             # Apply both minimization strategies
             test_case_minimizer = pp.TestCasePostProcessor([
@@ -649,8 +657,9 @@ def _remove_statements_after_exceptions(generation_result, algorithm=None):
             generation_result.accept(test_case_minimizer)
 
             _LOGGER.info(
-                "Removed %d statement(s) from test cases",
+                "Removed %d statement(s) from test cases using %s minimization",
                 iterative_minimizer.removed_statements,
+                minimization_strategy.value,
             )
             minimized_coverage = generation_result.get_coverage_for(fitness_function)
             is_same = _check_coverage(original_coverage, minimized_coverage)

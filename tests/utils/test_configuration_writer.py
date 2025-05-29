@@ -41,7 +41,7 @@ allow_stale_assertions = false
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
 post_process = true
-iterative_minimization = true
+minimization = "BACKWARD"
 float_precision = 0.01
 format_with_black = true
 
@@ -184,8 +184,9 @@ def expected_txt(tmp_path):
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
- 'iterative_minimization=True, float_precision=0.01, format_with_black=True), '
- "algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
+ "minimization=<MinimizationStrategy.BACKWARD: 'BACKWARD'>, "
+ 'float_precision=0.01, format_with_black=True), algorithm=<Algorithm.RANDOM: '
+ "'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "
  'timeline_interval=1000000000, timeline_interpolation=True, '
@@ -260,7 +261,7 @@ def expected_parameter_list() -> list[str]:
         "--mutation_strategy FIRST_ORDER_MUTANTS",
         "--mutation_order 1",
         "--post_process True",
-        "--iterative_minimization True",
+        "--minimization BACKWARD",
         "--float_precision 0.01",
         "--format_with_black True",
         "--algorithm RANDOM",  # as defined in tests/conftest.py

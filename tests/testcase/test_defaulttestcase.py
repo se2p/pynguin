@@ -315,7 +315,7 @@ def test_get_size_with_assertions(default_test_case_with_assertions):
     assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions
 
 
-def setup_forward_dependency_test_case(default_test_case, function_mock=None, scenario="empty"):
+def setup_dependency_testcase(default_test_case, function_mock=None, scenario="empty"):
     """Helper function to set up test cases for forward dependency tests.
 
     Args:
@@ -391,7 +391,7 @@ def test_get_forward_dependencies(
 ):
     """Test get_forward_dependencies with various dependency scenarios."""
     # Set up the test case according to the scenario
-    variables, expected_deps_dict = setup_forward_dependency_test_case(
+    variables, expected_deps_dict = setup_dependency_testcase(
         default_test_case, function_mock, scenario
     )
 
@@ -441,12 +441,20 @@ def tc_with_three_statements(default_test_case):
     return default_test_case, int_stmt, float_stmt, str_stmt
 
 
-def test_remove_safely(tc_with_three_statements):
-    """Test the remove_safely method."""
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "remove_with_forward_dependencies",
+        "remove_with_backward_dependencies",
+    ],
+)
+def test_remove_with_dependencies(tc_with_three_statements, method_name):
+    """Test the remove_with_dependencies methods."""
     test_case, int_stmt, _, str_stmt = tc_with_three_statements
 
-    # Remove the float statement at position 1
-    positions_removed = test_case.remove_safely(1)
+    # Remove the float statement at position 1 using the specified method
+    method = getattr(test_case, method_name)
+    positions_removed = method(1)
 
     # Verify the positions removed
     assert positions_removed == [1]
@@ -457,16 +465,16 @@ def test_remove_safely(tc_with_three_statements):
     assert test_case.statements[1] == str_stmt
 
 
-def test_remove_safely_with_dependencies(default_test_case, function_mock):
+def test_remove_with_forward_dependencies_with_dependencies(default_test_case, function_mock):
     """Test the remove_safely method with forward dependencies."""
     # Set up a test case with dependencies
-    setup_forward_dependency_test_case(default_test_case, function_mock, "indirect")
+    setup_dependency_testcase(default_test_case, function_mock, "indirect")
 
     # Initial size should be 3 (int0, func0, func1)
     assert default_test_case.size() == 3
 
     # Remove the int0 statement at position 0, which should also remove func0 and func1
-    positions_removed = default_test_case.remove_safely(0)
+    positions_removed = default_test_case.remove_with_forward_dependencies(0)
 
     # Verify the positions removed (in reverse order)
     assert sorted(positions_removed, reverse=True) == [2, 1, 0]
@@ -475,12 +483,20 @@ def test_remove_safely_with_dependencies(default_test_case, function_mock):
     assert default_test_case.size() == 0
 
 
-def test_remove_statement_safely(tc_with_three_statements):
-    """Test the remove_statement_safely method."""
+@pytest.mark.parametrize(
+    "method_name",
+    [
+        "remove_statement_with_forward_dependencies",
+        "remove_statement_with_backward_dependencies",
+    ],
+)
+def test_remove_statement_with_dependencies(tc_with_three_statements, method_name):
+    """Test the remove_statement_with_dependencies methods."""
     test_case, int_stmt, float_stmt, str_stmt = tc_with_three_statements
 
-    # Remove the float statement
-    positions_removed = test_case.remove_statement_safely(float_stmt)
+    # Remove the float statement using the specified method
+    method = getattr(test_case, method_name)
+    positions_removed = method(float_stmt)
 
     # Verify the positions removed
     assert positions_removed == [1]
@@ -491,19 +507,29 @@ def test_remove_statement_safely(tc_with_three_statements):
     assert test_case.statements[1] == str_stmt
 
 
-def test_remove_statement_safely_with_dependencies(default_test_case, function_mock):
-    """Test the remove_statement_safely method with forward dependencies."""
+@pytest.mark.parametrize(
+    "method_name,stmt_position",
+    [
+        ("remove_statement_with_forward_dependencies", 0),  # Remove int0 for forward
+        ("remove_statement_with_backward_dependencies", 2),  # Remove func1 for backward
+    ],
+)
+def test_remove_statement_with_dependencies_with_dependencies(
+    default_test_case, function_mock, method_name, stmt_position
+):
+    """Test the remove_statement_with_dependencies methods with dependencies."""
     # Set up a test case with dependencies
-    setup_forward_dependency_test_case(default_test_case, function_mock, "indirect")
-
-    # Get the int0 statement
-    int0_stmt = default_test_case.get_statement(0)
+    setup_dependency_testcase(default_test_case, function_mock, "indirect")
 
     # Initial size should be 3 (int0, func0, func1)
     assert default_test_case.size() == 3
 
-    # Remove the int0 statement, which should also remove func0 and func1
-    positions_removed = default_test_case.remove_statement_safely(int0_stmt)
+    # Get the statement to remove based on the direction
+    stmt = default_test_case.get_statement(stmt_position)
+
+    # Remove the statement using the specified method
+    method = getattr(default_test_case, method_name)
+    positions_removed = method(stmt)
 
     # Verify the positions removed (in reverse order)
     assert sorted(positions_removed, reverse=True) == [2, 1, 0]

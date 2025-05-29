@@ -126,6 +126,23 @@ class MutationStrategy(str, enum.Enum):
     IEEE Transactions on SE 39.4 2013)"""
 
 
+class MinimizationStrategy(str, enum.Enum):
+    """Different strategies for minimizing test cases.
+
+    These strategies allow to minimize test cases by removing redundant statements
+    while preserving fitness.
+    """
+
+    FORWARD = "FORWARD"
+    """Apply forward minimization, which removes statements from the beginning to the end."""
+
+    BACKWARD = "BACKWARD"
+    """Apply backward minimization, which removes statements from the end to the beginning."""
+
+    NONE = "NONE"
+    """Do not apply any minimization."""
+
+
 class TypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
 
@@ -266,8 +283,8 @@ class TestCaseOutputConfiguration:
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""
 
-    iterative_minimization: bool = True
-    """Apply iterative minimization to test cases to remove redundant statements
+    minimization: MinimizationStrategy = MinimizationStrategy.BACKWARD
+    """Strategy to apply for minimizing test cases to remove redundant statements
     while preserving fitness."""
 
     float_precision: float = 0.01

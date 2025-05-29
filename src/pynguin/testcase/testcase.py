@@ -130,7 +130,7 @@ class TestCase(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def remove_safely(self, position: int) -> list[int]:
+    def remove_with_forward_dependencies(self, position: int) -> list[int]:
         """Removes a statement at the given position along with all its forward dependencies.
 
         Args:
@@ -141,8 +141,30 @@ class TestCase(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def remove_statement_safely(self, statement: stmt.Statement) -> list[int]:
+    def remove_statement_with_forward_dependencies(self, statement: stmt.Statement) -> list[int]:
         """Removes the given statement along with all its forward dependencies.
+
+        Args:
+            statement: The statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+        """
+
+    @abstractmethod
+    def remove_with_backward_dependencies(self, position: int) -> list[int]:
+        """Removes a statement at the given position along with all its backward dependencies.
+
+        Args:
+            position: The position of the statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+        """
+
+    @abstractmethod
+    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:
+        """Removes the given statement along with all its backward dependencies.
 
         Args:
             statement: The statement to remove
@@ -331,7 +353,7 @@ class TestCase(ABC):  # noqa: PLR0904
 
     @staticmethod
     def positions_to_remove(
-        statement: stmt.Statement, forward_dependencies: list[vr.VariableReference]
+        statement: stmt.Statement, dependencies: list[vr.VariableReference]
     ) -> list[int]:
         """Get the positions to remove and its forward dependencies in reverse order.
 
@@ -339,13 +361,11 @@ class TestCase(ABC):  # noqa: PLR0904
 
         Args:
             statement: The statement to remove
-            forward_dependencies: The forward dependencies of the statement
+            dependencies: The forward dependencies of the statement
 
         Returns:
-            A list of positions to remove in reverse order
+            A list of positions to remove
         """
-        return sorted(
-            [dep.get_statement_position() for dep in forward_dependencies]
-            + [statement.get_position()],
-            reverse=True,
-        )
+        positions = {dep.get_statement_position() for dep in dependencies}
+        positions.add(statement.get_position())
+        return sorted(positions, reverse=True)

@@ -165,7 +165,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
     For each statement in the test case:
     1. Create a clone of the test case
-    2. Remove the statement from the clone and all forward dependent statements
+    2. Remove the statement from the clone and all dependent statements
     3. Execute the clone and calculate its fitness
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
@@ -185,6 +185,22 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
             The number of removed statements
         """
         return self._removed_statements
+
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        raise NotImplementedError("Subclasses must implement this method")
+
+
+class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    Iterates front to back (forward) and uses forward dependencies when removing statements.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all forward dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
@@ -207,13 +223,13 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
                 test_clone = test_case.clone()
                 clone_stmt = test_clone.get_statement(stmt.get_position())
-                test_clone.remove_statement_safely(clone_stmt)
+                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
                 minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
                 minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
                 if original_coverage - minimized_coverage < EPSILON:
-                    removed = test_case.remove_statement_safely(stmt)
+                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case
@@ -227,7 +243,54 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 break
 
         self._logger.debug(
-            "Removed %s statement(s) from test case using iterative minimization",
+            "Removed %s statement(s) from test case using forward iterative minimization",
+            original_size - test_case.size(),
+        )
+
+
+class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    Iterates back to front (backward) and uses backward dependencies when removing statements.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all backward dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
+
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
+        original_test_suite = tsc.TestSuiteChromosome()
+        original_test_suite.add_test_case_chromosome(original_test_case)
+        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+
+        original_size = test_case.size()
+        statements_changed = True
+
+        while statements_changed and test_case.size() > 0:
+            statements_changed = False
+
+            i = test_case.size() - 1
+            while 0 <= i < test_case.size():
+                stmt = test_case.get_statement(i)
+                test_clone = test_case.clone()
+                clone_stmt = test_clone.get_statement(i)
+                test_clone.remove_statement_with_backward_dependencies(clone_stmt)
+                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
+                minimized_test_suite = tsc.TestSuiteChromosome()
+                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
+                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
+                if original_coverage - minimized_coverage < EPSILON:
+                    removed = test_case.remove_statement_with_backward_dependencies(stmt)
+                    self._removed_statements += len(removed)
+                    statements_changed = True
+                    break
+                i -= 1
+
+        self._logger.debug(
+            "Removed %s statement(s) from test case using backward iterative minimization",
             original_size - test_case.size(),
         )
 

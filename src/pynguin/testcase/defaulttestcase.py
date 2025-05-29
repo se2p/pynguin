@@ -73,13 +73,13 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
     def remove_statement(self, statement: stmt.Statement) -> None:  # noqa: D102
         self._statements.remove(statement)
 
-    def remove_safely(self, position: int) -> list[int]:  # noqa: D102
+    def remove_with_forward_dependencies(self, position: int) -> list[int]:  # noqa: D102
         if position >= self.size():
-            return []
+            return []  # TODO: raise an exception?
         statement = self.get_statement(position)
-        return self.remove_statement_safely(statement)
+        return self.remove_statement_with_forward_dependencies(statement)
 
-    def remove_statement_safely(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
+    def remove_statement_with_forward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
         if not self.contains(statement):
             return []
         ret_val = statement.ret_val
@@ -87,6 +87,24 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
         if ret_val is not None:
             forward_dependencies = list(self.get_forward_dependencies(ret_val))
         positions_to_remove = tc.TestCase.positions_to_remove(statement, forward_dependencies)
+        for pos in positions_to_remove:
+            self.remove(pos)
+        return positions_to_remove
+
+    def remove_with_backward_dependencies(self, position: int) -> list[int]:  # noqa: D102
+        if position >= self.size():
+            return []
+        statement = self.get_statement(position)
+        return self.remove_statement_with_backward_dependencies(statement)
+
+    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
+        if not self.contains(statement):
+            return []
+        ret_val = statement.ret_val
+        backward_dependencies = []
+        if ret_val is not None:
+            backward_dependencies = list(self.get_dependencies(ret_val))
+        positions_to_remove = tc.TestCase.positions_to_remove(statement, backward_dependencies)
         for pos in positions_to_remove:
             self.remove(pos)
         return positions_to_remove
