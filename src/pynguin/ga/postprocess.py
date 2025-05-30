@@ -637,7 +637,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
         # Remove the first statement to check if it still crashes
         clone_stmt2 = test_clone2.get_statement(0)
-        test_clone2.remove_statement_safely(clone_stmt2)
+        test_clone2.remove_statement_with_forward_dependencies(clone_stmt2)
 
         # Execute the clone and check if it still crashes
         result2 = self._executor.execute(test_clone2)
@@ -648,7 +648,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
             # Keep only the first statement
             statements_to_remove = list(test_case.statements)[1:]
             for stmt in statements_to_remove:
-                test_case.remove_statement_safely(stmt)
+                test_case.remove_statement_with_forward_dependencies(stmt)
 
             # Set the number of removed statements to match the expected behavior
             # in the test
@@ -715,7 +715,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
                 test_clone = test_case.clone()
                 clone_stmt = test_clone.get_statement(stmt.get_position())
-                test_clone.remove_statement_safely(clone_stmt)
+                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
 
                 # Skip if the test case is empty after removing the statement
                 if test_clone.size() == 0:
@@ -727,7 +727,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
                 if result.has_test_exceptions():
                     # If the clone still crashes, remove the statement from the original test case
-                    removed = test_case.remove_statement_safely(stmt)
+                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case
