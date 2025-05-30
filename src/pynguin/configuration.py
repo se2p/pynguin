@@ -237,8 +237,8 @@ class TestCaseOutputConfiguration:
 
     crash_path: str = ""
     """Path to an output folder for the generated test cases that caused a crash.
-    Only works when running in a subprocess.
-    """
+    Only works when running in a subprocess. If set to "", the are stored in the
+    output_path."""
 
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the

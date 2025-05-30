@@ -1471,10 +1471,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         chromosome.accept(exporter)
 
-        target_file = (
-            Path(config.configuration.test_case_output.crash_path).resolve()
-            / f"crash_test_{hash(test_case)}.py"
+        output_path = (
+            config.configuration.test_case_output.crash_path
+            or config.configuration.test_case_output.output_path
         )
+        target_file = Path(output_path).resolve() / f"crash_test_{hash(test_case)}.py"
 
         export.save_module_to_file(exporter.to_module(), target_file)
 
