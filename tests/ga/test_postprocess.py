@@ -978,26 +978,19 @@ def test_crash_preserving_minimization_visitor_init(
 
 
 @pytest.mark.parametrize(
-    "execution_results,expected_removed,expected_size",
+    "execution_results,expected_removed",
     [
-        # Case 1: All minimized test cases still crash
         (
-            [True, True, True],  # All executions return exceptions
-            2,  # All statements removed except one
-            1,  # Final size is 1
+            [True, True],
+            2,
         ),
-        # Case 2: No minimized test cases crash
         (
-            [False, False, False],  # No executions return exceptions
-            2,  # Two statements removed (actual behavior)
-            3,  # Final size is 3 (this is inconsistent with removed statements,
-            # but matches actual behavior)
+            [False, False],
+            0,
         ),
-        # Case 3: Mixed results
         (
-            [True, False, True],  # First and third executions return exceptions
-            1,  # One statement removed (actual behavior)
-            2,  # Final size is 2 (actual behavior)
+            [True, False, False],
+            1,
         ),
     ],
     ids=["all_crash", "none_crash", "mixed_results"],
@@ -1007,29 +1000,22 @@ def test_crash_preserving_minimization_visitor_statement_removal(
     mock_executor,
     execution_results,
     expected_removed,
-    expected_size,
 ):
     """Test that the visitor correctly handles statement removal based on crash behavior."""
     test_case, _, _ = tc_with_statements
+    original_size = test_case.size()
 
-    # Set up the mock executor to return the specified execution results
-    mock_results = []
+    mock_exit_codes = []
     for has_exception in execution_results:
-        result = MagicMock()
-        result.has_test_exceptions.return_value = has_exception
-        mock_results.append(result)
+        # If has_exception is True, return a non-zero exit code (indicating a crash)
+        # Otherwise, return 0 (indicating success)
+        mock_exit_codes = [-11 if has_exception else 0 for has_exception in execution_results]
 
-    mock_executor.execute.side_effect = mock_results
-
-    # Create the visitor and apply it to the test case
+    mock_executor.execute_with_exit_code.side_effect = mock_exit_codes
     visitor = pp.CrashPreservingMinimizationVisitor(mock_executor)
     test_case.accept(visitor)
-
-    # Verify the test case was processed
-    # Note: The exact number of removed statements and final size can vary
-    # depending on the implementation details and test case structure
     assert visitor.removed_statements == expected_removed
-    assert test_case.size() == expected_size
+    assert test_case.size() == original_size - expected_removed
 
 
 def test_crash_preserving_minimization_visitor_with_empty_test_case(basic_test_case, mock_executor):
@@ -1042,7 +1028,7 @@ def test_crash_preserving_minimization_visitor_with_empty_test_case(basic_test_c
     assert visitor.removed_statements == 0
     assert basic_test_case.size() == 0
     # Verify that the executor was not called
-    mock_executor.execute.assert_not_called()
+    mock_executor.execute_with_exit_code.assert_not_called()
 
 
 def test_crash_preserving_minimization_visitor_with_dependencies(
@@ -1051,17 +1037,15 @@ def test_crash_preserving_minimization_visitor_with_dependencies(
     """Test that the visitor correctly handles dependencies between statements."""
     test_case, _, _, _ = tc_with_dependencies
 
-    # Set up the mock executor to return different results based on the test case
-    def execute_side_effect(test_case_arg):
-        # If the test case has a string statement, it crashes
+    # Set up the mock executor to return different exit codes based on the test case
+    def execute_with_exit_code_side_effect(test_case_arg):
+        # If the test case has a string statement, it crashes (non-zero exit code)
         has_string = any(
             isinstance(s, stmt.StringPrimitiveStatement) for s in test_case_arg.statements
         )
-        result = MagicMock()
-        result.has_test_exceptions.return_value = has_string
-        return result
+        return -11 if has_string else 0
 
-    mock_executor.execute.side_effect = execute_side_effect
+    mock_executor.execute_with_exit_code.side_effect = execute_with_exit_code_side_effect
 
     # Create the visitor and apply it to the test case
     visitor = pp.CrashPreservingMinimizationVisitor(mock_executor)
@@ -1072,4 +1056,4 @@ def test_crash_preserving_minimization_visitor_with_dependencies(
     # depending on the implementation details and test case structure
     assert test_case.size() > 0  # At least one statement remains
     # Verify that the executor was called at least once
-    assert mock_executor.execute.call_count > 0
+    assert mock_executor.execute_with_exit_code.call_count > 0

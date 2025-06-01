@@ -1301,6 +1301,82 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     ) -> ExecutionResult:
         return next(iter(self.execute_multiple((test_case,))))
 
+    def execute_with_exit_code(
+        self,
+        test_case: tc.TestCase,
+    ) -> int:
+        """Execute a test case in a subprocess and return the exit code.
+
+        This method executes a single test case in a separate subprocess and returns
+        the exit code of the subprocess. This is useful for checking if a test case
+        causes a crash.
+
+        Args:
+            test_case: The test case to execute
+
+        Returns:
+            The exit code of the subprocess. A non-zero exit code indicates a crash.
+        """
+        self._before_remote_test_case_execution(test_case)
+
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+
+        remote_observers = tuple(self._yield_remote_observers())
+
+        references_bindings = (self._create_variable_binding(test_case),)
+
+        args = (
+            self._tracer,
+            self._module_provider,
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement,
+            remote_observers,
+            (test_case,),
+            references_bindings,
+            sending_connection,
+        )
+
+        process = mp.Process(
+            target=self._execute_test_cases_in_subprocess,
+            args=args,
+            daemon=True,
+        )
+
+        process.start()
+
+        sending_connection.close()
+
+        # We need to use `poll` here because `recv` cannot take a timeout argument and
+        # `join` does not return until the pipe is closed in both processes.
+        has_results = receiving_connection.poll(
+            timeout=min(
+                self._maximum_test_execution_timeout,
+                self._test_execution_time_per_statement * len(test_case.statements),
+            ),
+        )
+
+        if has_results:
+            try:
+                receiving_connection.recv()
+            except EOFError:
+                _LOGGER.error("EOFError during receiving results from subprocess")
+
+            receiving_connection.close()
+
+            process.join(timeout=self._maximum_test_execution_timeout)
+
+            if process.exitcode is None:
+                process.kill()
+                return -signal.SIGKILL
+        else:
+            receiving_connection.close()
+
+            if process.exitcode is None:
+                process.kill()
+                return -signal.SIGKILL
+
+        return process.exitcode or 0
+
     def execute_multiple(  # noqa: D102
         self, test_cases: Iterable[tc.TestCase]
     ) -> Iterable[ExecutionResult]:
@@ -1475,9 +1551,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             test_case_to_minimize.accept(minimizer)
 
             # Verify that the minimized test case still crashes
-            result = self.execute(test_case_to_minimize)
+            exit_code = self.execute_with_exit_code(test_case_to_minimize)
 
-            if result.has_test_exceptions():
+            if exit_code != 0:
                 # If the minimized test case still crashes, use it
                 _LOGGER.info(
                     "Minimized crashed test case from %d to %d statements",
