@@ -65,7 +65,7 @@ def test_case_0():
 
 def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected: Path):
     module_name = "tests.fixtures.crash.seg_fault"
-    config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests"
+    config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_seg_fault"
     config.configuration.test_case_output.crash_path.mkdir(parents=True, exist_ok=True)
 
     config.configuration.stopping.maximum_iterations = 2
@@ -101,7 +101,7 @@ def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected:
 
 def test_generate_partly_crashing_test_integration(tmp_path: Path):
     module_name = "tests.fixtures.crash.partly_crashing"
-    config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests"
+    config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_partly_crashing"
     config.configuration.test_case_output.crash_path.mkdir(parents=True, exist_ok=True)
 
     config.configuration.stopping.maximum_iterations = 5
