@@ -5,16 +5,42 @@
 #  SPDX-License-Identifier: MIT
 #
 """Tests for the exception handling in SubprocessTestCaseExecutor."""
+import importlib
+import inspect
+import signal
+import threading
 
 import logging
 import multiprocessing.connection as mp_conn
 import unittest.mock
+import pytest
 
+import pynguin.configuration as config
+import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.statement as stmt
+
+from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import NoneType
+from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
+from tests.fixtures.crash.seg_fault import cause_segmentation_fault
 
 
+@pytest.fixture
+def cause_seg_fault_mock(type_system) -> GenericFunction:
+    return GenericFunction(
+        function=cause_segmentation_fault,
+        inferred_signature=InferredSignature(
+            signature=inspect.Signature(),
+            original_return_type=NoneType(),
+            original_parameters={},
+            type_system=type_system,
+        ),
+    )
 def test_subprocess_exception_suppression():
     """Test that exceptions in the subprocess are suppressed."""
     # Create a mock for the _replace_tracer method to raise an exception
@@ -55,6 +81,11 @@ def test_subprocess_exception_suppression():
         # because an exception was raised before that point
         sending_connection.send.assert_not_called()
 
+@pytest.fixture
+def cause_seg_fault_test_case(cause_seg_fault_mock):
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
+    test_case.add_statement(stmt.FunctionStatement(test_case, cause_seg_fault_mock))
+    return test_case
 
 def test_subprocess_exception_logging(caplog):
     """Test that exceptions in the subprocess are logged."""
@@ -93,3 +124,19 @@ def test_subprocess_exception_logging(caplog):
 
         # Verify that the exception was logged
         assert f"Suppressed exception in subprocess: {exception_message}" in caplog.text
+
+def test_crashing_execution(tmp_path, cause_seg_fault_test_case):
+    # prevent test output into the tests directory
+    config.configuration.test_case_output.crash_path = tmp_path
+    config.configuration.module_name = "tests.fixtures.crash.seg_fault"
+
+    subprocess_tracer = ExecutionTracer()
+    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, subprocess_tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+        exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
+
+    assert exit_code == -signal.SIGSEGV
