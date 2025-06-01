@@ -13,6 +13,8 @@ import threading
 import logging
 import multiprocessing.connection as mp_conn
 import unittest.mock
+from unittest.mock import patch
+
 import pytest
 
 import pynguin.configuration as config
@@ -140,3 +142,85 @@ def test_crashing_execution(tmp_path, cause_seg_fault_test_case):
         exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
 
     assert exit_code == -signal.SIGSEGV
+
+
+def test_eof_error_during_receiving_results(default_test_case):
+    """Test handling of EOFError during receiving results from subprocess."""
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+
+    subprocess_tracer = ExecutionTracer()
+    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, subprocess_tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+
+        # Add a statement to the test case
+        default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
+
+        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+
+        # Mock the connection and process
+        with (
+            patch("multiprocess.connection.Connection.poll", return_value=True),
+            patch("multiprocess.connection.Connection.recv", side_effect=EOFError()),
+            patch("multiprocess.Process.join"),
+            patch("multiprocess.Process.exitcode", None),
+            patch("multiprocess.Process.kill"),
+        ):
+            exit_code = subprocess_executor.execute_with_exit_code(default_test_case)
+
+            # Should return -SIGKILL when process.exitcode is None
+            assert exit_code == -signal.SIGKILL
+
+
+def test_empty_test_case_no_results(default_test_case):
+    """Test handling of empty test case with no results."""
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+
+    subprocess_tracer = ExecutionTracer()
+    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, subprocess_tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+
+        # Ensure the test case is empty
+        assert default_test_case.size() == 0
+
+        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+
+        # Mock the connection to return no results
+        with patch("multiprocess.connection.Connection.poll", return_value=False):
+            exit_code = subprocess_executor.execute_with_exit_code(default_test_case)
+
+            # Should return 0 for empty test case
+            assert exit_code == 0
+
+
+def test_non_empty_test_case_no_results(short_test_case):
+    """Test handling of non-empty test case with no results."""
+    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
+
+    subprocess_tracer = ExecutionTracer()
+    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, subprocess_tracer):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+
+        # Ensure the test case is not empty
+        assert short_test_case.size() > 0
+
+        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+
+        # Mock the connection and process
+        with (
+            patch("multiprocess.connection.Connection.poll", return_value=False),
+            patch("multiprocess.Process.exitcode", None),
+            patch("multiprocess.Process.kill"),
+        ):
+            exit_code = subprocess_executor.execute_with_exit_code(short_test_case)
+
+            # Should return -SIGKILL when process.exitcode is None
+            assert exit_code == -signal.SIGKILL
