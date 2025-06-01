@@ -68,10 +68,10 @@ def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected:
     config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_seg_fault"
     config.configuration.test_case_output.crash_path.mkdir(parents=True, exist_ok=True)
 
-    config.configuration.stopping.maximum_iterations = 2
+    config.configuration.stopping.maximum_iterations = 10
     config.configuration.module_name = module_name
-    config.configuration.search_algorithm.min_initial_tests = 1
-    config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.min_initial_tests = 2
+    config.configuration.search_algorithm.max_initial_tests = 2
     config.configuration.search_algorithm.population = 2
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
@@ -104,10 +104,10 @@ def test_generate_partly_crashing_test_integration(tmp_path: Path):
     config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_partly_crashing"
     config.configuration.test_case_output.crash_path.mkdir(parents=True, exist_ok=True)
 
-    config.configuration.stopping.maximum_iterations = 5
+    config.configuration.stopping.maximum_iterations = 10
     config.configuration.module_name = module_name
-    config.configuration.search_algorithm.min_initial_tests = 1
-    config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.min_initial_tests = 2
+    config.configuration.search_algorithm.max_initial_tests = 2
     config.configuration.search_algorithm.population = 2
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
