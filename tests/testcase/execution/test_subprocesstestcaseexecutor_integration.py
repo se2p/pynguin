@@ -63,14 +63,8 @@ def test_case_0():
     return crash_file
 
 
-@pytest.mark.parametrize(
-    "module_name",
-    [
-        "tests.fixtures.crash.seg_fault",
-    ],
-)
-def test_integrate_algorithms(module_name: str, tmp_path: Path, crash_test_expected: Path):
-    # prevent test output into the tests directory
+def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected: Path):
+    module_name = "tests.fixtures.crash.seg_fault"
     config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests"
 
     config.configuration.stopping.maximum_iterations = 2
@@ -93,7 +87,7 @@ def test_integrate_algorithms(module_name: str, tmp_path: Path, crash_test_expec
             executor, cluster
         ).get_search_algorithm()
         test_cases = search_algorithm.generate_tests()
-        assert test_cases.size() >= 0
+        assert test_cases.size() == 0
 
     # Check that the crashing_tests dir contains one file and compare its content
     crash_path = config.configuration.test_case_output.crash_path
@@ -102,3 +96,37 @@ def test_integrate_algorithms(module_name: str, tmp_path: Path, crash_test_expec
     crash_file = next(crash_path.iterdir())
     assert crash_file.is_file()
     assert crash_file.read_text() == crash_test_expected.read_text()
+
+
+def test_generate_partly_crashing_test_integration(tmp_path: Path):
+    module_name = "tests.fixtures.crash.partly_crashing"
+    config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests"
+
+    config.configuration.stopping.maximum_iterations = 5
+    config.configuration.module_name = module_name
+    config.configuration.search_algorithm.min_initial_tests = 1
+    config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.population = 2
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 1
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, tracer):
+        # Need to force reload in order to apply instrumentation.
+        module = importlib.import_module(module_name)
+        importlib.reload(module)
+
+        executor = SubprocessTestCaseExecutor(tracer)
+        cluster = generate_test_cluster(module_name)
+        search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
+            executor, cluster
+        ).get_search_algorithm()
+        test_cases = search_algorithm.generate_tests()
+        assert test_cases.size() >= 1
+
+    # Check that the crashing_tests dir contains one file and compare its content
+    crash_path = config.configuration.test_case_output.crash_path
+    assert crash_path.exists()
+    assert len(list(crash_path.iterdir())) == 1
+    crash_file = next(crash_path.iterdir())
+    assert crash_file.is_file()
