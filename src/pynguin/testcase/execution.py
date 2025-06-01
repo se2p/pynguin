@@ -13,6 +13,7 @@ import ast
 import contextlib
 import copy
 import dataclasses
+import enum
 import inspect
 import itertools
 import logging
@@ -1271,6 +1272,23 @@ if hasattr(signal, "SIGSEGV"):
 class SubprocessTestCaseExecutor(TestCaseExecutor):
     """An executor that executes the generated test cases in a subprocess."""
 
+    class ConnectionStatus(enum.Enum):
+        """Status of the connection to the subprocess."""
+
+        HAS_RESULTS = enum.auto()
+        NO_RESULTS = enum.auto()
+
+    @dataclasses.dataclass
+    class SubprocessResultContext:
+        """Context for processing subprocess results."""
+
+        test_cases_tuple: tuple[tc.TestCase, ...]
+        references_bindings: tuple[dict[int, vr.VariableReference], ...]
+        process: mp.Process
+        receiving_connection: mp_conn.Connection
+        connection_status: SubprocessTestCaseExecutor.ConnectionStatus
+        remote_observers: tuple[RemoteExecutionObserver, ...]
+
     def __init__(
         self,
         tracer: ExecutionTracer,
@@ -1319,41 +1337,17 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         """
         self._before_remote_test_case_execution(test_case)
 
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-
-        remote_observers = tuple(self._yield_remote_observers())
-
-        references_bindings = (self._create_variable_binding(test_case),)
-
-        args = (
-            self._tracer,
-            self._module_provider,
-            self._maximum_test_execution_timeout,
-            self._test_execution_time_per_statement,
-            remote_observers,
+        process, receiving_connection = self._setup_subprocess_execution(
             (test_case,),
-            references_bindings,
-            sending_connection,
+            (self._create_variable_binding(test_case),),
         )
 
-        process = mp.Process(
-            target=self._execute_test_cases_in_subprocess,
-            args=args,
-            daemon=True,
-        )
-
-        process.start()
-
-        sending_connection.close()
+        # Calculate timeout based on test case size
+        timeout = self._calculate_timeout(test_case)
 
         # We need to use `poll` here because `recv` cannot take a timeout argument and
         # `join` does not return until the pipe is closed in both processes.
-        has_results = receiving_connection.poll(
-            timeout=min(
-                self._maximum_test_execution_timeout,
-                self._test_execution_time_per_statement * len(test_case.statements),
-            ),
-        )
+        has_results = receiving_connection.poll(timeout=timeout)
 
         if has_results:
             try:
@@ -1379,6 +1373,37 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         return process.exitcode or 0
 
+    def _calculate_timeout(self, test_case: tc.TestCase) -> float:
+        """Calculate timeout for a test case based on its size.
+
+        Args:
+            test_case: The test case
+
+        Returns:
+            The calculated timeout in seconds
+        """
+        return min(
+            self._maximum_test_execution_timeout,
+            self._test_execution_time_per_statement * len(test_case.statements),
+        )
+
+    def _calculate_timeout_for_multiple(self, test_cases: tuple[tc.TestCase, ...]) -> float:
+        """Calculate timeout for multiple test cases based on their sizes.
+
+        Args:
+            test_cases: The test cases
+
+        Returns:
+            The calculated timeout in seconds
+        """
+        return min(
+            self._maximum_test_execution_timeout * len(test_cases),
+            sum(
+                self._test_execution_time_per_statement * len(test_case.statements)
+                for test_case in test_cases
+            ),
+        )
+
     def execute_multiple(  # noqa: D102
         self, test_cases: Iterable[tc.TestCase]
     ) -> Iterable[ExecutionResult]:
@@ -1390,13 +1415,57 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         for test_case in test_cases_tuple:
             self._before_remote_test_case_execution(test_case)
 
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-
-        remote_observers = tuple(self._yield_remote_observers())
-
         references_bindings = tuple(
             self._create_variable_binding(test_case) for test_case in test_cases_tuple
         )
+
+        process, receiving_connection = self._setup_subprocess_execution(
+            test_cases_tuple,
+            references_bindings,
+        )
+
+        # We need to use `poll` here because `recv` cannot take a timeout argument and
+        # `join` does not return until the pipe is closed in both processes.
+        has_results = receiving_connection.poll(
+            timeout=self._calculate_timeout_for_multiple(test_cases_tuple),
+        )
+
+        remote_observers = tuple(self._yield_remote_observers())
+        connection_status = (
+            self.ConnectionStatus.HAS_RESULTS if has_results else self.ConnectionStatus.NO_RESULTS
+        )
+        context = self.SubprocessResultContext(
+            test_cases_tuple=test_cases_tuple,
+            references_bindings=references_bindings,
+            process=process,
+            receiving_connection=receiving_connection,
+            connection_status=connection_status,
+            remote_observers=remote_observers,
+        )
+        results = self._process_subprocess_results(context)
+
+        for test_case, result in zip(test_cases_tuple, results, strict=True):
+            self._after_remote_test_case_execution(test_case, result)
+
+        return results
+
+    def _setup_subprocess_execution(
+        self,
+        test_cases_tuple: tuple[tc.TestCase, ...],
+        references_bindings: tuple[dict[int, vr.VariableReference], ...],
+    ) -> tuple[mp.Process, mp_conn.Connection]:
+        """Set up subprocess execution for test cases.
+
+        Args:
+            test_cases_tuple: The test cases to execute
+            references_bindings: The variable bindings for each test case
+
+        Returns:
+            A tuple containing the process and the receiving connection
+        """
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+
+        remote_observers = tuple(self._yield_remote_observers())
 
         args = (
             self._tracer,
@@ -1419,22 +1488,26 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         sending_connection.close()
 
-        # We need to use `poll` here because `recv` cannot take a timeout argument and
-        # `join` does not return until the pipe is closed in both processes.
-        has_results = receiving_connection.poll(
-            timeout=min(
-                self._maximum_test_execution_timeout * len(test_cases_tuple),
-                sum(
-                    self._test_execution_time_per_statement * len(test_case.statements)
-                    for test_case in test_cases_tuple
-                ),
-            ),
-        )
+        return process, receiving_connection
 
+    def _process_subprocess_results(
+        self,
+        context: SubprocessResultContext,
+    ) -> tuple[ExecutionResult, ...]:
+        """Process the results from subprocess execution.
+
+        Args:
+            context: The context containing all necessary information for processing
+
+        Returns:
+            The execution results
+        """
         results: tuple[ExecutionResult, ...]
-        if not has_results:
-            receiving_connection.close()
-            results = self._fallback_on_failure(test_cases_tuple, process, remote_observers)
+        if context.connection_status == self.ConnectionStatus.NO_RESULTS:
+            context.receiving_connection.close()
+            results = self._fallback_on_failure(
+                context.test_cases_tuple, context.process, context.remote_observers
+            )
         else:
             try:
                 return_value: tuple[
@@ -1443,11 +1516,13 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     tuple[ExecutionResult, ...],
                     tuple[dict[int, vr.VariableReference] | None, ...],
                     tuple[Any, ...],
-                ] = receiving_connection.recv()
+                ] = context.receiving_connection.recv()
             except EOFError:
                 _LOGGER.error("EOFError during receiving results from subprocess")
-                receiving_connection.close()
-                results = self._fallback_on_failure(test_cases_tuple, process, remote_observers)
+                context.receiving_connection.close()
+                results = self._fallback_on_failure(
+                    context.test_cases_tuple, context.process, context.remote_observers
+                )
             else:
                 (
                     new_tracer,
@@ -1457,19 +1532,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     random_state,
                 ) = return_value
 
-                receiving_connection.close()
+                context.receiving_connection.close()
 
-                process.join(timeout=self._maximum_test_execution_timeout)
+                context.process.join(timeout=self._maximum_test_execution_timeout)
 
-                if process.exitcode is None:
-                    process.kill()
+                if context.process.exitcode is None:
+                    context.process.kill()
 
                 randomness.RNG.setstate(random_state)
 
                 self._module_provider = new_module_provider
 
                 for result, reference_bindings, new_reference_bindings in zip(
-                    results, references_bindings, new_references_bindings, strict=True
+                    results, context.references_bindings, new_references_bindings, strict=True
                 ):
                     if new_reference_bindings is not None:
                         self._fix_assertion_trace(
@@ -1477,9 +1552,6 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                         )
 
                 self._tracer.state = new_tracer.state
-
-        for test_case, result in zip(test_cases_tuple, results, strict=True):
-            self._after_remote_test_case_execution(test_case, result)
 
         return results
 
