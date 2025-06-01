@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.computations as ff
+from pynguin.ga.computations import FitnessFunction, CoverageFunction
 
 
 @pytest.fixture
@@ -179,3 +180,47 @@ def test_computation_cache_fitness_for(cache):
     assert cache.get_fitness_for(func) == 0
     assert func.compute_fitness.call_count == 1
     assert func2.compute_fitness.call_count == 0
+
+
+def test_computation_cache_set_fitness(cache):
+    func = MagicMock()
+    func.is_maximisation_function.return_value = False
+    func.compute_fitness.return_value = 0.5
+    func.compute_is_covered.return_value = True
+
+    func2 = MagicMock()
+    func2.is_maximisation_function.return_value = False
+    func2.compute_fitness.return_value = 1
+    func2.compute_is_covered.return_value = True
+
+    cache.add_fitness_function(func)
+    cache.add_fitness_function(func2)
+
+    func.compute_fitness.return_value = 1
+    func2.compute_fitness.return_value = 2
+
+    fitness_values: dict[FitnessFunction, float] = {func: 1, func2: 2}
+    cache.set_fitness_values(fitness_values)
+
+    assert cache.get_fitness() == 3
+    assert cache.get_fitness_for(func) == 1
+    assert cache.get_fitness_for(func2) == 2
+
+
+def test_computation_cache_set_coverage(cache):
+    func = MagicMock()
+    func.is_maximisation_function.return_value = False
+    func.compute_fitness.return_value = 0.5
+
+    cache.add_coverage_function(func)
+    func.compute_coverage.return_value = 1
+
+    coverage_values: dict[CoverageFunction, float] = {func: 1}
+    cache.set_coverage_values(coverage_values)
+
+    assert cache.get_coverage() == 1
+    assert cache.get_coverage_for(func) == 1
+
+
+
+

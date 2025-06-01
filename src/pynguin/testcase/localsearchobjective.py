@@ -48,7 +48,7 @@ class LocalSearchObjective:
             self._latest_coverage_map[coverage_function] = self._test_suite.get_coverage_for(coverage_function)
 
     def has_changed(self, test_case_chromosome:TestCaseChromosome) -> int:
-        """ Gives bach if the fitness of the testsuite has changed. It overrides the specific testcase with the provided chromosome.
+        """ Gives back, if the fitness of the testsuite has changed. It overrides the specific testcase with the provided chromosome.
 
         Args:
             test_case_chromosome: The chromosome which will override the original chromosome.
@@ -69,9 +69,20 @@ class LocalSearchObjective:
             return 1
         elif new_fitness < self._old_fitness if self._is_maximization else new_fitness > self._old_fitness:
             self._logger.debug("Local search has decreased the fitness of %f to %f", self._old_fitness, new_fitness)
+            self._test_suite.set_coverage_values(self._latest_coverage_map)
+            self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
         else:
             self._logger.debug("Local search hasn't changed the fitness of %f", self._old_fitness)
             return 0
 
+    def has_improved(self, test_case_chromosome:TestCaseChromosome) -> bool:
+        """Gives back if changing the old test case chromosome to the given one improves the fitness of the test suite.
 
+        Args:
+            test_case_chromosome: The chromosome which will override the original chromosome.
+
+        Returns:
+            Gives back true, if the test suite has improved.
+        """
+        return self.has_changed(test_case_chromosome) > 0
