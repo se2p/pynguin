@@ -141,7 +141,7 @@ class Chromosome(ABC):
                 Args:
                     coverage_values: A dictionary of coverage values, keyed by coverage function.
                 """
-        self.computation_cache.set_coverage(coverage_values)
+        self.computation_cache.set_coverage_values(coverage_values)
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.

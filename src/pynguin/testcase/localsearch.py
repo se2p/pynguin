@@ -15,7 +15,7 @@ from abc import ABC
 from pynguin.ga.chromosome import Chromosome
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
-
+from pynguin.testcase.localsearchstatement import StatementLocalSearch
 
 class LocalSearch(ABC):
     """An abstract class for local search."""
@@ -29,10 +29,18 @@ class LocalSearch(ABC):
 class TestCaseLocalSearch(LocalSearch, ABC):
 
     def local_search(self, chromosome:TestCaseChromosome) -> None:
-        for statement in chromosome.test_case.statements:
+
+        for i in range(chromosome.test_case.statements.__len__()-1, 0, -1):
             if LocalSearchTimer.__new__(LocalSearchTimer).limit_reached():
-                break
-            #TODO: Local Search
+                return
+
+            #statement = chromosome.test_case.statements[i]
+            #local_search_statement = StatementLocalSearch.choose_local_search_statement(statement)
+            #
+            # if local_search_statement is not None:
+            #     pass #TODO
+            # else:
+            #     self._logger.debug("No local search statement found for statement {}".format(statement))
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
@@ -55,6 +63,13 @@ class LocalSearchTimer:
             cls._instance._logger = logging.getLogger(__name__)
         return cls._instance
 
+    @classmethod
+    def get_instance(cls):
+        """Provides the instance.
+
+        Returns: The instance of LocalSearchTimer.
+        """
+        return cls()
 
     def start_local_search(self) -> None:
         """Starts the local search timer."""
