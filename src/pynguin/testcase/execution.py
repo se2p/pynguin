@@ -1368,6 +1368,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             if process.exitcode is None:
                 process.kill()
                 return -signal.SIGKILL
+        elif test_case.size() == 0:
+            return 0
         else:
             receiving_connection.close()
 
