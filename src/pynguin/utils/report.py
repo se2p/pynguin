@@ -159,7 +159,13 @@ def get_coverage_report(
         results.append(result)
     trace = ff.analyze_results(results)
     subject_properties = executor.tracer.get_subject_properties()
-    source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
+    try:
+        source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
+    except Exception as e:
+        # circular references in module might cause errors
+        raise RuntimeError(
+            f"Could not get source code for module {config.configuration.module_name}. "
+        ) from e
     line_annotations = [
         LineAnnotation(idx + 1, CoverageEntry(), CoverageEntry(), CoverageEntry(), CoverageEntry())
         for idx in range(len(source))
