@@ -23,6 +23,17 @@ stages:
   - security
   - deploy
 
+include:
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+secret_detection:
+  before_script: []
+
+variables:
+  # secret detection only runs for branch pipelines by default but we run jobs
+  # in merge request context
+  AST_ENABLE_MR_PIPELINES: "true"
+
 before_script:
   - python --version
   - pip install poetry
