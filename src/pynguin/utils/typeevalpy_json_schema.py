@@ -322,7 +322,7 @@ def provide_json(
                     )
                     parameter_jsons.append(param_json)
             except Exception as e:
-                _LOGGER.exception(
+                _LOGGER.warning(
                     "Could not convert parameter for %s: %s",
                     function_name,
                     e,
