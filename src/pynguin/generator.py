@@ -412,7 +412,7 @@ def _reload_instrumentation_loader(
     try:
         importlib.reload(module)
     except Exception as e:  # noqa: BLE001
-        _LOGGER.warning("Reload of module {module.__name__} failed: %s", e)
+        _LOGGER.warning("Reload of module %s failed: %s", module_name, e)
 
 
 def _reset_cache_for_result(generation_result):
