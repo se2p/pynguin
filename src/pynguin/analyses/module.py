@@ -1146,17 +1146,17 @@ def __analyse_function(
     description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
-    if (
-        getattr(func, "__name__", None) == "<lambda>"
-        and (
-            lambda_assigned_name := _get_lambda_assigned_name(
-                module_tree, func.__code__.co_firstlineno
-            )
-        )
-        is not None
-    ):
-        func_name = lambda_assigned_name
-        func.__name__ = lambda_assigned_name
+    if getattr(func, "__name__", None) == "<lambda>":
+        if lambda_assigned_name := _get_lambda_assigned_name(
+            module_tree, func.__code__.co_firstlineno
+        ):
+            func_name = lambda_assigned_name
+            func.__name__ = lambda_assigned_name
+        else:
+            # If the lambda itself has no name, we must not add it to the test cluster
+            # or else it will cause an exception during test export.
+            return
+
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
 
     if config.configuration.pynguinml.ml_testing_enabled and module_tree is not None:
