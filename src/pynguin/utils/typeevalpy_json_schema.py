@@ -321,8 +321,8 @@ def provide_json(
                         file_name, tree, parameter, signature, function_name, signature_info
                     )
                     parameter_jsons.append(param_json)
-            except Exception as e:
-                _LOGGER.exception(
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.warning(
                     "Could not convert parameter for %s: %s",
                     function_name,
                     e,

@@ -411,7 +411,7 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
             "pynguin.utils.typeevalpy_json_schema.convert_parameter",
             side_effect=Exception("Mocked exception"),
         ),
-        patch("pynguin.utils.typeevalpy_json_schema._LOGGER.exception") as mock_logger,
+        patch("pynguin.utils.typeevalpy_json_schema._LOGGER.warning") as mock_logger,
     ):
         actual_json = provide_json(file_name, accessibles, function_data, stats)
         mock_logger.assert_called_once()

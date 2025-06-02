@@ -1004,7 +1004,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         )
 
         def log_thread_exception(arg):
-            _LOGGER.error(
+            _LOGGER.warning(
                 "Exception in Thread: %s",
                 arg.thread,
                 exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),  # noqa: LOG014
