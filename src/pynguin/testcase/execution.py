@@ -1537,47 +1537,54 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         references_bindings: tuple[dict[int, vr.VariableReference], ...],
         sending_connection: mp_conn.Connection,
     ) -> None:
-        SubprocessTestCaseExecutor._replace_tracer(tracer)
+        try:
+            SubprocessTestCaseExecutor._replace_tracer(tracer)
 
-        executor = TestCaseExecutor(
-            tracer,
-            module_provider,
-            maximum_test_execution_timeout,
-            test_execution_time_per_statement,
-        )
-
-        for remote_observer in remote_observers:
-            executor.add_remote_observer(remote_observer)
-
-        results = tuple(executor.execute_multiple(test_cases))
-
-        # We need to set the current thread identifier to the current thread
-        # because pickle can execute code of the instrumented module and it would
-        # kill the subprocess which is not what we want.
-        tracer.current_thread_identifier = threading.current_thread().ident
-
-        for result in results:
-            SubprocessTestCaseExecutor._fix_result_for_pickle(result)
-
-        new_references_bindings = tuple(
-            SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
-                result,
-                reference_bindings,
+            executor = TestCaseExecutor(
+                tracer,
+                module_provider,
+                maximum_test_execution_timeout,
+                test_execution_time_per_statement,
             )
-            for result, reference_bindings in zip(results, references_bindings, strict=True)
-        )
 
-        sending_connection.send((
-            tracer,
-            module_provider,
-            results,
-            new_references_bindings,
-            randomness.RNG.getstate(),
-        ))
+            for remote_observer in remote_observers:
+                executor.add_remote_observer(remote_observer)
 
-        sending_connection.close()
+            results = tuple(executor.execute_multiple(test_cases))
 
-        tracer.current_thread_identifier = -1
+            # We need to set the current thread identifier to the current thread
+            # because pickle can execute code of the instrumented module and it would
+            # kill the subprocess which is not what we want.
+            tracer.current_thread_identifier = threading.current_thread().ident
+
+            for result in results:
+                SubprocessTestCaseExecutor._fix_result_for_pickle(result)
+
+            new_references_bindings = tuple(
+                SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
+                    result,
+                    reference_bindings,
+                )
+                for result, reference_bindings in zip(results, references_bindings, strict=True)
+            )
+
+            sending_connection.send((
+                tracer,
+                module_provider,
+                results,
+                new_references_bindings,
+                randomness.RNG.getstate(),
+            ))
+
+            sending_connection.close()
+
+            tracer.current_thread_identifier = -1
+        except Exception as e:  # noqa: BLE001
+            # Suppress all exceptions from the subprocess
+            _LOGGER.warning(
+                "Suppressed exception in subprocess: %s",
+                e,
+            )
 
     @staticmethod
     def _create_new_reference_bindings(
