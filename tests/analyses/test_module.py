@@ -64,6 +64,11 @@ def parsed_module_lambda() -> _ModuleParseResult:
     return parse_module("tests.fixtures.cluster.lambda")
 
 
+@pytest.fixture(scope="module")
+def parsed_module_unnamed_lambda() -> _ModuleParseResult:
+    return parse_module("tests.fixtures.cluster.unnamed_lambda")
+
+
 @pytest.fixture
 def module_test_cluster() -> ModuleTestCluster:
     return ModuleTestCluster(linenos=-1)
@@ -572,3 +577,27 @@ def test_analyse_module_lambda(parsed_module_lambda):
     assert lambda2.function_name == "abc"
     lambda3 = cast("GenericFunction", objects[2])
     assert lambda3.function_name == "salam_aleykum"
+
+
+def test_analyse_function_lambda_no_name():
+    """Test that __analyse_function returns early when no name for a lambda is found."""
+    # Create a test cluster
+    test_cluster = ModuleTestCluster(linenos=-1)
+
+    # Create a lambda function
+    lambda_func = lambda x: x  # noqa: E731
+
+    # Mock the _get_lambda_assigned_name function to return None
+    with patch("pynguin.analyses.module._get_lambda_assigned_name", return_value=None):
+        # Call __analyse_function directly
+        module.__analyse_function(
+            func_name="<lambda>",
+            func=lambda_func,
+            type_inference_strategy=TypeInferenceStrategy.TYPE_HINTS,
+            module_tree=None,
+            test_cluster=test_cluster,
+            add_to_test=True,
+        )
+
+    # Verify that the lambda was not added to the test cluster
+    assert test_cluster.num_accessible_objects_under_test() == 0
