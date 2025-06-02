@@ -11,6 +11,7 @@ import threading
 
 from pathlib import Path
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -464,6 +465,45 @@ def test_render_coverage_report(sample_report, tmp_path: Path):
             "</body>\n",
             "</html>",
         ]
+
+
+def test_get_coverage_report_with_inspect_valueerror():
+    """Test that get_coverage_report handles ValueError from inspect.getsourcelines.
+
+    This test directly mocks inspect.getsourcelines to raise a ValueError,
+    simulating the error that occurs with modules that have circular references
+    in their decorators (like TensorFlow).
+    """
+    test_case = MagicMock()
+    last_result = MagicMock(execution_trace=MagicMock())
+    test_case.get_last_execution_result.return_value = last_result
+    test_suite = MagicMock(test_case_chromosomes=[test_case])
+
+    tracer = MagicMock()
+    executor = MagicMock(tracer=tracer)
+    module_name = "test_module"
+    config.configuration.module_name = module_name
+    mock_module = MagicMock()
+    mock_trace = MagicMock()
+
+    # Create a ValueError that simulates the error
+    error_msg = "wrapper loop when unwrapping <module 'tensorflow.python.util.tf_decorator'>"
+    value_error = ValueError(error_msg)
+
+    # Use patches to mock all the functions called in get_coverage_report
+    with (
+        patch("pynguin.ga.computations.analyze_results", return_value=mock_trace),
+        patch.object(executor.tracer, "get_subject_properties", return_value=MagicMock()),
+        patch.object(executor.tracer, "lineids_to_linenos", return_value=OrderedSet()),
+        patch.dict(sys.modules, {module_name: mock_module}),
+        patch("inspect.getsourcelines", side_effect=value_error),
+        pytest.raises(RuntimeError),  # Expect a RuntimeError to be raised
+    ):
+        get_coverage_report(
+            test_suite,
+            executor,
+            {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
+        )
 
 
 def test_render_xml_coverage_report(sample_report, tmp_path: Path):

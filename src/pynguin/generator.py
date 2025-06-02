@@ -584,21 +584,27 @@ def _run() -> ReturnCode:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
-        coverage_report = get_coverage_report(
-            generation_result,
-            executor,
-            tracked_metrics,
-        )
-        render_coverage_report(
-            coverage_report,
-            Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
-            datetime.datetime.now(),  # noqa: DTZ005
-        )
-        render_xml_coverage_report(
-            coverage_report,
-            Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
-            datetime.datetime.now(),  # noqa: DTZ005
-        )
+        try:
+            coverage_report = get_coverage_report(
+                generation_result,
+                executor,
+                tracked_metrics,
+            )
+            render_coverage_report(
+                coverage_report,
+                Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+                datetime.datetime.now(),  # noqa: DTZ005
+            )
+            render_xml_coverage_report(
+                coverage_report,
+                Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
+                datetime.datetime.now(),  # noqa: DTZ005
+            )
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning(
+                "Failed to create coverage report: %s. ",
+                e,
+            )
     _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")
