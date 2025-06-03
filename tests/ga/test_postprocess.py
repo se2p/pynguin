@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
+import importlib
+import threading
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -12,14 +14,23 @@ from unittest.mock import call
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 
 from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.ga.computations import TestSuiteBranchCoverageFunction
+from pynguin.ga.computations import TestSuiteLineCoverageFunction
+from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
+from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -238,3 +249,418 @@ def test_not_implemented_statements(statement_type):
     visitor = pp.UnusedPrimitiveOrCollectionStatementVisitor()
     with pytest.raises(NotImplementedError):
         visitor.__getattribute__(statement_type)(MagicMock())  # noqa: PLC2801
+
+
+@pytest.fixture
+def basic_test_cluster():
+    """Fixture for a basic test cluster."""
+    return ModuleTestCluster(0)
+
+
+@pytest.fixture
+def basic_test_case(basic_test_cluster):
+    """Fixture for a basic test case with a test cluster."""
+    return dtc.DefaultTestCase(basic_test_cluster)
+
+
+@pytest.fixture
+def tc_with_statements(basic_test_case):
+    """Fixture for a test case with int and float statements."""
+    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(int_stmt)
+    float_stmt = stmt.FloatPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(float_stmt)
+    return basic_test_case, int_stmt, float_stmt
+
+
+@pytest.fixture
+def mock_fitness_function():
+    """Fixture for a mock fitness function."""
+    return MagicMock()
+
+
+@pytest.fixture
+def forward_minimization_visitor(mock_fitness_function):
+    """Fixture for a ForwardIterativeMinimizationVisitor with a mock fitness function."""
+    return pp.ForwardIterativeMinimizationVisitor(mock_fitness_function)
+
+
+@pytest.fixture
+def backward_minimization_visitor(mock_fitness_function):
+    """Fixture for a BackwardIterativeMinimizationVisitor with a mock fitness function."""
+    return pp.BackwardIterativeMinimizationVisitor(mock_fitness_function)
+
+
+@pytest.fixture
+def create_test_suite():
+    """Fixture that returns a function to create a test suite from a test case."""
+
+    def _create_test_suite(test_case):
+        test_case_chromosome = tcc.TestCaseChromosome(test_case=test_case)
+        test_suite = TestSuiteChromosome()
+        test_suite.add_test_case_chromosome(test_case_chromosome)
+        return test_suite
+
+    return _create_test_suite
+
+
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_init(mock_fitness_function, request, visitor_fixture):
+    """Test that the iterative minimization visitors initialize correctly."""
+    visitor = request.getfixturevalue(visitor_fixture)
+    assert visitor._fitness_function == mock_fitness_function
+    assert visitor._removed_statements == 0
+    assert visitor.removed_statements == 0
+
+
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
+@pytest.mark.parametrize(
+    "fitness_behavior,expected_removed,expected_size",
+    [
+        # Case 1: Fitness preserved when statements are removed
+        (
+            lambda _: 1.0,  # Constant coverage
+            2,  # All statements removed
+            0,  # Final size is 0
+        ),
+        # Case 2: Fitness reduced when statements are removed
+        (
+            lambda test_suite: 1.0 if test_suite.test_case_chromosomes[0].size() == 2 else 0.5,
+            0,  # No statements removed
+            2,  # Final size is 2
+        ),
+    ],
+    ids=["fitness_preserved", "fitness_reduced"],
+)
+def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
+    tc_with_statements,
+    mock_fitness_function,
+    request,
+    visitor_fixture,
+    fitness_behavior,
+    expected_removed,
+    expected_size,
+):
+    """Test that the visitor correctly handles statement removal based on fitness changes."""
+    test_case, _, _ = tc_with_statements
+
+    # Set up the mock fitness function behavior
+    if callable(fitness_behavior):
+        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+    else:
+        mock_fitness_function.compute_coverage.return_value = fitness_behavior
+
+    # Get the visitor from the fixture
+    visitor = request.getfixturevalue(visitor_fixture)
+
+    # Apply the visitor to the test case
+    test_case.accept(visitor)
+
+    # Verify the expected results
+    assert visitor.removed_statements == expected_removed
+    assert test_case.size() == expected_size
+
+
+@pytest.mark.parametrize(
+    "visitor_fixture",
+    [
+        "forward_minimization_visitor",
+        "backward_minimization_visitor",
+    ],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_with_empty_test_case(
+    basic_test_case, mock_fitness_function, request, visitor_fixture
+):
+    """Test that the visitor handles empty test cases correctly."""
+    # Set up the mock fitness function
+    mock_fitness_function.compute_coverage.return_value = 0.0
+
+    # Get the visitor from the fixture
+    visitor = request.getfixturevalue(visitor_fixture)
+
+    # Apply the visitor to the empty test case
+    basic_test_case.accept(visitor)
+
+    # Verify that no statements were removed (since there were none to begin with)
+    assert visitor.removed_statements == 0
+    assert basic_test_case.size() == 0
+
+
+@pytest.fixture
+def tc_with_dependencies(basic_test_cluster, basic_test_case):
+    """Fixture for a test case with dependencies between statements."""
+    # Create statements with dependencies
+    int_stmt = stmt.IntPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(int_stmt)
+
+    # Create a list that depends on the int statement
+    list_stmt = stmt.ListStatement(
+        basic_test_case,
+        basic_test_cluster.type_system.convert_type_hint(list[int]),
+        [int_stmt.ret_val],
+    )
+    basic_test_case.add_statement(list_stmt)
+
+    # Create a string statement that will be removed
+    str_stmt = stmt.StringPrimitiveStatement(basic_test_case)
+    basic_test_case.add_statement(str_stmt)
+
+    return basic_test_case, int_stmt, list_stmt, str_stmt
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_with_dependencies(
+    tc_with_dependencies, mock_fitness_function, visitor_class
+):
+    """Test that the visitor correctly handles dependencies between statements."""
+    test_case, _, _, _ = tc_with_dependencies
+
+    # Set up the mock fitness function to allow removing only the string statement
+    def compute_coverage_side_effect(test_suite):
+        test_size = test_suite.test_case_chromosomes[0].size()
+        # Full test case or test case without string statement has full coverage
+        if test_size == 3 or (
+            test_size == 2
+            and isinstance(
+                test_suite.test_case_chromosomes[0].test_case.statements[1], stmt.ListStatement
+            )
+        ):
+            return 1.0
+        # Any other modification reduces coverage
+        return 0.5
+
+    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+
+    # Create the visitor and apply it to the test case
+    visitor = visitor_class(mock_fitness_function)
+    test_case.accept(visitor)
+
+    # Verify that only the string statement was removed
+    assert visitor.removed_statements == 1
+    assert test_case.size() == 2
+    assert isinstance(test_case.statements[0], stmt.IntPrimitiveStatement)
+    assert isinstance(test_case.statements[1], stmt.ListStatement)
+
+
+@pytest.fixture
+def two_test_cases(basic_test_cluster):
+    """Fixture for two test cases used in compare_coverage test."""
+    test_case1 = dtc.DefaultTestCase(basic_test_cluster)
+    int_stmt1 = stmt.IntPrimitiveStatement(test_case1)
+    test_case1.add_statement(int_stmt1)
+
+    test_case2 = dtc.DefaultTestCase(basic_test_cluster)
+    int_stmt2 = stmt.IntPrimitiveStatement(test_case2)
+    test_case2.add_statement(int_stmt2)
+
+    return test_case1, test_case2
+
+
+@pytest.fixture
+def tc_with_complex_dependencies(basic_test_cluster):
+    """Fixture for a test case with complex dependencies between statements."""
+    test_case = dtc.DefaultTestCase(basic_test_cluster)
+
+    # Create statements with dependencies
+    int_stmt = stmt.IntPrimitiveStatement(test_case)
+    test_case.add_statement(int_stmt)
+
+    float_stmt = stmt.FloatPrimitiveStatement(test_case)
+    test_case.add_statement(float_stmt)
+
+    # Create a list that depends on both int and float statements
+    list_stmt = stmt.ListStatement(
+        test_case,
+        basic_test_cluster.type_system.convert_type_hint(list),
+        [int_stmt.ret_val, float_stmt.ret_val],
+    )
+    test_case.add_statement(list_stmt)
+
+    # Add some statements that can be safely removed
+    str_stmt = stmt.StringPrimitiveStatement(test_case)
+    test_case.add_statement(str_stmt)
+
+    bool_stmt = stmt.BooleanPrimitiveStatement(test_case)
+    test_case.add_statement(bool_stmt)
+
+    none_stmt = stmt.NoneStatement(test_case)
+    test_case.add_statement(none_stmt)
+
+    return test_case
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
+def test_iterative_minimization_visitor_dependencies_preserved(
+    tc_with_complex_dependencies, mock_fitness_function, visitor_class
+):
+    """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
+    test_case = tc_with_complex_dependencies
+
+    # Set up the compute_coverage method to return different values based on test case content
+    def compute_coverage_side_effect(test_suite):
+        # Get the statements from the test case
+        statements = test_suite.test_case_chromosomes[0].test_case.statements
+
+        # If the list statement is present, return full coverage
+        if any(isinstance(s, stmt.ListStatement) for s in statements):
+            # Check if its dependencies are present
+            has_int = any(isinstance(s, stmt.IntPrimitiveStatement) for s in statements)
+            has_float = any(isinstance(s, stmt.FloatPrimitiveStatement) for s in statements)
+
+            # If dependencies are missing, return reduced coverage
+            if not has_int or not has_float:
+                return 0.5
+
+            # All dependencies present, return full coverage
+            return 1.0
+
+        # List statement missing, return reduced coverage
+        return 0.5
+
+    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+
+    # Create the visitor and apply it to the test case
+    visitor = visitor_class(mock_fitness_function)
+    original_size = test_case.size()
+    test_case.accept(visitor)
+
+    # Verify that some statements were removed
+    assert visitor.removed_statements > 0
+    assert test_case.size() < original_size
+
+    # Verify that the list statement and its dependencies are still present
+    statement_types = [type(s) for s in test_case.statements]
+    assert stmt.ListStatement in statement_types
+    assert stmt.IntPrimitiveStatement in statement_types
+    assert stmt.FloatPrimitiveStatement in statement_types
+
+    # Verify that the list statement still uses both the int and float statements
+    list_stmt_index = statement_types.index(stmt.ListStatement)
+    list_statement = test_case.statements[list_stmt_index]
+
+    # Get the variable references used by the list statement
+    var_refs = list_statement.get_variable_references()
+
+    # Verify that the list statement uses variables from int and float statements
+    int_vars = [
+        s.ret_val for s in test_case.statements if isinstance(s, stmt.IntPrimitiveStatement)
+    ]
+    float_vars = [
+        s.ret_val for s in test_case.statements if isinstance(s, stmt.FloatPrimitiveStatement)
+    ]
+
+    assert any(int_var in var_refs for int_var in int_vars)
+    assert any(float_var in var_refs for float_var in float_vars)
+
+
+def _setup_integration_test(coverage_metric):
+    """Fixture for setting up the integration test environment."""
+    # Set up the module name for testing
+    config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
+
+    # Create a real tracer and executor
+    tracer = ExecutionTracer()
+    tracer.current_thread_identifier = threading.current_thread().ident
+
+    with install_import_hook(config.configuration.module_name, tracer, {coverage_metric}):
+        module = importlib.import_module(config.configuration.module_name)
+        importlib.reload(module)
+        first_function = module.first
+
+        # Create a real executor
+        executor = TestCaseExecutor(tracer)
+
+        # Create a test case with multiple statements
+        cluster = generate_test_cluster(config.configuration.module_name)
+        test_case = dtc.DefaultTestCase(cluster)
+
+        # Find the GenericFunction object for the first_function
+        first_function_generic: GenericFunction | None = None
+        for obj in cluster.accessible_objects_under_test:
+            if isinstance(obj, GenericFunction) and obj._callable == first_function:
+                first_function_generic = obj
+                break
+
+        if first_function_generic is None:
+            raise ValueError("Could not find GenericFunction for first_function")
+
+        return executor, test_case, first_function_generic
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+    ids=["forward", "backward"],
+)
+@pytest.mark.parametrize(
+    "coverage_metric,expected_removed",
+    [
+        (config.CoverageMetric.BRANCH, 2),
+        (config.CoverageMetric.LINE, 2),
+    ],
+)
+def test_iterative_minimization_visitor_integration(
+    coverage_metric, expected_removed, visitor_class
+):
+    """Integration test for iterative minimization visitors with different coverage metrics."""
+    executor, test_case, first_function_generic = _setup_integration_test(coverage_metric)
+    if coverage_metric == config.CoverageMetric.BRANCH:
+        coverage_function_class = TestSuiteBranchCoverageFunction
+    elif coverage_metric == config.CoverageMetric.LINE:
+        coverage_function_class = TestSuiteLineCoverageFunction
+    else:
+        raise ValueError(f"Unknown coverage metric: {coverage_metric}")
+
+    # Add three statement tuples where the second one can be removed
+    for i in range(3):
+        int_stmt = stmt.IntPrimitiveStatement(test_case, i - 1)
+        test_case.add_statement(int_stmt)
+        func_stmt = stmt.FunctionStatement(
+            test_case, first_function_generic, {"a": int_stmt.ret_val}
+        )
+        test_case.add_statement(func_stmt)
+
+    # Execute the test case to ensure it has coverage
+    executor.execute(test_case)
+
+    # Create a coverage function and visitor based on the parameters
+    fitness_function = coverage_function_class(executor)
+    visitor = visitor_class(fitness_function)
+
+    # Apply the visitor to the test case
+    test_case.accept(visitor)
+
+    # Verify that the expected number of statements is removed
+    assert visitor.removed_statements == expected_removed

@@ -15,6 +15,7 @@ import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
+from pynguin.testcase.testcase import TestCase
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -312,3 +313,239 @@ def test_get_assertions_multiple_statements(default_test_case_with_assertions):
 def test_get_size_with_assertions(default_test_case_with_assertions):
     test_case, _assertions = default_test_case_with_assertions
     assert test_case.size_with_assertions() == 6  # 3 stmts + 3 assertions
+
+
+def setup_dependency_testcase(default_test_case, function_mock=None, scenario="empty"):
+    """Helper function to set up test cases for forward dependency tests.
+
+    Args:
+        default_test_case: The test case to set up
+        function_mock: Mock function to use in statements
+        scenario: The dependency scenario to set up:
+            - "empty": No forward dependencies
+            - "direct": Direct forward dependencies
+            - "indirect": Indirect forward dependencies
+            - "mixed": Mix of dependent and independent statements
+
+    Returns:
+        A tuple containing the variable references and expected dependencies
+    """
+    # Create the first variable (used in all scenarios)
+    int0 = st.IntPrimitiveStatement(default_test_case, 5)
+    default_test_case.add_statement(int0)
+
+    if scenario == "empty":
+        return {"int0": int0.ret_val}, {}
+
+    if scenario == "direct":
+        # Create a statement that uses the variable
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
+
+        return {"int0": int0.ret_val}, {"int0": OrderedSet([func0.ret_val])}
+
+    if scenario == "indirect":
+        # Create a statement that uses the variable
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
+
+        # Create another statement that uses the result of the first function
+        func1 = st.FunctionStatement(default_test_case, function_mock, {"a": func0.ret_val})
+        default_test_case.add_statement(func1)
+
+        return {"int0": int0.ret_val}, {"int0": OrderedSet([func0.ret_val, func1.ret_val])}
+
+    if scenario == "mixed":
+        # Create a second independent variable
+        float0 = st.FloatPrimitiveStatement(default_test_case, 5.5)
+        default_test_case.add_statement(float0)
+
+        # Create a statement that uses only int0
+        func0 = st.FunctionStatement(default_test_case, function_mock, {"a": int0.ret_val})
+        default_test_case.add_statement(func0)
+
+        # Create a statement that uses only float0
+        func1 = st.FunctionStatement(default_test_case, function_mock, {"a": float0.ret_val})
+        default_test_case.add_statement(func1)
+
+        return {"int0": int0.ret_val, "float0": float0.ret_val}, {
+            "int0": OrderedSet([func0.ret_val]),
+            "float0": OrderedSet([func1.ret_val]),
+        }
+
+    raise ValueError(f"{scenario}: Value not supported.")
+
+
+@pytest.mark.parametrize(
+    "scenario, var_key, expected_dependencies",
+    [
+        ("empty", "int0", OrderedSet()),
+        ("direct", "int0", None),  # Will be filled from the setup function
+        ("indirect", "int0", None),  # Will be filled from the setup function
+        ("mixed", "int0", None),  # Will be filled from the setup function
+        ("mixed", "float0", None),  # Will be filled from the setup function
+    ],
+)
+def test_get_forward_dependencies(
+    default_test_case, function_mock, scenario, var_key, expected_dependencies
+):
+    """Test get_forward_dependencies with various dependency scenarios."""
+    # Set up the test case according to the scenario
+    variables, expected_deps_dict = setup_dependency_testcase(
+        default_test_case, function_mock, scenario
+    )
+
+    # If expected_dependencies is None, get it from the expected_deps_dict
+    if expected_dependencies is None:
+        expected_dependencies = expected_deps_dict[var_key]
+
+    # Get the variable to check dependencies for
+    var = variables[var_key]
+
+    # Check the dependencies
+    dependencies = default_test_case.get_forward_dependencies(var)
+    assert dependencies == expected_dependencies
+
+
+def test_positions_to_remove():
+    """Test the positions_to_remove static method."""
+    # Create a statement and some mock forward dependencies
+    statement = MagicMock()
+    statement.get_position.return_value = 2
+
+    dep1 = MagicMock()
+    dep1.get_statement_position.return_value = 3
+
+    dep2 = MagicMock()
+    dep2.get_statement_position.return_value = 5
+
+    # Call the method directly
+    positions = TestCase.positions_to_remove(statement, [dep1, dep2])
+
+    # Verify the positions are correct and in reverse order
+    assert positions == [5, 3, 2]
+
+
+@pytest.fixture
+def tc_with_three_statements(default_test_case):
+    """Fixture for a test case with three statements."""
+    int_stmt = st.IntPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(int_stmt)
+
+    float_stmt = st.FloatPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(float_stmt)
+
+    str_stmt = st.StringPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(str_stmt)
+
+    return default_test_case, int_stmt, float_stmt, str_stmt
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        lambda tc: tc.remove_with_forward_dependencies,
+        lambda tc: tc.remove_with_backward_dependencies,
+    ],
+)
+def test_remove_with_dependencies(tc_with_three_statements, method):
+    """Test the remove_with_dependencies methods."""
+    test_case, int_stmt, _, str_stmt = tc_with_three_statements
+
+    # Get the actual method from the test_case instance
+    method_fn = method(test_case)
+    positions_removed = method_fn(1)
+
+    # Verify the positions removed
+    assert positions_removed == [1]
+
+    # Verify the test case has the correct statements
+    assert test_case.size() == 2
+    assert test_case.statements[0] == int_stmt
+    assert test_case.statements[1] == str_stmt
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        lambda tc: tc.remove_with_forward_dependencies,
+        lambda tc: tc.remove_with_backward_dependencies,
+    ],
+)
+def test_remove_with_dependencies_empty(default_test_case, method):
+    """Test the remove_with_dependencies methods on an empty test case."""
+    # Get the actual method from the test_case instance
+    method_fn = method(default_test_case)
+
+    # Attempt to remove a statement from an empty test case
+    with pytest.raises(ValueError, match="Position 0 is out of bounds"):
+        method_fn(0)
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        lambda tc: tc.remove_statement_with_forward_dependencies,
+        lambda tc: tc.remove_statement_with_backward_dependencies,
+    ],
+)
+def test_remove_statement_with_dependencies(tc_with_three_statements, method):
+    """Test the remove_statement_with_dependencies methods."""
+    test_case, int_stmt, float_stmt, str_stmt = tc_with_three_statements
+
+    # Get the method from the test_case instance
+    method_fn = method(test_case)
+    positions_removed = method_fn(float_stmt)
+
+    # Verify the positions removed
+    assert positions_removed == [1]
+
+    # Verify the test case has the correct statements
+    assert test_case.size() == 2
+    assert test_case.statements[0] == int_stmt
+    assert test_case.statements[1] == str_stmt
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        lambda tc: tc.remove_statement_with_forward_dependencies,
+        lambda tc: tc.remove_statement_with_backward_dependencies,
+    ],
+)
+def test_remove_statement_with_dependencies_empty(default_test_case, method):
+    """Test the remove_statement_with_dependencies methods on an empty test case."""
+    # Get the method from the test_case instance
+    method_fn = method(default_test_case)
+
+    # Attempt to remove a statement from an empty test case
+    with pytest.raises(ValueError, match="not found in test case"):
+        method_fn(MagicMock(st.Statement))
+
+
+@pytest.mark.parametrize(
+    "method_factory, stmt_position",
+    [
+        (lambda tc: tc.remove_statement_with_forward_dependencies, 0),  # Remove int0
+        (lambda tc: tc.remove_statement_with_backward_dependencies, 2),  # Remove func1
+    ],
+)
+def test_remove_statement_with_dependencies_with_dependencies(
+    default_test_case, function_mock, method_factory, stmt_position
+):
+    """Test the remove_statement_with_dependencies methods with dependencies."""
+    setup_dependency_testcase(default_test_case, function_mock, "indirect")
+
+    # Initial size check
+    assert default_test_case.size() == 3
+
+    # Select statement to remove
+    stmt = default_test_case.get_statement(stmt_position)
+
+    # Call the appropriate method
+    method = method_factory(default_test_case)
+    positions_removed = method(stmt)
+
+    # Assert positions removed
+    assert sorted(positions_removed, reverse=True) == [2, 1, 0]
+    assert default_test_case.size() == 0

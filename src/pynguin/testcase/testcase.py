@@ -130,6 +130,62 @@ class TestCase(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
+    def remove_with_forward_dependencies(self, position: int) -> list[int]:
+        """Removes a statement at the given position along with all its forward dependencies.
+
+        Args:
+            position: The position of the statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the position is out of bounds for this test case
+        """
+
+    @abstractmethod
+    def remove_statement_with_forward_dependencies(self, statement: stmt.Statement) -> list[int]:
+        """Removes the given statement along with all its forward dependencies.
+
+        Args:
+            statement: The statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the statement is not contained in the test case
+        """
+
+    @abstractmethod
+    def remove_with_backward_dependencies(self, position: int) -> list[int]:
+        """Removes a statement at the given position along with all its backward dependencies.
+
+        Args:
+            position: The position of the statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the position is out of bounds for this test case
+        """
+
+    @abstractmethod
+    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:
+        """Removes the given statement along with all its backward dependencies.
+
+        Args:
+            statement: The statement to remove
+
+        Returns:
+            A list of positions of statements that have been deleted
+
+        Raises:
+            ValueError: If the statement is not contained in the test case
+        """
+
+    @abstractmethod
     def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 
@@ -226,6 +282,19 @@ class TestCase(ABC):  # noqa: PLR0904
             a set of variables on which var depends on. # noqa: DAR202
         """
 
+    @abstractmethod
+    def get_forward_dependencies(
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
+        """Provides all variables that depend on var.
+
+        Args:
+            var: the variable for which we look for all dependent statements of
+
+        Returns:
+            a set of variables that depend on var. # noqa: DAR202
+        """
+
     def get_objects(self, parameter_type: ProperType, position: int) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type.
 
@@ -293,3 +362,22 @@ class TestCase(ABC):  # noqa: PLR0904
                 f"Found no variables of type {parameter_type} at position {position}"
             )
         return randomness.choice(variables)
+
+    @staticmethod
+    def positions_to_remove(
+        statement: stmt.Statement, dependencies: list[vr.VariableReference]
+    ) -> list[int]:
+        """Get the positions to remove and its forward dependencies in reverse order.
+
+        This is done to avoid index issues when removing multiple statements.
+
+        Args:
+            statement: The statement to remove
+            dependencies: The forward dependencies of the statement
+
+        Returns:
+            A list of positions to remove
+        """
+        positions = {dep.get_statement_position() for dep in dependencies}
+        positions.add(statement.get_position())
+        return sorted(positions, reverse=True)

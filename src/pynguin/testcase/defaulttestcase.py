@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
 
-class DefaultTestCase(tc.TestCase):
+class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
     """A default implementation of a test case."""
 
     _logger = logging.getLogger(__name__)
@@ -72,6 +72,46 @@ class DefaultTestCase(tc.TestCase):
 
     def remove_statement(self, statement: stmt.Statement) -> None:  # noqa: D102
         self._statements.remove(statement)
+
+    def remove_with_forward_dependencies(self, position: int) -> list[int]:  # noqa: D102
+        if position >= self.size():
+            raise ValueError(
+                f"Position {position} is out of bounds for test case of size {self.size()}."
+            )
+        statement = self.get_statement(position)
+        return self.remove_statement_with_forward_dependencies(statement)
+
+    def remove_statement_with_forward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
+        if not self.contains(statement):
+            raise ValueError(f"Statement {statement} not found in test case.")
+        ret_val = statement.ret_val
+        forward_dependencies = []
+        if ret_val is not None:
+            forward_dependencies = list(self.get_forward_dependencies(ret_val))
+        positions_to_remove = tc.TestCase.positions_to_remove(statement, forward_dependencies)
+        for pos in positions_to_remove:
+            self.remove(pos)
+        return positions_to_remove
+
+    def remove_with_backward_dependencies(self, position: int) -> list[int]:  # noqa: D102
+        if position >= self.size():
+            raise ValueError(
+                f"Position {position} is out of bounds for test case of size {self.size()}."
+            )
+        statement = self.get_statement(position)
+        return self.remove_statement_with_backward_dependencies(statement)
+
+    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
+        if not self.contains(statement):
+            raise ValueError(f"Statement {statement} not found in test case.")
+        ret_val = statement.ret_val
+        backward_dependencies = []
+        if ret_val is not None:
+            backward_dependencies = list(self.get_dependencies(ret_val))
+        positions_to_remove = tc.TestCase.positions_to_remove(statement, backward_dependencies)
+        for pos in positions_to_remove:
+            self.remove(pos)
+        return positions_to_remove
 
     def chop(self, pos: int) -> None:  # noqa: D102
         assert pos >= 0
@@ -125,6 +165,29 @@ class DefaultTestCase(tc.TestCase):
                     dependencies.add(ret_val)
                     break
             dependent_stmts.update(new_stmts)
+
+        return dependencies
+
+    def get_forward_dependencies(  # noqa: D102
+        self, var: vr.VariableReference
+    ) -> OrderedSet[vr.VariableReference]:
+        dependencies: OrderedSet[vr.VariableReference] = OrderedSet()
+
+        # Start with the variable itself
+        dependencies.add(var)
+
+        # Iterate forward from the variable's statement position
+        for idx in range(var.get_statement_position() + 1, self.size()):
+            statement = self.get_statement(idx)
+            # Check if this statement references any of the dependencies we've found so far
+            if (
+                any(statement.references(dep) for dep in dependencies)
+                and statement.ret_val is not None
+            ):
+                dependencies.add(statement.ret_val)
+
+        # Remove the original variable from the dependencies
+        dependencies.remove(var)
 
         return dependencies
 

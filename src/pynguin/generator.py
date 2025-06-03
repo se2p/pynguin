@@ -25,6 +25,7 @@ import importlib
 import inspect
 import json
 import logging
+import math
 import sys
 import threading
 
@@ -545,7 +546,7 @@ def add_additional_metrics(  # noqa: D103
         ))
 
 
-def _run() -> ReturnCode:
+def _run() -> ReturnCode:  # noqa: C901
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
@@ -573,7 +574,11 @@ def _run() -> ReturnCode:
     executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
-    _remove_statements_after_exceptions(generation_result)
+    try:
+        _LOGGER.info("Minimizing test cases")
+        _minimize(generation_result, algorithm)
+    except Exception as ex:
+        _LOGGER.exception("Minimization failed: %s", ex)
     _generate_assertions(executor, generation_result, test_cluster)
     tracked_metrics = _track_final_metrics(
         algorithm, executor, generation_result, constant_provider
@@ -639,13 +644,86 @@ def _run_llm() -> ReturnCode:
     return ReturnCode.OK
 
 
-def _remove_statements_after_exceptions(generation_result):
+def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool:
+    """Check if the coverage after minimization is the same as before.
+
+    Args:
+        original_coverage: The coverage before minimization
+        minimized_coverage: The coverage after minimization
+
+    Returns:
+        If the coverage is still the same
+    """
+    is_same = math.isclose(original_coverage, minimized_coverage)
+    if is_same:
+        _LOGGER.info("Coverage after minimization is the same as before: %.4f", minimized_coverage)
+    else:
+        _LOGGER.warning(
+            "Coverage changed after minimization: before=%.4f, after=%.4f",
+            original_coverage,
+            minimized_coverage,
+        )
+    return is_same
+
+
+def _minimize(generation_result, algorithm=None):
     truncation = pp.ExceptionTruncation()
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
-        unused_primitives_removal = pp.TestCasePostProcessor([pp.UnusedStatementsTestCaseVisitor()])
-        generation_result.accept(unused_primitives_removal)
-        # TODO(fk) add more postprocessing stuff.
+        unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
+        minimization_strategy = config.configuration.test_case_output.minimization.strategy
+
+        if minimization_strategy != config.MinimizationStrategy.NONE and algorithm is not None:
+            fitness_function = _get_coverage_ff_from_algorithm(
+                algorithm, ff.TestSuiteBranchCoverageFunction
+            )
+            original_coverage = generation_result.get_coverage_for(fitness_function)
+
+            # Save a copy of the original test suite before minimization
+            original_test_suite = generation_result.clone()
+
+            # Select the appropriate minimization visitor based on the strategy
+            if minimization_strategy == config.MinimizationDirection.FORWARD:
+                iterative_minimizer: pp.IterativeMinimizationVisitor = (
+                    pp.ForwardIterativeMinimizationVisitor(fitness_function)
+                )
+            else:
+                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_function)
+
+            # Apply both minimization strategies
+            test_case_minimizer = pp.TestCasePostProcessor([
+                unused_vars_minimizer,
+                iterative_minimizer,
+            ])
+            generation_result.accept(test_case_minimizer)
+
+            _LOGGER.info(
+                "Removed %d statement(s) from test cases using %s minimization",
+                iterative_minimizer.removed_statements,
+                minimization_strategy.value,
+            )
+            minimized_coverage = generation_result.get_coverage_for(fitness_function)
+            is_same = _check_coverage(original_coverage, minimized_coverage)
+            if not is_same:
+                # Restore unminimized test suite
+                _LOGGER.info("Restoring unminimized test suite due to coverage loss")
+                # Replace the current test suite with the original one
+                generation_result.test_case_chromosomes = [
+                    test.clone() for test in original_test_suite.test_case_chromosomes
+                ]
+                # Mark the test suite as changed
+                generation_result.changed = True
+                # Verify that coverage is restored
+                restored_coverage = generation_result.get_coverage_for(fitness_function)
+                _LOGGER.info("Coverage after restoration: %.4f", restored_coverage)
+
+        else:
+            unused_primitives_removal = pp.TestCasePostProcessor([unused_vars_minimizer])
+            generation_result.accept(unused_primitives_removal)
+
+    # Remove empty test cases after minimization
+    empty_test_case_remover = pp.EmptyTestCaseRemover()
+    generation_result.accept(empty_test_case_remover)
 
 
 def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):

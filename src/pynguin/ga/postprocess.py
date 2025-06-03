@@ -8,12 +8,17 @@
 
 from __future__ import annotations
 
+import abc
 import logging
+import math
 
 from abc import ABC
 from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
+import pynguin.ga.testcasechromosome as tcc
+import pynguin.ga.testsuitechromosome as tsc
+import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
 
 from pynguin.assertion.assertion import Assertion
@@ -23,8 +28,9 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
-    import pynguin.ga.testcasechromosome as tcc
-    import pynguin.ga.testsuitechromosome as tsc
+    import pynguin.ga.computations as ff
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -51,8 +57,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
     If an assertion does not cover new lines, it is removed from the resulting test
     case.
     """
-
-    _logger = logging.getLogger(__name__)
 
     def __init__(self):  # noqa: D107
         self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
@@ -83,7 +87,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
-        self._logger.debug(
+        _LOGGER.debug(
             f"Removed {len(self._deleted_assertions)} assertion(s) from "  # noqa: G004
             f"test suite that do not increase checked coverage",
         )
@@ -135,12 +139,8 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
     ) -> None:
         for visitor in self._test_case_visitors:
             chromosome.test_case.accept(visitor)
-            if (last_exec := chromosome.get_last_execution_result()) is not None:
-                # We don't want to re-execute the test cases here, so we also remove
-                # information about the deleted statements from the execution result.
-                # TODO(fk) we could also re-execute, but with flakiness this could
-                #  cause inconsistent results
-                last_exec.delete_statement_data(visitor.deleted_statement_indexes)
+            # Remove the last execution result to force re-execution of the test case
+            chromosome.remove_last_execution_result()
 
 
 class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
@@ -159,10 +159,146 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         return self._deleted_statement_indexes
 
 
+class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
+
+    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
+        super().__init__()
+        self._fitness_function = fitness_function
+        self._removed_statements = 0
+
+    @property
+    def removed_statements(self) -> int:
+        """Provides the number of removed statements.
+
+        Returns:
+            The number of removed statements
+        """
+        return self._removed_statements
+
+    @abc.abstractmethod
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:
+        """Visits a test case and tries to minimize it.
+
+        Args:
+            test_case: The test case to minimize
+        """
+
+
+class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    Iterates front to back (forward) and uses forward dependencies when removing statements.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all forward dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
+
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
+        original_test_suite = tsc.TestSuiteChromosome()
+        original_test_suite.add_test_case_chromosome(original_test_case)
+        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+
+        original_size = test_case.size()
+        statements_changed = True
+
+        while statements_changed:
+            statements_changed = False
+            statements = list(test_case.statements)
+
+            i = 0
+            while i < len(statements):
+                stmt = statements[i]
+                if stmt.get_position() >= test_case.size():
+                    break
+
+                test_clone = test_case.clone()
+                clone_stmt = test_clone.get_statement(stmt.get_position())
+                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
+                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
+                minimized_test_suite = tsc.TestSuiteChromosome()
+                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
+                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
+                if math.isclose(original_coverage, minimized_coverage):
+                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
+                    self._removed_statements += len(removed)
+
+                    # Update the statements list to reflect the changes in the test case
+                    statements = list(test_case.statements)
+                    # Don't increment i since we've removed elements and the list has shifted
+                    statements_changed = True
+                else:
+                    i += 1
+
+            if not statements_changed:
+                break
+
+        _LOGGER.debug(
+            "Removed %s statement(s) from test case using forward iterative minimization",
+            original_size - test_case.size(),
+        )
+
+
+class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
+    """Iteratively tries to remove statements while preserving fitness.
+
+    Iterates back to front (backward) and uses backward dependencies when removing statements.
+
+    For each statement in the test case:
+    1. Create a clone of the test case
+    2. Remove the statement from the clone and all backward dependent statements
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same or improves, remove the statement from the original test case
+    """
+
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
+        original_test_suite = tsc.TestSuiteChromosome()
+        original_test_suite.add_test_case_chromosome(original_test_case)
+        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+
+        original_size = test_case.size()
+        statements_changed = True
+
+        while statements_changed and test_case.size() > 0:
+            statements_changed = False
+
+            i = test_case.size() - 1
+            while 0 <= i < test_case.size():
+                stmt = test_case.get_statement(i)
+                test_clone = test_case.clone()
+                clone_stmt = test_clone.get_statement(i)
+                test_clone.remove_statement_with_backward_dependencies(clone_stmt)
+                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
+                minimized_test_suite = tsc.TestSuiteChromosome()
+                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
+                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
+                if math.isclose(original_coverage, minimized_coverage):
+                    removed = test_case.remove_statement_with_backward_dependencies(stmt)
+                    self._removed_statements += len(removed)
+                    statements_changed = True
+                    break
+                i -= 1
+
+        _LOGGER.debug(
+            "Removed %s statement(s) from test case using backward iterative minimization",
+            original_size - test_case.size(),
+        )
+
+
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
     """Removes unused primitive and collection statements."""
-
-    _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
@@ -171,7 +307,7 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
         # Iterate over copy, to be able to modify original.
         for stmt in reversed(list(test_case.statements)):
             stmt.accept(primitive_remover)
-        self._logger.debug(
+        _LOGGER.debug(
             "Removed %s unused primitives/collections from test case",
             size_before - test_case.size(),
         )
@@ -271,3 +407,40 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PL
 
     def visit_ast_assign_statement(self, stmt) -> None:  # noqa: D102
         self._handle_remaining(stmt)
+
+
+class EmptyTestCaseRemover(cv.ChromosomeVisitor):
+    """Removes empty test cases from a test suite.
+
+    If a test case is empty after minimization, it should be removed entirely.
+    """
+
+    def __init__(self):  # noqa: D107
+        self._removed_test_cases = 0
+
+    @property
+    def removed_test_cases(self) -> int:
+        """Provides the number of removed test cases.
+
+        Returns:
+            The number of removed test cases
+        """
+        return self._removed_test_cases
+
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
+        original_size = chromosome.size()
+        chromosome.test_case_chromosomes = [
+            test for test in chromosome.test_case_chromosomes if test.size() > 0
+        ]
+        self._removed_test_cases = original_size - chromosome.size()
+        if self._removed_test_cases > 0:
+            chromosome.changed = True
+            _LOGGER.info("Removed %d empty test case(s) from test suite", self._removed_test_cases)
+
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
+        # Nothing to do for individual test cases
+        pass
