@@ -595,8 +595,6 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
     4. If it still crashes, remove the statement from the original test case
     """
 
-    _logger = logging.getLogger(__name__)
-
     def __init__(self, executor: SubprocessTestCaseExecutor):  # noqa: D107
         super().__init__()
         self._executor = executor
@@ -652,7 +650,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
             if not statements_changed:
                 break
 
-        self._logger.debug(
+        _LOGGER.debug(
             "Removed %s statement(s) from crashed test case using crash-preserving minimization",
             original_size - test_case.size(),
         )
