@@ -316,6 +316,7 @@ def expected_parameter_list() -> list[str]:
         "--max_delta 20",
         "--max_int 2048",
         "--string_length 20",
+        "--subprocess False",
         "--bytes_length 20",
         "--collection_size 5",
         "--primitive_reuse_probability 0.5",

@@ -85,11 +85,11 @@ def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
     cfg_dict = dataclasses.asdict(config.configuration)
 
     for key, value in cfg_dict.items():
-        if isinstance(value, str) and value:
-            parameter_list.append(format_parameter(key, value))
-        elif isinstance(value, dict):
+        if isinstance(value, (str, list)) and not value:
+            continue
+        if isinstance(value, dict):
             for sub_key, sub_value in value.items():
-                if isinstance(sub_value, str) and not sub_value:
+                if isinstance(sub_value, (str, list)) and not sub_value:
                     continue
                 if isinstance(sub_value, dict):
                     for sub_sub_key, sub_sub_value in sub_value.items():
@@ -98,6 +98,8 @@ def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
                         )
                 else:
                     parameter_list.append(format_parameter(f"{sub_key}", sub_value))
+        else:
+            parameter_list.append(format_parameter(key, value))
 
     verbosity_params = _extract_verbosity_params() if verbosity else []
     return sorted(parameter_list + verbosity_params)
