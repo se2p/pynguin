@@ -23,7 +23,8 @@ from pynguin.ga import testcasechromosome
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
-from pynguin.testcase.localsearch import TestCaseLocalSearch, LocalSearchTimer
+from pynguin.testcase.localsearch import TestCaseLocalSearch, LocalSearchTimer, TestSuiteLocalSearch
+from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -132,25 +133,15 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
     def local_search(self) -> None:
         """Runs local search."""
-        global_search_coverage = self.create_test_suite(self._archive.solutions).get_coverage()
+        test_suite = self.create_test_suite(self._archive.solutions)
+        global_search_coverage = test_suite.get_coverage()
         self._logger.debug("Starting local search")
-        LocalSearchTimer.__new__(LocalSearchTimer).start_local_search()
+        LocalSearchTimer.get_instance().start_local_search()
 
-
-        for chromosome in self._population:  #TODO Population?
-            if not self.resources_left():
-                break
-            if LocalSearchTimer.__new__(LocalSearchTimer).limit_reached():
-                break
-
-            if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability:
-                test_case_local_search = TestCaseLocalSearch()
-                test_case_local_search.local_search(chromosome)
+        TestSuiteLocalSearch.local_search(TestSuiteLocalSearch(),test_suite)
 
         self._logger.debug("Local search complete, increased coverage from %f to %f", global_search_coverage,
-                           self.create_test_suite(self._archive.solutions).get_coverage())
-
-
+                           test_suite.get_coverage())
 
 class _GoalsManager:
     """Manages goals and provides dynamically selected ones for the generation."""

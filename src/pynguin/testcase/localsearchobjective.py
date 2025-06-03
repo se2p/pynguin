@@ -57,6 +57,7 @@ class LocalSearchObjective:
             Gives back 1 if the fitness has increased, -1 if the fitness has decreased and 0 if the fitness has not changed at all.
         """
         test_case_chromosome.changed = True
+        self._old_fitness = self._test_suite.get_fitness()
         self._test_suite.set_test_case_chromosome(self._position, test_case_chromosome)
         for fitness_function in self._fitness_functions:
             fitness_function.compute_fitness(self._test_suite)
