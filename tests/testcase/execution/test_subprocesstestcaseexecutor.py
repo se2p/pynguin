@@ -5,14 +5,15 @@
 #  SPDX-License-Identifier: MIT
 #
 """Tests for the exception handling in SubprocessTestCaseExecutor."""
+
 import importlib
 import inspect
-import signal
-import threading
-
 import logging
 import multiprocessing.connection as mp_conn
+import signal
+import threading
 import unittest.mock
+
 from unittest.mock import patch
 
 import pytest
@@ -43,6 +44,8 @@ def cause_seg_fault_mock(type_system) -> GenericFunction:
             type_system=type_system,
         ),
     )
+
+
 def test_subprocess_exception_suppression():
     """Test that exceptions in the subprocess are suppressed."""
     # Create a mock for the _replace_tracer method to raise an exception
@@ -83,11 +86,13 @@ def test_subprocess_exception_suppression():
         # because an exception was raised before that point
         sending_connection.send.assert_not_called()
 
+
 @pytest.fixture
 def cause_seg_fault_test_case(cause_seg_fault_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     test_case.add_statement(stmt.FunctionStatement(test_case, cause_seg_fault_mock))
     return test_case
+
 
 def test_subprocess_exception_logging(caplog):
     """Test that exceptions in the subprocess are logged."""
@@ -126,6 +131,7 @@ def test_subprocess_exception_logging(caplog):
 
         # Verify that the exception was logged
         assert f"Suppressed exception in subprocess: {exception_message}" in caplog.text
+
 
 def test_crashing_execution(tmp_path, cause_seg_fault_test_case):
     # prevent test output into the tests directory

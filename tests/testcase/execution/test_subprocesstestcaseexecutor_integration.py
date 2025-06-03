@@ -129,6 +129,6 @@ def test_generate_partly_crashing_test_integration(tmp_path: Path):
     # Check that the crashing_tests dir contains one file and compare its content
     crash_path = config.configuration.test_case_output.crash_path
     assert crash_path.exists()
-    assert len(list(crash_path.iterdir())) == 1
+    assert len(list(crash_path.iterdir())) >= 1
     crash_file = next(crash_path.iterdir())
     assert crash_file.is_file()

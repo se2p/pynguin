@@ -690,40 +690,18 @@ def _minimize(generation_result, algorithm=None):
             else:
                 iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_function)
 
-            # Check if we should use the combined minimization approach
-            if config.configuration.test_case_output.combined_minimization:
-                combined_minimizer = pp.CombinedMinimizationVisitor(fitness_function)
-                generation_result.accept(combined_minimizer)
+            # Apply both minimization strategies
+            test_case_minimizer = pp.TestCasePostProcessor([
+                unused_vars_minimizer,
+                iterative_minimizer,
+            ])
+            generation_result.accept(test_case_minimizer)
 
-                _LOGGER.info(
-                    "Combined minimization removed %d statement(s)",
-                    combined_minimizer.removed_statements,
-                )
-            else:
-                # Apply traditional test case minimization strategies
-                test_case_minimizer = pp.TestCasePostProcessor([
-                    unused_vars_minimizer,
-                    iterative_minimizer,
-                ])
-                generation_result.accept(test_case_minimizer)
-
-                _LOGGER.info(
-                    "Removed %d statement(s) from test casesusing %s minimization",
-                    iterative_minimizer.removed_statements,
+            _LOGGER.info(
+                "Removed %d statement(s) from test cases using %s minimization",
+                iterative_minimizer.removed_statements,
                 minimization_strategy.value,
             )
-
-                # Apply test suite minimization to remove redundant test cases
-                if config.configuration.test_case_output.test_suite_minimization:
-                    test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_function)
-                    generation_result.accept(test_suite_minimizer)
-
-                    if test_suite_minimizer.removed_test_cases > 0:
-                        _LOGGER.info(
-                            "Removed %d test case(s) from test suite during minimization",
-                            test_suite_minimizer.removed_test_cases,
-                        )
-
             minimized_coverage = generation_result.get_coverage_for(fitness_function)
             is_same = _check_coverage(original_coverage, minimized_coverage)
             if not is_same:
@@ -926,11 +904,8 @@ def _export_chromosome(
     )
     store_call_return = (
         config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM
-        or not config.configuration.test_case_output.remove_unused_references
     )
-    export_visitor = export.PyTestChromosomeToAstVisitor(
-        store_call_return=store_call_return,
-    )
+    export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
 
     chromosome.accept(export_visitor)
     export.save_module_to_file(
