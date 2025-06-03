@@ -25,6 +25,7 @@ import importlib
 import inspect
 import json
 import logging
+import math
 import sys
 import threading
 
@@ -604,9 +605,6 @@ def _run_llm() -> ReturnCode:
     return ReturnCode.OK
 
 
-EPSILON = 0.0001
-
-
 def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool:
     """Check if the coverage after minimization is the same as before.
 
@@ -617,7 +615,7 @@ def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool
     Returns:
         If the coverage is still the same
     """
-    is_same = abs(minimized_coverage - original_coverage) < EPSILON
+    is_same = math.isclose(original_coverage, minimized_coverage)
     if is_same:
         _LOGGER.info("Coverage after minimization is the same as before: %.4f", minimized_coverage)
     else:

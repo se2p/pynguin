@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import logging
+import math
 
 from abc import ABC
 from typing import TYPE_CHECKING
@@ -158,9 +159,6 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         return self._deleted_statement_indexes
 
 
-EPSILON = 0.0001
-
-
 class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     """Iteratively tries to remove statements while preserving fitness.
 
@@ -232,7 +230,7 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
                 minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
-                if original_coverage - minimized_coverage < EPSILON:
+                if math.isclose(original_coverage, minimized_coverage):
                     removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
 
@@ -286,7 +284,7 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
                 minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
-                if original_coverage - minimized_coverage < EPSILON:
+                if math.isclose(original_coverage, minimized_coverage):
                     removed = test_case.remove_statement_with_backward_dependencies(stmt)
                     self._removed_statements += len(removed)
                     statements_changed = True
