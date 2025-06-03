@@ -421,8 +421,6 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
     4. If fitness remains the same, remove the test case from the original test suite
     """
 
-    _logger = logging.getLogger(__name__)
-
     def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
         self._fitness_function = fitness_function
         self._removed_test_cases = 0
