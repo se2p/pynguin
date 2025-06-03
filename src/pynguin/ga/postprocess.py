@@ -411,6 +411,72 @@ class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PL
         self._handle_remaining(stmt)
 
 
+class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
+    """Minimizes a test suite by removing test cases that don't affect coverage.
+
+    For each test case in the test suite:
+    1. Create a clone of the test suite
+    2. Remove the test case from the clone
+    3. Execute the clone and calculate its fitness
+    4. If fitness remains the same, remove the test case from the original test suite
+    """
+
+    _logger = logging.getLogger(__name__)
+
+    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
+        self._fitness_function = fitness_function
+        self._removed_test_cases = 0
+
+    @property
+    def removed_test_cases(self) -> int:
+        """Provides the number of removed test cases.
+
+        Returns:
+            The number of removed test cases
+        """
+        return self._removed_test_cases
+
+    def visit_test_suite_chromosome(  # noqa: D102
+        self, chromosome: tsc.TestSuiteChromosome
+    ) -> None:
+        if chromosome.size() <= 1:
+            # Nothing to minimize if there's only one or zero test cases
+            return
+
+        original_coverage = self._fitness_function.compute_coverage(chromosome)
+
+        test_cases = list(chromosome.test_case_chromosomes)
+        i = 0
+
+        while i < len(test_cases):
+            # Always keep at least one test case
+            if len(test_cases) == 1:
+                break
+
+            test_suite_clone = chromosome.clone()
+            test_to_remove = test_suite_clone.get_test_case_chromosome(i)
+            test_suite_clone.delete_test_case_chromosome(test_to_remove)
+
+            minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
+
+            # If coverage is not affected, remove the test case from the original test suite
+            if math.isclose(original_coverage, minimized_coverage):
+                chromosome.delete_test_case_chromosome(test_cases[i])
+                # Update our working list
+                test_cases.pop(i)
+                self._removed_test_cases += 1
+                # Don't increment i since we've removed an element and the list has shifted
+            else:
+                i += 1
+
+        if self._removed_test_cases > 0:
+            chromosome.changed = True
+
+    def visit_test_case_chromosome(  # noqa: D102
+        self, chromosome: tcc.TestCaseChromosome
+    ) -> None:
+        # Nothing to do for individual test cases
+        pass
 class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
     """Iteratively tries to remove statements while preserving crash behavior.
 
@@ -461,10 +527,13 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 # Execute the clone and check if it still crashes
                 exit_code = self._executor.execute_with_exit_code(test_clone)
 
-                if exit_code != 0:
-                    # If the clone still crashes, remove the statement from the original test case
-                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
-                    self._removed_statements += len(removed)
+                    # Compute the coverage of the modified test suite
+                    minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
+
+                    # If coverage is not affected, remove the statement from the original test case
+                    if math.isclose(original_coverage, minimized_coverage):
+                        removed = test_case.remove_statement_safely(stmt)
+                        self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case
                     statements = list(test_case.statements)
