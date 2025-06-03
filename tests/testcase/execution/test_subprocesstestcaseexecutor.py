@@ -169,9 +169,7 @@ def test_eof_error_during_receiving_results(default_test_case):
             patch("multiprocess.Process.kill"),
         ):
             exit_code = subprocess_executor.execute_with_exit_code(default_test_case)
-
-            # Should return -SIGKILL when process.exitcode is None
-            assert exit_code == -signal.SIGKILL
+            assert exit_code is None
 
 
 def test_empty_test_case_no_results(default_test_case):
@@ -221,6 +219,4 @@ def test_non_empty_test_case_no_results(short_test_case):
             patch("multiprocess.Process.kill"),
         ):
             exit_code = subprocess_executor.execute_with_exit_code(short_test_case)
-
-            # Should return -SIGKILL when process.exitcode is None
-            assert exit_code == -signal.SIGKILL
+            assert exit_code is None

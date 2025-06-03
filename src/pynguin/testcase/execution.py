@@ -1322,18 +1322,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def execute_with_exit_code(
         self,
         test_case: tc.TestCase,
-    ) -> int:
+    ) -> int | None:
         """Execute a test case in a subprocess and return the exit code.
 
         This method executes a single test case in a separate subprocess and returns
-        the exit code of the subprocess. This is useful for checking if a test case
-        causes a crash.
+        the exit code of the subprocess. If the subprocess crashes or times out,
+        it returns None or a non-zero exit code.
 
         Args:
             test_case: The test case to execute
 
         Returns:
-            The exit code of the subprocess. A non-zero exit code indicates a crash.
+            The exit code of the subprocess. A None or non-zero exit code indicates a
+            crash.
         """
         self._before_remote_test_case_execution(test_case)
 
@@ -1361,7 +1362,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             if process.exitcode is None:
                 process.kill()
-                return -signal.SIGKILL
+                return None
         elif test_case.size() == 0:
             return 0
         else:
@@ -1369,7 +1370,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             if process.exitcode is None:
                 process.kill()
-                return -signal.SIGKILL
+                return None
 
         return process.exitcode or 0
 
