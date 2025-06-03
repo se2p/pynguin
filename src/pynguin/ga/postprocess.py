@@ -522,15 +522,18 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
                 clone_stmt = test_clone.get_statement(stmt.get_position())
                 test_clone.remove_statement_with_forward_dependencies(clone_stmt)
 
-                # Execute the clone and check if it still crashes
-                exit_code = self._executor.execute_with_exit_code(test_clone)
+                    # Remove the statement from the clone
+                    clone_test_case.remove_statement_with_forward_dependencies(clone_stmt)
+                    test_suite_clone.set_test_case_chromosome(
+                        test_case_idx, tcc.TestCaseChromosome(clone_test_case)
+                    )
 
                     # Compute the coverage of the modified test suite
                     minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
 
                     # If coverage is not affected, remove the statement from the original test case
                     if math.isclose(original_coverage, minimized_coverage):
-                        removed = test_case.remove_statement_safely(stmt)
+                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
                         self._removed_statements += len(removed)
 
                     # Update the statements list to reflect the changes in the test case

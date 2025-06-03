@@ -150,6 +150,13 @@ class MinimizationStrategy(str, enum.Enum):
     CASE = "CASE"
     """Apply minimization at the test case level."""
 
+    SUITE = "SUITE"
+    """Apply minimization at the test suite level, i.e., remove entire test cases that
+    do not contribute to the coverage of the module under test."""
+
+    COMBINED = "COMBINED"
+    """Apply minimization at the test case level but check against all test cases in the suite."""
+
 
 class TypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
@@ -314,6 +321,10 @@ class TestCaseOutputConfiguration:
 
     format_with_black: bool = True
     """Format the generated test cases using black."""
+
+    # TODO: Move to Minimization before merging
+    remove_unused_references: bool = True
+    """Remove references to return values that are not used by subsequent statements."""
 
 
 @dataclasses.dataclass
