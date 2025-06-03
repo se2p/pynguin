@@ -45,6 +45,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
+import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import ConstantProvider
@@ -68,6 +69,7 @@ from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.llm import LLM
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.llm import extract_code
+from pynguin.utils.pynguinml import np_rng
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -129,10 +131,20 @@ def run_pynguin() -> ReturnCode:
 
 
 def _setup_test_cluster() -> ModuleTestCluster | None:
-    test_cluster = generate_test_cluster(
-        config.configuration.module_name,
-        config.configuration.type_inference.type_inference_strategy,
-    )
+    try:
+        test_cluster = generate_test_cluster(
+            config.configuration.module_name,
+            config.configuration.type_inference.type_inference_strategy,
+        )
+    except ModuleNotFoundError as ex:
+        _LOGGER.exception(
+            """Module %s could not be found. This is likely due to a missing dependency.
+            It may also be caused by a bug in the SUT, especially if it uses C-modules.
+            """,
+            ex.name,
+        )
+        return None
+
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
@@ -176,7 +188,13 @@ def _load_sut(tracer: ExecutionTracer) -> bool:
     try:
         # We need to set the current thread ident so the import trace is recorded.
         tracer.current_thread_identifier = threading.current_thread().ident
-        importlib.import_module(config.configuration.module_name)
+        module_name = config.configuration.module_name
+        # If the module is already imported, we need to reload it for the
+        # ExecutionTracer to successfully register the subject_properties
+        if module_name in sys.modules:
+            importlib.reload(sys.modules[module_name])
+        else:
+            importlib.import_module(module_name)
     except Exception as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed or any error is raised during the import
@@ -207,6 +225,8 @@ def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
     randomness.RNG.seed(config.configuration.seeding.seed)
+    if config.configuration.pynguinml.ml_testing_enabled:
+        np_rng.init_rng(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider | None]:
@@ -237,6 +257,13 @@ def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider
         wrapped_provider = dynamic_constant_provider
 
     return wrapped_provider, dynamic_constant_provider
+
+
+def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
+    # load resources once so they get cached
+    tr.get_datatype_mapping()
+    tr.get_nparray_function(test_cluster)
+    tr.get_constructor_function(test_cluster)
 
 
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
@@ -281,6 +308,9 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         )
     _track_sut_data(tracer, test_cluster)
     _setup_random_number_generator()
+
+    if config.configuration.pynguinml.ml_testing_enabled:
+        _setup_ml_testing_environment(test_cluster)
 
     # Detect which LLM strategy is used
     stat.track_output_variable(RuntimeVariable.LLMStrategy, _detect_llm_strategy())
@@ -380,7 +410,10 @@ def _reload_instrumentation_loader(
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
-    importlib.reload(module)
+    try:
+        importlib.reload(module)
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Reload of module %s failed: %s", module_name, e)
 
 
 def _reset_cache_for_result(generation_result):
@@ -556,21 +589,27 @@ def _run() -> ReturnCode:
         _export_chromosome(generation_result)
 
     if config.configuration.statistics_output.create_coverage_report:
-        coverage_report = get_coverage_report(
-            generation_result,
-            executor,
-            tracked_metrics,
-        )
-        render_coverage_report(
-            coverage_report,
-            Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
-            datetime.datetime.now(),  # noqa: DTZ005
-        )
-        render_xml_coverage_report(
-            coverage_report,
-            Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
-            datetime.datetime.now(),  # noqa: DTZ005
-        )
+        try:
+            coverage_report = get_coverage_report(
+                generation_result,
+                executor,
+                tracked_metrics,
+            )
+            render_coverage_report(
+                coverage_report,
+                Path(config.configuration.statistics_output.report_dir) / "cov_report.html",
+                datetime.datetime.now(),  # noqa: DTZ005
+            )
+            render_xml_coverage_report(
+                coverage_report,
+                Path(config.configuration.statistics_output.report_dir) / "cov_report.xml",
+                datetime.datetime.now(),  # noqa: DTZ005
+            )
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning(
+                "Failed to create coverage report: %s. ",
+                e,
+            )
     _collect_miscellaneous_statistics(test_cluster)
     if not stat.write_statistics():
         _LOGGER.error("Failed to write statistics data")

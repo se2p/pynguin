@@ -35,6 +35,7 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
+import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
@@ -59,6 +60,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -83,6 +85,7 @@ if typing.TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
     from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.utils.pynguinml.mlparameter import MLParameter
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
@@ -306,7 +309,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     )
 
 
-class TestCluster(abc.ABC):
+class TestCluster(abc.ABC):  # noqa: PLR0904
     """Interface for a test cluster."""
 
     @property
@@ -365,6 +368,14 @@ class TestCluster(abc.ABC):
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
         """Provides all function data for all accessibles."""
+
+    @abc.abstractmethod
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:
+        """Provides ML data for a accessible."""
+
+    @abc.abstractmethod
+    def get_ml_data_for(self, generic_accessible: GenericAccessibleObject) -> MLCallableData | None:
+        """Provides ML data for a accessible."""
 
     @abc.abstractmethod
     def num_accessible_objects_under_test(self) -> int:
@@ -567,6 +578,7 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         )
         self.__accessible_objects_under_test: OrderedSet[GenericAccessibleObject] = OrderedSet()
         self.__function_data_for_accessibles: dict[GenericAccessibleObject, CallableData] = {}
+        self.__ml_data_for_accessibles: dict[GenericAccessibleObject, MLCallableData] = {}
 
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
@@ -713,6 +725,12 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         self,
     ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__function_data_for_accessibles
+
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:  # noqa: D102
+        self.__ml_data_for_accessibles[obj] = data
+
+    def get_ml_data_for(self, obj: GenericAccessibleObject) -> MLCallableData | None:  # noqa: D102
+        return self.__ml_data_for_accessibles.get(obj)
 
     def num_accessible_objects_under_test(self) -> int:  # noqa: D102
         return len(self.__accessible_objects_under_test)
@@ -896,6 +914,12 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> dict[GenericAccessibleObject, CallableData]:
         return self.__delegate.function_data_for_accessibles
 
+    def add_ml_data(self, obj: GenericAccessibleObject, data: MLCallableData) -> None:  # noqa: D102
+        self.__delegate.add_ml_data(obj, data)
+
+    def get_ml_data_for(self, obj: GenericAccessibleObject) -> MLCallableData | None:  # noqa: D102
+        return self.__delegate.get_ml_data_for(obj)
+
     def track_statistics_values(  # noqa: D102
         self, tracking_fun: Callable[[RuntimeVariable, Any], None]
     ) -> None:
@@ -1061,6 +1085,19 @@ class CallableData:
     cyclomatic_complexity: int | None
 
 
+@dataclasses.dataclass
+class MLCallableData:
+    """Provides ML-specific information on callables.
+
+    Attributes:
+        parameters: A dictionary of parameters, if any
+        generation_order: The generation order of the callable (can be empty)
+    """
+
+    parameters: dict[str, MLParameter | None]
+    generation_order: list[str]
+
+
 def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
     """Retrieve the variable name of a lambda assignment.
 
@@ -1109,18 +1146,36 @@ def __analyse_function(
     description = get_function_description(func_ast)
     raised_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
-    if (
-        getattr(func, "__name__", None) == "<lambda>"
-        and (
-            lambda_assigned_name := _get_lambda_assigned_name(
-                module_tree, func.__code__.co_firstlineno
-            )
-        )
-        is not None
-    ):
-        func_name = lambda_assigned_name
-        func.__name__ = lambda_assigned_name
+    if getattr(func, "__name__", None) == "<lambda>":
+        if lambda_assigned_name := _get_lambda_assigned_name(
+            module_tree, func.__code__.co_firstlineno
+        ):
+            func_name = lambda_assigned_name
+            func.__name__ = lambda_assigned_name
+        else:
+            # If the lambda itself has no name, we must not add it to the test cluster
+            # or else it will cause an exception during test export.
+            return
+
     generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
+
+    if config.configuration.pynguinml.ml_testing_enabled and module_tree is not None:
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
+        try:
+            parameters, generation_order = tr.load_and_process_constraints(
+                module_tree.name, func_name, list(inferred_signature.original_parameters.keys())
+            )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic_function, ml_data)
+
     function_data = CallableData(
         accessible=generic_function,
         tree=func_ast,
@@ -1172,6 +1227,29 @@ def __analyse_class(
         generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
             type_info.raw_type
         )
+
+    if (
+        config.configuration.pynguinml.ml_testing_enabled
+        and type_info.raw_type.__module__ != "builtins"
+        and not isinstance(generic, GenericEnum)
+    ):
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
+        try:
+            parameters, generation_order = tr.load_and_process_constraints(
+                type_info.module,
+                type_info.name,
+                list(generic.inferred_signature.original_parameters.keys()),
+            )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic, ml_data)
 
     method_data = CallableData(
         accessible=generic,
@@ -1273,6 +1351,25 @@ def __analyse_method(
     generic_method = GenericMethod(
         type_info, method, inferred_signature, raised_exceptions, method_name
     )
+
+    if config.configuration.pynguinml.ml_testing_enabled:
+        parameters: dict[str, MLParameter | None] = {}
+        generation_order: list[str] = []
+
+        callable_name = type_info.name + "." + method_name
+        try:
+            parameters, generation_order = tr.load_and_process_constraints(
+                type_info.module, callable_name, list(inferred_signature.original_parameters.keys())
+            )
+        except ConstraintValidationError as e:
+            LOGGER.warning("ConstraintValidationError occurred: %s. Skipping.", e)
+
+        ml_data = MLCallableData(
+            parameters=parameters,
+            generation_order=generation_order,
+        )
+        test_cluster.add_ml_data(generic_method, ml_data)
+
     method_data = CallableData(
         accessible=generic_method,
         tree=method_ast,
@@ -1374,10 +1471,11 @@ def __analyse_included_classes(
     parse_results: dict[str, _ModuleParseResult],
     seen_classes: set[type],
 ) -> None:
+    values = list(vars(module).values())
     work_list = list(
         filter(
             lambda x: inspect.isclass(x) and not _is_blacklisted(x),
-            vars(module).values(),
+            values,
         )
     )
 

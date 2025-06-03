@@ -25,6 +25,7 @@ from pynguin.testcase.statement import StatementVisitor
 if TYPE_CHECKING:
     import pynguin.utils.namingscope as ns
 
+    from pynguin.testcase.statement import AllowedValuesStatement
     from pynguin.testcase.statement import AssignmentStatement
     from pynguin.testcase.statement import BooleanPrimitiveStatement
     from pynguin.testcase.statement import BytesPrimitiveStatement
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from pynguin.testcase.statement import IntPrimitiveStatement
     from pynguin.testcase.statement import ListStatement
     from pynguin.testcase.statement import MethodStatement
+    from pynguin.testcase.statement import NdArrayStatement
     from pynguin.testcase.statement import NoneStatement
     from pynguin.testcase.statement import ParametrizedStatement
     from pynguin.testcase.statement import PrimitiveStatement
@@ -303,6 +305,19 @@ class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
                 ctx=ast.Load(),
             ),
         )
+
+    def visit_ndarray_statement(self, stmt: NdArrayStatement) -> None:  # noqa: D102
+        self._ast_node = ast.Assign(
+            targets=[
+                au.create_full_name(
+                    self._variable_names, self._module_aliases, stmt.ret_val, load=False
+                )
+            ],
+            value=au.create_ast_for_nested_list(stmt.elements),
+        )
+
+    def visit_allowed_values_statement(self, stmt: AllowedValuesStatement) -> None:  # noqa: D102
+        self._ast_node = self._create_constant(stmt)
 
     def visit_set_statement(self, stmt: SetStatement) -> None:  # noqa: D102
         # There is no literal for empty sets, so we have to write "set()"

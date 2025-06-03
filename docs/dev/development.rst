@@ -153,3 +153,128 @@ purpose.
             Args:
                 a: not used
             """
+
+Code Formatting
+---------------
+
+We use ``ruff-format`` for code formatting. This replaced the previously used ``black`` formatter.
+The formatting is automatically applied when running ``make codestyle``.
+
+Code formatting standards:
+
+- Maximum line length is 100 characters (exceptions are only permitted for imports and comments that disable linter warnings)
+- Imports are ordered using ``isort``
+- Docstrings must conform to the Google Python Style Guide
+- We follow the Google Python Style Guide as much as possible
+
+To manually format your code, you can run:
+
+.. code-block:: bash
+
+    make codestyle
+
+This will apply ``ruff-format`` to format your code and organize imports according to our standards.
+
+In addition to formatting, we use the following tools for code quality:
+
+- ``ruff`` for static code analysis
+- ``mypy`` for type checking
+
+You can run all checks with:
+
+.. code-block:: bash
+
+    make check
+
+Pre-commit Hooks
+----------------
+
+Pynguin uses `pre-commit <https://pre-commit.com>`_ to enforce code quality standards before commits are made. Pre-commit is a framework for managing and maintaining multi-language pre-commit hooks.
+
+Pre-commit hooks are configured in the ``.pre-commit-config.yaml`` file in the project root. When you run ``make install``, pre-commit hooks are automatically installed in your local repository.
+
+The following pre-commit hooks are configured:
+
+1. **pre-commit-hooks**: Various checks for code quality and formatting
+
+   - ``check-ast``: Checks Python syntax
+   - ``check-builtin-literals``: Ensures consistent use of literals for builtin types
+   - ``check-case-conflict``: Checks for files with names that would conflict on a case-insensitive filesystem
+   - ``check-docstring-first``: Ensures docstrings are before code
+   - ``check-json``, ``check-toml``, ``check-xml``, ``check-yaml``: Validates file formats
+   - ``check-merge-conflict``: Checks for merge conflict markers
+   - ``check-symlinks``: Checks for symlinks that don't point to anything
+   - ``debug-statements``: Checks for debugger imports and py37+ ``breakpoint()`` calls
+   - ``destroyed-symlinks``: Detects symlinks that have been destroyed
+   - ``end-of-file-fixer``: Ensures files end with a newline
+   - ``mixed-line-ending``: Ensures consistent line endings
+   - ``pretty-format-json``: Formats JSON files
+   - ``trailing-whitespace``: Trims trailing whitespace
+
+2. **poetry hooks**: Ensures Poetry configuration is valid and dependencies are up-to-date
+
+   - ``poetry-check``: Validates the structure of the pyproject.toml file
+   - ``poetry-lock``: Ensures poetry.lock is up-to-date
+   - ``poetry-install``: Ensures dependencies are installed
+
+3. **isort**: Sorts imports according to the project's standards
+
+   - ``isort``: Configured with black profile for compatibility
+
+4. **ruff**: Linting and formatting
+
+   - ``ruff``: Fast Python linter with automatic fixes
+   - ``ruff-format``: Code formatter (replacement for black)
+
+5. **reuse-tool**: Ensures license compliance
+
+   - ``reuse``: Checks for proper license headers in files
+
+To manually run pre-commit on all files:
+
+.. code-block:: bash
+
+    pre-commit run --all-files
+
+Pre-commit hooks will also run automatically when you attempt to commit changes, preventing commits that don't meet the project's quality standards.
+
+Logging
+-------
+
+Pynguin uses Python's standard ``logging`` module for logging. The logging system is configured in the ``_setup_logging`` function in ``cli.py``.
+
+Logging features:
+
+- Multiple verbosity levels (controlled via command-line options):
+  - Default: WARNING level
+  - ``-v``: INFO level
+  - ``-vv`` or higher: DEBUG level
+- Rich console output with formatted tracebacks (can be disabled with ``--no-rich``)
+- Optional file logging (enabled with ``--log-file`` option)
+- Consistent log format including timestamp, level, module name, function name, line number, and message
+
+When adding logging to your code:
+
+1. Import the logging module at the top of your file:
+
+   .. code-block:: python
+
+       import logging
+
+2. Create a module-level logger using:
+
+   .. code-block:: python
+
+       _logger = logging.getLogger(__name__)
+
+3. Use the appropriate logging level in your code:
+
+   .. code-block:: python
+
+       _logger.debug("Detailed debugging information")
+       _logger.info("General information about program execution")
+       _logger.warning("Warning about potential issues")
+       _logger.error("Error that doesn't prevent execution")
+       _logger.critical("Critical error that may prevent execution")
+
+The logging configuration can be controlled via command-line options when running Pynguin.

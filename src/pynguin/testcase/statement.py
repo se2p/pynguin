@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import abc
 import ast
+import copy
 import logging
 import math
+import typing
 
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -20,10 +22,19 @@ from typing import Generic
 from typing import TypeVar
 from typing import cast
 
+
+try:
+    import numpy as np
+
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
@@ -32,8 +43,8 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.large_language_model.parsing import astscoping
+from pynguin.utils import mutation_utils
 from pynguin.utils import randomness
-from pynguin.utils.mutation_utils import alpha_exponent_insertion
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -265,7 +276,7 @@ class VariableCreatingStatement(Statement, abc.ABC):
         self.ret_val: vr.VariableReference = ret_val
 
 
-class StatementVisitor(abc.ABC):
+class StatementVisitor(abc.ABC):  # noqa: PLR0904
     """An abstract statement visitor."""
 
     @abstractmethod
@@ -391,6 +402,22 @@ class StatementVisitor(abc.ABC):
     @abstractmethod
     def visit_list_statement(self, stmt) -> None:
         """Visit list.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_ndarray_statement(self, stmt) -> None:
+        """Visit ndarray.
+
+        Args:
+            stmt: the statement to visit
+        """
+
+    @abstractmethod
+    def visit_allowed_values_statement(self, stmt) -> None:
+        """Visit allowed values.
 
         Args:
             stmt: the statement to visit
@@ -623,7 +650,170 @@ class CollectionStatement(VariableCreatingStatement, Generic[T]):
         Returns:
             True, iff an element was inserted.
         """
-        return alpha_exponent_insertion(self._elements, self._insertion_supplier)
+        return mutation_utils.alpha_exponent_insertion(self._elements, self._insertion_supplier)
+
+
+class NdArrayStatement(CollectionStatement):
+    """Represents an n-dimensional array, i.e., a nested list.
+
+    Is also used for 1 dimensional lists and tuples in ML testing.
+    """
+
+    nd_array_types = int | float | bool | complex
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        elements: list | tuple,
+        np_dtype: typing.Any,  # np.generic | str
+        low: float,
+        high: float,
+        *,
+        should_be_tuple: bool,
+    ):
+        if not NUMPY_AVAILABLE:
+            raise ValueError(
+                "NumPy is not available. You can install it with poetry install --with numpy."
+            )
+        super().__init__(test_case, ANY, elements)  # type: ignore[arg-type]
+        self._np_dtype = np.dtype(np_dtype)
+        assert self._np_dtype.kind in "iufcb"
+        self._low = low
+        self._high = high
+        self._should_be_tuple = should_be_tuple
+
+    def get_variable_references(self) -> set[vr.VariableReference]:  # noqa: D102
+        references = set()
+        references.add(self.ret_val)
+        return references
+
+    def replace(self, old: vr.VariableReference, new: vr.VariableReference) -> None:  # noqa: D102
+        if self.ret_val == old:
+            self.ret_val = new
+        self._elements = [new if arg == old else arg for arg in self._elements]
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> NdArrayStatement:
+        return NdArrayStatement(
+            test_case,
+            copy.deepcopy(self._elements),
+            cast("np.generic", self._np_dtype),
+            self._low,
+            self._high,
+            should_be_tuple=self._should_be_tuple,
+        )
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_ndarray_statement(self)
+
+    def _random_deletion(self) -> bool:
+        """Randomly removes elements while keeping shape valid."""
+        shape = mlpu.get_shape(self._elements)
+
+        deletable_axes = [axis for axis, size in enumerate(shape) if size > 0]
+        if not deletable_axes:
+            return False
+
+        axis_index = randomness.next_int(0, len(deletable_axes))
+        chosen_axis = deletable_axes[axis_index]
+
+        axis_size = shape[chosen_axis]
+
+        deletion_indices = [i for i in range(axis_size) if randomness.next_float() >= 0.5]
+
+        if not deletion_indices:
+            return False
+
+        deletion_indices.sort(reverse=True)
+
+        self._elements = mutation_utils.remove_indices_at_axis(
+            self._elements, chosen_axis, deletion_indices
+        )
+        return True
+
+    def _replacement_supplier(self, element: nd_array_types) -> nd_array_types:
+        if self._np_dtype.kind in {"i", "u"}:
+            return randomness.next_int(int(self._low), int(self._high) + 1)
+        if self._np_dtype.kind == "f":
+            value = self._low + (self._high - self._low) * randomness.next_float()
+            precision = randomness.next_int(0, 7)
+            return round(value, precision)
+        if self._np_dtype.kind == "c":
+            real = self._low + (self._high - self._low) * randomness.next_float()
+            imag = self._low + (self._high - self._low) * randomness.next_float()
+            precision_real = randomness.next_int(0, 7)
+            precision_imag = randomness.next_int(0, 7)
+            return complex(round(real, precision_real), round(imag, precision_imag))
+        if self._np_dtype.kind == "b":
+            return randomness.next_bool()
+        return element
+
+    def _random_replacement(self) -> bool:
+        """Replaces elements while keeping shape valid."""
+        shape = mlpu.get_shape(self._elements)
+        if shape[-1] == 0:
+            return False
+
+        total_leaves = math.prod(shape)
+        p = max(1.0 / total_leaves**0.5, 0.05)
+
+        self._elements, changed = mutation_utils.apply_random_replacement(
+            self._elements, p, self._replacement_supplier
+        )
+
+        return changed
+
+    def mutate(self) -> bool:  # noqa: D102
+        if self._should_be_tuple:
+            assert len(mlpu.get_shape(self._elements)) == 1
+            # convert tuple to list so that mutation works right
+            self._elements = list(self._elements)
+
+        mutated = super().mutate()
+
+        if self._should_be_tuple:
+            # convert it again into tuple
+            self._elements = tuple(self._elements)  # type: ignore[assignment]
+
+        return mutated
+
+    def _insertion_supplier(self) -> nd_array_types:
+        return self._replacement_supplier(0)
+
+    def _random_insertion(self) -> bool:
+        """Insert elements while keeping shape valid."""
+        shape = mlpu.get_shape(self._elements)
+
+        self._elements, changed = mutation_utils.multiple_alpha_exponent_insertion(
+            self._elements, shape, self._insertion_supplier
+        )
+
+        return changed
+
+    def _nested_to_tuple(self, nested):
+        """Recursively convert a nested list into a nested tuple."""
+        if isinstance(nested, list):
+            return tuple(self._nested_to_tuple(item) for item in nested)
+        return nested
+
+    def structural_hash(self, memo: dict[vr.VariableReference, int]) -> int:  # noqa: D102
+        ret_hash = self.ret_val.structural_hash(memo)
+        nested_tuple = self._nested_to_tuple(self._elements)
+        return hash((ret_hash, nested_tuple))
+
+    def structural_eq(  # noqa: D102
+        self, other: Any, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+
+        if not self.ret_val.structural_eq(other.ret_val, memo):
+            return False
+
+        return self._elements == other._elements  # noqa: SLF001
 
 
 class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
@@ -1391,6 +1581,26 @@ class MethodStatement(ParametrizedStatement):
 class FunctionStatement(ParametrizedStatement):
     """A statement that calls a function."""
 
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        generic_callable: gao.GenericCallableAccessibleObject,
+        args: dict[str, vr.VariableReference] | None = None,
+        *,
+        should_mutate: bool = True,
+    ):
+        super().__init__(test_case, generic_callable, args)
+        self.should_mutate = should_mutate
+
+    def mutate(self) -> bool:
+        """If the function should be mutated.
+
+        For ML-specific testing, certain function statements should not be mutated.
+        """
+        if self.should_mutate:
+            return super().mutate()
+        return False
+
     def accessible_object(self) -> gao.GenericFunction:
         """The used function.
 
@@ -1404,7 +1614,12 @@ class FunctionStatement(ParametrizedStatement):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> Statement:
-        return FunctionStatement(test_case, self.accessible_object(), self._clone_args(memo))
+        return FunctionStatement(
+            test_case,
+            self.accessible_object(),
+            self._clone_args(memo),
+            should_mutate=self.should_mutate,
+        )
 
     def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
         visitor.visit_function_statement(self)
@@ -1556,6 +1771,66 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
 
     def __repr__(self) -> str:
         return f"IntPrimitiveStatement({self._test_case}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: int"
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_int_primitive_statement(self)
+
+
+class UIntPrimitiveStatement(PrimitiveStatement[int]):
+    """Primitive Statement that creates an unsigned int."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        value: int | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+    ) -> None:
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(int)),
+            value,
+            constant_provider=constant_provider,
+        )
+
+    def randomize_value(self) -> None:  # noqa: D102
+        if self._constant_provider:
+            seeded_value = self._constant_provider.get_constant_for(int)
+        else:
+            seeded_value = None
+
+        if (
+            randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and seeded_value is not None
+            and seeded_value >= 0
+        ):
+            self._value = seeded_value
+        else:
+            self._value = int(
+                abs(randomness.next_gaussian()) * config.configuration.test_creation.max_int
+            )
+
+    def delta(self) -> None:  # noqa: D102
+        assert self._value is not None
+        delta = math.floor(
+            abs(randomness.next_gaussian()) * config.configuration.test_creation.max_delta
+        )
+        self._value += delta
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> UIntPrimitiveStatement:
+        return UIntPrimitiveStatement(
+            test_case, self._value, constant_provider=self._constant_provider
+        )
+
+    def __repr__(self) -> str:
+        return f"UIntPrimitiveStatement({self._test_case}, {self._value})"
 
     def __str__(self) -> str:
         return f"{self._value}: int"
@@ -2200,3 +2475,46 @@ class ASTAssignStatement(VariableCreatingStatement, abc.ABC):
             bool: True if the RHS represents a function call, otherwise False.
         """
         return self.rhs.is_call()
+
+
+class AllowedValuesStatement(PrimitiveStatement):
+    """Primitive Statement that only allows certain values."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        allowed_values: list[int | float | bool | str],
+        *,
+        value: float | bool | str | None = None,
+    ) -> None:
+        super().__init__(
+            test_case,
+            ANY,
+            value,
+            constant_provider=None,
+        )
+        self._allowed_values = allowed_values
+
+    def mutate(self) -> bool:  # noqa: D102
+        self.randomize_value()
+        return True
+
+    def randomize_value(self) -> None:  # noqa: D102
+        self._value = randomness.choice(self._allowed_values)
+
+    def delta(self) -> None:
+        """Cannot compute a delta for allowed values."""
+
+    def clone(  # noqa: D102
+        self, test_case: tc.TestCase, memo: dict[vr.VariableReference, vr.VariableReference]
+    ) -> AllowedValuesStatement:
+        return AllowedValuesStatement(test_case, self._allowed_values, value=self._value)
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_allowed_values_statement(self)
+
+    def __repr__(self) -> str:
+        return f"AllowedValuesStatement({self._test_case}, {self._allowed_values}, {self._value})"
+
+    def __str__(self) -> str:
+        return f"{self._value}: any"

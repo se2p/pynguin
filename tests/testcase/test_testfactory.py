@@ -60,7 +60,7 @@ def test_check_recursion_depth_guard(test_case_mock, method):
     [
         (MagicMock(stmt.ConstructorStatement)),
         (MagicMock(stmt.MethodStatement)),
-        (MagicMock(stmt.FunctionStatement)),
+        (MagicMock(stmt.FunctionStatement, should_mutate=True)),
         (MagicMock(stmt.FieldStatement)),
         (MagicMock(stmt.PrimitiveStatement)),
     ],
@@ -258,7 +258,7 @@ def test_create_primitive(type_, default_test_case):
         position=0,
         recursion_depth=0,
         constant_provider=provider,
-    )
+    )[0]
     assert default_test_case.test_cluster.type_system.is_subtype(result.type, proper)
 
 
@@ -804,6 +804,30 @@ def test_delete_statement_gracefully_no_dependencies(default_test_case):
     default_test_case.add_statement(float_prim2)
     assert tf.TestFactory.delete_statement_gracefully(default_test_case, 1)
     assert default_test_case.statements == [float_prim0, float_prim2]
+
+
+def test_delete_statement_gracefully_ml_statements(function_mock, default_test_case):
+    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
+    float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
+    float_ml_specific_function = stmt.FunctionStatement(
+        default_test_case, function_mock, {"z": float_prim2.ret_val}, should_mutate=False
+    )
+    float_function = stmt.FunctionStatement(
+        default_test_case,
+        function_mock,
+        {"z": float_prim2.ret_val},
+    )
+    default_test_case.add_statement(float_prim)
+    default_test_case.add_statement(float_prim2)
+    default_test_case.add_statement(float_ml_specific_function)
+    assert tf.MLTestFactory.delete_statement_gracefully(default_test_case, 1)
+    assert default_test_case.size() == 1
+
+    default_test_case.add_statement(float_prim2)
+    default_test_case.add_statement(float_function)
+    assert tf.MLTestFactory.delete_statement_gracefully(default_test_case, 1)
+    assert default_test_case.size() == 2
+    assert default_test_case.statements[1].references(float_prim.ret_val)
 
 
 def test_change_random_call_unknown_type(default_test_case):

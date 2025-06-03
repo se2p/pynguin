@@ -105,6 +105,16 @@ max_dynamic_pool_size = 50
 type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
 
+[pynguinml]
+ml_testing_enabled = false
+constraints_path = ""
+dtype_mapping_path = ""
+constructor_function = ""
+constructor_function_parameter = ""
+max_ndim = 4
+max_shape_dim = 4
+ignore_constraints_probability = 0.25
+
 [test_creation]
 max_recursion = 10
 max_delta = 20
@@ -216,6 +226,10 @@ def expected_txt(tmp_path):
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
  "'TYPE_HINTS'>, type_tracing=0.0), "
+ 'pynguinml=PynguinMLConfiguration(ml_testing_enabled=False, '
+ "constraints_path='', dtype_mapping_path='', constructor_function='', "
+ "constructor_function_parameter='', max_ndim=4, max_shape_dim=4, "
+ 'ignore_constraints_probability=0.25), '
  'test_creation=TestCreationConfiguration(max_recursion=10, max_delta=20, '
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
@@ -284,6 +298,7 @@ def expected_parameter_list() -> list[str]:
         "--maximum_coverage_plateau -1",
         "--minimum_coverage 100",
         "--minimum_plateau_iterations -1",
+        "--ml_testing_enabled False",
         "--test_execution_time_per_statement 1",
         "--seed 12345",
         "--constant_seeding True",
@@ -360,6 +375,9 @@ def expected_parameter_list() -> list[str]:
         "--call_llm_on_stall_detection False",
         "--max_plateau_len 25",
         "--max_llm_interventions 1",
+        "--max_ndim 4",
+        "--max_shape_dim 4",
+        "--ignore_constraints_probability 0.25",
     ]
     return sorted(parameter_list)
 

@@ -27,13 +27,13 @@ extensions = [
 
 project = "pynguin"
 author = "Pynguin Contributors"
-copyright = f"2019–{datetime.datetime.utcnow().year}, {author}"
+copyright = f"2019–{datetime.datetime.now(datetime.timezone.utc).year}, {author}"
 html_theme = "sphinx_rtd_theme"
 
 _d = {}
 with open(
     os.path.join(os.path.dirname(__file__), "..", "src", "pynguin", "__version__.py"),
-    encoding="locale",
+    encoding="utf-8",
 ) as f:
     exec(f.read(), _d)
     version = _d["__version__"]
@@ -50,6 +50,14 @@ todo_include_todos = False
 # See https://sphinx-hoverxref.readthedocs.io/en/latest/configuration.html
 hoverxref_auto_ref = True
 hoverxref_domains = ["py"]
+hoverxref_role_types = {
+    "class": "tooltip",
+    "ref": "tooltip",
+    "mod": "tooltip",
+    "meth": "tooltip",
+    "func": "tooltip",
+    "attr": "tooltip",
+}
 
 # This config value must be a dictionary of external sites, mapping unique short
 # alias names to a base URL and a prefix.

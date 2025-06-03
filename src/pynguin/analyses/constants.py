@@ -334,3 +334,22 @@ class _ConstantCollector(ast.NodeVisitor):
         for doc in self._string_expressions:
             self._pool.remove_constant(doc)
         return self._pool
+
+
+class MLConstantPool:
+    """Manages a dictionary of constants for ML-specific testing."""
+
+    def __init__(self):  # noqa: D107
+        self._pool: dict[str, int] = {}
+
+    def add(self, key: str, value: int) -> None:
+        """Adds a key-value pair to the constant pool."""
+        self._pool[key] = value
+
+    def reset(self) -> None:
+        """Clears the constant pool."""
+        self._pool.clear()
+
+    def get_value(self, key: str, default: int | None = None) -> int | None:
+        """Retrieves the value for a given key, or returns the default if not found."""
+        return self._pool.get(key, default)

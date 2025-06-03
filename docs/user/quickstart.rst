@@ -116,8 +116,7 @@ and that there are assertions that check for the correct return value.
   :ref:`assertions <assertions>` for more details.
 
 .. note::
-  As of version 0.24.0, Pynguin uses `black <https://github.com/psf/black>`_ to format
-  the generated tests.
+  Pynguin uses `ruff-format <https://docs.astral.sh/ruff/formatter/>`_ for formatting.
 
 
 A more complex example
@@ -166,3 +165,19 @@ We can also see that Pynguin generated eight test cases:
 
   Also many generated assertions might be redundant.  Minimising these is open for a
   future release of Pynguin, too.
+
+Logging
+-------
+
+Pynguin provides the ability to write logging output to a log file in addition to STDOUT.
+This can be configured using the ``--log-file`` parameter::
+
+    $ pynguin \
+        --project-path ./docs/source/_static/ \
+        --output-path /tmp/pynguin-results \
+        --module-name example \
+        -v \
+        --log-file /tmp/pynguin-log.txt
+
+This will write all log messages to the specified file, making it easier to analyze the test generation process
+or troubleshoot issues without cluttering the console output.

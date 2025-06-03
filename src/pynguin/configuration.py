@@ -254,8 +254,8 @@ class TestCaseOutputConfiguration:
 
     crash_path: str = ""
     """Path to an output folder for the generated test cases that caused a crash.
-    Only works when running in a subprocess.
-    """
+    Only works when running in a subprocess. If set to "", the are stored in the
+    output_path."""
 
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the
@@ -420,6 +420,63 @@ class TypeInferenceConfiguration:
 
 
 @dataclasses.dataclass
+class PynguinMLConfiguration:
+    """Configurations for PynguinML, specifically for machine learning API testing."""
+
+    ml_testing_enabled: bool = False
+    """
+    Enables ML-based test generation using API constraints. When set to True, PynguinML
+    will use constraints and other ML-specific behaviours during input generation.
+
+    Note: 'constraints_path' must also be set to locate the constraints files.
+    """
+
+    constraints_path: str = ""
+    """
+    Directory path to YAML/JSON constraints files.
+    """
+
+    dtype_mapping_path: str = ""
+    """
+    Path to a YAML/JSON file that maps library-specific datatypes to NumPy datatypes.
+    Used by PynguinML for input generation. Specify only valid NumPy dtypes without
+    the "np." prefix. Example: "torch.int32" -> "int32".
+    """
+
+    constructor_function: str = ""
+    """
+    Optional constructor function to build tensors (e.g., torch.tensor or
+    tensorflow.convert_to_tensor). Must accept a np.ndarray as input.
+    Note: Also set 'constructor_function_parameter' to specify which parameter
+    receives the np.ndarray.
+    """
+
+    constructor_function_parameter: str = ""
+    """
+    Name of the parameter in the constructor function that receives the np.ndarray.
+    Must be set when 'constructor_function' is specified.
+    """
+
+    max_ndim: int = 4
+    """
+    Maximum number of dimensions of the tensors.
+    If set too big, it can cause memory errors due to large tensor sizes.
+    """
+
+    max_shape_dim: int = 4
+    """
+    Maximum size of a dimension of a shape.
+    If set too big, it can cause memory errors due to large tensor sizes.
+    """
+
+    ignore_constraints_probability: float = 0.25
+    """
+    Probability of ignoring constraints and falling back to Pynguin's default
+    behavior when constructing statements.
+    """
+
+
+@dataclasses.dataclass
 class TestCreationConfiguration:
     """Configuration related to test creation."""
 
@@ -474,7 +531,7 @@ class TestCreationConfiguration:
     is used."""
 
     wrap_var_param_type_probability: float = 0.7
-    """Probability to wrap the type required for a *arg or **kwargs parameter
+    """Probability to wrap the type required for a ``*arg`` or ``**kwargs`` parameter
     in a list or dict, respectively. Expects values in [0,1]"""
 
     negate_type: float = 0.1
@@ -696,6 +753,9 @@ class Configuration:
         default_factory=TypeInferenceConfiguration
     )
     """Type inference configuration."""
+
+    pynguinml: PynguinMLConfiguration = dataclasses.field(default_factory=PynguinMLConfiguration)
+    """PynguinML configuration."""
 
     test_creation: TestCreationConfiguration = dataclasses.field(
         default_factory=TestCreationConfiguration

@@ -248,7 +248,10 @@ def test_provide_json_function(
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -291,7 +294,10 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -345,7 +351,10 @@ def test_provide_json_generic_method(file_name, function_node, signature, expect
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -389,7 +398,10 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
     accessibles = OrderedSet([accessible])
     function_data = {
         accessible: CallableData(
-            tree=function_node, accessible=accessible, description=None, cyclomatic_complexity=0
+            tree=function_node,
+            accessible=accessible,
+            description=None,
+            cyclomatic_complexity=0,
         )
     }
     stats = TypeGuessingStats(signature_infos={})
@@ -399,7 +411,7 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
             "pynguin.utils.typeevalpy_json_schema.convert_parameter",
             side_effect=Exception("Mocked exception"),
         ),
-        patch("pynguin.utils.typeevalpy_json_schema._LOGGER.exception") as mock_logger,
+        patch("pynguin.utils.typeevalpy_json_schema._LOGGER.warning") as mock_logger,
     ):
         actual_json = provide_json(file_name, accessibles, function_data, stats)
         mock_logger.assert_called_once()

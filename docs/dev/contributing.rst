@@ -48,9 +48,9 @@ After you run ``make install`` you can execute the automatic code formating::
 
     make codestyle
 
-We require the `black`_ code style, with 88 characters per line maximum width
+We require the `ruff-format`_ code style, with 100 characters per line maximum width
 (exceptions are only permitted for imports and comments that disable, e.g., a
-``pylint`` warning).  Imports are ordered using `isort`_.  Docstrings shall conform
+linter warning).  Imports are ordered using `isort`_.  Docstrings shall conform
 to the `Google Python Style Guide`_.  Except from the above-mentioned differences, we
 suggest to conform the the Google Python Style Guide as much as possible.
 
@@ -65,18 +65,18 @@ Checks
 ^^^^^^
 
 Many checks are configured for this project.
-The command ``make check`` will run black diffs, darglint docstring style and
+The command ``make check`` will run ruff-format diffs, docstring style checks and
 mypy.
 The ``make check-safety`` command will look at the security of our code.
 
-*Note:* darglint on Windows only runs in ``git bash`` or the Linux subsystem.
+*Note:* Some checks on Windows only run in ``git bash`` or the Linux subsystem.
 
 You can also use the ``STRICT=1`` flag to make the check be strict.
 
 We use the following tools and checks:
 
 - `isort`_ for import ordering
-- `black`_ for code formatting
+- `ruff-format`_ for code formatting
 - `mypy`_ for type checking
 - `ruff`_ for static code analyses
 
@@ -128,3 +128,4 @@ If you want to use the PyCharm IDE you have to set up a few things:
 .. _pytest: https://pytest.org/
 .. _mypy: http://mypy-lang.org
 .. _ruff: https://beta.ruff.rs/docs/
+.. _ruff-format: https://docs.astral.sh/ruff/formatter/

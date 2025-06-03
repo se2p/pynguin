@@ -37,3 +37,7 @@ class TestTimeoutException(BaseException):
 
 class SlicingTimeoutException(BaseException):
     """Raised, if slicing took longer than the configured maximum duration."""
+
+
+class ConstraintValidationError(Exception):
+    """Raised when a constraints for ML API contain faulty information."""

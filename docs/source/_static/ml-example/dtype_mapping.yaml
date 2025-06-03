@@ -1,0 +1,10 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+int32: int32
+int64: int64
+float32: float32
+float64: float64
