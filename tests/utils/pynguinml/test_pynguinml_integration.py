@@ -9,6 +9,8 @@ from pathlib import Path
 import pynguin.configuration as config
 import pynguin.generator as gen
 
+from pynguin.configuration import Minimization
+
 
 def test_pynguinml_integration(tmp_path):
     project_path = Path().absolute()
@@ -23,7 +25,10 @@ def test_pynguinml_integration(tmp_path):
         algorithm=config.Algorithm.MOSA,
         stopping=config.StoppingConfiguration(maximum_search_time=1),
         module_name="example",
-        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        test_case_output=config.TestCaseOutputConfiguration(
+            output_path=str(tmp_path),
+            minimization=Minimization(strategy=config.MinimizationStrategy.NONE),
+        ),
         project_path=str(project_path),
         statistics_output=config.StatisticsOutputConfiguration(
             report_dir=str(tmp_path),
