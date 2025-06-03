@@ -126,11 +126,12 @@ class MutationStrategy(str, enum.Enum):
     IEEE Transactions on SE 39.4 2013)"""
 
 
-class MinimizationStrategy(str, enum.Enum):
-    """Different strategies for minimizing test cases.
+class MinimizationDirection(str, enum.Enum):
+    """Directions for test case minimization.
 
-    These strategies allow to minimize test cases by removing redundant statements
-    while preserving fitness.
+    Either start with the first statement and try removing it and all forward dependent
+    statements, or start with the last statement and try removing it and all backward
+    dependent statements.
     """
 
     FORWARD = "FORWARD"
@@ -139,8 +140,15 @@ class MinimizationStrategy(str, enum.Enum):
     BACKWARD = "BACKWARD"
     """Apply backward minimization, which removes statements from the end to the beginning."""
 
+
+class MinimizationStrategy(str, enum.Enum):
+    """Different strategies for minimizing test cases."""
+
     NONE = "NONE"
     """Do not apply any minimization."""
+
+    CASE = "CASE"
+    """Apply minimization at the test case level."""
 
 
 class TypeInferenceStrategy(str, enum.Enum):
@@ -246,6 +254,18 @@ class StatisticsOutputConfiguration:
 
 
 @dataclasses.dataclass
+class Minimization:
+    """Configuration for test case minimization."""
+
+    strategy: MinimizationStrategy = MinimizationStrategy.CASE
+    """Strategy to apply for minimizing test cases to remove redundant statements
+    while preserving fitness."""
+
+    direction: MinimizationDirection = MinimizationDirection.BACKWARD
+    """Direction to apply for minimizing test cases."""
+
+
+@dataclasses.dataclass
 class TestCaseOutputConfiguration:
     """Configuration related to test case output."""
 
@@ -283,9 +303,11 @@ class TestCaseOutputConfiguration:
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""
 
-    minimization: MinimizationStrategy = MinimizationStrategy.BACKWARD
-    """Strategy to apply for minimizing test cases to remove redundant statements
-    while preserving fitness."""
+    minimization: Minimization = Minimization(
+        strategy=MinimizationStrategy.CASE,
+        direction=MinimizationDirection.BACKWARD,
+    )
+    """Strategy to apply for minimizing test cases."""
 
     float_precision: float = 0.01
     """Precision to use in float comparisons and assertions"""

@@ -41,7 +41,6 @@ allow_stale_assertions = false
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
 post_process = true
-minimization = "BACKWARD"
 float_precision = 0.01
 format_with_black = true
 
@@ -167,6 +166,10 @@ exploitation_starts_at_percent = 0.5
 max_sequence_length = 10
 max_sequences_combined = 10
 
+[test_case_output.minimization]
+strategy = "CASE"
+direction = "BACKWARD"
+
 [mio.initial_config]
 number_of_tests_per_target = 10
 random_test_or_from_archive_probability = 0.5
@@ -194,7 +197,8 @@ def expected_txt(tmp_path):
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
- "minimization=<MinimizationStrategy.BACKWARD: 'BACKWARD'>, "
+ "minimization=Minimization(strategy=<MinimizationStrategy.CASE: 'CASE'>, "
+ "direction=<MinimizationDirection.BACKWARD: 'BACKWARD'>), "
  'float_precision=0.01, format_with_black=True), algorithm=<Algorithm.RANDOM: '
  "'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
@@ -275,7 +279,8 @@ def expected_parameter_list() -> list[str]:
         "--mutation_strategy FIRST_ORDER_MUTANTS",
         "--mutation_order 1",
         "--post_process True",
-        "--minimization BACKWARD",
+        "--minimization.direction BACKWARD",
+        "--minimization.strategy CASE",
         "--float_precision 0.01",
         "--format_with_black True",
         "--algorithm RANDOM",  # as defined in tests/conftest.py

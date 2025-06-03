@@ -671,7 +671,7 @@ def _minimize(generation_result, algorithm=None):
     generation_result.accept(truncation)
     if config.configuration.test_case_output.post_process:
         unused_vars_minimizer = pp.UnusedStatementsTestCaseVisitor()
-        minimization_strategy = config.configuration.test_case_output.minimization
+        minimization_strategy = config.configuration.test_case_output.minimization.strategy
 
         if minimization_strategy != config.MinimizationStrategy.NONE and algorithm is not None:
             fitness_function = _get_coverage_ff_from_algorithm(
@@ -683,7 +683,7 @@ def _minimize(generation_result, algorithm=None):
             original_test_suite = generation_result.clone()
 
             # Select the appropriate minimization visitor based on the strategy
-            if minimization_strategy == config.MinimizationStrategy.FORWARD:
+            if minimization_strategy == config.MinimizationDirection.FORWARD:
                 iterative_minimizer: pp.IterativeMinimizationVisitor = (
                     pp.ForwardIterativeMinimizationVisitor(fitness_function)
                 )
