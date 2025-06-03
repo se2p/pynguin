@@ -63,6 +63,7 @@ def test_case_0():
     return crash_file
 
 
+@pytest.mark.skip(reason="Makes main thread on GitHub Actions crash")
 def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected: Path):
     module_name = "tests.fixtures.crash.seg_fault"
     config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_seg_fault"
