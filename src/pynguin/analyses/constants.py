@@ -288,8 +288,12 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
             try:
                 tree = ast.parse(module_file.read())
                 collector.visit(tree)
-            except BaseException as exception:
-                logger.exception("Cannot collect constants: %s", exception)
+            except BaseException as exception:  # noqa: BLE001
+                logger.warning(
+                    "Could not collect constants from %s. Skipping constant collection (%s).",
+                    module,
+                    exception,
+                )
     return collector.constants
 
 
