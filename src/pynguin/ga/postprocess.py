@@ -29,6 +29,8 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
     """Truncates test cases after an exception-raising statement."""
@@ -54,8 +56,6 @@ class AssertionMinimization(cv.ChromosomeVisitor):
     If an assertion does not cover new lines, it is removed from the resulting test
     case.
     """
-
-    _logger = logging.getLogger(__name__)
 
     def __init__(self):  # noqa: D107
         self._remaining_assertions: OrderedSet[Assertion] = OrderedSet()
@@ -86,7 +86,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
         for test_case_chromosome in chromosome.test_case_chromosomes:
             test_case_chromosome.accept(self)
 
-        self._logger.debug(
+        _LOGGER.debug(
             f"Removed {len(self._deleted_assertions)} assertion(s) from "  # noqa: G004
             f"test suite that do not increase checked coverage",
         )
@@ -171,8 +171,6 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
 
-    _logger = logging.getLogger(__name__)
-
     def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
         super().__init__()
         self._fitness_function = fitness_function
@@ -207,8 +205,6 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
     3. Execute the clone and calculate its fitness
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
-
-    _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
@@ -250,7 +246,7 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
             if not statements_changed:
                 break
 
-        self._logger.debug(
+        _LOGGER.debug(
             "Removed %s statement(s) from test case using forward iterative minimization",
             original_size - test_case.size(),
         )
@@ -267,8 +263,6 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
     3. Execute the clone and calculate its fitness
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
-
-    _logger = logging.getLogger(__name__)
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
@@ -299,7 +293,7 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                     break
                 i -= 1
 
-        self._logger.debug(
+        _LOGGER.debug(
             "Removed %s statement(s) from test case using backward iterative minimization",
             original_size - test_case.size(),
         )
@@ -308,8 +302,6 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
     """Removes unused primitive and collection statements."""
 
-    _logger = logging.getLogger(__name__)
-
     def visit_default_test_case(self, test_case) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
         primitive_remover = UnusedPrimitiveOrCollectionStatementVisitor()
@@ -317,7 +309,7 @@ class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
         # Iterate over copy, to be able to modify original.
         for stmt in reversed(list(test_case.statements)):
             stmt.accept(primitive_remover)
-        self._logger.debug(
+        _LOGGER.debug(
             "Removed %s unused primitives/collections from test case",
             size_before - test_case.size(),
         )
@@ -419,8 +411,6 @@ class EmptyTestCaseRemover(cv.ChromosomeVisitor):
     If a test case is empty after minimization, it should be removed entirely.
     """
 
-    _logger = logging.getLogger(__name__)
-
     def __init__(self):  # noqa: D107
         self._removed_test_cases = 0
 
@@ -443,9 +433,7 @@ class EmptyTestCaseRemover(cv.ChromosomeVisitor):
         self._removed_test_cases = original_size - chromosome.size()
         if self._removed_test_cases > 0:
             chromosome.changed = True
-            self._logger.info(
-                "Removed %d empty test case(s) from test suite", self._removed_test_cases
-            )
+            _LOGGER.info("Removed %d empty test case(s) from test suite", self._removed_test_cases)
 
     def visit_test_case_chromosome(  # noqa: D102
         self, chromosome: tcc.TestCaseChromosome
