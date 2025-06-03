@@ -546,7 +546,7 @@ def add_additional_metrics(  # noqa: D103
         ))
 
 
-def _run() -> ReturnCode:
+def _run() -> ReturnCode:  # noqa: C901
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
