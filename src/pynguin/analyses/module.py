@@ -196,27 +196,32 @@ def _is_blacklisted(element: Any) -> bool:
     module_blacklist = set(MODULE_BLACKLIST).union(config.configuration.ignore_modules)
     method_blacklist = set(METHOD_BLACKLIST).union(config.configuration.ignore_methods)
 
-    if inspect.ismodule(element):
-        return element.__name__ in module_blacklist
-    if inspect.isclass(element):
-        if element.__module__ == "builtins" and (element in PRIMITIVES or element in COLLECTIONS):
-            # Allow some builtin types
-            return False
-        return element.__module__ in module_blacklist
-    if inspect.isfunction(element):
-        # Some modules can be run standalone using a main function or provide a small
-        # set of tests ('test'). We don't want to include those functions.
-        # Importing certain modules such as inspect, that use or import C-functions can
-        # lead to __module__ being None. We want to exclude these functions as well.
-        return (
-            element.__module__ is None
-            or element.__module__ in module_blacklist
-            or element.__qualname__.startswith((
-                "main",
-                "test",
-            ))
-            or f"{element.__module__}.{element.__qualname__}" in method_blacklist
-        )
+    try:
+        if inspect.ismodule(element):
+            return element.__name__ in module_blacklist
+        if inspect.isclass(element):
+            if element.__module__ == "builtins" and (
+                element in PRIMITIVES or element in COLLECTIONS
+            ):
+                # Allow some builtin types
+                return False
+            return element.__module__ in module_blacklist
+        if inspect.isfunction(element):
+            # Some modules can be run standalone using a main function or provide a small
+            # set of tests ('test'). We don't want to include those functions.
+            # Importing certain modules such as inspect, that use or import C-functions can
+            # lead to __module__ being None. We want to exclude these functions as well.
+            return (
+                element.__module__ is None
+                or element.__module__ in module_blacklist
+                or element.__qualname__.startswith((
+                    "main",
+                    "test",
+                ))
+                or f"{element.__module__}.{element.__qualname__}" in method_blacklist
+            )
+    except Exception as e:  # noqa: BLE001
+        LOGGER.warning("Could not check if %s is blacklisted. Assuming it is not. (%s)", element, e)
     # Something that is not supported yet.
     return False
 
