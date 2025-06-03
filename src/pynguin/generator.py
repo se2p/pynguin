@@ -586,7 +586,10 @@ def _run() -> ReturnCode:  # noqa: C901
 
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
-        _export_chromosome(generation_result)
+        try:
+            _export_chromosome(generation_result)
+        except Exception as ex:
+            _LOGGER.exception("Export to PyTest failed: %s", ex)
 
     if config.configuration.statistics_output.create_coverage_report:
         try:
