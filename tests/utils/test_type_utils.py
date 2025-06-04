@@ -157,6 +157,34 @@ def test_should_skip_parameter(param_name, result):
     assert is_optional_parameter(inf_sig, param_name) == result
 
 
+def test_is_optional_parameter_not_hashable():
+    # Create a non-hashable class to simulate the parameter kind
+    class NonHashableParameterKind:
+        def __eq__(self, other):
+            # Allow equality comparison with inspect.Parameter constants
+            return other == inspect.Parameter.VAR_POSITIONAL
+
+        def __hash__(self):
+            # Make this class non-hashable
+            raise TypeError("unhashable type: '_ParameterKind'")
+
+    # Create a mock parameter with the non-hashable kind
+    mock_parameter = MagicMock(spec=inspect.Parameter)
+    mock_parameter.kind = NonHashableParameterKind()
+    mock_parameter.default = inspect.Parameter.empty
+
+    # Create a mock signature and parameters dictionary
+    mock_params = {"args": mock_parameter}
+    mock_signature = MagicMock()
+    mock_signature.parameters = mock_params
+
+    # Create a mock InferredSignature with our mock signature
+    inf_sig = MagicMock(InferredSignature)
+    inf_sig.signature = mock_signature
+
+    assert is_optional_parameter(inf_sig, "args") is True
+
+
 @pytest.mark.parametrize(
     "type_,result",
     [

@@ -274,12 +274,10 @@ def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bo
         Whether or not this parameter is optional.
     """
     parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
+    # parameter.kind might not be hashable
     return (
-        parameter.kind
-        in {
-            inspect.Parameter.VAR_POSITIONAL,
-            inspect.Parameter.VAR_KEYWORD,
-        }
+        parameter.kind == inspect.Parameter.VAR_POSITIONAL  # noqa: PLR1714
+        or parameter.kind == inspect.Parameter.VAR_KEYWORD
         or parameter.default is not inspect.Parameter.empty
     )
 
