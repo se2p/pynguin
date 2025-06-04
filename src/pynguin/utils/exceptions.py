@@ -58,3 +58,7 @@ class ModuleNotImportedError(Exception):
 
 class MinimizationFailureError(Exception):
     """Raised when minimizing a test case failed."""
+
+
+class CoroutineFoundException(BaseException):
+    """Raised when a coroutine is found in the SUT, which Pynguin cannot handle."""
