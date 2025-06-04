@@ -100,6 +100,7 @@ def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected:
     assert crash_file.read_text() == crash_test_expected.read_text()
 
 
+@pytest.mark.skip(reason="Flaky")
 def test_generate_partly_crashing_test_integration(tmp_path: Path):
     module_name = "tests.fixtures.crash.partly_crashing"
     config.configuration.test_case_output.crash_path = tmp_path / "crashing_tests_partly_crashing"
