@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
     from pynguin.testcase.execution import TestCaseExecutor
     from pynguin.testcase.statement import Statement
     from pynguin.testcase.testcase import TestCase
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class RemoteStoppingConditionObserver(RemoteExecutionObserver):
@@ -621,7 +624,14 @@ class MaxMemoryStoppingCondition(StoppingCondition):
         Args:
             best: The best test suite chromosome. Unused.
         """
-        self._memory_usage = self._get_memory_usage()
+        try:
+            self._memory_usage = self._get_memory_usage()
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning(
+                "Failed to get memory usage, assuming 0 bytes used. ",
+                exc_info=True,
+            )
+            self._memory_usage = 0
 
     @staticmethod
     def _get_memory_usage() -> int:
