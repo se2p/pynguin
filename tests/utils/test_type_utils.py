@@ -13,6 +13,7 @@ import pytest
 
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import given_exception_matches
+from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_assertable
 from pynguin.utils.type_utils import is_bytes
 from pynguin.utils.type_utils import is_collection_type
@@ -157,8 +158,8 @@ def test_should_skip_parameter(param_name, result):
     assert is_optional_parameter(inf_sig, param_name) == result
 
 
-def test_is_optional_parameter_not_hashable():
-    # Create a non-hashable class to simulate the parameter kind
+@pytest.fixture
+def inf_sig_non_hashable():
     class NonHashableParameterKind:
         def __eq__(self, other):
             # Allow equality comparison with inspect.Parameter constants
@@ -182,7 +183,32 @@ def test_is_optional_parameter_not_hashable():
     inf_sig = MagicMock(InferredSignature)
     inf_sig.signature = mock_signature
 
-    assert is_optional_parameter(inf_sig, "args") is True
+    return inf_sig
+
+
+def test_is_optional_parameter_not_hashable(inf_sig_non_hashable):
+    assert is_optional_parameter(inf_sig_non_hashable, "args") is True
+
+
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        ("normal", False),
+        ("args", True),
+        ("kwargs", True),
+        ("default", False),
+    ],
+)
+def test_is_arg_or_kwarg(param_name, result):
+    def inner_func(normal: str, *args, default="foo", **kwargs):
+        pass  # pragma: no cover
+
+    inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
+    assert is_arg_or_kwarg(inf_sig, param_name) == result
+
+
+def test_is_arg_or_kwarg_not_hashable(inf_sig_non_hashable):
+    assert is_arg_or_kwarg(inf_sig_non_hashable, "args") is True
 
 
 @pytest.mark.parametrize(

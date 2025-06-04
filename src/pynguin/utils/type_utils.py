@@ -293,10 +293,11 @@ def is_arg_or_kwarg(inf_sig: InferredSignature, parameter_name: str) -> bool:
         Whether this parameter is *arg or **kwarg.
     """
     parameter: inspect.Parameter = inf_sig.signature.parameters[parameter_name]
-    return parameter.kind in {
-        inspect.Parameter.VAR_POSITIONAL,
-        inspect.Parameter.VAR_KEYWORD,
-    }
+    # parameter.kind might not be hashable
+    return (
+        parameter.kind == inspect.Parameter.VAR_POSITIONAL  # noqa: PLR1714
+        or parameter.kind == inspect.Parameter.VAR_KEYWORD
+    )
 
 
 def given_exception_matches(err, exc) -> bool:
