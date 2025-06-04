@@ -220,8 +220,10 @@ def _is_blacklisted(element: Any) -> bool:
                 ))
                 or f"{element.__module__}.{element.__qualname__}" in method_blacklist
             )
-    except Exception as e:  # noqa: BLE001
-        LOGGER.warning("Could not check if %s is blacklisted. Assuming it is not. (%s)", element, e)
+    except Exception:  # noqa: BLE001
+        LOGGER.warning(
+            "Could not check if %s is blacklisted. Assuming it is not.", element, exc_info=True
+        )
     # Something that is not supported yet.
     return False
 
