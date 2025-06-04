@@ -62,6 +62,7 @@ from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import CoroutineFoundException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
@@ -1139,7 +1140,7 @@ def __analyse_function(
         return
     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
         if add_to_test:
-            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+            raise CoroutineFoundException("Found coroutine in SUT: %s", func_name)
         # Coroutine outside the SUT are not problematic, just exclude them.
         LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
         return
@@ -1341,7 +1342,7 @@ def __analyse_method(
         return
     if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
         if add_to_test:
-            raise ValueError("Pynguin cannot handle Coroutine in SUT. Stopping.")
+            raise CoroutineFoundException("Found coroutine in SUT: %s", method_name)
         # Coroutine outside the SUT are not problematic, just exclude them.
         LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
         return

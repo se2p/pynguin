@@ -41,3 +41,7 @@ class SlicingTimeoutException(BaseException):
 
 class ConstraintValidationError(Exception):
     """Raised when a constraints for ML API contain faulty information."""
+
+
+class CoroutineFoundException(BaseException):
+    """Raised when a coroutine is found in the SUT, which Pynguin cannot handle."""

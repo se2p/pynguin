@@ -66,6 +66,7 @@ from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
+from pynguin.utils.exceptions import CoroutineFoundException
 from pynguin.utils.llm import LLM
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.llm import extract_code
@@ -142,6 +143,11 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
             It may also be caused by a bug in the SUT, especially if it uses C-modules.
             """,
             ex.name,
+        )
+        return None
+    except CoroutineFoundException as ex:
+        _LOGGER.exception(
+            "Pynguin does not support test generation for coroutines (async def): %s", ex
         )
         return None
 
