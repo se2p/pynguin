@@ -29,6 +29,8 @@ def write_configuration():
     if config.configuration.statistics_output.statistics_backend == config.StatisticsBackend.CSV:
         report_dir = Path(config.configuration.statistics_output.report_dir).resolve()
 
+        report_dir.mkdir(parents=True, exist_ok=True)
+
         # Write configuration to a TOML file
         toml_file = report_dir / PYNGUIN_CONFIG_TOML
         config_repr = convert_config_to_dict(config.configuration)
