@@ -72,7 +72,6 @@ from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.llm import LLM
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.llm import extract_code
-from pynguin.utils.pynguinml import np_rng
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
@@ -85,6 +84,9 @@ if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
+
+if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
+    from pynguin.utils.pynguinml import np_rng
 
 
 @enum.unique
