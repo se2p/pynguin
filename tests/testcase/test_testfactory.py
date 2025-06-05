@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import enum
+import importlib
 import inspect
 
 from inspect import Parameter
@@ -807,6 +808,8 @@ def test_delete_statement_gracefully_no_dependencies(default_test_case):
 
 
 def test_delete_statement_gracefully_ml_statements(function_mock, default_test_case):
+    config.configuration.pynguinml.ml_testing_enabled = True
+    importlib.reload(tf)
     float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
     float_ml_specific_function = stmt.FunctionStatement(

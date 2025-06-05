@@ -4,15 +4,24 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import importlib
+
 from pathlib import Path
 
+from pynguin.analyses import module
 import pynguin.configuration as config
 import pynguin.generator as gen
+import pynguin.testcase.testfactory as tf
 
 from pynguin.configuration import Minimization
 
 
 def test_pynguinml_integration(tmp_path):
+    config.configuration.pynguinml.ml_testing_enabled = True
+    importlib.reload(gen)
+    importlib.reload(module)
+    importlib.reload(tf)
+
     project_path = Path().absolute()
     if project_path.name == "tests":
         project_path /= ".."  # pragma: no cover
