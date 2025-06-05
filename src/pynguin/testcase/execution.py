@@ -1638,7 +1638,10 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
     def _save_crash_tests(self, test_case: tc.TestCase) -> None:
-        if config.configuration.test_case_output.minimization != config.MinimizationStrategy.NONE:
+        if (
+            config.configuration.test_case_output.minimization.test_case_minimization_strategy
+            != config.MinimizationStrategy.NONE
+        ):
             # Create a copy of the test case to minimize
             test_case_to_minimize = test_case.clone()
             chromosome = tcc.TestCaseChromosome(test_case_to_minimize)
