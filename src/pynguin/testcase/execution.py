@@ -70,6 +70,7 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.mirror import Mirror
 
 
@@ -775,19 +776,6 @@ class ExecutionResult:
 
     def __repr__(self) -> str:
         return str(self)
-
-
-class ModuleNotImportedError(Exception):
-    """Exception that is raised when trying to access a module that is not imported."""
-
-    def __init__(self, name: str) -> None:
-        """Create a new module not imported error.
-
-        Args:
-            name: The name of the module that was not imported
-        """
-        super().__init__(f"Module '{name}' is not imported.")
-        self.name = name
 
 
 class ModuleProvider:
