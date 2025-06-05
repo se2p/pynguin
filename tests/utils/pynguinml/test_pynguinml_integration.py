@@ -8,11 +8,11 @@ import importlib
 
 from pathlib import Path
 
-from pynguin.analyses import module
 import pynguin.configuration as config
 import pynguin.generator as gen
 import pynguin.testcase.testfactory as tf
 
+from pynguin.analyses import module
 from pynguin.configuration import Minimization
 
 
