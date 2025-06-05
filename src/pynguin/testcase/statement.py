@@ -34,6 +34,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
@@ -710,9 +711,6 @@ class NdArrayStatement(CollectionStatement):
 
     def _random_deletion(self) -> bool:
         """Randomly removes elements while keeping shape valid."""
-        # Only imported when used to work without numpy dependency
-        import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
-
         shape = mlpu.get_shape(self._elements)
 
         deletable_axes = [axis for axis, size in enumerate(shape) if size > 0]
@@ -755,9 +753,6 @@ class NdArrayStatement(CollectionStatement):
 
     def _random_replacement(self) -> bool:
         """Replaces elements while keeping shape valid."""
-        # Only imported when used to work without numpy dependency
-        import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
-
         shape = mlpu.get_shape(self._elements)
         if shape[-1] == 0:
             return False
@@ -773,9 +768,6 @@ class NdArrayStatement(CollectionStatement):
 
     def mutate(self) -> bool:  # noqa: D102
         if self._should_be_tuple:
-            # Only imported when used to work without numpy dependency
-            import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
-
             assert len(mlpu.get_shape(self._elements)) == 1
             # convert tuple to list so that mutation works right
             self._elements = list(self._elements)
@@ -793,9 +785,6 @@ class NdArrayStatement(CollectionStatement):
 
     def _random_insertion(self) -> bool:
         """Insert elements while keeping shape valid."""
-        # Only imported when used to work without numpy dependency
-        import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
-
         shape = mlpu.get_shape(self._elements)
 
         self._elements, changed = mutation_utils.multiple_alpha_exponent_insertion(
