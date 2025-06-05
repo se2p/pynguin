@@ -4,11 +4,18 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import sys
+
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.testcase.execution as ex
+
+# Needs to be loaded to be in sys.modules
+import tests.fixtures.examples.module_alias  # noqa: F401
+
+from tests.fixtures.examples import simple
 
 
 @pytest.fixture
@@ -39,6 +46,29 @@ def test_clear_mutated_modules(module_provider):
     assert len(module_provider._mutated_module_aliases) == 0
 
 
-def test_module_not_imported(module_provider):
+def test_get_valid_module(module_provider):
+    assert sys == module_provider.get_module("sys")
+
+
+def test_get_invalid_module(module_provider):
     with pytest.raises(ex.ModuleNotImportedError):
         module_provider.get_module("foo")
+
+
+def test_get_invalid_submodule(module_provider):
+    with pytest.raises(ex.ModuleNotImportedError):
+        module_provider.get_module("sys.foo")
+
+
+def test_get_missing_submodule(module_provider):
+    with pytest.raises(ex.ModuleNotImportedError):
+        module_provider.get_module("tests.fixtures.examples.simple.foo")
+
+
+def test_get_valid_module_with_alias(module_provider):
+    assert simple == module_provider.get_module("tests.fixtures.examples.module_alias.deprecated")
+
+
+def test_get_invalid_module_with_alias(module_provider):
+    with pytest.raises(ex.ModuleNotImportedError):
+        module_provider.get_module("tests.fixtures.examples.simple.add")
