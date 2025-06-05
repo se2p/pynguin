@@ -34,7 +34,10 @@ import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
+
+
+if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
+    import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature

@@ -35,9 +35,12 @@ from typing import Any
 import astroid
 
 import pynguin.configuration as config
-import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
+
+
+if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
+    import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import FunctionDescription

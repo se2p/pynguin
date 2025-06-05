@@ -45,8 +45,11 @@ import pynguin.ga.computations as ff
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.utils.pynguinml.ml_testing_resources as tr
 import pynguin.utils.statistics.stats as stat
+
+
+if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
+    import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import DelegatingConstantProvider

@@ -19,9 +19,6 @@ from typing import cast
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
-import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
-import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
@@ -46,6 +43,11 @@ if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.utils.orderedset import OrderedSet
     from pynguin.utils.pynguinml.mlparameter import MLParameter
+
+if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
+    import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
+    import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
+    import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 
 # TODO(fk) find better name for this?
