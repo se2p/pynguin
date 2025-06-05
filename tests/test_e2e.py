@@ -57,7 +57,7 @@ def run_pynguin(
         cwd=tmpdir_path,
         env={
             "PYNGUIN_DANGER_AWARE": "1",
-            # disabled to check reproducibility: "PYTHONHASHSEED": str(seed),
+            "PYTHONHASHSEED": str(seed),
             **os.environ,
         },
     )
