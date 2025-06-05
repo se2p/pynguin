@@ -93,26 +93,6 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
             self.remove(pos)
         return positions_to_remove
 
-    def remove_with_backward_dependencies(self, position: int) -> list[int]:  # noqa: D102
-        if position >= self.size():
-            raise ValueError(
-                f"Position {position} is out of bounds for test case of size {self.size()}."
-            )
-        statement = self.get_statement(position)
-        return self.remove_statement_with_backward_dependencies(statement)
-
-    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:  # noqa: D102
-        if not self.contains(statement):
-            raise ValueError(f"Statement {statement} not found in test case.")
-        ret_val = statement.ret_val
-        backward_dependencies = []
-        if ret_val is not None:
-            backward_dependencies = list(self.get_dependencies(ret_val))
-        positions_to_remove = tc.TestCase.positions_to_remove(statement, backward_dependencies)
-        for pos in positions_to_remove:
-            self.remove(pos)
-        return positions_to_remove
-
     def chop(self, pos: int) -> None:  # noqa: D102
         assert pos >= 0
         while len(self._statements) > pos + 1:

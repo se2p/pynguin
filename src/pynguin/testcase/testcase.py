@@ -158,34 +158,6 @@ class TestCase(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def remove_with_backward_dependencies(self, position: int) -> list[int]:
-        """Removes a statement at the given position along with all its backward dependencies.
-
-        Args:
-            position: The position of the statement to remove
-
-        Returns:
-            A list of positions of statements that have been deleted
-
-        Raises:
-            ValueError: If the position is out of bounds for this test case
-        """
-
-    @abstractmethod
-    def remove_statement_with_backward_dependencies(self, statement: stmt.Statement) -> list[int]:
-        """Removes the given statement along with all its backward dependencies.
-
-        Args:
-            statement: The statement to remove
-
-        Returns:
-            A list of positions of statements that have been deleted
-
-        Raises:
-            ValueError: If the statement is not contained in the test case
-        """
-
-    @abstractmethod
     def chop(self, pos: int) -> None:
         """Remove all statements after a given position.
 

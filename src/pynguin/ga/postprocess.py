@@ -281,13 +281,13 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 stmt = test_case.get_statement(i)
                 test_clone = test_case.clone()
                 clone_stmt = test_clone.get_statement(i)
-                test_clone.remove_statement_with_backward_dependencies(clone_stmt)
+                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
                 minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
                 minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
                 if math.isclose(original_coverage, minimized_coverage):
-                    removed = test_case.remove_statement_with_backward_dependencies(stmt)
+                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
                     statements_changed = True
                     break

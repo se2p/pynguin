@@ -441,20 +441,12 @@ def tc_with_three_statements(default_test_case):
     return default_test_case, int_stmt, float_stmt, str_stmt
 
 
-@pytest.mark.parametrize(
-    "method",
-    [
-        lambda tc: tc.remove_with_forward_dependencies,
-        lambda tc: tc.remove_with_backward_dependencies,
-    ],
-)
-def test_remove_with_dependencies(tc_with_three_statements, method):
-    """Test the remove_with_dependencies methods."""
+def test_remove_with_dependencies(tc_with_three_statements):
+    """Test the remove_with_forward_dependencies method."""
     test_case, int_stmt, _, str_stmt = tc_with_three_statements
 
     # Get the actual method from the test_case instance
-    method_fn = method(test_case)
-    positions_removed = method_fn(1)
+    positions_removed = test_case.remove_with_forward_dependencies(1)
 
     # Verify the positions removed
     assert positions_removed == [1]
@@ -465,37 +457,19 @@ def test_remove_with_dependencies(tc_with_three_statements, method):
     assert test_case.statements[1] == str_stmt
 
 
-@pytest.mark.parametrize(
-    "method",
-    [
-        lambda tc: tc.remove_with_forward_dependencies,
-        lambda tc: tc.remove_with_backward_dependencies,
-    ],
-)
-def test_remove_with_dependencies_empty(default_test_case, method):
-    """Test the remove_with_dependencies methods on an empty test case."""
-    # Get the actual method from the test_case instance
-    method_fn = method(default_test_case)
-
+def test_remove_with_dependencies_empty(default_test_case):
+    """Test the remove_with_forward_dependencies method on an empty test case."""
     # Attempt to remove a statement from an empty test case
     with pytest.raises(ValueError, match="Position 0 is out of bounds"):
-        method_fn(0)
+        default_test_case.remove_with_forward_dependencies(0)
 
 
-@pytest.mark.parametrize(
-    "method",
-    [
-        lambda tc: tc.remove_statement_with_forward_dependencies,
-        lambda tc: tc.remove_statement_with_backward_dependencies,
-    ],
-)
-def test_remove_statement_with_dependencies(tc_with_three_statements, method):
-    """Test the remove_statement_with_dependencies methods."""
+def test_remove_statement_with_dependencies(tc_with_three_statements):
+    """Test the remove_statement_with_forward_dependencies method."""
     test_case, int_stmt, float_stmt, str_stmt = tc_with_three_statements
 
-    # Get the method from the test_case instance
-    method_fn = method(test_case)
-    positions_removed = method_fn(float_stmt)
+    # Call the method
+    positions_removed = test_case.remove_statement_with_forward_dependencies(float_stmt)
 
     # Verify the positions removed
     assert positions_removed == [1]
@@ -506,45 +480,25 @@ def test_remove_statement_with_dependencies(tc_with_three_statements, method):
     assert test_case.statements[1] == str_stmt
 
 
-@pytest.mark.parametrize(
-    "method",
-    [
-        lambda tc: tc.remove_statement_with_forward_dependencies,
-        lambda tc: tc.remove_statement_with_backward_dependencies,
-    ],
-)
-def test_remove_statement_with_dependencies_empty(default_test_case, method):
-    """Test the remove_statement_with_dependencies methods on an empty test case."""
-    # Get the method from the test_case instance
-    method_fn = method(default_test_case)
-
+def test_remove_statement_with_dependencies_empty(default_test_case):
+    """Test the remove_statement_with_forward_dependencies method on an empty test case."""
     # Attempt to remove a statement from an empty test case
     with pytest.raises(ValueError, match="not found in test case"):
-        method_fn(MagicMock(st.Statement))
+        default_test_case.remove_statement_with_forward_dependencies(MagicMock(st.Statement))
 
 
-@pytest.mark.parametrize(
-    "method_factory, stmt_position",
-    [
-        (lambda tc: tc.remove_statement_with_forward_dependencies, 0),  # Remove int0
-        (lambda tc: tc.remove_statement_with_backward_dependencies, 2),  # Remove func1
-    ],
-)
-def test_remove_statement_with_dependencies_with_dependencies(
-    default_test_case, function_mock, method_factory, stmt_position
-):
-    """Test the remove_statement_with_dependencies methods with dependencies."""
+def test_remove_statement_with_dependencies_with_dependencies(default_test_case, function_mock):
+    """Test the remove_statement_with_forward_dependencies method with dependencies."""
     setup_dependency_testcase(default_test_case, function_mock, "indirect")
 
     # Initial size check
     assert default_test_case.size() == 3
 
-    # Select statement to remove
-    stmt = default_test_case.get_statement(stmt_position)
+    # Select statement to remove - use the first statement (int0)
+    stmt = default_test_case.get_statement(0)
 
-    # Call the appropriate method
-    method = method_factory(default_test_case)
-    positions_removed = method(stmt)
+    # Call the method
+    positions_removed = default_test_case.remove_statement_with_forward_dependencies(stmt)
 
     # Assert positions removed
     assert sorted(positions_removed, reverse=True) == [2, 1, 0]
