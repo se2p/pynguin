@@ -1025,24 +1025,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         )
 
         def log_thread_exception(arg: threading.ExceptHookArgs) -> None:
-            if isinstance(arg.exc_value, ModuleNotImportedError):
-                _LOGGER.warning(
-                    """Module %s was referenced in a __module__ attribute but was not imported.
-                    This may be due to a bug in the SUT, especially if it uses C-modules.
-                    """,
-                    arg.exc_value.name,
-                    exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),  # noqa: LOG014
-                )
-            else:
-                _LOGGER.warning(
-                    "Exception in Thread: %s",
-                    arg.thread,
-                    exc_info=(  # noqa: LOG014
-                        arg.exc_type,
-                        arg.exc_value,  # type: ignore[arg-type]
-                        arg.exc_traceback,
-                    ),
-                )
+            _LOGGER.warning(
+                "Exception in Thread: %s",
+                arg.thread,
+                exc_info=(  # noqa: LOG014
+                    arg.exc_type,
+                    arg.exc_value,  # type: ignore[arg-type]
+                    arg.exc_traceback,
+                ),
+            )
 
         # Set our own exception hook, so timeout related errors in executing threads
         # are not spilled out to stderr and clutter our formatted output but are send
@@ -1156,19 +1147,30 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         output_suppression_context: OutputSuppressionContext,
         result_queue: Queue,
     ) -> None:
-        self._before_test_case_execution(test_case)
-        result = ExecutionResult()
-        exec_ctx = ExecutionContext(self._module_provider)
-        self._tracer.current_thread_identifier = threading.current_thread().ident
-        with output_suppression_context:
-            for idx, statement in enumerate(test_case.statements):
-                ast_node = self._before_statement_execution(statement, exec_ctx)
-                exception = self.execute_ast(ast_node, exec_ctx)
-                self._after_statement_execution(statement, exec_ctx, exception)
-                if exception is not None:
-                    result.report_new_thrown_exception(idx, exception)
-                    break
-        self._after_test_case_execution(test_case, result)
+        try:
+            self._before_test_case_execution(test_case)
+            result = ExecutionResult()
+            exec_ctx = ExecutionContext(self._module_provider)
+            self._tracer.current_thread_identifier = threading.current_thread().ident
+            with output_suppression_context:
+                for idx, statement in enumerate(test_case.statements):
+                    ast_node = self._before_statement_execution(statement, exec_ctx)
+                    exception = self.execute_ast(ast_node, exec_ctx)
+                    self._after_statement_execution(statement, exec_ctx, exception)
+                    if exception is not None:
+                        result.report_new_thrown_exception(idx, exception)
+                        break
+            self._after_test_case_execution(test_case, result)
+        except ModuleNotImportedError as e:
+            _LOGGER.warning(
+                """Module %s was referenced in a __module__ attribute but was not imported.
+                This may be due to a bug in the SUT, especially if it uses C-modules.
+                """,
+                e.name,
+                exc_info=True,
+            )
+            result = ExecutionResult(timeout=True)
+
         result_queue.put(result)
 
     def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
