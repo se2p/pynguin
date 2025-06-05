@@ -257,11 +257,11 @@ class StatisticsOutputConfiguration:
 class Minimization:
     """Configuration for test case minimization."""
 
-    strategy: MinimizationStrategy = MinimizationStrategy.CASE
+    test_case_minimization_strategy: MinimizationStrategy = MinimizationStrategy.CASE
     """Strategy to apply for minimizing test cases to remove redundant statements
     while preserving fitness."""
 
-    direction: MinimizationDirection = MinimizationDirection.BACKWARD
+    test_case_minimization_direction: MinimizationDirection = MinimizationDirection.BACKWARD
     """Direction to apply for minimizing test cases."""
 
 
@@ -304,8 +304,8 @@ class TestCaseOutputConfiguration:
     statements that raise an exception."""
 
     minimization: Minimization = Minimization(
-        strategy=MinimizationStrategy.CASE,
-        direction=MinimizationDirection.BACKWARD,
+        test_case_minimization_strategy=MinimizationStrategy.CASE,
+        test_case_minimization_direction=MinimizationDirection.BACKWARD,
     )
     """Strategy to apply for minimizing test cases."""
 

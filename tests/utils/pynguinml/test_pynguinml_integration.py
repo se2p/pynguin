@@ -36,7 +36,9 @@ def test_pynguinml_integration(tmp_path):
         module_name="example",
         test_case_output=config.TestCaseOutputConfiguration(
             output_path=str(tmp_path),
-            minimization=Minimization(strategy=config.MinimizationStrategy.NONE),
+            minimization=Minimization(
+                test_case_minimization_strategy=config.MinimizationStrategy.NONE
+            ),
         ),
         project_path=str(project_path),
         statistics_output=config.StatisticsOutputConfiguration(
