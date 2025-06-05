@@ -37,3 +37,8 @@ def test_clear_mutated_modules(module_provider):
     module_provider.add_mutated_version("foo", MagicMock())
     module_provider.clear_mutated_modules()
     assert len(module_provider._mutated_module_aliases) == 0
+
+
+def test_module_not_imported(module_provider):
+    with pytest.raises(ex.ModuleNotImportedError):
+        module_provider.get_module("foo")
