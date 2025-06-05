@@ -4,14 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import os
 import subprocess  # noqa: S404
 import tempfile
 
 from dataclasses import dataclass
 from pathlib import Path
-
-
-# disabled to check reproducibility: import os
 
 
 @dataclass(frozen=True)
@@ -57,7 +55,11 @@ def run_pynguin(
         stderr=subprocess.STDOUT,
         text=True,
         cwd=tmpdir_path,
-        # disabled to check reproducibility: env={"PYTHONHASHSEED": str(seed), **os.environ},
+        env={
+            "PYNGUIN_DANGER_AWARE": "1",
+            # disabled to check reproducibility: "PYTHONHASHSEED": str(seed),
+            **os.environ,
+        },
     )
 
     return RunResult(
