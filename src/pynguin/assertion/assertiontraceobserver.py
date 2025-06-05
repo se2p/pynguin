@@ -85,14 +85,13 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         if exception is not None:
-            if self._is_module_exposed(executor.module_provider, type(exception).__module__):
-                self._assertion_local_state.trace.add_entry(
-                    statement.get_position(),
-                    ass.ExceptionAssertion(
-                        module=type(exception).__module__,
-                        exception_type_name=type(exception).__name__,
-                    ),
-                )
+            self._assertion_local_state.trace.add_entry(
+                statement.get_position(),
+                ass.ExceptionAssertion(
+                    module=executor.module_provider.get_module(type(exception).__module__).__name__,
+                    exception_type_name=type(exception).__name__,
+                ),
+            )
             return
         if statement.affects_assertions:
             stmt = cast("st.VariableCreatingStatement", statement)
@@ -220,14 +219,14 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         else:
             # No precise assertion possible, so assert on type.
             typ = type(value)
-            if (
-                hasattr(typ, "__module__")
-                and hasattr(typ, "__qualname__")
-                and self._is_module_exposed(module_provider, typ.__module__)
-            ):
+            if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
                 trace.add_entry(
                     position,
-                    ass.TypeNameAssertion(ref, typ.__module__, typ.__qualname__),
+                    ass.TypeNameAssertion(
+                        ref,
+                        module_provider.get_module(typ.__module__).__name__,
+                        typ.__qualname__,
+                    ),
                 )
             if isinstance(value, Sized):
                 try:
@@ -254,15 +253,6 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                             trace,
                             depth=depth + 1,
                         )
-
-    @staticmethod
-    def _is_module_exposed(module_provider: ex.ModuleProvider, module_name: str) -> bool:
-        try:
-            module_provider.get_module(module_name)
-        except KeyError:
-            return False
-
-        return True
 
     @staticmethod
     def _should_ignore(field, attr_value):

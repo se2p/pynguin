@@ -70,6 +70,7 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.mirror import Mirror
 
 
@@ -85,7 +86,8 @@ if TYPE_CHECKING:
 
     import pynguin.testcase.testcase as tc
 
-    from pynguin.analyses import module
+    from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.analyses.module import TestCluster
     from pynguin.testcase.testcase import TestCase
 
 
@@ -595,7 +597,7 @@ class ReturnTypeObserver(ExecutionObserver):
     Updates the return types of the called function with the observed types.
     """
 
-    def __init__(self, test_cluster: module.TestCluster):
+    def __init__(self, test_cluster: TestCluster):
         """Initializes the observer.
 
         Args:
@@ -783,29 +785,31 @@ class ModuleProvider:
         self._mutated_module_aliases: dict[str, ModuleType] = {}
 
     @staticmethod
-    def __get_sys_module(module_name: str) -> ModuleType:
+    def __get_imported_module(module_name: str) -> ModuleType:
+        module = sys.modules.get(module_name)
+
+        if module is not None:
+            return module
+
         try:
-            return sys.modules[module_name]
-        except KeyError as error:
-            try:
-                package_name, submodule_name = module_name.rsplit(".", 1)
-            except ValueError as e:
-                raise error from e
+            package_name, submodule_name = module_name.rsplit(".", 1)
+        except ValueError as e:
+            raise ModuleNotImportedError(module_name) from e
 
-            try:
-                package = ModuleProvider.__get_sys_module(package_name)
-            except KeyError as e:
-                raise error from e
+        try:
+            package = ModuleProvider.__get_imported_module(package_name)
+        except ModuleNotImportedError as e:
+            raise ModuleNotImportedError(module_name) from e
 
-            try:
-                submodule = getattr(package, submodule_name)
-            except AttributeError as e:
-                raise error from e
+        try:
+            submodule = getattr(package, submodule_name)
+        except AttributeError as e:
+            raise ModuleNotImportedError(module_name) from e
 
-            if not inspect.ismodule(submodule):
-                raise error
+        if not inspect.ismodule(submodule):
+            raise ModuleNotImportedError(module_name)
 
-            return submodule
+        return submodule
 
     def get_module(self, module_name: str) -> ModuleType:
         """Provides a module.
@@ -816,12 +820,15 @@ class ModuleProvider:
         Args:
             module_name: string for the module alias, which should be loaded
 
+        Raises:
+            ModuleNotImportedError: If the module is not imported.
+
         Returns:
             the module which should be loaded.
         """
         if (mutated_module := self._mutated_module_aliases.get(module_name, None)) is not None:
             return mutated_module
-        return self.__get_sys_module(module_name)
+        return self.__get_imported_module(module_name)
 
     def add_mutated_version(self, module_name: str, mutated_module: ModuleType) -> None:
         """Adds a mutated version of a module to the collection of mutated modules.
@@ -843,7 +850,7 @@ class ModuleProvider:
         Args:
             module_name: the module to reload.
         """
-        reload(ModuleProvider.__get_sys_module(module_name))
+        reload(ModuleProvider.__get_imported_module(module_name))
 
 
 class OutputSuppressionContext:
@@ -1005,11 +1012,15 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             instrumentation_tracer, [checked_instrumentation]
         )
 
-        def log_thread_exception(arg):
+        def log_thread_exception(arg: threading.ExceptHookArgs) -> None:
             _LOGGER.warning(
                 "Exception in Thread: %s",
                 arg.thread,
-                exc_info=(arg.exc_type, arg.exc_value, arg.exc_traceback),  # noqa: LOG014
+                exc_info=(  # noqa: LOG014
+                    arg.exc_type,
+                    arg.exc_value,  # type: ignore[arg-type]
+                    arg.exc_traceback,
+                ),
             )
 
         # Set our own exception hook, so timeout related errors in executing threads
@@ -1124,19 +1135,30 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         output_suppression_context: OutputSuppressionContext,
         result_queue: Queue,
     ) -> None:
-        self._before_test_case_execution(test_case)
-        result = ExecutionResult()
-        exec_ctx = ExecutionContext(self._module_provider)
-        self._tracer.current_thread_identifier = threading.current_thread().ident
-        with output_suppression_context:
-            for idx, statement in enumerate(test_case.statements):
-                ast_node = self._before_statement_execution(statement, exec_ctx)
-                exception = self.execute_ast(ast_node, exec_ctx)
-                self._after_statement_execution(statement, exec_ctx, exception)
-                if exception is not None:
-                    result.report_new_thrown_exception(idx, exception)
-                    break
-        self._after_test_case_execution(test_case, result)
+        try:
+            self._before_test_case_execution(test_case)
+            result = ExecutionResult()
+            exec_ctx = ExecutionContext(self._module_provider)
+            self._tracer.current_thread_identifier = threading.current_thread().ident
+            with output_suppression_context:
+                for idx, statement in enumerate(test_case.statements):
+                    ast_node = self._before_statement_execution(statement, exec_ctx)
+                    exception = self.execute_ast(ast_node, exec_ctx)
+                    self._after_statement_execution(statement, exec_ctx, exception)
+                    if exception is not None:
+                        result.report_new_thrown_exception(idx, exception)
+                        break
+            self._after_test_case_execution(test_case, result)
+        except ModuleNotImportedError as e:
+            _LOGGER.warning(
+                """Module %s was referenced in a __module__ attribute but was not imported.
+                This may be due to a bug in the SUT, especially if it uses C-modules.
+                """,
+                e.name,
+                exc_info=True,
+            )
+            result = ExecutionResult(timeout=True)
+
         result_queue.put(result)
 
     def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
@@ -1988,7 +2010,7 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
     def __init__(
         self,
         delegate: AbstractTestCaseExecutor,
-        cluster: module.ModuleTestCluster,
+        cluster: ModuleTestCluster,
         type_tracing_probability: float = 1.0,
     ):
         """Initializes the executor.
@@ -2175,7 +2197,7 @@ class TypeTracingObserver(ExecutionObserver):
     It wraps parameters in proxies in order to make better guesses on their type.
     """
 
-    def __init__(self, cluster: module.TestCluster):
+    def __init__(self, cluster: TestCluster):
         """Initializes the observer.
 
         Args:

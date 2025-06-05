@@ -41,3 +41,16 @@ class SlicingTimeoutException(BaseException):
 
 class ConstraintValidationError(Exception):
     """Raised when a constraints for ML API contain faulty information."""
+
+
+class ModuleNotImportedError(Exception):
+    """Raised when trying to access a module that is not imported."""
+
+    def __init__(self, name: str) -> None:
+        """Create a new module not imported error.
+
+        Args:
+            name: The name of the module that was not imported
+        """
+        super().__init__(f"Module '{name}' is not imported.")
+        self.name = name
