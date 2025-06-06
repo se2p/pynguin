@@ -76,5 +76,10 @@ fi
 # Install dependencies by installing the package
 pip install -r "${PACKAGE_DIR}/package.txt"
 
+# While the version of the main application should be fixed in the package.txt via PyPi
+# the underlying used package versions might change. Therefore, to ensure reproducibility:
+# Export the used dependencies
+pip freeze > "${OUTPUT_DIR}/requirements.txt"
+
 # Execute Pynguin with all arguments passed to this script
 pynguin "$@"
