@@ -267,6 +267,7 @@ def test_unsupported_str():
 
 @pytest.fixture(scope="module")
 def subtyping_cluster():
+    config.configuration.pynguinml.ml_testing_enabled = False
     return generate_test_cluster("tests.fixtures.types.subtyping")
 
 
