@@ -1639,15 +1639,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
     def _minimize_and_safe(self, test_case: tc.TestCase) -> None:
-        # Calculate hash before to ensure same hash for minimized and non-minimized one
+        # Calculate hash before to ensure the same hash for minimized and non-minimized one
         test_case_hash = str(hash(test_case))
+        self._safe_crash_test(test_case, hash_str=test_case_hash)
         try:
             minimized_test_case = self._minimize(test_case)
             self._safe_crash_test(minimized_test_case, hash_str=test_case_hash, minimized=True)
         except MinimizationFailureError:
-            _LOGGER.warning("Minimized the test case failed. Storing no minimized test case")
-
-        self._safe_crash_test(test_case)
+            _LOGGER.warning("Minimized the test case failed. Not storing minimized test case.")
 
     def _minimize(self, test_case: tc.TestCase) -> tc.TestCase:
         test_case_to_minimize = test_case.clone()
