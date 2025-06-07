@@ -70,6 +70,7 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import MinimizationFailureError
 from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.mirror import Mirror
 
@@ -1594,7 +1595,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     " if a timeout occurred.",
                     SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
                 )
-                self._save_crash_tests(test_cases_tuple[0])
+                self._minimize_and_safe(test_cases_tuple[0])
             else:
                 _LOGGER.error(
                     "Finished process exited with code %s and did not return a result.",
@@ -1637,47 +1638,49 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
-    def _save_crash_tests(self, test_case: tc.TestCase) -> None:
-        if (
-            config.configuration.test_case_output.minimization.test_case_minimization_strategy
-            != config.MinimizationStrategy.NONE
-        ):
-            # Create a copy of the test case to minimize
-            test_case_to_minimize = test_case.clone()
-            chromosome = tcc.TestCaseChromosome(test_case_to_minimize)
+    def _minimize_and_safe(self, test_case: tc.TestCase) -> None:
+        # Calculate hash before to ensure the same hash for minimized and non-minimized one
+        test_case_hash = str(hash(test_case))
+        self._safe_crash_test(test_case, hash_str=test_case_hash)
+        try:
+            minimized_test_case = self._minimize(test_case)
+            self._safe_crash_test(minimized_test_case, hash_str=test_case_hash, minimized=True)
+        except MinimizationFailureError:
+            _LOGGER.warning("Minimized the test case failed. Not storing minimized test case.")
 
-            # Apply crash-preserving minimization
-            minimizer = pp.CrashPreservingMinimizationVisitor(self)
-            test_case_to_minimize.accept(minimizer)
+    def _minimize(self, test_case: tc.TestCase) -> tc.TestCase:
+        test_case_to_minimize = test_case.clone()
+        minimizer = pp.CrashPreservingMinimizationVisitor(self)
+        test_case_to_minimize.accept(minimizer)
 
-            # Verify that the minimized test case still crashes
-            exit_code = self.execute_with_exit_code(test_case_to_minimize)
+        # Verify that the minimized test case still crashes
+        exit_code = self.execute_with_exit_code(test_case_to_minimize)
+        if exit_code != 0:
+            _LOGGER.info(
+                "Minimized crashed test case from %d to %d statements",
+                test_case.size(),
+                test_case_to_minimize.size(),
+            )
+            return test_case_to_minimize
+        raise MinimizationFailureError(
+            "Minimizing the test case failed, as it does not cause a crash anymore."
+        )
 
-            if exit_code != 0:
-                # If the minimized test case still crashes, use it
-                _LOGGER.info(
-                    "Minimized crashed test case from %d to %d statements",
-                    test_case.size(),
-                    test_case_to_minimize.size(),
-                )
-                chromosome = tcc.TestCaseChromosome(test_case_to_minimize)
-            else:
-                # If the minimized test case doesn't crash, use the original
-                _LOGGER.warning("Minimized test case no longer crashes, using original test case")
-                chromosome = tcc.TestCaseChromosome(test_case)
-        else:
-            # Skip minimization when test_case_minimization is False
-            chromosome = tcc.TestCaseChromosome(test_case)
-
+    @staticmethod
+    def _safe_crash_test(
+        test_case: tc.TestCase, hash_str: str | None = None, *, minimized: bool = False
+    ):
+        postfix = "_minimized" if minimized else ""
+        if hash_str is None:
+            hash_str = str(hash(test_case))
+        chromosome = tcc.TestCaseChromosome(test_case)
         exporter = export.PyTestChromosomeToAstVisitor()
         chromosome.accept(exporter)
-
         output_path = (
             config.configuration.test_case_output.crash_path
             or config.configuration.test_case_output.output_path
         )
-        target_file = Path(output_path).resolve() / f"crash_test_{hash(test_case)}.py"
-
+        target_file = Path(output_path).resolve() / f"crash_test_{hash_str}{postfix}.py"
         export.save_module_to_file(exporter.to_module(), target_file)
 
     @staticmethod

@@ -54,3 +54,7 @@ class ModuleNotImportedError(Exception):
         """
         super().__init__(f"Module '{name}' is not imported.")
         self.name = name
+
+
+class MinimizationFailureError(Exception):
+    """Raised when minimizing a test case failed."""
