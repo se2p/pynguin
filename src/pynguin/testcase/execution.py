@@ -1643,9 +1643,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_case_hash = str(hash(test_case))
         try:
             minimized_test_case = self._minimize(test_case)
-            self._safe_crash_test(
-                minimized_test_case, prefix="min_crash_test_", hash_str=test_case_hash
-            )
+            self._safe_crash_test(minimized_test_case, hash_str=test_case_hash, minimized=True)
         except MinimizationFailureError:
             _LOGGER.warning("Minimized the test case failed. Storing no minimized test case")
 
@@ -1671,8 +1669,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _safe_crash_test(
-        test_case: tc.TestCase, prefix: str = "crash_test_", hash_str: str | None = None
+        test_case: tc.TestCase, hash_str: str | None = None, *, minimized: bool = False
     ):
+        postfix = "_minimized" if minimized else ""
         if hash_str is None:
             hash_str = str(hash(test_case))
         chromosome = tcc.TestCaseChromosome(test_case)
@@ -1682,7 +1681,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             config.configuration.test_case_output.crash_path
             or config.configuration.test_case_output.output_path
         )
-        target_file = Path(output_path).resolve() / f"{prefix}{hash_str}.py"
+        target_file = Path(output_path).resolve() / f"crash_test_{hash_str}{postfix}.py"
         export.save_module_to_file(exporter.to_module(), target_file)
 
     @staticmethod
