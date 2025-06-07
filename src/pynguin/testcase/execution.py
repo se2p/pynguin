@@ -70,8 +70,8 @@ from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.testcase import export
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.exceptions import MinimizationFailureError
+from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.mirror import Mirror
 
 
@@ -1639,15 +1639,11 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
     def _minimize_and_safe(self, test_case: tc.TestCase) -> None:
-        if (
-            config.configuration.test_case_output.minimization.test_case_minimization_strategy
-            != config.MinimizationStrategy.NONE
-        ):
-            try:
-                minimized_test_case = self._minimize(test_case)
-                self._safe_crash_test(minimized_test_case, prefix="min_crash_test_")
-            except MinimizationFailureError:
-                _LOGGER.warning("Minimized the test case failed. Storing no minimized test case")
+        try:
+            minimized_test_case = self._minimize(test_case)
+            self._safe_crash_test(minimized_test_case, prefix="min_crash_test_")
+        except MinimizationFailureError:
+            _LOGGER.warning("Minimized the test case failed. Storing no minimized test case")
 
         self._safe_crash_test(test_case)
 
