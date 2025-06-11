@@ -835,3 +835,6 @@ class LocalSearchConfiguration:
 
     int_delta_increasing_factor: int = 2
     """The factor which defines how much the delta should increase for each iteration for integer local search."""
+
+    string_random_mutation_count: int = 10
+    """The number of mutations made to the string to determine if it's worth to completely mutate the string."""

@@ -189,6 +189,37 @@ class StringLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for strings."""
 
     def search(self, chromosome: TestCaseChromosome, position: int,  objective: LocalSearchObjective) -> None:
-        pass
+        statement = cast(EnumPrimitiveStatement, chromosome.test_case.statements[position])
+
+        if self.apply_random_mutations(chromosome,position,objective):
+            pass
 
 
+    def apply_random_mutations(self, chromosome: TestCaseChromosome, position: int,  objective: LocalSearchObjective) -> bool:
+        """Applies a number of random mutations to the string.
+
+        Args:
+            chromosome: The chromosome to mutate.
+            position: The position of the statement which gets mutated.
+            objective: The objective which defines the improvements made mutating.
+
+        Returns:
+            Gives back true if the mutations change the fitness in any way.
+        """
+        statement = cast(EnumPrimitiveStatement, chromosome.test_case.statements[position])
+        random_mutations_count = config.LocalSearchConfiguration.string_random_mutation_count
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+        while random_mutations_count > 0 :
+            improvement = objective.has_changed(chromosome)
+            if improvement < 0:
+                chromosome.set_last_execution_result(last_execution_result)
+                statement.value = old_value
+                chromosome.changed = False
+
+            if improvement != 0:
+                self._logger.debug("The random mutations have changed the fitness of {}, applying local search".format(chromosome.test_case.statements[position]))
+                return True
+            random_mutations_count -= 1
+        self._logger.debug("The random mutations have no impact on the fitness, aborting local search")
+        return False
