@@ -14,12 +14,14 @@ from typing import cast
 
 from mypy.typeops import false_only
 
+import pynguin.configuration as config
 from pynguin.ga.chromosome import Chromosome
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import Statement, NoneStatement, PrimitiveStatement, FunctionStatement, MethodStatement, \
-    ConstructorStatement, BooleanPrimitiveStatement, IntPrimitiveStatement, EnumPrimitiveStatement
+    ConstructorStatement, BooleanPrimitiveStatement, IntPrimitiveStatement, EnumPrimitiveStatement, \
+    FloatPrimitiveStatement
 from tests.testcase.execution.test_executionresult import execution_result
 
 
@@ -80,9 +82,6 @@ class StatementLocalSearch(abc.ABC):
         return None
 
 
-
-
-
 class BooleanLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for booleans."""
 
@@ -98,34 +97,17 @@ class BooleanLocalSearch(StatementLocalSearch, ABC):
             chromosome.set_last_execution_result(execution_result)
             chromosome.changed = False
 
-class IntegerLocalSearch(StatementLocalSearch, ABC):
-    """A local search strategy for integers."""
+class NumericalLocalSearch(StatementLocalSearch, ABC):
+    """An abstract local search strategy for numerical variables."""
 
-    def search(self, chromosome: TestCaseChromosome,position: int, objective: LocalSearchObjective) -> None:
-        statement = cast(IntPrimitiveStatement, chromosome.test_case.statements[position])
-        old_value = statement.value
-
-        done = False
-
-        while not done and not LocalSearchTimer.get_instance().limit_reached():
-            done = True
-
-            if self.iterate(chromosome, statement, objective, 1):
-                self._logger.debug("Successfully incremented value of {} to {} ".format(old_value, statement.value))
-                done = False
-            elif self.iterate(chromosome, statement, objective, -1):
-                self._logger.debug("Successfully decremented value of {} to {} ".format(old_value, statement.value))
-                done = False
-            old_value = statement.value
-
-    def iterate(self, chromosome: TestCaseChromosome, statement: IntPrimitiveStatement, objective: LocalSearchObjective, delta: int) -> bool:
-        """Executes one or several iterations of applying a delta to the int statement. The delta increases each iteration.
+    def iterate(self, chromosome: TestCaseChromosome, statement: PrimitiveStatement, objective: LocalSearchObjective, delta, increasing_factor) -> bool:
+        """Executes one or several iterations of applying a delta to the value of the statement. The delta increases each iteration.
 
         Args:
             chromosome (TestCaseChromosome): The chromosome of the statement to be iterated.
-            statement (IntPrimitiveStatement): The statement to be iterated.
+            statement (PrimitiveStatement): The statement to be iterated.
             objective (LocalSearchObjective): The objective which defines the improvements made mutating.
-            delta (int): The value which is used for starting the iterations.
+            delta: The value which is used for starting the iterations.
 
         Returns:
             Gives back True, if at least one iteration increased the fitness.
@@ -142,9 +124,32 @@ class IntegerLocalSearch(StatementLocalSearch, ABC):
             current_value = statement.value
             last_execution_result = chromosome.get_last_execution_result()
             improved = True
-            delta *= 2
+            delta *= increasing_factor
             statement.value += delta
 
         statement.value = current_value
         chromosome.set_last_execution_result(last_execution_result)
         return improved
+
+class IntegerLocalSearch(NumericalLocalSearch, ABC):
+    """A local search strategy for integers."""
+
+    def search(self, chromosome: TestCaseChromosome,position: int, objective: LocalSearchObjective) -> None:
+        statement = cast(IntPrimitiveStatement, chromosome.test_case.statements[position])
+        old_value = statement.value
+        increasing_factor = config.LocalSearchConfiguration.int_delta_increasing_factor
+
+        done = False
+
+        while not done and not LocalSearchTimer.get_instance().limit_reached():
+            done = True
+
+            if self.iterate(chromosome, statement, objective, 1, increasing_factor):
+                self._logger.debug("Successfully incremented value of {} to {} ".format(old_value, statement.value))
+                done = False
+            elif self.iterate(chromosome, statement, objective, -1, increasing_factor):
+                self._logger.debug("Successfully decremented value of {} to {} ".format(old_value, statement.value))
+                done = False
+            old_value = statement.value
+
+

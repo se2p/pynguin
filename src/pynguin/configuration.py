@@ -831,4 +831,7 @@ class LocalSearchConfiguration:
     """Probability of starting local search on the specific candidate"""
 
     local_search_time: int = 20000
-    """The Budget which each local search iteration has in ms."""
+    """The budget which each local search iteration has in ms."""
+
+    int_delta_increasing_factor: int = 2
+    """The factor which defines how much the delta should increase for each iteration for integer local search."""
