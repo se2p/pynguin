@@ -21,7 +21,7 @@ from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import Statement, NoneStatement, PrimitiveStatement, FunctionStatement, MethodStatement, \
     ConstructorStatement, BooleanPrimitiveStatement, IntPrimitiveStatement, EnumPrimitiveStatement, \
-    FloatPrimitiveStatement
+    FloatPrimitiveStatement, StringPrimitiveStatement
 from tests.testcase.execution.test_executionresult import execution_result
 
 
@@ -206,11 +206,13 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back true if the mutations change the fitness in any way.
         """
-        statement = cast(EnumPrimitiveStatement, chromosome.test_case.statements[position])
+        statement = cast(StringPrimitiveStatement, chromosome.test_case.statements[position])
         random_mutations_count = config.LocalSearchConfiguration.string_random_mutation_count
         last_execution_result = chromosome.get_last_execution_result()
         old_value = statement.value
         while random_mutations_count > 0 :
+            statement.randomize_value()
+
             improvement = objective.has_changed(chromosome)
             if improvement < 0:
                 chromosome.set_last_execution_result(last_execution_result)
@@ -223,3 +225,6 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             random_mutations_count -= 1
         self._logger.debug("The random mutations have no impact on the fitness, aborting local search")
         return False
+
+
+
