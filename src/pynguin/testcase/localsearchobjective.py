@@ -38,7 +38,7 @@ class LocalSearchObjective:
 
     def _updateLatestCoverageMap(self) -> None:
         self._oldFitness = 0.0
-        for fitness_function in self._fitness_functions:
+        for fitness_function in self._test_suite.get_fitness_functions():
             fitness = self._test_suite.get_fitness_for(fitness_function)
             self._oldFitness += fitness
             self._latest_fitness_map[fitness_function] = fitness
@@ -64,12 +64,12 @@ class LocalSearchObjective:
         new_fitness = self._test_suite.get_fitness()
 
         if new_fitness > self._old_fitness if self._is_maximization else new_fitness < self._old_fitness:
-            self._logger.debug("Local search has increased the fitness of %f to %f", self._old_fitness, new_fitness)
+            self._logger.debug("Local search has improved the fitness of %f to %f", self._old_fitness, new_fitness)
             self._updateLatestCoverageMap()
             self._updateLatestFitnessMap()
             return 1
         elif new_fitness < self._old_fitness if self._is_maximization else new_fitness > self._old_fitness:
-            self._logger.debug("Local search has decreased the fitness of %f to %f", self._old_fitness, new_fitness)
+            self._logger.debug("Local search has worsen the fitness of %f to %f", self._old_fitness, new_fitness)
             self._test_suite.set_coverage_values(self._latest_coverage_map)
             self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
