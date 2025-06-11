@@ -146,9 +146,12 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         LocalSearchTimer.get_instance().start_local_search()
 
         TestSuiteLocalSearch.local_search(TestSuiteLocalSearch(),test_suite)
+        if global_search_coverage < test_suite.get_coverage():
+            self._logger.info("Local search complete, increased coverage from %f to %f", global_search_coverage,
+                              test_suite.get_coverage())
+        else:
+            self._logger.info("Local search complete, the coverage hasn't changed")
 
-        self._logger.info("Local search complete, increased coverage from %f to %f", global_search_coverage,
-                           test_suite.get_coverage())
         self._goals_manager.update(test_suite.test_case_chromosomes)
 
 class _GoalsManager:
