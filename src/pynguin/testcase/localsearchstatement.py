@@ -51,7 +51,8 @@ class StatementLocalSearch(abc.ABC):
             logger.debug("No None local search statement found")
             pass
         elif isinstance(statement, EnumPrimitiveStatement):
-            logger.debug("No Enum local search statement found")
+            logger.debug("Statement is enum {}".format(statement.value))
+            return EnumLocalSearch()
         elif isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
             if isinstance(primitive_type, bool):
@@ -140,6 +141,7 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
         increasing_factor = config.LocalSearchConfiguration.int_delta_increasing_factor
 
         done = False
+        improved = False
 
         while not done and not LocalSearchTimer.get_instance().limit_reached():
             done = True
@@ -147,9 +149,46 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
             if self.iterate(chromosome, statement, objective, 1, increasing_factor):
                 self._logger.debug("Successfully incremented value of {} to {} ".format(old_value, statement.value))
                 done = False
+                improved = True
             elif self.iterate(chromosome, statement, objective, -1, increasing_factor):
                 self._logger.debug("Successfully decremented value of {} to {} ".format(old_value, statement.value))
                 done = False
+                improved = True
             old_value = statement.value
+        if not improved:
+            chromosome.changed = False
+
+class EnumLocalSearch(StatementLocalSearch, ABC):
+    """A local search strategy for enumerations."""
+
+    def search(self, chromosome: TestCaseChromosome,position: int, objective: LocalSearchObjective) -> None:
+        statement = cast(EnumPrimitiveStatement, chromosome.test_case.statements[position])
+        initial_value = statement.value
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+
+        for value in range(len(statement.accessible_object().names)):
+            if value != initial_value:
+                if not objective.has_improved(chromosome):
+                    statement.value = old_value
+                    chromosome.set_last_execution_result(last_execution_result)
+                    chromosome.changed = False
+                else:
+                    self._logger.debug("")
+
+
+
+
+class FloatLocalSearch(NumericalLocalSearch, ABC):
+    """A local search strategy for floats."""
+
+    def search(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective) -> None:
+        pass
+
+class StringLocalSearch(StatementLocalSearch, ABC):
+    """A local search strategy for strings."""
+
+    def search(self, chromosome: TestCaseChromosome, position: int,  objective: LocalSearchObjective) -> None:
+        pass
 
 
