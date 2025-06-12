@@ -64,6 +64,7 @@ class StatementLocalSearch(abc.ABC):
                 return IntegerLocalSearch()
             elif isinstance(primitive_type, str):
                 logger.debug("Primitive type is str {}".format(primitive_type))
+                return StringLocalSearch()
             elif isinstance(primitive_type, float):
                 logger.debug("Primitive type is float {}".format(primitive_type))
             elif isinstance(primitive_type, complex):
@@ -187,10 +188,15 @@ class StringLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for strings."""
 
     def search(self, chromosome: TestCaseChromosome, position: int,  objective: LocalSearchObjective) -> None:
-        statement = cast(EnumPrimitiveStatement, chromosome.test_case.statements[position])
-
         if self.apply_random_mutations(chromosome,position,objective):
-            pass
+
+            self._logger.debug("Removing characters from string")
+            self.remove_chars(chromosome, position, objective)
+            self._logger.debug("Replacing characters from string")
+            self.replace_chars(chromosome, position, objective)
+            self._logger.debug("Adding characters to the string")
+            self.add_chars(chromosome, position, objective)
+
 
 
     def apply_random_mutations(self, chromosome: TestCaseChromosome, position: int,  objective: LocalSearchObjective) -> bool:
@@ -225,11 +231,35 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         return False
 
     def remove_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
-        pass
+        statement = cast(StringPrimitiveStatement, chromosome.test_case.statements[position])
+
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+        old_changed = chromosome.changed
+
+        for i in range(len(statement.value)-1, -1, -1):
+            self._logger.debug("Removing character {} from string".format(i))
+            statement.value = statement.value[:i] + statement.value[i+1:]
+            if objective.has_improved(chromosome):
+                last_execution_result = chromosome.get_last_execution_result()
+                old_value = statement.value
+                old_changed = chromosome.changed
+            else:
+                chromosome.set_last_execution_result(last_execution_result)
+                statement.value = old_value
+                chromosome.changed = old_changed
 
     def replace_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
-        pass
+        statement = cast(StringPrimitiveStatement, chromosome.test_case.statements[position])
+
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+        old_changed = chromosome.changed
+
 
     def add_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
-        pass
+        statement = cast(StringPrimitiveStatement, chromosome.test_case.statements[position])
 
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+        old_changed = chromosome.changed
