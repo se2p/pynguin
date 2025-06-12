@@ -10,6 +10,7 @@ import abc
 import enum
 import logging
 from abc import abstractmethod, ABC
+from ftplib import print_line
 from typing import cast
 
 from mypy.typeops import false_only
@@ -176,9 +177,6 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
                 else:
                     self._logger.debug("")
 
-
-
-
 class FloatLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for floats."""
 
@@ -226,5 +224,12 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         self._logger.debug("The random mutations have no impact on the fitness, aborting local search")
         return False
 
+    def remove_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
+        pass
 
+    def replace_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
+        pass
+
+    def add_chars(self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective):
+        pass
 
