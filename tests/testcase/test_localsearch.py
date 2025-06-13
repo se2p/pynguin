@@ -9,13 +9,19 @@ from unittest.mock import MagicMock
 import pytest
 
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch, StringLocalSearch
+from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import IntPrimitiveStatement, FloatPrimitiveStatement, StringPrimitiveStatement
 
+@pytest.fixture(autouse=True)
+def setup_timer():
+    timer = LocalSearchTimer.get_instance()
+    timer.limit_reached = MagicMock(return_value=False)
 
 def test_iterate_success(monkeypatch, result) -> None:
     chromosome = MagicMock()
     statement = MagicMock()
     objective = MagicMock()
+
     objective.has_improved.side_effect = [True] * 3 + [False]
 
     local_search = IntegerLocalSearch()
