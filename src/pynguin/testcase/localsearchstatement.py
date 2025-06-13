@@ -7,10 +7,8 @@
 from __future__ import annotations
 
 import abc
-import enum
 import logging
 from abc import abstractmethod, ABC
-from ftplib import print_line
 from typing import cast
 
 from mypy.typeops import false_only
@@ -63,7 +61,7 @@ class StatementLocalSearch(abc.ABC):
                 logger.debug("Primitive type is int with value {}".format(primitive_type))
                 return IntegerLocalSearch()
             elif isinstance(primitive_type, str):
-                logger.debug("Primitive type is str {}".format(primitive_type))
+                logger.debug("Primitive type is string {}".format(primitive_type))
                 return StringLocalSearch()
             elif isinstance(primitive_type, float):
                 logger.debug("Primitive type is float {}".format(primitive_type))
@@ -129,6 +127,8 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
             improved = True
             delta *= increasing_factor
             statement.value += delta
+            if LocalSearchTimer.get_instance().limit_reached():
+                break
 
         statement.value = current_value
         chromosome.set_last_execution_result(last_execution_result)
@@ -147,7 +147,8 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
 
         while not done and not LocalSearchTimer.get_instance().limit_reached():
             done = True
-
+            if LocalSearchTimer.get_instance().limit_reached():
+                break
             if self.iterate(chromosome, statement, objective, 1, increasing_factor):
                 self._logger.debug("Successfully incremented value of {} to {} ".format(old_value, statement.value))
                 done = False
@@ -170,13 +171,16 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
         old_value = statement.value
 
         for value in range(len(statement.accessible_object().names)):
+            if LocalSearchTimer.get_instance().limit_reached():
+                return
             if value != initial_value:
                 if not objective.has_improved(chromosome):
                     statement.value = old_value
                     chromosome.set_last_execution_result(last_execution_result)
                     chromosome.changed = False
                 else:
-                    self._logger.debug("")
+                    self._logger.debug("Local search successfully found better enum value")
+                    return
 
 class FloatLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for floats."""
@@ -238,6 +242,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         old_changed = chromosome.changed
 
         for i in range(len(statement.value)-1, -1, -1):
+            if LocalSearchTimer.get_instance().limit_reached():
+                return
             self._logger.debug("Removing character {} from string".format(i))
             statement.value = statement.value[:i] + statement.value[i+1:]
             if objective.has_improved(chromosome):
