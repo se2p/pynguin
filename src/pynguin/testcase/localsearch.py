@@ -50,6 +50,8 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
     def local_search(self, chromosome:TestSuiteChromosome,factory: TestFactory, objective: LocalSearchObjective | None = None) -> None:
 
+        self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome,0))
+
         for i in range(0 ,chromosome.test_case_chromosomes.__len__()-1, 1):
             if LocalSearchTimer.get_instance().limit_reached():
                 break
@@ -59,4 +61,35 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
             # if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability: TODO: temporarily disabled for debugging purpose
             test_case_local_search = TestCaseLocalSearch()
             test_case_local_search.local_search(chromosome.get_test_case_chromosome(i), factory, objective)
+
+    def double_branch_coverage(self, suite: TestSuiteChromosome, objective: LocalSearchObjective) -> None:
+        """Expand the test cases that each branch is at least covered twice. This
+            ensures that switching through branches increases the coverage properly
+            so that after mutating a statement, the previously covered branch still
+            stays covered.
+
+        Args:
+            suite (TestSuiteChromosome): the test suite which should be extended.
+            objective (LocalSearchObjective): the objective which delivers
+                information about the fitness of the test cases.
+        """
+        self._logger.debug("Starting double branch coverage check")
+        old_test_count = len(suite.test_case_chromosomes)
+        covered_map: dict[int, int] = {}
+        test_map: dict[int, TestCaseChromosome] = {}
+
+        for test_case in suite.test_case_chromosomes:
+            for key, value in test_case.get_last_execution_result().execution_trace.executed_predicates.items():
+                covered_map[key] = covered_map.get(key, 0) + value
+                test_map[key] = test_case
+
+        duplicates: set[TestCaseChromosome] = set()
+
+        for key, value in covered_map.items():
+            if value == 1:
+                clone = TestCaseChromosome(None, None, test_map[key])
+                duplicates.add(clone)
+                suite.add_test_case_chromosome(clone)
+
+        self._logger.debug("Inserted {} test duplicates to {} already existing tests to have each branch covered twice".format(len(duplicates), old_test_count))
 
