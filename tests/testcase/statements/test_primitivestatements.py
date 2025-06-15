@@ -25,6 +25,10 @@ from pynguin.analyses.constants import EmptyConstantProvider
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
         (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"test"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 3j),
@@ -41,6 +45,10 @@ def test_primitive_statement_value(statement_type, default_test_case, value):
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
         (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"test"),
         (stmt.ComplexPrimitiveStatement, 4 + 3j),
     ],
@@ -62,6 +70,10 @@ def test_primitive_statement_value_from_seeding(statement_type, default_test_cas
         stmt.IntPrimitiveStatement,
         stmt.FloatPrimitiveStatement,
         stmt.StringPrimitiveStatement,
+        stmt.RandomStringPrimitiveStatement,
+        stmt.FakerStringPrimitiveStatement,
+        stmt.FandangoStringPrimitiveStatement,
+        stmt.FandangoFakerStringPrimitiveStatement,
         stmt.BytesPrimitiveStatement,
         stmt.BooleanPrimitiveStatement,
         stmt.ComplexPrimitiveStatement,
@@ -79,6 +91,10 @@ def test_primitive_statement_value_none(statement_type, default_test_case):
         (stmt.IntPrimitiveStatement, 42, 23),
         (stmt.FloatPrimitiveStatement, 2.1, 1.2),
         (stmt.StringPrimitiveStatement, "foo", "bar"),
+        (stmt.RandomStringPrimitiveStatement, "foo", "bar"),
+        (stmt.FakerStringPrimitiveStatement, "foo", "bar"),
+        (stmt.FandangoStringPrimitiveStatement, "foo", "bar"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo", "bar"),
         (stmt.BytesPrimitiveStatement, b"foo", b"bar"),
         (stmt.BooleanPrimitiveStatement, True, False),
         (stmt.ComplexPrimitiveStatement, 4 + 1j, 1 + 4j),
@@ -104,6 +120,22 @@ def test_primitive_statement_set_value(statement_type, default_test_case, value,
         ),
         (
             stmt.StringPrimitiveStatement,
+            "foo",
+        ),
+        (
+            stmt.RandomStringPrimitiveStatement,
+            "foo",
+        ),
+        (
+            stmt.FakerStringPrimitiveStatement,
+            "foo",
+        ),
+        (
+            stmt.FandangoStringPrimitiveStatement,
+            "foo",
+        ),
+        (
+            stmt.FandangoFakerStringPrimitiveStatement,
             "foo",
         ),
         (
@@ -152,6 +184,26 @@ def test_primitive_statement_clone(statement_type, default_test_case, value):
             "visit_string_primitive_statement",
         ),
         (
+            stmt.RandomStringPrimitiveStatement,
+            "foo",
+            "visit_string_primitive_statement",
+        ),
+        (
+            stmt.FakerStringPrimitiveStatement,
+            "foo",
+            "visit_string_primitive_statement",
+        ),
+        (
+            stmt.FandangoStringPrimitiveStatement,
+            "foo",
+            "visit_string_primitive_statement",
+        ),
+        (
+            stmt.FandangoFakerStringPrimitiveStatement,
+            "foo",
+            "visit_string_primitive_statement",
+        ),
+        (
             stmt.BytesPrimitiveStatement,
             b"foo",
             "visit_bytes_primitive_statement",
@@ -186,6 +238,10 @@ def test_primitive_statement_accept(statement_type, default_test_case, value, vi
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
         (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
@@ -202,7 +258,10 @@ def test_primitive_statement_equals_same(statement_type, default_test_case, valu
     [
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
-        (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
@@ -220,6 +279,10 @@ def test_primitive_statement_equals_other_type(statement_type, default_test_case
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
         (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
@@ -249,6 +312,10 @@ def test_none_statement_equals_clone():
         (stmt.IntPrimitiveStatement, 42),
         (stmt.FloatPrimitiveStatement, 42.23),
         (stmt.StringPrimitiveStatement, "foo"),
+        (stmt.RandomStringPrimitiveStatement, "foo"),
+        (stmt.FakerStringPrimitiveStatement, "foo"),
+        (stmt.FandangoStringPrimitiveStatement, "foo"),
+        (stmt.FandangoFakerStringPrimitiveStatement, "foo"),
         (stmt.BytesPrimitiveStatement, b"foo"),
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 4 + 1j),
@@ -284,8 +351,22 @@ def test_bool_primitive_statement_randomize_value(default_test_case):
     assert statement.value or not statement.value
 
 
-def test_string_primitive_statement_randomize_value(default_test_case):
-    statement = stmt.StringPrimitiveStatement(default_test_case)
+@pytest.mark.parametrize(
+    "statement_type",
+    [
+        stmt.FakerStringPrimitiveStatement,
+        stmt.FandangoStringPrimitiveStatement,
+        stmt.FandangoFakerStringPrimitiveStatement,
+    ],
+)
+def test_string_primitive_statement_randomize_value(statement_type, default_test_case):
+    statement = statement_type(default_test_case)
+    statement.randomize_value()
+    assert len(statement.value) > 0
+
+
+def test_random_string_primitive_statement_randomize_value(default_test_case):
+    statement = stmt.RandomStringPrimitiveStatement(default_test_case)
     statement.randomize_value()
     assert len(statement.value) <= config.configuration.test_creation.string_length
 
@@ -311,31 +392,31 @@ def test_none_statement_delta(test_case_mock):
 
 def test_string_primitive_statement_random_deletion():
     sample = list("Test")
-    result = stmt.StringPrimitiveStatement._random_deletion(sample)
+    result = stmt.RandomStringPrimitiveStatement._random_deletion(sample)
     assert len(result) <= len(sample)
 
 
 def test_string_primitive_statement_random_insertion():
     sample = list("Test")
-    result = stmt.StringPrimitiveStatement._random_insertion(sample)
+    result = stmt.RandomStringPrimitiveStatement._random_insertion(sample)
     assert len(result) >= len(sample)
 
 
 def test_string_primitive_statement_random_insertion_empty():
     sample = list("")
-    result = stmt.StringPrimitiveStatement._random_insertion(sample)
+    result = stmt.RandomStringPrimitiveStatement._random_insertion(sample)
     assert len(result) >= len(sample)
 
 
 def test_string_primitive_statement_random_replacement():
     sample = list("Test")
-    result = stmt.StringPrimitiveStatement._random_replacement(sample)
+    result = stmt.RandomStringPrimitiveStatement._random_replacement(sample)
     assert len(result) == len(sample)
 
 
 def test_string_primitive_statement_delta_none(default_test_case):
     value = "t"
-    statement = stmt.StringPrimitiveStatement(default_test_case, value)
+    statement = stmt.RandomStringPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
         float_mock.side_effect = [1.0, 1.0, 1.0]
         statement.delta()
@@ -344,7 +425,7 @@ def test_string_primitive_statement_delta_none(default_test_case):
 
 def test_string_primitive_statement_delta_all(default_test_case):
     value = "te"
-    statement = stmt.StringPrimitiveStatement(default_test_case, value)
+    statement = stmt.RandomStringPrimitiveStatement(default_test_case, value)
     with mock.patch("pynguin.utils.randomness.next_char") as char_mock:
         char_mock.side_effect = ["a", "b"]
         with mock.patch("pynguin.utils.randomness.next_int") as int_mock:
