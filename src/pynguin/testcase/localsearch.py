@@ -19,6 +19,7 @@ from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import EnumPrimitiveStatement
+from pynguin.testcase.testfactory import TestFactory
 
 
 class LocalSearch(ABC):
@@ -27,12 +28,12 @@ class LocalSearch(ABC):
     _logger = logging.getLogger(__name__)
 
     @abc.abstractmethod
-    def local_search(self, chromosome:Chromosome, objective: LocalSearchObjective | None) -> None:
+    def local_search(self, chromosome:Chromosome, factory: TestFactory, objective: LocalSearchObjective | None) -> None:
         """Executes local search on the chromosome."""
 
 class TestCaseLocalSearch(LocalSearch, ABC):
 
-    def local_search(self, chromosome:TestCaseChromosome, objective: LocalSearchObjective) -> None:
+    def local_search(self, chromosome:TestCaseChromosome, factory: TestFactory, objective: LocalSearchObjective) -> None:
 
         for i in range(chromosome.test_case.statements.__len__()-1, 0, -1):
             if LocalSearchTimer.get_instance().limit_reached():
@@ -43,13 +44,11 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
             if local_search_statement is not None:
                 self._logger.debug("Local search statement found for the statement {}".format(statement))
-                local_search_statement.search(chromosome, i, objective)
-            else:
-                self._logger.debug("No local search statement found for statement {}".format(statement))
+                local_search_statement.search(chromosome, i, objective, factory)
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
 
-    def local_search(self, chromosome:TestSuiteChromosome, objective: LocalSearchObjective | None = None) -> None:
+    def local_search(self, chromosome:TestSuiteChromosome,factory: TestFactory, objective: LocalSearchObjective | None = None) -> None:
 
         for i in range(0 ,chromosome.test_case_chromosomes.__len__()-1, 1):
             if LocalSearchTimer.get_instance().limit_reached():
@@ -59,5 +58,5 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
             # if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability: TODO: temporarily disabled for debugging purpose
             test_case_local_search = TestCaseLocalSearch()
-            test_case_local_search.local_search(chromosome.get_test_case_chromosome(i), objective)
+            test_case_local_search.local_search(chromosome.get_test_case_chromosome(i), factory, objective)
 

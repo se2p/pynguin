@@ -838,3 +838,6 @@ class LocalSearchConfiguration:
 
     string_random_mutation_count: int = 10
     """The number of mutations made to the string to determine if it's worth to completely mutate the string."""
+
+    random_parametrized_statement_call_count: int = 10
+    """The number of mutations made to a parametrized statement call to determine if it's worth to further do local search"""
