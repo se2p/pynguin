@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 
 from pynguin.ga.chromosome import Chromosome
+from pynguin.ga.computations import CoverageFunction
+from pynguin.ga.computations import FitnessFunction
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 
@@ -29,8 +31,8 @@ class LocalSearchObjective:
         self._test_suite = test_suite
         self._position = position
         self._fitness_functions = test_suite.get_fitness_functions()
-        self._latest_coverage_map = dict()
-        self._latest_fitness_map = dict()
+        self._latest_coverage_map: dict[CoverageFunction, float] = dict()
+        self._latest_fitness_map: dict[FitnessFunction, float] = dict()
         self._updateLatestFitnessMap()
         self._updateLatestCoverageMap()
 

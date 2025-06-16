@@ -40,10 +40,12 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
     def local_search(
         self,
-        chromosome: TestCaseChromosome,
+        chromosome: Chromosome,
         factory: TestFactory,
-        objective: LocalSearchObjective,
+        objective: LocalSearchObjective | None,
     ) -> None:
+        assert isinstance(chromosome, TestCaseChromosome)
+        assert objective is not None
 
         for i in range(chromosome.test_case.statements.__len__() - 1, 0, -1):
             if LocalSearchTimer.get_instance().limit_reached():
@@ -67,10 +69,11 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
     def local_search(
         self,
-        chromosome: TestSuiteChromosome,
+        chromosome: Chromosome,
         factory: TestFactory,
         objective: LocalSearchObjective | None = None,
     ) -> None:
+        assert isinstance(chromosome, TestSuiteChromosome)
 
         self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome, 0))
 
@@ -109,7 +112,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 key,
                 value,
             ) in (
-                test_case.get_last_execution_result().execution_trace.executed_predicates.items()
+                test_case.get_last_execution_result().execution_trace.executed_predicates.items() #type: ignore[union-attr]
             ):
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case

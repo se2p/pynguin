@@ -93,7 +93,7 @@ class StatementLocalSearch(abc.ABC):
             elif isinstance(primitive_type, complex):
                 logger.debug("Primitive type is complex {}".format(primitive_type))
             elif isinstance(primitive_type, bytes):
-                logger.debug("Primitive type is bytes {}".format(primitive_type))
+                logger.debug("Primitive type is bytes {!r}".format(primitive_type))
             else:
                 logger.debug("Unknown primitive type {}".format(primitive_type))
         elif isinstance(statement, FunctionStatement):
@@ -134,7 +134,7 @@ class BooleanLocalSearch(StatementLocalSearch, ABC):
 
         if not objective.has_improved(chromosome):
             statement.value = old_value
-            chromosome.set_last_execution_result(execution_result) if execution_result is not None else self._logger.debug("No execution result found")
+            chromosome.set_last_execution_result(execution_result) if execution_result is not None else None
             chromosome.changed = False
 
 
@@ -183,7 +183,7 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
                 break
 
         statement.value = current_value
-        chromosome.set_last_execution_result(last_execution_result)
+        chromosome.set_last_execution_result(last_execution_result) if last_execution_result is not None else None
         return improved
 
 
@@ -254,7 +254,7 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
             if value != initial_value:
                 if not objective.has_improved(chromosome):
                     statement.value = old_value
-                    chromosome.set_last_execution_result(last_execution_result)
+                    chromosome.set_last_execution_result(last_execution_result) if last_execution_result is not None else None
                     chromosome.changed = False
                 else:
                     self._logger.debug(
@@ -324,7 +324,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
 
             improvement = objective.has_changed(chromosome)
             if improvement < 0:
-                chromosome.set_last_execution_result(last_execution_result)
+                chromosome.set_last_execution_result(last_execution_result) if last_execution_result is not None else None
                 statement.value = old_value
                 chromosome.changed = False
 
@@ -350,6 +350,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         statement = cast(
             StringPrimitiveStatement, chromosome.test_case.statements[position]
         )
+        assert statement.value is not None
 
         last_execution_result = chromosome.get_last_execution_result()
         old_value = statement.value
@@ -365,7 +366,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
                 old_value = statement.value
                 old_changed = chromosome.changed
             else:
-                chromosome.set_last_execution_result(last_execution_result)
+                chromosome.set_last_execution_result(last_execution_result) if last_execution_result is not None else None
                 statement.value = old_value
                 chromosome.changed = old_changed
 
@@ -405,8 +406,9 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         chromosome: TestCaseChromosome,
         position: int,
         objective: LocalSearchObjective,
-        factory: TestFactory,
+        factory: TestFactory | None,
     ):
+        assert factory is not None
         statement = chromosome.test_case.statements[position]
         mutations = 0
         if not (
@@ -437,7 +439,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             operations: list[Operations] = [Operations.REPLACE]
             if not isinstance(statement, NoneStatement):
                 operations.append(Operations.RANDOM_CALL)
-                if len(statement.args) > 0:
+                if len(statement.args) > 0: #type: ignore[attr-defined]
                     operations.append(Operations.PARAMETER)
 
             random = randomness.choice(operations)
@@ -457,7 +459,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 mutations = 0
             else:
                 chromosome = TestCaseChromosome(None, None, old_chromosome)
-                chromosome.set_last_execution_result(last_execution_result)
+                chromosome.set_last_execution_result(last_execution_result) if last_execution_result is not None else None
                 statement = chromosome.test_case.statements[position]
                 mutations += 1
 
