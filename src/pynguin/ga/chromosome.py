@@ -103,6 +103,7 @@ class Chromosome(ABC):
         self, fitness_values: dict[ff.FitnessFunction, float]
     ) -> None:
         """Sets the fitness values for the specific functions.
+
         Args:
             fitness_values: A dictionary of fitness values, keyed by fitness function.
         """
@@ -142,6 +143,7 @@ class Chromosome(ABC):
         self, coverage_values: dict[ff.CoverageFunction, float]
     ) -> None:
         """Sets the coverage values for the specific functions.
+
         Args:
             coverage_values: A dictionary of coverage values, keyed by coverage function.
         """

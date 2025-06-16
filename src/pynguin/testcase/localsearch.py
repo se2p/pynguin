@@ -17,7 +17,6 @@ from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.testfactory import TestFactory
 
 
@@ -38,7 +37,7 @@ class LocalSearch(ABC):
 
 class TestCaseLocalSearch(LocalSearch, ABC):
 
-    def local_search(
+    def local_search( # noqa: D102
         self,
         chromosome: Chromosome,
         factory: TestFactory,
@@ -58,16 +57,14 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
             if local_search_statement is not None:
                 self._logger.debug(
-                    "Local search statement found for the statement {}".format(
-                        statement
-                    )
+                    f"Local search statement found for the statement {statement}"
                 )
                 local_search_statement.search(chromosome, i, objective, factory)
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
 
-    def local_search(
+    def local_search( # noqa: D102
         self,
         chromosome: Chromosome,
         factory: TestFactory,
@@ -112,7 +109,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 key,
                 value,
             ) in (
-                test_case.get_last_execution_result().execution_trace.executed_predicates.items() #type: ignore[union-attr]
+                test_case.get_last_execution_result().execution_trace.executed_predicates.items()  # type: ignore[union-attr]
             ):
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case
@@ -126,7 +123,5 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 suite.add_test_case_chromosome(clone)
 
         self._logger.debug(
-            "Inserted {} test duplicates to {} already existing tests to have each branch covered twice".format(
-                len(duplicates), old_test_count
-            )
+            f"Inserted {len(duplicates)} test duplicates to {old_test_count} already existing tests to have each branch covered twice"
         )

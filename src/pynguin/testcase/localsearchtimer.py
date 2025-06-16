@@ -17,10 +17,10 @@ class LocalSearchTimer:
     _instance = None
     _logger: logging.Logger
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls):
         """Provides the instance, or creates a new instance."""
         if not cls._instance:
-            cls._instance = super(LocalSearchTimer, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance.end_time = 0
             cls._instance._logger = logging.getLogger(__name__)
         return cls._instance
@@ -43,10 +43,11 @@ class LocalSearchTimer:
         """Gives back information, if the local search limit is reached.
 
         Returns:
-            Gives back True if the local search limit is reached."""
+            Gives back True if the local search limit is reached.
+        """
         current_time = int(time.perf_counter()) * 1000
         self._logger.debug(
-            f"Checking limit: current time = %f, end time = %f",
+            "Checking limit: current time = %f, end time = %f",
             current_time,
             self.end_time,
         )

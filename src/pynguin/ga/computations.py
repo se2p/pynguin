@@ -577,10 +577,11 @@ class ComputationCache:
 
     def set_fitness_values(self, fitness_values: dict[FitnessFunction, float]) -> None:
         """Sets the fitness values for the specific functions.
+
         Args:
             fitness_values: A dictionary of fitness values, keyed by fitness function.
         """
-        for fitness_key in fitness_values.keys():
+        for fitness_key in fitness_values:
             self._fitness_cache[fitness_key] = fitness_values[fitness_key]
 
     def get_fitness(self) -> float:
@@ -632,10 +633,11 @@ class ComputationCache:
 
     def set_coverage_values(self, coverage_values: dict[CoverageFunction, float]) -> None:
         """Sets the coverage values for the specific functions.
-                Args:
-                    coverage_values: A dictionary of coverage values, keyed by coverage function.
-                """
-        for coverage_key in coverage_values.keys():
+
+        Args:
+            coverage_values: A dictionary of coverage values, keyed by coverage function.
+        """
+        for coverage_key in coverage_values:
             self._coverage_cache[coverage_key] = coverage_values[coverage_key]
 
     def get_coverage(self) -> float:

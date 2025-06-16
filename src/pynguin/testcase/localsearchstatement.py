@@ -14,18 +14,15 @@ from abc import ABC
 from abc import abstractmethod
 from typing import cast
 
-from mypy.typeops import false_only
 
 import pynguin.configuration as config
 
-from pynguin.ga.chromosome import Chromosome
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
-from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
@@ -37,8 +34,6 @@ from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
-from tests.testcase.execution.test_executionresult import execution_result
-from tests.utils.stats.test_outputvariablefactory import factory
 
 
 class StatementLocalSearch(abc.ABC):
@@ -72,30 +67,30 @@ class StatementLocalSearch(abc.ABC):
         if isinstance(statement, NoneStatement):
             logger.debug("None local search statement found")
             return ParametrizedStatementLocalSearch()
-        elif isinstance(statement, EnumPrimitiveStatement):
-            logger.debug("Statement is enum {}".format(statement.value))
+        if isinstance(statement, EnumPrimitiveStatement):
+            logger.debug(f"Statement is enum {statement.value}")
             return EnumLocalSearch()
-        elif isinstance(statement, PrimitiveStatement):
+        if isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
             if isinstance(primitive_type, bool):
-                logger.debug("Primitive type is bool {}".format(primitive_type))
+                logger.debug(f"Primitive type is bool {primitive_type}")
                 return BooleanLocalSearch()
-            elif isinstance(primitive_type, int):
+            if isinstance(primitive_type, int):
                 logger.debug(
-                    "Primitive type is int with value {}".format(primitive_type)
+                    f"Primitive type is int with value {primitive_type}"
                 )
                 return IntegerLocalSearch()
-            elif isinstance(primitive_type, str):
-                logger.debug("Primitive type is string {}".format(primitive_type))
+            if isinstance(primitive_type, str):
+                logger.debug(f"Primitive type is string {primitive_type}")
                 return StringLocalSearch()
-            elif isinstance(primitive_type, float):
-                logger.debug("Primitive type is float {}".format(primitive_type))
+            if isinstance(primitive_type, float):
+                logger.debug(f"Primitive type is float {primitive_type}")
             elif isinstance(primitive_type, complex):
-                logger.debug("Primitive type is complex {}".format(primitive_type))
+                logger.debug(f"Primitive type is complex {primitive_type}")
             elif isinstance(primitive_type, bytes):
-                logger.debug("Primitive type is bytes {!r}".format(primitive_type))
+                logger.debug(f"Primitive type is bytes {primitive_type!r}")
             else:
-                logger.debug("Unknown primitive type {}".format(primitive_type))
+                logger.debug(f"Unknown primitive type {primitive_type}")
         elif isinstance(statement, FunctionStatement):
             logger.debug("Function local search statement found")
             return ParametrizedStatementLocalSearch()
@@ -107,9 +102,7 @@ class StatementLocalSearch(abc.ABC):
             return ParametrizedStatementLocalSearch()
         else:
             logger.debug(
-                "No local search statement found for {}".format(
-                    statement.__class__.__name__
-                )
+                f"No local search statement found for {statement.__class__.__name__}"
             )
         return None
 
@@ -117,7 +110,7 @@ class StatementLocalSearch(abc.ABC):
 class BooleanLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for booleans."""
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -125,7 +118,7 @@ class BooleanLocalSearch(StatementLocalSearch, ABC):
         factory: TestFactory | None = None,
     ) -> None:
         statement = cast(
-            BooleanPrimitiveStatement, chromosome.test_case.statements[position]
+            "BooleanPrimitiveStatement", chromosome.test_case.statements[position]
         )
         execution_result = chromosome.get_last_execution_result()
         old_value = statement.value
@@ -163,7 +156,7 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
 
         """
         self._logger.debug(
-            "Incrementing value of {} with delta {} ".format(statement.value, delta)
+            f"Incrementing value of {statement.value} with delta {delta} "
         )
         improved = False
         current_value = statement.value
@@ -172,7 +165,7 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
 
         while objective.has_improved(chromosome):
             self._logger.debug(
-                "Incrementing value of {} with delta {} ".format(statement.value, delta)
+                f"Incrementing value of {statement.value} with delta {delta} "
             )
             current_value = statement.value
             last_execution_result = chromosome.get_last_execution_result()
@@ -190,7 +183,7 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
 class IntegerLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for integers."""
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -198,7 +191,7 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
         factory: TestFactory | None = None,
     ) -> None:
         statement = cast(
-            IntPrimitiveStatement, chromosome.test_case.statements[position]
+            "IntPrimitiveStatement", chromosome.test_case.statements[position]
         )
         old_value = statement.value
         increasing_factor = config.LocalSearchConfiguration.int_delta_increasing_factor
@@ -212,17 +205,13 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
                 break
             if self.iterate(chromosome, statement, objective, 1, increasing_factor):
                 self._logger.debug(
-                    "Successfully incremented value of {} to {} ".format(
-                        old_value, statement.value
-                    )
+                    f"Successfully incremented value of {old_value} to {statement.value} "
                 )
                 done = False
                 improved = True
             elif self.iterate(chromosome, statement, objective, -1, increasing_factor):
                 self._logger.debug(
-                    "Successfully decremented value of {} to {} ".format(
-                        old_value, statement.value
-                    )
+                    f"Successfully decremented value of {old_value} to {statement.value} "
                 )
                 done = False
                 improved = True
@@ -234,7 +223,7 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
 class EnumLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for enumerations."""
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -242,7 +231,7 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
         factory: TestFactory | None = None,
     ) -> None:
         statement = cast(
-            EnumPrimitiveStatement, chromosome.test_case.statements[position]
+            "EnumPrimitiveStatement", chromosome.test_case.statements[position]
         )
         initial_value = statement.value
         last_execution_result = chromosome.get_last_execution_result()
@@ -266,7 +255,7 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
 class FloatLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for floats."""
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -279,7 +268,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
 class StringLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for strings."""
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -312,7 +301,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             Gives back true if the mutations change the fitness in any way.
         """
         statement = cast(
-            StringPrimitiveStatement, chromosome.test_case.statements[position]
+            "StringPrimitiveStatement", chromosome.test_case.statements[position]
         )
         random_mutations_count = (
             config.LocalSearchConfiguration.string_random_mutation_count
@@ -330,9 +319,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
 
             if improvement != 0:
                 self._logger.debug(
-                    "The random mutations have changed the fitness of {}, applying local search".format(
-                        chromosome.test_case.statements[position]
-                    )
+                    f"The random mutations have changed the fitness of {chromosome.test_case.statements[position]}, applying local search"
                 )
                 return True
             random_mutations_count -= 1
@@ -348,7 +335,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         objective: LocalSearchObjective,
     ):
         statement = cast(
-            StringPrimitiveStatement, chromosome.test_case.statements[position]
+            "StringPrimitiveStatement", chromosome.test_case.statements[position]
         )
         assert statement.value is not None
 
@@ -359,7 +346,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         for i in range(len(statement.value) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
-            self._logger.debug("Removing character {} from string".format(i))
+            self._logger.debug(f"Removing character {i} from string")
             statement.value = statement.value[:i] + statement.value[i + 1 :]
             if objective.has_improved(chromosome):
                 last_execution_result = chromosome.get_last_execution_result()
@@ -377,7 +364,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         objective: LocalSearchObjective,
     ):
         statement = cast(
-            StringPrimitiveStatement, chromosome.test_case.statements[position]
+            "StringPrimitiveStatement", chromosome.test_case.statements[position]
         )
 
         last_execution_result = chromosome.get_last_execution_result()
@@ -391,7 +378,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         objective: LocalSearchObjective,
     ):
         statement = cast(
-            StringPrimitiveStatement, chromosome.test_case.statements[position]
+            "StringPrimitiveStatement", chromosome.test_case.statements[position]
         )
 
         last_execution_result = chromosome.get_last_execution_result()
@@ -401,7 +388,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
 
 class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
-    def search(
+    def search( # noqa: D102
         self,
         chromosome: TestCaseChromosome,
         position: int,
@@ -416,9 +403,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             or isinstance(statement, NoneStatement)
         ):
             self._logger.debug(
-                "Error! The statement at position {} has to be a ParametrizedStatement or NoneStatement".format(
-                    position
-                )
+                f"Error! The statement at position {position} has to be a ParametrizedStatement or NoneStatement"
             )
             return
 
@@ -439,15 +424,12 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             operations: list[Operations] = [Operations.REPLACE]
             if not isinstance(statement, NoneStatement):
                 operations.append(Operations.RANDOM_CALL)
-                if len(statement.args) > 0: #type: ignore[attr-defined]
+                if len(statement.args) > 0:  # type: ignore[attr-defined]
                     operations.append(Operations.PARAMETER)
 
             random = randomness.choice(operations)
             changed = False
-            if random == Operations.RANDOM_CALL:
-                # TODO
-                pass
-            elif random == Operations.PARAMETER:
+            if random == Operations.RANDOM_CALL or random == Operations.PARAMETER:
                 # TODO
                 pass
             else:
@@ -466,8 +448,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
     def replace(
         self, chromosome: TestCaseChromosome, position: int, factory: TestFactory
     ) -> bool:
-        """Replaces a call with another possible call"""
-
+        """Replaces a call with another possible call."""
         statement = chromosome.test_case.statements[position]
         successful = False
         if isinstance(statement, VariableCreatingStatement):

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 
-from pynguin.ga.chromosome import Chromosome
 from pynguin.ga.computations import CoverageFunction
 from pynguin.ga.computations import FitnessFunction
 from pynguin.ga.testcasechromosome import TestCaseChromosome
@@ -22,8 +21,8 @@ class LocalSearchObjective:
 
     def __init__(self, test_suite: TestSuiteChromosome, position: int) -> None:
         """Create a new local search objective object.
-        Args:
 
+        Args:
             position: The position of the specific test case which will be modified.
             test_suite: The whole testsuite.
         """
@@ -84,7 +83,7 @@ class LocalSearchObjective:
             self._updateLatestCoverageMap()
             self._updateLatestFitnessMap()
             return 1
-        elif (
+        if (
             new_fitness < self._old_fitness
             if self._is_maximization
             else new_fitness > self._old_fitness
@@ -97,11 +96,10 @@ class LocalSearchObjective:
             self._test_suite.set_coverage_values(self._latest_coverage_map)
             self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
-        else:
-            self._logger.debug(
-                "Local search hasn't changed the fitness of %f", self._old_fitness
-            )
-            return 0
+        self._logger.debug(
+            "Local search hasn't changed the fitness of %f", self._old_fitness
+        )
+        return 0
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:
         """Gives back if changing the old test case chromosome to the given one improves the fitness of the test suite.

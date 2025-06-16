@@ -20,15 +20,10 @@ import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
 import pynguin.utils.statistics.stats as stat
 
-from pynguin.ga import testcasechromosome
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
-from pynguin.ga.testsuitechromosomefactory import TestSuiteChromosomeFactory
 from pynguin.testcase.localsearch import LocalSearchTimer
-from pynguin.testcase.localsearch import TestCaseLocalSearch
 from pynguin.testcase.localsearch import TestSuiteLocalSearch
-from pynguin.testcase.localsearchobjective import LocalSearchObjective
-from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
