@@ -10,10 +10,12 @@ import time
 
 import pynguin.configuration as config
 
+
 class LocalSearchTimer:
     """Manages the local search budget."""
 
     _instance = None
+    _logger: logging.Logger
 
     def __new__(cls, *args, **kwargs):
         """Provides the instance, or creates a new instance."""
@@ -37,13 +39,15 @@ class LocalSearchTimer:
         self.end_time = start_time + config.LocalSearchConfiguration.local_search_time
         self._logger.debug("Local search started at %f ms", start_time)
 
-
     def limit_reached(self) -> bool:
         """Gives back information, if the local search limit is reached.
 
         Returns:
             Gives back True if the local search limit is reached."""
         current_time = int(time.perf_counter()) * 1000
-        self._logger.debug(f"Checking limit: current time = %f, end time = %f", current_time,self.end_time)
+        self._logger.debug(
+            f"Checking limit: current time = %f, end time = %f",
+            current_time,
+            self.end_time,
+        )
         return current_time > self.end_time
-

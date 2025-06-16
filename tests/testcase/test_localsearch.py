@@ -8,14 +8,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.testcase.localsearchstatement import IntegerLocalSearch, StringLocalSearch
+from pynguin.testcase.localsearchstatement import IntegerLocalSearch
+from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import IntPrimitiveStatement, FloatPrimitiveStatement, StringPrimitiveStatement
+from pynguin.testcase.statement import FloatPrimitiveStatement
+from pynguin.testcase.statement import IntPrimitiveStatement
+from pynguin.testcase.statement import StringPrimitiveStatement
+
 
 @pytest.fixture(autouse=True)
 def setup_timer():
     timer = LocalSearchTimer.get_instance()
     timer.limit_reached = MagicMock(return_value=False)
+
 
 def test_iterate_success(monkeypatch, result) -> None:
     chromosome = MagicMock()
@@ -25,7 +30,8 @@ def test_iterate_success(monkeypatch, result) -> None:
     objective.has_improved.side_effect = [True] * 3 + [False]
 
     local_search = IntegerLocalSearch()
-    assert local_search.iterate(chromosome, statement, objective,1,2)
+    assert local_search.iterate(chromosome, statement, objective, 1, 2)
+
 
 def test_iterate_fail(monkeypatch, result) -> None:
     chromosome = MagicMock()
@@ -34,24 +40,26 @@ def test_iterate_fail(monkeypatch, result) -> None:
     objective.has_improved.side_effect = [False]
 
     local_search = IntegerLocalSearch()
-    assert local_search.iterate(chromosome, statement, objective,1,2) is False
+    assert local_search.iterate(chromosome, statement, objective, 1, 2) is False
+
 
 @pytest.mark.parametrize(
     "value, delta, increasing_factor, iterations, final_result",
-    [
-        (2, 1, 2, 5, 33),
-        (39, 4, 23, 3, 2251),
-        (128, 0, 3, 10, 128)
-    ]
+    [(2, 1, 2, 5, 33), (39, 4, 23, 3, 2251), (128, 0, 3, 10, 128)],
 )
-def test_iterate_int_value(monkeypatch, result,value, delta, increasing_factor, iterations, final_result) -> None:
+def test_iterate_int_value(
+    monkeypatch, result, value, delta, increasing_factor, iterations, final_result
+) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
     objective.has_improved.side_effect = [True] * iterations + [False]
     statement = IntPrimitiveStatement(chromosome, value)
     local_search = IntegerLocalSearch()
-    assert local_search.iterate(chromosome, statement, objective, delta, increasing_factor)
+    assert local_search.iterate(
+        chromosome, statement, objective, delta, increasing_factor
+    )
     assert statement.value == final_result
+
 
 def test_iterate_float_value(monkeypatch, result) -> None:
     chromosome = MagicMock()
@@ -62,6 +70,7 @@ def test_iterate_float_value(monkeypatch, result) -> None:
     assert local_search.iterate(chromosome, statement, objective, 1.5, 1.5)
     assert statement.value == 9.685
 
+
 def test_apply_random_mutations_fail(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
@@ -70,6 +79,7 @@ def test_apply_random_mutations_fail(monkeypatch, result) -> None:
     local_search = StringLocalSearch()
     assert local_search.apply_random_mutations(chromosome, 4, objective) is False
 
+
 def test_apply_random_mutations_success(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
@@ -77,6 +87,7 @@ def test_apply_random_mutations_success(monkeypatch, result) -> None:
 
     local_search = StringLocalSearch()
     assert local_search.apply_random_mutations(chromosome, 4, objective)
+
 
 def test_apply_random_mutations_negative_success(monkeypatch, result) -> None:
     chromosome = MagicMock()
@@ -92,8 +103,10 @@ def test_apply_random_mutations_improves(monkeypatch, result) -> None:
     objective = MagicMock()
     objective.has_changed.return_value = 1
     statement = StringPrimitiveStatement(chromosome, "testString")
+
     def side_effect():
         statement.value = "String1"
+
     statement.randomize_value = MagicMock(side_effect=side_effect)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(5)]
@@ -104,13 +117,16 @@ def test_apply_random_mutations_improves(monkeypatch, result) -> None:
     assert local_search.apply_random_mutations(chromosome, 4, objective)
     assert statement.value == "String1"
 
+
 def test_apply_random_mutations_worsens(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
     objective.has_changed.return_value = -1
     statement = StringPrimitiveStatement(chromosome, "testString")
+
     def side_effect():
         statement.value = "String1"
+
     statement.randomize_value = MagicMock(side_effect=side_effect)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(5)]
@@ -120,6 +136,7 @@ def test_apply_random_mutations_worsens(monkeypatch, result) -> None:
     local_search = StringLocalSearch()
     assert local_search.apply_random_mutations(chromosome, 4, objective)
     assert statement.value == "testString"
+
 
 def test_remove_chars(monkeypatch, result) -> None:
     chromosome = MagicMock()
@@ -135,6 +152,7 @@ def test_remove_chars(monkeypatch, result) -> None:
     local_search.remove_chars(chromosome, 4, objective)
     assert statement.value == "testStrig"
 
+
 def test_remove_chars2(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
@@ -149,10 +167,11 @@ def test_remove_chars2(monkeypatch, result) -> None:
     local_search.remove_chars(chromosome, 4, objective)
     assert statement.value == "testg"
 
+
 def test_remove_chars_all(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
-    objective.has_improved.side_effect = [True]*20
+    objective.has_improved.side_effect = [True] * 20
 
     statement = StringPrimitiveStatement(chromosome, "test")
     chromosome.test_case = MagicMock()
@@ -163,10 +182,11 @@ def test_remove_chars_all(monkeypatch, result) -> None:
     local_search.remove_chars(chromosome, 4, objective)
     assert statement.value == ""
 
+
 def test_remove_chars_none(monkeypatch, result) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
-    objective.has_improved.side_effect = [False]*20
+    objective.has_improved.side_effect = [False] * 20
 
     statement = StringPrimitiveStatement(chromosome, "This should stay")
     chromosome.test_case = MagicMock()

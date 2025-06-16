@@ -18,13 +18,13 @@ class LocalSearchObjective:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, test_suite: TestSuiteChromosome, position:int) -> None:
+    def __init__(self, test_suite: TestSuiteChromosome, position: int) -> None:
         """Create a new local search objective object.
         Args:
 
             position: The position of the specific test case which will be modified.
             test_suite: The whole testsuite.
-            """
+        """
         self._old_fitness: float = 0.0
         self._test_suite = test_suite
         self._position = position
@@ -34,7 +34,11 @@ class LocalSearchObjective:
         self._updateLatestFitnessMap()
         self._updateLatestCoverageMap()
 
-        self._is_maximization = self._fitness_functions[0].is_maximisation_function() if self._fitness_functions else False
+        self._is_maximization = (
+            self._fitness_functions[0].is_maximisation_function()
+            if self._fitness_functions
+            else False
+        )
 
     def _updateLatestCoverageMap(self) -> None:
         self._oldFitness = 0.0
@@ -45,10 +49,12 @@ class LocalSearchObjective:
 
     def _updateLatestFitnessMap(self) -> None:
         for coverage_function in self._test_suite.get_coverage_functions():
-            self._latest_coverage_map[coverage_function] = self._test_suite.get_coverage_for(coverage_function)
+            self._latest_coverage_map[coverage_function] = (
+                self._test_suite.get_coverage_for(coverage_function)
+            )
 
-    def has_changed(self, test_case_chromosome:TestCaseChromosome) -> int:
-        """ Gives back, if the fitness of the testsuite has changed. It overrides the specific testcase with the provided chromosome.
+    def has_changed(self, test_case_chromosome: TestCaseChromosome) -> int:
+        """Gives back, if the fitness of the testsuite has changed. It overrides the specific testcase with the provided chromosome.
 
         Args:
             test_case_chromosome: The chromosome which will override the original chromosome.
@@ -63,21 +69,39 @@ class LocalSearchObjective:
             fitness_function.compute_fitness(self._test_suite)
         new_fitness = self._test_suite.get_fitness()
 
-        if new_fitness > self._old_fitness if self._is_maximization else new_fitness < self._old_fitness:
-            self._logger.debug("Local search has improved the fitness of %f to %f", self._old_fitness, new_fitness)
+        if (
+            new_fitness > self._old_fitness
+            if self._is_maximization
+            else new_fitness < self._old_fitness
+        ):
+            self._logger.debug(
+                "Local search has improved the fitness of %f to %f",
+                self._old_fitness,
+                new_fitness,
+            )
             self._updateLatestCoverageMap()
             self._updateLatestFitnessMap()
             return 1
-        elif new_fitness < self._old_fitness if self._is_maximization else new_fitness > self._old_fitness:
-            self._logger.debug("Local search has worsen the fitness of %f to %f", self._old_fitness, new_fitness)
+        elif (
+            new_fitness < self._old_fitness
+            if self._is_maximization
+            else new_fitness > self._old_fitness
+        ):
+            self._logger.debug(
+                "Local search has worsen the fitness of %f to %f",
+                self._old_fitness,
+                new_fitness,
+            )
             self._test_suite.set_coverage_values(self._latest_coverage_map)
             self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
         else:
-            self._logger.debug("Local search hasn't changed the fitness of %f", self._old_fitness)
+            self._logger.debug(
+                "Local search hasn't changed the fitness of %f", self._old_fitness
+            )
             return 0
 
-    def has_improved(self, test_case_chromosome:TestCaseChromosome) -> bool:
+    def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:
         """Gives back if changing the old test case chromosome to the given one improves the fitness of the test suite.
 
         Args:

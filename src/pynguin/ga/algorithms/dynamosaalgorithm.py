@@ -19,12 +19,14 @@ from networkx.drawing.nx_pydot import to_pydot
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
 import pynguin.utils.statistics.stats as stat
-from pynguin.ga import testcasechromosome
 
+from pynguin.ga import testcasechromosome
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.ga.testsuitechromosomefactory import TestSuiteChromosomeFactory
-from pynguin.testcase.localsearch import TestCaseLocalSearch, LocalSearchTimer, TestSuiteLocalSearch
+from pynguin.testcase.localsearch import LocalSearchTimer
+from pynguin.testcase.localsearch import TestCaseLocalSearch
+from pynguin.testcase.localsearch import TestSuiteLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
@@ -139,20 +141,26 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             test_cases.add(chromosome.clone())
         test_suite = self.create_test_suite(test_cases)
 
-        #test_suite = self.create_test_suite(self._archive.solutions)
+        # test_suite = self.create_test_suite(self._archive.solutions)
 
         global_search_coverage = test_suite.get_coverage()
         self._logger.debug("Starting local search")
         LocalSearchTimer.get_instance().start_local_search()
 
-        TestSuiteLocalSearch.local_search(TestSuiteLocalSearch(),test_suite, self.test_factory)
+        TestSuiteLocalSearch.local_search(
+            TestSuiteLocalSearch(), test_suite, self.test_factory
+        )
         if global_search_coverage < test_suite.get_coverage():
-            self._logger.info("Local search complete, increased coverage from %f to %f", global_search_coverage,
-                              test_suite.get_coverage())
+            self._logger.info(
+                "Local search complete, increased coverage from %f to %f",
+                global_search_coverage,
+                test_suite.get_coverage(),
+            )
         else:
             self._logger.info("Local search complete, the coverage hasn't changed")
 
         self._goals_manager.update(test_suite.test_case_chromosomes)
+
 
 class _GoalsManager:
     """Manages goals and provides dynamically selected ones for the generation."""
