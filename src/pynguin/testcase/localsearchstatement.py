@@ -138,14 +138,17 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
         delta,
         increasing_factor,
     ) -> bool:
-        """Executes one or several iterations of applying a delta to the value of the statement. The delta increases each iteration.
+        """Executes one or several iterations of applying a delta to the value of the statement. The
+        delta increases each iteration.
 
         Args:
             chromosome (TestCaseChromosome): The chromosome of the statement to be iterated.
             statement (PrimitiveStatement): The statement to be iterated.
-            objective (LocalSearchObjective): The objective which defines the improvements made mutating.
+            objective (LocalSearchObjective): The objective which defines the improvements made
+                mutating.
             delta: The value which is used for starting the iterations.
-            increasing_factor: The factor which describes how much the delta is increased each iteration.
+            increasing_factor: The factor which describes how much the delta is increased each
+                iteration.
 
         Returns:
             Gives back True, if at least one iteration increased the fitness.
@@ -306,7 +309,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
 
             if improvement != 0:
                 self._logger.debug(
-                    f"The random mutations have changed the fitness of {chromosome.test_case.statements[position]}, applying local search"
+                    f"The random mutations have changed the fitness of "
+                    f"{chromosome.test_case.statements[position]}, applying local search"
                 )
                 return True
             random_mutations_count -= 1
@@ -332,7 +336,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
             self._logger.debug(f"Removing character {i} from string")
-            statement.value = statement.value[:i] + statement.value[i + 1 :]
+            statement.value = statement.value[:i] + statement.value[i + 1:]
             if objective.has_improved(chromosome):
                 last_execution_result = chromosome.get_last_execution_result()
                 old_value = statement.value
@@ -384,7 +388,8 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             isinstance(statement, ParametrizedStatement) or isinstance(statement, NoneStatement)
         ):
             self._logger.debug(
-                f"Error! The statement at position {position} has to be a ParametrizedStatement or NoneStatement"
+                f"Error! The statement at position {position} has to be a ParametrizedStatement "
+                f"or NoneStatement"
             )
             return
 
@@ -408,8 +413,10 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
             random = randomness.choice(operations)
             changed = False
-            if random == Operations.RANDOM_CALL or random == Operations.PARAMETER:
-                # TODO
+            if random == Operations.RANDOM_CALL:
+                changed = self.random_call(chromosome, position, factory)
+            elif random == Operations.PARAMETER:
+                #TODO
                 pass
             else:
                 changed = self.replace(chromosome, position, factory)
@@ -427,16 +434,51 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 mutations += 1
 
     def replace(self, chromosome: TestCaseChromosome, position: int, factory: TestFactory) -> bool:
-        """Replaces a call with another possible call."""
+        """Replaces a call with another possible call.
+
+        Args:
+            chromosome (TestCaseChromosome): The testcase which gets modified.
+            position (int): The position of the statement which gets replaced.
+            factory (TestFactory): The test factory
+
+        Returns:
+            Gives back true if replacing the call was successful and false otherwise.
+        """
         statement = chromosome.test_case.statements[position]
         successful = False
         if isinstance(statement, VariableCreatingStatement):
             successful = factory.change_random_call(chromosome.test_case, statement)
             if successful:
                 self._logger.debug(
-                    f"Successfully replaced call {statement.get_variable_references()} with another possible call{chromosome.test_case.statements[position].get_variable_references()}"
+                    f"Successfully replaced call {statement.get_variable_references()} with "
+                    f"another possible call"
+                    f"{chromosome.test_case.statements[position].get_variable_references()}"
                 )
             else:
                 self._logger.debug("Failed to replace call with another possible call")
 
         return successful
+
+    def random_call(self, chromosome: TestCaseChromosome, position: int, factory: TestFactory) -> bool:
+        """Adds a random call on the object at the position.
+
+        Args:
+            chromosome (TestCaseChromosome): The testcase which gets modified.
+            position (int): The position of the object on which the random call gets added.
+            factory (TestFactory): The test factory
+
+        Returns:
+            Gives back true if the addition of a random call was successful and false otherwise.
+        """
+        statement =chromosome.test_case.statements[position]
+        successful = False
+        if isinstance(statement, VariableCreatingStatement):
+            variable = statement.ret_val
+            successful = factory.insert_random_call_on_object_at(chromosome.test_case, variable,
+                                                              position+1)
+            if successful:
+                self._logger.debug(f"Successfully inserted random "
+                                   f"{chromosome.test_case.statements[position +1].ret_val} call "
+                                   f"at position {position +1}")
+        return successful
+
