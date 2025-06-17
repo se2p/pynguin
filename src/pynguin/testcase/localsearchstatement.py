@@ -434,10 +434,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             successful = factory.change_random_call(chromosome.test_case, statement)
             if successful:
                 self._logger.debug(
-                    "Successfully replaced call {} with another possible call{}".format(
-                        statement.get_variable_references(),
-                        chromosome.test_case.statements[position].get_variable_references(),
-                    )
+                    f"Successfully replaced call {statement.get_variable_references()} with another possible call{chromosome.test_case.statements[position].get_variable_references()}"
                 )
             else:
                 self._logger.debug("Failed to replace call with another possible call")
