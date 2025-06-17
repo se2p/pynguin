@@ -99,9 +99,7 @@ class Chromosome(ABC):
         """Invalidate all cached computation values."""
         self.computation_cache.invalidate_cache()
 
-    def set_fitness_values(
-        self, fitness_values: dict[ff.FitnessFunction, float]
-    ) -> None:
+    def set_fitness_values(self, fitness_values: dict[ff.FitnessFunction, float]) -> None:
         """Sets the fitness values for the specific functions.
 
         Args:
@@ -139,9 +137,7 @@ class Chromosome(ABC):
         """
         return self.computation_cache.get_is_covered(fitness_function)
 
-    def set_coverage_values(
-        self, coverage_values: dict[ff.CoverageFunction, float]
-    ) -> None:
+    def set_coverage_values(self, coverage_values: dict[ff.CoverageFunction, float]) -> None:
         """Sets the coverage values for the specific functions.
 
         Args:

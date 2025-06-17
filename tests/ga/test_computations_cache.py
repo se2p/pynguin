@@ -11,7 +11,9 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.computations as ff
-from pynguin.ga.computations import FitnessFunction, CoverageFunction
+
+from pynguin.ga.computations import CoverageFunction
+from pynguin.ga.computations import FitnessFunction
 
 
 @pytest.fixture
@@ -220,7 +222,3 @@ def test_computation_cache_set_coverage(cache):
 
     assert cache.get_coverage() == 1
     assert cache.get_coverage_for(func) == 1
-
-
-
-

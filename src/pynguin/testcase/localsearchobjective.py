@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Provides the local search strategies."""
+
 from __future__ import annotations
 
 import logging
@@ -50,8 +51,8 @@ class LocalSearchObjective:
 
     def _updateLatestFitnessMap(self) -> None:
         for coverage_function in self._test_suite.get_coverage_functions():
-            self._latest_coverage_map[coverage_function] = (
-                self._test_suite.get_coverage_for(coverage_function)
+            self._latest_coverage_map[coverage_function] = self._test_suite.get_coverage_for(
+                coverage_function
             )
 
     def has_changed(self, test_case_chromosome: TestCaseChromosome) -> int:
@@ -96,9 +97,7 @@ class LocalSearchObjective:
             self._test_suite.set_coverage_values(self._latest_coverage_map)
             self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
-        self._logger.debug(
-            "Local search hasn't changed the fitness of %f", self._old_fitness
-        )
+        self._logger.debug("Local search hasn't changed the fitness of %f", self._old_fitness)
         return 0
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:

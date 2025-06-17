@@ -55,9 +55,7 @@ def test_iterate_int_value(
     objective.has_improved.side_effect = [True] * iterations + [False]
     statement = IntPrimitiveStatement(chromosome, value)
     local_search = IntegerLocalSearch()
-    assert local_search.iterate(
-        chromosome, statement, objective, delta, increasing_factor
-    )
+    assert local_search.iterate(chromosome, statement, objective, delta, increasing_factor)
     assert statement.value == final_result
 
 

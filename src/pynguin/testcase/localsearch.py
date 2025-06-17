@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 """Provides the local search strategies."""
+
 from __future__ import annotations
 
 import abc
@@ -36,8 +37,7 @@ class LocalSearch(ABC):
 
 
 class TestCaseLocalSearch(LocalSearch, ABC):
-
-    def local_search( # noqa: D102
+    def local_search(  # noqa: D102
         self,
         chromosome: Chromosome,
         factory: TestFactory,
@@ -51,20 +51,15 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                 return
 
             statement = chromosome.test_case.statements[i]
-            local_search_statement = StatementLocalSearch.choose_local_search_statement(
-                statement
-            )
+            local_search_statement = StatementLocalSearch.choose_local_search_statement(statement)
 
             if local_search_statement is not None:
-                self._logger.debug(
-                    f"Local search statement found for the statement {statement}"
-                )
+                self._logger.debug(f"Local search statement found for the statement {statement}")
                 local_search_statement.search(chromosome, i, objective, factory)
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
-
-    def local_search( # noqa: D102
+    def local_search(  # noqa: D102
         self,
         chromosome: Chromosome,
         factory: TestFactory,

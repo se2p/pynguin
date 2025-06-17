@@ -826,7 +826,6 @@ configuration = Configuration(
 
 @dataclasses.dataclass
 class LocalSearchConfiguration:
-
     local_search_probability: float = 0.02
     """Probability of starting local search on the specific candidate"""
 
