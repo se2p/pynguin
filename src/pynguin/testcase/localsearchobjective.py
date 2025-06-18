@@ -9,14 +9,20 @@ from __future__ import annotations
 
 import logging
 
-from pynguin.ga.computations import CoverageFunction
-from pynguin.ga.computations import FitnessFunction
-from pynguin.ga.testcasechromosome import TestCaseChromosome
-from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from pynguin.ga.computations import CoverageFunction
+    from pynguin.ga.computations import FitnessFunction
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 
 
 class LocalSearchObjective:
-    """A local search objective which is used to monitor the success of the current local search on a chromosome"""
+    """A local search objective which is used to monitor the success of the current local search on
+    a chromosome.
+    """  # noqa: D205
 
     _logger = logging.getLogger(__name__)
 
@@ -31,10 +37,10 @@ class LocalSearchObjective:
         self._test_suite = test_suite
         self._position = position
         self._fitness_functions = test_suite.get_fitness_functions()
-        self._latest_coverage_map: dict[CoverageFunction, float] = dict()
-        self._latest_fitness_map: dict[FitnessFunction, float] = dict()
-        self._updateLatestFitnessMap()
-        self._updateLatestCoverageMap()
+        self._latest_coverage_map: dict[CoverageFunction, float] = {}
+        self._latest_fitness_map: dict[FitnessFunction, float] = {}
+        self._update_latest_fitness_map()
+        self._update_latest_coverage_map()
 
         self._is_maximization = (
             self._fitness_functions[0].is_maximisation_function()
@@ -42,27 +48,30 @@ class LocalSearchObjective:
             else False
         )
 
-    def _updateLatestCoverageMap(self) -> None:
+    def _update_latest_coverage_map(self) -> None:
         self._oldFitness = 0.0
         for fitness_function in self._test_suite.get_fitness_functions():
             fitness = self._test_suite.get_fitness_for(fitness_function)
             self._oldFitness += fitness
             self._latest_fitness_map[fitness_function] = fitness
 
-    def _updateLatestFitnessMap(self) -> None:
+    def _update_latest_fitness_map(self) -> None:
         for coverage_function in self._test_suite.get_coverage_functions():
             self._latest_coverage_map[coverage_function] = self._test_suite.get_coverage_for(
                 coverage_function
             )
 
     def has_changed(self, test_case_chromosome: TestCaseChromosome) -> int:
-        """Gives back, if the fitness of the testsuite has changed. It overrides the specific testcase with the provided chromosome.
+        """Gives back, if the fitness of the testsuite has changed.
+
+        It overrides the specific testcase with the provided chromosome.
 
         Args:
             test_case_chromosome: The chromosome which will override the original chromosome.
 
         Returns:
-            Gives back 1 if the fitness has increased, -1 if the fitness has decreased and 0 if the fitness has not changed at all.
+            Gives back 1 if the fitness has increased, -1 if the fitness has decreased and 0 if the
+            fitness has not changed at all.
         """
         test_case_chromosome.changed = True
         self._old_fitness = self._test_suite.get_fitness()
@@ -81,8 +90,8 @@ class LocalSearchObjective:
                 self._old_fitness,
                 new_fitness,
             )
-            self._updateLatestCoverageMap()
-            self._updateLatestFitnessMap()
+            self._update_latest_coverage_map()
+            self._update_latest_fitness_map()
             return 1
         if (
             new_fitness < self._old_fitness
@@ -101,7 +110,8 @@ class LocalSearchObjective:
         return 0
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:
-        """Gives back if changing the old test case chromosome to the given one improves the fitness of the test suite.
+        """Gives back if changing the old test case chromosome to the given one improves the fitness
+        of the test suite.
 
         Args:
             test_case_chromosome: The chromosome which will override the original chromosome.

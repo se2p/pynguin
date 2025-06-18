@@ -581,8 +581,8 @@ class ComputationCache:
         Args:
             fitness_values: A dictionary of fitness values, keyed by fitness function.
         """
-        for fitness_key in fitness_values:
-            self._fitness_cache[fitness_key] = fitness_values[fitness_key]
+        for fitness_key, value in fitness_values.items():
+            self._fitness_cache[fitness_key] = value
 
     def get_fitness(self) -> float:
         """Provide a sum of the current fitness values.
@@ -637,8 +637,8 @@ class ComputationCache:
         Args:
             coverage_values: A dictionary of coverage values, keyed by coverage function.
         """
-        for coverage_key in coverage_values:
-            self._coverage_cache[coverage_key] = coverage_values[coverage_key]
+        for coverage_key, value in coverage_values.items():
+            self._coverage_cache[coverage_key] = value
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.

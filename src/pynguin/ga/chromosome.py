@@ -15,7 +15,7 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 
 
-class Chromosome(ABC):
+class Chromosome(ABC):  # noqa: PLR0904
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):

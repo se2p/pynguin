@@ -22,7 +22,7 @@ class LocalSearchTimer:
         if not cls._instance:
             cls._instance = super().__new__(cls)
             cls._instance.end_time = 0
-            cls._instance._logger = logging.getLogger(__name__)
+            cls._instance._logger = logging.getLogger(__name__)  # noqa: SLF001
         return cls._instance
 
     @classmethod

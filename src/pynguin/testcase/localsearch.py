@@ -11,14 +11,18 @@ import abc
 import logging
 
 from abc import ABC
+from typing import TYPE_CHECKING
 
-from pynguin.ga.chromosome import Chromosome
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.testfactory import TestFactory
+
+
+if TYPE_CHECKING:
+    from pynguin.ga.chromosome import Chromosome
+    from pynguin.testcase.testfactory import TestFactory
 
 
 class LocalSearch(ABC):
@@ -37,6 +41,8 @@ class LocalSearch(ABC):
 
 
 class TestCaseLocalSearch(LocalSearch, ABC):
+    """Local search for a single test case."""
+
     def local_search(  # noqa: D102
         self,
         chromosome: Chromosome,
@@ -46,7 +52,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         assert isinstance(chromosome, TestCaseChromosome)
         assert objective is not None
 
-        for i in range(chromosome.test_case.statements.__len__() - 1, 0, -1):
+        for i in range(len(chromosome.test_case.statements) - 1, 0, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
 
@@ -54,11 +60,13 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             local_search_statement = StatementLocalSearch.choose_local_search_statement(statement)
 
             if local_search_statement is not None:
-                self._logger.debug(f"Local search statement found for the statement {statement}")
+                self._logger.debug("Local search statement found for the statement %s", statement)
                 local_search_statement.search(chromosome, i, objective, factory)
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
+    """Local search for a whole test suite."""
+
     def local_search(  # noqa: D102
         self,
         chromosome: Chromosome,
@@ -69,7 +77,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
         self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome, 0))
 
-        for i in range(0, chromosome.test_case_chromosomes.__len__() - 1, 1):
+        for i in range(0, len(chromosome.test_case_chromosomes) - 1, 1):
             if LocalSearchTimer.get_instance().limit_reached():
                 break
 
@@ -84,10 +92,11 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
     def double_branch_coverage(
         self, suite: TestSuiteChromosome, objective: LocalSearchObjective
     ) -> None:
-        """Expand the test cases that each branch is at least covered twice. This
-            ensures that switching through branches increases the coverage properly
-            so that after mutating a statement, the previously covered branch still
-            stays covered.
+        """Expand the test cases that each branch is at least covered twice.
+
+        This ensures that switching through branches increases the coverage properly
+        so that after mutating a statement, the previously covered branch still
+        stays covered.
 
         Args:
             suite (TestSuiteChromosome): the test suite which should be extended.
@@ -118,5 +127,8 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 suite.add_test_case_chromosome(clone)
 
         self._logger.debug(
-            f"Inserted {len(duplicates)} test duplicates to {old_test_count} already existing tests to have each branch covered twice"
+            "Inserted %d test duplicates to %d already existing tests to have each "
+            "branch covered twice",
+            len(duplicates),
+            old_test_count,
         )

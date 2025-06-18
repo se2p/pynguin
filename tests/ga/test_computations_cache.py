@@ -6,14 +6,19 @@
 #
 
 # Tests for cache:
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.ga.computations as ff
 
-from pynguin.ga.computations import CoverageFunction
-from pynguin.ga.computations import FitnessFunction
+
+if TYPE_CHECKING:
+    from pynguin.ga.computations import CoverageFunction
+    from pynguin.ga.computations import FitnessFunction
 
 
 @pytest.fixture

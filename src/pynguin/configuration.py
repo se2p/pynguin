@@ -826,6 +826,8 @@ configuration = Configuration(
 
 @dataclasses.dataclass
 class LocalSearchConfiguration:
+    """Configurations for local search."""
+
     local_search_probability: float = 0.02
     """Probability of starting local search on the specific candidate"""
 
@@ -833,10 +835,13 @@ class LocalSearchConfiguration:
     """The budget which each local search iteration has in ms."""
 
     int_delta_increasing_factor: int = 2
-    """The factor which defines how much the delta should increase for each iteration for integer local search."""
+    """The factor which defines how much the delta should increase for each iteration for integer
+    local search."""
 
     string_random_mutation_count: int = 10
-    """The number of mutations made to the string to determine if it's worth to completely mutate the string."""
+    """The number of mutations made to the string to determine if it's worth to completely mutate
+    the string."""
 
     random_parametrized_statement_call_count: int = 10
-    """The number of mutations made to a parametrized statement call to determine if it's worth to further do local search"""
+    """The number of mutations made to a parametrized statement call to determine if it's worth to
+    further do local search"""
