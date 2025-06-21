@@ -23,6 +23,7 @@ from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
+from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
@@ -260,6 +261,49 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
     ) -> None:
         pass
 
+    # TODO
+
+
+class ComplexLocalSearch(StatementLocalSearch, ABC):
+    """A local search strategy for complex numbers."""
+
+    def search(  # noqa: D102
+        self,
+        chromosome: TestCaseChromosome,
+        position: int,
+        objective: LocalSearchObjective,
+        factory: TestFactory | None = None,
+    ) -> None:
+        statement = cast("ComplexPrimitiveStatement", chromosome.test_case.statements[position])
+        last_execution_result = chromosome.get_last_execution_result()
+        old_value = statement.value
+        # TODO
+
+    def iterate_complex(
+        self,
+        chromosome: TestCaseChromosome,
+        statement: ComplexPrimitiveStatement,
+        objective: LocalSearchObjective,
+        imaginary: bool,
+        delta: bool,
+    ) -> bool:
+        """Executes one or several iterations of applying a delta to the value of the statement. The
+        delta increases each iteration.
+
+        Args:
+            chromosome (TestCaseChromosome): The chromosome of the statement to be iterated.
+            statement (ComplexPrimitiveStatement): The complex statement to be iterated.
+            objective (LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+            imaginary (bool): Whether the iteration should happen on the imaginary part or the
+                real part of the complex value.
+            delta: The value which is used for starting the iterations.
+
+        Returns:
+            Gives back True, if at least one iteration increased the fitness.
+        """ # noqa: D205
+        # TODO
+
 
 class StringLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for strings."""
@@ -377,13 +421,13 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             while not finished:
                 finished = True
                 old_value = statement.value
-                if self.iterate_string(chromosome, position, objective, i, 1):
+                if self.iterate_string(chromosome, statement, objective, i, 1):
                     finished = False
                     improved = True
-                if self.iterate_string(chromosome, position, objective, i, -1):
+                if self.iterate_string(chromosome, statement, objective, i, -1):
                     finished = False
                     improved = True
-                if improved:
+                if not finished:
                     self._logger.debug(
                         "Successfully replaced character %d from string %r to %r",
                         i,
@@ -398,9 +442,44 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         chromosome: TestCaseChromosome,
         position: int,
         objective: LocalSearchObjective,
-    ):
+    ) -> None:
+        """Tries to add a character at each position of the string. If the addition was
+        successful, the best char for this position is evaluated.
+
+        Args:
+            chromosome(TestCaseChromosome): The chromosome to mutate.
+            position(int): The position of the statement which gets mutated.
+            objective(LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+        """  # noqa: D205
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
         self._backup(chromosome, statement)
+        for i in range(0, len(statement.value) + 1, 1):
+            statement.value = statement.value[:i] + chr(97) + statement.value[i:]
+            # TODO: Which is best char to start with (maybe the one in the middle?)
+            if objective.has_improved(chromosome):
+                self._backup(chromosome, statement)
+                finished = False
+
+                while not finished:
+                    finished = True
+                    if self.iterate_string(chromosome, statement, objective, i, 1):
+                        finished = False
+                    if self.iterate_string(chromosome, statement, objective, i, -1):
+                        finished = False
+
+                self._logger.debug(
+                    "Successfully added character at position %d to string %r",
+                    i,
+                    statement.value,
+                )
+            else:
+                self._restore(chromosome, statement)
+                self._logger.debug(
+                    "Inserting a letter at position %d of string %r has no positive impact.",
+                    i,
+                    statement.value,
+                )
 
     def _backup(self, chromosome: TestCaseChromosome, statement: StringPrimitiveStatement):
         self._last_execution_result = chromosome.get_last_execution_result()
@@ -440,16 +519,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             or ord(statement.value[char_position]) + delta < 0
         ):
             return False
-        new_char = chr(ord(statement.value[char_position]) + delta)
-        statement.value = (
-            statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
-        )
-        self._logger.debug(
-            "Changed letter %d of string %r to %r",
-            char_position,
-            self._old_value,
-            statement.value,
-        )
+        self._replace_single_char(statement, char_position, delta)
         improved = False
         while objective.has_improved(chromosome):
             improved = True
@@ -463,18 +533,23 @@ class StringLocalSearch(StatementLocalSearch, ABC):
                 or ord(statement.value[char_position]) + delta < 0
             ):
                 return improved
-            new_char = chr(ord(statement.value[char_position]) + delta)
-            statement.value = (
-                statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
-            )
-            self._logger.debug(
-                "Changed letter %d of string %r to %r",
-                char_position,
-                self._old_value,
-                statement.value,
-            )
+            self._replace_single_char(statement, char_position, delta)
         self._restore(chromosome, statement)
         return improved
+
+    def _replace_single_char(
+        self, statement: StringPrimitiveStatement, char_position: int, delta: int
+    ) -> None:
+        new_char = chr(ord(statement.value[char_position]) + delta)
+        statement.value = (
+            statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
+        )
+        self._logger.debug(
+            "Changed letter %d of string %r to %r",
+            char_position,
+            self._old_value,
+            statement.value,
+        )
 
 
 class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
