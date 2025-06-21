@@ -4,7 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import sys
+
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -176,7 +179,7 @@ def test_remove_chars_all() -> None:
 
     local_search = StringLocalSearch()
     local_search.remove_chars(chromosome, 4, objective)
-    assert statement.value
+    assert statement.value == ""  # noqa: PLC1901
 
 
 def test_remove_chars_none() -> None:
@@ -192,3 +195,103 @@ def test_remove_chars_none() -> None:
     local_search = StringLocalSearch()
     local_search.remove_chars(chromosome, 4, objective)
     assert statement.value == "This should stay"
+
+
+def test_iterate_string_fail() -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = [False]
+    statement = StringPrimitiveStatement(chromosome, "test")
+
+    string_local_search = StringLocalSearch()
+    assert not string_local_search.iterate_string(chromosome, statement, objective, 3, 2)
+
+
+@pytest.mark.parametrize(
+    "value, result, delta, char_position",
+    [
+        ("test", "uest", 1, 0),
+        ("test", "sest", -1, 0),
+        ("test", "tewt", 4, 2),
+        ("test", "test", 0, 0),
+        ("test", "tess", -1, 3),
+    ],
+)
+def test_iterate_string(value, result, delta, char_position) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    statement = StringPrimitiveStatement(chromosome, value)
+    objective.has_improved.side_effect = [True, False]
+
+    string_local_search = StringLocalSearch()
+    assert string_local_search.iterate_string(
+        chromosome, statement, objective, char_position, delta
+    )
+    assert statement.value == result
+
+
+@pytest.mark.parametrize(
+    "value, result, side_effect",
+    [("test", "west", [True] * 2 + [False]), ("test", "{est", [True] * 3 + [False])],
+)
+def test_iterate_string_multiple_iterations(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    statement = StringPrimitiveStatement(chromosome, value)
+    objective.has_improved.side_effect = side_effect
+
+    string_local_search = StringLocalSearch()
+    assert string_local_search.iterate_string(chromosome, statement, objective, 0, 1)
+    assert statement.value == result
+
+
+@pytest.mark.parametrize(
+    "delta",
+    [(-1000000), 10000000],
+)
+def test_iterate_string_bounds(delta) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    statement = StringPrimitiveStatement(chromosome, "test")
+    objective.has_improved.side_effect = [True, False]
+
+    string_local_search = StringLocalSearch()
+    assert not string_local_search.iterate_string(chromosome, statement, objective, 0, delta)
+    assert statement.value == "test"
+
+
+def test_iterate_string_lower_bound_second_iteration() -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    statement = StringPrimitiveStatement(chromosome, chr(1))
+    objective.has_improved.side_effect = [True] * 10 + [False]
+
+    string_local_search = StringLocalSearch()
+    assert string_local_search.iterate_string(chromosome, statement, objective, 0, -1)
+    assert statement.value == chr(0)
+
+
+def test_iterate_string_upper_bound_second_iteration() -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    statement = StringPrimitiveStatement(chromosome, chr(sys.maxunicode - 1))
+    objective.has_improved.side_effect = [True] * 10 + [False]
+
+    string_local_search = StringLocalSearch()
+    assert string_local_search.iterate_string(chromosome, statement, objective, 0, 1)
+    assert statement.value == chr(sys.maxunicode)
+
+
+def test_iterate_string_timer(monkeypatch) -> None:
+    with patch.object(LocalSearchTimer, "_instance", None):
+        monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.local_search_time", -1)
+        chromosome = MagicMock()
+        objective = MagicMock()
+        objective.has_improved.side_effect = [True] * 10 + [False]
+        statement = StringPrimitiveStatement(chromosome, "test")
+        timer = LocalSearchTimer.get_instance()
+        timer.start_local_search()
+
+        string_local_search = StringLocalSearch()
+        assert string_local_search.iterate_string(chromosome, statement, objective, 2, 1)
+        assert statement.value == "tett"

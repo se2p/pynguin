@@ -118,5 +118,5 @@ class LocalSearchObjective:
 
         Returns:
             Gives back true, if the test suite has improved.
-        """
+        """  # noqa: D205
         return self.has_changed(test_case_chromosome) > 0

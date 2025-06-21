@@ -10,6 +10,7 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import sys
 
 from abc import ABC
 from abc import abstractmethod
@@ -19,6 +20,7 @@ from typing import cast
 import pynguin.configuration as config
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
+from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
@@ -132,7 +134,7 @@ class BooleanLocalSearch(StatementLocalSearch, ABC):
 
 
 class NumericalLocalSearch(StatementLocalSearch, ABC):
-    """An abstract local search strategy for numerical variables."""
+    """An abstract local search strategy for iterable variables."""
 
     def iterate(
         self,
@@ -163,7 +165,6 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
         current_value = statement.value
         last_execution_result = chromosome.get_last_execution_result()
         statement.value += delta
-
         while objective.has_improved(chromosome):
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             current_value = statement.value
@@ -175,9 +176,7 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
                 break
 
         statement.value = current_value
-        chromosome.set_last_execution_result(
-            last_execution_result
-        ) if last_execution_result is not None else None
+        chromosome.set_last_execution_result(last_execution_result)
         return improved
 
 
@@ -265,6 +264,10 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
 class StringLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for strings."""
 
+    _changed: bool = False
+    _last_execution_result: ExecutionResult = None
+    _old_value = None
+
     def search(  # noqa: D102
         self,
         chromosome: TestCaseChromosome,
@@ -298,18 +301,13 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         """
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
         random_mutations_count = config.LocalSearchConfiguration.string_random_mutation_count
-        last_execution_result = chromosome.get_last_execution_result()
-        old_value = statement.value
+        self._backup(chromosome, statement)
         while random_mutations_count > 0:
             statement.randomize_value()
 
             improvement = objective.has_changed(chromosome)
             if improvement < 0:
-                chromosome.set_last_execution_result(
-                    last_execution_result
-                ) if last_execution_result is not None else None
-                statement.value = old_value
-                chromosome.changed = False
+                self._restore(chromosome, statement)
 
             if improvement != 0:
                 self._logger.debug(
@@ -342,26 +340,16 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         """
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
         assert statement.value is not None
-
-        last_execution_result = chromosome.get_last_execution_result()
-        old_value = statement.value
-        old_changed = chromosome.changed
-
+        self._backup(chromosome, statement)
         for i in range(len(statement.value) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
-            self._logger.debug("Removing character %d from string", i)
+            self._logger.debug("Removing character %d from string %r", i, statement.value)
             statement.value = statement.value[:i] + statement.value[i + 1 :]
             if objective.has_improved(chromosome):
-                last_execution_result = chromosome.get_last_execution_result()
-                old_value = statement.value
-                old_changed = chromosome.changed
+                self._backup(chromosome, statement)
             else:
-                chromosome.set_last_execution_result(
-                    last_execution_result
-                ) if last_execution_result is not None else None
-                statement.value = old_value
-                chromosome.changed = old_changed
+                self._restore(chromosome, statement)
 
     def replace_chars(
         self,
@@ -369,11 +357,41 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         position: int,
         objective: LocalSearchObjective,
     ):
+        """Replaces each character with every other possible character until successful
+        replacement.
+
+        Args:
+            chromosome(TestCaseChromosome): The chromosome to mutate.
+            position(int): The position of the statement which gets mutated.
+            objective(LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+        """  # noqa: D205
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
 
-        last_execution_result = chromosome.get_last_execution_result()
-        old_value = statement.value
         old_changed = chromosome.changed
+        improved = False
+        self._backup(chromosome, statement)
+        for i in range(len(statement.value) - 1, -1, -1):
+            finished = False
+
+            while not finished:
+                finished = True
+                old_value = statement.value
+                if self.iterate_string(chromosome, position, objective, i, 1):
+                    finished = False
+                    improved = True
+                if self.iterate_string(chromosome, position, objective, i, -1):
+                    finished = False
+                    improved = True
+                if improved:
+                    self._logger.debug(
+                        "Successfully replaced character %d from string %r to %r",
+                        i,
+                        old_value,
+                        statement.value,
+                    )
+        if not improved:
+            chromosome.changed = old_changed
 
     def add_chars(
         self,
@@ -382,10 +400,81 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         objective: LocalSearchObjective,
     ):
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
+        self._backup(chromosome, statement)
 
-        last_execution_result = chromosome.get_last_execution_result()
-        old_value = statement.value
-        old_changed = chromosome.changed
+    def _backup(self, chromosome: TestCaseChromosome, statement: StringPrimitiveStatement):
+        self._last_execution_result = chromosome.get_last_execution_result()
+        self._old_value = statement.value
+        self._old_changed = chromosome.changed
+
+    def _restore(self, chromosome: TestCaseChromosome, statement: StringPrimitiveStatement):
+        chromosome.set_last_execution_result(self._last_execution_result)
+        chromosome.changed = self._old_changed
+        statement.value = self._old_value
+
+    def iterate_string(
+        self,
+        chromosome: TestCaseChromosome,
+        statement: StringPrimitiveStatement,
+        objective: LocalSearchObjective,
+        char_position: int,
+        delta: int,
+    ) -> bool:
+        """Iterates through all possible characters at the specified position, but only in one
+        direction.
+
+        Args:
+            chromosome (TestCaseChromosome): The chromosome to mutate.
+            statement (StringPrimitiveStatement): The statement containing the string.
+            objective (LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+            char_position (int): The position of the character which gets mutated.
+            delta (int): The value which is used for starting the iterations.
+
+        Returns:
+              Gives back true, if at least one iteration was successful.
+        """  # noqa: D205
+        self._backup(chromosome, statement)
+        if (
+            ord(statement.value[char_position]) + delta > sys.maxunicode
+            or ord(statement.value[char_position]) + delta < 0
+        ):
+            return False
+        new_char = chr(ord(statement.value[char_position]) + delta)
+        statement.value = (
+            statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
+        )
+        self._logger.debug(
+            "Changed letter %d of string %r to %r",
+            char_position,
+            self._old_value,
+            statement.value,
+        )
+        improved = False
+        while objective.has_improved(chromosome):
+            improved = True
+            chromosome.changed = True
+            self._backup(chromosome, statement)
+            if LocalSearchTimer.get_instance().limit_reached():
+                break
+            delta *= config.LocalSearchConfiguration.int_delta_increasing_factor
+            if (
+                ord(statement.value[char_position]) + delta > sys.maxunicode
+                or ord(statement.value[char_position]) + delta < 0
+            ):
+                return improved
+            new_char = chr(ord(statement.value[char_position]) + delta)
+            statement.value = (
+                statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
+            )
+            self._logger.debug(
+                "Changed letter %d of string %r to %r",
+                char_position,
+                self._old_value,
+                statement.value,
+            )
+        self._restore(chromosome, statement)
+        return improved
 
 
 class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
