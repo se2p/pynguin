@@ -52,7 +52,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         assert isinstance(chromosome, TestCaseChromosome)
         assert objective is not None
 
-        for i in range(len(chromosome.test_case.statements) - 1, 0, -1):
+        for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
 
@@ -77,7 +77,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
         self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome, 0))
 
-        for i in range(0, len(chromosome.test_case_chromosomes) - 1, 1):
+        for i in range(0, len(chromosome.test_case_chromosomes), 1):
             if LocalSearchTimer.get_instance().limit_reached():
                 break
 

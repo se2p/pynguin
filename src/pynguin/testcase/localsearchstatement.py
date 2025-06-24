@@ -75,7 +75,7 @@ class StatementLocalSearch(abc.ABC):
             logger.debug("None local search statement found")
             return ParametrizedStatementLocalSearch()
         if isinstance(statement, EnumPrimitiveStatement):
-            logger.debug("Statement is enum %s", statement.value)
+            logger.debug("Statement is enum %r", statement.value)
             return EnumLocalSearch()
         if isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
@@ -96,15 +96,11 @@ class StatementLocalSearch(abc.ABC):
                 logger.debug("Primitive type is bytes %s", primitive_type)
             else:
                 logger.debug("Unknown primitive type: %s", primitive_type)
-        elif isinstance(statement, FunctionStatement):
-            logger.debug("Function local search statement found")
-            return ParametrizedStatementLocalSearch()
-        elif isinstance(statement, MethodStatement):
-            logger.debug("Method local search statement found")
-            return ParametrizedStatementLocalSearch()
-        elif isinstance(statement, ConstructorStatement):
-            logger.debug("Constructor search statement found")
-            return ParametrizedStatementLocalSearch()
+        elif (isinstance(statement, FunctionStatement) | isinstance(statement,
+                                                                   ConstructorStatement) |
+              isinstance(statement, MethodStatement)):
+            logger.debug("%s statement found", statement.__class__.__name__)
+            #return ParametrizedStatementLocalSearch()
         else:
             logger.debug("No local search statement found for %s", statement.__class__.__name__)
         return None
@@ -355,7 +351,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
 
             if improvement != 0:
                 self._logger.debug(
-                    "The random mutations have changed the fitness of %s, applying local search",
+                    "The random mutations have changed the fitness of %r, applying local search",
                     chromosome.test_case.statements[position],
                 )
                 return True
@@ -391,6 +387,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             self._logger.debug("Removing character %d from string %r", i, statement.value)
             statement.value = statement.value[:i] + statement.value[i + 1 :]
             if objective.has_improved(chromosome):
+                self._logger.debug("Removing the character has improved the fitness.")
                 self._backup(chromosome, statement)
             else:
                 self._restore(chromosome, statement)
@@ -455,8 +452,10 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
         self._backup(chromosome, statement)
         for i in range(0, len(statement.value) + 1, 1):
+
             statement.value = statement.value[:i] + chr(97) + statement.value[i:]
             # TODO: Which is best char to start with (maybe the one in the middle?)
+            self._logger.debug("Starting to add character at position %d from string %r", i, statement.value)
             if objective.has_improved(chromosome):
                 self._backup(chromosome, statement)
                 finished = False
