@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
+from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
@@ -68,6 +69,76 @@ def test_iterate_float_value() -> None:
     local_search = IntegerLocalSearch()
     assert local_search.iterate(chromosome, statement, objective, 1.5, 1.5)
     assert statement.value == 9.685
+
+
+@pytest.mark.parametrize(
+    "value, result, side_effect",
+    [
+        (4, 6, [True] * 2 + [False] * 2 + [True] + [False] * 3),
+        (4, 12, [True] * 3 + [False] + [True] + [False] * 3),
+        (4, -27, [False] + [True] * 5 + [False] * 3),
+        (7, -27, [False] + [True] * 5 + [False] * 2 + [True] * 2 + [False] * 3),
+        (7, -21, [False] + [True] * 5 + [False] + [True] * 2 + [False] * 3),
+        (-511, 0, [True] * 9 + [False] * 3),
+        (0, 0, [False] * 2),
+    ],
+)
+def test_int_search(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    statement = IntPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(3)]
+    chromosome.test_case.statements[2] = statement
+    local_search = IntegerLocalSearch()
+    local_search.search(chromosome, 2, objective)
+    assert statement.value == result
+
+
+@pytest.mark.parametrize(
+    "value, result, objective_effect",
+    [
+        (
+            1.0,
+            2.5,
+            [True]
+            + [False] * 3
+            + [True] * 3
+            + [False] * 2
+            + [True] * 2
+            + [False]
+            + [True]
+            + [False] * 100,
+        ),
+        (
+            1.0,
+            2.22,
+            [True]
+            + [False] * 3
+            + [True] * 2
+            + [False] * 2
+            + [True]
+            + [False] * 3
+            + [True] * 2
+            + [False] * 2
+            + [True]
+            + [False] * 100,
+        ),
+    ],
+)
+def test_float_search(value, result, objective_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = objective_effect
+    objective.has_changed.return_value = 0
+    statement = FloatPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = FloatLocalSearch()
+    local_search.search(chromosome, 1, objective)
+    assert statement.value == result
 
 
 def test_apply_random_mutations_fail() -> None:
