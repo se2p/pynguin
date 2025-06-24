@@ -885,7 +885,11 @@ class OutputSuppressionContext:
 
 
 class SegFaultOutputSuppressionContext:
-    """Context manager to suppress SIGSEGV (segmentation fault) by exiting silently."""
+    """Context manager to suppress SIGSEGV (segmentation fault) by exiting silently.
+
+    Signal only works in main thread of the main interpreter, due to which this suppression
+    context must not be used within subprocess execution.
+    """
 
     def __init__(self) -> None:
         """Create a new context manager that suppresses SIGSEGV."""
