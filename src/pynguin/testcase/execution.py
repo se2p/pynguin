@@ -884,6 +884,72 @@ class OutputSuppressionContext:
         self.restore()
 
 
+class SegFaultOutputSuppressionContext:
+    """A context manager that suppresses all output including segmentation faults.
+
+    This context manager handles:
+    1. Setting up and restoring the signal handler for SIGSEGV
+    2. Redirecting and restoring stdout and stderr at both OS and Python levels
+    3. Managing file descriptors
+    """
+
+    def __init__(self) -> None:
+        """Create a new context manager that suppresses SIGSEGV."""
+        # Save the original signal handler
+        self._original_sigsegv_handler = signal.getsignal(signal.SIGSEGV)
+
+        # Define a custom signal handler for segmentation faults
+        def handle_segmentation_fault(sig, fame):  # noqa: ARG001
+            # Don't print anything to stderr - this is what we're trying to suppress
+            # Just exit with a non-zero status code
+            os._exit(139)  # 128 + SIGSEGV (11)
+            # pass
+
+        self._handle_segmentation_fault = handle_segmentation_fault
+        self._devnull = None
+        self._original_stdout_fd = None
+        self._original_stderr_fd = None
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+
+    def __enter__(self) -> None:
+        # Install the custom signal handler
+        signal.signal(signal.SIGSEGV, self._handle_segmentation_fault)
+
+        # Open devnull for redirection
+        self._devnull = Path(os.devnull).open("w", encoding="utf-8")  # type: ignore[assignment]
+
+        # Save the original file descriptors
+        self._original_stdout_fd = os.dup(1)  # type: ignore[assignment]
+        self._original_stderr_fd = os.dup(2)  # type: ignore[assignment]
+
+        # Replace stdout and stderr with /dev/null at both OS and Python levels
+        os.dup2(self._devnull.fileno(), 1)  # type: ignore[attr-defined]
+        os.dup2(self._devnull.fileno(), 2)  # type: ignore[attr-defined]
+        sys.stdout = self._devnull
+        sys.stderr = self._devnull
+
+        return self  # type: ignore[return-value]
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        # Restore the original stdout and stderr
+        sys.stdout = self._original_stdout
+        sys.stderr = self._original_stderr
+
+        # Restore the original file descriptors
+        os.dup2(self._original_stdout_fd, 1)  # type: ignore[arg-type]
+        os.dup2(self._original_stderr_fd, 2)  # type: ignore[arg-type]
+        os.close(self._original_stdout_fd)  # type: ignore[arg-type]
+        os.close(self._original_stderr_fd)  # type: ignore[arg-type]
+
+        # Restore the original signal handler
+        signal.signal(signal.SIGSEGV, self._original_sigsegv_handler)
+
+        # Close the devnull file
+        if self._devnull is not None:
+            self._devnull.close()
+
+
 class AbstractTestCaseExecutor(abc.ABC):
     """Interface for a test case executor."""
 

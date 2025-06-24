@@ -27,6 +27,7 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
+from pynguin.testcase.execution import SegFaultOutputSuppressionContext
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from tests.fixtures.crash.seg_fault import cause_segmentation_fault
@@ -144,7 +145,8 @@ def test_crashing_execution(tmp_path, cause_seg_fault_test_case):
         module = importlib.import_module(config.configuration.module_name)
         importlib.reload(module)
         subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
-        exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
+        with SegFaultOutputSuppressionContext():
+            exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
 
     assert exit_code != 0, "Expected a non-zero exit code due to segmentation fault"
 
