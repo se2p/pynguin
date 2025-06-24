@@ -1,6 +1,7 @@
 # This file is part of Pynguin.
 #
-# SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+# SPDX-FileCopyrightText: 2023 Microsoft
 #
 # SPDX-License-Identifier: MIT
 #
