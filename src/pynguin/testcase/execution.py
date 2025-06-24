@@ -885,67 +885,58 @@ class OutputSuppressionContext:
 
 
 class SegFaultOutputSuppressionContext:
-    """A context manager that suppresses all output including segmentation faults.
+    """Context manager to suppress all output, including output caused by segmentation faults.
 
-    This context manager handles:
-    1. Setting up and restoring the signal handler for SIGSEGV
-    2. Redirecting and restoring stdout and stderr at both OS and Python levels
-    3. Managing file descriptors
+    - Handles SIGSEGV (segmentation fault) by exiting silently.
+    - Redirects stdout and stderr to /dev/null at both OS and Python levels.
     """
 
     def __init__(self) -> None:
-        """Create a new context manager that suppresses SIGSEGV."""
-        # Save the original signal handler
+        """Create a new context manager that also suppresses SIGSEGV."""
         self._original_sigsegv_handler = signal.getsignal(signal.SIGSEGV)
-
-        # Define a custom signal handler for segmentation faults
-        def handle_segmentation_fault(sig, fame):  # noqa: ARG001
-            # Don't print anything to stderr - this is what we're trying to suppress
-            # Just exit with a non-zero status code
-            os._exit(139)  # 128 + SIGSEGV (11)
-            # pass
-
-        self._handle_segmentation_fault = handle_segmentation_fault
-        self._devnull = None
-        self._original_stdout_fd = None
-        self._original_stderr_fd = None
         self._original_stdout = sys.stdout
         self._original_stderr = sys.stderr
+        self._original_stdout_fd: int | None = None
+        self._original_stderr_fd: int | None = None
+        self._devnull: Any | None = None
 
-    def __enter__(self) -> None:
-        # Install the custom signal handler
-        signal.signal(signal.SIGSEGV, self._handle_segmentation_fault)
+    def _handle_sigsegv(self, sig, frame):
+        os._exit(139)  # Exit with code 139 = 128 + SIGSEGV (11)
 
-        # Open devnull for redirection
-        self._devnull = Path(os.devnull).open("w", encoding="utf-8")  # type: ignore[assignment]
+    def __enter__(self):
+        # Install custom SIGSEGV handler
+        signal.signal(signal.SIGSEGV, self._handle_sigsegv)
 
-        # Save the original file descriptors
-        self._original_stdout_fd = os.dup(1)  # type: ignore[assignment]
-        self._original_stderr_fd = os.dup(2)  # type: ignore[assignment]
+        # Open /dev/null and save current stdout/stderr file descriptors
+        self._devnull = Path(os.devnull).open("w", encoding="utf-8")
+        self._original_stdout_fd = os.dup(1)
+        self._original_stderr_fd = os.dup(2)
 
-        # Replace stdout and stderr with /dev/null at both OS and Python levels
-        os.dup2(self._devnull.fileno(), 1)  # type: ignore[attr-defined]
-        os.dup2(self._devnull.fileno(), 2)  # type: ignore[attr-defined]
+        # Redirect stdout and stderr to /dev/null (OS-level)
+        os.dup2(self._devnull.fileno(), 1)
+        os.dup2(self._devnull.fileno(), 2)
+
+        # Redirect stdout and stderr (Python-level)
         sys.stdout = self._devnull
         sys.stderr = self._devnull
 
-        return self  # type: ignore[return-value]
+        return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        # Restore the original stdout and stderr
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore Python-level stdout/stderr
         sys.stdout = self._original_stdout
         sys.stderr = self._original_stderr
 
-        # Restore the original file descriptors
-        os.dup2(self._original_stdout_fd, 1)  # type: ignore[arg-type]
-        os.dup2(self._original_stderr_fd, 2)  # type: ignore[arg-type]
-        os.close(self._original_stdout_fd)  # type: ignore[arg-type]
-        os.close(self._original_stderr_fd)  # type: ignore[arg-type]
+        # Restore OS-level file descriptors
+        if self._original_stdout_fd is not None:
+            os.dup2(self._original_stdout_fd, 1)
+            os.close(self._original_stdout_fd)
+        if self._original_stderr_fd is not None:
+            os.dup2(self._original_stderr_fd, 2)
+            os.close(self._original_stderr_fd)
 
-        # Restore the original signal handler
+        # Restore SIGSEGV handler and close /dev/null
         signal.signal(signal.SIGSEGV, self._original_sigsegv_handler)
-
-        # Close the devnull file
         if self._devnull is not None:
             self._devnull.close()
 
