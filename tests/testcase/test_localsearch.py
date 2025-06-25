@@ -11,11 +11,11 @@ from unittest.mock import patch
 
 import pytest
 
-from pynguin.testcase.localsearchstatement import FloatLocalSearch
+from pynguin.testcase.localsearchstatement import FloatLocalSearch, ComplexLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import FloatPrimitiveStatement
+from pynguin.testcase.statement import FloatPrimitiveStatement, ComplexPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 
@@ -140,6 +140,26 @@ def test_float_search(value, result, objective_effect) -> None:
     local_search.search(chromosome, 1, objective)
     assert statement.value == result
 
+@pytest.mark.parametrize(
+    "value, result, objective_effect",
+    [
+        (complex(1.0,1.0),complex(2.0,1.0), [True]+[False]*10),
+
+    ],
+)
+def test_complex_search_real_part(value, result, objective_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = objective_effect
+    objective.has_changed.return_value = 0
+    statement = ComplexPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = ComplexLocalSearch()
+    local_search.search(chromosome, 1, objective)
+    assert statement.value.real == result.real
+    assert statement.value.imag == result.imag
 
 def test_apply_random_mutations_fail() -> None:
     chromosome = MagicMock()

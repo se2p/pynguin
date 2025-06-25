@@ -413,9 +413,9 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
         current_value = statement.value
         last_execution_result = chromosome.get_last_execution_result()
         if imaginary:
-            statement.value.imag += delta
+            statement.value = complex(statement.value.real, statement.value.imag + delta)
         else:
-            statement.value.real += delta
+            statement.value = complex(statement.value.real + delta, statement.value.imag)
         while (
             objective.has_improved(chromosome)
             and not LocalSearchTimer.get_instance().limit_reached()
@@ -426,9 +426,9 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
             improved = True
             delta *= factor
             if imaginary:
-                statement.value.imag += delta
+                statement.value = complex(statement.value.real, statement.value.imag + delta)
             else:
-                statement.value.real += delta
+                statement.value = complex(statement.value.real + delta, statement.value.imag)
         statement.value = current_value
         chromosome.set_last_execution_result(last_execution_result)
         return improved
