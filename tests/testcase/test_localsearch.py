@@ -11,11 +11,13 @@ from unittest.mock import patch
 
 import pytest
 
-from pynguin.testcase.localsearchstatement import FloatLocalSearch, ComplexLocalSearch
+from pynguin.testcase.localsearchstatement import ComplexLocalSearch
+from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import FloatPrimitiveStatement, ComplexPrimitiveStatement
+from pynguin.testcase.statement import ComplexPrimitiveStatement
+from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 
@@ -140,14 +142,22 @@ def test_float_search(value, result, objective_effect) -> None:
     local_search.search(chromosome, 1, objective)
     assert statement.value == result
 
+
 @pytest.mark.parametrize(
     "value, result, objective_effect",
     [
-        (complex(1.0,1.0),complex(2.0,1.0), [True]+[False]*10),
-
+        (complex(1.0, 1.0), complex(2.0, 1.0), [True] + [False] * 100),
+        (complex(1.0, 1.0), complex(1.0, 4.0), [False] * 32 + [True] * 2 + [False] * 100),
+        (complex(1.0, 1.0), complex(1.3, 1.0), [False] * 2 + [True] * 2 + [False] * 100),
+        (complex(1.0, 1.0), complex(2.0, 2.0), [True] + [False] * 33 + [True] + [False] * 100),
+        (
+            complex(1.0, 1.0),
+            complex(8.0, 2.7),
+            [True] * 3 + [False] * 33 + [True] + [False] * 3 + [True] * 3 + [False] * 100,
+        ),
     ],
 )
-def test_complex_search_real_part(value, result, objective_effect) -> None:
+def test_complex_search(value, result, objective_effect) -> None:
     chromosome = MagicMock()
     objective = MagicMock()
     objective.has_improved.side_effect = objective_effect
@@ -160,6 +170,7 @@ def test_complex_search_real_part(value, result, objective_effect) -> None:
     local_search.search(chromosome, 1, objective)
     assert statement.value.real == result.real
     assert statement.value.imag == result.imag
+
 
 def test_apply_random_mutations_fail() -> None:
     chromosome = MagicMock()

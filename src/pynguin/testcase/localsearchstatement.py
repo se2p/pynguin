@@ -336,61 +336,128 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
         factory: TestFactory | None = None,
     ) -> None:
         statement = cast("ComplexPrimitiveStatement", chromosome.test_case.statements[position])
-        old_value = statement.value
-        done = False
-        factor = config.LocalSearchConfiguration.int_delta_increasing_factor
         improved = False
 
         # First improve the real part and then the imaginary part of the complex number
-        while not done and not LocalSearchTimer.get_instance().limit_reached():
-            done = True
-            if self.iterate_complex(chromosome, statement, objective, False, 1.0, factor):  # noqa: FBT003
-                self._logger.debug(
-                    "Successfully incremented real part of %s to %s ", old_value, statement.value
-                )
-                done = False
-                improved = True
-            elif self.iterate_complex(chromosome, statement, objective, False, -1.0, factor):  # noqa: FBT003
-                self._logger.debug(
-                    "Successfully decremented real part of %s to %s ", old_value, statement.value
-                )
-                done = False
-                improved = True
-            old_value = statement.value
+        if self.iterate_precision(chromosome, statement, objective, False):  # noqa: FBT003
+            improved = True
+        if self.iterate_precision(chromosome, statement, objective, True):  # noqa: FBT003
+            improved = True
 
-        done = False
-        while not done and not LocalSearchTimer.get_instance().limit_reached():
-            done = True
-            if self.iterate_complex(chromosome, statement, objective, True, 1.0, factor):  # noqa: FBT003
-                self._logger.debug(
-                    "Successfully incremented imaginary part of %s to %s ",
-                    old_value,
-                    statement.value,
-                )
-                done = False
-                improved = True
-            elif self.iterate_complex(chromosome, statement, objective, True, -1.0, factor):  # noqa: FBT003
-                self._logger.debug(
-                    "Successfully decremented imaginary part of %s to %s ",
-                    old_value,
-                    statement.value,
-                )
-                done = False
-                improved = True
-            old_value = statement.value
         if improved:
             self._logger.debug("Local search successfully changed the value of the complex number")
         else:
             self._logger.debug("Local search could not find a better complex number")
 
-    def iterate_complex(  # noqa: PLR0917
+    def iterate_precision(
+        self,
+        chromosome: TestCaseChromosome,
+        statement: ComplexPrimitiveStatement,
+        objective: LocalSearchObjective,
+        imaginary: bool,  # noqa: FBT001
+    ) -> bool:
+        """Iterates through the different precision stages of floating point values.
+
+        Args:
+            chromosome (TestCaseChromosome): The chromosome of the statement to be iterated.
+            statement (ComplexPrimitiveStatement): The complex statement to be iterated.
+            objective (LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+            imaginary (bool): Whether the iteration should happen on the imaginary part or the
+                real part of the complex value.
+
+        Returns:
+            Gives back True, if at least one iteration increased the fitness.
+        """
+        improved = False
+        if self.iterate_directions(chromosome, statement, objective, 1, imaginary):
+            improved = True
+
+        precision = 1
+        while (
+            precision <= sys.float_info.dig and not LocalSearchTimer.get_instance().limit_reached()
+        ):
+            self._logger.debug("Starting local search with precision %d", precision)
+            if self.iterate_directions(
+                chromosome, statement, objective, 10.0 ** (-precision), imaginary
+            ):
+                improved = True
+                last_execution_result = chromosome.get_last_execution_result()
+                old_value = statement.value
+                if imaginary:
+                    statement.value = complex(
+                        statement.value.real, round(statement.value.imag, precision)
+                    )
+                else:
+                    statement.value = complex(
+                        round(statement.value.real, precision), statement.value.imag
+                    )
+                if objective.has_changed(chromosome) < 0:
+                    chromosome.set_last_execution_result(last_execution_result)
+                    statement.value = old_value
+            precision += 1
+        return improved
+
+    def iterate_directions(
+        self,
+        chromosome: TestCaseChromosome,
+        statement: ComplexPrimitiveStatement,
+        objective: LocalSearchObjective,
+        delta: float,
+        imaginary: bool,  # noqa: FBT001
+    ) -> bool:
+        """Iterates through the different directions (forwards/backwards).
+
+        Args:
+            chromosome (TestCaseChromosome): The chromosome of the statement to be iterated.
+            statement (ComplexPrimitiveStatement): The complex statement to be iterated.
+            objective (LocalSearchObjective): The objective which defines the improvements made
+                mutating.
+            imaginary (bool): Whether the iteration should happen on the imaginary part or the
+                real part of the complex value.
+            delta: The value which is used for starting the iterations.
+
+
+        Returns:
+            Gives back True, if at least one iteration increased the fitness.
+        """
+        improved = False
+        info = "imaginary" if imaginary else "real"
+        old_value = statement.value
+
+        done = False
+        while not done and not LocalSearchTimer.get_instance().limit_reached():
+            done = True
+            if self.iterate_complex(chromosome, statement, objective, imaginary, delta):
+                (
+                    self._logger.debug(
+                        "Successfully incremented %r part of %s to %s ",
+                        info,
+                        old_value,
+                        statement.value,
+                    )
+                )
+                done = False
+                improved = True
+            elif self.iterate_complex(chromosome, statement, objective, imaginary, -delta):
+                self._logger.debug(
+                    "Successfully decremented %r part of %s to %s ",
+                    info,
+                    old_value,
+                    statement.value,
+                )
+                done = False
+                improved = True
+            old_value = statement.value
+        return improved
+
+    def iterate_complex(
         self,
         chromosome: TestCaseChromosome,
         statement: ComplexPrimitiveStatement,
         objective: LocalSearchObjective,
         imaginary: bool,  # noqa: FBT001
         delta: float,
-        factor: float,
     ) -> bool:
         """Executes one or several iterations of applying a delta to the value of the statement. The
         delta increases each iteration.
@@ -403,12 +470,13 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
             imaginary (bool): Whether the iteration should happen on the imaginary part or the
                 real part of the complex value.
             delta: The value which is used for starting the iterations.
-            factor: The factor which describes how much the delta is increased each iteration.
 
         Returns:
             Gives back True, if at least one iteration increased the fitness.
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
+        factor = config.LocalSearchConfiguration.int_delta_increasing_factor
+
         improved = False
         current_value = statement.value
         last_execution_result = chromosome.get_last_execution_result()
