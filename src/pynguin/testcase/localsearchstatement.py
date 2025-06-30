@@ -261,12 +261,14 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
     ) -> None:
         statement = cast("EnumPrimitiveStatement", chromosome.test_case.statements[position])
         initial_value = statement.value
-        last_execution_result = chromosome.get_last_execution_result()
-        old_value = statement.value
+
 
         for value in range(len(statement.accessible_object().names)):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
+            last_execution_result = chromosome.get_last_execution_result()
+            old_value = statement.value
+            statement.value = value
             if value != initial_value:
                 if not objective.has_improved(chromosome):
                     statement.value = old_value

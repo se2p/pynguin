@@ -4,22 +4,28 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import enum
 import sys
+from pickle import FALSE
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import pytest
 
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.testcase.localsearchstatement import BooleanLocalSearch, EnumLocalSearch
 from pynguin.testcase.localsearchstatement import ComplexLocalSearch
 from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.statement import BooleanPrimitiveStatement, EnumPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
+from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +33,56 @@ def setup_timer():
     timer = LocalSearchTimer.get_instance()
     timer.limit_reached = MagicMock(return_value=False)
 
+
+@pytest.mark.parametrize(
+    "value, result, return_value",
+    [
+        (True, False, True),
+        (True, True, False),
+        (False, True, True),
+        (False, False, False),
+    ],
+)
+def test_bool_local_search(value, result, return_value) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.return_value = return_value
+    statement = BooleanPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = BooleanLocalSearch()
+    local_search.search(chromosome, 1, objective)
+    assert statement.value == result
+
+class Number(enum.Enum):
+    NONE = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+
+@pytest.mark.parametrize(
+    "value, side_effect",
+    [
+        (Number.THREE, [True]),
+        (Number.THREE, [False] + [True]),
+        (Number.TWO, [False] * 2 + [True]),
+    ],
+)
+def test_enum_local_search(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    generic = GenericEnum(TypeInfo(Number))
+    statement = EnumPrimitiveStatement(chromosome,generic)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+
+    local_search = EnumLocalSearch()
+    local_search.search(chromosome, 1, objective)
+    assert statement.value != value
 
 def test_iterate_success() -> None:
     chromosome = MagicMock()
@@ -146,14 +202,19 @@ def test_float_search(value, result, objective_effect) -> None:
 @pytest.mark.parametrize(
     "value, result, objective_effect",
     [
+        (complex(1.0, 1.0), complex(1.0, 1.0), [False] * 100),
         (complex(1.0, 1.0), complex(2.0, 1.0), [True] + [False] * 100),
         (complex(1.0, 1.0), complex(1.0, 4.0), [False] * 32 + [True] * 2 + [False] * 100),
         (complex(1.0, 1.0), complex(1.3, 1.0), [False] * 2 + [True] * 2 + [False] * 100),
-        (complex(1.0, 1.0), complex(2.0, 2.0), [True] + [False] * 33 + [True] + [False] * 100),
         (
             complex(1.0, 1.0),
             complex(8.0, 2.7),
             [True] * 3 + [False] * 33 + [True] + [False] * 3 + [True] * 3 + [False] * 100,
+        ),
+        (
+            complex(1.0, 1.0),
+            complex(7.0, 0.0),
+            [True] * 3 + [False] * 2 + [True] + [False] * 34 + [True] + [False] * 100,
         ),
     ],
 )
