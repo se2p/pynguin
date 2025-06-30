@@ -6,7 +6,6 @@
 #
 import enum
 import sys
-from pickle import FALSE
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -14,14 +13,18 @@ from unittest.mock import patch
 import pytest
 
 from pynguin.analyses.typesystem import TypeInfo
-from pynguin.testcase.localsearchstatement import BooleanLocalSearch, EnumLocalSearch
+from pynguin.testcase.localsearchstatement import BooleanLocalSearch
+from pynguin.testcase.localsearchstatement import BytesLocalSearch
 from pynguin.testcase.localsearchstatement import ComplexLocalSearch
+from pynguin.testcase.localsearchstatement import EnumLocalSearch
 from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import BooleanPrimitiveStatement, EnumPrimitiveStatement
+from pynguin.testcase.statement import BooleanPrimitiveStatement
+from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
+from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
@@ -55,12 +58,14 @@ def test_bool_local_search(value, result, return_value) -> None:
     local_search.search(chromosome, 1, objective)
     assert statement.value == result
 
+
 class Number(enum.Enum):
     NONE = 0
     ONE = 1
     TWO = 2
     THREE = 3
     FOUR = 4
+
 
 @pytest.mark.parametrize(
     "value, side_effect",
@@ -75,7 +80,7 @@ def test_enum_local_search(value, result, side_effect) -> None:
     objective = MagicMock()
     objective.has_improved.side_effect = side_effect
     generic = GenericEnum(TypeInfo(Number))
-    statement = EnumPrimitiveStatement(chromosome,generic)
+    statement = EnumPrimitiveStatement(chromosome, generic)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(2)]
     chromosome.test_case.statements[1] = statement
@@ -83,6 +88,7 @@ def test_enum_local_search(value, result, side_effect) -> None:
     local_search = EnumLocalSearch()
     local_search.search(chromosome, 1, objective)
     assert statement.value != value
+
 
 def test_iterate_success() -> None:
     chromosome = MagicMock()
@@ -458,3 +464,83 @@ def test_iterate_string_timer(monkeypatch) -> None:
         string_local_search = StringLocalSearch()
         assert string_local_search.iterate_string(chromosome, statement, objective, 2, 1)
         assert statement.value == "tett"
+
+
+@pytest.mark.parametrize(
+    "value, result, side_effect",
+    [
+        (b"Hello", b"Helo", [False] * 2 + [True] + [False] * 2),
+        (b"test", b"tes", [True] + [False] * 3),
+        (b"test", b"test", [False] * 4),
+        (b"test", b"", [True] * 4),
+        (b"Hello", b"e", [True] * 3 + [False] + [True]),
+    ],
+)
+def test_remove_bytes(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    statement = BytesPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = BytesLocalSearch(chromosome, objective)
+    local_search.remove_values(1)
+    assert statement.value == result
+
+
+@pytest.mark.parametrize(
+    "value, result, side_effect",
+    [
+        (
+            b"Helo",
+            b"Hello",
+            [False] * 3 + [True] * 5 + [False] + [True] * 3 + [False] + [True] * 2 + [False] * 20,
+        ),
+        (b"Helo", b"Heloaa", [False] * 4 + [True] + [False] * 2 + [True] + [False] * 10),
+        (
+            b"Hello",
+            b"\x00Hello",
+            [True]
+            + [False]
+            + [True] * 6
+            + [False]
+            + [True] * 5
+            + [False]
+            + [True] * 2
+            + [False] * 100,
+        ),
+    ],
+)
+def test_add_bytes(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    statement = BytesPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = BytesLocalSearch(chromosome, objective)
+    local_search.add_values(1)
+    assert statement.value == result
+
+
+@pytest.mark.parametrize(
+    "value, result, side_effect",
+    [
+        (b"Helfo", b"Hello", [False] * 2 + [True] * 2 + [False] * 2 + [True] * 2 + [False] * 100),
+        (b"Hello", b"Aello", [False] * 9 + [True] * 3 + [False] * 100),
+        (b"Hello", b"Hello", [False] * 10),
+    ],
+)
+def test_replace_bytes(value, result, side_effect) -> None:
+    chromosome = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    statement = BytesPrimitiveStatement(chromosome, value)
+    chromosome.test_case = MagicMock()
+    chromosome.test_case.statements = [MagicMock() for _ in range(2)]
+    chromosome.test_case.statements[1] = statement
+    local_search = BytesLocalSearch(chromosome, objective)
+    local_search.replace_values(1)
+    assert statement.value == result

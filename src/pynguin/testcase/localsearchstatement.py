@@ -23,6 +23,7 @@ from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
+from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
@@ -94,10 +95,11 @@ class StatementLocalSearch(abc.ABC):
                 return FloatLocalSearch()
             if isinstance(primitive_type, complex):
                 logger.debug("Primitive type is complex %s", primitive_type)
-            elif isinstance(primitive_type, bytes):
+                return ComplexLocalSearch()
+            if isinstance(primitive_type, bytes):
                 logger.debug("Primitive type is bytes %s", primitive_type)
-            else:
-                logger.debug("Unknown primitive type: %s", primitive_type)
+                return BytesLocalSearch()
+            logger.debug("Unknown primitive type: %s", primitive_type)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)
@@ -261,7 +263,6 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
     ) -> None:
         statement = cast("EnumPrimitiveStatement", chromosome.test_case.statements[position])
         initial_value = statement.value
-
 
         for value in range(len(statement.accessible_object().names)):
             if LocalSearchTimer.get_instance().limit_reached():
@@ -654,7 +655,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         """  # noqa: D205
         statement = cast("StringPrimitiveStatement", chromosome.test_case.statements[position])
         self._backup(chromosome, statement)
-        for i in range(0, len(statement.value) + 1, 1):
+        i = 0
+        while i <= len(statement.value):
             statement.value = statement.value[:i] + chr(97) + statement.value[i:]
             # TODO: Which is best char to start with (maybe the one in the middle?)
             self._logger.debug(
@@ -683,6 +685,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
                     i,
                     statement.value,
                 )
+            i += 1
 
     def _backup(self, chromosome: TestCaseChromosome, statement: StringPrimitiveStatement):
         self._last_execution_result = chromosome.get_last_execution_result()
@@ -882,3 +885,165 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             Gives back true if the mutation was successful and false otherwise.
         """
         # TODO:
+
+
+class BytesLocalSearch(StatementLocalSearch, ABC):
+    """A local search strategy for bytes"""
+
+    def __init__(self, chromosome: TestCaseChromosome, objective: LocalSearchObjective):
+        super().__init__()
+        self._chromosome = chromosome
+        self._objective = objective
+
+    def search(  # noqa: D102
+        self,
+        chromosome: TestCaseChromosome,
+        position: int,
+        objective: LocalSearchObjective,
+        factory: TestFactory | None = None,
+    ) -> None:
+        if self._apply_random_mutations(position):
+            self._logger.debug("Removing values from bytes")
+            self.remove_values(position)
+            self._logger.debug("Replacing values from bytes")
+            self.replace_values(position)
+            self._logger.debug("Adding values to bytes")
+            self.add_values(position)
+
+    def _backup(self, statement: PrimitiveStatement):
+        self._last_execution_result = self._chromosome.get_last_execution_result()
+        self._old_value = statement.value
+        self._old_changed = self._chromosome.changed
+
+    def _restore(self, statement: PrimitiveStatement):
+        self._chromosome.set_last_execution_result(self._last_execution_result)
+        self._chromosome.changed = self._old_changed
+        statement.value = self._old_value
+
+    def _apply_random_mutations(self, position: int) -> bool:
+        statement = cast("BytesPrimitiveStatement", self._chromosome.test_case.statements[position])
+        random_mutations_count = config.LocalSearchConfiguration.string_random_mutation_count
+
+        while random_mutations_count > 0:
+            self._backup(statement)
+            statement.delta()
+            changed = self._objective.has_changed(self._chromosome)
+            if changed < 1:
+                self._restore(statement)
+            if changed != 0:
+                self._logger.debug("Random mutations have an impact on the fitness")
+                return True
+            random_mutations_count -= 1
+        self._logger.debug("Random mutations have no impact on the fitness, aborting local search")
+        return False
+
+    def add_values(self, position: int) -> None:
+        statement = cast("BytesPrimitiveStatement", self._chromosome.test_case.statements[position])
+        self._backup(statement)
+        i = 0
+        while i <= len(statement.value):
+            statement.value = statement.value[:i] + bytes([97]) + statement.value[i:]
+            self._logger.debug(
+                "Starting to add value at position %d from bytes %r", i, statement.value
+            )
+            if self._objective.has_improved(self._chromosome):
+                self._backup(statement)
+                finished = False
+
+                while not finished:
+                    finished = True
+                    if self._iterate_bytes(statement, i, 1):
+                        finished = False
+                    if self._iterate_bytes(statement, i, -1):
+                        finished = False
+
+                self._logger.debug(
+                    "Successfully added value at position %d to bytes %r",
+                    i,
+                    statement.value,
+                )
+            else:
+                self._restore(statement)
+                self._logger.debug(
+                    "Inserting a value at position %d of bytes %r has no positive impact.",
+                    i,
+                    statement.value,
+                )
+            i += 1
+
+    def replace_values(self, position: int) -> None:
+        statement = cast("BytesPrimitiveStatement", self._chromosome.test_case.statements[position])
+
+        old_changed = self._chromosome.changed
+        improved = False
+        self._backup(statement)
+        for i in range(len(statement.value) - 1, -1, -1):
+            finished = False
+
+            while not finished:
+                finished = True
+                old_value = statement.value
+                if self._iterate_bytes(statement, i, 1):
+                    finished = False
+                    improved = True
+                if self._iterate_bytes(statement, i, -1):
+                    finished = False
+                    improved = True
+                if not finished:
+                    self._logger.debug(
+                        "Successfully replaced value %d from bytes %r to %r",
+                        i,
+                        old_value,
+                        statement.value,
+                    )
+        if not improved:
+            self._chromosome.changed = old_changed
+
+    def remove_values(self, position: int) -> None:
+        statement = cast("BytesPrimitiveStatement", self._chromosome.test_case.statements[position])
+        self._backup(statement)
+
+        for i in range(len(statement.value) - 1, -1, -1):
+            if LocalSearchTimer.get_instance().limit_reached():
+                break
+            self._logger.debug("Removing value %d from byte %r", i, statement.value)
+            statement.value = statement.value[:i] + statement.value[i + 1 :]
+            if self._objective.has_improved(self._chromosome):
+                self._logger.debug("Removing the value has improved the fitness.")
+                self._backup(statement)
+            else:
+                self._restore(statement)
+
+    def _iterate_bytes(
+        self,
+        statement: BytesPrimitiveStatement,
+        pos: int,
+        delta: int,
+    ) -> bool:
+        self._backup(statement)
+        if statement.value[pos] + delta not in range(256):
+            return False
+        statement.value = (
+            statement.value[:pos]
+            + bytes([statement.value[pos] + delta])
+            + statement.value[pos + 1 :]
+        )
+
+        improved = False
+        while (
+            self._objective.has_improved(self._chromosome)
+            and not LocalSearchTimer.get_instance().limit_reached()
+        ):
+            improved = True
+            self._chromosome.changed = True
+            self._backup(statement)
+            delta *= config.LocalSearchConfiguration.int_delta_increasing_factor
+            if statement.value[pos] + delta not in range(256):
+                return improved
+            statement.value = (
+                statement.value[:pos]
+                + bytes([statement.value[pos] + delta])
+                + statement.value[pos + 1 :]
+            )
+        self._restore(statement)
+        return improved
