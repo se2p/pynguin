@@ -68,36 +68,40 @@ class StatementLocalSearch(abc.ABC):
 
     @staticmethod
     def choose_local_search_statement(
-        statement: Statement,
+        chromosome: TestCaseChromosome,
+        position: int,
+        objective: LocalSearchObjective,
+        factory: TestFactory
     ) -> StatementLocalSearch | None:
+        statement = chromosome.test_case.statements[position]
         logger = logging.getLogger(__name__)
         logger.debug("Choose local search statement from statement")
         if isinstance(statement, NoneStatement):
             logger.debug("None local search statement found")
-            return ParametrizedStatementLocalSearch()
+            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
         if isinstance(statement, EnumPrimitiveStatement):
             logger.debug("Statement is enum %r", statement.value)
-            return EnumLocalSearch()
+            return EnumLocalSearch(chromosome, position, objective)
         if isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
             if isinstance(primitive_type, bool):
                 logger.debug("Primitive type is bool %s", primitive_type)
-                return BooleanLocalSearch()
+                return BooleanLocalSearch(chromosome, position, objective)
             if isinstance(primitive_type, int):
                 logger.debug("Primitive type is int %d", primitive_type)
-                return IntegerLocalSearch()
+                return IntegerLocalSearch(chromosome, position, objective)
             if isinstance(primitive_type, str):
                 logger.debug("Primitive type is string %s", primitive_type)
-                # return StringLocalSearch()
+                # return StringLocalSearch(chromosome, position, objective)
             if isinstance(primitive_type, float):
                 logger.debug("Primitive type is float %f", primitive_type)
-                return FloatLocalSearch()
+                return FloatLocalSearch(chromosome, position, objective)
             if isinstance(primitive_type, complex):
                 logger.debug("Primitive type is complex %s", primitive_type)
-                return ComplexLocalSearch()
+                return ComplexLocalSearch(chromosome, position, objective)
             if isinstance(primitive_type, bytes):
                 logger.debug("Primitive type is bytes %s", primitive_type)
-                return BytesLocalSearch()
+                return BytesLocalSearch(chromosome, position, objective)
             logger.debug("Unknown primitive type: %s", primitive_type)
         elif (
             isinstance(statement, FunctionStatement)
@@ -105,7 +109,7 @@ class StatementLocalSearch(abc.ABC):
             | isinstance(statement, MethodStatement)
         ):
             logger.debug("%s statement found", statement.__class__.__name__)
-            return ParametrizedStatementLocalSearch()
+            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
         else:
             logger.debug("No local search statement found for %s", statement.__class__.__name__)
         return None
@@ -816,7 +820,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
 
     def add_values(self) -> None:
         """Tries to add a value at each position of the bytes. If the addition was
-                successful, the best value for this position is evaluated.
+        successful, the best value for this position is evaluated.
         """
         statement = cast(
             "BytesPrimitiveStatement", self._chromosome.test_case.statements[self._position]
@@ -855,7 +859,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
 
     def replace_values(self) -> None:
         """Replaces each value with every other possible value until successful
-               replacement.
+        replacement.
         """  # noqa: D205
         statement = cast(
             "BytesPrimitiveStatement", self._chromosome.test_case.statements[self._position]

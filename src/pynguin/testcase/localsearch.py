@@ -57,11 +57,12 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                 return
 
             statement = chromosome.test_case.statements[i]
-            local_search_statement = StatementLocalSearch.choose_local_search_statement(statement)
+            local_search_statement = StatementLocalSearch.choose_local_search_statement(
+                chromosome, i, objective, factory)
 
             if local_search_statement is not None:
                 self._logger.debug("Local search statement found for the statement %s", statement)
-                local_search_statement.search(chromosome, i, objective, factory)
+                local_search_statement.search()
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):

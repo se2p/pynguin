@@ -12,7 +12,6 @@ from unittest.mock import patch
 
 import pytest
 
-import pynguin.configuration as config
 
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.testcase.localsearchstatement import BooleanLocalSearch
@@ -367,6 +366,7 @@ def test_remove_chars_none() -> None:
     local_search.remove_chars()
     assert statement.value == "This should stay"
 
+
 @pytest.mark.parametrize(
     "value, result, side_effect",
     [
@@ -601,12 +601,13 @@ def test_replace_bytes(value, result, side_effect) -> None:
     local_search.replace_values()
     assert statement.value == result
 
+
 def test_bytes_random_mutation_fail() -> None:
     value = b"Hello"
     chromosome = MagicMock()
     objective = MagicMock()
     objective.has_changed.return_value = 0
-    statement = BytesPrimitiveStatement(chromosome,value)
+    statement = BytesPrimitiveStatement(chromosome, value)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(2)]
     chromosome.test_case.statements[1] = statement
@@ -614,12 +615,13 @@ def test_bytes_random_mutation_fail() -> None:
     assert not local_search._apply_random_mutations()
     assert statement.value == value
 
+
 def test_bytes_random_mutation() -> None:
     value = b"Hello"
     chromosome = MagicMock()
     objective = MagicMock()
-    objective.has_changed.side_effect = [0]*3 + [-1]
-    statement = BytesPrimitiveStatement(chromosome,value)
+    objective.has_changed.side_effect = [0] * 3 + [-1]
+    statement = BytesPrimitiveStatement(chromosome, value)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(2)]
     chromosome.test_case.statements[1] = statement
@@ -627,12 +629,13 @@ def test_bytes_random_mutation() -> None:
     assert local_search._apply_random_mutations()
     assert statement.value == value
 
+
 def test_bytes_random_mutation_better_value() -> None:
     value = b"Hello"
     chromosome = MagicMock()
     objective = MagicMock()
-    objective.has_changed.side_effect = [0]*3 + [1]
-    statement = BytesPrimitiveStatement(chromosome,value)
+    objective.has_changed.side_effect = [0] * 3 + [1]
+    statement = BytesPrimitiveStatement(chromosome, value)
     chromosome.test_case = MagicMock()
     chromosome.test_case.statements = [MagicMock() for _ in range(3)]
     chromosome.test_case.statements[1] = statement
