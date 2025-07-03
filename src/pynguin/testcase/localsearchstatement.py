@@ -819,31 +819,32 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
 
 class FieldStatementLocalSearch(StatementLocalSearch, ABC):
-    # TODO
-    def __init__(
-        self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective
-    ):
-        super().__init__(chromosome, position, objective)
 
     def search(self) -> None:  # noqa: D102
-        pass
+        assert self._factory is not None
+        last_execution_result = self._chromosome.get_last_execution_result()
+        old_chromosome = TestCaseChromosome(None, None, self._chromosome)
 
-    def _replace_field(self, statement: FieldStatement) -> bool:
-        pass
-        # types = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
-        # types.remove(statement.ret_val)
-        # typed = randomness.choice(types)
-        # self._factory.change_call()
-        # self._factory.add_field(self._chromosome.test_case,statement.field, position=self._position)
+        changed = True
+        mutations = 0
+        while (changed and
+               mutations <
+               config.LocalSearchConfiguration.random_parametrized_statement_call_count):
+            changed = self._factory.change_random_field_call(self._chromosome.test_case,
+                                                              self._position)
+            if changed:
+                if not self._objective.has_improved(self._chromosome):
+                    changed = False
+                    self._chromosome = old_chromosome
+                    self._chromosome.set_last_execution_result(last_execution_result)
+                else:
+                    old_chromosome = TestCaseChromosome(None, None, self._chromosome)
+                    last_execution_result = self._chromosome.get_last_execution_result()
+            mutations += 1
 
 
 class BytesLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for bytes"""
-
-    def __init__(
-        self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective
-    ):
-        super().__init__(chromosome, position, objective)
 
     def search(self) -> None:  # noqa: D102
         if self._apply_random_mutations():

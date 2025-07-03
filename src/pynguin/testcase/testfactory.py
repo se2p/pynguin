@@ -30,8 +30,10 @@ from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.testcase.statement import FieldStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject, GenericField
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -845,6 +847,25 @@ class TestFactory:
 
         replacement.ret_val = return_value
         test_case.set_statement(replacement, position)
+
+    def change_random_field_call(self, test_case: tc.TestCase, position: int) -> bool:
+        statement = test_case.get_statement(position)
+        if not isinstance(statement, FieldStatement):
+            return False
+        objects = test_case.get_all_objects(statement.get_position())
+        signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
+        calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
+        calls.remove(statement.accessible_object())
+        possible_fields: list[GenericField] = []
+        for call in calls:
+            if call.is_field():
+                possible_fields.append(cast("gao.GenericField", call))
+        if len(possible_fields) == 0:
+            return False
+        field = randomness.choice(possible_fields)
+        replacement = stmt.FieldStatement(test_case, field, statement.source)
+        test_case.set_statement(replacement, position)
+        return True
 
     @staticmethod
     def _get_reuse_parameters(
