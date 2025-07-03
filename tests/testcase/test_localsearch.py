@@ -12,7 +12,6 @@ from unittest.mock import patch
 
 import pytest
 
-
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.testcase.localsearchstatement import BooleanLocalSearch
 from pynguin.testcase.localsearchstatement import BytesLocalSearch

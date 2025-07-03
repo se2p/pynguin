@@ -58,7 +58,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
             statement = chromosome.test_case.statements[i]
             local_search_statement = StatementLocalSearch.choose_local_search_statement(
-                chromosome, i, objective, factory)
+                chromosome, i, objective, factory
+            )
 
             if local_search_statement is not None:
                 self._logger.debug("Local search statement found for the statement %s", statement)
@@ -119,17 +120,17 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case
 
-        duplicates: set[TestCaseChromosome] = set()
+        duplicates: int = 0
 
         for key, value in covered_map.items():
             if value == 1:
                 clone = TestCaseChromosome(None, None, test_map[key])
-                duplicates.add(clone)
+                duplicates += 1
                 suite.add_test_case_chromosome(clone)
 
         self._logger.debug(
             "Inserted %d test duplicates to %d already existing tests to have each "
             "branch covered twice",
-            len(duplicates),
+            duplicates,
             old_test_count,
         )

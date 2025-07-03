@@ -27,6 +27,7 @@ from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
+from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
@@ -34,7 +35,6 @@ from pynguin.testcase.statement import MethodStatement
 from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import ParametrizedStatement
 from pynguin.testcase.statement import PrimitiveStatement
-from pynguin.testcase.statement import Statement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
@@ -71,45 +71,50 @@ class StatementLocalSearch(abc.ABC):
         chromosome: TestCaseChromosome,
         position: int,
         objective: LocalSearchObjective,
-        factory: TestFactory
+        factory: TestFactory,
     ) -> StatementLocalSearch | None:
         statement = chromosome.test_case.statements[position]
         logger = logging.getLogger(__name__)
         logger.debug("Choose local search statement from statement")
         if isinstance(statement, NoneStatement):
             logger.debug("None local search statement found")
-            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
-        if isinstance(statement, EnumPrimitiveStatement):
+            # return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+        elif isinstance(statement, EnumPrimitiveStatement):
             logger.debug("Statement is enum %r", statement.value)
-            return EnumLocalSearch(chromosome, position, objective)
-        if isinstance(statement, PrimitiveStatement):
+            # return EnumLocalSearch(chromosome, position, objective)
+        elif isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
             if isinstance(primitive_type, bool):
                 logger.debug("Primitive type is bool %s", primitive_type)
-                return BooleanLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, int):
+                # return BooleanLocalSearch(chromosome, position, objective)
+            elif isinstance(primitive_type, int):
                 logger.debug("Primitive type is int %d", primitive_type)
-                return IntegerLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, str):
+                # return IntegerLocalSearch(chromosome, position, objective)
+            elif isinstance(primitive_type, str):
                 logger.debug("Primitive type is string %s", primitive_type)
                 # return StringLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, float):
+            elif isinstance(primitive_type, float):
                 logger.debug("Primitive type is float %f", primitive_type)
-                return FloatLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, complex):
+                # return FloatLocalSearch(chromosome, position, objective)
+            elif isinstance(primitive_type, complex):
                 logger.debug("Primitive type is complex %s", primitive_type)
-                return ComplexLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, bytes):
+                # return ComplexLocalSearch(chromosome, position, objective)
+            elif isinstance(primitive_type, bytes):
                 logger.debug("Primitive type is bytes %s", primitive_type)
-                return BytesLocalSearch(chromosome, position, objective)
-            logger.debug("Unknown primitive type: %s", primitive_type)
+                # return BytesLocalSearch(chromosome, position, objective)
+            else:
+                logger.debug("Unknown primitive type: %s", primitive_type)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)
             | isinstance(statement, MethodStatement)
         ):
             logger.debug("%s statement found", statement.__class__.__name__)
-            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+            # return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+        elif isinstance(statement, FieldStatement):
+            logger.debug("%s statement found", statement.__class__.__name__)
+            return FieldStatementLocalSearch(chromosome, position, objective)
+
         else:
             logger.debug("No local search statement found for %s", statement.__class__.__name__)
         return None
@@ -769,7 +774,67 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back true if the mutation was successful and false otherwise.
         """
-        # TODO:
+        statement = self._chromosome.test_case.statements[self._position]
+
+        if isinstance(statement, FunctionStatement) | isinstance(statement, ConstructorStatement):
+            return self._replace_parameter(statement)
+        if isinstance(statement, MethodStatement):
+            return self._replace_params_or_callee(statement)
+        return False
+
+    def _replace_parameter(self, statement: ParametrizedStatement) -> bool:
+        params = statement.args.values()
+        if len(params) == 0:
+            return False
+        parameter = randomness.choice(list(params))
+        types = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+        types.remove(statement.ret_val)
+        if len(types) == 0:
+            self._logger.debug(
+                "No other possible calls found for datatype %r", statement.ret_val.type
+            )
+            return False
+        new_parameter = randomness.choice(types)
+        statement.replace(parameter, new_parameter)
+        return True
+
+    def _replace_params_or_callee(self, statement: MethodStatement) -> bool:
+        params = statement.args.values()
+        possible_replacements = len(params)
+        if not statement.accessible_object().is_static():
+            possible_replacements += 1
+
+        # Check if callee or params should be replaced
+        if possible_replacements == randomness.next_int(1, possible_replacements + 1):
+            types = self._chromosome.test_case.get_objects(statement.callee.type, self._position)
+            types.remove(statement.callee)
+            if len(types) == 0:
+                self._logger.debug(
+                    "No other possible calls found for callee %r", statement.callee.type
+                )
+                return False
+            statement.callee = randomness.choice(types)
+            return True
+        return self._replace_parameter(statement)
+
+
+class FieldStatementLocalSearch(StatementLocalSearch, ABC):
+    # TODO
+    def __init__(
+        self, chromosome: TestCaseChromosome, position: int, objective: LocalSearchObjective
+    ):
+        super().__init__(chromosome, position, objective)
+
+    def search(self) -> None:  # noqa: D102
+        pass
+
+    def _replace_field(self, statement: FieldStatement) -> bool:
+        pass
+        # types = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+        # types.remove(statement.ret_val)
+        # typed = randomness.choice(types)
+        # self._factory.change_call()
+        # self._factory.add_field(self._chromosome.test_case,statement.field, position=self._position)
 
 
 class BytesLocalSearch(StatementLocalSearch, ABC):
