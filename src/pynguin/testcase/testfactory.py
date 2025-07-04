@@ -33,7 +33,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject, GenericField
+from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -861,9 +861,11 @@ class TestFactory:
             if call.is_field():
                 possible_fields.append(cast("gao.GenericField", call))
         if len(possible_fields) == 0:
+            self._logger.debug("No other possible field calls available")
             return False
         field = randomness.choice(possible_fields)
         replacement = stmt.FieldStatement(test_case, field, statement.source)
+        self._logger.debug("Replaced the old field %r with %r", statement.field, replacement.field)
         test_case.set_statement(replacement, position)
         return True
 

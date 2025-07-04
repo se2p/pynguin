@@ -819,7 +819,6 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
 
 class FieldStatementLocalSearch(StatementLocalSearch, ABC):
-
     def search(self) -> None:  # noqa: D102
         assert self._factory is not None
         last_execution_result = self._chromosome.get_last_execution_result()
@@ -827,11 +826,13 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
 
         changed = True
         mutations = 0
-        while (changed and
-               mutations <
-               config.LocalSearchConfiguration.random_parametrized_statement_call_count):
-            changed = self._factory.change_random_field_call(self._chromosome.test_case,
-                                                              self._position)
+        while (
+            changed
+            and mutations < config.LocalSearchConfiguration.random_parametrized_statement_call_count
+        ):
+            changed = self._factory.change_random_field_call(
+                self._chromosome.test_case, self._position
+            )
             if changed:
                 if not self._objective.has_improved(self._chromosome):
                     changed = False
