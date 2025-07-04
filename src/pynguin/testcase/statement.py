@@ -582,6 +582,15 @@ class CollectionStatement(VariableCreatingStatement, Generic[T]):
         """
         return self._elements
 
+    @elements.setter
+    def elements(self, elements: list[T]) -> None:
+        """Sets the elements of the collection.
+
+        Args:
+            elements: The new elements of the collection
+        """
+        self._elements = elements
+
     def accessible_object(self) -> gao.GenericAccessibleObject | None:  # noqa: D102
         return None
 

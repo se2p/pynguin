@@ -32,9 +32,11 @@ from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
+from pynguin.testcase.statement import NonDictCollection
 from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import ParametrizedStatement
 from pynguin.testcase.statement import PrimitiveStatement
+from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
@@ -894,7 +896,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         )
         self._backup(statement)
         i = 0
-        while i <= len(statement.value):
+        while i <= len(statement.value) and not LocalSearchTimer.get_instance().limit_reached():
             statement.value = statement.value[:i] + bytes([97]) + statement.value[i:]
             self._logger.debug(
                 "Starting to add value at position %d from bytes %r", i, statement.value
@@ -903,7 +905,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
                 self._backup(statement)
                 finished = False
 
-                while not finished:
+                while not finished and not LocalSearchTimer.get_instance().limit_reached():
                     finished = True
                     if self._iterate_bytes(statement, i, 1):
                         finished = False
@@ -938,7 +940,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         for i in range(len(statement.value) - 1, -1, -1):
             finished = False
 
-            while not finished:
+            while not finished and not LocalSearchTimer.get_instance().limit_reached():
                 finished = True
                 old_value = statement.value
                 if self._iterate_bytes(statement, i, 1):
@@ -1011,4 +1013,111 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
                 + statement.value[pos + 1 :]
             )
         self._restore(statement)
+        return improved
+
+
+class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
+    """Local search strategies for non-dict collection types."""
+
+    def search(self) -> None:
+        statement = cast("NonDictCollection", self._chromosome.test_case.statements[self._position])
+        if self.remove_entries(statement):
+            self._logger.debug("Removing non-dict collection entries has improved fitness.")
+        if self.replace_entries(statement):
+            self._logger.debug("Replacing non-dict collection entries has improved fitness.")
+        if self.add_entries(statement):
+            self._logger.debug("Adding non-dict collection entries has improved fitness.")
+
+    def remove_entries(self, statement: NonDictCollection) -> bool:
+        """Removes every entry of the collection and checks for improved fitness.
+
+        Args:
+            statement (NonDictCollection): The non-dict collection which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements
+        last_execution_result = self._chromosome.get_last_execution_result()
+        improved = False
+        for i in range(len(statement.elements) - 1, -1, -1):
+            if LocalSearchTimer.get_instance().limit_reached():
+                return improved
+            statement.elements = statement.elements[:i] + statement.elements[i + 1 :]
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                statement.elements = old_elements
+                self._chromosome.set_last_execution_result(last_execution_result)
+        return improved
+
+    def replace_entries(self, statement: NonDictCollection) -> bool:
+        """Replaces entries in the collection with other possible entries.
+
+        Args:
+            statement (NonDictCollection): The non-dict collection which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements
+        last_execution_result = self._chromosome.get_last_execution_result()
+        improved = False
+        for i in range(len(statement.elements)):
+            if LocalSearchTimer.get_instance().limit_reached():
+                return improved
+            objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+            if isinstance(statement, SetStatement):
+                objects = [obj for obj in objects if obj not in statement.elements]
+            else :
+                objects = [obj for obj in objects if obj != statement.elements[i]]
+            if len(objects) == 0:
+                return improved  # TODO: Maybe create new statement?
+            statement.elements[i] = randomness.choice(objects)
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                statement.elements = old_elements
+                self._chromosome.set_last_execution_result(last_execution_result)
+        return improved
+
+    def add_entries(self, statement: NonDictCollection) -> bool:
+        """Adds entries to the collection at every possible place
+
+        Args:
+            statement (NonDictCollection): The non-dict collection which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements
+        last_execution_result = self._chromosome.get_last_execution_result()
+        pos = 0
+        improved = False
+        while pos < len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached():
+            objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+            if isinstance(statement, SetStatement):
+                objects = [obj for obj in objects if obj not in statement.elements]
+            if len(objects) == 0:
+                return improved  # TODO: Maybe create new statement?
+            if isinstance(statement, SetStatement):
+                statement.elements.append(randomness.choice(objects))
+            else:
+                statement.elements = (
+                    statement.elements[:pos]
+                    + [randomness.choice(objects)]
+                    + statement.elements[pos:]
+                )
+            pos += 1
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                statement.elements = old_elements
+                self._chromosome.set_last_execution_result(last_execution_result)
         return improved

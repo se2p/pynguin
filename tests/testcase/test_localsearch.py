@@ -6,6 +6,7 @@
 #
 import enum
 import sys
+from pickle import FALSE
 
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -19,6 +20,7 @@ from pynguin.testcase.localsearchstatement import ComplexLocalSearch
 from pynguin.testcase.localsearchstatement import EnumLocalSearch
 from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
+from pynguin.testcase.localsearchstatement import NonDictCollectionLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
@@ -27,7 +29,10 @@ from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
+from pynguin.testcase.statement import ListStatement
+from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
+from pynguin.testcase.statement import TupleStatement
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 
 
@@ -640,3 +645,144 @@ def test_bytes_random_mutation_better_value() -> None:
     chromosome.test_case.statements[1] = statement
     local_search = BytesLocalSearch(chromosome, 1, objective)
     assert local_search._apply_random_mutations()
+
+
+@pytest.mark.parametrize(
+    "result1, result2, side_effect",
+    [
+        (True, 1, [True, False]),
+        (False, 2, [False, False]),
+        (True, 0, [True, True]),
+    ],
+)
+def test_non_dict_replace_list(result1, result2, side_effect) -> None:
+    default_test_case = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(default_test_case, 42)
+    int_statement_2 = IntPrimitiveStatement(default_test_case, 24)
+    statement = ListStatement(
+        default_test_case,
+        int_statement.ret_val.type,
+        [int_statement.ret_val, int_statement_2.ret_val],
+    )
+    default_test_case.test_case = MagicMock()
+    default_test_case.test_case.statements = [MagicMock() for _ in range(2)]
+    default_test_case.test_case.statements[1] = statement
+    local_search = NonDictCollectionLocalSearch(default_test_case, 1, objective)
+    assert local_search.remove_entries(statement) == result1
+    assert len(statement.elements) == result2
+
+
+@pytest.mark.parametrize(
+    "result1, result2, side_effect",
+    [
+        (True, 1, [True, False]),
+        (False, 2, [False, False]),
+        (True, 0, [True, True]),
+    ],
+)
+def test_non_dict_replace_tuple(result1, result2, side_effect) -> None:
+    default_test_case = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(default_test_case, 42)
+    int_statement_2 = IntPrimitiveStatement(default_test_case, 24)
+    statement = TupleStatement(
+        default_test_case,
+        int_statement.ret_val.type,
+        [int_statement.ret_val, int_statement_2.ret_val],
+    )
+    default_test_case.test_case = MagicMock()
+    default_test_case.test_case.statements = [MagicMock() for _ in range(3)]
+    default_test_case.test_case.statements[1] = statement
+    local_search = NonDictCollectionLocalSearch(default_test_case, 1, objective)
+    assert local_search.remove_entries(statement) == result1
+    assert len(statement.elements) == result2
+
+
+@pytest.mark.parametrize(
+    "result1, result2, side_effect",
+    [
+        (True, 2, [True, False, False]),
+        (False, 3, [False, False, False]),
+        (True, 0, [True, True, True]),
+        (True, 1, [True, False, True]),
+    ],
+)
+def test_non_dict_replace_set(result1, result2, side_effect) -> None:
+    default_test_case = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(default_test_case, 42)
+    int_statement_2 = IntPrimitiveStatement(default_test_case, 24)
+    int_statement_3 = IntPrimitiveStatement(default_test_case, 17)
+
+    statement = SetStatement(
+        default_test_case,
+        int_statement.ret_val.type,
+        [int_statement.ret_val, int_statement_2.ret_val, int_statement_3.ret_val],
+    )
+    default_test_case.test_case = MagicMock()
+    default_test_case.test_case.statements = [MagicMock() for _ in range(3)]
+    default_test_case.test_case.statements[2] = statement
+    local_search = NonDictCollectionLocalSearch(default_test_case, 2, objective)
+    assert local_search.remove_entries(statement) == result1
+    assert len(statement.elements) == result2
+
+
+@pytest.mark.parametrize(
+    "result1, result2, side_effect",
+    [
+        (True, 2, [True, False]),
+        (True, 5, [True] * 4 + [False]),
+        (False, 1, [False]*2),
+    ],
+)
+def test_non_dict_add_list(result1, result2, side_effect):
+    default_test_case = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(default_test_case, 42)
+    int_statement_2 = IntPrimitiveStatement(default_test_case, 24)
+    statement = ListStatement(
+        default_test_case,
+        int_statement.ret_val.type,
+        [int_statement.ret_val],
+    )
+    default_test_case.test_case = MagicMock()
+    default_test_case.test_case.statements = [MagicMock() for _ in range(3)]
+    default_test_case.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    default_test_case.test_case.statements[2] = statement
+    local_search = NonDictCollectionLocalSearch(default_test_case, 2, objective)
+    assert local_search.add_entries(statement) == result1
+    assert len(statement.elements) == result2
+
+@pytest.mark.parametrize(
+    "result1, result2, side_effect",
+    [
+        (True, 2, [True, False]),
+        (True, 5, [True] * 4 + [False]),
+        (False, 1, [False]*2),
+    ],
+)
+def test_non_dict_add_tuple(result1, result2, side_effect):
+    default_test_case = MagicMock()
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(default_test_case, 42)
+    int_statement_2 = IntPrimitiveStatement(default_test_case, 24)
+    statement = TupleStatement(
+        default_test_case,
+        int_statement.ret_val.type,
+        [int_statement.ret_val],
+    )
+    default_test_case.test_case = MagicMock()
+    default_test_case.test_case.statements = [MagicMock() for _ in range(2)]
+    default_test_case.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    default_test_case.test_case.statements[1] = statement
+    local_search = NonDictCollectionLocalSearch(default_test_case, 1, objective)
+    assert local_search.add_entries(statement) == result1
+    assert len(statement.elements) == result2
+
+
