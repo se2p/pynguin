@@ -37,6 +37,7 @@ from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import ParametrizedStatement
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.statement import SetStatement
+from pynguin.testcase.statement import Statement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
@@ -1037,7 +1038,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements
+        old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
         improved = False
         for i in range(len(statement.elements) - 1, -1, -1):
@@ -1046,10 +1047,10 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             statement.elements = statement.elements[:i] + statement.elements[i + 1 :]
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements
+                old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
             else:
-                statement.elements = old_elements
+                statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
         return improved
 
@@ -1062,7 +1063,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements
+        old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
         improved = False
         for i in range(len(statement.elements)):
@@ -1070,18 +1071,28 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
                 return improved
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
-                objects = [obj for obj in objects if obj not in statement.elements]
-            else :
-                objects = [obj for obj in objects if obj != statement.elements[i]]
+                objects = [
+                    obj
+                    for obj in objects
+                    if isinstance(obj, VariableCreatingStatement)
+                       and obj.ret_val not in statement.elements
+                ]
+            else:
+                objects = [
+                    obj
+                    for obj in objects
+                    if isinstance(obj, VariableCreatingStatement)
+                       and obj.ret_val != statement.elements[i]
+                ]
             if len(objects) == 0:
                 return improved  # TODO: Maybe create new statement?
-            statement.elements[i] = randomness.choice(objects)
+            statement.elements[i] = randomness.choice(objects).ret_val
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements
+                old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
             else:
-                statement.elements = old_elements
+                statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
         return improved
 
@@ -1094,18 +1105,24 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements
+        old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
         pos = 0
         improved = False
         while pos < len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached():
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+            state: Statement
             if isinstance(statement, SetStatement):
-                objects = [obj for obj in objects if obj not in statement.elements]
+                objects = [
+                    obj
+                    for obj in objects
+                    if isinstance(obj, VariableCreatingStatement)
+                    and obj.ret_val not in statement.elements
+                ]
             if len(objects) == 0:
                 return improved  # TODO: Maybe create new statement?
             if isinstance(statement, SetStatement):
-                statement.elements.append(randomness.choice(objects))
+                statement.elements.append(randomness.choice(objects).ret_val)
             else:
                 statement.elements = (
                     statement.elements[:pos]
@@ -1115,9 +1132,9 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             pos += 1
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements
+                old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
             else:
-                statement.elements = old_elements
+                statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
         return improved
