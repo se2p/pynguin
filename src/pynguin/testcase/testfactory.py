@@ -33,7 +33,6 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.utils.generic.genericaccessibleobject import GenericField
     from pynguin.utils.orderedset import OrderedSet
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -54,7 +54,7 @@ if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
 
 # TODO(fk) find better name for this?
 # TODO split this monster!
-class TestFactory:
+class TestFactory:  # noqa: PLR0904
     """A factory for test-case generation.
 
     This factory does not generate test cases but provides all necessary means to
@@ -849,6 +849,15 @@ class TestFactory:
         test_case.set_statement(replacement, position)
 
     def change_random_field_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replaces the given field statement with another possible field statement.
+
+        Args:
+            test_case: The testcase where the field statement gets replaced.
+            position: The position of the statement which should get changed.
+
+        Returns:
+            Gives back true, if the replacement was successful and false otherwise.
+        """
         statement = test_case.get_statement(position)
         if not isinstance(statement, FieldStatement):
             return False
@@ -857,9 +866,7 @@ class TestFactory:
         calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
         calls.remove(statement.accessible_object())
         possible_fields: list[GenericField] = []
-        for call in calls:
-            if call.is_field():
-                possible_fields.append(cast("gao.GenericField", call))
+        possible_fields = [cast("gao.GenericField", call) for call in calls if call.is_field()]
         if len(possible_fields) == 0:
             self._logger.debug("No other possible field calls available")
             return False

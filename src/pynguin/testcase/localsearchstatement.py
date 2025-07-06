@@ -37,7 +37,6 @@ from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import ParametrizedStatement
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.statement import SetStatement
-from pynguin.testcase.statement import Statement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
@@ -822,6 +821,8 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
 
 class FieldStatementLocalSearch(StatementLocalSearch, ABC):
+    """A local search strategy for field statements."""
+
     def search(self) -> None:  # noqa: D102
         assert self._factory is not None
         last_execution_result = self._chromosome.get_last_execution_result()
@@ -848,7 +849,7 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
 
 
 class BytesLocalSearch(StatementLocalSearch, ABC):
-    """A local search strategy for bytes"""
+    """A local search strategy for bytes."""
 
     def search(self) -> None:  # noqa: D102
         if self._apply_random_mutations():
@@ -891,7 +892,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
     def add_values(self) -> None:
         """Tries to add a value at each position of the bytes. If the addition was
         successful, the best value for this position is evaluated.
-        """
+        """  # noqa : D205
         statement = cast(
             "BytesPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
@@ -1020,7 +1021,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
 class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
     """Local search strategies for non-dict collection types."""
 
-    def search(self) -> None:
+    def search(self) -> None:  # noqa: D102
         statement = cast("NonDictCollection", self._chromosome.test_case.statements[self._position])
         if self.remove_entries(statement):
             self._logger.debug("Removing non-dict collection entries has improved fitness.")
@@ -1075,14 +1076,14 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
                     obj
                     for obj in objects
                     if isinstance(obj, VariableCreatingStatement)
-                       and obj.ret_val not in statement.elements
+                    and obj.ret_val not in statement.elements
                 ]
             else:
                 objects = [
                     obj
                     for obj in objects
                     if isinstance(obj, VariableCreatingStatement)
-                       and obj.ret_val != statement.elements[i]
+                    and obj.ret_val != statement.elements[i]
                 ]
             if len(objects) == 0:
                 return improved  # TODO: Maybe create new statement?
@@ -1097,7 +1098,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         return improved
 
     def add_entries(self, statement: NonDictCollection) -> bool:
-        """Adds entries to the collection at every possible place
+        """Adds entries to the collection at every possible place.
 
         Args:
             statement (NonDictCollection): The non-dict collection which should be modified.
@@ -1111,7 +1112,6 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         improved = False
         while pos < len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached():
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
-            state: Statement
             if isinstance(statement, SetStatement):
                 objects = [
                     obj
@@ -1124,11 +1124,11 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             if isinstance(statement, SetStatement):
                 statement.elements.append(randomness.choice(objects).ret_val)
             else:
-                statement.elements = (
-                    statement.elements[:pos]
-                    + [randomness.choice(objects)]
-                    + statement.elements[pos:]
-                )
+                statement.elements = [
+                    *statement.elements[:pos],
+                    [randomness.choice(objects)],
+                    *statement.elements[pos:],
+                ]
             pos += 1
             if self._objective.has_improved(self._chromosome):
                 improved = True

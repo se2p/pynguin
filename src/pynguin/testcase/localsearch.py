@@ -60,7 +60,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             local_search_statement = StatementLocalSearch.choose_local_search_statement(
                 chromosome, i, objective, factory
             )
-
+            # TODO: Change
             if local_search_statement is not None:
                 self._logger.debug("Local search statement found for the statement %s", statement)
                 local_search_statement.search()

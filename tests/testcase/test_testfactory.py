@@ -10,6 +10,7 @@ import inspect
 
 from inspect import Parameter
 from inspect import Signature
+from typing import TYPE_CHECKING
 from typing import cast
 from unittest import mock
 from unittest.mock import MagicMock
@@ -33,10 +34,13 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
+
+
+if TYPE_CHECKING:
+    from pynguin.utils.generic.genericaccessibleobject import GenericField
 
 
 def test_append_statement_unknown_type(test_case_mock):
