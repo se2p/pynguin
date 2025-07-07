@@ -198,22 +198,6 @@ class Selection(str, enum.Enum):
     """Tournament selection.  Use `tournament_size` to set size."""
 
 
-class SubprocessMode(str, enum.Enum):
-    """Which subprocess mode to use."""
-
-    SUBPROCESS = "SUBPROCESS"
-    """The test generation is run in a subprocess. Makes test generation resistent
-    to C-errors but slows down generation due to data transfer overheads."""
-
-    THREADED = "THREADED"
-    """The test generation is run in a thread. Faster but C-errors in the module under test
-    might cause Pynguin to crash."""
-
-    RECOMMENDED = "RECOMMENDED"
-    """The test generation is run in a subprocess if the analysis of the module under test
-    suggests that it might be useful to avoid errors."""
-
-
 @dataclasses.dataclass
 class StatisticsOutputConfiguration:
     """Configuration related to output."""
