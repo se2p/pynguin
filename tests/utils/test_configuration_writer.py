@@ -30,6 +30,7 @@ algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
 subprocess = false
+subprocess_if_recommended = false
 
 [test_case_output]
 output_path = ""
@@ -260,7 +261,7 @@ def expected_txt(tmp_path):
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
  'max_sequences_combined=10), ignore_modules=[], ignore_methods=[], '
- 'subprocess=False)')"""  # noqa:E501
+ 'subprocess=False, subprocess_if_recommended=False)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -325,6 +326,7 @@ def expected_parameter_list() -> list[str]:
         "--max_int 2048",
         "--string_length 20",
         "--subprocess False",
+        "--subprocess_if_recommended False",
         "--bytes_length 20",
         "--collection_size 5",
         "--primitive_reuse_probability 0.5",

@@ -231,6 +231,148 @@ def _is_blacklisted(element: Any) -> bool:
     return False
 
 
+C_MODULE_WHITELIST = frozenset((
+    # === Basic C modules (interpreter startup) ===
+    "_abc",
+    "_ast",
+    "_codecs",
+    "_collections",
+    "_functools",
+    "_imp",
+    "_io",
+    "_locale",
+    "_operator",
+    "_signal",
+    "_sitebuiltins",
+    "_stat",
+    "_thread",
+    "_tracemalloc",
+    "_weakref",
+    "builtins",
+    "errno",
+    "marshal",
+    "sys",
+    "time",
+    "_sre",
+    "_symtable",
+    "_warnings",
+    "_string",
+    # === Common Data Structures & Algorithms ===
+    "array",
+    "_bisect",
+    "_heapq",
+    "itertools",
+    # === Math & Random ===
+    "math",
+    "_math",
+    "_random",
+    "_statistics",
+    # === Data Serialization & Formats ===
+    "_csv",
+    "_json",
+    "_pickle",
+    "_struct",
+    "_elementtree",
+    "pyexpat",
+    "binascii",
+    # === Hashing & Cryptography ===
+    "_hashlib",
+    "_ssl",
+    "_blake2",
+    "_md5",
+    "_sha3",
+    "unicodedata",
+    # === Compression ===
+    "zlib",
+    "bz2",
+    "_lzma",
+    # === Concurrency & Interoperability ===
+    # "_multiprocessing", # Explicitly not included
+    # "_ctypes",  # Explicitly not included
+    # "_asyncio",  # Explicitly not included
+    # === Networking ===
+    "_socket",
+    "select",
+    # === Database ===
+    "_sqlite3",
+    # === GUI ===
+    "_tkinter",
+    # === Introspection & Debugging ===
+    "gc",
+    "faulthandler",
+    # === Platform: POSIX/Unix-like ===
+    "posix",
+    # "_posixsubprocess", # Explicitly not included
+    "fcntl",
+    "grp",
+    "pwd",
+    "resource",
+    "termios",
+    # === Platform: Windows ===
+    "_winapi",
+    "msvcrt",
+    # === Platform: macOS ===
+    "_scproxy",
+    # === Platform: Cross-platform ===
+    "mmap",
+    # --- Other ---
+    "_queue",
+    "_decimal",
+    "_uuid",
+    "_datetime",
+    "_zoneinfo",
+))
+
+
+def _c_is_whitelisted(element: Any) -> bool:
+    """Checks if the given element belongs to the C module whitelist.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element whitelisted?
+    """
+    c_module_whitelist = set(C_MODULE_WHITELIST)
+
+    try:
+        if inspect.ismodule(element):
+            return element.__name__ in c_module_whitelist
+    except Exception:  # noqa: BLE001
+        LOGGER.warning(
+            "Could not check if %s is whitelisted. Assuming it is not.", element, exc_info=True
+        )
+    # Something that is not supported yet.
+    return False
+
+
+def _handle_c_modules(
+    c_extensions: set[str],
+) -> None:
+    """Handles the C extensions in the subject module.
+
+    Args:
+        c_extensions: The set of C extensions.
+    """
+    subprocess_mode_recommended = len(c_extensions) > 0
+    if config.configuration.subprocess_if_recommended:
+        config.configuration.subprocess = subprocess_mode_recommended
+        LOGGER.info(
+            "Subprocess mode is set to %s because the subject module uses "
+            "the following C extensions: %s. ",
+            config.configuration.subprocess,
+            ", ".join(sorted(c_extensions)),
+        )
+    elif not config.configuration.subprocess and subprocess_mode_recommended:
+        LOGGER.warning(
+            "You are using threaded execution mode, but the subject module "
+            "uses the following C extensions: %s. "
+            "This may lead to unexpected behavior, consider using "
+            "subprocess mode instead.",
+            ", ".join(sorted(c_extensions)),
+        )
+
+
 @dataclasses.dataclass
 class _ModuleParseResult:
     """A data wrapper for an imported and parsed module."""
@@ -1412,6 +1554,9 @@ def __resolve_dependencies(
     seen_classes: set[Any] = set()
     seen_functions: set[Any] = set()
 
+    # Set of C-extension modules that are not whitelisted
+    dangerous_c_modules: set[str] = set()
+
     # Always analyse builtins
     __analyse_included_classes(
         module=builtins,
@@ -1435,6 +1580,13 @@ def __resolve_dependencies(
         if _is_blacklisted(current_module):
             # Don't include anything from the blacklist
             continue
+
+        # Check if the module contains c extensions that are not whitelisted
+        dangerous_c_modules.update(
+            __check_c_modules(
+                module=current_module,
+            )
+        )
 
         # Analyze all classes found in the current module
         __analyse_included_classes(
@@ -1468,6 +1620,7 @@ def __resolve_dependencies(
     LOGGER.info("Modules:   %5i", len(seen_modules))
     LOGGER.info("Functions: %5i", len(seen_functions))
     LOGGER.info("Classes:   %5i", len(seen_classes))
+    _handle_c_modules(dangerous_c_modules)
 
     test_cluster.type_system.push_attributes_down()
 
@@ -1563,6 +1716,41 @@ def __analyse_included_functions(
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
         )
+
+
+def __check_c_modules(
+    *,
+    module: ModuleType,
+) -> set[str]:
+    """Return the names of modules containing non-whitelisted C extensions.
+
+    Args:
+        module: The module to check
+
+    Returns:
+        A set of module names with non-whitelisted C code.
+    """
+    non_whitelisted_modules = set()
+
+    # If the whole module file looks like a binary extension:
+    module_file = getattr(module, "__file__", "")
+    if module_file and Path(module_file).suffix in {".so", ".pyd"}:
+        if not _c_is_whitelisted(module):
+            non_whitelisted_modules.add(module.__name__)
+        return non_whitelisted_modules
+
+    # If the module is Python, inspect its members too:
+    for element in vars(module).values():
+        if inspect.isfunction(element) or inspect.isclass(element):
+            try:
+                inspect.getsource(element)
+                # Source is available => likely pure Python.
+            except (OSError, TypeError):
+                # No source => likely compiled or builtin.
+                if not _c_is_whitelisted(element):
+                    non_whitelisted_modules.add(module.__name__)
+
+    return non_whitelisted_modules
 
 
 def analyse_module(
