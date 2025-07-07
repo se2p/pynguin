@@ -35,6 +35,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
 
@@ -601,3 +602,72 @@ def test_analyse_function_lambda_no_name():
 
     # Verify that the lambda was not added to the test cluster
     assert test_cluster.num_accessible_objects_under_test() == 0
+
+
+@pytest.mark.parametrize(
+    "subprocess,subprocess_if_recommended,expected_subprocess_mode",
+    [
+        (False, False, "False"),
+        (True, False, "True"),
+        (False, True, "True"),
+        (True, True, "True"),
+    ],
+)
+def test_analyse_module_not_sets_c_if_not_recommended(
+    monkeypatch, subprocess, subprocess_if_recommended, expected_subprocess_mode
+):
+    tracked = {}
+
+    def fake_track_output_variable(var, value):
+        tracked[var] = value
+
+    monkeypatch.setattr(module.stat, "track_output_variable", fake_track_output_variable)
+    monkeypatch.setattr(module.config.configuration, "subprocess", subprocess)
+    monkeypatch.setattr(
+        module.config.configuration, "subprocess_if_recommended", subprocess_if_recommended
+    )
+    parse_result = module.parse_module("_ctypes")
+    module.analyse_module(parse_result)
+    assert tracked[RuntimeVariable.SubprocessMode] == expected_subprocess_mode, (
+        f"Expected subprocess mode to be {expected_subprocess_mode}, "
+        f"but got {tracked[RuntimeVariable.SubprocessMode]}"
+    )
+
+
+@pytest.mark.parametrize(
+    "module_name,expected_subprocess_value,expected_c_ext_present",
+    [
+        ("_ctypes", True, "_ctypes"),
+        ("tests.fixtures.c.my_ctypes", True, "_ctypes"),  # imports _ctypes
+        ("_abc", False, None),  # _abc is whitelisted
+    ],
+)
+def test_analyse_module_sets_c_extension_and_subprocess(
+    monkeypatch, module_name, expected_subprocess_value, expected_c_ext_present
+):
+    tracked = {}
+
+    def fake_track_output_variable(var, value):
+        tracked[var] = value
+
+    monkeypatch.setattr(module.stat, "track_output_variable", fake_track_output_variable)
+    monkeypatch.setattr(module.config.configuration, "subprocess", False)
+    monkeypatch.setattr(module.config.configuration, "subprocess_if_recommended", True)
+
+    parse_result = module.parse_module(module_name)
+    module.analyse_module(parse_result)
+
+    # Check C extension tracking
+    if expected_c_ext_present is not None:
+        assert RuntimeVariable.CExtensionModules in tracked, "CExtensionModules not tracked"
+        assert expected_c_ext_present in tracked[RuntimeVariable.CExtensionModules], (
+            f"Expected {expected_c_ext_present} to be tracked as C extension, "
+            f"but got {tracked[RuntimeVariable.CExtensionModules]}"
+        )
+
+    # Check subprocess mode tracking
+    assert RuntimeVariable.SubprocessMode in tracked, "SubprocessMode not tracked"
+    assert tracked[RuntimeVariable.SubprocessMode] == str(expected_subprocess_value), (
+        f"Expected subprocess mode to be {expected_subprocess_value}, "
+        f"but got {tracked[RuntimeVariable.SubprocessMode]}"
+    )

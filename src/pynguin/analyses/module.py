@@ -372,6 +372,10 @@ def _handle_c_modules(
             ", ".join(sorted(c_extensions)),
         )
 
+    # Store the discovered C extensions in the statistics
+    stat.track_output_variable(RuntimeVariable.CExtensionModules, str(sorted(c_extensions)))
+    stat.track_output_variable(RuntimeVariable.SubprocessMode, str(config.configuration.subprocess))
+
 
 @dataclasses.dataclass
 class _ModuleParseResult:
