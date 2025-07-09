@@ -1749,7 +1749,7 @@ def __check_c_modules(
             try:
                 inspect.getsource(element)
                 # Source is available => likely pure Python.
-            except (OSError, TypeError):
+            except Exception:  # noqa: BLE001
                 # No source => likely compiled or builtin.
                 if not _c_is_whitelisted(element):
                     non_whitelisted_modules.add(module.__name__)
