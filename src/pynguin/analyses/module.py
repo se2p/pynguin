@@ -337,7 +337,7 @@ C_MODULE_WHITELIST = frozenset((
 ))
 
 
-def _c_is_whitelisted(element: Any) -> bool:
+def _c_is_whitelisted(element: ModuleType) -> bool:
     """Checks if the given element belongs to the C module whitelist.
 
     Args:
@@ -349,14 +349,10 @@ def _c_is_whitelisted(element: Any) -> bool:
     c_module_whitelist = set(C_MODULE_WHITELIST)
 
     try:
-        if inspect.ismodule(element):
-            module_name = element.__name__
-            top_level = module_name.split(".", 1)[0]
-            return (
-                module_name in c_module_whitelist
-                or module_name.lstrip("_") in c_module_whitelist
-                or top_level in c_module_whitelist
-            )
+        module_name = element.__name__
+        top_level = module_name.split(".")[0]
+        public_top_level = top_level.lstrip("_")
+        return public_top_level in c_module_whitelist
     except Exception:  # noqa: BLE001
         LOGGER.warning(
             "Could not check if %s is whitelisted. Assuming it is not.", element, exc_info=True
@@ -1770,7 +1766,7 @@ def __check_c_modules(
                 # Source is available => likely pure Python.
             except Exception:  # noqa: BLE001
                 # No source => likely compiled or builtin.
-                if not _c_is_whitelisted(element):
+                if not _c_is_whitelisted(module):
                     non_whitelisted_modules.add(module.__name__)
 
     return non_whitelisted_modules
