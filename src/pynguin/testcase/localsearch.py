@@ -13,11 +13,14 @@ import logging
 from abc import ABC
 from typing import TYPE_CHECKING
 
+import pynguin.configuration as config
+
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.utils import randomness
 
 
 if TYPE_CHECKING:
@@ -45,25 +48,50 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
     def local_search(  # noqa: D102
         self,
-        chromosome: Chromosome,
+        chromosome: TestCaseChromosome,
         factory: TestFactory,
         objective: LocalSearchObjective | None,
     ) -> None:
-        assert isinstance(chromosome, TestCaseChromosome)
         assert objective is not None
 
         for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
+            methods: list = []
+            if config.LocalSearchConfiguration.local_search_same_datatype:
+                methods.append(
+                    lambda: self._search_same_datatype(chromosome, factory, objective, i)
+                )
+            if config.LocalSearchConfiguration.local_search_other_datatype:
+                methods.append(self._search_other_datatype())
+            if config.LocalSearchConfiguration.local_search_llm:
+                methods.append(self._search_llm())
+            if methods:
+                randomness.choice(methods)()
 
-            statement = chromosome.test_case.statements[i]
-            local_search_statement = StatementLocalSearch.choose_local_search_statement(
-                chromosome, i, objective, factory
-            )
-            # TODO: Change
-            if local_search_statement is not None:
-                self._logger.debug("Local search statement found for the statement %s", statement)
-                local_search_statement.search()
+    def _search_same_datatype(
+        self,
+        chromosome: TestCaseChromosome,
+        factory: TestFactory,
+        objective: LocalSearchObjective,
+        position,
+    ):
+        statement = chromosome.test_case.statements[position]
+        local_search_statement = StatementLocalSearch.choose_local_search_statement(
+            chromosome, position, objective, factory
+        )
+        # TODO: Change
+        if local_search_statement is not None:
+            self._logger.debug("Local search statement found for the statement %s", statement)
+            local_search_statement.search()
+
+    def _search_other_datatype(self):
+        # TODO: Implement me!
+        pass
+
+    def _search_llm(self):
+        # TODO: Implement me!
+        pass
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):

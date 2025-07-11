@@ -71,7 +71,8 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while self.resources_left() and len(self._archive.uncovered_goals) > 0:
             self.evolve()
-            self.local_search()
+            if config.LocalSearchConfiguration.local_search:
+                self.local_search()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 
         self.after_search_finish()
@@ -135,9 +136,6 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         for chromosome in self._archive.solutions:
             test_cases.add(chromosome.clone())
         test_suite = self.create_test_suite(test_cases)
-
-        # test_suite = self.create_test_suite(self._archive.solutions)
-
         global_search_coverage = test_suite.get_coverage()
         self._logger.debug("Starting local search")
         LocalSearchTimer.get_instance().start_local_search()

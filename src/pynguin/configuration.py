@@ -749,6 +749,41 @@ class LLMConfiguration:
 
 
 @dataclasses.dataclass
+class LocalSearchConfiguration:
+    """Configurations for local search."""
+
+    local_search: bool = True
+    """Defines if local search is generally enabled or not"""
+
+    local_search_same_datatype: bool = True
+    """Defines if local search within same datatype is enabled or not"""
+
+    local_search_other_datatype: bool = False
+    """Defines if local search within same datatype is enabled or not"""
+
+    local_search_llm: bool = False
+    """Defines if local search with llm is enabled or not"""
+
+    local_search_probability: float = 0.02
+    """Probability of starting local search on the specific candidate"""
+
+    local_search_time: int = 20000
+    """The budget which each local search iteration has in ms."""
+
+    int_delta_increasing_factor: int = 2
+    """The factor which defines how much the delta should increase for each iteration for integer
+    local search."""
+
+    string_random_mutation_count: int = 10
+    """The number of mutations made to the string to determine if it's worth to completely mutate
+    the string."""
+
+    random_parametrized_statement_call_count: int = 10
+    """The number of mutations made to a parametrized statement call to determine if it's worth to
+    further do local search"""
+
+
+@dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""
 
@@ -815,6 +850,11 @@ class Configuration:
     """Use the subprocess mode if the SUT analysis recommends it based on used
     C extension modules."""
 
+    local_search: LocalSearchConfiguration = dataclasses.field(
+        default_factory=LocalSearchConfiguration
+    )
+    """Local search configuration."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(
@@ -822,26 +862,3 @@ configuration = Configuration(
     module_name="",
     test_case_output=TestCaseOutputConfiguration(output_path=""),
 )
-
-
-@dataclasses.dataclass
-class LocalSearchConfiguration:
-    """Configurations for local search."""
-
-    local_search_probability: float = 0.02
-    """Probability of starting local search on the specific candidate"""
-
-    local_search_time: int = 20000
-    """The budget which each local search iteration has in ms."""
-
-    int_delta_increasing_factor: int = 2
-    """The factor which defines how much the delta should increase for each iteration for integer
-    local search."""
-
-    string_random_mutation_count: int = 10
-    """The number of mutations made to the string to determine if it's worth to completely mutate
-    the string."""
-
-    random_parametrized_statement_call_count: int = 10
-    """The number of mutations made to a parametrized statement call to determine if it's worth to
-    further do local search"""
