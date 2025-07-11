@@ -233,94 +233,107 @@ def _is_blacklisted(element: Any) -> bool:
 
 C_MODULE_WHITELIST = frozenset((
     # === Basic C modules (interpreter startup) ===
-    "_abc",
-    "_ast",
-    "_codecs",
-    "_collections",
-    "_functools",
-    "_imp",
-    "_io",
-    "_locale",
-    "_operator",
-    "_signal",
-    "_sitebuiltins",
-    "_stat",
-    "_thread",
-    "_tracemalloc",
-    "_weakref",
+    "abc",
+    "ast",
+    "codecs",
+    "collections",
+    "enum",
+    "functools",
+    "imp",
+    "io",
+    "locale",
+    "operator",
+    "signal",
+    "sitebuiltins",
+    "stat",
+    "thread",
+    "tracemalloc",
+    "weakref",
     "builtins",
     "errno",
     "marshal",
     "sys",
     "time",
-    "_sre",
-    "_symtable",
-    "_warnings",
-    "_string",
+    "sre",
+    "symtable",
+    "warnings",
+    "string",
+    "re",
+    "inspect",
+    "tokenize",
     # === Common Data Structures & Algorithms ===
     "array",
-    "_bisect",
-    "_heapq",
+    "bisect",
+    "heapq",
     "itertools",
     # === Math & Random ===
     "math",
-    "_math",
-    "_random",
-    "_statistics",
+    "random",
+    "statistics",
     # === Data Serialization & Formats ===
-    "_csv",
-    "_json",
-    "_pickle",
-    "_struct",
-    "_elementtree",
+    "csv",
+    "json",
+    "pickle",
+    "struct",
+    "elementtree",
     "pyexpat",
     "binascii",
     # === Hashing & Cryptography ===
-    "_hashlib",
-    "_ssl",
-    "_blake2",
-    "_md5",
-    "_sha3",
+    "hashlib",
+    "ssl",
+    "blake2",
+    "md5",
+    "sha3",
     "unicodedata",
     # === Compression ===
     "zlib",
     "bz2",
-    "_lzma",
+    "lzma",
     # === Concurrency & Interoperability ===
-    # "_multiprocessing", # Explicitly not included
-    # "_ctypes",  # Explicitly not included
-    # "_asyncio",  # Explicitly not included
+    # "multiprocessing", # Explicitly not included
+    # "ctypes",  # Explicitly not included
+    # "asyncio",  # Explicitly not included
     # === Networking ===
-    "_socket",
+    "socket",
     "select",
     # === Database ===
-    "_sqlite3",
+    "sqlite3",
     # === GUI ===
-    "_tkinter",
+    "tkinter",
     # === Introspection & Debugging ===
     "gc",
     "faulthandler",
     # === Platform: POSIX/Unix-like ===
     "posix",
-    # "_posixsubprocess", # Explicitly not included
+    # "posixsubprocess", # Explicitly not included
     "fcntl",
     "grp",
     "pwd",
     "resource",
     "termios",
     # === Platform: Windows ===
-    "_winapi",
+    "winapi",
     "msvcrt",
     # === Platform: macOS ===
-    "_scproxy",
+    "scproxy",
     # === Platform: Cross-platform ===
     "mmap",
     # --- Other ---
-    "_queue",
-    "_decimal",
-    "_uuid",
-    "_datetime",
-    "_zoneinfo",
+    "queue",
+    "decimal",
+    "uuid",
+    "datetime",
+    "zoneinfo",
+    "shlex",
+    "calendar",
+    "yaml",
+    "email",
+    "syslog",
+    "dataclasses",
+    "pprint",
+    "difflib",
+    "cmath",
+    "hmac",
 ))
 
 
@@ -337,7 +350,13 @@ def _c_is_whitelisted(element: Any) -> bool:
 
     try:
         if inspect.ismodule(element):
-            return element.__name__ in c_module_whitelist
+            module_name = element.__name__
+            top_level = module_name.split(".", 1)[0]
+            return (
+                module_name in c_module_whitelist
+                or module_name.lstrip("_") in c_module_whitelist
+                or top_level in c_module_whitelist
+            )
     except Exception:  # noqa: BLE001
         LOGGER.warning(
             "Could not check if %s is whitelisted. Assuming it is not.", element, exc_info=True
