@@ -15,6 +15,7 @@ import time
 
 from pathlib import Path
 
+from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
 
 try:
     import openai
@@ -380,3 +381,20 @@ class LLMAgent:
         )
         prompt_result = self.query(prompt)
         return self.extract_python_code_from_llm_output(prompt_result)
+
+    def local_search_call(self, position, test_case_source_code: str) -> str | None:
+        """Changes the statement at the given position to increase branch coverage
+
+        Args:
+            position (int): The position of the statement in the testcase.
+            test_case_source_code (str): The source code of the test case.
+
+        Returns:
+            Gives back the new line containing the changed statement as string.
+        """
+        prompt = LocalSearchPrompt(
+            test_case_code=test_case_source_code,
+            position=position,
+            module_code=get_module_source_code(),
+        )
+        return self.query(prompt)
