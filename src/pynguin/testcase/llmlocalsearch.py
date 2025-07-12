@@ -12,6 +12,7 @@ from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.variablereference import VariableReference
+from pynguin.utils.mirror import Mirror
 from tests.utils.stats.test_searchstatistics import chromosome
 
 
@@ -38,7 +39,7 @@ class LLMLocalSearch:
         """
         statement = self.chromosome.test_case.statements[position]
         memo :dict[VariableReference, VariableReference] = {}
-        old_statement = statement.clone(self.chromosome.test_case, memo)
+        old_statement = statement.clone(self.chromosome.test_case, Mirror())
         last_execution_result = self.chromosome.get_last_execution_result()
 
         agent = LLMAgent()

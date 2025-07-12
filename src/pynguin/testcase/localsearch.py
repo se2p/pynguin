@@ -17,6 +17,7 @@ from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
+from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
@@ -61,8 +62,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             statement = chromosome.test_case.statements[i]
             probability = 0.5
             if 1 > probability: # TODO: CHANGE PROBABILITY
-                agent = LLMAgent()
-                agent.local_search_call(i,unparse_test_case(statement.test_case))
+                llm_local_search = LLMLocalSearch(chromosome, objective)
+                llm_local_search.llm_local_search(i)
             else:
                 local_search_statement = StatementLocalSearch.choose_local_search_statement(
                     chromosome, i, objective, factory
