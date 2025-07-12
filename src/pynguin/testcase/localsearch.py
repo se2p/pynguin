@@ -20,6 +20,7 @@ from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.variablereference import VariableReference
 from pynguin.utils import randomness
 
 
@@ -85,9 +86,40 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             self._logger.debug("Local search statement found for the statement %s", statement)
             local_search_statement.search()
 
-    def _search_other_datatype(self):
-        # TODO: Implement me!
-        pass
+    def _search_other_datatype(
+        self,
+        chromosome: TestCaseChromosome,
+        factory: TestFactory,
+        objective: LocalSearchObjective,
+        position,
+    ) -> None:
+        statement = chromosome.test_case.statements[position]
+        memo: dict[VariableReference, VariableReference] = {}
+        old_statement = statement.clone(chromosome.test_case, memo)
+        last_execution_result = chromosome.get_last_execution_result()
+
+        counter = 0
+        found = False
+        while (
+            not found
+            and counter < config.LocalSearchConfiguration.max_other_type_mutation
+            and not LocalSearchTimer.get_instance().limit_reached()
+        ):
+            # TODO: Search other type
+
+            if objective.has_improved(chromosome):
+                self._logger.debug("Local search has found another possible datatype")
+                found = True
+            counter += 1
+
+        if not found:
+            self._logger.debug(
+                "Local search did not find another possible datatype, reverting to old one"
+            )
+            chromosome.test_case.statements[position] = old_statement
+            chromosome.set_last_execution_result(last_execution_result)
+        else:
+            self._search_same_datatype(chromosome, factory, objective, position)
 
     def _search_llm(self):
         # TODO: Implement me!

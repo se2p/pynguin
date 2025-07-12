@@ -782,6 +782,9 @@ class LocalSearchConfiguration:
     """The number of mutations made to a parametrized statement call to determine if it's worth to
     further do local search"""
 
+    max_other_type_mutation: int = 30
+    """The max number of searches for other datatypes"""
+
 
 @dataclasses.dataclass
 class Configuration:
