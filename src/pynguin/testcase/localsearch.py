@@ -62,7 +62,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             statement = chromosome.test_case.statements[i]
             probability = 0.5
             if 1 > probability: # TODO: CHANGE PROBABILITY
-                llm_local_search = LLMLocalSearch(chromosome, objective)
+                llm_local_search = LLMLocalSearch(chromosome, objective, factory)
                 llm_local_search.llm_local_search(i)
             else:
                 local_search_statement = StatementLocalSearch.choose_local_search_statement(
@@ -123,7 +123,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
                 key,
                 value,
             ) in (
-                test_case.get_last_execution_result().execution_trace.executed_predicates.items()  # type: ignore[union-attr]
+                test_case.get_last_execution_result().execution_trace.executed_predicates.items()
             ):
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case

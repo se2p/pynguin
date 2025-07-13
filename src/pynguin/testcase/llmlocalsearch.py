@@ -7,11 +7,14 @@
 """Gives access to local search with LLMs"""
 import logging
 
+from pynguin.analyses.module import TestCluster
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
+from pynguin.testcase.testfactory import TestFactory
 from pynguin.testcase.variablereference import VariableReference
+from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 from pynguin.utils.mirror import Mirror
 from tests.utils.stats.test_searchstatistics import chromosome
 
@@ -21,7 +24,8 @@ class LLMLocalSearch:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, chromosome: TestCaseChromosome, objective: LocalSearchObjective):
+    def __init__(self, chromosome: TestCaseChromosome, objective: LocalSearchObjective,
+                 factory: TestFactory ):
         """Initializes the class
 
         Args:
@@ -30,6 +34,7 @@ class LLMLocalSearch:
         """
         self.chromosome = chromosome
         self.objective = objective
+        self.factory = factory
 
     def llm_local_search(self, position):
         """Starts local search using LLMs for the statement at the position.
@@ -46,10 +51,20 @@ class LLMLocalSearch:
         output = agent.local_search_call(position=position, test_case_source_code=unparse_test_case(
             self.chromosome.test_case))
         self._logger.debug(output)
-        #TODO:PARSE INPUT
 
-        if self.objective.has_improved(self.chromosome):
+        test_cases = agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(output,
+            self.chromosome.test_case.test_cluster, self.factory, self.chromosome.get_fitness_functions(),
+            self.chromosome.get_coverage_functions())
+
+        if len(test_cases) == 1:
+            test_case = test_cases[0]
+        else:
+            self._logger.debug("Wrong number of testcases parsed, only needed one")
+            return
+
+        if self.objective.has_improved(test_case):
             self._logger.debug("The llm request has improved the fitness of the test case")
+            self.chromosome = test_case
         else:
             self.chromosome.test_case.statements[position] = old_statement
             self.chromosome.set_last_execution_result(last_execution_result)
