@@ -20,6 +20,7 @@ from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.variablereference import VariableReference
 from pynguin.utils import randomness
 
@@ -64,7 +65,9 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                     lambda: self._search_same_datatype(chromosome, factory, objective, i)
                 )
             if config.LocalSearchConfiguration.local_search_other_datatype:
-                methods.append(self._search_other_datatype())
+                methods.append(
+                    lambda: self._search_other_datatype(chromosome, factory, objective, i)
+                )
             if config.LocalSearchConfiguration.local_search_llm:
                 methods.append(self._search_llm())
             if methods:
@@ -78,6 +81,10 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         position,
     ):
         statement = chromosome.test_case.statements[position]
+        #Randomize value because it's likely to be at a local optima
+        if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
+            statement.randomize_value()
+
         local_search_statement = StatementLocalSearch.choose_local_search_statement(
             chromosome, position, objective, factory
         )
@@ -85,6 +92,9 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         if local_search_statement is not None:
             self._logger.debug("Local search statement found for the statement %s", statement)
             local_search_statement.search()
+            statement = chromosome.test_case.statements[position]
+            if isinstance(statement, PrimitiveStatement):
+                statement.local_search_applied = True
 
     def _search_other_datatype(
         self,

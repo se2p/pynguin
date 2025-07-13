@@ -641,3 +641,45 @@ def test_class_statement_delta(default_test_case):
     statement = stmt.ClassPrimitiveStatement(default_test_case, 0)
     statement.delta()
     assert statement.value != 0
+
+
+def test_local_search_applied(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
+    assert not statement.local_search_applied
+
+
+def test_set_local_search_applied(default_test_case):
+    statement = stmt.IntPrimitiveStatement(default_test_case, 0)
+    assert not statement.local_search_applied
+    statement.local_search_applied = True
+    assert statement.local_search_applied
+    statement.local_search_applied = False
+    assert not statement.local_search_applied
+
+@pytest.mark.parametrize(
+    "statement_type,value",
+    [
+        (stmt.IntPrimitiveStatement, 17),
+        (stmt.FloatPrimitiveStatement, 3.45),
+        (stmt.StringPrimitiveStatement, "Hello"),
+        (stmt.BytesPrimitiveStatement, b"test"),
+        (stmt.BooleanPrimitiveStatement, True),
+        (stmt.ComplexPrimitiveStatement, 2 + 5j),
+        (stmt.ClassPrimitiveStatement, 0),
+        (stmt.UIntPrimitiveStatement, 42)
+    ],
+)
+def test_clone_local_search_applied(default_test_case, statement_type,value):
+    statement = statement_type(default_test_case, value)
+    statement.local_search_applied = True
+    clone = statement.clone(default_test_case, {})
+    assert clone.local_search_applied
+
+
+
+def test_clone_local_search_applied_enum(default_test_case):
+    enum_ = MagicMock(names=["TEST"])
+    statement = stmt.EnumPrimitiveStatement(default_test_case, enum_)
+    statement.local_search_applied = True
+    clone = statement.clone(default_test_case, {})
+    assert clone.local_search_applied

@@ -1656,6 +1656,7 @@ class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
         variable_type: ProperType,
         value: T | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         """Initializes a primitive statement.
 
@@ -1664,8 +1665,10 @@ class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
             variable_type: The type of the value
             value: The value
             constant_provider: The provider for seeded constants
+            local_search_applied: Whether local search has been applied
         """
         super().__init__(test_case, vr.VariableReference(test_case, variable_type))
+        self._local_search_applied: bool = local_search_applied
         self._value = value
         self._constant_provider: constants.ConstantProvider | None = constant_provider
         if value is None:
@@ -1735,6 +1738,22 @@ class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
     ) -> int:
         return hash((self.ret_val.structural_hash(memo), hash(self._value)))
 
+    @property
+    def local_search_applied(self) -> bool:
+        """Gives back if local search has already been applied.
+
+        If local search has been applied, it is likely that this statement is currently at a
+        local optima.
+
+        Returns:
+            Gives back `True` if local search has been applied.
+        """
+        return self._local_search_applied
+
+    @local_search_applied.setter
+    def local_search_applied(self, applied: bool) -> None:
+        self._local_search_applied = applied
+
 
 class IntPrimitiveStatement(PrimitiveStatement[int]):
     """Primitive Statement that creates an int."""
@@ -1744,12 +1763,14 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         value: int | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(int)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -1778,7 +1799,10 @@ class IntPrimitiveStatement(PrimitiveStatement[int]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> IntPrimitiveStatement:
         return IntPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -1799,12 +1823,14 @@ class UIntPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         value: int | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(int)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -1838,7 +1864,10 @@ class UIntPrimitiveStatement(PrimitiveStatement[int]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> UIntPrimitiveStatement:
         return UIntPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -1859,12 +1888,14 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         test_case: tc.TestCase,
         value: float | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(float)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -1896,7 +1927,10 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> FloatPrimitiveStatement:
         return FloatPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -1917,12 +1951,14 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
         test_case: tc.TestCase,
         value: complex | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(complex)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -1981,7 +2017,10 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> ComplexPrimitiveStatement:
         return ComplexPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -2002,12 +2041,14 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         test_case: tc.TestCase,
         value: str | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(str)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -2071,7 +2112,10 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> StringPrimitiveStatement:
         return StringPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -2092,12 +2136,14 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         test_case: tc.TestCase,
         value: bytes | None = None,
         constant_provider: constants.ConstantProvider | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(bytes)),
             value,
             constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -2161,7 +2207,10 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> BytesPrimitiveStatement:
         return BytesPrimitiveStatement(
-            test_case, self._value, constant_provider=self._constant_provider
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
         )
 
     def __repr__(self) -> str:
@@ -2181,17 +2230,20 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
         self,
         test_case: tc.TestCase,
         value: bool | None = None,  # noqa: FBT001
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ) -> None:
         """Initializes a primitive statement for a boolean.
 
         Args:
             test_case: The test case this statement belongs to
             value: The boolean value
+            local_search_applied: Wheter local search has been applied
         """
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(bool)),
             value,
+            local_search_applied=local_search_applied,
         )
 
     def randomize_value(self) -> None:  # noqa: D102
@@ -2206,7 +2258,7 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> BooleanPrimitiveStatement:
-        return BooleanPrimitiveStatement(test_case, self._value)
+        return BooleanPrimitiveStatement(test_case, self._value, local_search_applied=self.local_search_applied)
 
     def __repr__(self) -> str:
         return f"BooleanPrimitiveStatement({self._test_case}, {self._value})"
@@ -2229,6 +2281,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         generic_enum: gao.GenericEnum,
         value: int | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
     ):
         """Initializes an enum statement.
 
@@ -2236,9 +2289,15 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
             test_case: The test case the statement belongs to
             generic_enum: The enum
             value: The value
+            local_search_applied: Wheter local search has been applied
         """
         self._generic_enum = generic_enum
-        super().__init__(test_case, generic_enum.generated_type(), value)
+        super().__init__(
+            test_case,
+            generic_enum.generated_type(),
+            value,
+            local_search_applied=local_search_applied,
+        )
 
     def accessible_object(self) -> gao.GenericEnum:  # noqa: D102
         return self._generic_enum
@@ -2266,7 +2325,12 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> EnumPrimitiveStatement:
-        return EnumPrimitiveStatement(test_case, self._generic_enum, value=self.value)
+        return EnumPrimitiveStatement(
+            test_case,
+            self._generic_enum,
+            value=self.value,
+            local_search_applied=self.local_search_applied,
+        )
 
     def __repr__(self) -> str:
         return f"EnumPrimitiveStatement({self._test_case}, {self._value})"
@@ -2297,13 +2361,19 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
 class ClassPrimitiveStatement(PrimitiveStatement[int]):
     """Primitive Statement that references a class."""
 
-    def __init__(self, test_case: tc.TestCase, value: int | None = None):  # noqa: D107
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        value: int | None = None,
+        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+    ):
         # TODO(fk) think about type being generic/bound, e.g., type[Foo]
         # We store the index in the global class list here.
         super().__init__(
             test_case,
             Instance(test_case.test_cluster.type_system.to_type_info(type)),
             value,
+            local_search_applied=local_search_applied,
         )
 
     @property
@@ -2332,7 +2402,9 @@ class ClassPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> ClassPrimitiveStatement:
-        return ClassPrimitiveStatement(test_case, value=self.value)
+        return ClassPrimitiveStatement(
+            test_case, value=self.value, local_search_applied=self.local_search_applied
+        )
 
     def __repr__(self) -> str:
         return f"EnumPrimitiveStatement({self._test_case}, {self._value})"
