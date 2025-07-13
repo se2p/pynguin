@@ -138,6 +138,10 @@ def _setup_logging(
     if verbosity >= 2:
         level = logging.DEBUG
 
+    # Logging may only be set up once. Remove other libraries' handlers to setup logging in Pynguin.
+    for other_handler in logging.root.handlers[:]:
+        logging.root.removeHandler(other_handler)
+
     console = None
     handler: logging.Handler
     if no_rich:
