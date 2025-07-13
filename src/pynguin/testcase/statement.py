@@ -2258,7 +2258,9 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> BooleanPrimitiveStatement:
-        return BooleanPrimitiveStatement(test_case, self._value, local_search_applied=self.local_search_applied)
+        return BooleanPrimitiveStatement(
+            test_case, self._value, local_search_applied=self.local_search_applied
+        )
 
     def __repr__(self) -> str:
         return f"BooleanPrimitiveStatement({self._test_case}, {self._value})"

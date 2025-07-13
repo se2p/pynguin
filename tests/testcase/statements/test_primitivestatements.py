@@ -656,6 +656,7 @@ def test_set_local_search_applied(default_test_case):
     statement.local_search_applied = False
     assert not statement.local_search_applied
 
+
 @pytest.mark.parametrize(
     "statement_type,value",
     [
@@ -666,15 +667,14 @@ def test_set_local_search_applied(default_test_case):
         (stmt.BooleanPrimitiveStatement, True),
         (stmt.ComplexPrimitiveStatement, 2 + 5j),
         (stmt.ClassPrimitiveStatement, 0),
-        (stmt.UIntPrimitiveStatement, 42)
+        (stmt.UIntPrimitiveStatement, 42),
     ],
 )
-def test_clone_local_search_applied(default_test_case, statement_type,value):
+def test_clone_local_search_applied(default_test_case, statement_type, value):
     statement = statement_type(default_test_case, value)
     statement.local_search_applied = True
     clone = statement.clone(default_test_case, {})
     assert clone.local_search_applied
-
 
 
 def test_clone_local_search_applied_enum(default_test_case):

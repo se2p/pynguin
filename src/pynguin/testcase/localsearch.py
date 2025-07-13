@@ -81,7 +81,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         position,
     ):
         statement = chromosome.test_case.statements[position]
-        #Randomize value because it's likely to be at a local optima
+        # Randomize value because it's likely to be at a local optima
         if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
             statement.randomize_value()
 
