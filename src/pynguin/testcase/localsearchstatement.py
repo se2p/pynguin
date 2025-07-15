@@ -81,31 +81,30 @@ class StatementLocalSearch(abc.ABC):
         if isinstance(statement, NoneStatement):
             logger.debug("None local search statement found")
             # return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
-        elif isinstance(statement, EnumPrimitiveStatement):
+        if isinstance(statement, EnumPrimitiveStatement):
             logger.debug("Statement is enum %r", statement.value)
-            # return EnumLocalSearch(chromosome, position, objective)
-        elif isinstance(statement, PrimitiveStatement):
+            return EnumLocalSearch(chromosome, position, objective)
+        if isinstance(statement, PrimitiveStatement):
             primitive_type = statement.value
             if isinstance(primitive_type, bool):
                 logger.debug("Primitive type is bool %s", primitive_type)
-                # return BooleanLocalSearch(chromosome, position, objective)
-            elif isinstance(primitive_type, int):
+                return BooleanLocalSearch(chromosome, position, objective)
+            if isinstance(primitive_type, int):
                 logger.debug("Primitive type is int %d", primitive_type)
-                # return IntegerLocalSearch(chromosome, position, objective)
-            elif isinstance(primitive_type, str):
+                return IntegerLocalSearch(chromosome, position, objective)
+            if isinstance(primitive_type, str):
                 logger.debug("Primitive type is string %s", primitive_type)
-                # return StringLocalSearch(chromosome, position, objective)
-            elif isinstance(primitive_type, float):
+                return StringLocalSearch(chromosome, position, objective)
+            if isinstance(primitive_type, float):
                 logger.debug("Primitive type is float %f", primitive_type)
-                # return FloatLocalSearch(chromosome, position, objective)
-            elif isinstance(primitive_type, complex):
+                return FloatLocalSearch(chromosome, position, objective)
+            if isinstance(primitive_type, complex):
                 logger.debug("Primitive type is complex %s", primitive_type)
-                # return ComplexLocalSearch(chromosome, position, objective)
-            elif isinstance(primitive_type, bytes):
+                return ComplexLocalSearch(chromosome, position, objective)
+            if isinstance(primitive_type, bytes):
                 logger.debug("Primitive type is bytes %s", primitive_type)
-                # return BytesLocalSearch(chromosome, position, objective)
-            else:
-                logger.debug("Unknown primitive type: %s", primitive_type)
+                return BytesLocalSearch(chromosome, position, objective)
+            logger.debug("Unknown primitive type: %s", primitive_type)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)

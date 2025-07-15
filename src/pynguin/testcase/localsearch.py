@@ -14,6 +14,7 @@ from abc import ABC
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
@@ -23,6 +24,7 @@ from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.variablereference import VariableReference
 from pynguin.utils import randomness
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
@@ -60,6 +62,11 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
             methods: list = []
+            old_stat = stat.output_variables.get(RuntimeVariable.LocalSearchTotalStatements.name)
+            stat.set_output_variable_for_runtime_variable(
+                RuntimeVariable.LocalSearchTotalStatements,
+                old_stat.value + 1 if old_stat is not None else 0,
+            )
             if config.LocalSearchConfiguration.local_search_same_datatype:
                 methods.append(
                     lambda: self._search_same_datatype(chromosome, factory, objective, i)
@@ -72,6 +79,10 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                 methods.append(self._search_llm())
             if methods:
                 randomness.choice(methods)()
+            else:
+                self._logger.debug(
+                    "No local search method is activated, despite general local search is activated"
+                )
 
     def _search_same_datatype(
         self,
@@ -115,9 +126,9 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             and counter < config.LocalSearchConfiguration.max_other_type_mutation
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
-            # TODO: Search other type
-
-            if objective.has_improved(chromosome):
+            if factory.change_statement(chromosome.test_case, position) and objective.has_improved(
+                chromosome
+            ):
                 self._logger.debug("Local search has found another possible datatype")
                 found = True
             counter += 1

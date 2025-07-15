@@ -230,5 +230,11 @@ class RuntimeVariable(str, enum.Enum):
     # Whether the subprocess mode was used or not
     SubprocessMode = "SubprocessMode"
 
+    # Total number of statements searched with local search
+    LocalSearchTotalStatements = "LocalSearchTotalStatements"
+
+    # Total number of mutations made with local search of all statements mutated.
+    LocalSearchTotalMutations = "LocalSearchTotalMutations"
+
     def __repr__(self):
         return f"{self.name}"

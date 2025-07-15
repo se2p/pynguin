@@ -11,6 +11,10 @@ import logging
 
 from typing import TYPE_CHECKING
 
+import pynguin.utils.statistics.stats as stat
+
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 if TYPE_CHECKING:
     from pynguin.ga.computations import CoverageFunction
@@ -79,6 +83,11 @@ class LocalSearchObjective:
         for fitness_function in self._fitness_functions:
             fitness_function.compute_fitness(self._test_suite)
         new_fitness = self._test_suite.get_fitness()
+        old_mut = stat.output_variables.get(RuntimeVariable.LocalSearchTotalMutations.name)
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.LocalSearchTotalMutations,
+            old_mut.value + 1 if old_mut is not None else 0,
+        )
 
         if (
             new_fitness > self._old_fitness

@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.utils.generic.genericaccessibleobject import GenericField
     from pynguin.utils.orderedset import OrderedSet
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -865,7 +864,6 @@ class TestFactory:  # noqa: PLR0904
         signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
         calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
         calls.remove(statement.accessible_object())
-        possible_fields: list[GenericField] = []
         possible_fields = [cast("gao.GenericField", call) for call in calls if call.is_field()]
         if len(possible_fields) == 0:
             self._logger.debug("No other possible field calls available")
@@ -874,6 +872,19 @@ class TestFactory:  # noqa: PLR0904
         replacement = stmt.FieldStatement(test_case, field, statement.source)
         self._logger.debug("Replaced the old field %r with %r", statement.field, replacement.field)
         test_case.set_statement(replacement, position)
+        return True
+
+    def change_statement(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replaces the statement at the given position with another statement of a different
+        type.
+        """
+        statement = test_case.get_statement(position)
+
+        self.satisfy_parameters()
+
+        type: ProperType
+        if self._attempt_generation(test_case, type, position, 0, allow_none=True) is None:
+            return False
         return True
 
     @staticmethod
