@@ -17,6 +17,7 @@ from typing import TypeVar
 
 
 if TYPE_CHECKING:
+    from collections.abc import MutableSequence
     from collections.abc import Sequence
 
 
@@ -190,3 +191,12 @@ def next_bytes(length: int) -> bytes:
         Random bytes of given length.
     """
     return bytes(next_byte() for _ in range(length))
+
+
+def shuffle(sequence: MutableSequence[_T]) -> None:
+    """Shuffles the sequence in place.
+
+    Args:
+        sequence: The sequence to be shuffled.
+    """
+    return RNG.shuffle(sequence)

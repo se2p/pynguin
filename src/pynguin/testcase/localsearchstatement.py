@@ -80,7 +80,7 @@ class StatementLocalSearch(abc.ABC):
         logger.debug("Choose local search statement from statement")
         if isinstance(statement, NoneStatement):
             logger.debug("None local search statement found")
-            # return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
         if isinstance(statement, EnumPrimitiveStatement):
             logger.debug("Statement is enum %r", statement.value)
             return EnumLocalSearch(chromosome, position, objective)
@@ -105,13 +105,15 @@ class StatementLocalSearch(abc.ABC):
                 logger.debug("Primitive type is bytes %s", primitive_type)
                 return BytesLocalSearch(chromosome, position, objective)
             logger.debug("Unknown primitive type: %s", primitive_type)
+        elif isinstance(statement, NonDictCollection):
+            logger.debug("%s non-dict collection found", statement.__class__.__name__)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)
             | isinstance(statement, MethodStatement)
         ):
             logger.debug("%s statement found", statement.__class__.__name__)
-            # return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
         elif isinstance(statement, FieldStatement):
             logger.debug("%s statement found", statement.__class__.__name__)
             return FieldStatementLocalSearch(chromosome, position, objective)
@@ -789,7 +791,6 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             return False
         parameter = randomness.choice(list(params))
         types = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
-        types.remove(statement.ret_val)
         if len(types) == 0:
             self._logger.debug(
                 "No other possible calls found for datatype %r", statement.ret_val.type
@@ -808,7 +809,6 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         # Check if callee or params should be replaced
         if possible_replacements == randomness.next_int(1, possible_replacements + 1):
             types = self._chromosome.test_case.get_objects(statement.callee.type, self._position)
-            types.remove(statement.callee)
             if len(types) == 0:
                 self._logger.debug(
                     "No other possible calls found for callee %r", statement.callee.type

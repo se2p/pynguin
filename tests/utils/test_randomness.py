@@ -96,3 +96,10 @@ def test_set_get_seed(seed):
     rng = randomness.Random()
     rng.seed(seed)
     assert rng.get_seed() == seed
+
+
+def test_shuffle():
+    sequence = [1, 2, 3]
+    randomness.shuffle(sequence)
+    assert len(sequence) == 3
+    assert set(sequence) == {1, 2, 3}

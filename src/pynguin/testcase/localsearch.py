@@ -22,14 +22,15 @@ from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import PrimitiveStatement
-from pynguin.testcase.variablereference import VariableReference
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+
 
 
 if TYPE_CHECKING:
     from pynguin.ga.chromosome import Chromosome
     from pynguin.testcase.testfactory import TestFactory
+    from pynguin.testcase.variablereference import VariableReference
 
 
 class LocalSearch(ABC):
@@ -160,7 +161,9 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
         self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome, 0))
 
-        for i in range(0, len(chromosome.test_case_chromosomes), 1):
+        indices = list(range(len(chromosome.test_case_chromosomes)))
+        randomness.shuffle(indices)
+        for i in indices:
             if LocalSearchTimer.get_instance().limit_reached():
                 break
 
