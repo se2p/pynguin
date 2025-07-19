@@ -14,15 +14,19 @@ import threading
 
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
 from collections.abc import Sized
 from dataclasses import dataclass
 from dataclasses import field
+from functools import wraps
 from math import inf
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
+from typing import Concatenate
+from typing import ParamSpec
 
-from bytecode import CellVar
-from bytecode import FreeVar
+from bytecode.instr import CellVar
+from bytecode.instr import FreeVar
 
 import pynguin.assertion.assertion as ass
 import pynguin.instrumentation.instrumentation as instr
@@ -995,6 +999,25 @@ def _isn(val1, val2) -> float:
     return 1.0
 
 
+_P = ParamSpec("_P")
+
+
+def _early_return(
+    func: Callable[Concatenate[ExecutionTracer, _P], None],
+) -> Callable[Concatenate[ExecutionTracer, _P], None]:
+    @wraps(func)
+    def wrapper(self: ExecutionTracer, *args: _P.args, **kwargs: _P.kwargs) -> None:
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+
+        if self.is_disabled():
+            return
+
+        func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     """Tracks branch distances and covered statements during execution.
 
@@ -1102,10 +1125,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self.subject_properties.branch_less_code_objects.add(code_object_id)
         return code_object_id
 
+    @_early_return
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
         assert code_object_id in self.subject_properties.existing_code_objects, (
             "Cannot trace unknown code object"
         )
@@ -1117,15 +1138,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
+    @_early_return
     def executed_compare_predicate(  # noqa: D102, C901
         self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         try:
             self.disable()
             assert predicate in self.subject_properties.existing_predicates, (
@@ -1185,13 +1201,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
+    @_early_return
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         try:
             self.disable()
             assert predicate in self.subject_properties.existing_predicates, (
@@ -1223,13 +1234,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
+    @_early_return
     def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         try:
             self.disable()
             assert predicate in self.subject_properties.existing_predicates, (
@@ -1249,13 +1255,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
+    @_early_return
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.covered_line_ids.add(line_id)
 
     def register_line(  # noqa: D102
@@ -1285,6 +1286,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             predicate=predicate,
         )
 
+    @_early_return
     def track_generic(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1294,16 +1296,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         lineno: int,
         offset: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
+    @_early_return
     def track_memory_access(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1316,12 +1313,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_address: int,
         arg_type: type,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         if not arg and opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have arguments
             raise ValueError("A memory access instruction must have an argument")
         if isinstance(arg, CellVar | FreeVar):
@@ -1352,6 +1343,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             object_creation,
         )
 
+    @_early_return
     def track_attribute_access(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1365,12 +1357,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_address: int,
         arg_type: type,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
         # The address is not recorded in such cases.
@@ -1395,6 +1381,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             mutable_type,
         )
 
+    @_early_return
     def track_jump(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1405,16 +1392,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
         target_id: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
+    @_early_return
     def track_call(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1425,16 +1407,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
         arg: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
+    @_early_return
     def track_return(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1444,25 +1421,14 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         lineno: int,
         offset: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
+    @_early_return
     def register_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         if statement.has_only_exception_assertion():
             trace = self._thread_local_state.trace
             error_call_position = len(trace.executed_instructions) - 1
@@ -1478,15 +1444,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                 )
             )
 
+    @_early_return
     def register_assertion_position(  # noqa: D102
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         exec_instr = self.get_trace().executed_instructions
         pop_jump_if_true_position = len(exec_instr) - 1
         for instruction in reversed(exec_instr):
