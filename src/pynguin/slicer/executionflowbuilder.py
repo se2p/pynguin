@@ -73,7 +73,9 @@ class UniqueInstruction(Instr):
         self.offset = offset
 
         # Additional information from disassembly
-        dis_instr = self.locate_in_disassembly(list(dis.get_instructions(code_meta.code_object)))
+        dis_instr = self.locate_in_disassembly(
+            list(dis.get_instructions(code_meta.original_code_object))
+        )
         self.dis_arg = dis_instr.arg
         self.is_jump_target = dis_instr.is_jump_target
 

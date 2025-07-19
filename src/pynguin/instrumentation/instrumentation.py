@@ -10,18 +10,16 @@ from __future__ import annotations
 
 import builtins
 import enum
-import json
 import logging
 
 from dataclasses import dataclass
 from types import CodeType
 from typing import TYPE_CHECKING
 
-from bytecode import UNSET
-from bytecode import BasicBlock
 from bytecode import Bytecode
 from bytecode import ControlFlowGraph
 from bytecode import Instr
+from bytecode.instr import UNSET
 
 import pynguin.instrumentation.tracer as tr
 import pynguin.utils.opcodes as op
@@ -32,9 +30,9 @@ from pynguin.analyses.controlflow import ControlDependenceGraph
 
 
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow import ProgramGraphNode
+    from bytecode.cfg import BasicBlock
 
-CODE_OBJECT_ID_KEY = "code_object_id"
+    from pynguin.analyses.controlflow import ProgramGraphNode
 
 
 @enum.unique
@@ -64,24 +62,28 @@ class PynguinCompare(enum.IntEnum):
 class CodeObjectMetaData:
     """Stores meta data of a code object."""
 
-    # The raw code object.
+    # The instrumented code object.
     code_object: CodeType
+
+    # The original code object, before instrumentation.
+    original_code_object: CodeType
 
     # Id of the parent code object, if any
     parent_code_object_id: int | None
 
-    # CFG of this Code Object
+    # CFG of this code object
     cfg: CFG
 
-    # copy of the CFG of this code object before the instrumentation worked on it
+    # CFG of the original code object, before instrumentation.
     original_cfg: CFG
 
-    # CDG of this Code Object
+    # CDG of this code object
     cdg: ControlDependenceGraph
 
     def __getstate__(self) -> dict:
         return {
             "code_object": self.code_object,
+            "original_code_object": self.original_code_object,
             "parent_code_object_id": self.parent_code_object_id,
             "cfg": self.cfg,
             "original_cfg": self.original_cfg,
@@ -90,6 +92,7 @@ class CodeObjectMetaData:
 
     def __setstate__(self, state: dict) -> None:
         self.code_object = state["code_object"]
+        self.original_code_object = state["original_code_object"]
         self.parent_code_object_id = state["parent_code_object_id"]
         self.cfg = state["cfg"]
         self.original_cfg = state["original_cfg"]
@@ -258,11 +261,14 @@ class InstrumentationTransformer:
         Returns:
             The instrumented code object of the module
         """
-        for const in module_code.co_consts:
-            if isinstance(const, str) and CODE_OBJECT_ID_KEY in const:
+        subject_properties = self._instrumentation_tracer.get_subject_properties()
+
+        for metadata in subject_properties.existing_code_objects.values():
+            if metadata.code_object is module_code or metadata.original_code_object is module_code:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
                 raise AssertionError("Tried to instrument already instrumented module.")
+
         return self._instrument_code_recursive(module_code)
 
     def _instrument_code_recursive(
@@ -283,26 +289,36 @@ class InstrumentationTransformer:
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
         original_cfg = CFG.from_bytecode(Bytecode.from_code(code))
         cdg = ControlDependenceGraph.compute(cfg)
-        code_object_id = self._instrumentation_tracer.register_code_object(
+        assert cfg.entry_node is not None, "Entry node cannot be None."
+
+        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
+
+        code_object_id = self._instrumentation_tracer.create_code_object_id()
+
+        for adapter in self._instrumentation_adapters:
+            adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
+
+        self._instrument_cfg(cfg, code_object_id)
+
+        instrumented_code = self._instrument_inner_code_objects(
+            cfg.bytecode_cfg().to_code(),
+            code_object_id,
+        )
+
+        self._instrumentation_tracer.register_code_object(
+            code_object_id,
             CodeObjectMetaData(
-                code_object=code,
+                code_object=instrumented_code,
+                original_code_object=code,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
                 original_cfg=original_cfg,
                 cdg=cdg,
-            )
+            ),
         )
-        # Overwrite/Set docstring to carry tagging information, i.e.,
-        # the code object id. Convert to JSON string because I'm not sure where this
-        # value might be used in CPython.
-        cfg.bytecode_cfg().docstring = json.dumps({CODE_OBJECT_ID_KEY: code_object_id})
-        assert cfg.entry_node is not None, "Entry node cannot be None."
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
-        for adapter in self._instrumentation_adapters:
-            adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
-        self._instrument_cfg(cfg, code_object_id)
-        return self._instrument_inner_code_objects(cfg.bytecode_cfg().to_code(), code_object_id)
+
+        return instrumented_code
 
     def _instrument_inner_code_objects(
         self, code: CodeType, parent_code_object_id: int

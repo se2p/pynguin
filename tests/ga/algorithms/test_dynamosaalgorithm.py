@@ -15,6 +15,7 @@ import pynguin.ga.coveragegoals as bg
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
 
 @pytest.fixture
@@ -22,8 +23,9 @@ def subject_properties():
     nested_module = importlib.import_module("tests.fixtures.examples.nested")
 
     tracer = ExecutionTracer()
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
+    adapter = BranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(nested_module.test_me.__code__)
     return tracer.get_subject_properties()
 
@@ -35,8 +37,9 @@ def subject_properties_nested():
             pass
 
     tracer = ExecutionTracer()
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
+    adapter = BranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(testMe.__code__)
     return tracer.get_subject_properties()
 

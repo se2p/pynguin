@@ -60,7 +60,7 @@ def test_default_fitness(trace_mock, subject_properties_mock):
 
 
 def test_fitness_function_diff(trace_mock, subject_properties_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1, 2}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock(), 2: MagicMock()}
     trace_mock.executed_code_objects.add(0)
     assert ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 2.0
 
@@ -118,13 +118,13 @@ def test_branch_coverage_no_branch(subject_properties_mock, trace_mock):
 
 
 def test_branch_coverage_half_code_objects(subject_properties_mock, trace_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock()}
     trace_mock.executed_code_objects.add(0)
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
 def test_branch_coverage_no_code_objects(subject_properties_mock, trace_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock()}
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 

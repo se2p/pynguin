@@ -58,7 +58,7 @@ def comparison_module():
 @pytest.fixture
 def tracer_mock():
     tracer = MagicMock()
-    tracer.register_code_object.side_effect = range(100)
+    tracer.create_code_object_id.side_effect = range(100)
     tracer.register_predicate.side_effect = range(100)
     return tracer
 
@@ -234,8 +234,7 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
 
 
 def test_avoid_duplicate_instrumentation(simple_module):
-    tracer = MagicMock(ExecutionTracer)
-    tracer.register_code_object.return_value = 0
+    tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
     adapter = BranchCoverageInstrumentation(instrumentation_tracer)
     transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
@@ -286,7 +285,8 @@ def test_integrate_branch_distance_instrumentation(
     transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
     assert (
-        len(tracer.get_subject_properties().branch_less_code_objects) == branchless_function_count
+        sum(1 for _ in tracer.get_subject_properties().branch_less_code_objects)
+        == branchless_function_count
     )
     assert len(list(tracer.get_subject_properties().existing_predicates)) == branches_count
 
@@ -477,7 +477,7 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
     assert {0} == tracer.get_subject_properties().existing_code_objects.keys()
-    assert OrderedSet([0]) == tracer.get_subject_properties().branch_less_code_objects
+    assert {0} == set(tracer.get_subject_properties().branch_less_code_objects)
     assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
 
 
@@ -490,7 +490,7 @@ def test_exception_no_match_integrate():
         except ValueError:
             pass  # pragma: no cover
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
     adapter = BranchCoverageInstrumentation(instrumentation_tracer)
     transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)

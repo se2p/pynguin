@@ -713,10 +713,10 @@ def compute_branch_distance_fitness(
     exclude_code = set() if exclude_code is None else exclude_code
 
     # Check if all branch-less code objects were executed.
-    code_objects_missing: float = len(
-        subject_properties.branch_less_code_objects.difference(
-            trace.executed_code_objects, exclude_code
-        )
+    code_objects_missing: float = sum(
+        1.0
+        for code_object_id in subject_properties.branch_less_code_objects
+        if code_object_id not in trace.executed_code_objects and code_object_id not in exclude_code
     )
     assert code_objects_missing >= 0.0, "Amount of non covered code objects cannot be negative"
 
@@ -769,13 +769,9 @@ def compute_branch_distance_fitness_is_covered(
     exclude_code = set() if exclude_code is None else exclude_code
 
     # Check if all branch-less code objects were executed.
-    if (
-        len(
-            subject_properties.branch_less_code_objects.difference(
-                trace.executed_code_objects, exclude_code
-            )
-        )
-        > 0
+    if any(
+        code_object_id not in trace.executed_code_objects and code_object_id not in exclude_code
+        for code_object_id in subject_properties.branch_less_code_objects
     ):
         return False
 
@@ -837,7 +833,7 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     covered = len(
         trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
     )
-    existing = len(subject_properties.branch_less_code_objects)
+    existing = sum(1 for _ in subject_properties.branch_less_code_objects)
 
     # Every predicate creates two branches
     existing += len(subject_properties.existing_predicates) * 2

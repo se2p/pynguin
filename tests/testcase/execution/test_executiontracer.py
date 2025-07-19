@@ -22,17 +22,23 @@ from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701
 from pynguin.utils.orderedset import OrderedSet
 
 
-def test_functions_exists():
+def test_register_function():
     tracer = ExecutionTracer()
-    assert tracer.register_code_object(MagicMock(CodeObjectMetaData)) == 0
-    assert tracer.register_code_object(MagicMock(CodeObjectMetaData)) == 1
+    tracer.register_code_object(0, MagicMock(CodeObjectMetaData))
     assert 0 in tracer.get_subject_properties().existing_code_objects
+
+
+def test_function_already_registered():
+    tracer = ExecutionTracer()
+    tracer.register_code_object(0, MagicMock(CodeObjectMetaData))
+    with pytest.raises(AssertionError):
+        tracer.register_code_object(0, MagicMock(CodeObjectMetaData))
 
 
 def test_entered_function():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_code_object(MagicMock(CodeObjectMetaData))
+    tracer.register_code_object(0, MagicMock(CodeObjectMetaData))
     tracer.executed_code_object(0)
     assert 0 in tracer.get_trace().executed_code_objects
 
@@ -330,7 +336,7 @@ def test_bool_distances(val, true_dist, false_dist):
 def test_init():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_code_object(MagicMock(CodeObjectMetaData))
+    tracer.register_code_object(0, MagicMock(CodeObjectMetaData))
     tracer.executed_code_object(0)
     trace = tracer.get_trace()
     tracer.init_trace()
@@ -395,30 +401,30 @@ def test_lt(val1, val2, result):
 
 def test_default_branchless_code_object():
     tracer = ExecutionTracer()
-    tracer.register_code_object(MagicMock())
-    assert tracer.get_subject_properties().branch_less_code_objects == OrderedSet([0])
+    tracer.register_code_object(0, MagicMock())
+    assert set(tracer.get_subject_properties().branch_less_code_objects) == {0}
 
 
 def test_no_branchless_code_object():
     tracer = ExecutionTracer()
-    tracer.register_code_object(MagicMock())
+    tracer.register_code_object(0, MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert len(tracer.get_subject_properties().branch_less_code_objects) == 0
+    assert sum(1 for _ in tracer.get_subject_properties().branch_less_code_objects) == 0
 
 
 def test_no_branchless_code_object_register_multiple():
     tracer = ExecutionTracer()
-    tracer.register_code_object(MagicMock())
-    tracer.register_code_object(MagicMock())
+    tracer.register_code_object(0, MagicMock())
+    tracer.register_code_object(1, MagicMock())
     tracer.register_predicate(MagicMock(code_object_id=0))
     tracer.register_predicate(MagicMock(code_object_id=0))
-    assert tracer.get_subject_properties().branch_less_code_objects == OrderedSet([1])
+    assert set(tracer.get_subject_properties().branch_less_code_objects) == {1}
 
 
 def test_code_object_executed_other_thread():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_code_object(MagicMock())
+    tracer.register_code_object(0, MagicMock())
 
     def wrapper(*args):
         with pytest.raises(RuntimeError):
@@ -433,8 +439,8 @@ def test_code_object_executed_other_thread():
 def test_bool_predicate_executed_other_thread():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_code_object(MagicMock())
-    tracer.register_code_object(MagicMock(code_object_id=0))
+    tracer.register_code_object(0, MagicMock())
+    tracer.register_code_object(1, MagicMock(code_object_id=0))
 
     def wrapper(*args):
         with pytest.raises(RuntimeError):
@@ -449,8 +455,8 @@ def test_bool_predicate_executed_other_thread():
 def test_compare_predicate_executed_other_thread():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
-    tracer.register_code_object(MagicMock())
-    tracer.register_code_object(MagicMock(code_object_id=0))
+    tracer.register_code_object(0, MagicMock())
+    tracer.register_code_object(1, MagicMock(code_object_id=0))
 
     def wrapper(*args):
         with pytest.raises(RuntimeError):

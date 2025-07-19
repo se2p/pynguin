@@ -15,6 +15,7 @@ import threading
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Callable
+from collections.abc import Iterable
 from collections.abc import Sized
 from dataclasses import dataclass
 from dataclasses import field
@@ -349,19 +350,33 @@ class SubjectProperties:
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: dict[int, instr.CodeObjectMetaData] = field(default_factory=dict)
 
-    # Stores which of the existing code objects do not contain a branch, i.e.,
-    # they do not contain a predicate. Every code object is initially seen as
-    # branch-less until a predicate is registered for it.
-    branch_less_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
-
     # Maps all known ids of predicates to meta information
     existing_predicates: dict[int, instr.PredicateMetaData] = field(default_factory=dict)
 
-    # stores which line id represents which line in which file
+    # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
-    # stores known memory attribute object addresses
+    # Stores known memory attribute object addresses
     object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
+
+    # Get the existing code objects do not contain a branch, i.e.,
+    # they do not contain a predicate. Every code object is initially seen as
+    # branch-less until a predicate is registered for it.
+    @property
+    def branch_less_code_objects(self) -> Iterable[int]:
+        """Get the existing code objects that do not contain a branch.
+
+        Returns:
+            The existing code objects that do not contain a branch.
+        """
+        return (
+            code_object_id
+            for code_object_id in self.existing_code_objects
+            if all(
+                code_object_id != metadata.code_object_id
+                for metadata in self.existing_predicates.values()
+            )
+        )
 
 
 class AbstractExecutionTracer(ABC):  # noqa: PLR0904
@@ -455,15 +470,21 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:
+    def create_code_object_id(self) -> int:
+        """Create a new code object ID.
+
+        Returns:
+            A new code object ID.
+        """
+
+    @abstractmethod
+    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:
         """Declare that a code object exists.
 
         Args:
-            meta: the code objects existing
-
-        Returns:
-            the id of the code object, which can be used to identify the object
+            code_object_id: the id of the code object, which should be used to identify the object
             during instrumentation.
+            meta: the code objects existing
         """
 
     @abstractmethod
@@ -1044,6 +1065,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
         self.init_trace()
         self._current_thread_identifier: int | None = None
+        self._current_code_object_id = 0
 
     @property
     def current_thread_identifier(self) -> int | None:  # noqa: D102
@@ -1073,6 +1095,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             "subject_properties": self.subject_properties,
             "import_trace": self._import_trace,
             "current_thread_identifier": self._current_thread_identifier,
+            "current_code_object_id": self._current_code_object_id,
             "thread_local_state": {
                 "enabled": self._thread_local_state.enabled,
                 "trace": self._thread_local_state.trace,
@@ -1089,6 +1112,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self.subject_properties = state["subject_properties"]
         self._import_trace = state["import_trace"]
         self._current_thread_identifier = state["current_thread_identifier"]
+        self._current_code_object_id = state["current_code_object_id"]
         self._thread_local_state = ExecutionTracer.TracerLocalState()
         self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
         self._thread_local_state.trace = state["thread_local_state"]["trace"]
@@ -1119,11 +1143,17 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._thread_local_state.trace
 
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:  # noqa: D102
-        code_object_id = len(self.subject_properties.existing_code_objects)
+    def create_code_object_id(self) -> int:  # noqa: D102
+        current_code_object_id = self._current_code_object_id
+        self._current_code_object_id += 1
+        return current_code_object_id
+
+    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:  # noqa: D102
+        assert code_object_id not in self.subject_properties.existing_code_objects, (
+            "Code object already registered in existing code objects"
+        )
+
         self.subject_properties.existing_code_objects[code_object_id] = meta
-        self.subject_properties.branch_less_code_objects.add(code_object_id)
-        return code_object_id
 
     @_early_return
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
@@ -1135,7 +1165,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
         predicate_id = len(self.subject_properties.existing_predicates)
         self.subject_properties.existing_predicates[predicate_id] = meta
-        self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
         return predicate_id
 
     @_early_return
@@ -1543,8 +1572,11 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.get_trace()
 
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:  # noqa: D102
-        return self._tracer.register_code_object(meta)
+    def create_code_object_id(self) -> int:  # noqa: D102
+        return self._tracer.create_code_object_id()
+
+    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:  # noqa: D102
+        self._tracer.register_code_object(code_object_id, meta)
 
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
         self._tracer.executed_code_object(code_object_id)
