@@ -490,9 +490,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_bool_predicate",
+                self._instrumentation_tracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -570,9 +568,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_compare_predicate",
+                self._instrumentation_tracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -620,9 +616,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_exception_match",
+                self._instrumentation_tracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -656,9 +650,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_code_object",
+                self._instrumentation_tracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
@@ -733,9 +725,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_bool_predicate",
+                self._instrumentation_tracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", arg=True, lineno=lineno),
@@ -757,9 +747,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "executed_bool_predicate",
+                self._instrumentation_tracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", arg=False, lineno=lineno),
@@ -839,9 +827,7 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_line_visit",
+                self._instrumentation_tracer.track_line_visit.__name__,
                 lineno=lineno,
             ),
             ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
@@ -1048,9 +1034,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_generic",
+                self._instrumentation_tracer.track_generic.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1099,9 +1083,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_memory_access",
+                self._instrumentation_tracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
         ])
@@ -1164,9 +1146,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_attribute_access",
+                self._instrumentation_tracer.track_attribute_access.__name__,
                 lineno=instr.lineno,
             ),
             # A method occupies two slots on top of the stack
@@ -1194,9 +1174,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "attribute_lookup",
+                self._instrumentation_tracer.attribute_lookup.__name__,
                 lineno=instr.lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1275,9 +1253,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_attribute_access",
+                self._instrumentation_tracer.track_attribute_access.__name__,
                 lineno=instr.lineno,
             ),
             # A method occupies two slots on top of the stack
@@ -1338,9 +1314,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_memory_access",
+                self._instrumentation_tracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
         ])
@@ -1389,9 +1363,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_memory_access",
+                self._instrumentation_tracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1441,9 +1413,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_memory_access",
+                self._instrumentation_tracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
         ])
@@ -1500,9 +1470,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_memory_access",
+                self._instrumentation_tracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
         ])
@@ -1555,9 +1523,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 self._instrumentation_tracer,  # type: ignore[arg-type]
                 lineno=instr.lineno,
             ),
-            # references method in the ExecutionTracer by name
-            # to avoid circular import
-            ArtificialInstr("LOAD_METHOD", "track_jump", lineno=instr.lineno),
+            ArtificialInstr(
+                "LOAD_METHOD",
+                self._instrumentation_tracer.track_jump.__name__,
+                lineno=instr.lineno,
+            ),
         ])
 
         # Load arguments
@@ -1600,9 +1570,11 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
                 self._instrumentation_tracer,  # type: ignore[arg-type]
                 lineno=instr.lineno,
             ),
-            # references method in the ExecutionTracer by name
-            # to avoid circular import
-            ArtificialInstr("LOAD_METHOD", "track_call", lineno=instr.lineno),
+            ArtificialInstr(
+                "LOAD_METHOD",
+                self._instrumentation_tracer.track_call.__name__,
+                lineno=instr.lineno,
+            ),
         ])
 
         # Load arguments
@@ -1636,9 +1608,7 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             ),
             ArtificialInstr(
                 "LOAD_METHOD",
-                # references method in the ExecutionTracer by name
-                # to avoid circular import
-                "track_return",
+                self._instrumentation_tracer.track_return.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
