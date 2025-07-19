@@ -1595,7 +1595,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                     " if a timeout occurred.",
                     SUPPORTED_EXIT_CODE_MESSAGES[process.exitcode],
                 )
-                self._minimize_and_safe(test_cases_tuple[0])
+                self._minimize_and_safe(test_cases_tuple[0], process.exitcode)
             else:
                 _LOGGER.error(
                     "Finished process exited with code %s and did not return a result.",
@@ -1638,24 +1638,24 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
         return tuple(executor.execute(test_case) for test_case in test_cases_tuple)
 
-    def _minimize_and_safe(self, test_case: tc.TestCase) -> None:
+    def _minimize_and_safe(self, test_case: tc.TestCase, exit_code: int | None) -> None:
         # Calculate hash before to ensure the same hash for minimized and non-minimized one
         test_case_hash = str(hash(test_case))
         self._safe_crash_test(test_case, hash_str=test_case_hash)
         try:
-            minimized_test_case = self._minimize(test_case)
+            minimized_test_case = self._minimize(test_case, exit_code)
             self._safe_crash_test(minimized_test_case, hash_str=test_case_hash, minimized=True)
         except MinimizationFailureError:
             _LOGGER.warning("Minimized the test case failed. Not storing minimized test case.")
 
-    def _minimize(self, test_case: tc.TestCase) -> tc.TestCase:
+    def _minimize(self, test_case: tc.TestCase, exit_code: int | None) -> tc.TestCase:
         test_case_to_minimize = test_case.clone()
         minimizer = pp.CrashPreservingMinimizationVisitor(self)
         test_case_to_minimize.accept(minimizer)
 
         # Verify that the minimized test case still crashes
-        exit_code = self.execute_with_exit_code(test_case_to_minimize)
-        if exit_code != 0:
+        new_exit_code = self.execute_with_exit_code(test_case_to_minimize)
+        if exit_code == new_exit_code:
             _LOGGER.info(
                 "Minimized crashed test case from %d to %d statements",
                 test_case.size(),
@@ -1663,7 +1663,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
             return test_case_to_minimize
         raise MinimizationFailureError(
-            "Minimizing the test case failed, as it does not cause a crash anymore."
+            "Minimizing the test case failed, as it does not cause the same crash anymore."
         )
 
     @staticmethod
