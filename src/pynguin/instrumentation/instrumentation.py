@@ -201,27 +201,6 @@ class InstrumentationAdapter:
             node.clear()
         return tuple(nodes)
 
-    @staticmethod
-    def map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
-        """Other instrumentations may add artificial instructions.
-
-        Create a mapping that maps original locations to their locations.
-
-        Args:
-            basic_block: The block that should be mapped.
-
-        Returns:
-            A mapping from original instructions positions to their new positions.
-        """
-        orig_idx = 0
-        mapping = {}
-        for idx, instr in enumerate(basic_block):
-            if isinstance(instr, ArtificialInstr):
-                continue
-            mapping[orig_idx] = idx
-            orig_idx += 1
-        return mapping
-
 
 class InstrumentationTransformer:
     """Applies a given list of instrumentation adapters to code objects.
@@ -401,7 +380,7 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         """
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
-        orig_instructions_positions = InstrumentationAdapter.map_instr_positions(basic_block)
+        orig_instructions_positions = self._map_instr_positions(basic_block)
         maybe_compare_idx: int | None = orig_instructions_positions.get(
             len(orig_instructions_positions) + self._COMPARE_OP_POS
         )
@@ -424,6 +403,27 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
                 )
             if predicate_id is not None:
                 node.predicate_id = predicate_id
+
+    @staticmethod
+    def _map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
+        """Other instrumentations may add artificial instructions.
+
+        Create a mapping that maps original locations to their locations.
+
+        Args:
+            basic_block: The block that should be mapped.
+
+        Returns:
+            A mapping from original instructions positions to their new positions.
+        """
+        orig_idx = 0
+        mapping = {}
+        for idx, instr in enumerate(basic_block):
+            if isinstance(instr, ArtificialInstr):
+                continue
+            mapping[orig_idx] = idx
+            orig_idx += 1
+        return mapping
 
     def _instrument_cond_jump(
         self,

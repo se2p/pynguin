@@ -25,7 +25,6 @@ from pynguin.instrumentation.instrumentation import ArtificialInstr
 from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
-from pynguin.instrumentation.instrumentation import InstrumentationAdapter
 from pynguin.instrumentation.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
 from pynguin.instrumentation.instrumentation import PynguinCompare
@@ -253,8 +252,8 @@ def test_avoid_duplicate_instrumentation(simple_module):
         ([ArtificialInstr("POP_TOP"), ArtificialInstr("POP_TOP"), MagicMock()], {0: 2}),
     ],
 )
-def test__map_instr_positions(block, expected):
-    assert InstrumentationAdapter.map_instr_positions(block) == expected
+def test_map_instr_positions(block, expected):
+    assert BranchCoverageInstrumentation._map_instr_positions(block) == expected
 
 
 @pytest.mark.parametrize(
