@@ -14,8 +14,8 @@ import pytest
 
 import pynguin.utils.typetracing as tt
 
-from pynguin.instrumentation.injection import CodeObjectMetaData
-from pynguin.instrumentation.injection import PynguinCompare
+from pynguin.instrumentation import CodeObjectMetaData
+from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import _le  # noqa: PLC2701
 from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701

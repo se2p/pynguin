@@ -9,9 +9,10 @@ import pytest
 from pynguin.analyses.controlflow import ControlDependenceGraph
 from pynguin.analyses.controlflow import ControlDependency
 from pynguin.analyses.controlflow import ProgramGraphNode
-from pynguin.instrumentation.injection import BranchCoverageInstrumentation
-from pynguin.instrumentation.injection import InstrumentationTransformer
+from pynguin.instrumentation.injection import InjectionBranchCoverageInstrumentation
+from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from tests.fixtures.programgraph.yield_fun import yield_fun
 
 
@@ -68,8 +69,9 @@ def small_fixture(x, y):  # pragma: no cover
 )
 def test_get_control_dependencies(node, deps):
     tracer = ExecutionTracer()
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
+    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
     cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     assert set(cdg.get_control_dependencies(node)) == deps
@@ -78,8 +80,9 @@ def test_get_control_dependencies(node, deps):
 @pytest.mark.parametrize("node", ["foobar", None])
 def test_get_control_dependencies_asserts(node):
     tracer = ExecutionTracer()
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
+    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
     cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
@@ -88,8 +91,9 @@ def test_get_control_dependencies_asserts(node):
 
 def test_yield_instrumented():
     tracer = ExecutionTracer()
-    adapter = BranchCoverageInstrumentation(tracer)
-    transformer = InstrumentationTransformer(tracer, [adapter])
+    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
+    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(yield_fun.__code__)
     cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     assert cdg

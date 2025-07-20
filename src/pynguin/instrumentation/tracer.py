@@ -30,12 +30,14 @@ from bytecode.instr import CellVar
 from bytecode.instr import FreeVar
 
 import pynguin.assertion.assertion as ass
-import pynguin.instrumentation.injection as instr
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
+from pynguin.instrumentation import CodeObjectMetaData
+from pynguin.instrumentation import PredicateMetaData
+from pynguin.instrumentation import PynguinCompare
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
@@ -348,10 +350,10 @@ class SubjectProperties:
     """Contains properties about the subject under test."""
 
     # Maps all known ids of Code Objects to meta information
-    existing_code_objects: dict[int, instr.CodeObjectMetaData] = field(default_factory=dict)
+    existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
 
     # Maps all known ids of predicates to meta information
-    existing_predicates: dict[int, instr.PredicateMetaData] = field(default_factory=dict)
+    existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
@@ -478,7 +480,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:
+    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:
         """Declare that a code object exists.
 
         Args:
@@ -502,7 +504,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:
+    def register_predicate(self, meta: PredicateMetaData) -> int:
         """Declare that a predicate exists.
 
         Args:
@@ -515,7 +517,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
 
     @abstractmethod
     def executed_compare_predicate(
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         """A predicate that is based on a comparison was executed.
 
@@ -1148,7 +1150,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._current_code_object_id += 1
         return current_code_object_id
 
-    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:  # noqa: D102
+    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:  # noqa: D102
         assert code_object_id not in self.subject_properties.existing_code_objects, (
             "Code object already registered in existing code objects"
         )
@@ -1162,14 +1164,14 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         )
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
+    def register_predicate(self, meta: PredicateMetaData) -> int:  # noqa: D102
         predicate_id = len(self.subject_properties.existing_predicates)
         self.subject_properties.existing_predicates[predicate_id] = meta
         return predicate_id
 
     @_early_return
     def executed_compare_predicate(  # noqa: D102, C901
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         try:
             self.disable()
@@ -1180,46 +1182,46 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             value2 = tt.unwrap(value2)
 
             match cmp_op:
-                case instr.PynguinCompare.EQ:
+                case PynguinCompare.EQ:
                     distance_true, distance_false = _eq(value1, value2), _neq(value1, value2)
-                case instr.PynguinCompare.NE:
+                case PynguinCompare.NE:
                     distance_true, distance_false = _neq(value1, value2), _eq(value1, value2)
-                case instr.PynguinCompare.LT:
+                case PynguinCompare.LT:
                     distance_true, distance_false = (
                         _lt(value1, value2),
                         _le(value2, value1),
                     )
-                case instr.PynguinCompare.LE:
+                case PynguinCompare.LE:
                     distance_true, distance_false = (
                         _le(value1, value2),
                         _lt(value2, value1),
                     )
-                case instr.PynguinCompare.GT:
+                case PynguinCompare.GT:
                     distance_true, distance_false = (
                         _lt(value2, value1),
                         _le(value1, value2),
                     )
-                case instr.PynguinCompare.GE:
+                case PynguinCompare.GE:
                     distance_true, distance_false = (
                         _le(value2, value1),
                         _lt(value1, value2),
                     )
-                case instr.PynguinCompare.IN:
+                case PynguinCompare.IN:
                     distance_true, distance_false = (
                         _in(value1, value2),
                         _nin(value1, value2),
                     )
-                case instr.PynguinCompare.NOT_IN:
+                case PynguinCompare.NOT_IN:
                     distance_true, distance_false = (
                         _nin(value1, value2),
                         _in(value1, value2),
                     )
-                case instr.PynguinCompare.IS:
+                case PynguinCompare.IS:
                     distance_true, distance_false = (
                         _is(value1, value2),
                         _isn(value1, value2),
                     )
-                case instr.PynguinCompare.IS_NOT:
+                case PynguinCompare.IS_NOT:
                     distance_true, distance_false = (
                         _isn(value1, value2),
                         _is(value1, value2),
@@ -1575,17 +1577,17 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def create_code_object_id(self) -> int:  # noqa: D102
         return self._tracer.create_code_object_id()
 
-    def register_code_object(self, code_object_id: int, meta: instr.CodeObjectMetaData) -> None:  # noqa: D102
+    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:  # noqa: D102
         self._tracer.register_code_object(code_object_id, meta)
 
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
         self._tracer.executed_code_object(code_object_id)
 
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
+    def register_predicate(self, meta: PredicateMetaData) -> int:  # noqa: D102
         return self._tracer.register_predicate(meta)
 
     def executed_compare_predicate(  # noqa: D102
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         self._tracer.executed_compare_predicate(value1, value2, predicate, cmp_op)
 

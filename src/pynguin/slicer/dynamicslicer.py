@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from pynguin.analyses.controlflow import CFG
     from pynguin.analyses.controlflow import ControlDependenceGraph
     from pynguin.analyses.controlflow import ProgramGraphNode
-    from pynguin.instrumentation.injection import CodeObjectMetaData
+    from pynguin.instrumentation import CodeObjectMetaData
     from pynguin.instrumentation.tracer import ExecutedAssertion
     from pynguin.instrumentation.tracer import ExecutionTrace
     from pynguin.instrumentation.tracer import SubjectProperties

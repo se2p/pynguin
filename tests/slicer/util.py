@@ -17,8 +17,8 @@ from bytecode import Instr
 
 import pynguin.configuration as config
 
-from pynguin.instrumentation.injection import CheckedCoverageInstrumentation
-from pynguin.instrumentation.injection import InstrumentationTransformer
+from pynguin.instrumentation.injection import InjectionCheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
@@ -99,8 +99,8 @@ def _contains_name_argtype(
 
 def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
     tracer = ExecutionTracer()
-    instrumentation = CheckedCoverageInstrumentation(tracer)
-    instrumentation_transformer = InstrumentationTransformer(tracer, [instrumentation])
+    instrumentation = InjectionCheckedCoverageInstrumentation(tracer)
+    instrumentation_transformer = InjectionInstrumentationTransformer(tracer, [instrumentation])
 
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident

@@ -12,8 +12,8 @@ import pytest
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
 
-from pynguin.instrumentation.injection import BranchCoverageInstrumentation
-from pynguin.instrumentation.injection import InstrumentationTransformer
+from pynguin.instrumentation.injection import InjectionBranchCoverageInstrumentation
+from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
@@ -24,8 +24,8 @@ def subject_properties():
 
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInstrumentation(instrumentation_tracer)
-    transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(nested_module.test_me.__code__)
     return tracer.get_subject_properties()
 
@@ -38,8 +38,8 @@ def subject_properties_nested():
 
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInstrumentation(instrumentation_tracer)
-    transformer = InstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(testMe.__code__)
     return tracer.get_subject_properties()
 

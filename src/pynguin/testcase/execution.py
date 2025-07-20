@@ -40,7 +40,7 @@ import multiprocess.connection as mp_conn
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
-from bytecode import BasicBlock
+from bytecode.cfg import BasicBlock
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
@@ -60,9 +60,9 @@ from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
-from pynguin.instrumentation.injection import ArtificialInstr
-from pynguin.instrumentation.injection import CheckedCoverageInstrumentation
-from pynguin.instrumentation.injection import InstrumentationTransformer
+from pynguin.instrumentation import ArtificialInstr
+from pynguin.instrumentation.injection import InjectionCheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
@@ -1008,8 +1008,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
         instrumentation_tracer = InstrumentationExecutionTracer(self._tracer)
-        checked_instrumentation = CheckedCoverageInstrumentation(instrumentation_tracer)
-        self._checked_transformer = InstrumentationTransformer(
+        checked_instrumentation = InjectionCheckedCoverageInstrumentation(instrumentation_tracer)
+        self._checked_transformer = InjectionInstrumentationTransformer(
             instrumentation_tracer, [checked_instrumentation]
         )
 
