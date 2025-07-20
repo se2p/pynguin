@@ -170,6 +170,11 @@ class InstrumentationTransformer(ABC):
         Returns:
             The instrumented code object of the module
         """
+        self._check_module_not_instrumented(module_code)
+
+        return self._instrument_code_recursive(module_code)
+
+    def _check_module_not_instrumented(self, module_code: CodeType) -> None:
         subject_properties = self._instrumentation_tracer.get_subject_properties()
 
         for metadata in subject_properties.existing_code_objects.values():
@@ -178,29 +183,15 @@ class InstrumentationTransformer(ABC):
                 # instrumented this code object.
                 raise AssertionError("Tried to instrument already instrumented module.")
 
-        return self._instrument_code_recursive(module_code)
-
     def _instrument_code_recursive(
         self,
         code: CodeType,
         parent_code_object_id: int | None = None,
     ) -> CodeType:
-        """Instrument the given Code Object recursively.
-
-        Args:
-            code: The code object that should be instrumented
-            parent_code_object_id: The ID of the optional parent code object
-
-        Returns:
-            The instrumented code object
-        """
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
-        cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        original_cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        cdg = ControlDependenceGraph.compute(cfg)
-        assert cfg.entry_node is not None, "Entry node cannot be None."
 
-        real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        cfg = CFG.from_bytecode(Bytecode.from_code(code))
+        assert cfg.entry_node is not None, "Entry node cannot be None."
 
         code_object_id = self._instrumentation_tracer.create_code_object_id()
 
@@ -208,7 +199,7 @@ class InstrumentationTransformer(ABC):
             code,
             cfg,
             code_object_id,
-            real_entry_node,
+            cfg.get_successors(cfg.entry_node).pop(),  # Only one exists!
         )
 
         self._instrumentation_tracer.register_code_object(
@@ -218,8 +209,8 @@ class InstrumentationTransformer(ABC):
                 original_code_object=code,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
-                original_cfg=original_cfg,
-                cdg=cdg,
+                original_cfg=CFG.from_bytecode(Bytecode.from_code(code)),
+                cdg=ControlDependenceGraph.compute(cfg),
             ),
         )
 
