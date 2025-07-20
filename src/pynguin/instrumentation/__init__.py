@@ -205,6 +205,7 @@ class InstrumentationTransformer(ABC):
         code_object_id = self._instrumentation_tracer.create_code_object_id()
 
         instrumented_code = self._visit_nodes(
+            code,
             cfg,
             code_object_id,
             real_entry_node,
@@ -227,6 +228,7 @@ class InstrumentationTransformer(ABC):
     @abstractmethod
     def _visit_nodes(
         self,
+        code: CodeType,
         cfg: CFG,
         code_object_id: int,
         entry_node: ProgramGraphNode,
@@ -234,6 +236,7 @@ class InstrumentationTransformer(ABC):
         """Visit all nodes in the CFG and instrument them recursively.
 
         Args:
+            code: The code object that should be instrumented
             cfg: The control flow graph of the code object
             code_object_id: The ID of the code object
             entry_node: The entry node of the CFG

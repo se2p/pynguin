@@ -92,6 +92,7 @@ class InjectionInstrumentationTransformer(InstrumentationTransformer):
 
     def _visit_nodes(
         self,
+        code: CodeType,
         cfg: CFG,
         code_object_id: int,
         entry_node: ProgramGraphNode,
