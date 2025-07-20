@@ -34,6 +34,7 @@ from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
 from pynguin.utils.orderedset import OrderedSet
+from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -62,6 +63,7 @@ def tracer_mock():
     return tracer
 
 
+@only_3_10
 def test_entered_function(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -74,6 +76,7 @@ def test_entered_function(simple_module, tracer_mock):
     tracer_mock.executed_code_object.assert_called_once()
 
 
+@only_3_10
 def test_entered_for_loop_no_jump(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -84,6 +87,7 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
     tracer_mock.executed_bool_predicate.assert_called_with(True, 0)  # noqa: FBT003
 
 
+@only_3_10
 def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -94,6 +98,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
     tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
 
 
+@only_3_10
 def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -112,6 +117,7 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     assert tracer_mock.executed_bool_predicate.call_count == 4
 
 
+@only_3_10
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -124,6 +130,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
     tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
 
 
+@only_3_10
 def test_add_bool_predicate(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -136,6 +143,7 @@ def test_add_bool_predicate(simple_module, tracer_mock):
     tracer_mock.executed_bool_predicate.assert_called_once()
 
 
+@only_3_10
 def test_add_cmp_predicate(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -148,6 +156,7 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
+@only_3_10
 def test_transform_for_loop_multi(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -172,6 +181,7 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
     tracer_mock.executed_bool_predicate.assert_has_calls(calls)
 
 
+@only_3_10
 def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -188,6 +198,7 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     )
 
 
+@only_3_10
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -203,6 +214,7 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
     tracer_mock.executed_code_object.assert_has_calls([call(0), call(1)], any_order=True)
 
 
+@only_3_10
 def test_conditional_assignment(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -217,6 +229,7 @@ def test_conditional_assignment(simple_module, tracer_mock):
     tracer_mock.executed_code_object.assert_has_calls([call(0)])
 
 
+@only_3_10
 def test_conditionally_nested_class(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -232,6 +245,7 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
+@only_3_10
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
@@ -256,6 +270,7 @@ def test_map_instr_positions(block, expected):
     assert BranchCoverageInjectionInstrumentation._map_instr_positions(block) == expected
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "function_name, branchless_function_count, branches_count",
     [
@@ -290,6 +305,7 @@ def test_integrate_branch_distance_instrumentation(
     assert len(list(tracer.get_subject_properties().existing_predicates)) == branches_count
 
 
+@only_3_10
 def test_integrate_line_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = simple_module.multi_loop
@@ -311,6 +327,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
     } == tracer.get_subject_properties().existing_lines.keys()
 
 
+@only_3_10
 def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     """Checks if the instructions in the checked coverage are traced correctly.
 
@@ -385,6 +402,7 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
         assert expected_instr.offset == actual_instr.offset
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "op",
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
@@ -402,6 +420,7 @@ def test_comparison(comparison_module, op):
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
+@only_3_10
 def test_exception():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -421,6 +440,7 @@ def test_exception():
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
+@only_3_10
 def test_exception_no_match():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -441,6 +461,7 @@ def test_exception_no_match():
         trace_mock.assert_called_with(RuntimeError, ValueError, 0)
 
 
+@only_3_10
 def test_exception_integrate():
     tracer = ExecutionTracer()
 
@@ -462,6 +483,7 @@ def test_exception_integrate():
     assert tracer.get_trace().false_distances == {0: 1.0}
 
 
+@only_3_10
 def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer = ExecutionTracer()
 
@@ -482,6 +504,7 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
 
 
+@only_3_10
 def test_exception_no_match_integrate():
     tracer = ExecutionTracer()
 
@@ -504,6 +527,7 @@ def test_exception_no_match_integrate():
     assert tracer.get_trace().false_distances == {0: 0.0}
 
 
+@only_3_10
 def test_jump_if_true_or_pop():
     tracer = ExecutionTracer()
 
@@ -525,6 +549,7 @@ def test_jump_if_true_or_pop():
     assert tracer.get_trace().false_distances == {0: 0.0, 1: 0.0}
 
 
+@only_3_10
 def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
@@ -543,6 +568,7 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     ])
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "value1, value2, expected_lines",
     [
@@ -565,6 +591,7 @@ def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2
     assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "value, expected_lines",
     [
@@ -587,6 +614,7 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
     assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
@@ -609,6 +637,7 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
     assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
@@ -631,6 +660,7 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "func,arg,expected_lines",
     [
@@ -684,6 +714,7 @@ def dummy_module():
     return importlib.reload(dummy_module)
 
 
+@only_3_10
 def test_compare_op_int(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -695,6 +726,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(int) == OrderedSet([11, 10])
 
 
+@only_3_10
 def test_compare_op_float(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -706,6 +738,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(float) == OrderedSet([2.5, 1.0])
 
 
+@only_3_10
 def test_compare_op_string(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -717,6 +750,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(str) == OrderedSet(["def", "abc"])
 
 
+@only_3_10
 def test_compare_op_other_type(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -731,6 +765,7 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(str) == OrderedSet(["def"])
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "func_name,inp,tracked,result",
     [
@@ -780,6 +815,7 @@ def test_string_functions(dynamic_instr, func_name, inp, tracked, result):
     assert dynamic.get_all_constants_for(str) == OrderedSet([inp, tracked])
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "func_name,inp1,inp2,tracked,result",
     [

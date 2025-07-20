@@ -28,6 +28,7 @@ from pynguin.utils.report import LineAnnotation
 from pynguin.utils.report import get_coverage_report
 from pynguin.utils.report import render_coverage_report
 from pynguin.utils.report import render_xml_coverage_report
+from tests.utils.version import only_3_10
 
 
 def test_coverage_entry_add():
@@ -227,6 +228,7 @@ def sample_report() -> CoverageReport:
     )
 
 
+@only_3_10
 def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
     target = tmp_path / "foo"
     target.mkdir()
@@ -268,6 +270,7 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
     )
 
 
+@only_3_10
 def test_render_coverage_report(sample_report, tmp_path: Path):
     report_path = tmp_path / "report.html"
     render_coverage_report(

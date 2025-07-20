@@ -15,6 +15,7 @@ import pynguin.utils.opcodes as op
 
 from pynguin.analyses.controlflow import ProgramGraph
 from pynguin.analyses.controlflow import ProgramGraphNode
+from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -154,6 +155,7 @@ def test_predicate_id_set():
     assert node.predicate_id == 1337
 
 
+@only_3_10
 def test_yield_nodes():
     graph = ProgramGraph()
     yield_instr = Instr(name="YIELD_VALUE")
@@ -166,6 +168,7 @@ def test_yield_nodes():
     assert len(yield_nodes) == 1
 
 
+@only_3_10
 def test_yield_nodes_2():
     graph = ProgramGraph()
 

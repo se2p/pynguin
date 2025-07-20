@@ -10,8 +10,10 @@ import threading
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_hook():
     tracer = ExecutionTracer()
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -22,6 +24,7 @@ def test_hook():
         assert module.function(6) == 0
 
 
+@only_3_10
 def test_module_instrumentation_integration():
     """Tests the instrumentation for various function types."""
     tracer = ExecutionTracer()

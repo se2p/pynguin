@@ -11,8 +11,10 @@ from bytecode import Bytecode
 from pynguin.analyses.controlflow import CFG
 from pynguin.analyses.controlflow import DominatorTree
 from tests.fixtures.programgraph.samples import for_loop
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
     control_flow_graph = CFG.from_bytecode(conditional_jump_example_bytecode)
     post_dominator_tree = DominatorTree.compute_post_dominator_tree(control_flow_graph)

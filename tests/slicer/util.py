@@ -7,6 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
+import importlib.util
 import sys
 import threading
 

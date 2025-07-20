@@ -20,8 +20,10 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "module_name,algorithm",
     itertools.product(

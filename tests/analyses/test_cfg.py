@@ -11,8 +11,10 @@ from bytecode import Bytecode
 from pynguin.analyses.controlflow import CFG
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     dot_representation = cfg.dot
@@ -73,6 +75,7 @@ POP_JUMP_IF_FALSE ProgramGraphNode";
     ).decode("unicode_escape")
 
 
+@only_3_10
 def test_integration_reverse_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     reversed_cfg = cfg.reversed()
@@ -144,6 +147,7 @@ def control_flow_labelling(foo):  # pragma: no cover
         print("foo")  # noqa: T201
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "expected",
     [
@@ -304,6 +308,7 @@ def test_all_control_flow(expected):
     )
 
 
+@only_3_10
 def test_integration_copy_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     copied_cfg = cfg.copy()
@@ -315,6 +320,7 @@ def test_integration_no_exit():
         CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
 
 
+@only_3_10
 def test_cfg_from_yield():
     cfg = CFG.from_bytecode(Bytecode.from_code(yield_fun.__code__))
     assert cfg.entry_node is not None

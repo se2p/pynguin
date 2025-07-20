@@ -19,6 +19,7 @@ from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
 from pynguin.utils.configuration_writer import convert_config_to_dict
 from pynguin.utils.configuration_writer import extract_parameter_list_from_config
 from pynguin.utils.configuration_writer import write_configuration
+from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -450,6 +451,7 @@ def test_ignore_callable_and_dunder_methods():
     assert "method" not in converted
 
 
+@only_3_10
 def test_extract_parameter_list_from_config(expected_parameter_list):
     config.configuration.module_name = "dummy"
     config.configuration.project_path = "/tmp"  # noqa: S108

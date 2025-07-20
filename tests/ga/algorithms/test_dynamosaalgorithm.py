@@ -16,6 +16,7 @@ from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumenta
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -44,6 +45,7 @@ def subject_properties_nested():
     return tracer.get_subject_properties()
 
 
+@only_3_10
 def test_fitness_graph_root_branches(subject_properties):
     pool = bg.BranchGoalPool(subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -54,6 +56,7 @@ def test_fitness_graph_root_branches(subject_properties):
     }
 
 
+@only_3_10
 def test_fitness_graph_structural_children(subject_properties):
     pool = bg.BranchGoalPool(subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -67,6 +70,7 @@ def test_fitness_graph_structural_children(subject_properties):
     }
 
 
+@only_3_10
 def test_fitness_graph_no_structural_children(subject_properties):
     pool = bg.BranchGoalPool(subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -77,6 +81,7 @@ def test_fitness_graph_no_structural_children(subject_properties):
     assert {ff.goal for ff in ffgraph.get_structural_children(target)} == set()
 
 
+@only_3_10
 def test_fitness_graph_nested(subject_properties_nested):
     pool = bg.BranchGoalPool(subject_properties_nested)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)

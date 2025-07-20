@@ -14,6 +14,7 @@ from pynguin.instrumentation.injection import InjectionInstrumentationTransforme
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from tests.fixtures.programgraph.yield_fun import yield_fun
+from tests.utils.version import only_3_10
 
 
 def test_integration(small_control_flow_graph):
@@ -47,6 +48,7 @@ def small_fixture(x, y):  # pragma: no cover
     return False
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "node,deps",
     [
@@ -77,6 +79,7 @@ def test_get_control_dependencies(node, deps):
     assert set(cdg.get_control_dependencies(node)) == deps
 
 
+@only_3_10
 @pytest.mark.parametrize("node", ["foobar", None])
 def test_get_control_dependencies_asserts(node):
     tracer = ExecutionTracer()
@@ -89,6 +92,7 @@ def test_get_control_dependencies_asserts(node):
         cdg.get_control_dependencies(node)
 
 
+@only_3_10
 def test_yield_instrumented():
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)

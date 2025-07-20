@@ -14,8 +14,10 @@ import pynguin.testcase.testfactory as tf
 
 from pynguin.analyses import module
 from pynguin.configuration import Minimization
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_pynguinml_integration(tmp_path):
     config.configuration.pynguinml.ml_testing_enabled = True
     importlib.reload(gen)

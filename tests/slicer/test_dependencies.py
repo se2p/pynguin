@@ -16,8 +16,10 @@ from tests.slicer.util import compare
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_data_dependency_1():
     # Implicit data dependency at return, explicit (full cover) for result
     def func() -> int:
@@ -38,6 +40,7 @@ def test_data_dependency_1():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_data_dependency_2():
     # Implicit data dependency at return, explicit (full cover) for result;
     # foo must be excluded
@@ -60,6 +63,7 @@ def test_data_dependency_2():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_data_dependency_3():
     # Transitive explicit (full cover) dependencies
     def func() -> int:
@@ -86,6 +90,7 @@ def test_data_dependency_3():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
     module_block = BasicBlock([
@@ -139,6 +144,7 @@ def test_data_dependency_4():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
     module_block = BasicBlock([
@@ -180,6 +186,7 @@ def test_data_dependency_5():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_simple_control_dependency_1():
     # If condition evaluated to true, with relevant variable foo
     def func() -> int:  # pragma: no cover
@@ -222,6 +229,7 @@ def test_simple_control_dependency_1():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_simple_control_dependency_2():
     # If condition evaluated to false, with two relevant variables (but no influence on result)
     def func() -> int:  # pragma: no cover
@@ -254,6 +262,7 @@ def test_simple_control_dependency_2():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_simple_control_dependency_3():
     # If-elif-else with elif branch true
     def func() -> int:  # pragma: no cover
@@ -314,6 +323,7 @@ def test_simple_control_dependency_3():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_simple_control_dependency_4():
     # If-elif-else with else branch true
     def func() -> int:  # pragma: no cover

@@ -18,8 +18,10 @@ from tests.slicer.util import compare
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 def test_simple_loop():
     def func():
         result = 0
@@ -69,6 +71,7 @@ def test_simple_loop():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_call_without_arguments():
     module_block = BasicBlock([
         # def callee():
@@ -96,6 +99,7 @@ def test_call_without_arguments():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_call_with_arguments():
     # Call with two arguments, one of which is used in the callee
 
@@ -142,6 +146,7 @@ def test_call_with_arguments():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_generators():
     # YIELD_VALUE and YIELD_FROM
     abc_generator = BasicBlock([
@@ -238,6 +243,7 @@ def test_generators():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_with_extended_arg():
     def func():
         p = [1, 2, 3, 4, 5, 6]
@@ -276,6 +282,7 @@ def test_with_extended_arg():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_nested_class():
     def func():
         # STORE_DEREF, LOAD_CLOSURE, LOAD_CLASSDEREF
@@ -333,6 +340,7 @@ def test_nested_class():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_nested_class_2():
     # Critical test to ensure that the attributes converted to variables
     # are taken from the correct scope.
@@ -436,6 +444,7 @@ def test_nested_class_2():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_lambda():
     def func():
         x = lambda a: a + 10  # noqa: E731
@@ -475,6 +484,7 @@ def test_lambda():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_builtin_addresses():
     def func():
         test_dict = {1: "one", 2: "two"}
@@ -511,6 +521,7 @@ def test_builtin_addresses():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_data_dependency_immutable_attribute():
     # Explicit attribute dependency of immutable type
     module_block = BasicBlock([
@@ -547,6 +558,7 @@ def test_data_dependency_immutable_attribute():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_object_modification_call():
     def func():
         class NestedClass:
@@ -637,6 +649,7 @@ def test_object_modification_call():
     assert compare(sliced_instructions, expected_instructions)
 
 
+@only_3_10
 def test_closures():
     # Closure function
 

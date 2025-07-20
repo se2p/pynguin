@@ -20,12 +20,14 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
+from tests.utils.version import only_3_10
 
 
 # TODO(fk) move those tests to run externally over night?
 # As suggested in #59
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "module_name, algorithm",
     itertools.product(
@@ -79,6 +81,7 @@ def test_integrate_algorithms(module_name: str, algorithm):
         assert test_cases.size() >= 0
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "module_name",
     [

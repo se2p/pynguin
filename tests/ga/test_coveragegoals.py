@@ -33,6 +33,7 @@ from pynguin.instrumentation.tracer import LineMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import TestCaseExecutor
+from tests.utils.version import only_3_10
 
 
 if TYPE_CHECKING:
@@ -186,6 +187,7 @@ def test_compute_fitness_values_mocked(subject_properties_mock, executor_mock, t
         run_suite_mock.assert_called_with(indiv)
 
 
+@only_3_10
 def test_compute_fitness_values_no_branches():
     module_name = "tests.fixtures.branchcoverage.nobranches"
     tracer = ExecutionTracer()
@@ -260,6 +262,7 @@ def _get_test_for_simple_nesting_outer_branch_covered(
     return tcc.TestCaseChromosome(test_case=test_case)
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "chrom_factory, expected_fitness",
     [
@@ -293,6 +296,7 @@ def test_fitness_simple_nesting(
         assert fitness == pytest.approx(expected_fitness)
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "module_name, expected_fitness, test_case",
     [
@@ -380,6 +384,7 @@ def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
     return tcc.TestCaseChromosome(test_case=test_case)
 
 
+@only_3_10
 def test_compute_fitness_values_statement_coverage_empty():
     module_name = "tests.fixtures.linecoverage.emptyfile"
     tracer = ExecutionTracer()
@@ -425,6 +430,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     assert fitness == 8
 
 
+@only_3_10
 def test_compute_fitness_values_statement_coverage_non_empty_file(
     executor_mock, trace_mock, plus_test_with_object_assertion
 ):

@@ -31,6 +31,7 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import MethodStatement
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from tests.fixtures.linecoverage.setter_getter import SetterGetter
+from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -53,6 +54,7 @@ def plus_three_test():
     return transformer.testcases[0]
 
 
+@only_3_10
 def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
     module_name = "tests.fixtures.linecoverage.plus"
     test_suite = tsc.TestSuiteChromosome()
@@ -75,6 +77,7 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
         assert ff.compute_coverage(test_suite) == pytest.approx(4 / 8, 0.1, 0.1)
 
 
+@only_3_10
 def test_testcase_statement_checked_coverage_calculation(plus_three_test):
     module_name = "tests.fixtures.linecoverage.plus"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=plus_three_test)
@@ -139,6 +142,7 @@ def setter_test():
     return tc
 
 
+@only_3_10
 def test_only_void_function(setter_test):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_test)
@@ -204,6 +208,7 @@ def getter_setter_test():
     return tc
 
 
+@only_3_10
 def test_getter_before_setter(getter_setter_test):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=getter_setter_test)
@@ -285,6 +290,7 @@ def setter_getter_test():
     return tc
 
 
+@only_3_10
 def test_getter_after_setter(setter_getter_test):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_getter_test)

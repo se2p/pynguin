@@ -18,12 +18,12 @@ from typing import TypeVar
 
 import networkx as nx
 
-from bytecode import UNSET
-from bytecode import BasicBlock
 from bytecode import Bytecode
 from bytecode import Compare
 from bytecode import ControlFlowGraph
 from bytecode import Instr
+from bytecode.cfg import BasicBlock
+from bytecode.instr import UNSET
 
 import pynguin.utils.opcodes as op
 
@@ -139,7 +139,10 @@ class ProgramGraphNode:
         if self._basic_block is not None:
             instructions = []
             for instr in self._basic_block:
-                arg = instr.arg  # type: ignore[union-attr]
+                if not isinstance(instr, Instr):
+                    continue
+
+                arg = instr.arg
                 if isinstance(arg, BasicBlock):
                     # We cannot determine which ProgramGraphNode this is.
                     arg = "ProgramGraphNode"
@@ -270,10 +273,11 @@ class ProgramGraph(Generic[N]):
             The set of yield nodes of the graph
         """
         yield_nodes: set[N] = set()
+        node: N
         for node in self._graph.nodes:
             if node.basic_block:
                 for instr in node.basic_block:
-                    if instr.opcode == op.YIELD_VALUE:
+                    if isinstance(instr, Instr) and instr.opcode == op.YIELD_VALUE:
                         yield_nodes.add(node)
                         # exist the inner loop (over instructions)
                         # the node is already added thus continue with the next node
@@ -632,6 +636,9 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                 # these errors.
                 # If the diameter computation fails for some reason, use an upper bound
                 self._diameter = len(self._graph.edges)
+
+        assert self._diameter is not None
+
         return self._diameter
 
     def __getstate__(self):

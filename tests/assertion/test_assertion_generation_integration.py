@@ -28,8 +28,10 @@ from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransforme
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import TestCaseExecutor
+from tests.utils.version import only_3_10
 
 
+@only_3_10
 @pytest.mark.parametrize(
     "generator,expected_result",
     [
@@ -157,6 +159,7 @@ _MUTANTS = [
 ]
 
 
+@only_3_10
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 @pytest.mark.parametrize(
     "module,test_case_str,test_case_str_with_assertions,mutants,metrics,killed,timeout",
