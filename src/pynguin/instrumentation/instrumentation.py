@@ -141,11 +141,11 @@ class InstrumentationAdapter:
     # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
     #  Or use sub visitors?
 
-    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, node: ProgramGraphNode, code_object_id: int) -> None:
         """Called when we visit the entry node of a code object.
 
         Args:
-            basic_block: The basic block of the entry node.
+            node: The entry node of the control flow graph.
             code_object_id: The code object id of the containing code object.
         """
 
@@ -154,7 +154,6 @@ class InstrumentationAdapter:
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-        basic_block: BasicBlock,
     ) -> None:
         """Called for each non-artificial node, i.e., nodes that have a basic block.
 
@@ -162,7 +161,6 @@ class InstrumentationAdapter:
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
-            basic_block: The basic block associated with the node.
         """
 
 
@@ -235,18 +233,13 @@ class InstrumentationTransformer:
         assert cfg.entry_node is not None, "Entry node cannot be None."
 
         real_entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert real_entry_node.basic_block is not None, "Basic block cannot be None."
 
         code_object_id = self._instrumentation_tracer.create_code_object_id()
 
-        for adapter in self._instrumentation_adapters:
-            adapter.visit_entry_node(real_entry_node.basic_block, code_object_id)
-
-        self._instrument_cfg(cfg, code_object_id)
-
-        instrumented_code = self._instrument_inner_code_objects(
-            cfg.bytecode_cfg().to_code(),
+        instrumented_code = self._visit_nodes(
+            cfg,
             code_object_id,
+            real_entry_node,
         )
 
         self._instrumentation_tracer.register_code_object(
@@ -263,46 +256,47 @@ class InstrumentationTransformer:
 
         return instrumented_code
 
-    def _instrument_inner_code_objects(
-        self, code: CodeType, parent_code_object_id: int
+    def _visit_nodes(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        entry_node: ProgramGraphNode,
     ) -> CodeType:
-        """Apply the instrumentation to all constants of the given code object.
+        for adapter in self._instrumentation_adapters:
+            adapter.visit_entry_node(entry_node, code_object_id)
 
-        Args:
-            code: the Code Object that should be instrumented.
-            parent_code_object_id: the id of the parent code object, if any.
-
-        Returns:
-            the code object whose constants were instrumented.
-        """
-        new_consts = []
-        for const in code.co_consts:
-            if isinstance(const, CodeType):
-                # The const is an inner code object
-                new_consts.append(
-                    self._instrument_code_recursive(
-                        const, parent_code_object_id=parent_code_object_id
-                    )
-                )
-            else:
-                new_consts.append(const)
-        return code.replace(co_consts=tuple(new_consts))
-
-    def _instrument_cfg(self, cfg: CFG, code_object_id: int) -> None:
-        """Instrument the bytecode cfg associated with the given CFG.
-
-        Args:
-            cfg: The CFG that overlays the bytecode cfg.
-            code_object_id: The id of the code object which contains this CFG.
-        """
         for node in cfg.nodes:
             if node.is_artificial:
                 # Artificial nodes don't have a basic block, so we don't need to
                 # instrument anything.
                 continue
-            assert node.basic_block is not None, "Non artificial node does not have a basic block."
+
             for adapter in self._instrumentation_adapters:
-                adapter.visit_node(cfg, code_object_id, node, node.basic_block)
+                adapter.visit_node(cfg, code_object_id, node)
+
+        code = cfg.bytecode_cfg().to_code()
+
+        return code.replace(
+            co_consts=tuple(
+                self._instrument_code_recursive(const, code_object_id)
+                if isinstance(const, CodeType)
+                else const
+                for const in code.co_consts
+            )
+        )
+
+
+def get_basic_block(node: ProgramGraphNode) -> BasicBlock:
+    """Get the basic block of a node.
+
+    Args:
+        node: The node whose basic block should be returned.
+
+    Returns:
+        The basic block of the node.
+    """
+    assert node.basic_block is not None, "Node must have a basic block."
+    return node.basic_block
 
 
 class BranchCoverageInstrumentation(InstrumentationAdapter):
@@ -330,7 +324,6 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-        basic_block: BasicBlock,
     ) -> None:
         """Instrument a single node in the CFG.
 
@@ -340,9 +333,11 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             cfg: The containing CFG.
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
-            basic_block: The basic block of the node that should be instrumented.
         """
+        basic_block = get_basic_block(node)
+
         assert len(basic_block) > 0, "Empty basic block in CFG."
+
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
         orig_instructions_positions = self._map_instr_positions(basic_block)
         maybe_compare_idx: int | None = orig_instructions_positions.get(
@@ -643,18 +638,19 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
         ]
         return predicate_id
 
-    def visit_entry_node(self, basic_block: BasicBlock, code_object_id: int) -> None:
+    def visit_entry_node(self, node: ProgramGraphNode, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block.
 
         The added instructions inform the tracer, that the code object with the given id
         has been entered.
 
         Args:
-            basic_block: The entry basic block of a code object, i.e. the first basic
-                block.
+            node: The entry node of the control flow graph.
             code_object_id: The id that the tracer has assigned to the code object
                 which contains the given basic block.
         """
+        basic_block = get_basic_block(node)
+
         # Use line number of first instruction
         lineno = basic_block[0].lineno  # type: ignore[union-attr]
         # Insert instructions at the beginning.
@@ -794,8 +790,9 @@ class LineCoverageInstrumentation(InstrumentationAdapter):
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-        basic_block: BasicBlock,
     ) -> None:
+        basic_block = get_basic_block(node)
+
         #  iterate over instructions after the fist one in BB,
         #  put new instructions in the block for each line
         file_name = cfg.bytecode_cfg().filename
@@ -875,7 +872,6 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-        basic_block: BasicBlock,
     ) -> None:
         """Instrument a single node in the CFG.
 
@@ -891,8 +887,9 @@ class CheckedCoverageInstrumentation(InstrumentationAdapter):
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
-            basic_block: The basic block associated with the node.
         """
+        basic_block = get_basic_block(node)
+
         assert len(basic_block) > 0, "Empty basic block in CFG."
         offset = node.offset
 
@@ -1768,8 +1765,9 @@ class DynamicSeedingInstrumentation(InstrumentationAdapter):
         cfg: CFG,
         code_object_id: int,
         node: ProgramGraphNode,
-        basic_block: BasicBlock,
     ) -> None:
+        basic_block = get_basic_block(node)
+
         assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_compare: Instr | None = (
             basic_block[self._COMPARE_OP_POS]  # type: ignore[assignment]
