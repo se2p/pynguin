@@ -7,7 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-import importlib.util
+import sys
 import threading
 
 from types import CodeType
@@ -26,7 +26,10 @@ from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
-dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
+if sys.version_info >= (3, 12):
+    dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", "", 0, b"", b"")
+else:
+    dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
 
 
 def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr]):

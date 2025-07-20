@@ -17,6 +17,18 @@ import pytest
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES  # noqa: PLC2701
+from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES  # noqa: PLC2701
+from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES  # noqa: PLC2701
+from pynguin.analyses.typesystem import _DICT_VALUE_FROM_ARGUMENT_TYPES  # noqa: PLC2701
+from pynguin.analyses.typesystem import _LIST_ELEMENT_ATTRIBUTES  # noqa: PLC2701
+from pynguin.analyses.typesystem import (
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES,  # noqa: PLC2701
+)
+from pynguin.analyses.typesystem import _SET_ELEMENT_ATTRIBUTES  # noqa: PLC2701
+from pynguin.analyses.typesystem import (
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES,  # noqa: PLC2701
+)
 from pynguin.analyses.typesystem import UNSUPPORTED
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
@@ -598,8 +610,8 @@ def test_union_single_element():
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_ATTRIBUTES]
-    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_ATTRIBUTES],
+    [(sym, list, list[int]) for sym in _LIST_ELEMENT_ATTRIBUTES]
+    + [(sym, set, set[int]) for sym in _SET_ELEMENT_ATTRIBUTES],
 )
 def test_guess_generic_types_list_set_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -614,7 +626,7 @@ def test_guess_generic_types_list_set_from_elements(inferred_signature, symbol, 
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_ATTRIBUTES],
+    [(sym, dict, dict[int, Any]) for sym in _DICT_KEY_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_key_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -629,7 +641,7 @@ def test_guess_generic_types_dict_key_from_elements(inferred_signature, symbol, 
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES],
+    [(sym, dict, dict[int, Any]) for sym in _DICT_KEY_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_dict_key_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -644,7 +656,7 @@ def test_guess_generic_types_dict_key_from_arguments(inferred_signature, symbol,
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_ATTRIBUTES],
+    [(sym, dict, dict[Any, int]) for sym in _DICT_VALUE_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_value_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -659,7 +671,7 @@ def test_guess_generic_types_dict_value_from_elements(inferred_signature, symbol
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES],
+    [(sym, dict, dict[Any, int]) for sym in _DICT_VALUE_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_dict_value_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -674,8 +686,8 @@ def test_guess_generic_types_dict_value_from_arguments(inferred_signature, symbo
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES]
-    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES],
+    [(sym, list, list[int]) for sym in _LIST_ELEMENT_FROM_ARGUMENT_TYPES]
+    + [(sym, set, set[int]) for sym in _SET_ELEMENT_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_list_set_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
