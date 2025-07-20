@@ -165,42 +165,6 @@ class InstrumentationAdapter:
             basic_block: The basic block associated with the node.
         """
 
-    @staticmethod
-    def _create_consecutive_blocks(
-        bytecode_cfg: ControlFlowGraph, first: BasicBlock, amount: int
-    ) -> tuple[BasicBlock, ...]:
-        """Split the given basic block into more blocks.
-
-        The blocks are consecutive in the list of basic blocks, e.g., to allow
-        fall-through
-
-        Args:
-            bytecode_cfg: The control-flow graph
-            first: The first basic block
-            amount: The amount of consecutive blocks that should be created.
-
-        Returns:
-            A tuple of consecutive basic blocks
-        """
-        assert amount > 0, "Amount of created basic blocks must be positive."
-        current: BasicBlock = first
-        nodes: list[BasicBlock] = []
-        # Can be any instruction, as it is discarded anyway.
-        dummy_instruction = ArtificialInstr("POP_TOP")
-        for _ in range(amount):
-            # Insert dummy instruction, which we can use to split off another block
-            current.insert(0, dummy_instruction)
-            current = bytecode_cfg.split_block(current, 1)
-            nodes.append(current)
-
-        # Move instructions back to first block.
-        first.clear()
-        first.extend(current)
-        # Clear instructions in all created blocks.
-        for node in nodes:
-            node.clear()
-        return tuple(nodes)
-
 
 class InstrumentationTransformer:
     """Applies a given list of instrumentation adapters to code objects.
@@ -424,6 +388,42 @@ class BranchCoverageInstrumentation(InstrumentationAdapter):
             mapping[orig_idx] = idx
             orig_idx += 1
         return mapping
+
+    @staticmethod
+    def _create_consecutive_blocks(
+        bytecode_cfg: ControlFlowGraph, first: BasicBlock, amount: int
+    ) -> tuple[BasicBlock, ...]:
+        """Split the given basic block into more blocks.
+
+        The blocks are consecutive in the list of basic blocks, e.g., to allow
+        fall-through
+
+        Args:
+            bytecode_cfg: The control-flow graph
+            first: The first basic block
+            amount: The amount of consecutive blocks that should be created.
+
+        Returns:
+            A tuple of consecutive basic blocks
+        """
+        assert amount > 0, "Amount of created basic blocks must be positive."
+        current: BasicBlock = first
+        nodes: list[BasicBlock] = []
+        # Can be any instruction, as it is discarded anyway.
+        dummy_instruction = ArtificialInstr("POP_TOP")
+        for _ in range(amount):
+            # Insert dummy instruction, which we can use to split off another block
+            current.insert(0, dummy_instruction)
+            current = bytecode_cfg.split_block(current, 1)
+            nodes.append(current)
+
+        # Move instructions back to first block.
+        first.clear()
+        first.extend(current)
+        # Clear instructions in all created blocks.
+        for node in nodes:
+            node.clear()
+        return tuple(nodes)
 
     def _instrument_cond_jump(
         self,
