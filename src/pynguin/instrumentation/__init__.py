@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides the byte-code instrumentation mechanisms."""
+"""Provides the instrumentation mechanisms."""
 
 from __future__ import annotations
 
