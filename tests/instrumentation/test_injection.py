@@ -23,11 +23,11 @@ from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.instrumentation import ArtificialInstr
 from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation.injection import InjectionBranchCoverageInstrumentation
-from pynguin.instrumentation.injection import InjectionCheckedCoverageInstrumentation
-from pynguin.instrumentation.injection import InjectionDynamicSeedingInstrumentation
+from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
+from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
+from pynguin.instrumentation.injection import DynamicSeedingInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
-from pynguin.instrumentation.injection import InjectionLineCoverageInstrumentation
+from pynguin.instrumentation.injection import LineCoverageInjectionInstrumentation
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.slicer.executedinstruction import ExecutedControlInstruction
@@ -64,7 +64,7 @@ def tracer_mock():
 
 def test_entered_function(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.simple_function.__code__ = transformer.instrument_module(
         simple_module.simple_function.__code__
@@ -76,7 +76,7 @@ def test_entered_function(simple_module, tracer_mock):
 
 def test_entered_for_loop_no_jump(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
     tracer_mock.register_predicate.assert_called_once()
@@ -86,7 +86,7 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
 
 def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
     tracer_mock.register_predicate.assert_called_once()
@@ -96,7 +96,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
 
 def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
@@ -114,7 +114,7 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
 
 def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
@@ -126,7 +126,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
 
 def test_add_bool_predicate(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
@@ -138,7 +138,7 @@ def test_add_bool_predicate(simple_module, tracer_mock):
 
 def test_add_cmp_predicate(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
@@ -150,7 +150,7 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
 
 def test_transform_for_loop_multi(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.multi_loop.__code__ = transformer.instrument_module(
         simple_module.multi_loop.__code__
@@ -174,7 +174,7 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
 
 def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.comprehension.__code__ = transformer.instrument_module(
         simple_module.comprehension.__code__
@@ -190,7 +190,7 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
 
 def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.lambda_func.__code__ = transformer.instrument_module(
         simple_module.lambda_func.__code__
@@ -205,7 +205,7 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
 
 def test_conditional_assignment(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.conditional_assignment.__code__ = transformer.instrument_module(
         simple_module.conditional_assignment.__code__
@@ -219,7 +219,7 @@ def test_conditional_assignment(simple_module, tracer_mock):
 
 def test_conditionally_nested_class(simple_module, tracer_mock):
     instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
         simple_module.conditionally_nested_class.__code__
@@ -235,7 +235,7 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
 def test_avoid_duplicate_instrumentation(simple_module):
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     already_instrumented = transformer.instrument_module(simple_module.cmp_predicate.__code__)
     with pytest.raises(AssertionError):
@@ -253,7 +253,7 @@ def test_avoid_duplicate_instrumentation(simple_module):
     ],
 )
 def test_map_instr_positions(block, expected):
-    assert InjectionBranchCoverageInstrumentation._map_instr_positions(block) == expected
+    assert BranchCoverageInjectionInstrumentation._map_instr_positions(block) == expected
 
 
 @pytest.mark.parametrize(
@@ -280,7 +280,7 @@ def test_integrate_branch_distance_instrumentation(
     tracer = ExecutionTracer()
     function_callable = getattr(simple_module, function_name)
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
     assert (
@@ -294,7 +294,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
     tracer = ExecutionTracer()
     function_callable = simple_module.multi_loop
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
 
@@ -362,7 +362,7 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     tracer.current_thread_identifier = threading.current_thread().ident
     function_callable = simple_module.bool_predicate
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionCheckedCoverageInstrumentation(instrumentation_tracer)
+    adapter = CheckedCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
 
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
@@ -394,7 +394,7 @@ def test_comparison(comparison_module, op):
     tracer.current_thread_identifier = threading.current_thread().ident
     function_callable = getattr(comparison_module, "_" + op.name.lower())
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
     with mock.patch.object(tracer, "executed_compare_predicate") as trace_mock:
@@ -413,7 +413,7 @@ def test_exception():
             pass
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
@@ -432,7 +432,7 @@ def test_exception_no_match():
             pass  # pragma: no cover
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
     with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
@@ -451,7 +451,7 @@ def test_exception_integrate():
             pass
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -466,8 +466,8 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    line_instr = InjectionLineCoverageInstrumentation(instrumentation_tracer)
-    branch_instr = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    line_instr = LineCoverageInjectionInstrumentation(instrumentation_tracer)
+    branch_instr = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(
         instrumentation_tracer, [line_instr, branch_instr]
     )
@@ -492,7 +492,7 @@ def test_exception_no_match_integrate():
             pass  # pragma: no cover
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -513,7 +513,7 @@ def test_jump_if_true_or_pop():
         )
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionBranchCoverageInstrumentation(instrumentation_tracer)
+    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
     tracer.current_thread_identifier = threading.current_thread().ident
@@ -529,7 +529,7 @@ def test_tracking_covered_statements_explicit_return(simple_module):
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    instr = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    instr = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [instr])
     simple_module.explicit_none_return.__code__ = transformer.instrument_module(
         simple_module.explicit_none_return.__code__
@@ -554,7 +554,7 @@ def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
@@ -576,7 +576,7 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
@@ -598,7 +598,7 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
@@ -620,7 +620,7 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.while_loop.__code__ = transformer.instrument_module(
         simple_module.while_loop.__code__
@@ -651,7 +651,7 @@ def test_expected_covered_lines(func, arg, expected_lines, artificial_none_modul
     tracer = ExecutionTracer()
 
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = InjectionLineCoverageInstrumentation(instrumentation_tracer)
+    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     func_object = getattr(artificial_none_module, func)
     func_object.__code__ = transformer.instrument_module(func_object.__code__)
@@ -669,7 +669,7 @@ def dynamic_instr():
         probability=1.0,
         max_constant_length=50,
     )
-    adapter = InjectionDynamicSeedingInstrumentation(constant_provider)
+    adapter = DynamicSeedingInjectionInstrumentation(constant_provider)
     transformer = InjectionInstrumentationTransformer(
         InstrumentationExecutionTracer(ExecutionTracer()), [adapter]
     )

@@ -61,7 +61,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
 from pynguin.instrumentation import ArtificialInstr
-from pynguin.instrumentation.injection import InjectionCheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
@@ -1008,7 +1008,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
         instrumentation_tracer = InstrumentationExecutionTracer(self._tracer)
-        checked_instrumentation = InjectionCheckedCoverageInstrumentation(instrumentation_tracer)
+        checked_instrumentation = CheckedCoverageInjectionInstrumentation(instrumentation_tracer)
         self._checked_transformer = InjectionInstrumentationTransformer(
             instrumentation_tracer, [checked_instrumentation]
         )

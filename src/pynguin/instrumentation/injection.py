@@ -120,7 +120,7 @@ class InjectionInstrumentationTransformer(InstrumentationTransformer):
         )
 
 
-class InjectionBranchCoverageInstrumentation(InjectionInstrumentationAdapter):
+class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances.
 
     This results in branch coverage.
@@ -593,7 +593,7 @@ class InjectionBranchCoverageInstrumentation(InjectionInstrumentationAdapter):
         return predicate_id
 
 
-class InjectionLineCoverageInstrumentation(InjectionInstrumentationAdapter):
+class LineCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines.
 
     This results in line coverage.
@@ -673,7 +673,7 @@ class InjectionLineCoverageInstrumentation(InjectionInstrumentationAdapter):
         return len(inserted_instructions)
 
 
-class InjectionCheckedCoverageInstrumentation(InjectionInstrumentationAdapter):
+class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
     """Instruments code objects to enable tracking of executed instructions.
 
     Special instructions get instrumented differently to track information
@@ -1544,7 +1544,7 @@ class InjectionCheckedCoverageInstrumentation(InjectionInstrumentationAdapter):
         return instructions  # noqa: RET504
 
 
-class InjectionDynamicSeedingInstrumentation(InjectionInstrumentationAdapter):
+class DynamicSeedingInjectionInstrumentation(InjectionInstrumentationAdapter):
     """Instruments code objects to enable dynamic constant seeding.
 
     Supported is collecting values of the types int, float and string.

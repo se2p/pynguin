@@ -28,11 +28,11 @@ import pynguin.configuration as config
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.instrumentation.injection import InjectionBranchCoverageInstrumentation
-from pynguin.instrumentation.injection import InjectionCheckedCoverageInstrumentation
-from pynguin.instrumentation.injection import InjectionDynamicSeedingInstrumentation
+from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
+from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
+from pynguin.instrumentation.injection import DynamicSeedingInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
-from pynguin.instrumentation.injection import InjectionLineCoverageInstrumentation
+from pynguin.instrumentation.injection import LineCoverageInjectionInstrumentation
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
@@ -96,14 +96,14 @@ def build_transformer(
     """
     adapters: list[InjectionInstrumentationAdapter] = []
     if config.CoverageMetric.BRANCH in coverage_metrics:
-        adapters.append(InjectionBranchCoverageInstrumentation(instrumentation_tracer))
+        adapters.append(BranchCoverageInjectionInstrumentation(instrumentation_tracer))
     if config.CoverageMetric.LINE in coverage_metrics:
-        adapters.append(InjectionLineCoverageInstrumentation(instrumentation_tracer))
+        adapters.append(LineCoverageInjectionInstrumentation(instrumentation_tracer))
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        adapters.append(InjectionCheckedCoverageInstrumentation(instrumentation_tracer))
+        adapters.append(CheckedCoverageInjectionInstrumentation(instrumentation_tracer))
 
     if dynamic_constant_provider is not None:
-        adapters.append(InjectionDynamicSeedingInstrumentation(dynamic_constant_provider))
+        adapters.append(DynamicSeedingInjectionInstrumentation(dynamic_constant_provider))
 
     return InjectionInstrumentationTransformer(instrumentation_tracer, adapters)
 
