@@ -139,10 +139,7 @@ class ProgramGraphNode:
         if self._basic_block is not None:
             instructions = []
             for instr in self._basic_block:
-                if not isinstance(instr, Instr):
-                    continue
-
-                arg = instr.arg
+                arg = instr.arg  # type: ignore[union-attr]
                 if isinstance(arg, BasicBlock):
                     # We cannot determine which ProgramGraphNode this is.
                     arg = "ProgramGraphNode"
@@ -277,7 +274,7 @@ class ProgramGraph(Generic[N]):
         for node in self._graph.nodes:
             if node.basic_block:
                 for instr in node.basic_block:
-                    if isinstance(instr, Instr) and instr.opcode == op.YIELD_VALUE:
+                    if instr.opcode == op.YIELD_VALUE:  # type: ignore[union-attr]
                         yield_nodes.add(node)
                         # exist the inner loop (over instructions)
                         # the node is already added thus continue with the next node
