@@ -17,8 +17,8 @@ from bytecode import Instr
 
 import pynguin.configuration as config
 
-from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
-from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.injection import CheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import InstrumentationTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.slicer.dynamicslicer import DynamicSlicer

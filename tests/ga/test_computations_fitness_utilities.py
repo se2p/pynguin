@@ -20,7 +20,7 @@ from hypothesis import given
 
 import pynguin.ga.computations as ff
 
-from pynguin.instrumentation.instrumentation import PredicateMetaData
+from pynguin.instrumentation.injection import PredicateMetaData
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import LineMetaData

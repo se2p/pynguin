@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides classes for various bytecode instrumentations."""
+"""Provides instrumentation mechanisms using byte-code injection."""
 
 from __future__ import annotations
 

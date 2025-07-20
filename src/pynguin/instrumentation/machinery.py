@@ -28,11 +28,11 @@ import pynguin.configuration as config
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
-from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
-from pynguin.instrumentation.instrumentation import DynamicSeedingInstrumentation
-from pynguin.instrumentation.instrumentation import InstrumentationTransformer
-from pynguin.instrumentation.instrumentation import LineCoverageInstrumentation
+from pynguin.instrumentation.injection import BranchCoverageInstrumentation
+from pynguin.instrumentation.injection import CheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import DynamicSeedingInstrumentation
+from pynguin.instrumentation.injection import InstrumentationTransformer
+from pynguin.instrumentation.injection import LineCoverageInstrumentation
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 
@@ -40,7 +40,7 @@ from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 if TYPE_CHECKING:
     from types import CodeType
 
-    from pynguin.instrumentation.instrumentation import InstrumentationAdapter
+    from pynguin.instrumentation.injection import InstrumentationAdapter
 
 
 class InstrumentationLoader(SourceFileLoader):

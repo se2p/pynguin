@@ -30,7 +30,7 @@ from bytecode.instr import CellVar
 from bytecode.instr import FreeVar
 
 import pynguin.assertion.assertion as ass
-import pynguin.instrumentation.instrumentation as instr
+import pynguin.instrumentation.injection as instr
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
 import pynguin.utils.opcodes as op

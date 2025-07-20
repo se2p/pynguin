@@ -60,9 +60,9 @@ from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
-from pynguin.instrumentation.instrumentation import ArtificialInstr
-from pynguin.instrumentation.instrumentation import CheckedCoverageInstrumentation
-from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.injection import ArtificialInstr
+from pynguin.instrumentation.injection import CheckedCoverageInstrumentation
+from pynguin.instrumentation.injection import InstrumentationTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace

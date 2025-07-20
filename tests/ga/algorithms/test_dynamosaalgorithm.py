@@ -12,8 +12,8 @@ import pytest
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
 
-from pynguin.instrumentation.instrumentation import BranchCoverageInstrumentation
-from pynguin.instrumentation.instrumentation import InstrumentationTransformer
+from pynguin.instrumentation.injection import BranchCoverageInstrumentation
+from pynguin.instrumentation.injection import InstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 

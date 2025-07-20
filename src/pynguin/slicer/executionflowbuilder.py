@@ -25,7 +25,7 @@ from pynguin.utils.exceptions import InstructionNotFoundException
 UNSET = object()
 
 if TYPE_CHECKING:
-    from pynguin.instrumentation.instrumentation import CodeObjectMetaData
+    from pynguin.instrumentation.injection import CodeObjectMetaData
     from pynguin.instrumentation.tracer import ExecutionTrace
     from pynguin.slicer.executedinstruction import ExecutedInstruction
 
