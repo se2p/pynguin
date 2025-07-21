@@ -21,6 +21,7 @@ import logging
 import queue
 import types
 import typing
+
 from collections import defaultdict
 from pathlib import Path
 from types import (
@@ -53,6 +54,7 @@ if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.generator import GeneratorProvider
+from pynguin.analyses.generator import RandomGeneratorProvider
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 
 from pynguin.analyses.syntaxtree import FunctionDescription
@@ -92,6 +94,9 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, get_class_that_defined_method
 from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, parse_json, provide_json
+
+if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
+    import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
