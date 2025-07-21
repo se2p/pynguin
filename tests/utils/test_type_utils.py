@@ -13,6 +13,7 @@ import pytest
 
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import given_exception_matches
+from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_assertable
 from pynguin.utils.type_utils import is_bytes
 from pynguin.utils.type_utils import is_collection_type
@@ -155,6 +156,59 @@ def test_should_skip_parameter(param_name, result):
 
     inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
     assert is_optional_parameter(inf_sig, param_name) == result
+
+
+@pytest.fixture
+def inf_sig_non_hashable():
+    class NonHashableParameterKind:
+        def __eq__(self, other):
+            # Allow equality comparison with inspect.Parameter constants
+            return other == inspect.Parameter.VAR_POSITIONAL
+
+        def __hash__(self):
+            # Make this class non-hashable
+            raise TypeError("unhashable type: '_ParameterKind'")
+
+    # Create a mock parameter with the non-hashable kind
+    mock_parameter = MagicMock(spec=inspect.Parameter)
+    mock_parameter.kind = NonHashableParameterKind()
+    mock_parameter.default = inspect.Parameter.empty
+
+    # Create a mock signature and parameters dictionary
+    mock_params = {"args": mock_parameter}
+    mock_signature = MagicMock()
+    mock_signature.parameters = mock_params
+
+    # Create a mock InferredSignature with our mock signature
+    inf_sig = MagicMock(InferredSignature)
+    inf_sig.signature = mock_signature
+
+    return inf_sig
+
+
+def test_is_optional_parameter_not_hashable(inf_sig_non_hashable):
+    assert is_optional_parameter(inf_sig_non_hashable, "args") is True
+
+
+@pytest.mark.parametrize(
+    "param_name,result",
+    [
+        ("normal", False),
+        ("args", True),
+        ("kwargs", True),
+        ("default", False),
+    ],
+)
+def test_is_arg_or_kwarg(param_name, result):
+    def inner_func(normal: str, *args, default="foo", **kwargs):
+        pass  # pragma: no cover
+
+    inf_sig = MagicMock(InferredSignature, signature=inspect.signature(inner_func))
+    assert is_arg_or_kwarg(inf_sig, param_name) == result
+
+
+def test_is_arg_or_kwarg_not_hashable(inf_sig_non_hashable):
+    assert is_arg_or_kwarg(inf_sig_non_hashable, "args") is True
 
 
 @pytest.mark.parametrize(
