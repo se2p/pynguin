@@ -804,7 +804,7 @@ class Configuration:
     subprocess: bool = False
     """Run the test generation in a subprocess."""
 
-    subprocess_if_recommended: bool = False
+    subprocess_if_recommended: bool = True
     """Use the subprocess mode if the SUT analysis recommends it based on used
     C extension modules."""
 
