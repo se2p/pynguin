@@ -29,6 +29,7 @@ from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import UnionType
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.exceptions import CoroutineFoundException
 from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
@@ -461,7 +462,7 @@ def test_enums():
     ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
 def test_analyse_async_function_or_method(module_name):
-    with pytest.raises(ValueError):  # noqa: PT011
+    with pytest.raises(CoroutineFoundException):
         generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
 
 
