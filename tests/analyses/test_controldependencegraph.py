@@ -75,8 +75,20 @@ def test_get_control_dependencies(node, deps):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
-    assert set(cdg.get_control_dependencies(node)) == deps
+    subject_properties = tracer.get_subject_properties()
+    cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
+    assert (
+        set(
+            cdg.get_control_dependencies(
+                node,
+                {
+                    meta_data.node: predicate_id
+                    for predicate_id, meta_data in subject_properties.existing_predicates.items()
+                },
+            )
+        )
+        == deps
+    )
 
 
 @only_3_10
@@ -87,9 +99,16 @@ def test_get_control_dependencies_asserts(node):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
+    subject_properties = tracer.get_subject_properties()
     cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
-        cdg.get_control_dependencies(node)
+        cdg.get_control_dependencies(
+            node,
+            {
+                meta_data.node: predicate_id
+                for predicate_id, meta_data in subject_properties.existing_predicates.items()
+            },
+        )
 
 
 @only_3_10

@@ -144,17 +144,6 @@ def test_is_artificial():
     assert node.is_artificial
 
 
-def test_predicate_id_none():
-    node = ProgramGraphNode(index=42)
-    assert node.predicate_id is None
-
-
-def test_predicate_id_set():
-    node = ProgramGraphNode(index=42)
-    node.predicate_id = 1337
-    assert node.predicate_id == 1337
-
-
 @only_3_10
 def test_yield_nodes():
     graph = ProgramGraph()

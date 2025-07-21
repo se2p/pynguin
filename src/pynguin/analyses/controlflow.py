@@ -57,7 +57,6 @@ class ProgramGraphNode:
         self._offset = offset
         self._basic_block = basic_block
         self._is_artificial = is_artificial
-        self._predicate_id: int | None = None
 
     @property
     def index(self) -> int:
@@ -104,24 +103,6 @@ class ProgramGraphNode:
         """
         return self._is_artificial
 
-    @property
-    def predicate_id(self) -> int | None:
-        """Provides the predicate ID of the node, if any.
-
-        Returns:
-            The predicate id assigned to this node, if any.
-        """
-        return self._predicate_id
-
-    @predicate_id.setter
-    def predicate_id(self, predicate_id: int) -> None:
-        """Set a new predicate id.
-
-        Args:
-            predicate_id: The predicate id
-        """
-        self._predicate_id = predicate_id
-
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ProgramGraphNode):
             return False
@@ -134,8 +115,6 @@ class ProgramGraphNode:
 
     def __str__(self) -> str:
         result = f"ProgramGraphNode({self._index})"
-        if self._predicate_id is not None:
-            result += f"\npredicate_id {self._predicate_id}"
         if self._basic_block is not None:
             instructions = []
             for instr in self._basic_block:
@@ -646,7 +625,6 @@ class CFG(ProgramGraph[ProgramGraphNode]):
                     node.offset,
                     node.basic_block,
                     node.is_artificial,
-                    node.predicate_id,
                     data,
                 )
                 for node, data in self._graph.nodes(data=True)
@@ -666,15 +644,13 @@ class CFG(ProgramGraph[ProgramGraphNode]):
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
         nodes: dict[int, ProgramGraphNode] = {}
-        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+        for index, offset, basic_block, is_artificial, data in state["nodes"]:
             node = ProgramGraphNode(
                 index,
                 offset=offset,
                 basic_block=basic_block,
                 is_artificial=is_artificial,
             )
-            if predicate_id is not None:
-                node.predicate_id = predicate_id
             self._graph.add_node(node, **data)
             nodes[index] = node
         for source_index, target_index, data in state["edges"]:
@@ -856,21 +832,27 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
 
         return filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
-    def get_control_dependencies(self, node: ProgramGraphNode) -> OrderedSet[ControlDependency]:
+    def get_control_dependencies(
+        self, node: ProgramGraphNode, nodes_predicates: dict[ProgramGraphNode, int]
+    ) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.
 
         Args:
             node: the node whose dependencies should be retrieved.
+            nodes_predicates: A mapping of node IDs to their predicate nodes.
 
         Returns:
             The direct control dependencies of the given node, if any.
         """
         assert node is not None
         assert node in self.graph.nodes
-        return self._retrieve_control_dependencies(node, OrderedSet())
+        return self._retrieve_control_dependencies(node, nodes_predicates, OrderedSet())
 
     def _retrieve_control_dependencies(
-        self, node: ProgramGraphNode, handled: OrderedSet
+        self,
+        node: ProgramGraphNode,
+        nodes_predicates: dict[ProgramGraphNode, int],
+        handled: OrderedSet,
     ) -> OrderedSet[ControlDependency]:
         result: OrderedSet[ControlDependency] = OrderedSet()
         for pred in self._graph.predecessors(node):
@@ -883,25 +865,30 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
                     EDGE_DATA_BRANCH_VALUE, None
                 )
             ) is not None:
-                assert pred.predicate_id is not None
-                result.add(ControlDependency(pred.predicate_id, branch_value))
+                result.add(ControlDependency(nodes_predicates[pred], branch_value))
             else:
-                result.update(self._retrieve_control_dependencies(pred, handled))
+                result.update(self._retrieve_control_dependencies(pred, nodes_predicates, handled))
         return result
 
-    def is_control_dependent_on_root(self, node: ProgramGraphNode) -> bool:
+    def is_control_dependent_on_root(
+        self, node: ProgramGraphNode, nodes_predicates: dict[ProgramGraphNode, int]
+    ) -> bool:
         """Does this node directly depend on entering the code object?
 
         Args:
             node: The program-graph node for the check
+            nodes_predicates: A mapping of node IDs to their predicate nodes.
 
         Returns:
             Whether the given node is directly dependent on the entry of the code object
         """
-        return self._is_control_dependent_on_root(node, set())
+        return self._is_control_dependent_on_root(node, nodes_predicates, set())
 
     def _is_control_dependent_on_root(
-        self, node: ProgramGraphNode, visited: set[ProgramGraphNode]
+        self,
+        node: ProgramGraphNode,
+        nodes_predicates: dict[ProgramGraphNode, int],
+        visited: set[ProgramGraphNode],
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:
             return True
@@ -909,11 +896,11 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
             if pred in visited:
                 continue
             visited.add(pred)
-            if pred.predicate_id is not None:
+            if pred in nodes_predicates:
                 continue
             if pred == node:
                 continue
-            if self._is_control_dependent_on_root(pred, visited):
+            if self._is_control_dependent_on_root(pred, nodes_predicates, visited):
                 return True
         return False
 
@@ -925,7 +912,6 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
                     node.offset,
                     node.basic_block,
                     node.is_artificial,
-                    node.predicate_id,
                     data,
                 )
                 for node, data in self._graph.nodes(data=True)
@@ -943,15 +929,13 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
         nodes: dict[int, ProgramGraphNode] = {}
-        for index, offset, basic_block, is_artificial, predicate_id, data in state["nodes"]:
+        for index, offset, basic_block, is_artificial, data in state["nodes"]:
             node = ProgramGraphNode(
                 index,
                 offset=offset,
                 basic_block=basic_block,
                 is_artificial=is_artificial,
             )
-            if predicate_id is not None:
-                node.predicate_id = predicate_id
             self._graph.add_node(node, **data)
             nodes[index] = node
         for source_index, target_index, data in state["edges"]:

@@ -23,8 +23,6 @@ import pynguin.ga.computations as ff
 
 
 if TYPE_CHECKING:
-    from pynguin.analyses.controlflow import ControlDependenceGraph
-    from pynguin.analyses.controlflow import ProgramGraphNode
     from pynguin.instrumentation.tracer import ExecutionTracer
     from pynguin.testcase.execution import ExecutionResult
 
@@ -183,22 +181,19 @@ def get_non_root_control_flow_distance(
         distance.branch_distance = branch_distance
         return distance
 
-    cdg = tracer.get_subject_properties().existing_code_objects[code_object_id].cdg
-    target_node = _get_node_with_predicate_id(cdg, predicate_id)
+    subject_properties = tracer.get_subject_properties()
+
+    cdg = subject_properties.existing_code_objects[code_object_id].cdg
+    target_node = subject_properties.existing_predicates[predicate_id].node
 
     # Choose diameter as upper bound
-    distance.approach_level = (
-        tracer.get_subject_properties().existing_code_objects[code_object_id].cfg.diameter
-    )
+    distance.approach_level = subject_properties.existing_code_objects[code_object_id].cfg.diameter
 
     # We check for the closest predicate that was executed and compute the approach
     # level as the length of the path from such a predicate node to the desired
     # predicate node.
-    for node in [
-        node
-        for node in cdg.nodes
-        if node.predicate_id is not None and node.predicate_id in trace.executed_predicates
-    ]:
+    for executed_predicate_id in trace.executed_predicates:
+        node = subject_properties.existing_predicates[executed_predicate_id].node
         try:
             candidate = ControlFlowDistance()
             candidate.approach_level = nx.shortest_path_length(cdg.graph, node, target_node)
@@ -206,22 +201,15 @@ def get_non_root_control_flow_distance(
             # So the remaining branch distance to the true or false branch is
             # the desired distance, right?
             # One of them has to be zero, so we can simply add them.
-            assert node.predicate_id is not None
             candidate.branch_distance = _predicate_fitness(
-                node.predicate_id, trace.true_distances
-            ) + _predicate_fitness(node.predicate_id, trace.false_distances)
+                executed_predicate_id, trace.true_distances
+            ) + _predicate_fitness(executed_predicate_id, trace.false_distances)
             distance = min(distance, candidate)
-        except nx.NetworkXNoPath:  # noqa: PERF203
+        except nx.NetworkXNoPath:
             # No path from node to target.
             pass
 
     return distance
-
-
-def _get_node_with_predicate_id(cdg: ControlDependenceGraph, predicate_id: int) -> ProgramGraphNode:
-    cdg_nodes = [node for node in cdg.nodes if node.predicate_id == predicate_id]
-    assert len(cdg_nodes) == 1
-    return cdg_nodes.pop()
 
 
 def _predicate_fitness(predicate: int, branch_distances: dict[int, float]) -> float:

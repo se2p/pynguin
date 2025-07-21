@@ -166,24 +166,21 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             len(orig_instructions_positions) + self._COMPARE_OP_POS
         )
         if isinstance(maybe_jump, Instr):
-            predicate_id: int | None = None
             if maybe_jump.opcode == op.FOR_ITER:
-                predicate_id = self._instrument_for_loop(
+                self._instrument_for_loop(
                     cfg=cfg,
                     node=node,
                     basic_block=basic_block,
                     code_object_id=code_object_id,
                 )
             elif maybe_jump.is_cond_jump():
-                predicate_id = self._instrument_cond_jump(
+                self._instrument_cond_jump(
                     code_object_id=code_object_id,
                     maybe_compare_idx=maybe_compare_idx,
                     jump=maybe_jump,
                     block=basic_block,
                     node=node,
                 )
-            if predicate_id is not None:
-                node.predicate_id = predicate_id
 
     @staticmethod
     def _map_instr_positions(basic_block: BasicBlock) -> dict[int, int]:
@@ -249,7 +246,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         jump: Instr,
         block: BasicBlock,
         node: ProgramGraphNode,
-    ) -> int:
+    ) -> None:
         """Instrument a conditional jump.
 
         If it is based on a prior comparison, we track
@@ -262,34 +259,36 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             jump: The jump operation.
             block: The containing basic block.
             node: The associated node from the CFG.
-
-        Returns:
-            The id that was assigned to the predicate.
         """
         maybe_compare = None if maybe_compare_idx is None else block[maybe_compare_idx]
+
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
             and maybe_compare.opcode in op.OP_COMPARE
         ):
             assert maybe_compare_idx is not None
-            return self._instrument_compare_based_conditional_jump(
+            self._instrument_compare_based_conditional_jump(
                 block=block,
                 code_object_id=code_object_id,
                 compare_idx=maybe_compare_idx,
                 node=node,
             )
+            return
+
         if jump.opcode == op.JUMP_IF_NOT_EXC_MATCH:
-            return self._instrument_exception_based_conditional_jump(
+            self._instrument_exception_based_conditional_jump(
                 basic_block=block, code_object_id=code_object_id, node=node
             )
-        return self._instrument_bool_based_conditional_jump(
+            return
+
+        self._instrument_bool_based_conditional_jump(
             block=block, code_object_id=code_object_id, node=node
         )
 
     def _instrument_bool_based_conditional_jump(
         self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
-    ) -> int:
+    ) -> None:
         """Instrument boolean-based conditional jumps.
 
         We add a call to the tracer which reports the value on which the conditional
@@ -299,9 +298,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             block: The containing basic block.
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
-
-        Returns:
-            The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._instrumentation_tracer.register_predicate(
@@ -332,7 +328,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
-        return predicate_id
 
     def _instrument_compare_based_conditional_jump(
         self,
@@ -340,7 +335,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         compare_idx: int,
         code_object_id: int,
         node: ProgramGraphNode,
-    ) -> int:
+    ) -> None:
         """Instrument compare-based conditional jumps.
 
         We add a call to the tracer which reports the values that will be used
@@ -354,9 +349,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
 
         Raises:
             RuntimeError: If an unknown operation is encountered.
-
-        Returns:
-            The id assigned to the predicate.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._instrumentation_tracer.register_predicate(
@@ -411,11 +403,10 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("CALL_METHOD", 4, lineno=lineno),
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
-        return predicate_id
 
     def _instrument_exception_based_conditional_jump(
         self, basic_block: BasicBlock, code_object_id: int, node: ProgramGraphNode
-    ) -> int:
+    ) -> None:
         """Instrument exception-based conditional jumps.
 
         We add a call to the tracer which reports the values that will be used
@@ -425,9 +416,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             basic_block: The containing basic block.
             code_object_id: The id of the containing Code Object.
             node: The associated node from the CFG.
-
-        Returns:
-            The id assigned to the predicate.
         """
         lineno = basic_block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
         predicate_id = self._instrumentation_tracer.register_predicate(
@@ -458,7 +446,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("CALL_METHOD", 3, lineno=lineno),
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
-        return predicate_id
 
     def visit_entry_node(self, node: ProgramGraphNode, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block.
@@ -498,7 +485,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         node: ProgramGraphNode,
         basic_block: BasicBlock,
         code_object_id: int,
-    ) -> int:
+    ) -> None:
         """Transform the for loop whose header is defined in the given node.
 
         We only transform the underlying bytecode cfg, by partially unrolling the first
@@ -529,9 +516,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             node: The node which contains the header of the for loop.
             basic_block: The basic block of the node.
             code_object_id: The id of the containing Code Object.
-
-        Returns:
-            The ID of the instrumented predicate
         """
         for_instr = basic_block[self._JUMP_OP_POS]
         assert for_instr.opcode == op.FOR_ITER  # type: ignore[union-attr]
@@ -590,8 +574,6 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("POP_TOP", lineno=lineno),
             ArtificialInstr("JUMP_ABSOLUTE", for_loop_exit, lineno=lineno),
         ])
-
-        return predicate_id
 
 
 class LineCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
