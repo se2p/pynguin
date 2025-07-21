@@ -884,31 +884,6 @@ class OutputSuppressionContext:
         self.restore()
 
 
-class SegFaultOutputSuppressionContext:
-    """Context manager to suppress SIGSEGV (segmentation fault) by exiting silently.
-
-    Signal only works in main thread of the main interpreter, due to which this suppression
-    context must not be used within subprocess execution.
-    """
-
-    def __init__(self) -> None:
-        """Create a new context manager that suppresses SIGSEGV."""
-        self._original_sigsegv_handler = signal.getsignal(signal.SIGSEGV)
-        self._devnull: Any | None = None
-
-    def _handle_sigsegv(self, sig, frame):
-        os._exit(signal.SIGSEGV)
-
-    def __enter__(self):
-        signal.signal(signal.SIGSEGV, self._handle_sigsegv)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        signal.signal(signal.SIGSEGV, self._original_sigsegv_handler)
-        if self._devnull is not None:
-            self._devnull.close()
-
-
 class AbstractTestCaseExecutor(abc.ABC):
     """Interface for a test case executor."""
 

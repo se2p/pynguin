@@ -10,9 +10,12 @@ import importlib
 import inspect
 import logging
 import multiprocessing.connection as mp_conn
+import os
+import signal
 import threading
 import unittest.mock
 
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -27,10 +30,34 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.testcase.execution import ModuleProvider
-from pynguin.testcase.execution import SegFaultOutputSuppressionContext
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from tests.fixtures.crash.seg_fault import cause_segmentation_fault
+
+
+class SegFaultOutputSuppressionContext:
+    """Context manager to suppress SIGSEGV (segmentation fault) by exiting silently.
+
+    Signal only works in main thread of the main interpreter, due to which this suppression
+    context must not be used within subprocess execution.
+    """
+
+    def __init__(self) -> None:
+        """Create a new context manager that suppresses SIGSEGV."""
+        self._original_sigsegv_handler = signal.getsignal(signal.SIGSEGV)
+        self._devnull: Any | None = None
+
+    def _handle_sigsegv(self, sig, frame):
+        os._exit(signal.SIGSEGV)
+
+    def __enter__(self):
+        signal.signal(signal.SIGSEGV, self._handle_sigsegv)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        signal.signal(signal.SIGSEGV, self._original_sigsegv_handler)
+        if self._devnull is not None:
+            self._devnull.close()
 
 
 @pytest.fixture
