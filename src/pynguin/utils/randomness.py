@@ -200,3 +200,16 @@ def shuffle(sequence: MutableSequence[_T]) -> None:
         sequence: The sequence to be shuffled.
     """
     return RNG.shuffle(sequence)
+
+
+def sample(population: Sequence[_T] | AbstractSet[_T], num_elements: int) -> list[_T]:  # noqa: F821
+    """Samples a specific amount of elements from a population.
+
+    Args:
+        population: The population to sample from
+        num_elements: The number of elements to sample
+
+    Returns:
+        A list of num_element sampled elements from the population
+    """
+    return RNG.sample(population, num_elements)

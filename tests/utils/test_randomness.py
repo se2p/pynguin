@@ -103,3 +103,20 @@ def test_shuffle():
     randomness.shuffle(sequence)
     assert len(sequence) == 3
     assert set(sequence) == {1, 2, 3}
+
+
+def test_sample_set():
+    input_set = {1, 2, 3, 4, 5}
+    assert len(randomness.sample(input_set, 2)) == 2
+
+
+def test_sample_sequence():
+    sequence = [1, 2, 3, 4, 5]
+    assert len(randomness.sample(sequence, 3)) == 3
+
+
+def test_sample_whole_set():
+    sequence = {1, 2, 3}
+    result = randomness.sample(sequence, 3)
+    assert len(result) == 3
+    assert set(result) == {1, 2, 3}
