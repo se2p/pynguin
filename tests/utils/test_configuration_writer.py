@@ -43,6 +43,7 @@ mutation_order = 1
 post_process = true
 float_precision = 0.01
 format_with_black = true
+remove_unused_references = true
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
@@ -197,9 +198,9 @@ def expected_txt(tmp_path):
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
- "minimization=Minimization(strategy=<MinimizationStrategy.CASE: 'CASE'>, "
- "direction=<MinimizationDirection.BACKWARD: 'BACKWARD'>), "
- 'float_precision=0.01, format_with_black=True, '
+ 'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
+ "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
+ "'BACKWARD'>), float_precision=0.01, format_with_black=True, "
  "remove_unused_references=True), algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "

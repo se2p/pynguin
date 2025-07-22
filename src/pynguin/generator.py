@@ -711,7 +711,7 @@ def _minimize(generation_result, algorithm=None):
 
             # Check if we should use the combined minimization approach
             if (
-                config.configuration.test_case_output.minimization.strategy
+                config.configuration.test_case_output.minimization.test_case_minimization_strategy
                 == config.MinimizationStrategy.COMBINED
             ):
                 combined_minimizer = pp.CombinedMinimizationVisitor(fitness_function)
@@ -737,7 +737,7 @@ def _minimize(generation_result, algorithm=None):
 
                 # Apply test suite minimization to remove redundant test cases
                 if (
-                    config.configuration.test_case_output.minimization.strategy
+                    config.configuration.test_case_output.minimization.test_case_minimization_strategy
                     == config.MinimizationStrategy.SUITE
                 ):
                     test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_function)
