@@ -31,6 +31,7 @@ from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.type_utils import is_arg_or_kwarg
@@ -877,15 +878,40 @@ class TestFactory:  # noqa: PLR0904
     def change_statement(self, test_case: tc.TestCase, position: int) -> bool:
         """Replaces the statement at the given position with another statement of a different
         type.
-        """
+        """  # noqa: D205
         statement = test_case.get_statement(position)
 
-        self.satisfy_parameters()
-
-        type: ProperType
-        if self._attempt_generation(test_case, type, position, 0, allow_none=True) is None:
+        if not isinstance(statement, VariableCreatingStatement):
             return False
+
+        temp_pos = len(test_case.statements)
+        probability = randomness.next_float()
+        if probability <= config.configuration.local_search.other_type_primitive_probability:
+            (self._insert_random_primitive_statement(test_case, temp_pos),)
+        elif (
+            probability
+            <= config.configuration.local_search.other_type_collection_probability
+            + config.configuration.local_search.other_type_primitive_probability
+        ):
+            (self._insert_random_collection_statement(test_case, temp_pos),)
+        else:
+            (self.insert_random_call(test_case, temp_pos),)
+        replacement = test_case.get_statement(position)
+        if not isinstance(replacement, VariableCreatingStatement):
+            return False
+        replacement.ret_val = statement.ret_val
+        test_case.remove(temp_pos)
+        test_case.set_statement(replacement, position)
+        self._logger.debug(
+            "Changed statement from %s to %s", statement.__class__, replacement.__class__
+        )
         return True
+
+    def _insert_random_primitive_statement(self, test_case: tc.TestCase, position: int) -> None:
+        pass
+
+    def _insert_random_collection_statement(self, test_case: tc.TestCase, position: int) -> None:
+        pass
 
     @staticmethod
     def _get_reuse_parameters(

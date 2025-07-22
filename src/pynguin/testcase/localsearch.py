@@ -23,14 +23,13 @@ from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.utils import randomness
+from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 
 if TYPE_CHECKING:
     from pynguin.ga.chromosome import Chromosome
     from pynguin.testcase.testfactory import TestFactory
-    from pynguin.testcase.variablereference import VariableReference
 
 
 class LocalSearch(ABC):
@@ -70,14 +69,14 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             )
             if config.LocalSearchConfiguration.local_search_same_datatype:
                 methods.append(
-                    lambda: self._search_same_datatype(chromosome, factory, objective, i)
+                    lambda pos=i: self._search_same_datatype(chromosome, factory, objective, pos)
                 )
             if config.LocalSearchConfiguration.local_search_other_datatype:
                 methods.append(
-                    lambda: self._search_other_datatype(chromosome, factory, objective, i)
+                    lambda pos=i: self._search_other_datatype(chromosome, factory, objective, pos)
                 )
             if config.LocalSearchConfiguration.local_search_llm:
-                methods.append(self._search_llm())
+                methods.append(lambda pos=i: self._search_llm(chromosome, factory, objective, pos))
             if methods:
                 randomness.choice(methods)()
             else:
@@ -116,8 +115,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         position,
     ) -> None:
         statement = chromosome.test_case.statements[position]
-        memo: dict[VariableReference, VariableReference] = {}
-        old_statement = statement.clone(chromosome.test_case, memo)
+        self._logger.debug("Local search on other datatype for statement %s", statement)
+        old_statement = statement.clone(chromosome.test_case, Mirror())
         last_execution_result = chromosome.get_last_execution_result()
 
         counter = 0
@@ -143,7 +142,13 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         else:
             self._search_same_datatype(chromosome, factory, objective, position)
 
-    def _search_llm(self):
+    def _search_llm(
+        self,
+        chromosome: TestCaseChromosome,
+        factory: TestFactory,
+        objective: LocalSearchObjective,
+        position,
+    ):
         # TODO: Implement me!
         pass
 

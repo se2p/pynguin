@@ -785,6 +785,15 @@ class LocalSearchConfiguration:
     max_other_type_mutation: int = 30
     """The max number of searches for other datatypes"""
 
+    other_type_primitive_probability: float = 0.3
+    """Weight of generating primitive statements when changing the statement type."""
+
+    other_type_collection_probability: float = 0.3
+    """Weight of generating collection statements when changing the statement type."""
+
+    other_type_call_probability: float = 0.4
+    """Weight of generating calling statements when changing the statement type."""
+
 
 @dataclasses.dataclass
 class Configuration:
