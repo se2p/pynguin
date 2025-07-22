@@ -12,6 +12,7 @@ import queue
 import sys
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Generic
 from typing import TypeVar
@@ -29,6 +30,9 @@ import pynguin.utils.opcodes as op
 
 from pynguin.utils.orderedset import OrderedSet
 
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"
@@ -871,13 +875,13 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
     def is_control_dependent_on_root(
         self,
         node: ProgramGraphNode,
-        predicate_nodes: set[ProgramGraphNode],
+        predicate_nodes: Collection[ProgramGraphNode],
     ) -> bool:
         """Does this node directly depend on entering the code object?
 
         Args:
             node: The program-graph node for the check
-            predicate_nodes: The set of nodes that are predicates in the graph
+            predicate_nodes: The collection of nodes that are predicates in the graph
 
         Returns:
             Whether the given node is directly dependent on the entry of the code object
@@ -887,7 +891,7 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
     def _is_control_dependent_on_root(
         self,
         node: ProgramGraphNode,
-        predicate_nodes: set[ProgramGraphNode],
+        predicate_nodes: Collection[ProgramGraphNode],
         visited: set[ProgramGraphNode],
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:

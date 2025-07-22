@@ -226,11 +226,12 @@ class _BranchFitnessGraph:
             nodes_predicates = {
                 meta_data.node: predicate_id
                 for predicate_id, meta_data in subject_properties.existing_predicates.items()
+                if meta_data.code_object_id == predicate_meta_data.code_object_id
             }
 
             if code_object_meta_data.cdg.is_control_dependent_on_root(
                 predicate_meta_data.node,
-                nodes_predicates.keys(),  # type: ignore[arg-type]
+                nodes_predicates.keys(),
             ):
                 self._root_branches.add(fitness)
 

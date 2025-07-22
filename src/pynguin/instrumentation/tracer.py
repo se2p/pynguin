@@ -1165,6 +1165,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
     def register_predicate(self, meta: PredicateMetaData) -> int:  # noqa: D102
+        assert (meta.node, meta.code_object_id) not in {
+            (p.node, p.code_object_id) for p in self.subject_properties.existing_predicates.values()
+        }, "Predicate with the same node already registered"
         predicate_id = len(self.subject_properties.existing_predicates)
         self.subject_properties.existing_predicates[predicate_id] = meta
         return predicate_id
