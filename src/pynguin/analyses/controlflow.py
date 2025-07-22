@@ -14,7 +14,6 @@ import sys
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Generic
 from typing import TypeVar
 
 import networkx as nx
@@ -143,10 +142,7 @@ class ProgramGraphNode:
         return f"ProgramGraphNode(index={self._index}, basic_block={self._basic_block})"
 
 
-N = TypeVar("N", bound=ProgramGraphNode)
-
-
-class ProgramGraph(Generic[N]):
+class ProgramGraph:
     """Provides a base implementation for a program graph.
 
     Internally, this program graph uses the `NetworkX` library to hold the graph and
@@ -154,9 +150,9 @@ class ProgramGraph(Generic[N]):
     """
 
     def __init__(self) -> None:  # noqa: D107
-        self._graph = nx.DiGraph()
+        self._graph: nx.DiGraph[ProgramGraphNode] = nx.DiGraph()
 
-    def add_node(self, node: N, **attr: Any) -> None:
+    def add_node(self, node: ProgramGraphNode, **attr: Any) -> None:
         """Add a node to the graph.
 
         Args:
@@ -165,7 +161,7 @@ class ProgramGraph(Generic[N]):
         """
         self._graph.add_node(node, **attr)
 
-    def add_edge(self, start: N, end: N, **attr: Any) -> None:
+    def add_edge(self, start: ProgramGraphNode, end: ProgramGraphNode, **attr: Any) -> None:
         """Add an edge between two nodes to the graph.
 
         Args:
@@ -175,7 +171,7 @@ class ProgramGraph(Generic[N]):
         """
         self._graph.add_edge(start, end, **attr)
 
-    def get_predecessors(self, node: N) -> set[N]:
+    def get_predecessors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
         """Provides a set of all direct predecessors of a node.
 
         Args:
@@ -186,7 +182,7 @@ class ProgramGraph(Generic[N]):
         """
         return set(self._graph.predecessors(node))
 
-    def get_successors(self, node: N) -> set[N]:
+    def get_successors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
         """Provides a set of all direct successors of a node.
 
         Args:
@@ -198,7 +194,7 @@ class ProgramGraph(Generic[N]):
         return set(self._graph.successors(node))
 
     @property
-    def nodes(self) -> set[N]:
+    def nodes(self) -> set[ProgramGraphNode]:
         """Provides all nodes in the graph.
 
         Returns:
@@ -207,7 +203,7 @@ class ProgramGraph(Generic[N]):
         return set(self._graph.nodes)
 
     @property
-    def graph(self) -> nx.DiGraph:
+    def graph(self) -> nx.DiGraph[ProgramGraphNode]:
         """The internal graph.
 
         Returns:
@@ -216,7 +212,7 @@ class ProgramGraph(Generic[N]):
         return self._graph
 
     @property
-    def entry_node(self) -> N | None:
+    def entry_node(self) -> ProgramGraphNode | None:
         """Provides the entry node of the graph.
 
         Returns:
@@ -228,20 +224,20 @@ class ProgramGraph(Generic[N]):
         return None
 
     @property
-    def exit_nodes(self) -> set[N]:
+    def exit_nodes(self) -> set[ProgramGraphNode]:
         """Provides the exit nodes of the graph.
 
         Returns:
             The set of exit nodes of the graph
         """
-        exit_nodes: set[N] = set()
+        exit_nodes: set[ProgramGraphNode] = set()
         for node in self._graph.nodes:
             if len(self.get_successors(node)) == 0:
                 exit_nodes.add(node)
         return exit_nodes
 
     @property
-    def yield_nodes(self) -> set[N]:
+    def yield_nodes(self) -> set[ProgramGraphNode]:
         """Provides the yield nodes of the graph.
 
         Iterates over all nodes and checks if any of the instructions in the basic block
@@ -252,8 +248,7 @@ class ProgramGraph(Generic[N]):
         Returns:
             The set of yield nodes of the graph
         """
-        yield_nodes: set[N] = set()
-        node: N
+        yield_nodes: set[ProgramGraphNode] = set()
         for node in self._graph.nodes:
             if node.basic_block:
                 for instr in node.basic_block:
@@ -264,7 +259,7 @@ class ProgramGraph(Generic[N]):
                         break
         return yield_nodes
 
-    def get_transitive_successors(self, node: N) -> set[N]:
+    def get_transitive_successors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
         """Calculates the transitive closure (the transitive successors) of a node.
 
         Args:
@@ -275,8 +270,12 @@ class ProgramGraph(Generic[N]):
         """
         return self._get_transitive_successors(node, set())
 
-    def _get_transitive_successors(self, node: N, done: set[N]) -> set[N]:
-        successors: set[N] = set()
+    def _get_transitive_successors(
+        self,
+        node: ProgramGraphNode,
+        done: set[ProgramGraphNode],
+    ) -> set[ProgramGraphNode]:
+        successors: set[ProgramGraphNode] = set()
         for successor_node in self.get_successors(node):
             if successor_node not in done:
                 successors.add(successor_node)
@@ -284,7 +283,11 @@ class ProgramGraph(Generic[N]):
                 successors.update(self._get_transitive_successors(successor_node, done))
         return successors
 
-    def get_least_common_ancestor(self, first: N, second: N) -> N:
+    def get_least_common_ancestor(
+        self,
+        first: ProgramGraphNode,
+        second: ProgramGraphNode,
+    ) -> ProgramGraphNode:
         """Calculates the least or lowest common ancestor node of two nodes.
 
         Both nodes have to be part of the graph!
@@ -348,7 +351,7 @@ def filter_dead_code_nodes(graph: G, entry_node_index: int = 0) -> G:
     return graph
 
 
-class CFG(ProgramGraph[ProgramGraphNode]):
+class CFG(ProgramGraph):
     """The control-flow graph implementation based on the program graph."""
 
     # Attribute where the predicate id of the instrumentation is stored
@@ -665,7 +668,7 @@ class CFG(ProgramGraph[ProgramGraphNode]):
         self._diameter = state["diameter"]
 
 
-class DominatorTree(ProgramGraph[ProgramGraphNode]):
+class DominatorTree(ProgramGraph):
     """Implements a dominator tree."""
 
     @staticmethod
@@ -783,7 +786,7 @@ class DominatorTree(ProgramGraph[ProgramGraphNode]):
         return intersection  # noqa: RET504
 
 
-class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
+class ControlDependenceGraph(ProgramGraph):
     """Implements a control-dependence graph."""
 
     @staticmethod
@@ -894,7 +897,7 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
         predicate_nodes: Collection[ProgramGraphNode],
         visited: set[ProgramGraphNode],
     ) -> bool:
-        if (self.entry_node, node) in self.graph.edges:
+        if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator]
             return True
         for pred in self.graph.predecessors(node):
             if pred in visited:

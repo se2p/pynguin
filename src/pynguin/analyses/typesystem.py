@@ -1178,7 +1178,7 @@ class TypeSystem:  # noqa: PLR0904
     """
 
     def __init__(self):  # noqa: D107
-        self._graph = nx.DiGraph()
+        self._graph: nx.DiGraph[TypeInfo] = nx.DiGraph()
         # Maps all known types from their full name to their type info.
         self._types: dict[str, TypeInfo] = {}
         # Maps attributes to type which have that attribute

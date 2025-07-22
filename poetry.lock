@@ -1059,7 +1059,7 @@ version = "1.26.4"
 description = "Fundamental package for array computing in Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["numpy"]
+groups = ["dev", "numpy"]
 files = [
     {file = "numpy-1.26.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:9ff0f4f29c51e2803569d7a51c2304de5554655a60c5d776e35b4a41413830d0"},
     {file = "numpy-1.26.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:2e4ee3380d6de9c9ec04745830fd9e2eccb3e6cf790d39d7b98ffd19b0dd754a"},
@@ -1983,6 +1983,21 @@ slack = ["slack-sdk"]
 telegram = ["requests"]
 
 [[package]]
+name = "types-networkx"
+version = "3.5.0.20250712"
+description = "Typing stubs for networkx"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "types_networkx-3.5.0.20250712-py3-none-any.whl", hash = "sha256:426246c2f09b88a9d7c302245ea55677a698e77281ce480781d336939ba65afb"},
+    {file = "types_networkx-3.5.0.20250712.tar.gz", hash = "sha256:7a85012d27617b6762ea42395783530dfbd37c99fa89123e001840ba801e9d4e"},
+]
+
+[package.dependencies]
+numpy = ">=1.20"
+
+[[package]]
 name = "types-pyyaml"
 version = "6.0.12.20250516"
 description = "Typing stubs for PyYAML"
@@ -2091,4 +2106,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, !=3.11, <3.13"
-content-hash = "77801114466336e71519b15d4f7abc020859aca89615795535e8014ff8293d4e"
+content-hash = "4c0f12d0ce21d1c27bc3f35df47f161ca075e6962656a5ce54fa9335a18e176c"

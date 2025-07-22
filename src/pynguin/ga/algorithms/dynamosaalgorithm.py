@@ -197,7 +197,7 @@ class _BranchFitnessGraph:
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
         subject_properties: SubjectProperties,
     ):
-        self._graph = nx.DiGraph()
+        self._graph: nx.DiGraph[bg.BranchCoverageTestFitness] = nx.DiGraph()
         # Branch less code objects and branches that are not control dependent on other
         # branches.
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
