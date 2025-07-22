@@ -222,6 +222,7 @@ class _BranchFitnessGraph:
             code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id
             ]
+
             nodes_predicates = {
                 meta_data.node: predicate_id
                 for predicate_id, meta_data in subject_properties.existing_predicates.items()
@@ -229,18 +230,18 @@ class _BranchFitnessGraph:
 
             if code_object_meta_data.cdg.is_control_dependent_on_root(
                 predicate_meta_data.node,
-                nodes_predicates,
+                nodes_predicates.keys(),  # type: ignore[arg-type]
             ):
                 self._root_branches.add(fitness)
 
             dependencies = code_object_meta_data.cdg.get_control_dependencies(
                 predicate_meta_data.node,
-                nodes_predicates,
             )
+
             for dependency in dependencies:
                 goal = bg.BranchGoal(
                     predicate_meta_data.code_object_id,
-                    dependency.predicate_id,
+                    nodes_predicates[dependency.node],
                     value=dependency.branch_value,
                 )
                 dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)

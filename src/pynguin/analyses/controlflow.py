@@ -832,26 +832,22 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
 
         return filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
 
-    def get_control_dependencies(
-        self, node: ProgramGraphNode, nodes_predicates: dict[ProgramGraphNode, int]
-    ) -> OrderedSet[ControlDependency]:
+    def get_control_dependencies(self, node: ProgramGraphNode) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.
 
         Args:
             node: the node whose dependencies should be retrieved.
-            nodes_predicates: A mapping of node IDs to their predicate nodes.
 
         Returns:
             The direct control dependencies of the given node, if any.
         """
         assert node is not None
         assert node in self.graph.nodes
-        return self._retrieve_control_dependencies(node, nodes_predicates, OrderedSet())
+        return self._retrieve_control_dependencies(node, OrderedSet())
 
     def _retrieve_control_dependencies(
         self,
         node: ProgramGraphNode,
-        nodes_predicates: dict[ProgramGraphNode, int],
         handled: OrderedSet,
     ) -> OrderedSet[ControlDependency]:
         result: OrderedSet[ControlDependency] = OrderedSet()
@@ -865,29 +861,33 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
                     EDGE_DATA_BRANCH_VALUE, None
                 )
             ) is not None:
-                result.add(ControlDependency(nodes_predicates[pred], branch_value))
+                # Why is it only based on the CFG whereas it is also based on the
+                # concrete predicates in function is_control_dependent_on_root
+                result.add(ControlDependency(pred, branch_value))
             else:
-                result.update(self._retrieve_control_dependencies(pred, nodes_predicates, handled))
+                result.update(self._retrieve_control_dependencies(pred, handled))
         return result
 
     def is_control_dependent_on_root(
-        self, node: ProgramGraphNode, nodes_predicates: dict[ProgramGraphNode, int]
+        self,
+        node: ProgramGraphNode,
+        predicate_nodes: set[ProgramGraphNode],
     ) -> bool:
         """Does this node directly depend on entering the code object?
 
         Args:
             node: The program-graph node for the check
-            nodes_predicates: A mapping of node IDs to their predicate nodes.
+            predicate_nodes: The set of nodes that are predicates in the graph
 
         Returns:
             Whether the given node is directly dependent on the entry of the code object
         """
-        return self._is_control_dependent_on_root(node, nodes_predicates, set())
+        return self._is_control_dependent_on_root(node, predicate_nodes, set())
 
     def _is_control_dependent_on_root(
         self,
         node: ProgramGraphNode,
-        nodes_predicates: dict[ProgramGraphNode, int],
+        predicate_nodes: set[ProgramGraphNode],
         visited: set[ProgramGraphNode],
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:
@@ -896,11 +896,11 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
             if pred in visited:
                 continue
             visited.add(pred)
-            if pred in nodes_predicates:
+            if pred in predicate_nodes:
                 continue
             if pred == node:
                 continue
-            if self._is_control_dependent_on_root(pred, nodes_predicates, visited):
+            if self._is_control_dependent_on_root(pred, predicate_nodes, visited):
                 return True
         return False
 
@@ -967,5 +967,5 @@ class ControlDependenceGraph(ProgramGraph[ProgramGraphNode]):
 class ControlDependency:
     """Models a control dependency."""
 
-    predicate_id: int
+    node: ProgramGraphNode
     branch_value: bool
