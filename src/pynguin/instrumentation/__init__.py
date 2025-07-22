@@ -21,29 +21,14 @@ from bytecode import Bytecode
 from bytecode import Instr
 
 from pynguin.analyses.controlflow import CFG
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.controlflow import ControlDependenceGraph
-from pynguin.analyses.controlflow import ProgramGraphNode
 
 
 if TYPE_CHECKING:
     from types import CodeType
 
-    from bytecode.cfg import BasicBlock
-
     from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-
-
-def get_basic_block(node: ProgramGraphNode) -> BasicBlock:
-    """Get the basic block of a node.
-
-    Args:
-        node: The node whose basic block should be returned.
-
-    Returns:
-        The basic block of the node.
-    """
-    assert node.basic_block is not None, "Node must have a basic block."
-    return node.basic_block
 
 
 @enum.unique
@@ -121,7 +106,7 @@ class PredicateMetaData:
     code_object_id: int
 
     # The node in the program graph, that defines this predicate.
-    node: ProgramGraphNode
+    node: BasicBlockNode
 
 
 class ArtificialInstr(Instr):
@@ -195,11 +180,14 @@ class InstrumentationTransformer(ABC):
 
         code_object_id = self._instrumentation_tracer.create_code_object_id()
 
+        entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
+        assert isinstance(entry_node, BasicBlockNode), "Entry node must be a BasicBlockNode."
+
         instrumented_code = self._visit_nodes(
             code,
             cfg,
             code_object_id,
-            cfg.get_successors(cfg.entry_node).pop(),  # Only one exists!
+            entry_node,
         )
 
         self._instrumentation_tracer.register_code_object(
@@ -222,7 +210,7 @@ class InstrumentationTransformer(ABC):
         code: CodeType,
         cfg: CFG,
         code_object_id: int,
-        entry_node: ProgramGraphNode,
+        entry_node: BasicBlockNode,
     ) -> CodeType:
         """Visit all nodes in the CFG and instrument them recursively.
 

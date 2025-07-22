@@ -9,11 +9,12 @@
 from __future__ import annotations
 
 import queue
-import sys
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import TypeAlias
 from typing import TypeVar
 
 import networkx as nx
@@ -37,29 +38,42 @@ if TYPE_CHECKING:
 EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 
-class ProgramGraphNode:
-    """A base class for a node of the program graph."""
+class ArtificialNode(Enum):
+    """Types of artificial nodes in the program graph."""
+
+    START = "START"
+    """An artificial start node."""
+    ENTRY = "ENTRY"
+    """An artificial entry node."""
+    EXIT = "EXIT"
+    """An artificial exit node."""
+
+    def __str__(self) -> str:
+        return f"ArtificialNode({self.value})"
+
+
+class BasicBlockNode:
+    """A node in the program graph that is associated with a basic block.
+
+    This node is used to represent a basic block in the program graph.
+    """
 
     def __init__(
         self,
         index: int,
-        *,
+        basic_block: BasicBlock,
         offset: int = 0,
-        basic_block: BasicBlock | None = None,
-        is_artificial: bool = False,
     ) -> None:
         """Instantiates a node for a program graph.
 
         Args:
             index: The index of the node
-            offset: The offset of the first instruction of the node
             basic_block: The basic block in the code
-            is_artificial: Whether the node is an artificial node
+            offset: The offset of the first instruction of the node
         """
         self._index = index
-        self._offset = offset
         self._basic_block = basic_block
-        self._is_artificial = is_artificial
+        self._offset = offset
 
     @property
     def index(self) -> int:
@@ -89,57 +103,62 @@ class ProgramGraphNode:
         self._offset = offset
 
     @property
-    def basic_block(self) -> BasicBlock | None:
+    def basic_block(self) -> BasicBlock:
         """Provides the basic block attached to this node.
 
         Returns:
-            The optional basic block attached to this node
+            The basic block attached to this node
         """
+        assert len(self._basic_block) > 0, "Basic block must not be empty."
         return self._basic_block
 
-    @property
-    def is_artificial(self) -> bool:
-        """Whether a node is artificially inserted into the graph.
-
-        Returns:
-            Whether a node is artificially inserted into the graph
-        """
-        return self._is_artificial
-
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, ProgramGraphNode):
+        if not isinstance(other, BasicBlockNode):
             return False
         if self is other:
             return True
         return self._index == other.index
 
     def __hash__(self) -> int:
-        return 31 + 17 * self._index
+        return hash(self._index)
+
+    def __getstate__(self) -> dict:
+        return {
+            "index": self._index,
+            "basic_block": self._basic_block,
+            "offset": self._offset,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self._index = state["index"]
+        self._basic_block = state["basic_block"]
+        self._offset = state["offset"]
 
     def __str__(self) -> str:
-        result = f"ProgramGraphNode({self._index})"
-        if self._basic_block is not None:
-            instructions = []
-            for instr in self._basic_block:
-                arg = instr.arg  # type: ignore[union-attr]
-                if isinstance(arg, BasicBlock):
-                    # We cannot determine which ProgramGraphNode this is.
-                    arg = "ProgramGraphNode"
-                elif isinstance(arg, Compare):
-                    arg = arg.name
-                elif arg is UNSET:
-                    arg = ""
-                else:
-                    arg = repr(arg)
-                formatted = instr.name  # type: ignore[union-attr]
-                if arg:
-                    formatted += f" {arg}"
-                instructions.append(formatted)
-            result += "\n" + "\n".join(instructions)
-        return result
+        instructions = []
+        for instr in self._basic_block:
+            arg = instr.arg  # type: ignore[union-attr]
+            if isinstance(arg, BasicBlock):
+                # We cannot determine which BasicBlockNode this is.
+                arg = "BasicBlockNode"
+            elif isinstance(arg, Compare):
+                arg = arg.name
+            elif arg is UNSET:
+                arg = ""
+            else:
+                arg = repr(arg)
+            formatted = instr.name  # type: ignore[union-attr]
+            if arg:
+                formatted += f" {arg}"
+            instructions.append(formatted)
+
+        return f"BasicBlockNode({self._index})\n" + "\n".join(instructions)
 
     def __repr__(self) -> str:
-        return f"ProgramGraphNode(index={self._index}, basic_block={self._basic_block})"
+        return f"BasicBlockNode(index={self._index}, basic_block={self._basic_block}), offset={self._offset})"  # noqa: E501
+
+
+ProgramNode: TypeAlias = ArtificialNode | BasicBlockNode
 
 
 class ProgramGraph:
@@ -150,9 +169,9 @@ class ProgramGraph:
     """
 
     def __init__(self) -> None:  # noqa: D107
-        self._graph: nx.DiGraph[ProgramGraphNode] = nx.DiGraph()
+        self._graph: nx.DiGraph[ProgramNode] = nx.DiGraph()
 
-    def add_node(self, node: ProgramGraphNode, **attr: Any) -> None:
+    def add_node(self, node: ProgramNode, **attr: Any) -> None:
         """Add a node to the graph.
 
         Args:
@@ -161,7 +180,7 @@ class ProgramGraph:
         """
         self._graph.add_node(node, **attr)
 
-    def add_edge(self, start: ProgramGraphNode, end: ProgramGraphNode, **attr: Any) -> None:
+    def add_edge(self, start: ProgramNode, end: ProgramNode, **attr: Any) -> None:
         """Add an edge between two nodes to the graph.
 
         Args:
@@ -171,7 +190,21 @@ class ProgramGraph:
         """
         self._graph.add_edge(start, end, **attr)
 
-    def get_predecessors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
+    def get_basic_block_node(self, index: int) -> BasicBlockNode | None:
+        """Provides the basic block node with the given index.
+
+        Args:
+            index: The index of the basic block node
+
+        Returns:
+            The basic block node with the given index or None if no such node exists
+        """
+        for node in self._graph.nodes:
+            if isinstance(node, BasicBlockNode) and node.index == index:
+                return node
+        return None
+
+    def get_predecessors(self, node: ProgramNode) -> set[ProgramNode]:
         """Provides a set of all direct predecessors of a node.
 
         Args:
@@ -182,7 +215,7 @@ class ProgramGraph:
         """
         return set(self._graph.predecessors(node))
 
-    def get_successors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
+    def get_successors(self, node: ProgramNode) -> set[ProgramNode]:
         """Provides a set of all direct successors of a node.
 
         Args:
@@ -194,7 +227,7 @@ class ProgramGraph:
         return set(self._graph.successors(node))
 
     @property
-    def nodes(self) -> set[ProgramGraphNode]:
+    def nodes(self) -> set[ProgramNode]:
         """Provides all nodes in the graph.
 
         Returns:
@@ -203,7 +236,7 @@ class ProgramGraph:
         return set(self._graph.nodes)
 
     @property
-    def graph(self) -> nx.DiGraph[ProgramGraphNode]:
+    def graph(self) -> nx.DiGraph[ProgramNode]:
         """The internal graph.
 
         Returns:
@@ -212,7 +245,7 @@ class ProgramGraph:
         return self._graph
 
     @property
-    def entry_node(self) -> ProgramGraphNode | None:
+    def entry_node(self) -> ProgramNode | None:
         """Provides the entry node of the graph.
 
         Returns:
@@ -224,20 +257,20 @@ class ProgramGraph:
         return None
 
     @property
-    def exit_nodes(self) -> set[ProgramGraphNode]:
+    def exit_nodes(self) -> set[ProgramNode]:
         """Provides the exit nodes of the graph.
 
         Returns:
             The set of exit nodes of the graph
         """
-        exit_nodes: set[ProgramGraphNode] = set()
+        exit_nodes: set[ProgramNode] = set()
         for node in self._graph.nodes:
             if len(self.get_successors(node)) == 0:
                 exit_nodes.add(node)
         return exit_nodes
 
     @property
-    def yield_nodes(self) -> set[ProgramGraphNode]:
+    def yield_nodes(self) -> set[ProgramNode]:
         """Provides the yield nodes of the graph.
 
         Iterates over all nodes and checks if any of the instructions in the basic block
@@ -248,9 +281,9 @@ class ProgramGraph:
         Returns:
             The set of yield nodes of the graph
         """
-        yield_nodes: set[ProgramGraphNode] = set()
+        yield_nodes: set[ProgramNode] = set()
         for node in self._graph.nodes:
-            if node.basic_block:
+            if isinstance(node, BasicBlockNode):
                 for instr in node.basic_block:
                     if instr.opcode == op.YIELD_VALUE:  # type: ignore[union-attr]
                         yield_nodes.add(node)
@@ -259,7 +292,7 @@ class ProgramGraph:
                         break
         return yield_nodes
 
-    def get_transitive_successors(self, node: ProgramGraphNode) -> set[ProgramGraphNode]:
+    def get_transitive_successors(self, node: ProgramNode) -> set[ProgramNode]:
         """Calculates the transitive closure (the transitive successors) of a node.
 
         Args:
@@ -272,10 +305,10 @@ class ProgramGraph:
 
     def _get_transitive_successors(
         self,
-        node: ProgramGraphNode,
-        done: set[ProgramGraphNode],
-    ) -> set[ProgramGraphNode]:
-        successors: set[ProgramGraphNode] = set()
+        node: ProgramNode,
+        done: set[ProgramNode],
+    ) -> set[ProgramNode]:
+        successors: set[ProgramNode] = set()
         for successor_node in self.get_successors(node):
             if successor_node not in done:
                 successors.add(successor_node)
@@ -285,9 +318,9 @@ class ProgramGraph:
 
     def get_least_common_ancestor(
         self,
-        first: ProgramGraphNode,
-        second: ProgramGraphNode,
-    ) -> ProgramGraphNode:
+        first: ProgramNode,
+        second: ProgramNode,
+    ) -> ProgramNode:
         """Calculates the least or lowest common ancestor node of two nodes.
 
         Both nodes have to be part of the graph!
@@ -323,15 +356,15 @@ class ProgramGraph:
 G = TypeVar("G", bound=ProgramGraph)
 
 
-def filter_dead_code_nodes(graph: G, entry_node_index: int = 0) -> G:
+def filter_dead_code_nodes(graph: G, entry_node: ProgramNode) -> G:
     """Prunes dead nodes from the given graph.
 
     A dead node is a node that has no entry node.  To specify a legal entry node,
-    one can use the `entry_node_index` parameter.
+    one can use the `entry_node` parameter.
 
     Args:
         graph: The graph to prune nodes from
-        entry_node_index: The index of the valid entry node
+        entry_node: The entry node of the graph
 
     Returns:
         The graph without the pruned dead nodes
@@ -342,7 +375,7 @@ def filter_dead_code_nodes(graph: G, entry_node_index: int = 0) -> G:
         # nodes from the graph.
         has_changed = False
         for node in graph.nodes:
-            if graph.get_predecessors(node) == set() and node.index != entry_node_index:
+            if node != entry_node and not graph.get_predecessors(node):
                 # The only node in the graph that is allowed to have no predecessor
                 # is the entry node, i.e., the node with index 0.  All other nodes
                 # without predecessors are considered dead code and thus removed.
@@ -400,7 +433,9 @@ class CFG(ProgramGraph):
         CFG._create_graph(cfg, edges, nodes)
 
         # Filter all dead-code nodes
-        cfg = filter_dead_code_nodes(cfg)
+        entry_node = cfg.get_basic_block_node(0)
+        assert entry_node is not None, "There has to be a node with index 0 in the CFG."
+        cfg = filter_dead_code_nodes(cfg, entry_node)
 
         # Insert dummy exit and entry nodes
         cfg = CFG._insert_dummy_exit_node(cfg)
@@ -468,12 +503,12 @@ class CFG(ProgramGraph):
     @staticmethod
     def _create_nodes_and_edges(
         blocks: ControlFlowGraph,
-    ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramGraphNode]]:
-        nodes: dict[int, ProgramGraphNode] = {}
+    ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramNode]]:
+        nodes: dict[int, ProgramNode] = {}
         edges: dict[int, list[tuple[int, dict]]] = {}
         offset = 0
         for node_index, block in enumerate(blocks):
-            node = ProgramGraphNode(index=node_index, basic_block=block, offset=offset)
+            node = BasicBlockNode(index=node_index, basic_block=block, offset=offset)
             # each instruction increases the offset by 2, therefore the offset at the
             # beginning of the next block is the current offset plus twice the length
             # of the current block
@@ -531,7 +566,7 @@ class CFG(ProgramGraph):
     def _create_graph(
         cfg: CFG,
         edges: dict[int, list[tuple[int, dict]]],
-        nodes: dict[int, ProgramGraphNode],
+        nodes: dict[int, ProgramNode],
     ):
         # add nodes to graph
         for node in nodes.values():
@@ -547,8 +582,8 @@ class CFG(ProgramGraph):
                 cfg.add_edge(predecessor_node, successor_node, **attrs)
 
     @staticmethod
-    def _infinite_loop_nodes(cfg: CFG) -> set[ProgramGraphNode]:
-        nodes: set[ProgramGraphNode] = set()
+    def _infinite_loop_nodes(cfg: CFG) -> set[ProgramNode]:
+        nodes: set[ProgramNode] = set()
         exit_nodes = cfg.exit_nodes
         for node in cfg.nodes:
             successors = cfg.get_successors(node)
@@ -558,19 +593,18 @@ class CFG(ProgramGraph):
 
     @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> CFG:
-        dummy_entry_node = ProgramGraphNode(index=-1, is_artificial=True)
+        dummy_entry_node = ArtificialNode.ENTRY
         # Search node with index 0. This block contains the instruction where
         # the execution of a code object begins.
-        node_zero = [n for n in cfg.nodes if n.index == 0]
-        assert len(node_zero) == 1, "Execution has to start at exactly one node that has index 0."
-        entry_node = node_zero[0]
+        entry_node = cfg.get_basic_block_node(0)
+        assert entry_node is not None, "There has to be a node with index 0 in the CFG."
         cfg.add_node(dummy_entry_node)
         cfg.add_edge(dummy_entry_node, entry_node)
         return cfg
 
     @staticmethod
     def _insert_dummy_exit_node(cfg: CFG) -> CFG:
-        dummy_exit_node = ProgramGraphNode(index=sys.maxsize, is_artificial=True)
+        dummy_exit_node = ArtificialNode.EXIT
         exit_nodes = cfg.exit_nodes
         yield_nodes = cfg.yield_nodes
         assert exit_nodes.union(yield_nodes), (
@@ -626,43 +660,17 @@ class CFG(ProgramGraph):
 
     def __getstate__(self):
         return {
-            "nodes": tuple(
-                (
-                    node.index,
-                    node.offset,
-                    node.basic_block,
-                    node.is_artificial,
-                    data,
-                )
-                for node, data in self._graph.nodes(data=True)
-            ),
-            "edges": tuple(
-                (
-                    source.index,
-                    target.index,
-                    data,
-                )
-                for source, target, data in self._graph.edges(data=True)
-            ),
+            "nodes": tuple(self._graph.nodes(data=True)),
+            "edges": tuple(self._graph.edges(data=True)),
             "bytecode_cfg": self._bytecode_cfg,
             "diameter": self._diameter,
         }
 
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
-        nodes: dict[int, ProgramGraphNode] = {}
-        for index, offset, basic_block, is_artificial, data in state["nodes"]:
-            node = ProgramGraphNode(
-                index,
-                offset=offset,
-                basic_block=basic_block,
-                is_artificial=is_artificial,
-            )
+        for node, data in state["nodes"]:
             self._graph.add_node(node, **data)
-            nodes[index] = node
-        for source_index, target_index, data in state["edges"]:
-            source = nodes[source_index]
-            target = nodes[target_index]
+        for source, target, data in state["edges"]:
             self._graph.add_edge(source, target, **data)
         self._bytecode_cfg = state["bytecode_cfg"]
         self._diameter = state["diameter"]
@@ -706,9 +714,7 @@ class DominatorTree(ProgramGraph):
         Returns:
             The dominance tree for the control-flow graph
         """
-        dominance: dict[ProgramGraphNode, set[ProgramGraphNode]] = (
-            DominatorTree._calculate_dominance(graph)
-        )
+        dominance: dict[ProgramNode, set[ProgramNode]] = DominatorTree._calculate_dominance(graph)
         for dominance_node, nodes in dominance.items():
             nodes.discard(dominance_node)
         dominance_tree = DominatorTree()
@@ -716,10 +722,10 @@ class DominatorTree(ProgramGraph):
         assert entry_node is not None
         dominance_tree.add_node(entry_node)
 
-        node_queue: queue.SimpleQueue = queue.SimpleQueue()
+        node_queue: queue.SimpleQueue[ProgramNode] = queue.SimpleQueue()
         node_queue.put(entry_node)
         while not node_queue.empty():
-            node: ProgramGraphNode = node_queue.get()
+            node = node_queue.get()
             for current, dominators in dominance.items():
                 if node in dominators:
                     dominators.remove(node)
@@ -732,17 +738,17 @@ class DominatorTree(ProgramGraph):
     @staticmethod
     def _calculate_dominance(
         graph: CFG,
-    ) -> dict[ProgramGraphNode, set[ProgramGraphNode]]:
-        dominance_map: dict[ProgramGraphNode, set[ProgramGraphNode]] = {}
+    ) -> dict[ProgramNode, set[ProgramNode]]:
+        dominance_map: dict[ProgramNode, set[ProgramNode]] = {}
         entry = graph.entry_node
         assert entry, "Cannot work with a graph without entry nodes"
-        entry_dominators: set[ProgramGraphNode] = {entry}
+        entry_dominators: set[ProgramNode] = {entry}
         dominance_map[entry] = entry_dominators
 
         for node in graph.nodes:
             if node == entry:
                 continue
-            all_nodes: set[ProgramGraphNode] = set(graph.nodes)
+            all_nodes: set[ProgramNode] = set(graph.nodes)
             dominance_map[node] = all_nodes
 
         changed: bool = True
@@ -764,11 +770,11 @@ class DominatorTree(ProgramGraph):
     @staticmethod
     def _calculate_dominators(
         graph: CFG,
-        dominance_map: dict[ProgramGraphNode, set[ProgramGraphNode]],
-        node: ProgramGraphNode,
-    ) -> set[ProgramGraphNode]:
-        dominators: set[ProgramGraphNode] = {node}
-        intersection: set[ProgramGraphNode] = set()
+        dominance_map: dict[ProgramNode, set[ProgramNode]],
+        node: ProgramNode,
+    ) -> set[ProgramNode]:
+        dominators: set[ProgramNode] = {node}
+        intersection: set[ProgramNode] = set()
         predecessors = graph.get_predecessors(node)
         if not predecessors:
             return set()
@@ -837,9 +843,9 @@ class ControlDependenceGraph(ProgramGraph):
             if least_common_ancestor is edge.source:
                 cdg.add_edge(edge.source, least_common_ancestor, **dict(edge.data))
 
-        return filter_dead_code_nodes(cdg, entry_node_index=-sys.maxsize)
+        return filter_dead_code_nodes(cdg, ArtificialNode.START)
 
-    def get_control_dependencies(self, node: ProgramGraphNode) -> OrderedSet[ControlDependency]:
+    def get_control_dependencies(self, node: ProgramNode) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.
 
         Args:
@@ -848,13 +854,12 @@ class ControlDependenceGraph(ProgramGraph):
         Returns:
             The direct control dependencies of the given node, if any.
         """
-        assert node is not None
         assert node in self.graph.nodes
         return self._retrieve_control_dependencies(node, OrderedSet())
 
     def _retrieve_control_dependencies(
         self,
-        node: ProgramGraphNode,
+        node: ProgramNode,
         handled: OrderedSet,
     ) -> OrderedSet[ControlDependency]:
         result: OrderedSet[ControlDependency] = OrderedSet()
@@ -864,10 +869,14 @@ class ControlDependenceGraph(ProgramGraph):
             handled.add((pred, node))
 
             if (
-                branch_value := self._graph.get_edge_data(pred, node).get(
-                    EDGE_DATA_BRANCH_VALUE, None
+                isinstance(pred, BasicBlockNode)
+                and (
+                    branch_value := self._graph.get_edge_data(pred, node).get(
+                        EDGE_DATA_BRANCH_VALUE, None
+                    )
                 )
-            ) is not None:
+                is not None
+            ):
                 # Why is it only based on the CFG whereas it is also based on the
                 # concrete predicates in function is_control_dependent_on_root
                 result.add(ControlDependency(pred, branch_value))
@@ -877,8 +886,8 @@ class ControlDependenceGraph(ProgramGraph):
 
     def is_control_dependent_on_root(
         self,
-        node: ProgramGraphNode,
-        predicate_nodes: Collection[ProgramGraphNode],
+        node: ProgramNode,
+        predicate_nodes: Collection[ProgramNode],
     ) -> bool:
         """Does this node directly depend on entering the code object?
 
@@ -893,9 +902,9 @@ class ControlDependenceGraph(ProgramGraph):
 
     def _is_control_dependent_on_root(
         self,
-        node: ProgramGraphNode,
-        predicate_nodes: Collection[ProgramGraphNode],
-        visited: set[ProgramGraphNode],
+        node: ProgramNode,
+        predicate_nodes: Collection[ProgramNode],
+        visited: set[ProgramNode],
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator]
             return True
@@ -913,41 +922,15 @@ class ControlDependenceGraph(ProgramGraph):
 
     def __getstate__(self):
         return {
-            "nodes": tuple(
-                (
-                    node.index,
-                    node.offset,
-                    node.basic_block,
-                    node.is_artificial,
-                    data,
-                )
-                for node, data in self._graph.nodes(data=True)
-            ),
-            "edges": tuple(
-                (
-                    source.index,
-                    target.index,
-                    data,
-                )
-                for source, target, data in self._graph.edges(data=True)
-            ),
+            "nodes": tuple(self._graph.nodes(data=True)),
+            "edges": tuple(self._graph.edges(data=True)),
         }
 
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
-        nodes: dict[int, ProgramGraphNode] = {}
-        for index, offset, basic_block, is_artificial, data in state["nodes"]:
-            node = ProgramGraphNode(
-                index,
-                offset=offset,
-                basic_block=basic_block,
-                is_artificial=is_artificial,
-            )
+        for node, data in state["nodes"]:
             self._graph.add_node(node, **data)
-            nodes[index] = node
-        for source_index, target_index, data in state["edges"]:
-            source = nodes[source_index]
-            target = nodes[target_index]
+        for source, target, data in state["edges"]:
             self._graph.add_edge(source, target, **data)
 
     @staticmethod
@@ -956,7 +939,7 @@ class ControlDependenceGraph(ProgramGraph):
         assert entry_node, "Cannot work with CFG without entry node"
         exit_nodes = graph.exit_nodes
         augmented_graph = graph.copy()
-        start_node = ProgramGraphNode(index=-sys.maxsize, is_artificial=True)
+        start_node = ArtificialNode.START
         augmented_graph.add_node(start_node)
         augmented_graph.add_edge(start_node, entry_node)
         for exit_node in exit_nodes:
@@ -965,8 +948,8 @@ class ControlDependenceGraph(ProgramGraph):
 
     @dataclass(frozen=True)
     class _Edge:
-        source: ProgramGraphNode
-        target: ProgramGraphNode
+        source: ProgramNode
+        target: ProgramNode
         data: frozenset
 
 
@@ -974,5 +957,5 @@ class ControlDependenceGraph(ProgramGraph):
 class ControlDependency:
     """Models a control dependency."""
 
-    node: ProgramGraphNode
+    node: BasicBlockNode
     branch_value: bool

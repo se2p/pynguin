@@ -40,8 +40,6 @@ import multiprocess.connection as mp_conn
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
-from bytecode.cfg import BasicBlock
-
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
@@ -56,6 +54,7 @@ import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
@@ -82,8 +81,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from contextlib import AbstractContextManager
     from types import ModuleType
-
-    from bytecode import BasicBlock
 
     import pynguin.testcase.testcase as tc
 
@@ -499,9 +496,10 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
         code_object = existing_code_objects[code_object_id]
         assert_node = None
         for node in code_object.cfg.nodes:
-            if node.is_artificial:
+            if not isinstance(node, BasicBlockNode):
                 continue
-            bb_node: BasicBlock = node.basic_block  # type: ignore[assignment]
+
+            bb_node = node.basic_block
             if (
                 not isinstance(bb_node[-1], ArtificialInstr)
                 and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE  # type:ignore[union-attr]

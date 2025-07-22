@@ -542,13 +542,10 @@ class ExecutionFlowBuilder:
         code_object = self.known_code_objects.get(code_object_id)
         assert code_object, "Unknown code object id"
         # Locate basic block in CFG to which instruction belongs
-        instr = None
-        for node in code_object.original_cfg.nodes:
-            if node.index == basic_block_id and node.basic_block:
-                instr = node.basic_block[-1]
-                break
-        assert instr, "Block did not contain a last instruction"
-        return instr  # type: ignore[return-value]
+        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
+        assert node, "Invalid node id"
+
+        return node.basic_block[-1]  # type: ignore[return-value]
 
     def _get_basic_block(self, code_object_id: int, basic_block_id: int) -> tuple[list[Instr], int]:
         """Locates the basic block in CFG to which the current state belongs.
@@ -569,11 +566,13 @@ class ExecutionFlowBuilder:
         """
         code_object = self.known_code_objects[code_object_id]
         assert code_object is not None, "Unknown code object id"
-        for node in code_object.original_cfg.nodes:
-            if node.index == basic_block_id and node.basic_block:
-                return node.basic_block, node.offset  # type: ignore[return-value]
 
-        raise InstructionNotFoundException
+        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
+
+        if node is None:
+            raise InstructionNotFoundException
+
+        return node.basic_block, node.offset  # type: ignore[return-value]
 
     def _locate_traced_in_bytecode(self, instr: ExecutedInstruction) -> Instr:
         basic_block, bb_offset = self._get_basic_block(instr.code_object_id, instr.node_id)

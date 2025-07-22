@@ -193,9 +193,14 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     simple_module.comprehension(call_count, 3)
     assert tracer_mock.register_predicate.call_count == 2
     assert tracer_mock.executed_compare_predicate.call_count == call_count
-    tracer_mock.executed_bool_predicate.assert_has_calls(
-        [call(True, 1)]  # noqa: FBT003
-    )
+    assert tracer_mock.executed_bool_predicate.mock_calls == [
+        call(True, 0),  # noqa: FBT003
+        call(True, 0),  # noqa: FBT003
+        call(True, 0),  # noqa: FBT003
+        call(True, 0),  # noqa: FBT003
+        call(True, 0),  # noqa: FBT003
+        call(False, 0),  # noqa: FBT003
+    ]
 
 
 @only_3_10

@@ -8,39 +8,41 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from bytecode import BasicBlock
+from bytecode.cfg import BasicBlock
 from bytecode.instr import Instr
 
 import pynguin.utils.opcodes as op
 
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.controlflow import ProgramGraph
-from pynguin.analyses.controlflow import ProgramGraphNode
 from tests.utils.version import only_3_10
 
 
 @pytest.fixture
 def mock_basic_block() -> BasicBlock:
-    return MagicMock(BasicBlock)
+    mock = MagicMock(BasicBlock)
+    mock.__len__.side_effect = lambda: 1  # To pass an assertion in BasicBlockNode
+    return mock
 
 
 @pytest.fixture
-def node() -> ProgramGraphNode:
-    return ProgramGraphNode(index=42)
+def node(mock_basic_block) -> BasicBlockNode:
+    return BasicBlockNode(index=42, basic_block=mock_basic_block)
 
 
 @pytest.fixture
-def second_node() -> ProgramGraphNode:
-    return ProgramGraphNode(index=23)
+def second_node(mock_basic_block) -> BasicBlockNode:
+    return BasicBlockNode(index=23, basic_block=mock_basic_block)
 
 
 @pytest.fixture
-def third_node() -> ProgramGraphNode:
-    return ProgramGraphNode(index=21)
+def third_node(mock_basic_block) -> BasicBlockNode:
+    return BasicBlockNode(index=21, basic_block=mock_basic_block)
 
 
 @pytest.fixture
-def fourth_node() -> ProgramGraphNode:
-    return ProgramGraphNode(index=24)
+def fourth_node(mock_basic_block) -> BasicBlockNode:
+    return BasicBlockNode(index=24, basic_block=mock_basic_block)
 
 
 @pytest.fixture
@@ -53,7 +55,7 @@ def test_node_index(node):
 
 
 def test_node_basic_block(mock_basic_block):
-    node = ProgramGraphNode(index=42, basic_block=mock_basic_block)
+    node = BasicBlockNode(index=42, basic_block=mock_basic_block)
     assert node.basic_block == mock_basic_block
 
 
@@ -69,8 +71,8 @@ def test_node_equals_self(node):
     assert node == node  # noqa: PLR0124
 
 
-def test_node_equals_other_node(node):
-    other = ProgramGraphNode(index=42)
+def test_node_equals_other_node(node, mock_basic_block):
+    other = BasicBlockNode(index=42, basic_block=mock_basic_block)
     assert node == other
 
 
@@ -139,11 +141,6 @@ def test_get_predecessors(graph, node, second_node):
     assert result == {node}
 
 
-def test_is_artificial():
-    node = ProgramGraphNode(index=42, is_artificial=True)
-    assert node.is_artificial
-
-
 @only_3_10
 def test_yield_nodes():
     graph = ProgramGraph()
@@ -151,7 +148,7 @@ def test_yield_nodes():
     yield_instr.opcode = op.YIELD_VALUE
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
-    node = ProgramGraphNode(index=42, basic_block=basic_block)
+    node = BasicBlockNode(index=42, basic_block=basic_block)
     graph.add_node(node)
     yield_nodes = graph.yield_nodes
     assert len(yield_nodes) == 1
@@ -165,14 +162,14 @@ def test_yield_nodes_2():
     yield_instr.opcode = op.YIELD_VALUE
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
-    node = ProgramGraphNode(index=42, basic_block=basic_block)
+    node = BasicBlockNode(index=42, basic_block=basic_block)
     graph.add_node(node)
 
     yield_instr_2 = Instr(name="YIELD_VALUE")
     yield_instr_2.opcode = op.YIELD_VALUE
     instructions_2 = [yield_instr_2]
     basic_block_2 = BasicBlock(instructions=instructions_2)
-    node_2 = ProgramGraphNode(index=43, basic_block=basic_block_2)
+    node_2 = BasicBlockNode(index=43, basic_block=basic_block_2)
     graph.add_node(node_2)
 
     yield_nodes = graph.yield_nodes

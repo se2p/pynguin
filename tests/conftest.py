@@ -7,7 +7,6 @@
 import ast
 import importlib
 import inspect
-import sys
 
 from collections.abc import Callable
 from typing import Any
@@ -30,7 +29,8 @@ import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.controlflow import CFG
-from pynguin.analyses.controlflow import ProgramGraphNode
+from pynguin.analyses.controlflow import ArtificialNode
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
@@ -293,13 +293,13 @@ def conditional_jump_example_bytecode() -> Bytecode:
 @pytest.fixture(scope="module")
 def small_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = ProgramGraphNode(index=0)
-    n2 = ProgramGraphNode(index=2)
-    n3 = ProgramGraphNode(index=3)
-    n4 = ProgramGraphNode(index=4)
-    n5 = ProgramGraphNode(index=5)
-    n6 = ProgramGraphNode(index=6)
-    exit_node = ProgramGraphNode(index=sys.maxsize)
+    entry = BasicBlockNode(index=0, basic_block=MagicMock())
+    n2 = BasicBlockNode(index=2, basic_block=MagicMock())
+    n3 = BasicBlockNode(index=3, basic_block=MagicMock())
+    n4 = BasicBlockNode(index=4, basic_block=MagicMock())
+    n5 = BasicBlockNode(index=5, basic_block=MagicMock())
+    n6 = BasicBlockNode(index=6, basic_block=MagicMock())
+    exit_node = ArtificialNode.EXIT
     cfg.add_node(entry)
     cfg.add_node(n2)
     cfg.add_node(n3)
@@ -320,11 +320,11 @@ def small_control_flow_graph() -> CFG:
 @pytest.fixture(scope="module")
 def yield_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = ProgramGraphNode(index=-1)
-    y_assign_0_node = ProgramGraphNode(index=0)
-    y_eq_0_node = ProgramGraphNode(index=1)
-    yield_y_node = ProgramGraphNode(index=2)  # yield_y_node, 2
-    jmp_node = ProgramGraphNode(index=3)
+    entry = ArtificialNode.ENTRY
+    y_assign_0_node = BasicBlockNode(index=0, basic_block=MagicMock())
+    y_eq_0_node = BasicBlockNode(index=1, basic_block=MagicMock())
+    yield_y_node = BasicBlockNode(index=2, basic_block=MagicMock())  # yield_y_node, 2
+    jmp_node = BasicBlockNode(index=3, basic_block=MagicMock())
 
     cfg.add_node(entry)
     cfg.add_node(y_assign_0_node)
@@ -345,25 +345,25 @@ def yield_control_flow_graph() -> CFG:
 @pytest.fixture(scope="module")
 def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     graph = CFG(MagicMock())
-    entry = ProgramGraphNode(index=-sys.maxsize)
-    n_1 = ProgramGraphNode(index=1)
-    n_2 = ProgramGraphNode(index=2)
-    n_3 = ProgramGraphNode(index=3)
-    n_5 = ProgramGraphNode(index=5)
-    n_100 = ProgramGraphNode(index=100)
-    n_110 = ProgramGraphNode(index=110)
-    n_120 = ProgramGraphNode(index=120)
-    n_130 = ProgramGraphNode(index=130)
-    n_140 = ProgramGraphNode(index=140)
-    n_150 = ProgramGraphNode(index=150)
-    n_160 = ProgramGraphNode(index=160)
-    n_170 = ProgramGraphNode(index=170)
-    n_180 = ProgramGraphNode(index=180)
-    n_190 = ProgramGraphNode(index=190)
-    n_200 = ProgramGraphNode(index=200)
-    n_210 = ProgramGraphNode(index=210)
-    n_300 = ProgramGraphNode(index=300)
-    n_exit = ProgramGraphNode(index=sys.maxsize)
+    entry = ArtificialNode.ENTRY
+    n_1 = BasicBlockNode(index=1, basic_block=MagicMock())
+    n_2 = BasicBlockNode(index=2, basic_block=MagicMock())
+    n_3 = BasicBlockNode(index=3, basic_block=MagicMock())
+    n_5 = BasicBlockNode(index=5, basic_block=MagicMock())
+    n_100 = BasicBlockNode(index=100, basic_block=MagicMock())
+    n_110 = BasicBlockNode(index=110, basic_block=MagicMock())
+    n_120 = BasicBlockNode(index=120, basic_block=MagicMock())
+    n_130 = BasicBlockNode(index=130, basic_block=MagicMock())
+    n_140 = BasicBlockNode(index=140, basic_block=MagicMock())
+    n_150 = BasicBlockNode(index=150, basic_block=MagicMock())
+    n_160 = BasicBlockNode(index=160, basic_block=MagicMock())
+    n_170 = BasicBlockNode(index=170, basic_block=MagicMock())
+    n_180 = BasicBlockNode(index=180, basic_block=MagicMock())
+    n_190 = BasicBlockNode(index=190, basic_block=MagicMock())
+    n_200 = BasicBlockNode(index=200, basic_block=MagicMock())
+    n_210 = BasicBlockNode(index=210, basic_block=MagicMock())
+    n_300 = BasicBlockNode(index=300, basic_block=MagicMock())
+    n_exit = ArtificialNode.EXIT
     graph.add_node(entry)
     graph.add_node(n_1)
     graph.add_node(n_2)

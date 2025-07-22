@@ -22,18 +22,17 @@ import pynguin.instrumentation.tracer as tr
 import pynguin.utils.opcodes as op
 
 from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.instrumentation import ArtificialInstr
 from pynguin.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation import PredicateMetaData
 from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import get_basic_block
 
 
 if TYPE_CHECKING:
     from bytecode.cfg import BasicBlock
 
     from pynguin.analyses.controlflow import CFG
-    from pynguin.analyses.controlflow import ProgramGraphNode
 
 
 class InjectionInstrumentationAdapter:
@@ -56,7 +55,7 @@ class InjectionInstrumentationAdapter:
     # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
     #  Or use sub visitors?
 
-    def visit_entry_node(self, node: ProgramGraphNode, code_object_id: int) -> None:
+    def visit_entry_node(self, node: BasicBlockNode, code_object_id: int) -> None:
         """Called when we visit the entry node of a code object.
 
         Args:
@@ -68,7 +67,7 @@ class InjectionInstrumentationAdapter:
         self,
         cfg: CFG,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
         """Called for each non-artificial node, i.e., nodes that have a basic block.
 
@@ -95,19 +94,15 @@ class InjectionInstrumentationTransformer(InstrumentationTransformer):
         code: CodeType,
         cfg: CFG,
         code_object_id: int,
-        entry_node: ProgramGraphNode,
+        entry_node: BasicBlockNode,
     ) -> CodeType:
         for adapter in self._instrumentation_adapters:
             adapter.visit_entry_node(entry_node, code_object_id)
 
         for node in cfg.nodes:
-            if node.is_artificial:
-                # Artificial nodes don't have a basic block, so we don't need to
-                # instrument anything.
-                continue
-
-            for adapter in self._instrumentation_adapters:
-                adapter.visit_node(cfg, code_object_id, node)
+            if isinstance(node, BasicBlockNode):
+                for adapter in self._instrumentation_adapters:
+                    adapter.visit_node(cfg, code_object_id, node)
 
         code = cfg.bytecode_cfg().to_code()
 
@@ -145,7 +140,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         self,
         cfg: CFG,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument a single node in the CFG.
 
@@ -156,10 +151,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             code_object_id: The containing Code Object
             node: The node that should be instrumented.
         """
-        basic_block = get_basic_block(node)
-
-        assert len(basic_block) > 0, "Empty basic block in CFG."
-
+        basic_block = node.basic_block
         maybe_jump: Instr = basic_block[self._JUMP_OP_POS]  # type: ignore[assignment]
         orig_instructions_positions = self._map_instr_positions(basic_block)
         maybe_compare_idx: int | None = orig_instructions_positions.get(
@@ -245,7 +237,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         maybe_compare_idx: int | None,
         jump: Instr,
         block: BasicBlock,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument a conditional jump.
 
@@ -287,7 +279,10 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         )
 
     def _instrument_bool_based_conditional_jump(
-        self, block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self,
+        block: BasicBlock,
+        code_object_id: int,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument boolean-based conditional jumps.
 
@@ -334,7 +329,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         block: BasicBlock,
         compare_idx: int,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument compare-based conditional jumps.
 
@@ -405,7 +400,10 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         ]
 
     def _instrument_exception_based_conditional_jump(
-        self, basic_block: BasicBlock, code_object_id: int, node: ProgramGraphNode
+        self,
+        basic_block: BasicBlock,
+        code_object_id: int,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument exception-based conditional jumps.
 
@@ -447,7 +445,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
 
-    def visit_entry_node(self, node: ProgramGraphNode, code_object_id: int) -> None:
+    def visit_entry_node(self, node: BasicBlockNode, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block.
 
         The added instructions inform the tracer, that the code object with the given id
@@ -458,7 +456,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             code_object_id: The id that the tracer has assigned to the code object
                 which contains the given basic block.
         """
-        basic_block = get_basic_block(node)
+        basic_block = node.basic_block
 
         # Use line number of first instruction
         lineno = basic_block[0].lineno  # type: ignore[union-attr]
@@ -482,7 +480,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
     def _instrument_for_loop(
         self,
         cfg: CFG,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
         basic_block: BasicBlock,
         code_object_id: int,
     ) -> None:
@@ -593,9 +591,9 @@ class LineCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         self,
         cfg: CFG,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
-        basic_block = get_basic_block(node)
+        basic_block = node.basic_block
 
         #  iterate over instructions after the fist one in BB,
         #  put new instructions in the block for each line
@@ -675,7 +673,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         self,
         cfg: CFG,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
         """Instrument a single node in the CFG.
 
@@ -692,9 +690,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
         """
-        basic_block = get_basic_block(node)
-
-        assert len(basic_block) > 0, "Empty basic block in CFG."
+        basic_block = node.basic_block
         offset = node.offset
 
         file_name = cfg.bytecode_cfg().filename
@@ -1568,11 +1564,10 @@ class DynamicSeedingInjectionInstrumentation(InjectionInstrumentationAdapter):
         self,
         cfg: CFG,
         code_object_id: int,
-        node: ProgramGraphNode,
+        node: BasicBlockNode,
     ) -> None:
-        basic_block = get_basic_block(node)
+        basic_block = node.basic_block
 
-        assert len(basic_block) > 0, "Empty basic block in CFG."
         maybe_compare: Instr | None = (
             basic_block[self._COMPARE_OP_POS]  # type: ignore[assignment]
             if len(basic_block) > 1

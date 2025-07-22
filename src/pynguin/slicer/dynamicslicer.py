@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.utils.opcodes as op
 
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder
@@ -35,9 +36,7 @@ from pynguin.utils.exceptions import SlicingTimeoutException
 if TYPE_CHECKING:
     from bytecode import Instr
 
-    from pynguin.analyses.controlflow import CFG
     from pynguin.analyses.controlflow import ControlDependenceGraph
-    from pynguin.analyses.controlflow import ProgramGraphNode
     from pynguin.instrumentation import CodeObjectMetaData
     from pynguin.instrumentation.tracer import ExecutedAssertion
     from pynguin.instrumentation.tracer import ExecutionTrace
@@ -385,17 +384,16 @@ class DynamicSlicer:
         self, instr: UniqueInstruction, code_object_id: int, basic_block_id: int
     ) -> Instr:
         # Get relevant basic block
-        basic_block = None
-        bb_offset = -1
         code_object = self._known_code_objects.get(code_object_id)
-        assert code_object, "Unknown code object id"
-        for node in code_object.original_cfg.nodes:
-            if node.index == basic_block_id:
-                basic_block = node.basic_block
-                bb_offset = node.offset
+        assert code_object is not None, "Unknown code object id"
 
-        if (not basic_block) or (bb_offset < 0):
+        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
+
+        if node is None:
             raise InstructionNotFoundException
+
+        basic_block = node.basic_block
+        bb_offset = node.offset
 
         for instruction in basic_block:
             if (
@@ -459,8 +457,8 @@ class DynamicSlicer:
 
         code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
-        curr_node = self.get_node(unique_instr.node_id, cdg)
-        assert curr_node, "Invalid node id"
+        curr_node = cdg.get_basic_block_node(unique_instr.node_id)
+        assert curr_node is not None, "Invalid node id"
         successors = cdg.get_successors(curr_node)
 
         instr_ctrl_deps_copy = context.instr_ctrl_deps.copy()
@@ -469,7 +467,7 @@ class DynamicSlicer:
         # If so: include current instruction in the slice, remove all instructions
         # control dependent on current instruction
         for instr in context.instr_ctrl_deps:
-            instr_node = self.get_node(instr.node_id, cdg)
+            instr_node = cdg.get_basic_block_node(instr.node_id)
             if instr_node in successors:
                 instr_ctrl_deps_copy.remove(instr)
                 control_dependency = True
@@ -492,30 +490,13 @@ class DynamicSlicer:
         """
         code_object: CodeObjectMetaData = self._known_code_objects[code_object_id]
         cdg: ControlDependenceGraph = code_object.cdg
-        curr_node = self.get_node(unique_instr.node_id, cdg)
-        assert curr_node, "Invalid node id"
+        curr_node = cdg.get_basic_block_node(unique_instr.node_id)
+        assert curr_node is not None, "Invalid node id"
         predecessors = cdg.get_predecessors(curr_node)
 
         for predecessor in predecessors:
-            if not predecessor.is_artificial:
+            if isinstance(predecessor, BasicBlockNode):
                 context.instr_ctrl_deps.add(unique_instr)
-
-    @staticmethod
-    def get_node(node_id: int, graph: ControlDependenceGraph | CFG) -> ProgramGraphNode | None:
-        """Iterate through all nodes of the graph and return the node with the given id.
-
-        Args:
-            node_id: the node id to find inside the given graph
-            graph: the graph to find the node inside of
-
-        Returns:
-            A ProgramGraphNode object with the given id
-            or None if the id is not in the nodes
-        """
-        for node in graph.nodes:
-            if node.index == node_id:
-                return node
-        return None
 
     def check_explicit_data_dependency(  # noqa: C901
         self,
@@ -838,15 +819,12 @@ class AssertionSlicer:
         code_meta = self._known_code_objects[traced_instr.code_object_id]
 
         # find out the basic block of the assertion
-        basic_block = None
-        for node in code_meta.original_cfg.nodes:
-            if node.index == traced_instr.node_id and node.basic_block:
-                basic_block = node.basic_block
-        assert basic_block, "node id or code object id were off"
+        node = code_meta.original_cfg.get_basic_block_node(traced_instr.node_id)
+        assert node is not None, "Invalid node id"
 
         # the traced instruction is always the jump at the end of the bb
         original_instr = None
-        for instr in reversed(list(basic_block)):
+        for instr in reversed(list(node.basic_block)):
             if instr.opcode == traced_instr.opcode:  # type: ignore[union-attr]
                 original_instr = instr
                 break

@@ -9,6 +9,7 @@ import pytest
 from bytecode import Bytecode
 
 from pynguin.analyses.controlflow import CFG
+from pynguin.analyses.controlflow import ArtificialNode
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
 from tests.utils.version import only_3_10
@@ -19,55 +20,55 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     dot_representation = cfg.dot
     graph = """strict digraph  {
-"ProgramGraphNode(0)
+"BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode";
-"ProgramGraphNode(2)
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
 LOAD_CONST 'no'";
-"ProgramGraphNode(3)
+"BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)";
-"ProgramGraphNode(0)
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(0)
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(2)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
 LOAD_CONST 'no'"  [branch_value=False, label=False];
-"ProgramGraphNode(1)
+"BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode" -> "ProgramGraphNode(3)
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(2)
-LOAD_CONST 'no'" -> "ProgramGraphNode(3)
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(3)
+"BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)" -> "ProgramGraphNode(0)
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode";
+POP_JUMP_IF_FALSE BasicBlockNode";
 }"""
     assert cfg.cyclomatic_complexity == 2
     assert cfg.diameter == 6
-    assert cfg.entry_node.is_artificial
+    assert isinstance(cfg.entry_node, ArtificialNode)
     assert len(cfg.exit_nodes) == 1
     # Stupid string encoding >:[
     assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(
@@ -81,55 +82,55 @@ def test_integration_reverse_cfg(conditional_jump_example_bytecode):
     reversed_cfg = cfg.reversed()
     dot_representation = reversed_cfg.dot
     graph = """strict digraph  {
-"ProgramGraphNode(0)
+"BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode";
-"ProgramGraphNode(2)
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
 LOAD_CONST 'no'";
-"ProgramGraphNode(3)
+"BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)";
-"ProgramGraphNode(0)
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(-1)";
-"ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "ArtificialNode(ENTRY)";
+"BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode" -> "ProgramGraphNode(0)
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(2)
-LOAD_CONST 'no'" -> "ProgramGraphNode(0)
+POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
-POP_JUMP_IF_FALSE ProgramGraphNode"  [branch_value=False, label=False];
-"ProgramGraphNode(3)
+POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(1)
+RETURN_VALUE" -> "BasicBlockNode(1)
 LOAD_CONST 'yes'
-JUMP_FORWARD ProgramGraphNode";
-"ProgramGraphNode(3)
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(2)
+RETURN_VALUE" -> "BasicBlockNode(2)
 LOAD_CONST 'no'";
-"ProgramGraphNode(9223372036854775807)" -> "ProgramGraphNode(3)
+"ArtificialNode(EXIT)" -> "BasicBlockNode(3)
 CALL_FUNCTION 1
 LOAD_CONST None
 RETURN_VALUE";
 }"""
     assert reversed_cfg.cyclomatic_complexity == 2
     assert cfg.diameter == 6
-    assert cfg.entry_node.is_artificial
+    assert isinstance(cfg.entry_node, ArtificialNode)
     assert len(cfg.exit_nodes) == 1
     assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(
         graph, "utf-8"
@@ -153,149 +154,149 @@ def control_flow_labelling(foo):  # pragma: no cover
     [
         pytest.param(
             """strict digraph  {
-"ProgramGraphNode(0)
+"BasicBlockNode(0)
 LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'a'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_FORWARD ProgramGraphNode";
-"ProgramGraphNode(2)
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
 LOAD_FAST 'foo'
 LOAD_CONST 42
 COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode";
-"ProgramGraphNode(3)
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(3)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'bar'
 CALL_FUNCTION 1
 POP_TOP";
-"ProgramGraphNode(4)
+"BasicBlockNode(4)
 LOAD_FAST 'foo'
 GET_ITER";
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(6)
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(6)
 STORE_FAST 'f'
 LOAD_GLOBAL 'print'
 LOAD_FAST 'f'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode";
-"ProgramGraphNode(7)
+JUMP_ABSOLUTE BasicBlockNode";
+"BasicBlockNode(7)
 LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode";
-"ProgramGraphNode(8)
+POP_JUMP_IF_TRUE BasicBlockNode";
+"BasicBlockNode(8)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'foo'
 CALL_FUNCTION 1
 POP_TOP
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(9)
+"BasicBlockNode(9)
 LOAD_CONST None
 RETURN_VALUE";
-"ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)";
-"ProgramGraphNode(0)
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
 LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'a'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_FORWARD ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(0)
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
 LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(2)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
 LOAD_FAST 'foo'
 LOAD_CONST 42
 COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode"  [branch_value=False, label=False];
-"ProgramGraphNode(1)
+POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(1)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'a'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_FORWARD ProgramGraphNode" -> "ProgramGraphNode(4)
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(4)
 LOAD_FAST 'foo'
 GET_ITER";
-"ProgramGraphNode(2)
+"BasicBlockNode(2)
 LOAD_FAST 'foo'
 LOAD_CONST 42
 COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(3)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(3)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'bar'
 CALL_FUNCTION 1
 POP_TOP"  [branch_value=True, label=True];
-"ProgramGraphNode(2)
+"BasicBlockNode(2)
 LOAD_FAST 'foo'
 LOAD_CONST 42
 COMPARE_OP EQ
-POP_JUMP_IF_FALSE ProgramGraphNode" -> "ProgramGraphNode(4)
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(4)
 LOAD_FAST 'foo'
 GET_ITER"  [branch_value=False, label=False];
-"ProgramGraphNode(3)
+"BasicBlockNode(3)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'bar'
 CALL_FUNCTION 1
-POP_TOP" -> "ProgramGraphNode(4)
+POP_TOP" -> "BasicBlockNode(4)
 LOAD_FAST 'foo'
 GET_ITER";
-"ProgramGraphNode(4)
+"BasicBlockNode(4)
 LOAD_FAST 'foo'
-GET_ITER" -> "ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode" -> "ProgramGraphNode(6)
+GET_ITER" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(6)
 STORE_FAST 'f'
 LOAD_GLOBAL 'print'
 LOAD_FAST 'f'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode"  [branch_value=True, label=True];
-"ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode" -> "ProgramGraphNode(7)
+JUMP_ABSOLUTE BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(7)
 LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode"  [branch_value=False, label=False];
-"ProgramGraphNode(6)
+POP_JUMP_IF_TRUE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(6)
 STORE_FAST 'f'
 LOAD_GLOBAL 'print'
 LOAD_FAST 'f'
 CALL_FUNCTION 1
 POP_TOP
-JUMP_ABSOLUTE ProgramGraphNode" -> "ProgramGraphNode(5)
-FOR_ITER ProgramGraphNode";
-"ProgramGraphNode(7)
+JUMP_ABSOLUTE BasicBlockNode" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(7)
 LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode" -> "ProgramGraphNode(9)
+POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(9)
 LOAD_CONST None
 RETURN_VALUE"  [branch_value=True, label=True];
-"ProgramGraphNode(7)
+"BasicBlockNode(7)
 LOAD_FAST 'foo'
-POP_JUMP_IF_TRUE ProgramGraphNode" -> "ProgramGraphNode(8)
+POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(8)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'foo'
 CALL_FUNCTION 1
 POP_TOP
 LOAD_CONST None
 RETURN_VALUE"  [branch_value=False, label=False];
-"ProgramGraphNode(8)
+"BasicBlockNode(8)
 LOAD_GLOBAL 'print'
 LOAD_CONST 'foo'
 CALL_FUNCTION 1
 POP_TOP
 LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(9)
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"BasicBlockNode(9)
 LOAD_CONST None
-RETURN_VALUE" -> "ProgramGraphNode(9223372036854775807)";
-"ProgramGraphNode(-1)" -> "ProgramGraphNode(0)
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
 LOAD_FAST 'foo'
-POP_JUMP_IF_FALSE ProgramGraphNode";
+POP_JUMP_IF_FALSE BasicBlockNode";
 }""",
             id="Python 3.10+, extract return None into separate node",
         ),

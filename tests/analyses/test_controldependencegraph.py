@@ -8,8 +8,8 @@ from contextlib import contextmanager
 
 import pytest
 
+from pynguin.analyses.controlflow import ArtificialNode
 from pynguin.analyses.controlflow import ControlDependenceGraph
-from pynguin.analyses.controlflow import ProgramGraphNode
 from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.tracer import ExecutionTracer
@@ -22,55 +22,105 @@ def test_integration(small_control_flow_graph):
     control_dependence_graph = ControlDependenceGraph.compute(small_control_flow_graph)
     dot_representation = control_dependence_graph.dot
     graph = """strict digraph  {
-"ProgramGraphNode(2)";
-"ProgramGraphNode(4)";
-"ProgramGraphNode(6)";
-"ProgramGraphNode(-9223372036854775807)";
-"ProgramGraphNode(3)";
-"ProgramGraphNode(5)";
-"ProgramGraphNode(0)";
-"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(0)";
-"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(6)";
-"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(5)";
-"ProgramGraphNode(-9223372036854775807)" -> "ProgramGraphNode(2)";
-"ProgramGraphNode(5)" -> "ProgramGraphNode(3)";
-"ProgramGraphNode(5)" -> "ProgramGraphNode(4)";
+"BasicBlockNode(0)
+";
+"BasicBlockNode(2)
+";
+"BasicBlockNode(3)
+";
+"BasicBlockNode(4)
+";
+"BasicBlockNode(5)
+";
+"BasicBlockNode(6)
+";
+"ArtificialNode(START)";
+"BasicBlockNode(5)
+" -> "BasicBlockNode(4)
+";
+"BasicBlockNode(5)
+" -> "BasicBlockNode(3)
+";
+"ArtificialNode(START)" -> "BasicBlockNode(0)
+";
+"ArtificialNode(START)" -> "BasicBlockNode(6)
+";
+"ArtificialNode(START)" -> "BasicBlockNode(5)
+";
+"ArtificialNode(START)" -> "BasicBlockNode(2)
+";
 }"""
     assert dot_representation == graph
-    assert control_dependence_graph.entry_node.is_artificial
+    assert isinstance(control_dependence_graph.entry_node, ArtificialNode)
 
 
 def small_fixture(x, y):  # pragma: no cover
-    if x <= y:
-        if x == y:
+    if x <= y:  # predicate 0
+        if x == y:  # predicate 1
             pass
-        if x > 0 and y == 17:
+        if x > 0 and y == 17:  # predicate 2 and 3
             return True
     return False
 
 
 @only_3_10
 @pytest.mark.parametrize(
-    "node,expected_deps",
+    "node_index,expected_deps",
     [
         pytest.param(
-            ProgramGraphNode(index=5),
-            {(0, True)},
-            id="return True depends on y == 17",
+            0,
+            set(),
+            id="Node 'if x <= y:' directly depends on no predicate",
         ),
-        pytest.param(ProgramGraphNode(index=0), set(), id="Entry has no dependency"),
         pytest.param(
-            ProgramGraphNode(index=6),
+            1,
+            {
+                (0, True),
+            },
+            id="Node 'if x == y:' directly depends on predicate 'x <= y' being True",
+        ),
+        pytest.param(
+            2,
+            {
+                (1, True),
+            },
+            id="Node 'pass' directly depends on predicate 'x == y' being True",
+        ),
+        pytest.param(
+            3,
+            {
+                (0, True),
+            },
+            id="Node 'if x > 0' directly depends on predicate 'x <= y' being True",
+            # We don't care about predicate x == y here, because we can reach
+            # this statement in both cases
+        ),
+        pytest.param(
+            4,
+            {
+                (2, True),
+            },
+            id="Node 'and y == 17:' directly depends on predicate 'x > 0' being True",
+        ),
+        pytest.param(
+            5,
+            {
+                (3, True),
+            },
+            id="Node 'return True' directly depends on predicate 'y == 17' being True",
+        ),
+        pytest.param(
+            6,
             {
                 (0, False),
                 (2, False),
                 (3, False),
             },
-            id="return False depends on all False branches",
+            id="Node 'return False' directly depends on any predicate being False",
         ),
     ],
 )
-def test_get_control_dependencies(node, expected_deps):
+def test_get_control_dependencies(node_index, expected_deps):
     tracer = ExecutionTracer()
     instrumentation_tracer = InstrumentationExecutionTracer(tracer)
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
@@ -78,6 +128,10 @@ def test_get_control_dependencies(node, expected_deps):
     transformer.instrument_module(small_fixture.__code__)
     subject_properties = tracer.get_subject_properties()
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
+
+    node = cdg.get_basic_block_node(node_index)
+    assert node is not None
+
     nodes_predicates = {
         meta_data.node: predicate_id
         for predicate_id, meta_data in subject_properties.existing_predicates.items()
@@ -144,12 +198,7 @@ def test_is_control_dependent_on_root(node_index, expected_dependant):
     subject_properties = tracer.get_subject_properties()
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
-    node = None
-    for n in cdg.nodes:
-        if n.index == node_index:
-            node = n
-            break
-
+    node = cdg.get_basic_block_node(node_index)
     assert node is not None
 
     dependant = cdg.is_control_dependent_on_root(
