@@ -26,6 +26,7 @@ from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
+from pynguin.testcase.statement import DictStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
@@ -107,14 +108,15 @@ class StatementLocalSearch(abc.ABC):
             logger.debug("Unknown primitive type: %s", primitive_type)
         elif isinstance(statement, NonDictCollection):
             logger.debug("%s non-dict collection found", statement.__class__.__name__)
+            return NonDictCollectionLocalSearch(chromosome, position, objective)
+        elif isinstance(statement, DictStatement):
+            logger.debug("%s dict statement found", statement.__class__.__name__)
+            return DictStatementLocalSearch(chromosome, position, objective)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)
             | isinstance(statement, MethodStatement)
-        ):
-            logger.debug("%s statement found", statement.__class__.__name__)
-            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
-        elif isinstance(statement, FieldStatement):
+        ) or isinstance(statement, FieldStatement):
             logger.debug("%s statement found", statement.__class__.__name__)
             return FieldStatementLocalSearch(chromosome, position, objective)
 
@@ -1134,6 +1136,125 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
                 old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
             else:
+                statement.elements = old_elements.copy()
+                self._chromosome.set_last_execution_result(last_execution_result)
+        return improved
+
+
+class DictStatementLocalSearch(StatementLocalSearch, ABC):
+    """Local search strategies for dictionaries."""
+
+    def search(self) -> None:  # noqa: D102
+        statement = cast("DictStatement", self._chromosome.test_case.statements[self._position])
+        if self.remove_entries(statement):
+            self._logger.debug("Removing dict collection entries has improved fitness.")
+        if self.replace_entries(statement):
+            self._logger.debug("Replacing dict collection entries has improved fitness.")
+        if self.add_entries(statement):
+            self._logger.debug("Adding dict collection entries has improved fitness.")
+
+    def remove_entries(self, statement: DictStatement) -> bool:
+        """Removes every entry of the dictionary and checks for improved fitness.
+
+        Args:
+            statement (DictStatement): The dictionary which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements.copy()
+        last_execution_result = self._chromosome.get_last_execution_result()
+        improved = False
+        for key, value in statement.elements.copy():
+            if LocalSearchTimer.get_instance().limit_reached():
+                return improved
+            statement.elements.remove((key, value))
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements.copy()
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                statement.elements = old_elements.copy()
+                self._chromosome.set_last_execution_result(last_execution_result)
+        return improved
+
+    def replace_entries(self, statement: DictStatement) -> bool:
+        """Replaces entries in the dictionary with other possible entries.
+
+        Args:
+            statement (DictStatement): The dictionary which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements.copy()
+        last_execution_result = self._chromosome.get_last_execution_result()
+        improved = False
+        for i in range(len(statement.elements)):
+            key, value = statement.elements[i]
+            if LocalSearchTimer.get_instance().limit_reached():
+                return improved
+            values = [v for v in self._chromosome.test_case.get_objects(value.type, self._position)]
+            keys_reference = self._chromosome.test_case.get_objects(key.type, self._position)
+            key_elements = {k for (k, _) in statement.elements}
+            keys = [k for k in keys_reference if k not in key_elements]
+            if len(keys) == 0 or len(values) == 0:
+                continue  # TODO: Maybe create new statement?
+            for available_key in randomness.sample(
+                keys, min(len(keys), config.LocalSearchConfiguration.dict_max_insertions)
+            ):
+                statement.elements[i] = (available_key, value)
+                if self._objective.has_improved(self._chromosome):
+                    improved = True
+                    old_elements = statement.elements.copy()
+                    last_execution_result = self._chromosome.get_last_execution_result()
+                    break
+                statement.elements = old_elements.copy()
+                self._chromosome.set_last_execution_result(last_execution_result)
+            key, value = statement.elements[i]
+            for available_value in randomness.sample(
+                values, min(len(values), config.LocalSearchConfiguration.dict_max_insertions)
+            ):
+                statement.elements[i] = (key, available_value)
+                if not self._objective.has_improved(self._chromosome):
+                    statement.elements = old_elements.copy()
+                    self._chromosome.set_last_execution_result(last_execution_result)
+                else:
+                    improved = True
+                    old_elements = statement.elements.copy()
+                    last_execution_result = self._chromosome.get_last_execution_result()
+                    break
+        return improved
+
+    def add_entries(self, statement: DictStatement) -> bool:
+        """Adds entries to the dictionary at every possible place.
+
+        Args:
+            statement (DictStatement): The dictionary which should be modified.
+
+        Returns:
+            Gives back True if the mutations have improved the fitness.
+        """
+        old_elements = statement.elements.copy()
+        last_execution_result = self._chromosome.get_last_execution_result()
+        insertions = 0
+        improved = False
+        while (
+            insertions < config.LocalSearchConfiguration.dict_max_insertions
+            and not LocalSearchTimer.get_instance().limit_reached()
+        ):
+            values = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
+            key_elements = {k for (k, _) in statement.elements}
+            keys = [key for key in values if key not in key_elements]
+            if len(keys) == 0:
+                return improved  # TODO: Maybe create new statement?
+            statement.elements.append((randomness.choice(keys), randomness.choice(values)))
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements.copy()
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                insertions += 1
                 statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
         return improved

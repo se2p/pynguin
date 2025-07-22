@@ -12,10 +12,12 @@ from unittest.mock import patch
 
 import pytest
 
+from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.testcase.localsearchstatement import BooleanLocalSearch
 from pynguin.testcase.localsearchstatement import BytesLocalSearch
 from pynguin.testcase.localsearchstatement import ComplexLocalSearch
+from pynguin.testcase.localsearchstatement import DictStatementLocalSearch
 from pynguin.testcase.localsearchstatement import EnumLocalSearch
 from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
@@ -25,6 +27,7 @@ from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
+from pynguin.testcase.statement import DictStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
@@ -825,3 +828,118 @@ def test_non_dict_replace_set(tc_mock):
     assert len(statement.elements) == 2
     assert statement.elements[0] == int_statement_3.ret_val
     assert statement.elements[1] == int_statement.ret_val
+
+
+@pytest.mark.parametrize(
+    "result, size, side_effect",
+    [
+        (True, 1, [True, False, True]),
+        (True, 2, [False, False, True]),
+        (False, 3, [False] * 3),
+        (True, 0, [True] * 3),
+    ],
+)
+def test_dict_remove(tc_mock, result, size, side_effect):
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    int_statement_3 = IntPrimitiveStatement(tc_mock, 17)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+            (int_statement_3.ret_val, int_statement_2.ret_val),
+            (int_statement_2.ret_val, int_statement_3),
+        ],
+    )
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    assert local_search.remove_entries(statement) == result
+    assert len(statement.elements) == size
+
+
+@pytest.mark.parametrize(
+    "result, size, side_effect",
+    [
+        (True, 2, [True] + [False] * 10),
+        (True, 3, [True] * 2 + [False] * 10),
+        (False, 1, [False] * 10),
+    ],
+)
+def test_dict_add(tc_mock, result, size, side_effect):
+    objective = MagicMock()
+    objective.has_improved.side_effect = side_effect
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    int_statement_3 = IntPrimitiveStatement(tc_mock, 17)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+        ],
+    )
+    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement, int_statement_3]
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    assert local_search.add_entries(statement) == result
+    assert len(statement.elements) == size
+
+
+def test_dict_add_missing_key(tc_mock):
+    objective = MagicMock()
+    objective.has_improved.side_effect = [True] * 10
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = DictStatement(tc_mock, ANY, [(int_statement.ret_val, int_statement_2.ret_val)])
+    tc_mock.test_case.get_objects.return_value = [int_statement]
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    assert not local_search.add_entries(statement)
+    assert len(statement.elements) == 1
+
+
+def test_dict_replace(tc_mock):
+    objective = MagicMock()
+    objective.has_improved.side_effect = [True] * 10
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+        ],
+    )
+    tc_mock.test_case.get_objects.side_effect = (
+        [*[int_statement.ret_val]],
+        *[[int_statement_2.ret_val, int_statement.ret_val]],
+    )
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    assert local_search.replace_entries(statement)
+    assert statement.elements[0] == (int_statement_2.ret_val, int_statement.ret_val)
+    assert len(statement.elements) == 1
+
+
+def test_dict_replace_max_insertions(tc_mock, monkeypatch):
+    monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.dict_max_insertions", 10)
+    objective = MagicMock()
+    objective.has_improved.side_effect = [False] * 30
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+        ],
+    )
+    tc_mock.test_case.get_objects.side_effect = [
+        *[[int_statement.ret_val] * 11],
+        *[[int_statement_2, int_statement.ret_val] * 11],
+    ]
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    assert statement.elements[0] == (int_statement.ret_val, int_statement_2.ret_val)
+
+    assert not local_search.replace_entries(statement)
+    assert statement.elements[0] == (int_statement.ret_val, int_statement_2.ret_val)
+    assert len(statement.elements) == 1

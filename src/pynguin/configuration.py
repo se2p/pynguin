@@ -794,6 +794,9 @@ class LocalSearchConfiguration:
     other_type_call_probability: float = 0.4
     """Weight of generating calling statements when changing the statement type."""
 
+    dict_max_insertions: int = 10
+    """Max number of unsuccessful insertions of entries."""
+
 
 @dataclasses.dataclass
 class Configuration:
