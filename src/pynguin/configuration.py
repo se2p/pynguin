@@ -322,10 +322,6 @@ class TestCaseOutputConfiguration:
     format_with_black: bool = True
     """Format the generated test cases using black."""
 
-    # TODO: Move to Minimization before merging
-    remove_unused_references: bool = True
-    """Remove references to return values that are not used by subsequent statements."""
-
 
 @dataclasses.dataclass
 class SeedingConfiguration:

@@ -43,7 +43,6 @@ mutation_order = 1
 post_process = true
 float_precision = 0.01
 format_with_black = true
-remove_unused_references = true
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
@@ -200,8 +199,8 @@ def expected_txt(tmp_path):
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
- "'BACKWARD'>), float_precision=0.01, format_with_black=True, "
- "remove_unused_references=True), algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
+ "'BACKWARD'>), float_precision=0.01, format_with_black=True), "
+ "algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "
  'timeline_interval=1000000000, timeline_interpolation=True, '
@@ -359,7 +358,6 @@ def expected_parameter_list() -> list[str]:
         "--change_parameter_probability 0.1",
         "--tournament_size 5",
         "--rank_bias 1.7",
-        "--remove_unused_references True",
         "--selection TOURNAMENT_SELECTION",
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
