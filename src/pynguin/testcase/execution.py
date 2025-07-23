@@ -495,10 +495,10 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
         code_object = existing_code_objects[code_object_id]
         assert_node = None
         for node in code_object.cfg.basic_block_nodes:
-            bb_node = node.basic_block
+            last_instr = node.get_instruction(-1)
             if (
-                not isinstance(bb_node[-1], ArtificialInstr)
-                and bb_node[-1].opcode == op.POP_JUMP_IF_TRUE  # type:ignore[union-attr]
+                not isinstance(last_instr, ArtificialInstr)
+                and last_instr.opcode == op.POP_JUMP_IF_TRUE
             ):
                 assert_node = node
         assert assert_node

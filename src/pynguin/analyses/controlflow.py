@@ -33,9 +33,13 @@ from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     from collections.abc import Collection
+    from collections.abc import Iterable
 
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"
+
+# The increment of the instruction offset for each instruction.
+INSTRUCTION_OFFSET_INCREMENT = 2
 
 
 class ArtificialNode(Enum):
@@ -93,15 +97,6 @@ class BasicBlockNode:
         """
         return self._offset
 
-    @offset.setter
-    def offset(self, offset: int) -> None:
-        """Set a new offset.
-
-        Args:
-            offset: The offset
-        """
-        self._offset = offset
-
     @property
     def basic_block(self) -> BasicBlock:
         """Provides the basic block attached to this node.
@@ -111,6 +106,42 @@ class BasicBlockNode:
         """
         assert len(self._basic_block) > 0, "Basic block must not be empty."
         return self._basic_block
+
+    @property
+    def instructions(self) -> Iterable[Instr]:
+        """Provides the instructions of the basic block.
+
+        Returns:
+            The instructions of the basic block
+        """
+        for instr in self._basic_block:
+            assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
+            yield instr
+
+    @property
+    def offset_instructions(self) -> Iterable[tuple[int, Instr]]:
+        """Provides the instructions of the basic block with their offsets.
+
+        Returns:
+            The instructions of the basic block with their offsets
+        """
+        offset = self._offset
+        for instr in self.instructions:
+            yield offset, instr
+            offset += INSTRUCTION_OFFSET_INCREMENT
+
+    def get_instruction(self, index: int) -> Instr:
+        """Provides the instruction at the given index.
+
+        Args:
+            index: The index of the instruction
+
+        Returns:
+            The instruction at the given index
+        """
+        instr = self._basic_block[index]
+        assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
+        return instr
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BasicBlockNode):
@@ -305,14 +336,13 @@ class ProgramGraph:
             The set of yield nodes of the graph
         """
         yield_nodes: set[ProgramNode] = set()
-        for node in self._graph.nodes:
-            if isinstance(node, BasicBlockNode):
-                for instr in node.basic_block:
-                    if instr.opcode == op.YIELD_VALUE:  # type: ignore[union-attr]
-                        yield_nodes.add(node)
-                        # exist the inner loop (over instructions)
-                        # the node is already added thus continue with the next node
-                        break
+        for node in self.basic_block_nodes:
+            for instr in node.instructions:
+                if instr.opcode == op.YIELD_VALUE:
+                    yield_nodes.add(node)
+                    # exist the inner loop (over instructions)
+                    # the node is already added thus continue with the next node
+                    break
         return yield_nodes
 
     def get_transitive_successors(self, node: ProgramNode) -> set[ProgramNode]:
@@ -535,7 +565,7 @@ class CFG(ProgramGraph):
             # each instruction increases the offset by 2, therefore the offset at the
             # beginning of the next block is the current offset plus twice the length
             # of the current block
-            offset += len(block) * 2
+            offset += len(block) * INSTRUCTION_OFFSET_INCREMENT
 
             nodes[node_index] = node
             if node_index not in edges:

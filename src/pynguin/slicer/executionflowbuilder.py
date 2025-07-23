@@ -19,6 +19,8 @@ from bytecode import Instr
 
 import pynguin.utils.opcodes as op
 
+from pynguin.analyses.controlflow import INSTRUCTION_OFFSET_INCREMENT
+from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.utils.exceptions import InstructionNotFoundException
 
 
@@ -142,7 +144,7 @@ class UniqueInstruction(Instr):
 
         for dis_instr in disassembly:
             if dis_instr.opcode == op.EXTENDED_ARG:
-                offset_offset += 2
+                offset_offset += INSTRUCTION_OFFSET_INCREMENT
 
             if dis_instr.opcode == self.opcode and dis_instr.offset == (
                 self.offset + offset_offset
@@ -225,7 +227,7 @@ class ExecutionFlowBuilder:
     def _finish_basic_block(
         self,
         instr_index: int,
-        basic_block: list[Instr],
+        basic_block_node: BasicBlockNode,
         import_instr: UniqueInstruction | None,
         efb_state: ExecutionFlowBuilderState,
     ) -> LastInstrState:
@@ -234,8 +236,8 @@ class ExecutionFlowBuilder:
         # code object (and no jump since this would have been traced.)
         if instr_index > 0:
             # Instruction has exactly one possible predecessor
-            last_instr = basic_block[instr_index - 1]
-            efb_state.offset -= 2
+            last_instr = basic_block_node.get_instruction(instr_index - 1)
+            efb_state.offset -= INSTRUCTION_OFFSET_INCREMENT
         else:
             last_instr = self._continue_at_last_basic_block(efb_state)
 
@@ -292,8 +294,9 @@ class ExecutionFlowBuilder:
             The last instruction and the state when it is executed
         """
         # Find the basic block and the exact location of the current instruction
-        basic_block, bb_offset = self._get_basic_block(co_id, bb_id)
-        instr_index = self.locate_in_basic_block(instr, offset, basic_block, bb_offset)
+        basic_block_node = self._get_basic_block_node(co_id, bb_id)
+
+        instr_index = self.locate_in_basic_block(instr, offset, basic_block_node)
 
         # Variables to keep track of what happened
         efb_state = ExecutionFlowBuilderState(bb_id, co_id, file, offset)
@@ -301,7 +304,7 @@ class ExecutionFlowBuilder:
         # Special case: if there are not remaining instructions in the trace,
         # finish this basic block
         if trace_pos < 0:
-            return self._finish_basic_block(instr_index, basic_block, import_instr, efb_state)
+            return self._finish_basic_block(instr_index, basic_block_node, import_instr, efb_state)
 
         # Get the current instruction in the disassembly for further information
         unique_instr = self._create_unique_instruction(
@@ -314,7 +317,7 @@ class ExecutionFlowBuilder:
         # Determine last instruction
         last_instr = self._determine_last_instruction(
             efb_state,
-            basic_block,
+            basic_block_node,
             instr_index,
             last_traced_instr,
             unique_instr,
@@ -357,15 +360,15 @@ class ExecutionFlowBuilder:
     def _determine_last_instruction(
         self,
         efb_state: ExecutionFlowBuilderState,
-        basic_block,
-        instr_index,
-        last_traced_instr,
-        unique_instr,
+        basic_block_node: BasicBlockNode,
+        instr_index: int,
+        last_traced_instr: ExecutedInstruction,
+        unique_instr: UniqueInstruction,
     ) -> Instr:
         if instr_index > 0:
             # Instruction has exactly one possible predecessor
-            last_instr = basic_block[instr_index - 1]
-            efb_state.offset -= 2
+            last_instr = basic_block_node.get_instruction(instr_index - 1)
+            efb_state.offset -= INSTRUCTION_OFFSET_INCREMENT
         elif unique_instr.is_jump_target:
             # Instruction is the last instruction in this basic block
             # -> decide what to do with this instruction
@@ -512,8 +515,9 @@ class ExecutionFlowBuilder:
 
         if efb_state.bb_id > 0:
             efb_state.bb_id -= 1
-            last_instr = self._get_last_in_basic_block(efb_state.co_id, efb_state.bb_id)
-            efb_state.offset -= 2
+            basic_block_node = self._get_basic_block_node(efb_state.co_id, efb_state.bb_id)
+            last_instr = basic_block_node.get_instruction(-1)
+            efb_state.offset -= INSTRUCTION_OFFSET_INCREMENT
 
         return last_instr  # type: ignore[return-value]
 
@@ -526,79 +530,53 @@ class ExecutionFlowBuilder:
         instr = Instr(import_instr.name, arg=import_instr.arg, lineno=import_instr.lineno)
 
         # Find the basic block and the exact location of the current instruction
-        basic_block, bb_offset = self._get_basic_block(efb_state.co_id, efb_state.bb_id)
-        instr_index = self.locate_in_basic_block(instr, efb_state.offset, basic_block, bb_offset)
+        basic_block_node = self._get_basic_block_node(efb_state.co_id, efb_state.bb_id)
+
+        instr_index = self.locate_in_basic_block(instr, efb_state.offset, basic_block_node)
 
         if instr_index > 0:
             # Instruction has exactly one possible predecessor
-            last_instr = basic_block[instr_index - 1]
-            efb_state.offset -= 2
+            last_instr = basic_block_node.get_instruction(instr_index - 1)
+            efb_state.offset -= INSTRUCTION_OFFSET_INCREMENT
         else:
             last_instr = self._continue_at_last_basic_block(efb_state)
 
         return last_instr
 
-    def _get_last_in_basic_block(self, code_object_id: int, basic_block_id: int) -> Instr:
+    def _get_basic_block_node(self, code_object_id: int, basic_block_id: int) -> BasicBlockNode:
         code_object = self.known_code_objects.get(code_object_id)
         assert code_object, "Unknown code object id"
-        # Locate basic block in CFG to which instruction belongs
-        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
-        assert node, "Invalid node id"
 
-        return node.basic_block[-1]  # type: ignore[return-value]
+        basic_block_node = code_object.original_cfg.get_basic_block_node(basic_block_id)
+        assert basic_block_node, "Invalid basic block node id"
 
-    def _get_basic_block(self, code_object_id: int, basic_block_id: int) -> tuple[list[Instr], int]:
-        """Locates the basic block in CFG to which the current state belongs.
-
-        The current state is defined by the last instruction.
-
-        Args:
-            code_object_id: the code object to look inside of
-            basic_block_id: the basic block to find inside the code object
-
-        Returns:
-            Tuple of the current basic block and the offset of the first
-            instruction in the basic block
-
-        Raises:
-            InstructionNotFoundException: when the basic block is not found
-                in the given code object
-        """
-        code_object = self.known_code_objects[code_object_id]
-        assert code_object is not None, "Unknown code object id"
-
-        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
-
-        if node is None:
-            raise InstructionNotFoundException
-
-        return node.basic_block, node.offset  # type: ignore[return-value]
+        return basic_block_node
 
     def _locate_traced_in_bytecode(self, instr: ExecutedInstruction) -> Instr:
-        basic_block, bb_offset = self._get_basic_block(instr.code_object_id, instr.node_id)
+        basic_block_node = self._get_basic_block_node(instr.code_object_id, instr.node_id)
 
-        for instruction in basic_block:
+        for offset, instruction in basic_block_node.offset_instructions:
             if (
                 instr.opcode == instruction.opcode
                 and instr.lineno == instruction.lineno
-                and instr.offset == bb_offset
+                and instr.offset == offset
             ):
                 return instruction
-            bb_offset += 2
 
         raise InstructionNotFoundException
 
     @staticmethod
     def locate_in_basic_block(
-        instr: Instr, instr_offset: int, basic_block: list[Instr], bb_offset: int
+        instr: Instr,
+        instr_offset: int,
+        basic_block_node: BasicBlockNode,
     ) -> int:
         """Searches for the location, i.e., the index of the instruction in basic block.
 
         Args:
             instr: Instruction to be searched for
             instr_offset: Offset of instr
-            basic_block: Basic block where instr is located
-            bb_offset: Offset of the first instruction in basic_block
+            basic_block_node: Basic block node where the instruction is searched for
 
         Returns:
             Index of instr in basic_block
@@ -607,9 +585,8 @@ class ExecutionFlowBuilder:
             InstructionNotFoundException: when the given instruction is
                 not in the given basic block
         """
-        for index, instruction in enumerate(basic_block):
-            if instruction == instr and instr_offset == bb_offset:
+        for index, (offset, instruction) in enumerate(basic_block_node.offset_instructions):
+            if instruction == instr and instr_offset == offset:
                 return index
-            bb_offset += 2
 
         raise InstructionNotFoundException

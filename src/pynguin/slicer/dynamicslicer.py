@@ -392,17 +392,13 @@ class DynamicSlicer:
         if node is None:
             raise InstructionNotFoundException
 
-        basic_block = node.basic_block
-        bb_offset = node.offset
-
-        for instruction in basic_block:
+        for offset, instruction in node.offset_instructions:
             if (
-                instr.opcode == instruction.opcode  # type: ignore[union-attr]
-                and instr.lineno == instruction.lineno  # type: ignore[union-attr]
-                and instr.offset == bb_offset
+                instr.opcode == instruction.opcode
+                and instr.lineno == instruction.lineno
+                and instr.offset == offset
             ):
-                return instruction  # type: ignore[return-value]
-            bb_offset += 2
+                return instruction
 
         raise InstructionNotFoundException
 
@@ -824,8 +820,8 @@ class AssertionSlicer:
 
         # the traced instruction is always the jump at the end of the bb
         original_instr = None
-        for instr in reversed(list(node.basic_block)):
-            if instr.opcode == traced_instr.opcode:  # type: ignore[union-attr]
+        for instr in reversed(list(node.instructions)):
+            if instr.opcode == traced_instr.opcode:
                 original_instr = instr
                 break
         assert original_instr
@@ -837,7 +833,7 @@ class AssertionSlicer:
             node_id=traced_instr.node_id,
             code_meta=code_meta,
             offset=traced_instr.offset,
-            arg=original_instr.arg,  # type: ignore[union-attr]
+            arg=original_instr.arg,
             lineno=traced_instr.lineno,
         )
 

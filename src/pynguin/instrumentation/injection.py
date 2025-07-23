@@ -692,25 +692,19 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
         """
-        basic_block = node.basic_block
-        offset = node.offset
-
         file_name = cfg.bytecode_cfg().filename
         new_block_instructions: list[Instr] = []
         lineno = None
 
-        for instr in basic_block:
+        for offset, instr in node.offset_instructions:
             # do not instrument instructions that were added by the instrumentation
             if isinstance(instr, ArtificialInstr):
                 new_block_instructions.append(instr)
                 continue
 
             # register all lines available
-            if (
-                instr.lineno != lineno  # type: ignore[union-attr]
-                and file_name != "<ast>"
-            ):
-                lineno = instr.lineno  # type: ignore[union-attr]
+            if instr.lineno != lineno and file_name != "<ast>":
+                lineno = instr.lineno
                 self._instrumentation_tracer.register_line(
                     code_object_id,
                     file_name,
@@ -718,7 +712,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                 )
 
             # Perform the actual instrumentation
-            match instr.opcode:  # type: ignore[union-attr]
+            match instr.opcode:
                 case opcode if opcode in (
                     op.OP_UNARY + op.OP_BINARY + op.OP_INPLACE + op.OP_COMPARE
                 ):
@@ -726,7 +720,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         new_block_instructions,
                         code_object_id,
                         node.index,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -735,7 +729,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -744,7 +738,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -753,7 +747,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -762,7 +756,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -771,7 +765,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -780,7 +774,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -789,7 +783,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         cfg,
                         file_name,
@@ -799,7 +793,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -808,7 +802,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
@@ -817,16 +811,15 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
                         code_object_id,
                         node.index,
                         new_block_instructions,
-                        instr,  # type: ignore[arg-type]
+                        instr,
                         offset,
                         file_name,
                     )
                 case _:
                     # Un-traced instruction retrieved during analysis
-                    new_block_instructions.append(instr)  # type: ignore[arg-type]
+                    new_block_instructions.append(instr)
 
-            offset += 2
-
+        basic_block = node.basic_block
         basic_block.clear()
         basic_block.extend(new_block_instructions)
 
