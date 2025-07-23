@@ -22,7 +22,6 @@ import pynguin.instrumentation.tracer as tr
 import pynguin.utils.opcodes as op
 
 from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.instrumentation import ArtificialInstr
 from pynguin.instrumentation import InstrumentationTransformer
 from pynguin.instrumentation import PredicateMetaData
@@ -33,6 +32,7 @@ if TYPE_CHECKING:
     from bytecode.cfg import BasicBlock
 
     from pynguin.analyses.controlflow import CFG
+    from pynguin.analyses.controlflow import BasicBlockNode
 
 
 class InjectionInstrumentationAdapter:
@@ -55,11 +55,11 @@ class InjectionInstrumentationAdapter:
     # TODO(fk) make this more fine grained? e.g. visit_line, visit_compare etc.
     #  Or use sub visitors?
 
-    def visit_entry_node(self, node: BasicBlockNode, code_object_id: int) -> None:
-        """Called when we visit the entry node of a code object.
+    def visit_cfg(self, cfg: CFG, code_object_id: int) -> None:
+        """Called when the CFG is visited.
 
         Args:
-            node: The entry node of the control flow graph.
+            cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
         """
 
@@ -94,15 +94,13 @@ class InjectionInstrumentationTransformer(InstrumentationTransformer):
         code: CodeType,
         cfg: CFG,
         code_object_id: int,
-        entry_node: BasicBlockNode,
     ) -> CodeType:
         for adapter in self._instrumentation_adapters:
-            adapter.visit_entry_node(entry_node, code_object_id)
+            adapter.visit_cfg(cfg, code_object_id)
 
-        for node in cfg.nodes:
-            if isinstance(node, BasicBlockNode):
-                for adapter in self._instrumentation_adapters:
-                    adapter.visit_node(cfg, code_object_id, node)
+        for node in cfg.basic_block_nodes:
+            for adapter in self._instrumentation_adapters:
+                adapter.visit_node(cfg, code_object_id, node)
 
         code = cfg.bytecode_cfg().to_code()
 
@@ -445,17 +443,21 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             ArtificialInstr("POP_TOP", lineno=lineno),
         ]
 
-    def visit_entry_node(self, node: BasicBlockNode, code_object_id: int) -> None:
+    def visit_cfg(self, cfg: CFG, code_object_id: int) -> None:
         """Add instructions at the beginning of the given basic block.
 
         The added instructions inform the tracer, that the code object with the given id
         has been entered.
 
         Args:
-            node: The entry node of the control flow graph.
+            cfg: The control flow graph.
             code_object_id: The id that the tracer has assigned to the code object
                 which contains the given basic block.
         """
+        node = cfg.first_basic_block_node
+
+        assert node is not None, "The CFG must have at least one basic block node."
+
         basic_block = node.basic_block
 
         # Use line number of first instruction

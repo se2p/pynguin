@@ -54,7 +54,6 @@ import pynguin.utils.namingscope as ns
 import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
-from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
@@ -495,10 +494,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None
-        for node in code_object.cfg.nodes:
-            if not isinstance(node, BasicBlockNode):
-                continue
-
+        for node in code_object.cfg.basic_block_nodes:
             bb_node = node.basic_block
             if (
                 not isinstance(bb_node[-1], ArtificialInstr)

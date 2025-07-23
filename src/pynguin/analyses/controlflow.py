@@ -236,6 +236,15 @@ class ProgramGraph:
         return set(self._graph.nodes)
 
     @property
+    def basic_block_nodes(self) -> set[BasicBlockNode]:
+        """Provides all basic block nodes in the graph.
+
+        Returns:
+            The set of all basic block nodes in the graph
+        """
+        return {node for node in self._graph.nodes if isinstance(node, BasicBlockNode)}
+
+    @property
     def graph(self) -> nx.DiGraph[ProgramNode]:
         """The internal graph.
 
@@ -252,7 +261,21 @@ class ProgramGraph:
             The entry node of the graph
         """
         for node in self._graph.nodes:
-            if len(self.get_predecessors(node)) == 0:
+            if self._graph.in_degree(node) == 0:
+                return node
+        return None
+
+    @property
+    def first_basic_block_node(self) -> BasicBlockNode | None:
+        """Provides the first basic block node of the graph.
+
+        Returns:
+            The first basic block node of the graph or None if no such node exists
+        """
+        for node in self._graph.nodes:
+            if isinstance(node, BasicBlockNode) and all(
+                isinstance(n, ArtificialNode) for n in self._graph.predecessors(node)
+            ):
                 return node
         return None
 

@@ -176,18 +176,13 @@ class InstrumentationTransformer(ABC):
         self._logger.debug("Instrumenting Code Object for %s", code.co_name)
 
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
-        assert cfg.entry_node is not None, "Entry node cannot be None."
 
         code_object_id = self._instrumentation_tracer.create_code_object_id()
-
-        entry_node = cfg.get_successors(cfg.entry_node).pop()  # Only one exists!
-        assert isinstance(entry_node, BasicBlockNode), "Entry node must be a BasicBlockNode."
 
         instrumented_code = self._visit_nodes(
             code,
             cfg,
             code_object_id,
-            entry_node,
         )
 
         self._instrumentation_tracer.register_code_object(
@@ -210,7 +205,6 @@ class InstrumentationTransformer(ABC):
         code: CodeType,
         cfg: CFG,
         code_object_id: int,
-        entry_node: BasicBlockNode,
     ) -> CodeType:
         """Visit all nodes in the CFG and instrument them recursively.
 
@@ -218,7 +212,6 @@ class InstrumentationTransformer(ABC):
             code: The code object that should be instrumented
             cfg: The control flow graph of the code object
             code_object_id: The ID of the code object
-            entry_node: The entry node of the CFG
 
         Returns:
             The instrumented code object
