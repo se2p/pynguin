@@ -12,6 +12,7 @@ import queue
 
 from dataclasses import dataclass
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeAlias
@@ -451,7 +452,6 @@ class CFG(ProgramGraph):
         """
         super().__init__()
         self._bytecode_cfg = bytecode_cfg
-        self._diameter: int | None = None
 
     @staticmethod
     def from_bytecode(bytecode: Bytecode) -> CFG:
@@ -689,34 +689,28 @@ class CFG(ProgramGraph):
         """
         return len(self._graph.edges) - len(self._graph.nodes) + 2
 
-    @property
+    @cached_property
     def diameter(self) -> int:
         """Computes the diameter of the graph.
 
         Returns:
             The diameter of the graph
         """
-        if self._diameter is None:
-            # Do this computation lazily
-            try:
-                self._diameter = nx.diameter(self._graph, usebounds=True)
-            except nx.NetworkXError:
-                # It seems like NetworkX makes some assumptions on the graph which
-                # are not documented (or which I could not find at least) that caused
-                # these errors.
-                # If the diameter computation fails for some reason, use an upper bound
-                self._diameter = len(self._graph.edges)
-
-        assert self._diameter is not None
-
-        return self._diameter
+        # Do this computation lazily
+        try:
+            return nx.diameter(self._graph, usebounds=True)
+        except nx.NetworkXError:
+            # It seems like NetworkX makes some assumptions on the graph which
+            # are not documented (or which I could not find at least) that caused
+            # these errors.
+            # If the diameter computation fails for some reason, use an upper bound
+            return len(self._graph.edges)
 
     def __getstate__(self):
         return {
             "nodes": tuple(self._graph.nodes(data=True)),
             "edges": tuple(self._graph.edges(data=True)),
             "bytecode_cfg": self._bytecode_cfg,
-            "diameter": self._diameter,
         }
 
     def __setstate__(self, state: dict):
@@ -726,7 +720,6 @@ class CFG(ProgramGraph):
         for source, target, data in state["edges"]:
             self._graph.add_edge(source, target, **data)
         self._bytecode_cfg = state["bytecode_cfg"]
-        self._diameter = state["diameter"]
 
 
 class DominatorTree(ProgramGraph):
