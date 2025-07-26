@@ -805,7 +805,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_exception_assertion(self, statement: stmt.Statement) -> None:
+    def track_exception_assertion(self, statement: stmt.Statement) -> None:
         """Track the position of an exception assertion in the trace.
 
         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
@@ -822,7 +822,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_assertion_position(
+    def track_assertion_position(
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
         """Track the position of an assertion in the trace.
@@ -1459,7 +1459,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         )
 
     @_early_return
-    def register_exception_assertion(  # noqa: D102
+    def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
         if statement.has_only_exception_assertion():
@@ -1478,7 +1478,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             )
 
     @_early_return
-    def register_assertion_position(  # noqa: D102
+    def track_assertion_position(  # noqa: D102
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
         exec_instr = self.get_trace().executed_instructions
@@ -1690,15 +1690,15 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     ) -> None:
         self._tracer.track_return(module, code_object_id, node_id, opcode, lineno, offset)
 
-    def register_exception_assertion(  # noqa: D102
+    def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        self._tracer.register_exception_assertion(statement)
+        self._tracer.track_exception_assertion(statement)
 
-    def register_assertion_position(  # noqa: D102
+    def track_assertion_position(  # noqa: D102
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
-        self._tracer.register_assertion_position(code_object_id, node_id, assertion)
+        self._tracer.track_assertion_position(code_object_id, node_id, assertion)
 
     def lineids_to_linenos(  # noqa: D102
         self, line_ids: OrderedSet[int]

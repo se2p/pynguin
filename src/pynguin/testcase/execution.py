@@ -473,7 +473,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
 
             if statement.has_only_exception_assertion():
                 if exception is not None:
-                    tracer.register_exception_assertion(statement)
+                    tracer.track_exception_assertion(statement)
                 return
 
             for assertion in statement.assertions:
@@ -483,7 +483,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 executor.execute_ast(assertion_node, exec_ctx)
 
                 code_object_id, node_id = self._get_assertion_node_and_code_object_ids(tracer)
-                tracer.register_assertion_position(code_object_id, node_id, assertion)
+                tracer.track_assertion_position(code_object_id, node_id, assertion)
         finally:
             if enabled:
                 # Restore old state
