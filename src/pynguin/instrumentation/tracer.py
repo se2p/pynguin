@@ -349,6 +349,9 @@ class LineMetaData:
 class SubjectProperties:
     """Contains properties about the subject under test."""
 
+    # The next code object id to be created.
+    next_code_object_id: int = 0
+
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
 
@@ -379,6 +382,75 @@ class SubjectProperties:
                 for metadata in self.existing_predicates.values()
             )
         )
+
+    def reset(self) -> None:
+        """Resets the subject properties."""
+        self.next_code_object_id = 0
+        self.existing_code_objects.clear()
+        self.existing_predicates.clear()
+        self.existing_lines.clear()
+        self.object_addresses.clear()
+
+    def create_code_object_id(self) -> int:
+        """Create a new code object ID.
+
+        Returns:
+            A new code object ID.
+        """
+        new_code_object_id = self.next_code_object_id
+        self.next_code_object_id += 1
+        return new_code_object_id
+
+    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:
+        """Declare that a code object exists.
+
+        Args:
+            code_object_id: the id of the code object, which should be used to identify the object
+            during instrumentation.
+            meta: the code objects existing
+        """
+        assert code_object_id not in self.existing_code_objects, (
+            "Code object already registered in existing code objects"
+        )
+
+        self.existing_code_objects[code_object_id] = meta
+
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        """Declare that a predicate exists.
+
+        Args:
+            meta: Metadata about the predicates
+
+        Returns:
+            the id of the predicate, which can be used to identify the predicate
+            during instrumentation.
+        """
+        assert (meta.node, meta.code_object_id) not in {
+            (p.node, p.code_object_id) for p in self.existing_predicates.values()
+        }, "Predicate with the same node already registered"
+        predicate_id = len(self.existing_predicates)
+        self.existing_predicates[predicate_id] = meta
+        return predicate_id
+
+    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
+        """Tracks the existence of a line.
+
+        Args:
+            code_object_id: The id of the code object that contains the line
+            file_name: The file in which the statement is
+            line_number: The line of the statement to track
+
+        Returns:
+            the id of the registered line
+        """
+        line_meta = LineMetaData(code_object_id, file_name, line_number)
+        if line_meta not in self.existing_lines.values():
+            line_id = len(self.existing_lines)
+            self.existing_lines[line_id] = line_meta
+        else:
+            index = list(self.existing_lines.values()).index(line_meta)
+            line_id = list(self.existing_lines.keys())[index]
+        return line_id
 
 
 class AbstractExecutionTracer(ABC):  # noqa: PLR0904
@@ -416,8 +488,9 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             The execution trace after executing the import statements
         """
 
+    @property
     @abstractmethod
-    def get_subject_properties(self) -> SubjectProperties:
+    def subject_properties(self) -> SubjectProperties:
         """Provide known data.
 
         Returns:
@@ -472,24 +545,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def create_code_object_id(self) -> int:
-        """Create a new code object ID.
-
-        Returns:
-            A new code object ID.
-        """
-
-    @abstractmethod
-    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:
-        """Declare that a code object exists.
-
-        Args:
-            code_object_id: the id of the code object, which should be used to identify the object
-            during instrumentation.
-            meta: the code objects existing
-        """
-
-    @abstractmethod
     def executed_code_object(self, code_object_id: int) -> None:
         """Mark a code object as executed.
 
@@ -501,18 +556,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
 
         Raises:
             RuntimeError: raised when called from another thread
-        """
-
-    @abstractmethod
-    def register_predicate(self, meta: PredicateMetaData) -> int:
-        """Declare that a predicate exists.
-
-        Args:
-            meta: Metadata about the predicates
-
-        Returns:
-            the id of the predicate, which can be used to identify the predicate
-            during instrumentation.
         """
 
     @abstractmethod
@@ -566,19 +609,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
 
         Raises:
             RuntimeError: raised when called from another thread
-        """
-
-    @abstractmethod
-    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
-        """Tracks the existence of a line.
-
-        Args:
-            code_object_id: The id of the code object that contains the line
-            file_name: The file in which the statement is
-            line_number: The line of the statement to track
-
-        Returns:
-            the id of the registered line
         """
 
     @abstractmethod
@@ -1058,7 +1088,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.trace = ExecutionTrace()
 
     def __init__(self) -> None:  # noqa: D107
-        self.subject_properties = SubjectProperties()
+        self._subject_properties = SubjectProperties()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
 
@@ -1083,8 +1113,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         copied.merge(self._import_trace)
         return copied
 
-    def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self.subject_properties
+    @property
+    def subject_properties(self) -> SubjectProperties:  # noqa: D102
+        return self._subject_properties
 
     @property
     def state(self) -> dict:
@@ -1094,7 +1125,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             The current state
         """
         return {
-            "subject_properties": self.subject_properties,
+            "subject_properties": self._subject_properties,
             "import_trace": self._import_trace,
             "current_thread_identifier": self._current_thread_identifier,
             "current_code_object_id": self._current_code_object_id,
@@ -1111,7 +1142,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         Args:
             state: The state to set
         """
-        self.subject_properties = state["subject_properties"]
+        self._subject_properties = state["subject_properties"]
         self._import_trace = state["import_trace"]
         self._current_thread_identifier = state["current_thread_identifier"]
         self._current_code_object_id = state["current_code_object_id"]
@@ -1120,7 +1151,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
     def reset(self) -> None:  # noqa: D102
-        self.subject_properties = SubjectProperties()
+        self._subject_properties.reset()
         self._import_trace = ExecutionTrace()
         self.init_trace()
 
@@ -1145,32 +1176,12 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._thread_local_state.trace
 
-    def create_code_object_id(self) -> int:  # noqa: D102
-        current_code_object_id = self._current_code_object_id
-        self._current_code_object_id += 1
-        return current_code_object_id
-
-    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:  # noqa: D102
-        assert code_object_id not in self.subject_properties.existing_code_objects, (
-            "Code object already registered in existing code objects"
-        )
-
-        self.subject_properties.existing_code_objects[code_object_id] = meta
-
     @_early_return
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
-        assert code_object_id in self.subject_properties.existing_code_objects, (
+        assert code_object_id in self._subject_properties.existing_code_objects, (
             "Cannot trace unknown code object"
         )
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
-
-    def register_predicate(self, meta: PredicateMetaData) -> int:  # noqa: D102
-        assert (meta.node, meta.code_object_id) not in {
-            (p.node, p.code_object_id) for p in self.subject_properties.existing_predicates.values()
-        }, "Predicate with the same node already registered"
-        predicate_id = len(self.subject_properties.existing_predicates)
-        self.subject_properties.existing_predicates[predicate_id] = meta
-        return predicate_id
 
     @_early_return
     def executed_compare_predicate(  # noqa: D102, C901
@@ -1178,7 +1189,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     ) -> None:
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
+            assert predicate in self._subject_properties.existing_predicates, (
                 "Cannot trace unknown predicate"
             )
             value1 = tt.unwrap(value1)
@@ -1239,7 +1250,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
+            assert predicate in self._subject_properties.existing_predicates, (
                 "Cannot trace unknown predicate"
             )
             distance_true = 0.0
@@ -1272,7 +1283,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
+            assert predicate in self._subject_properties.existing_predicates, (
                 "Cannot trace unknown predicate"
             )
             distance_true = 0.0
@@ -1293,20 +1304,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
         self._thread_local_state.trace.covered_line_ids.add(line_id)
 
-    def register_line(  # noqa: D102
-        self, code_object_id: int, file_name: str, line_number: int
-    ) -> int:
-        line_meta = LineMetaData(code_object_id, file_name, line_number)
-        if line_meta not in self.subject_properties.existing_lines.values():
-            line_id = len(self.subject_properties.existing_lines)
-            self.subject_properties.existing_lines[line_id] = line_meta
-        else:
-            index = list(self.subject_properties.existing_lines.values()).index(line_meta)
-            line_id = list(self.subject_properties.existing_lines.keys())[index]
-        return line_id
-
     def _update_metrics(self, distance_false: float, distance_true: float, predicate: int):
-        assert predicate in self.subject_properties.existing_predicates, (
+        assert predicate in self._subject_properties.existing_predicates, (
             "Cannot update unknown predicate"
         )
         assert distance_true >= 0.0, "True distance cannot be negative"
@@ -1360,9 +1359,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
         object_creation = False
-        if arg_address and arg_address not in self.subject_properties.object_addresses:
+        if arg_address and arg_address not in self._subject_properties.object_addresses:
             object_creation = True
-            self.subject_properties.object_addresses.add(arg_address)
+            self._subject_properties.object_addresses.add(arg_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1508,7 +1507,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self, line_ids: OrderedSet[int]
     ) -> OrderedSet[int]:
         return OrderedSet([
-            self.subject_properties.existing_lines[line_id].line_number for line_id in line_ids
+            self._subject_properties.existing_lines[line_id].line_number for line_id in line_ids
         ])
 
     def __getstate__(self) -> dict:
@@ -1553,8 +1552,9 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.import_trace
 
-    def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self._tracer.get_subject_properties()
+    @property
+    def subject_properties(self) -> SubjectProperties:  # noqa: D102
+        return self._tracer.subject_properties
 
     def reset(self) -> None:  # noqa: D102
         self._tracer.reset()
@@ -1577,17 +1577,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.get_trace()
 
-    def create_code_object_id(self) -> int:  # noqa: D102
-        return self._tracer.create_code_object_id()
-
-    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:  # noqa: D102
-        self._tracer.register_code_object(code_object_id, meta)
-
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
         self._tracer.executed_code_object(code_object_id)
-
-    def register_predicate(self, meta: PredicateMetaData) -> int:  # noqa: D102
-        return self._tracer.register_predicate(meta)
 
     def executed_compare_predicate(  # noqa: D102
         self, value1, value2, predicate: int, cmp_op: PynguinCompare
@@ -1602,11 +1593,6 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
         self._tracer.track_line_visit(line_id)
-
-    def register_line(  # noqa: D102
-        self, code_object_id: int, file_name: str, line_number: int
-    ) -> int:
-        return self._tracer.register_line(code_object_id, file_name, line_number)
 
     def track_generic(  # noqa: PLR0917, D102
         self,

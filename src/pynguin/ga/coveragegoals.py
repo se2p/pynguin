@@ -473,7 +473,7 @@ def create_line_coverage_fitness_functions(
         for (
             line_id,
             line_meta,
-        ) in executor.tracer.get_subject_properties().existing_lines.items()
+        ) in executor.tracer.subject_properties.existing_lines.items()
     ])
 
 
@@ -496,5 +496,5 @@ def create_checked_coverage_fitness_functions(
         for (
             line_id,
             line_meta,
-        ) in executor.tracer.get_subject_properties().existing_lines.items()
+        ) in executor.tracer.subject_properties.existing_lines.items()
     ])

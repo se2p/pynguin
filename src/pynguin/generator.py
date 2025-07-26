@@ -352,19 +352,19 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
     """
     stat.track_output_variable(
         RuntimeVariable.CodeObjects,
-        len(tracer.get_subject_properties().existing_code_objects),
+        len(tracer.subject_properties.existing_code_objects),
     )
     stat.track_output_variable(
         RuntimeVariable.Predicates,
-        len(tracer.get_subject_properties().existing_predicates),
+        len(tracer.subject_properties.existing_predicates),
     )
     stat.track_output_variable(
         RuntimeVariable.Lines,
-        len(tracer.get_subject_properties().existing_lines),
+        len(tracer.subject_properties.existing_lines),
     )
     cyclomatic_complexities: list[int] = [
         code.original_cfg.cyclomatic_complexity
-        for code in tracer.get_subject_properties().existing_code_objects.values()
+        for code in tracer.subject_properties.existing_code_objects.values()
     ]
     stat.track_output_variable(
         RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)
@@ -373,12 +373,12 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
     if config.CoverageMetric.BRANCH in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportBranchCoverage,
-            ff.compute_branch_coverage(tracer.import_trace, tracer.get_subject_properties()),
+            ff.compute_branch_coverage(tracer.import_trace, tracer.subject_properties),
         )
     if config.CoverageMetric.LINE in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportLineCoverage,
-            ff.compute_line_coverage(tracer.import_trace, tracer.get_subject_properties()),
+            ff.compute_line_coverage(tracer.import_trace, tracer.subject_properties),
         )
 
 

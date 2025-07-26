@@ -123,8 +123,8 @@ def test_calculate_control_flow_distance_for_root(executed_code_objects, approac
     execution_trace.executed_code_objects = executed_code_objects
     execution_result.execution_trace = execution_trace
     tracer = ExecutionTracer()
-    tracer.register_code_object(0, MagicMock())
-    tracer.register_code_object(1, MagicMock())
+    tracer.subject_properties.register_code_object(0, MagicMock())
+    tracer.subject_properties.register_code_object(1, MagicMock())
 
     distance = get_root_control_flow_distance(execution_result, 0, tracer)
     assert distance == ControlFlowDistance(approach_level=approach_level, branch_distance=0.0)

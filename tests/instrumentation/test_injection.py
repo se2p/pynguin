@@ -58,8 +58,9 @@ def comparison_module():
 @pytest.fixture
 def tracer_mock():
     tracer = MagicMock()
-    tracer.create_code_object_id.side_effect = range(100)
-    tracer.register_predicate.side_effect = range(100)
+    tracer.subject_properties = MagicMock()
+    tracer.subject_properties.create_code_object_id.side_effect = range(100)
+    tracer.subject_properties.register_predicate.side_effect = range(100)
     return tracer
 
 
@@ -72,7 +73,7 @@ def test_entered_function(simple_module, tracer_mock):
         simple_module.simple_function.__code__
     )
     simple_module.simple_function(1)
-    tracer_mock.register_code_object.assert_called_once()
+    tracer_mock.subject_properties.register_code_object.assert_called_once()
     tracer_mock.executed_code_object.assert_called_once()
 
 
@@ -82,7 +83,7 @@ def test_entered_for_loop_no_jump(simple_module, tracer_mock):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     simple_module.for_loop(3)
     tracer_mock.executed_bool_predicate.assert_called_with(True, 0)  # noqa: FBT003
 
@@ -93,7 +94,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     simple_module.for_loop(0)
     tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
 
@@ -106,7 +107,7 @@ def test_entered_for_loop_full_loop(simple_module, tracer_mock):
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
     tracer_mock.executed_bool_predicate.assert_has_calls([
         call(True, 0),  # noqa: FBT003
@@ -125,7 +126,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
     tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
 
@@ -139,7 +140,7 @@ def test_add_bool_predicate(simple_module, tracer_mock):
         simple_module.bool_predicate.__code__
     )
     simple_module.bool_predicate(True)  # noqa: FBT003
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     tracer_mock.executed_bool_predicate.assert_called_once()
 
 
@@ -152,7 +153,7 @@ def test_add_cmp_predicate(simple_module, tracer_mock):
         simple_module.cmp_predicate.__code__
     )
     simple_module.cmp_predicate(1, 2)
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
@@ -165,7 +166,7 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
         simple_module.multi_loop.__code__
     )
     assert simple_module.multi_loop(2) == 4
-    assert tracer_mock.register_predicate.call_count == 3
+    assert tracer_mock.subject_properties.register_predicate.call_count == 3
     # fmt: off
     calls = [
         call(True, 0),  # noqa: FBT003
@@ -191,7 +192,7 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
     )
     call_count = 5
     simple_module.comprehension(call_count, 3)
-    assert tracer_mock.register_predicate.call_count == 2
+    assert tracer_mock.subject_properties.register_predicate.call_count == 2
     assert tracer_mock.executed_compare_predicate.call_count == call_count
     assert tracer_mock.executed_bool_predicate.mock_calls == [
         call(True, 0),  # noqa: FBT003
@@ -213,8 +214,8 @@ def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
     )
     lam = simple_module.lambda_func(10)
     lam(5)
-    tracer_mock.register_predicate.assert_called_once()
-    assert tracer_mock.register_code_object.call_count == 2
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    assert tracer_mock.subject_properties.register_code_object.call_count == 2
     tracer_mock.executed_compare_predicate.assert_called_once()
     tracer_mock.executed_code_object.assert_has_calls([call(0), call(1)], any_order=True)
 
@@ -228,8 +229,8 @@ def test_conditional_assignment(simple_module, tracer_mock):
         simple_module.conditional_assignment.__code__
     )
     simple_module.conditional_assignment(10)
-    tracer_mock.register_predicate.assert_called_once()
-    assert tracer_mock.register_code_object.call_count == 1
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    assert tracer_mock.subject_properties.register_code_object.call_count == 1
     tracer_mock.executed_compare_predicate.assert_called_once()
     tracer_mock.executed_code_object.assert_has_calls([call(0)])
 
@@ -242,11 +243,11 @@ def test_conditionally_nested_class(simple_module, tracer_mock):
     simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
         simple_module.conditionally_nested_class.__code__
     )
-    assert tracer_mock.register_code_object.call_count == 3
+    assert tracer_mock.subject_properties.register_code_object.call_count == 3
 
     simple_module.conditionally_nested_class(6)
     tracer_mock.executed_code_object.assert_has_calls([call(0), call(1), call(2)], any_order=True)
-    tracer_mock.register_predicate.assert_called_once()
+    tracer_mock.subject_properties.register_predicate.assert_called_once()
     tracer_mock.executed_compare_predicate.assert_called_once()
 
 
@@ -304,10 +305,10 @@ def test_integrate_branch_distance_instrumentation(
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
     assert (
-        sum(1 for _ in tracer.get_subject_properties().branch_less_code_objects)
+        sum(1 for _ in tracer.subject_properties.branch_less_code_objects)
         == branchless_function_count
     )
-    assert len(list(tracer.get_subject_properties().existing_predicates)) == branches_count
+    assert len(list(tracer.subject_properties.existing_predicates)) == branches_count
 
 
 @only_3_10
@@ -319,7 +320,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
 
-    assert tracer.get_subject_properties().existing_lines
+    assert tracer.subject_properties.existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
     assert {
         0,
@@ -329,7 +330,7 @@ def test_integrate_line_coverage_instrumentation(simple_module):
         4,
         5,
         6,
-    } == tracer.get_subject_properties().existing_lines.keys()
+    } == tracer.subject_properties.existing_lines.keys()
 
 
 @only_3_10
@@ -504,8 +505,8 @@ def test_multiple_instrumentations_share_code_object_ids(simple_module):
 
     tracer.current_thread_identifier = threading.current_thread().ident
     simple_module.simple_function(42)
-    assert {0} == tracer.get_subject_properties().existing_code_objects.keys()
-    assert {0} == set(tracer.get_subject_properties().branch_less_code_objects)
+    assert {0} == tracer.subject_properties.existing_code_objects.keys()
+    assert {0} == set(tracer.subject_properties.branch_less_code_objects)
     assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
 
 

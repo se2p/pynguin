@@ -490,7 +490,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 tracer.disable()
 
     def _get_assertion_node_and_code_object_ids(self, tracer: ExecutionTracer) -> tuple[int, int]:
-        existing_code_objects = tracer.get_subject_properties().existing_code_objects
+        existing_code_objects = tracer.subject_properties.existing_code_objects
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None

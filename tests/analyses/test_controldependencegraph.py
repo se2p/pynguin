@@ -126,7 +126,7 @@ def test_get_control_dependencies(node_index, expected_deps):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    subject_properties = tracer.get_subject_properties()
+    subject_properties = tracer.subject_properties
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
     node = cdg.get_basic_block_node(node_index)
@@ -150,7 +150,7 @@ def test_get_control_dependencies_asserts(node):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
+    cdg = next(iter(tracer.subject_properties.existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)
 
@@ -195,7 +195,7 @@ def test_is_control_dependent_on_root(node_index, expected_dependant):
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(long_fixture.__code__)
-    subject_properties = tracer.get_subject_properties()
+    subject_properties = tracer.subject_properties
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
     node = cdg.get_basic_block_node(node_index)
@@ -216,7 +216,7 @@ def test_yield_instrumented():
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(yield_fun.__code__)
-    cdg = next(iter(tracer.get_subject_properties().existing_code_objects.values())).cdg
+    cdg = next(iter(tracer.subject_properties.existing_code_objects.values())).cdg
     assert cdg
 
 

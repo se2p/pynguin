@@ -198,15 +198,15 @@ def test_compute_fitness_values_no_branches():
 
         executor = TestCaseExecutor(tracer)
         chromosome = _get_test_for_no_branches_fixture(module_name)
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(tracer.subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
             goals_dict[
-                tracer.get_subject_properties()
-                .existing_code_objects[goal._goal.code_object_id]
-                .code_object.co_name
+                tracer.subject_properties.existing_code_objects[
+                    goal._goal.code_object_id
+                ].code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
@@ -282,15 +282,15 @@ def test_fitness_simple_nesting(
 
         executor = TestCaseExecutor(tracer)
         chromosome = chrom_factory(module_name)
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(tracer.subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
             goals_dict[
-                tracer.get_subject_properties()
-                .existing_code_objects[goal._goal.code_object_id]
-                .code_object.co_name
+                tracer.subject_properties.existing_code_objects[
+                    goal._goal.code_object_id
+                ].code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == pytest.approx(expected_fitness)
@@ -354,7 +354,7 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
         test_case = transformer.testcases[0]
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
 
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(tracer.subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
@@ -403,7 +403,7 @@ def test_compute_fitness_values_statement_coverage_empty():
 
 def test_statement_coverage_goal_creation(executor_mock):
     tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
+    tracer.subject_properties.existing_lines = _get_lines_data_for_plus_module()
     executor_mock.tracer = tracer
     goals = bg.create_line_coverage_fitness_functions(executor_mock)
 
@@ -418,7 +418,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
     Results a fitness of 8, for every missing goal.
     """
     tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
+    tracer.subject_properties.existing_lines = _get_lines_data_for_plus_module()
 
     executor_mock.tracer = tracer
     trace_mock.covered_line_ids = {}
@@ -446,7 +446,7 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
     module_name = "tests.fixtures.linecoverage.plus"
 
     tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
+    tracer.subject_properties.existing_lines = _get_lines_data_for_plus_module()
 
     tracer.current_thread_identifier = threading.current_thread().ident
     executor_mock.tracer = tracer

@@ -111,7 +111,7 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
     function()
 
     trace = tracer.get_trace()
-    known_code_objects = tracer.get_subject_properties().existing_code_objects
+    known_code_objects = tracer.subject_properties.existing_code_objects
     dynamic_slicer = DynamicSlicer(known_code_objects)
 
     last_traced_instr = trace.executed_instructions[-1]
@@ -141,7 +141,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
         module.func()
 
         trace = tracer.get_trace()
-        known_code_objects = tracer.get_subject_properties().existing_code_objects
+        known_code_objects = tracer.subject_properties.existing_code_objects
 
         assert known_code_objects
         dynamic_slicer = DynamicSlicer(known_code_objects)

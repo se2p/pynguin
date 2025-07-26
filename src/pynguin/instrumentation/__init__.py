@@ -160,7 +160,7 @@ class InstrumentationTransformer(ABC):
         return self._instrument_code_recursive(module_code)
 
     def _check_module_not_instrumented(self, module_code: CodeType) -> None:
-        subject_properties = self._instrumentation_tracer.get_subject_properties()
+        subject_properties = self._instrumentation_tracer.subject_properties
 
         for metadata in subject_properties.existing_code_objects.values():
             if metadata.code_object is module_code or metadata.original_code_object is module_code:
@@ -177,7 +177,7 @@ class InstrumentationTransformer(ABC):
 
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
 
-        code_object_id = self._instrumentation_tracer.create_code_object_id()
+        code_object_id = self._instrumentation_tracer.subject_properties.create_code_object_id()
 
         instrumented_code = self._visit_nodes(
             code,
@@ -185,7 +185,7 @@ class InstrumentationTransformer(ABC):
             code_object_id,
         )
 
-        self._instrumentation_tracer.register_code_object(
+        self._instrumentation_tracer.subject_properties.register_code_object(
             code_object_id,
             CodeObjectMetaData(
                 code_object=instrumented_code,

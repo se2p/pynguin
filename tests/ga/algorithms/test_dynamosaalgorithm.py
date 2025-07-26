@@ -28,7 +28,7 @@ def subject_properties():
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(nested_module.test_me.__code__)
-    return tracer.get_subject_properties()
+    return tracer.subject_properties
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def subject_properties_nested():
     adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
     transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
     transformer.instrument_module(testMe.__code__)
-    return tracer.get_subject_properties()
+    return tracer.subject_properties
 
 
 @only_3_10

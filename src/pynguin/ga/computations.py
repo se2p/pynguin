@@ -182,16 +182,14 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
 
-        return compute_branch_distance_fitness(merged_trace, tracer.get_subject_properties())
+        return compute_branch_distance_fitness(merged_trace, tracer.subject_properties)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
 
-        return compute_branch_distance_fitness_is_covered(
-            merged_trace, tracer.get_subject_properties()
-        )
+        return compute_branch_distance_fitness_is_covered(merged_trace, tracer.subject_properties)
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
         return False
@@ -235,7 +233,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_branch_distance_fitness(
             merged_trace,
-            tracer.get_subject_properties(),
+            tracer.subject_properties,
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -248,7 +246,7 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_branch_distance_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            tracer.subject_properties,
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -265,7 +263,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        existing_lines = tracer.get_subject_properties().existing_lines
+        existing_lines = tracer.subject_properties.existing_lines
         return len(existing_lines) - len(merged_trace.covered_line_ids)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
@@ -275,7 +273,7 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_line_coverage_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            tracer.subject_properties,
         )
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
@@ -294,7 +292,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        return len(tracer.get_subject_properties().existing_lines) - len(merged_trace.checked_lines)
+        return len(tracer.subject_properties.existing_lines) - len(merged_trace.checked_lines)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
@@ -303,7 +301,7 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
 
         return compute_checked_coverage_statement_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            tracer.subject_properties,
         )
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
@@ -340,7 +338,7 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_branch_coverage(merged_trace, tracer.subject_properties)
 
 
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
@@ -350,7 +348,7 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_branch_coverage(merged_trace, tracer.subject_properties)
 
 
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
@@ -360,7 +358,7 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_line_coverage(merged_trace, tracer.subject_properties)
 
 
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
@@ -370,7 +368,7 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_line_coverage(merged_trace, tracer.subject_properties)
 
 
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
@@ -381,7 +379,7 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
 
-        existing = len(tracer.get_subject_properties().existing_lines)
+        existing = len(tracer.subject_properties.existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -400,7 +398,7 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        existing = len(tracer.get_subject_properties().existing_lines)
+        existing = len(tracer.subject_properties.existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -419,7 +417,7 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_assertion_checked_coverage(merged_trace, tracer.subject_properties)
 
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
@@ -429,7 +427,7 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
         tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
+        return compute_assertion_checked_coverage(merged_trace, tracer.subject_properties)
 
 
 class ComputationCache:

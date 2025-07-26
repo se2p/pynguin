@@ -20,7 +20,7 @@ def test_hook():
     with install_import_hook("tests.fixtures.instrumentation.mixed", tracer):
         module = importlib.import_module("tests.fixtures.instrumentation.mixed")
         importlib.reload(module)
-        assert len(tracer.get_subject_properties().existing_code_objects) > 0
+        assert len(tracer.subject_properties.existing_code_objects) > 0
         assert module.function(6) == 0
 
 

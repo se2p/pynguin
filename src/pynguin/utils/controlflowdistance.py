@@ -131,7 +131,7 @@ def get_root_control_flow_distance(
     Returns:
         The control flow distance, (0.0, 0.0) if it was executed, otherwise (1.0, 0.0)
     """
-    assert code_object_id in tracer.get_subject_properties().branch_less_code_objects
+    assert code_object_id in tracer.subject_properties.branch_less_code_objects
 
     distance = ControlFlowDistance()
     if code_object_id in result.execution_trace.executed_code_objects:
@@ -160,16 +160,14 @@ def get_non_root_control_flow_distance(
         The control flow distance.
     """
     trace = result.execution_trace
-    code_object_id = (
-        tracer.get_subject_properties().existing_predicates[predicate_id].code_object_id
-    )
+    code_object_id = tracer.subject_properties.existing_predicates[predicate_id].code_object_id
 
     distance = ControlFlowDistance()
     # Code Object was not executed, simply use diameter as upper bound.
     if code_object_id not in trace.executed_code_objects:
-        distance.approach_level = (
-            tracer.get_subject_properties().existing_code_objects[code_object_id].cfg.diameter
-        )
+        distance.approach_level = tracer.subject_properties.existing_code_objects[
+            code_object_id
+        ].cfg.diameter
         return distance
 
     # Predicate was executed, simply use distance of correct branch.
@@ -181,7 +179,7 @@ def get_non_root_control_flow_distance(
         distance.branch_distance = branch_distance
         return distance
 
-    subject_properties = tracer.get_subject_properties()
+    subject_properties = tracer.subject_properties
 
     cdg = subject_properties.existing_code_objects[code_object_id].cdg
     target_node = subject_properties.existing_predicates[predicate_id].node

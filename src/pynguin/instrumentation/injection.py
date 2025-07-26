@@ -293,7 +293,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             node: The associated node from the CFG.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._instrumentation_tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.subject_properties.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -344,7 +344,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             RuntimeError: If an unknown operation is encountered.
         """
         lineno = block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._instrumentation_tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.subject_properties.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -414,7 +414,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             node: The associated node from the CFG.
         """
         lineno = basic_block[self._JUMP_OP_POS].lineno  # type: ignore[union-attr]
-        predicate_id = self._instrumentation_tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.subject_properties.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -520,7 +520,7 @@ class BranchCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         for_instr = basic_block[self._JUMP_OP_POS]
         assert for_instr.opcode == op.FOR_ITER  # type: ignore[union-attr]
         lineno = for_instr.lineno  # type: ignore[union-attr]
-        predicate_id = self._instrumentation_tracer.register_predicate(
+        predicate_id = self._instrumentation_tracer.subject_properties.register_predicate(
             PredicateMetaData(
                 line_no=lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
@@ -605,7 +605,7 @@ class LineCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
         while instr_index < len(basic_block):
             if basic_block[instr_index].lineno != lineno:  # type: ignore[union-attr]
                 lineno = basic_block[instr_index].lineno  # type: ignore[union-attr]
-                line_id = self._instrumentation_tracer.register_line(
+                line_id = self._instrumentation_tracer.subject_properties.register_line(
                     code_object_id,
                     file_name,
                     lineno,  # type: ignore[arg-type]
@@ -705,7 +705,7 @@ class CheckedCoverageInjectionInstrumentation(InjectionInstrumentationAdapter):
             # register all lines available
             if instr.lineno != lineno and file_name != "<ast>":
                 lineno = instr.lineno
-                self._instrumentation_tracer.register_line(
+                self._instrumentation_tracer.subject_properties.register_line(
                     code_object_id,
                     file_name,
                     lineno,  # type: ignore[arg-type]

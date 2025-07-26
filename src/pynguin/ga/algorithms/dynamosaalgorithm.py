@@ -49,7 +49,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._goals_manager = _GoalsManager(
             self._test_case_fitness_functions,  # type: ignore[arg-type]
             self._archive,
-            self.executor.tracer.get_subject_properties(),
+            self.executor.tracer.subject_properties,
         )
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)

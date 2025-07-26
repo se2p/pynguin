@@ -158,7 +158,7 @@ def get_coverage_report(
         assert result is not None
         results.append(result)
     trace = ff.analyze_results(results)
-    subject_properties = executor.tracer.get_subject_properties()
+    subject_properties = executor.tracer.subject_properties
     try:
         source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
     except Exception as e:
