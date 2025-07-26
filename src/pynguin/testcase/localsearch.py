@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
-from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
@@ -25,6 +23,7 @@ from pynguin.testcase.localsearchtimer import LocalSearchTimer
 
 if TYPE_CHECKING:
     from pynguin.ga.chromosome import Chromosome
+    from pynguin.testcase.execution import TestCaseExecutor
     from pynguin.testcase.testfactory import TestFactory
 
 
@@ -38,6 +37,8 @@ class LocalSearch(ABC):
         self,
         chromosome: Chromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome,
         objective: LocalSearchObjective | None,
     ) -> None:
         """Executes local search on the chromosome."""
@@ -50,6 +51,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         self,
         chromosome: Chromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome,
         objective: LocalSearchObjective | None,
     ) -> None:
         assert isinstance(chromosome, TestCaseChromosome)
@@ -61,8 +64,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
 
             statement = chromosome.test_case.statements[i]
             probability = 0.5
-            if 1 > probability: # TODO: CHANGE PROBABILITY
-                llm_local_search = LLMLocalSearch(chromosome, objective, factory)
+            if probability < 1:  # TODO: CHANGE PROBABILITY
+                llm_local_search = LLMLocalSearch(chromosome, objective, factory, suite, executor)
                 llm_local_search.llm_local_search(i)
             else:
                 local_search_statement = StatementLocalSearch.choose_local_search_statement(
@@ -70,7 +73,9 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                 )
                 # TODO: Change
                 if local_search_statement is not None:
-                    self._logger.debug("Local search statement found for the statement %s", statement)
+                    self._logger.debug(
+                        "Local search statement found for the statement %s", statement
+                    )
                     local_search_statement.search()
 
 
@@ -81,6 +86,8 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
         self,
         chromosome: Chromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome | None = None,
         objective: LocalSearchObjective | None = None,
     ) -> None:
         assert isinstance(chromosome, TestSuiteChromosome)
@@ -96,7 +103,11 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
             # if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability: TODO: temporarily disabled for debugging purpose
             test_case_local_search = TestCaseLocalSearch()
             test_case_local_search.local_search(
-                chromosome.get_test_case_chromosome(i), factory, objective
+                chromosome.get_test_case_chromosome(i),
+                factory,
+                executor,
+                chromosome,
+                objective,
             )
 
     def double_branch_coverage(
@@ -122,9 +133,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
             for (
                 key,
                 value,
-            ) in (
-                test_case.get_last_execution_result().execution_trace.executed_predicates.items()
-            ):
+            ) in test_case.get_last_execution_result().execution_trace.executed_predicates.items():
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case
 

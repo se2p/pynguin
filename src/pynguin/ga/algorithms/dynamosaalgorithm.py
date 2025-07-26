@@ -142,7 +142,12 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._logger.debug("Starting local search")
         LocalSearchTimer.get_instance().start_local_search()
 
-        TestSuiteLocalSearch.local_search(TestSuiteLocalSearch(), test_suite, self.test_factory)
+        TestSuiteLocalSearch.local_search(
+            TestSuiteLocalSearch(),
+            test_suite,
+            self.test_factory,
+            self.executor,  # type:ignore[arg-type]
+        )
         if global_search_coverage < test_suite.get_coverage():
             self._logger.info(
                 "Local search complete, increased coverage from %f to %f",

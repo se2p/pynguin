@@ -4,37 +4,49 @@
 #
 #  SPDX-License-Identifier: MIT
 
-"""Gives access to local search with LLMs"""
+"""Gives access to local search with LLMs."""
+
 import logging
 
-from pynguin.analyses.module import TestCluster
+import pynguin.configuration as config
+
 from pynguin.ga.testcasechromosome import TestCaseChromosome
+from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.testfactory import TestFactory
-from pynguin.testcase.variablereference import VariableReference
-from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
-from pynguin.utils.mirror import Mirror
-from tests.utils.stats.test_searchstatistics import chromosome
+from pynguin.utils.report import get_coverage_report
 
 
 class LLMLocalSearch:
-    """Provides access to local search using LLMs"""
+    """Provides access to local search using LLMs."""
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, chromosome: TestCaseChromosome, objective: LocalSearchObjective,
-                 factory: TestFactory ):
-        """Initializes the class
+    def __init__(
+        self,
+        chromosome: TestCaseChromosome,
+        objective: LocalSearchObjective,
+        factory: TestFactory,
+        suite: TestSuiteChromosome,
+        executor: TestCaseExecutor,
+    ):
+        """Initializes the class.
 
         Args:
             chromosome (TestCaseChromosome): The test case which should be changed.
             objective (LocalSearchObjective): The objective which checks if improvements are made.
+            factory (TestFactory): The test factory which creates the test case.
+            suite (TestSuiteChromosome): The whole test suite.
+            executor (TestCaseExecutor): The test executor.
         """
         self.chromosome = chromosome
         self.objective = objective
         self.factory = factory
+        self.suite = suite
+        self.executor = executor
 
     def llm_local_search(self, position):
         """Starts local search using LLMs for the statement at the position.
@@ -42,19 +54,23 @@ class LLMLocalSearch:
         Args:
             position (int): The position of the statement in the test case.
         """
-        statement = self.chromosome.test_case.statements[position]
-        memo :dict[VariableReference, VariableReference] = {}
-        old_statement = statement.clone(self.chromosome.test_case, Mirror())
-        last_execution_result = self.chromosome.get_last_execution_result()
-
+        metrics = {config.CoverageMetric.BRANCH, config.CoverageMetric.LINE}
+        report = get_coverage_report(self.suite, self.executor, metrics)
         agent = LLMAgent()
-        output = agent.local_search_call(position=position, test_case_source_code=unparse_test_case(
-            self.chromosome.test_case))
+        output = agent.local_search_call(
+            position=position,
+            test_case_source_code=unparse_test_case(self.chromosome.test_case),
+            branch_coverage=report.line_annotations,
+        )
         self._logger.debug(output)
 
-        test_cases = agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(output,
-            self.chromosome.test_case.test_cluster, self.factory, self.chromosome.get_fitness_functions(),
-            self.chromosome.get_coverage_functions())
+        test_cases = agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
+            output,
+            self.chromosome.test_case.test_cluster,
+            self.factory,
+            self.chromosome.get_fitness_functions(),
+            self.chromosome.get_coverage_functions(),
+        )
 
         if len(test_cases) == 1:
             test_case = test_cases[0]
@@ -66,7 +82,7 @@ class LLMLocalSearch:
             self._logger.debug("The llm request has improved the fitness of the test case")
             self.chromosome = test_case
         else:
-            self.chromosome.test_case.statements[position] = old_statement
-            self.chromosome.set_last_execution_result(last_execution_result)
-            self._logger.debug("The llm request hasn't improved the fitness of the test case, "
-                               "reverting to the old test case")
+            self._logger.debug(
+                "The llm request hasn't improved the fitness of the test case, "
+                "reverting to the old test case"
+            )
