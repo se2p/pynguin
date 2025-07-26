@@ -118,7 +118,7 @@ class StatementLocalSearch(abc.ABC):
             | isinstance(statement, MethodStatement)
         ) or isinstance(statement, FieldStatement):
             logger.debug("%s statement found", statement.__class__.__name__)
-            return FieldStatementLocalSearch(chromosome, position, objective)
+            return FieldStatementLocalSearch(chromosome, position, objective, factory)
 
         else:
             logger.debug("No local search statement found for %s", statement.__class__.__name__)
