@@ -143,19 +143,19 @@ class IsImportFunction(Protocol):
         """
 
 
-class GetBooleanConditionFunction(Protocol):
-    """A function that get the boolean value required on the ToS to jump to the instr args."""
+class GetBranchTypeFunction(Protocol):
+    """A function that get the branch type of a conditional jump instruction."""
 
     @abstractmethod
     def __call__(self, opcode: int) -> bool | None:
-        """Get the boolean value required on the ToS to jump to the instr args.
+        """Get the branch type of a conditional jump instruction.
 
         Args:
             opcode: The opcode of the instruction to check.
 
         Returns:
-            The boolean value required on the ToS to jump to the instr args,
-            or None if the instruction is not a conditional jump or a for loop.
+            The branch type as a boolean if it is a conditional jump instruction,
+            or None if it is not a conditional jump instruction.
         """
 
 
@@ -194,7 +194,7 @@ is_yielding: IsYieldingFunction
 is_import: IsImportFunction
 is_for_loop: IsForLoopFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
-get_boolean_condition: GetBooleanConditionFunction
+get_branch_type: GetBranchTypeFunction
 end_with_explicit_return_none: EndWithExplicitReturnNoneFunction
 BranchCoverageInstrumentation: type[BranchCoverageInstrumentationAdapter]
 LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]

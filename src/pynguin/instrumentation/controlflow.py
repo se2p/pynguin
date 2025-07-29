@@ -665,13 +665,13 @@ class CFG(ProgramGraph):
                 assert next_block is not None
                 assert target_block is not None
 
-                boolean_condition = version.get_boolean_condition(last_instr.opcode)
+                is_true_branch = version.get_branch_type(last_instr.opcode)
 
-                assert boolean_condition is not None, (
+                assert is_true_branch is not None, (
                     f"Unknown conditional Jump instruction in bytecode : {last_instr.name}"
                 )
 
-                if boolean_condition:
+                if is_true_branch:
                     true_branch = target_block
                     false_branch = next_block
                 else:

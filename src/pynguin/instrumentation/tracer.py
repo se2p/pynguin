@@ -1539,8 +1539,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         boolean_jump = len(exec_instr) - 1
         for instruction in reversed(exec_instr):
             if (
-                boolean_condition := version.get_boolean_condition(instruction.opcode)
-            ) is not None and boolean_condition:
+                is_true_branch := version.get_branch_type(instruction.opcode)
+            ) is not None and is_true_branch:
                 break
             boolean_jump -= 1
         assert boolean_jump != -1, "Node in code object did not contain a boolean jump instruction"

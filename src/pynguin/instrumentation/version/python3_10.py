@@ -290,7 +290,7 @@ def is_import(opcode: int) -> bool:  # noqa: D103
     return opname[opcode] == "IMPORT_NAME"
 
 
-def get_boolean_condition(opcode: int) -> bool | None:  # noqa: D103
+def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
     match opname[opcode]:
         case "POP_JUMP_IF_TRUE" | "JUMP_IF_TRUE_OR_POP":
             # These jump to arg if ToS is True

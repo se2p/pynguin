@@ -64,7 +64,7 @@ from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.instrumentation.version import get_boolean_condition
+from pynguin.instrumentation.version import get_branch_type
 from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
@@ -502,8 +502,8 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
             last_instr = node.get_instruction(-1)
             if (
                 not isinstance(last_instr, ArtificialInstr)
-                and (boolean_condition := get_boolean_condition(last_instr.opcode)) is not None
-                and boolean_condition
+                and (is_true_branch := get_branch_type(last_instr.opcode)) is not None
+                and is_true_branch
             ):
                 assert_node = node
         assert assert_node
