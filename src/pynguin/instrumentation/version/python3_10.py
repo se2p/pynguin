@@ -506,15 +506,26 @@ def stack_effect(  # noqa: D103, C901, PLR0915
     return effect
 
 
+# Jump operations are the last operation within a basic block
+_JUMP_OP_POS = -1
+
+# If a conditional jump is based on a comparison, it has to be the second-to-last
+# instruction within the basic block.
+_COMPARE_OP_POS = -2
+
+#  If one of the considered string functions needing no argument is used in the if
+#  statement, it will be loaded in the third last position. After it comes the
+#  call of the method and the jump operation.
+_STRING_FUNC_POS = -3
+
+# If one of the considered string functions needing one argument is used in the if
+# statement, it will be loaded in the fourth last position. After it comes the
+# load of the argument, the call of the method and the jump operation.
+_STRING_FUNC_POS_WITH_ARG = -4
+
+
 class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAdapter):
     """Specialized instrumentation adapter for branch coverage in Python 3.10."""
-
-    # Jump operations are the last operation within a basic block
-    _JUMP_OP_POS = -1
-
-    # If a conditional jump is based on a comparison, it has to be the second-to-last
-    # instruction within the basic block.
-    _COMPARE_OP_POS = -2
 
     _logger = logging.getLogger(__name__)
 
@@ -527,7 +538,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_jump_index = self._JUMP_OP_POS
+        maybe_jump_index = _JUMP_OP_POS
         maybe_jump = node.get_instruction(maybe_jump_index)
 
         if is_for_loop(maybe_jump.opcode):
@@ -544,7 +555,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             return
 
         maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
-            self._COMPARE_OP_POS,
+            _COMPARE_OP_POS,
         )
 
         if maybe_compare.opcode in OP_COMPARE:
@@ -1681,21 +1692,6 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAdapter):
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.10."""
 
-    # Compare operations are only followed by one jump operation, hence they are on the
-    # second to last position of the block.
-    _COMPARE_OP_POS = -2
-
-    #  If one of the considered string functions needing no argument is used in the if
-    #  statement, it will be loaded in the third last position. After it comes the
-    #  call of the method and the jump operation.
-    _STRING_FUNC_POS = -3
-
-    # If one of the considered string functions needing one argument is used in the if
-    # statement, it will be loaded in the fourth last position. After it comes the
-    # load of the argument, the call of the method and the jump
-    # operation.
-    _STRING_FUNC_POS_WITH_ARG = -4
-
     _logger = logging.getLogger(__name__)
 
     def __init__(  # noqa: D107
@@ -1709,7 +1705,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_compare_index = self._COMPARE_OP_POS
+        maybe_compare_index = _COMPARE_OP_POS
         maybe_compare = node.try_get_instruction(maybe_compare_index)
 
         if (
@@ -1726,7 +1722,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_index = self._STRING_FUNC_POS
+        maybe_string_func_index = _STRING_FUNC_POS
         maybe_string_func = node.try_get_instruction(maybe_string_func_index)
 
         if (
@@ -1745,7 +1741,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_with_arg_index = self._STRING_FUNC_POS_WITH_ARG
+        maybe_string_func_with_arg_index = _STRING_FUNC_POS_WITH_ARG
         maybe_string_func_with_arg = node.try_get_instruction(maybe_string_func_with_arg_index)
 
         if (
