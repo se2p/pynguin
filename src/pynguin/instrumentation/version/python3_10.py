@@ -608,7 +608,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_bool_predicate.__name__,
+                tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("LOAD_CONST", arg=True, lineno=lineno),
@@ -626,7 +626,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_bool_predicate.__name__,
+                tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("LOAD_CONST", arg=False, lineno=lineno),
@@ -678,7 +678,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_compare_predicate.__name__,
+                tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -719,7 +719,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_exception_match.__name__,
+                tracer.InstrumentationExecutionTracer.executed_exception_match.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
@@ -759,7 +759,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_bool_predicate.__name__,
+                tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("ROT_THREE", lineno=lineno),
@@ -786,7 +786,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.executed_code_object.__name__,
+                tracer.InstrumentationExecutionTracer.executed_code_object.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
@@ -849,7 +849,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_line_visit.__name__,
+                tracer.InstrumentationExecutionTracer.track_line_visit.__name__,
                 lineno=lineno,
             ),
             cf.ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
@@ -1022,7 +1022,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_generic.__name__,
+                tracer.InstrumentationExecutionTracer.track_generic.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1065,7 +1065,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_memory_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1117,7 +1117,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_attribute_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
                 lineno=instr.lineno,
             ),
             # A method occupies two slots on top of the stack
@@ -1146,7 +1146,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.attribute_lookup.__name__,
+                tracer.InstrumentationExecutionTracer.attribute_lookup.__name__,
                 lineno=instr.lineno,
             ),
             cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1209,7 +1209,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_attribute_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
                 lineno=instr.lineno,
             ),
             # A method occupies two slots on top of the stack
@@ -1296,7 +1296,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_memory_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1351,7 +1351,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_memory_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
@@ -1397,7 +1397,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_memory_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1455,7 +1455,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_memory_access.__name__,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1508,7 +1508,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_jump.__name__,
+                tracer.InstrumentationExecutionTracer.track_jump.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1547,7 +1547,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_call.__name__,
+                tracer.InstrumentationExecutionTracer.track_call.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
@@ -1584,7 +1584,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
             cf.ArtificialInstr(
                 "LOAD_METHOD",
-                self._subject_properties.instrumentation_tracer.track_return.__name__,
+                tracer.InstrumentationExecutionTracer.track_return.__name__,
                 lineno=instr.lineno,
             ),
             # Load arguments
