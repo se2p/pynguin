@@ -23,6 +23,8 @@ from functools import wraps
 from math import inf
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
+from types import CodeType
+from typing import TYPE_CHECKING
 from typing import Concatenate
 from typing import ParamSpec
 
@@ -32,12 +34,10 @@ from bytecode.instr import FreeVar
 import pynguin.assertion.assertion as ass
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
-import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
-from pynguin.instrumentation import CodeObjectMetaData
-from pynguin.instrumentation import PredicateMetaData
 from pynguin.instrumentation import PynguinCompare
+from pynguin.instrumentation import version
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
@@ -47,6 +47,11 @@ from pynguin.utils.type_utils import string_distance
 from pynguin.utils.type_utils import string_le_distance
 from pynguin.utils.type_utils import string_lt_distance
 
+
+if TYPE_CHECKING:
+    from pynguin.instrumentation.controlflow import CFG
+    from pynguin.instrumentation.controlflow import BasicBlockNode
+    from pynguin.instrumentation.controlflow import ControlDependenceGraph
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
@@ -347,6 +352,61 @@ class LineMetaData:
         return self.line_number == other.line_number and self.file_name == other.file_name
 
 
+@dataclass
+class CodeObjectMetaData:
+    """Stores meta data of a code object."""
+
+    # The instrumented code object.
+    code_object: CodeType
+
+    # The original code object, before instrumentation.
+    original_code_object: CodeType
+
+    # Id of the parent code object, if any
+    parent_code_object_id: int | None
+
+    # CFG of this code object
+    cfg: CFG
+
+    # CFG of the original code object, before instrumentation.
+    original_cfg: CFG
+
+    # CDG of this code object
+    cdg: ControlDependenceGraph
+
+    def __getstate__(self) -> dict:
+        return {
+            "code_object": self.code_object,
+            "original_code_object": self.original_code_object,
+            "parent_code_object_id": self.parent_code_object_id,
+            "cfg": self.cfg,
+            "original_cfg": self.original_cfg,
+            "cdg": self.cdg,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self.code_object = state["code_object"]
+        self.original_code_object = state["original_code_object"]
+        self.parent_code_object_id = state["parent_code_object_id"]
+        self.cfg = state["cfg"]
+        self.original_cfg = state["original_cfg"]
+        self.cdg = state["cdg"]
+
+
+@dataclass
+class PredicateMetaData:
+    """Stores meta data of a predicate."""
+
+    # Line number where the predicate is defined.
+    line_no: int
+
+    # Id of the code object where the predicate was defined.
+    code_object_id: int
+
+    # The node in the program graph, that defines this predicate.
+    node: BasicBlockNode
+
+
 DEFAULT_CODE_OBJECT_ID = 0
 
 
@@ -439,23 +499,20 @@ class SubjectProperties:
         self.existing_predicates[predicate_id] = meta
         return predicate_id
 
-    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
+    def register_line(self, meta: LineMetaData) -> int:
         """Tracks the existence of a line.
 
         Args:
-            code_object_id: The id of the code object that contains the line
-            file_name: The file in which the statement is
-            line_number: The line of the statement to track
+            meta: Metadata about the line
 
         Returns:
             the id of the registered line
         """
-        line_meta = LineMetaData(code_object_id, file_name, line_number)
-        if line_meta not in self.existing_lines.values():
+        if meta not in self.existing_lines.values():
             line_id = len(self.existing_lines)
-            self.existing_lines[line_id] = line_meta
+            self.existing_lines[line_id] = meta
         else:
-            index = list(self.existing_lines.values()).index(line_meta)
+            index = list(self.existing_lines.values()).index(meta)
             line_id = list(self.existing_lines.keys())[index]
         return line_id
 
@@ -1341,8 +1398,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_address: int,
         arg_type: type,
     ) -> None:
-        if not arg and opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have arguments
-            raise ValueError("A memory access instruction must have an argument")
+        assert arg or version.is_import(opcode), (  # IMPORT_NAMEs may not have arguments
+            "A memory access instruction must have an argument or be an import"
+        )
+
         if isinstance(arg, CellVar | FreeVar):
             arg = arg.name
 
@@ -1477,20 +1536,20 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
         exec_instr = self.get_trace().executed_instructions
-        pop_jump_if_true_position = len(exec_instr) - 1
+        boolean_jump = len(exec_instr) - 1
         for instruction in reversed(exec_instr):
-            if instruction.opcode == op.POP_JUMP_IF_TRUE:
+            if (
+                boolean_condition := version.get_boolean_condition(instruction.opcode)
+            ) is not None and boolean_condition:
                 break
-            pop_jump_if_true_position -= 1
-        assert pop_jump_if_true_position != -1, (
-            "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
-        )
+            boolean_jump -= 1
+        assert boolean_jump != -1, "Node in code object did not contain a boolean jump instruction"
 
         self._thread_local_state.trace.executed_assertions.append(
             ExecutedAssertion(
                 code_object_id,
                 node_id,
-                pop_jump_if_true_position,
+                boolean_jump,
                 assertion,
             )
         )

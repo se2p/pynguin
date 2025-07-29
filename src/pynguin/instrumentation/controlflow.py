@@ -27,8 +27,7 @@ from bytecode import Instr
 from bytecode.cfg import BasicBlock
 from bytecode.instr import UNSET
 
-import pynguin.utils.opcodes as op
-
+from pynguin.instrumentation import version
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -41,6 +40,53 @@ EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 # The increment of the instruction offset for each instruction.
 INSTRUCTION_OFFSET_INCREMENT = 2
+
+
+AST_FILENAME = "<ast>"
+
+
+class ArtificialInstr(Instr):
+    """Marker subclass of an instruction.
+
+    Used to distinguish between original instructions and instructions that were
+    inserted by the instrumentation.
+    """
+
+
+def before(index: int) -> slice[int, int]:
+    """Get the slice for inserting an instruction before the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for inserting an instruction before the given index.
+    """
+    return slice(index, index)
+
+
+def after(index: int) -> slice[int, int]:
+    """Get the slice for inserting an instruction after the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for inserting an instruction after the given index.
+    """
+    return slice(index + 1, index + 1)
+
+
+def override(index: int) -> slice[int, int]:
+    """Get the slice for overriding an instruction at the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for overriding an instruction at the given index.
+    """
+    return slice(index, index + 1)
 
 
 class ArtificialNode(Enum):
@@ -119,20 +165,8 @@ class BasicBlockNode:
             assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
             yield instr
 
-    @property
-    def offset_instructions(self) -> Iterable[tuple[int, Instr]]:
-        """Provides the instructions of the basic block with their offsets.
-
-        Returns:
-            The instructions of the basic block with their offsets
-        """
-        offset = self._offset
-        for instr in self.instructions:
-            yield offset, instr
-            offset += INSTRUCTION_OFFSET_INCREMENT
-
     def get_instruction(self, index: int) -> Instr:
-        """Provides the instruction at the given index.
+        """Get the instruction at the given index.
 
         Args:
             index: The index of the instruction
@@ -143,6 +177,58 @@ class BasicBlockNode:
         instr = self._basic_block[index]
         assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
         return instr
+
+    def try_get_instruction(self, index: int) -> Instr | None:
+        """Try to get the instruction at the given index.
+
+        Args:
+            index: The index of the instruction
+
+        Returns:
+            The instruction at the given index or None if no such instruction exists
+        """
+        try:
+            return self.get_instruction(index)
+        except IndexError:
+            return None
+
+    @property
+    def original_instructions(self) -> Iterable[Instr]:
+        """Provides the original instructions of the basic block.
+
+        Returns:
+            The original instructions of the basic block
+        """
+        for instr in self.instructions:
+            if not isinstance(instr, ArtificialInstr):
+                yield instr
+
+    @property
+    def original_offset_instructions(self) -> Iterable[tuple[int, Instr]]:
+        """Provides the original offsets and instructions.
+
+        Returns:
+            An iterable of original offsets and instructions.
+        """
+        offset = self._offset
+        for instr in self.original_instructions:
+            yield offset, instr
+            offset += INSTRUCTION_OFFSET_INCREMENT
+
+    def find_instruction_by_original_index(self, original_index: int) -> tuple[int, Instr]:
+        """Find an index and instruction by its original index.
+
+        Args:
+            original_index: The index of the instruction
+
+        Returns:
+            The index of the instruction in the basic block and the instruction itself
+        """
+        return tuple(
+            (instr_index, instr)
+            for instr_index, instr in enumerate(self.instructions)
+            if not isinstance(instr, ArtificialInstr)
+        )[original_index]
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BasicBlockNode):
@@ -339,7 +425,7 @@ class ProgramGraph:
         yield_nodes: set[ProgramNode] = set()
         for node in self.basic_block_nodes:
             for instr in node.instructions:
-                if instr.opcode == op.YIELD_VALUE:
+                if version.is_yielding(instr.opcode):
                     yield_nodes.add(node)
                     # exist the inner loop (over instructions)
                     # the node is already added thus continue with the next node
@@ -458,17 +544,14 @@ class CFG(ProgramGraph):
         """Generates a new control-flow graph from a bytecode segment.
 
         Besides generating a node for each block in the bytecode segment, as returned by
-        `bytecode`'s `ControlFlowGraph` implementation, we add two artificial nodes to
-        the generated CFG:
-         - an artificial entry node, having index -1, that is guaranteed to fulfill the
+        `bytecode`'s `ControlFlowGraph` implementation, we add dummy nodes for for-loops
+        that do not yield values and we add two artificial nodes to the generated CFG:
+         - an artificial entry node that is guaranteed to fulfill the
            property of an entry node, i.e., there is no incoming edge, and
-         - an artificial exit node, having index `sys.maxsize`, that is guaranteed to
+         - an artificial exit node that is guaranteed to
            fulfill the property of an exit node, i.e., there is no outgoing edge, and
            that is the only such node in the graph, which is important, e.g., for graph
            reversal.
-        The index values are chosen that they do not appear in regular graphs, thus one
-        can easily distinguish them from the normal nodes in the graph by checking for
-        their index-property's value.
 
         Args:
             bytecode: The bytecode segment
@@ -476,7 +559,7 @@ class CFG(ProgramGraph):
         Returns:
             The control-flow graph for the segment
         """
-        blocks = ControlFlowGraph.from_bytecode(bytecode)
+        blocks = ControlFlowGraph.from_bytecode(version.add_for_loop_no_yield_nodes(bytecode))
         cfg = CFG(blocks)
 
         # Create the nodes and a mapping of all edges to generate
@@ -495,6 +578,7 @@ class CFG(ProgramGraph):
         cfg = CFG._insert_dummy_entry_node(cfg)
         return cfg  # noqa: RET504
 
+    @property
     def bytecode_cfg(self) -> ControlFlowGraph:
         """Provide the raw control flow graph from the code object.
 
@@ -517,7 +601,7 @@ class CFG(ProgramGraph):
         Returns:
             The reversed control-flow graph
         """
-        reversed_cfg = CFG(cfg.bytecode_cfg())
+        reversed_cfg = CFG(cfg.bytecode_cfg)
 
         reversed_cfg._graph = cfg._graph.reverse(copy=True)
         return reversed_cfg
@@ -576,30 +660,26 @@ class CFG(ProgramGraph):
 
             last_instr = block[-1]
             if isinstance(last_instr, Instr) and (
-                last_instr.is_cond_jump() or last_instr.opcode == op.FOR_ITER
+                last_instr.is_cond_jump() or version.is_for_loop(last_instr.opcode)
             ):
-                if last_instr.opcode in {op.POP_JUMP_IF_TRUE, op.JUMP_IF_TRUE_OR_POP}:
-                    # These jump to arg if ToS is True
+                assert next_block is not None
+                assert target_block is not None
+
+                boolean_condition = version.get_boolean_condition(last_instr.opcode)
+
+                assert boolean_condition is not None, (
+                    f"Unknown conditional Jump instruction in bytecode : {last_instr.name}"
+                )
+
+                if boolean_condition:
                     true_branch = target_block
                     false_branch = next_block
-                elif last_instr.opcode in {
-                    op.POP_JUMP_IF_FALSE,
-                    op.JUMP_IF_FALSE_OR_POP,
-                    op.JUMP_IF_NOT_EXC_MATCH,
-                    op.FOR_ITER,
-                }:
-                    # These jump to arg if ToS is False, is Empty or if Exc does
-                    # not match.
+                else:
                     true_branch = next_block
                     false_branch = target_block
-                else:
-                    raise RuntimeError(
-                        "Unknown conditional Jump instruction in bytecode " + last_instr.name
-                    )
+
                 for next_branch, value in [(true_branch, True), (false_branch, False)]:
-                    next_index = blocks.get_block_index(
-                        next_branch  # type: ignore[arg-type]
-                    )
+                    next_index = blocks.get_block_index(next_branch)
                     # 'label' is also set to value, to get a nicer DOT representation,
                     # because 'label' is a keyword for labelling edges.
                     edges[node_index].append((

@@ -12,9 +12,9 @@ import threading
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
-import pynguin.utils.opcodes as op
 
 from pynguin.ga.computations import compute_statement_checked_lines
+from pynguin.instrumentation.version import OP_STORE_NAME
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
@@ -63,7 +63,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
             assert isinstance(statement, st.VariableCreatingStatement)
             trace = executor.subject_properties.instrumentation_tracer.get_trace()
             last_traced_instr = trace.executed_instructions[-2]
-            assert last_traced_instr.opcode == op.STORE_NAME
+            assert last_traced_instr.opcode in OP_STORE_NAME
 
             code_object = executor.subject_properties.existing_code_objects[
                 last_traced_instr.code_object_id

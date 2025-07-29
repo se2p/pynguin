@@ -28,19 +28,18 @@ import pynguin.configuration as config
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import DynamicSeedingInjectionInstrumentation
-from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
-from pynguin.instrumentation.injection import LineCoverageInjectionInstrumentation
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import BranchCoverageInstrumentation
+from pynguin.instrumentation.version import CheckedCoverageInstrumentation
+from pynguin.instrumentation.version import DynamicSeedingInstrumentation
+from pynguin.instrumentation.version import LineCoverageInstrumentation
 
 
 if TYPE_CHECKING:
     from types import CodeType
 
-    from pynguin.instrumentation import InstrumentationTransformer
-    from pynguin.instrumentation.injection import InjectionInstrumentationAdapter
     from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.instrumentation.transformer import InstrumentationAdapter
 
 
 class InstrumentationLoader(SourceFileLoader):
@@ -93,18 +92,18 @@ def build_transformer(
     Returns:
         An instrumentation transformer.
     """
-    adapters: list[InjectionInstrumentationAdapter] = []
+    adapters: list[InstrumentationAdapter] = []
     if config.CoverageMetric.BRANCH in coverage_metrics:
-        adapters.append(BranchCoverageInjectionInstrumentation(subject_properties))
+        adapters.append(BranchCoverageInstrumentation(subject_properties))
     if config.CoverageMetric.LINE in coverage_metrics:
-        adapters.append(LineCoverageInjectionInstrumentation(subject_properties))
+        adapters.append(LineCoverageInstrumentation(subject_properties))
     if config.CoverageMetric.CHECKED in coverage_metrics:
-        adapters.append(CheckedCoverageInjectionInstrumentation(subject_properties))
+        adapters.append(CheckedCoverageInstrumentation(subject_properties))
 
     if dynamic_constant_provider is not None:
-        adapters.append(DynamicSeedingInjectionInstrumentation(dynamic_constant_provider))
+        adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
 
-    return InjectionInstrumentationTransformer(subject_properties, adapters)
+    return InstrumentationTransformer(subject_properties, adapters)
 
 
 class InstrumentationFinder(MetaPathFinder):

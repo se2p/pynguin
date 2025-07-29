@@ -8,11 +8,11 @@ from contextlib import contextmanager
 
 import pytest
 
-from pynguin.analyses.controlflow import ArtificialNode
-from pynguin.analyses.controlflow import ControlDependenceGraph
-from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
+from pynguin.instrumentation.controlflow import ArtificialNode
+from pynguin.instrumentation.controlflow import ControlDependenceGraph
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from tests.fixtures.programgraph.yield_fun import yield_fun
 from tests.utils.version import only_3_10
 
@@ -120,8 +120,8 @@ def small_fixture(x, y):  # pragma: no cover
     ],
 )
 def test_get_control_dependencies(node_index, expected_deps, subject_properties: SubjectProperties):
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(small_fixture.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
@@ -141,8 +141,8 @@ def test_get_control_dependencies(node_index, expected_deps, subject_properties:
 @only_3_10
 @pytest.mark.parametrize("node", ["foobar", None])
 def test_get_control_dependencies_asserts(node, subject_properties: SubjectProperties):
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(small_fixture.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
@@ -186,8 +186,8 @@ def long_fixture(x, y):  # pragma: no cover
 def test_is_control_dependent_on_root(
     node_index, expected_dependant, subject_properties: SubjectProperties
 ):
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(long_fixture.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
@@ -204,8 +204,8 @@ def test_is_control_dependent_on_root(
 
 @only_3_10
 def test_yield_instrumented(subject_properties: SubjectProperties):
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(yield_fun.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     assert cdg

@@ -8,8 +8,8 @@ import pytest
 
 from bytecode import Bytecode
 
-from pynguin.analyses.controlflow import CFG
-from pynguin.analyses.controlflow import ArtificialNode
+from pynguin.instrumentation.controlflow import CFG
+from pynguin.instrumentation.controlflow import ArtificialNode
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
 from tests.utils.version import only_3_10
@@ -186,6 +186,7 @@ CALL_FUNCTION 1
 POP_TOP
 JUMP_ABSOLUTE BasicBlockNode";
 "BasicBlockNode(7)
+NOP
 LOAD_FAST 'foo'
 POP_JUMP_IF_TRUE BasicBlockNode";
 "BasicBlockNode(8)
@@ -260,6 +261,7 @@ POP_TOP
 JUMP_ABSOLUTE BasicBlockNode"  [branch_value=True, label=True];
 "BasicBlockNode(5)
 FOR_ITER BasicBlockNode" -> "BasicBlockNode(7)
+NOP
 LOAD_FAST 'foo'
 POP_JUMP_IF_TRUE BasicBlockNode"  [branch_value=False, label=False];
 "BasicBlockNode(6)
@@ -271,11 +273,13 @@ POP_TOP
 JUMP_ABSOLUTE BasicBlockNode" -> "BasicBlockNode(5)
 FOR_ITER BasicBlockNode";
 "BasicBlockNode(7)
+NOP
 LOAD_FAST 'foo'
 POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(9)
 LOAD_CONST None
 RETURN_VALUE"  [branch_value=True, label=True];
 "BasicBlockNode(7)
+NOP
 LOAD_FAST 'foo'
 POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(8)
 LOAD_GLOBAL 'print'

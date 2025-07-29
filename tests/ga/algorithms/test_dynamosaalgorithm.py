@@ -12,9 +12,9 @@ import pytest
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
 
-from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from tests.utils.version import only_3_10
 
 
@@ -22,8 +22,8 @@ from tests.utils.version import only_3_10
 def dynamosa_subject_properties(subject_properties: SubjectProperties):
     nested_module = importlib.import_module("tests.fixtures.examples.nested")
 
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(nested_module.test_me.__code__)
     return subject_properties
 
@@ -34,8 +34,8 @@ def dynamosa_subject_properties_nested(subject_properties: SubjectProperties):
         def inner(_):
             pass
 
-    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
-    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(testMe.__code__)
     return subject_properties
 

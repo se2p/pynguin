@@ -17,17 +17,24 @@ from typing import TYPE_CHECKING
 
 from bytecode import Instr
 
-import pynguin.utils.opcodes as op
-
-from pynguin.analyses.controlflow import INSTRUCTION_OFFSET_INCREMENT
-from pynguin.analyses.controlflow import BasicBlockNode
+from pynguin.instrumentation.controlflow import INSTRUCTION_OFFSET_INCREMENT
+from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.version import COND_BRANCH_INSTRUCTIONS
+from pynguin.instrumentation.version import MEMORY_DEF_INSTRUCTIONS
+from pynguin.instrumentation.version import MEMORY_USE_INSTRUCTIONS
+from pynguin.instrumentation.version import OP_CALL
+from pynguin.instrumentation.version import OP_EXTENDED_ARG
+from pynguin.instrumentation.version import OP_RETURN
+from pynguin.instrumentation.version import TRACED_INSTRUCTIONS
+from pynguin.instrumentation.version import is_import
+from pynguin.instrumentation.version import is_yielding
 from pynguin.utils.exceptions import InstructionNotFoundException
 
 
 UNSET = object()
 
 if TYPE_CHECKING:
-    from pynguin.instrumentation import CodeObjectMetaData
+    from pynguin.instrumentation.tracer import CodeObjectMetaData
     from pynguin.instrumentation.tracer import ExecutionTrace
     from pynguin.slicer.executedinstruction import ExecutedInstruction
 
@@ -107,7 +114,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a definition, False otherwise.
         """
-        return self.opcode in op.MEMORY_DEF_INSTRUCTIONS
+        return self.opcode in MEMORY_DEF_INSTRUCTIONS
 
     def is_use(self) -> bool:
         """Returns a boolean if the instruction is a use.
@@ -115,7 +122,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a use, False otherwise.
         """
-        return self.opcode in op.MEMORY_USE_INSTRUCTIONS
+        return self.opcode in MEMORY_USE_INSTRUCTIONS
 
     def is_cond_branch(self) -> bool:
         """Returns a boolean if the instruction is a conditional branching.
@@ -123,7 +130,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a conditional branching, False otherwise.
         """
-        return self.opcode in op.COND_BRANCH_INSTRUCTIONS
+        return self.opcode in COND_BRANCH_INSTRUCTIONS
 
     def locate_in_disassembly(self, disassembly) -> dis.Instruction:
         """Retrieves the instruction inside disassembled bytecode.
@@ -143,7 +150,7 @@ class UniqueInstruction(Instr):
         offset_offset = 0
 
         for dis_instr in disassembly:
-            if dis_instr.opcode == op.EXTENDED_ARG:
+            if dis_instr.opcode in OP_EXTENDED_ARG:
                 offset_offset += INSTRUCTION_OFFSET_INCREMENT
 
             if dis_instr.opcode == self.opcode and dis_instr.offset == (
@@ -324,7 +331,7 @@ class ExecutionFlowBuilder:
         )
 
         # Handle return instruction
-        if last_traced_instr.opcode in op.OP_RETURN:
+        if last_traced_instr.opcode in OP_RETURN:
             last_instr = self._handle_return_instructions(
                 efb_state,
                 instr,
@@ -399,7 +406,7 @@ class ExecutionFlowBuilder:
         last_traced_instr,
         unique_instr,
     ):
-        if instr.opcode != op.IMPORT_NAME:
+        if not is_import(instr.opcode):
             # Coming back from a method call. If last_instr is a call, then the
             # method was called explicitly.
             # If last_instr is not a call, but is traced and does not match the
@@ -407,8 +414,8 @@ class ExecutionFlowBuilder:
             # to a magic method (such as __get__). Since we collect instructions
             # invoking these methods, we can safely switch to the called method.
             if last_instr:
-                if (last_instr.opcode in op.OP_CALL) or (
-                    last_instr.opcode in op.TRACED_INSTRUCTIONS
+                if (last_instr.opcode in OP_CALL) or (
+                    last_instr.opcode in TRACED_INSTRUCTIONS
                     and last_instr.opcode != last_traced_instr.opcode
                 ):
                     last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
@@ -461,7 +468,7 @@ class ExecutionFlowBuilder:
         last_instr,
         last_traced_instr: ExecutedInstruction,
     ) -> Instr:
-        if last_instr.opcode in {op.YIELD_VALUE, op.YIELD_FROM}:
+        if is_yielding(last_instr.opcode):
             # Generators produce an unusual execution flow: the interpreter handles
             # jumps to the respective yield statement internally and we can not see
             # this in the trace. So we assume that this unusual case (explained in
@@ -470,7 +477,7 @@ class ExecutionFlowBuilder:
 
         elif (
             last_instr
-            and last_instr.opcode in op.TRACED_INSTRUCTIONS
+            and last_instr.opcode in TRACED_INSTRUCTIONS
             and last_instr.opcode != last_traced_instr.opcode
         ):
             # The last instruction that is determined is not in the trace,
@@ -555,7 +562,7 @@ class ExecutionFlowBuilder:
     def _locate_traced_in_bytecode(self, instr: ExecutedInstruction) -> Instr:
         basic_block_node = self._get_basic_block_node(instr.code_object_id, instr.node_id)
 
-        for offset, instruction in basic_block_node.offset_instructions:
+        for offset, instruction in basic_block_node.original_offset_instructions:
             if (
                 instr.opcode == instruction.opcode
                 and instr.lineno == instruction.lineno
@@ -585,8 +592,10 @@ class ExecutionFlowBuilder:
             InstructionNotFoundException: when the given instruction is
                 not in the given basic block
         """
-        for index, (offset, instruction) in enumerate(basic_block_node.offset_instructions):
+        for instr_index, (offset, instruction) in enumerate(
+            basic_block_node.original_offset_instructions
+        ):
             if instruction == instr and instr_offset == offset:
-                return index
+                return instr_index
 
         raise InstructionNotFoundException

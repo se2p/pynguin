@@ -43,8 +43,8 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
 
-    from pynguin.instrumentation import InstrumentationTransformer
     from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.instrumentation.transformer import InstrumentationTransformer
 
 _LOGGER = logging.getLogger(__name__)
 

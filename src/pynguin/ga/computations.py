@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 
-import pynguin.utils.opcodes as op
-
 from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.version import end_with_explicit_return_none
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 
@@ -32,6 +31,7 @@ if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion
+    from pynguin.slicer.dynamicslicer import UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.statement import Statement
@@ -865,23 +865,19 @@ def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProp
 
 
 def _cleanse_included_implicit_return_none(
-    subject_properties, statement_checked_lines, statement_slice
+    subject_properties: SubjectProperties,
+    statement_checked_lines: set[int],
+    statement_slice: list[UniqueInstruction],
 ):
-    if (  # noqa: SIM102
-        # check if the last included instructions before the store
-        # are a "return None"
-        len(statement_slice) >= 3
-        and statement_slice[-3].opcode == op.LOAD_CONST
-        and statement_slice[-3].arg is None
-        and statement_slice[-2].opcode == op.RETURN_VALUE
-    ):
-        if (
-            # check if the "return None" is implicit or explicit
-            len(statement_slice) != 3 and statement_slice[-4].lineno != statement_slice[-3].lineno
-        ):
-            statement_checked_lines.remove(
-                DynamicSlicer.get_line_id_by_instruction(statement_slice[-3], subject_properties)
+    # check if the last included instructions before the store
+    # are a explicit "return None"
+    if end_with_explicit_return_none(statement_slice[:-1]):
+        statement_checked_lines.remove(
+            DynamicSlicer.get_line_id_by_instruction(
+                statement_slice[-3],
+                subject_properties,
             )
+        )
 
 
 def compute_statement_checked_lines(
@@ -928,7 +924,9 @@ def compute_statement_checked_lines(
         )
 
         _cleanse_included_implicit_return_none(
-            subject_properties, statement_checked_lines, statement_slice
+            subject_properties,
+            statement_checked_lines,
+            statement_slice,
         )
 
         checked_lines_ids.update(statement_checked_lines)

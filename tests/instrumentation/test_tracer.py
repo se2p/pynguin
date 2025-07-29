@@ -14,9 +14,10 @@ import pytest
 
 import pynguin.utils.typetracing as tt
 
-from pynguin.instrumentation import CodeObjectMetaData
 from pynguin.instrumentation import PynguinCompare
+from pynguin.instrumentation.tracer import CodeObjectMetaData
 from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import LineMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.tracer import _le  # noqa: PLC2701
 from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701
@@ -50,10 +51,10 @@ def test_predicate_exists(subject_properties: SubjectProperties):
 
 
 def test_line_registration(subject_properties: SubjectProperties):
-    assert subject_properties.register_line(0, "foo", 42) == 0
-    assert subject_properties.register_line(0, "foo", 43) == 1
-    assert subject_properties.register_line(0, "bar", 42) == 2
-    assert subject_properties.register_line(1, "foo", 42) == 0
+    assert subject_properties.register_line(LineMetaData(0, "foo", 42)) == 0
+    assert subject_properties.register_line(LineMetaData(0, "foo", 43)) == 1
+    assert subject_properties.register_line(LineMetaData(0, "bar", 42)) == 2
+    assert subject_properties.register_line(LineMetaData(1, "foo", 42)) == 0
     assert {0, 1, 2} == subject_properties.existing_lines.keys()
 
 

@@ -18,10 +18,10 @@ from bytecode.cfg import BasicBlock
 
 import pynguin.configuration as config
 
-from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
@@ -103,10 +103,8 @@ def _contains_name_argtype(
 
 def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
     subject_properties = SubjectProperties()
-    instrumentation = CheckedCoverageInjectionInstrumentation(subject_properties)
-    instrumentation_transformer = InjectionInstrumentationTransformer(
-        subject_properties, [instrumentation]
-    )
+    instrumentation = CheckedCoverageInstrumentation(subject_properties)
+    instrumentation_transformer = InstrumentationTransformer(subject_properties, [instrumentation])
 
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
     subject_properties.instrumentation_tracer.current_thread_identifier = (

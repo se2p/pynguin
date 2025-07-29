@@ -20,10 +20,10 @@ from hypothesis import given
 
 import pynguin.ga.computations as ff
 
-from pynguin.instrumentation import PredicateMetaData
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import LineMetaData
+from pynguin.instrumentation.tracer import PredicateMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer

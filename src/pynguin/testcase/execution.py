@@ -51,21 +51,20 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
-import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
-from pynguin.instrumentation import ArtificialInstr
-from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
-from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
+from pynguin.instrumentation.controlflow import ArtificialInstr
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.transformer import InstrumentationTransformer
+from pynguin.instrumentation.version import CheckedCoverageInstrumentation
+from pynguin.instrumentation.version import get_boolean_condition
 from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
@@ -85,6 +84,7 @@ if TYPE_CHECKING:
 
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.module import TestCluster
+    from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.testcase import TestCase
 
 
@@ -502,7 +502,8 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
             last_instr = node.get_instruction(-1)
             if (
                 not isinstance(last_instr, ArtificialInstr)
-                and last_instr.opcode == op.POP_JUMP_IF_TRUE
+                and (boolean_condition := get_boolean_condition(last_instr.opcode)) is not None
+                and boolean_condition
             ):
                 assert_node = node
         assert assert_node
@@ -1005,8 +1006,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._instrument = (
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
-        checked_instrumentation = CheckedCoverageInjectionInstrumentation(self._subject_properties)
-        self._checked_transformer = InjectionInstrumentationTransformer(
+        checked_instrumentation = CheckedCoverageInstrumentation(self._subject_properties)
+        self._checked_transformer = InstrumentationTransformer(
             self._subject_properties,
             [checked_instrumentation],
         )

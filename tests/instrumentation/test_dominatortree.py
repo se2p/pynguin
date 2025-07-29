@@ -7,10 +7,10 @@
 
 from bytecode import Bytecode
 
-from pynguin.analyses.controlflow import CFG
-from pynguin.analyses.controlflow import ArtificialNode
-from pynguin.analyses.controlflow import BasicBlockNode
-from pynguin.analyses.controlflow import DominatorTree
+from pynguin.instrumentation.controlflow import CFG
+from pynguin.instrumentation.controlflow import ArtificialNode
+from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.controlflow import DominatorTree
 from tests.fixtures.programgraph.samples import for_loop
 from tests.utils.version import only_3_10
 

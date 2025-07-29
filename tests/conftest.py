@@ -28,9 +28,6 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.controlflow import CFG
-from pynguin.analyses.controlflow import ArtificialNode
-from pynguin.analyses.controlflow import BasicBlockNode
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
@@ -39,6 +36,9 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.instrumentation.controlflow import CFG
+from pynguin.instrumentation.controlflow import ArtificialNode
+from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult

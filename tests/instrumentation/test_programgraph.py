@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from opcode import opmap
 from unittest.mock import MagicMock
 
 import pytest
@@ -11,10 +12,8 @@ import pytest
 from bytecode.cfg import BasicBlock
 from bytecode.instr import Instr
 
-import pynguin.utils.opcodes as op
-
-from pynguin.analyses.controlflow import BasicBlockNode
-from pynguin.analyses.controlflow import ProgramGraph
+from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.controlflow import ProgramGraph
 from tests.utils.version import only_3_10
 
 
@@ -145,7 +144,7 @@ def test_get_predecessors(graph, node, second_node):
 def test_yield_nodes():
     graph = ProgramGraph()
     yield_instr = Instr(name="YIELD_VALUE")
-    yield_instr.opcode = op.YIELD_VALUE
+    yield_instr.opcode = opmap["YIELD_VALUE"]
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
     node = BasicBlockNode(index=42, basic_block=basic_block)
@@ -159,14 +158,14 @@ def test_yield_nodes_2():
     graph = ProgramGraph()
 
     yield_instr = Instr(name="YIELD_VALUE")
-    yield_instr.opcode = op.YIELD_VALUE
+    yield_instr.opcode = opmap["YIELD_VALUE"]
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
     node = BasicBlockNode(index=42, basic_block=basic_block)
     graph.add_node(node)
 
     yield_instr_2 = Instr(name="YIELD_VALUE")
-    yield_instr_2.opcode = op.YIELD_VALUE
+    yield_instr_2.opcode = opmap["YIELD_VALUE"]
     instructions_2 = [yield_instr_2]
     basic_block_2 = BasicBlock(instructions=instructions_2)
     node_2 = BasicBlockNode(index=43, basic_block=basic_block_2)
