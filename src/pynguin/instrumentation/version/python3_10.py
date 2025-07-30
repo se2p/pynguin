@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-import builtins
 import logging
 
 from opcode import opmap
@@ -27,6 +26,15 @@ from bytecode.instr import Instr
 from bytecode.instr import Label
 
 from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.instrumentation import InstrumentationClassDeref
+from pynguin.instrumentation import InstrumentationConstantLoad
+from pynguin.instrumentation import InstrumentationCopy
+from pynguin.instrumentation import InstrumentationDeref
+from pynguin.instrumentation import InstrumentationFastLoad
+from pynguin.instrumentation import InstrumentationGlobalLoad
+from pynguin.instrumentation import InstrumentationMethodCall
+from pynguin.instrumentation import InstrumentationNameLoad
+from pynguin.instrumentation import InstrumentationStackValue
 from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffect
 from pynguin.instrumentation import controlflow as cf
@@ -506,6 +514,219 @@ def stack_effect(  # noqa: D103, C901, PLR0915
     return effect
 
 
+def convert_instrumentation_method_call(  # noqa: C901, PLR0915
+    instrumentation_method_call: InstrumentationMethodCall,
+    lineno: int | _UNSET | None,
+) -> tuple[cf.ArtificialInstr, ...]:
+    """Convert an instrumentation method call to a tuple of artificial instructions.
+
+    Args:
+        instrumentation_method_call: The instrumentation method call to convert.
+        lineno: The line number for the artificial instructions.
+
+    Returns:
+        A tuple of artificial instructions.
+    """
+    try:
+        first_index = instrumentation_method_call.args.index(InstrumentationStackValue.FIRST)
+    except ValueError:
+        first_index = None
+
+    try:
+        second_index = instrumentation_method_call.args.index(InstrumentationStackValue.SECOND)
+    except ValueError:
+        second_index = None
+
+    move_stack_arguments_up: tuple[cf.ArtificialInstr, ...]
+    match (first_index is not None, second_index is not None):
+        case (False, False):
+            move_stack_arguments_up = ()
+        case (True, False):
+            # The first stack argument is present but the second is not,
+            # so we need to move it after the LOAD_METHOD instruction while
+            # keeping the second stack argument at its original position.
+            move_stack_arguments_up = (
+                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+            )
+        case (False, True):
+            # The second stack argument is present but the first is not,
+            # so we need to move it after the LOAD_METHOD instruction while
+            # keeping the first stack argument at its original position.
+            move_stack_arguments_up = (
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+            )
+        case (True, True):
+            # Both stack arguments are present, so we need to move them
+            # after the LOAD_METHOD instruction.
+            move_stack_arguments_up = (
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+            )
+
+    target_positions: list[int]
+    swap_stack_arguments: tuple[cf.ArtificialInstr, ...]
+    match (first_index, second_index):
+        case (None, None):
+            # No stack arguments, so don't need to swap or move anything.
+            swap_stack_arguments = ()
+            target_positions = []
+        case (None, second_position):
+            assert isinstance(second_position, int)
+            # Only the second stack argument is present, so we need to target it.
+            swap_stack_arguments = ()
+            target_positions = [second_position]
+        case (first_position, None):
+            assert isinstance(first_position, int)
+            # Only the first stack argument is present, so we need to target it.
+            swap_stack_arguments = ()
+            target_positions = [first_position]
+        case (first_position, second_position):
+            assert isinstance(first_position, int)
+            assert isinstance(second_position, int)
+            if first_position < second_position:
+                # Both stack arguments are present, and the order in which they appear
+                # in the stack is different from the order in which they appear in the
+                # args tuple, so we need to swap them and target both.
+                swap_stack_arguments = (cf.ArtificialInstr("ROT_TWO", lineno=lineno),)
+                target_positions = [first_position, second_position]
+            else:
+                # Both stack arguments are present, and the order in which they appear
+                # in the stack is the same as in the args tuple, so we don't need to swap
+                # them, but we still need to target both.
+                swap_stack_arguments = ()
+                target_positions = [second_position, first_position]
+
+    arguments_instructions: list[cf.ArtificialInstr] = []
+    for i, arg in enumerate(instrumentation_method_call.args):
+        if target_positions and i == target_positions[0]:
+            # We are at the position of a targeted stack argument, so we just need
+            # to keep the value on the stack at this position and remove the target.
+            target_positions.pop(0)
+            continue
+
+        # We add the instructions to load the value onto the stack.
+        match arg:
+            case InstrumentationConstantLoad(value):
+                arguments_instructions.append(
+                    cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
+                )
+            case InstrumentationFastLoad(name):
+                arguments_instructions.append(cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno))
+            case InstrumentationNameLoad(name):
+                arguments_instructions.append(cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno))
+            case InstrumentationGlobalLoad(name):
+                arguments_instructions.append(
+                    cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+                )
+            case InstrumentationDeref(name):
+                arguments_instructions.append(cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno))
+            case InstrumentationClassDeref(name):
+                arguments_instructions.append(
+                    cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+                )
+            case InstrumentationStackValue():
+                raise ValueError(
+                    "There cannot be multiple stack arguments targeting the same positions"
+                )
+
+        match len(target_positions):
+            case 0:
+                # No more targeted stack arguments, so do not have to swap anything.
+                pass
+            case 1:
+                # There is only one target so we need to move the remaining stack argument
+                # above the value that we just loaded.
+                arguments_instructions.append(cf.ArtificialInstr("ROT_TWO", lineno=lineno))
+            case 2:
+                # There are two targets, so we need to move the two remaining stack arguments
+                # above the value that we just loaded.
+                arguments_instructions.append(cf.ArtificialInstr("ROT_THREE", lineno=lineno))
+            case _:
+                raise AssertionError("Unexpected number of target positions.")
+
+    assert not target_positions, "There should be no remaining target positions."
+
+    return (
+        cf.ArtificialInstr("LOAD_CONST", instrumentation_method_call.self, lineno=lineno),
+        cf.ArtificialInstr("LOAD_METHOD", instrumentation_method_call.method_name, lineno=lineno),
+        *move_stack_arguments_up,
+        # Here, the two potential stack arguments are moved after the LOAD_METHOD instruction.
+        *swap_stack_arguments,
+        # Here, the two potential stack arguments are swapped so that they are in the same order
+        # as they appear in the args tuple.
+        *arguments_instructions,
+        # Here, all arguments are passed in the correct order.
+        cf.ArtificialInstr("CALL_METHOD", len(instrumentation_method_call.args), lineno=lineno),
+        cf.ArtificialInstr("POP_TOP", lineno=lineno),
+    )
+
+
+def convert_instrumentation_copy(
+    instrumentation_copy: InstrumentationCopy,
+    lineno: int | _UNSET | None,
+) -> tuple[cf.ArtificialInstr, ...]:
+    """Convert an instrumentation copy to a tuple of artificial instructions.
+
+    Args:
+        instrumentation_copy: The instrumentation copy to convert.
+        lineno: The line number for the artificial instructions.
+
+    Returns:
+        A tuple of artificial instructions.
+    """
+    match instrumentation_copy:
+        case InstrumentationCopy.FIRST:
+            return (cf.ArtificialInstr("DUP_TOP", lineno=lineno),)
+        case InstrumentationCopy.FIRST_DOWN_TWO:
+            return (
+                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+            )
+        case InstrumentationCopy.SECOND:
+            return (
+                cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+                cf.ArtificialInstr("POP_TOP", lineno=lineno),
+            )
+        case InstrumentationCopy.SECOND_DOWN_TWO:
+            return (
+                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+            )
+        case InstrumentationCopy.SECOND_DOWN_THREE:
+            return (
+                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+            )
+        case InstrumentationCopy.TWO_FIRST:
+            return (cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),)
+        case InstrumentationCopy.TWO_FIRST_REVERSED:
+            return (
+                cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+            )
+        case _:
+            raise ValueError(f"Unsupported instrumentation copy: {instrumentation_copy}.")
+
+
+def create_add_instruction(lineno: int | _UNSET | None) -> cf.ArtificialInstr:
+    """Create an artificial instruction to add a new instruction.
+
+    Args:
+        lineno: The line number for the artificial instruction.
+
+    Returns:
+        An artificial instruction that represents the addition of a new instruction.
+    """
+    return cf.ArtificialInstr("BINARY_ADD", lineno=lineno)
+
+
 # Jump operations are the last operation within a basic block
 _JUMP_OP_POS = -1
 
@@ -528,6 +749,9 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
     """Specialized instrumentation adapter for branch coverage in Python 3.10."""
 
     _logger = logging.getLogger(__name__)
+
+    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
+    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
@@ -611,39 +835,29 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         assert isinstance(for_loop_no_yield, BasicBlock)
 
         # Insert a call to the tracer before the for-loop body.
-        for_loop_body[cf.before(0)] = (
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        for_loop_body[cf.before(0)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
-                lineno=lineno,
+                (
+                    InstrumentationConstantLoad(value=True),
+                    InstrumentationConstantLoad(value=predicate_id),
+                ),
             ),
-            cf.ArtificialInstr("LOAD_CONST", arg=True, lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", arg=2, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
+            lineno,
         )
 
         # Insert a call to the tracer before the NOP instruction.
-        for_loop_no_yield[cf.before(0)] = (
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        for_loop_no_yield[cf.before(0)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
-                lineno=lineno,
+                (
+                    InstrumentationConstantLoad(value=False),
+                    InstrumentationConstantLoad(value=predicate_id),
+                ),
             ),
-            cf.ArtificialInstr("LOAD_CONST", arg=False, lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", arg=2, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
+            lineno,
         )
 
     def visit_compare_based_conditional_jump(  # noqa: D102
@@ -654,11 +868,9 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
-
         predicate_id = self._subject_properties.register_predicate(
             tracer.PredicateMetaData(
-                line_no=lineno,  # type: ignore[arg-type]
+                line_no=instr.lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
             )
@@ -681,23 +893,23 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         node.basic_block[cf.before(instr_index)] = (
-            cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.TWO_FIRST,
+                instr.lineno,
             ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
-                lineno=lineno,
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._subject_properties.instrumentation_tracer,
+                    tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
+                    (
+                        InstrumentationStackValue.SECOND,
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=predicate_id),
+                        InstrumentationConstantLoad(value=compare),
+                    ),
+                ),
+                instr.lineno,
             ),
-            cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", compare, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 4, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
         )
 
     def visit_exception_based_conditional_jump(  # noqa: D102
@@ -708,11 +920,9 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
-
         predicate_id = self._subject_properties.register_predicate(
             tracer.PredicateMetaData(
-                line_no=lineno,  # type: ignore[arg-type]
+                line_no=instr.lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
             )
@@ -722,22 +932,22 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # We duplicate the values on top of the stack and report
         # them to the tracer.
         node.basic_block[cf.before(instr_index)] = (
-            cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.TWO_FIRST,
+                instr.lineno,
             ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                tracer.InstrumentationExecutionTracer.executed_exception_match.__name__,
-                lineno=lineno,
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._subject_properties.instrumentation_tracer,
+                    tracer.InstrumentationExecutionTracer.executed_exception_match.__name__,
+                    (
+                        InstrumentationStackValue.SECOND,
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=predicate_id),
+                    ),
+                ),
+                instr.lineno,
             ),
-            cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 3, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
         )
 
     def visit_bool_based_conditional_jump(  # noqa: D102
@@ -748,11 +958,9 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
-
         predicate_id = self._subject_properties.register_predicate(
             tracer.PredicateMetaData(
-                line_no=lineno,  # type: ignore[arg-type]
+                line_no=instr.lineno,  # type: ignore[arg-type]
                 code_object_id=code_object_id,
                 node=node,
             )
@@ -762,22 +970,21 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # We duplicate the value on top of the stack and report
         # it to the tracer.
         node.basic_block[cf.before(instr_index)] = (
-            cf.ArtificialInstr("DUP_TOP", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.FIRST,
+                instr.lineno,
             ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
-                lineno=lineno,
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._subject_properties.instrumentation_tracer,
+                    tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
+                    (
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=predicate_id),
+                    ),
+                ),
+                instr.lineno,
             ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", predicate_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
         )
 
     def visit_cfg(self, cfg: cf.CFG, code_object_id: int) -> None:  # noqa: D102
@@ -789,20 +996,13 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         lineno = node.basic_block[0].lineno  # type: ignore[union-attr]
 
         # Insert instructions at the beginning.
-        node.basic_block[cf.before(0)] = (
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(0)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_code_object.__name__,
-                lineno=lineno,
+                (InstrumentationConstantLoad(value=code_object_id),),
             ),
-            cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
+            lineno,
         )
 
 
@@ -810,6 +1010,8 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
     """Specialized instrumentation adapter for line coverage in Python 3.10."""
 
     _logger = logging.getLogger(__name__)
+
+    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
 
     def __init__(  # noqa: D107
         self,
@@ -841,31 +1043,22 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
-
         line_id = self._subject_properties.register_line(
             tracer.LineMetaData(
                 code_object_id=code_object_id,
                 file_name=cfg.bytecode_cfg.filename,
-                line_number=lineno,  # type: ignore[arg-type]
+                line_number=instr.lineno,  # type: ignore[arg-type]
             )
         )
 
         # Insert instructions before each line instructions.
-        node.basic_block[cf.before(instr_index)] = (
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_line_visit.__name__,
-                lineno=lineno,
+                (InstrumentationConstantLoad(value=line_id),),
             ),
-            cf.ArtificialInstr("LOAD_CONST", line_id, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
+            instr.lineno,
         )
 
 
@@ -873,6 +1066,9 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     """Specialized instrumentation adapter for checked coverage in Python 3.10."""
 
     _logger = logging.getLogger(__name__)
+
+    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
+    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
@@ -1024,38 +1220,20 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_generic.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                ),
             ),
-            # Load arguments
-            # Current module
-            cf.ArtificialInstr("LOAD_CONST", cfg.bytecode_cfg.filename, lineno=instr.lineno),
-            # Code object id
-            cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
-            # Basic block id
-            cf.ArtificialInstr("LOAD_CONST", node.index, lineno=instr.lineno),
-            # Instruction opcode
-            cf.ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
-            # Line number of access
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                instr.lineno,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            # Instruction number of access
-            cf.ArtificialInstr("LOAD_CONST", instr_offset, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 6, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
     def visit_local_access(  # noqa: D102, PLR0917
@@ -1067,38 +1245,22 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Argument address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_FAST", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Argument type
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_FAST", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 9, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
@@ -1119,85 +1281,41 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationStackValue.FIRST,
+                ),
             ),
-            # A method occupies two slots on top of the stack
-            # -> move third up and keep order of upper two
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            # Load arguments
-            *self._load_args_with_prop(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # TOS is object ref -> duplicate for determination of source address,
-            # argument address and argument_type
-            cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-            cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-            # Determine source address
-            # Load lookup method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                tracer.InstrumentationExecutionTracer.attribute_lookup.__name__,
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            # Load attribute name (second argument)
-            cf.ArtificialInstr("LOAD_CONST", instr.arg, lineno=instr.lineno),
-            # Call lookup method
-            cf.ArtificialInstr("CALL_METHOD", 2, lineno=instr.lineno),
-            # Determine argument address
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_ATTR", arg=instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Determine argument type
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_ATTR", arg=instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 10, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
             case "LOAD_ATTR" | "DELETE_ATTR" | "IMPORT_FROM" | "LOAD_METHOD":
                 # Instrumentation before the original instruction
                 node.basic_block[cf.before(instr_index)] = (
-                    # Duplicate top of stack to access attribute
-                    cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
+                    *self.convert_instrumentation_copy(
+                        InstrumentationCopy.FIRST,
+                        instr.lineno,
+                    ),
                     *instructions,
                 )
             case "STORE_ATTR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[cf.override(instr_index)] = (
-                    # Execute actual store instruction
-                    cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-                    cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
+                    *self.convert_instrumentation_copy(
+                        InstrumentationCopy.FIRST_DOWN_TWO,
+                        instr.lineno,
+                    ),
                     instr,
                     *instructions,
                 )
@@ -1211,81 +1329,52 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=None),
+                    InstrumentationStackValue.FIRST,
+                ),
             ),
-            # A method occupies two slots on top of the stack
-            # -> move third up and keep order of upper two
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            # Load arguments
-            *self._load_args_with_prop(
-                code_object_id,
-                node.index,
-                instr_offset,
-                "None",
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Source object address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # No arg address
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                None,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            # No arg type
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                None,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 10, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
             case "STORE_SUBSCR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[cf.override(instr_index)] = (
-                    # Execute actual store instruction
-                    cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-                    cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-                    cf.ArtificialInstr("ROT_FOUR", lineno=instr.lineno),
-                    cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
+                    *self.convert_instrumentation_copy(
+                        InstrumentationCopy.SECOND_DOWN_THREE,
+                        instr.lineno,
+                    ),
                     instr,
                     *instructions,
                 )
             case "DELETE_SUBSCR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[cf.override(instr_index)] = (
-                    # Execute delete instruction
-                    cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-                    cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-                    cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-                    cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
+                    *self.convert_instrumentation_copy(
+                        InstrumentationCopy.SECOND_DOWN_TWO,
+                        instr.lineno,
+                    ),
                     instr,
                     *instructions,
                 )
             case "BINARY_SUBSCR":
                 # Instrumentation before the original instruction
                 node.basic_block[cf.before(instr_index)] = (
-                    # Execute access afterwards, prepare stack
-                    cf.ArtificialInstr("DUP_TOP_TWO", lineno=instr.lineno),
-                    cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+                    *self.convert_instrumentation_copy(
+                        InstrumentationCopy.SECOND,
+                        instr.lineno,
+                    ),
                     *instructions,
                 )
 
@@ -1298,38 +1387,22 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationNameLoad(name=instr.arg),  # type: ignore[arg-type]
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Argument address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_NAME", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Argument type
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_NAME", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 9, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
@@ -1350,44 +1423,28 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        # Instrumentation after the original instruction
         node.basic_block[cf.after(instr_index)] = (
-            # Execute actual instruction and duplicate module reference on TOS
-            cf.ArtificialInstr("DUP_TOP"),
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.FIRST,
+                instr.lineno,
             ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                lineno=instr.lineno,
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._subject_properties.instrumentation_tracer,
+                    tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
+                    (
+                        InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                        InstrumentationConstantLoad(value=code_object_id),
+                        InstrumentationConstantLoad(value=node.index),
+                        InstrumentationConstantLoad(value=instr.opcode),
+                        InstrumentationConstantLoad(value=instr.lineno),
+                        InstrumentationConstantLoad(value=instr_offset),
+                        InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                        InstrumentationStackValue.FIRST,
+                    ),
+                ),
+                instr.lineno,
             ),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=instr.lineno),
-            *self._load_args_with_prop(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            cf.ArtificialInstr("DUP_TOP", lineno=instr.lineno),
-            # Argument address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Argument type
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 9, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
         )
 
     def visit_global_access(  # noqa: D102, PLR0917
@@ -1399,38 +1456,22 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationGlobalLoad(name=instr.arg),  # type: ignore[arg-type]
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Argument address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_GLOBAL", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Argument type
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            cf.ArtificialInstr("LOAD_GLOBAL", instr.arg, lineno=instr.lineno),
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 9, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
@@ -1451,44 +1492,28 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        # Load instruction
-        if opname[instr.opcode] == "LOAD_CLASSDEREF":
-            load_instr = cf.ArtificialInstr("LOAD_CLASSDEREF", instr.arg, lineno=instr.lineno)
-        else:
-            load_instr = cf.ArtificialInstr("LOAD_DEREF", instr.arg, lineno=instr.lineno)
+        value = (
+            InstrumentationClassDeref(name=instr.arg)  # type: ignore[arg-type]
+            if opname[instr.opcode] == "LOAD_CLASSDEREF"
+            else InstrumentationDeref(name=instr.arg)  # type: ignore[arg-type]
+        )
 
-        instructions = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        instructions = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    value,
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                instr.arg.name,  # type: ignore[union-attr]
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Argument address
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.id.__name__, lineno=instr.lineno),
-            load_instr,
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Argument type
-            cf.ArtificialInstr("LOAD_GLOBAL", builtins.type.__name__, lineno=instr.lineno),
-            load_instr,
-            cf.ArtificialInstr("CALL_FUNCTION", 1, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 9, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
         match opname[instr.opcode]:
@@ -1510,30 +1535,21 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_jump.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.get_block_index(instr.arg)),  # type: ignore[arg-type]
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                cfg.bytecode_cfg.get_block_index(instr.arg),  # type: ignore[arg-type]
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 7, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
     def visit_call(  # noqa: D102, PLR0917
@@ -1549,30 +1565,21 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
 
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_call.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=argument),
+                ),
             ),
-            # Load arguments
-            *self._load_args(
-                code_object_id,
-                node.index,
-                instr_offset,
-                argument,
-                instr,
-                cfg.bytecode_cfg.filename,
-            ),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 7, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
+            instr.lineno,
         )
 
     def visit_return(  # noqa: D102, PLR0917
@@ -1586,106 +1593,20 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     ) -> None:
         # Instrumentation before the original instruction
         # (otherwise we can not read the data)
-        node.basic_block[cf.before(instr_index)] = (
-            # Load tracing method
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._subject_properties.instrumentation_tracer,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
+        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_return.__name__,
-                lineno=instr.lineno,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                ),
             ),
-            # Load arguments
-            # Current module
-            cf.ArtificialInstr("LOAD_CONST", cfg.bytecode_cfg.filename, lineno=instr.lineno),
-            # Code object id
-            cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
-            # Basic block id
-            cf.ArtificialInstr("LOAD_CONST", node.index, lineno=instr.lineno),
-            # Instruction opcode
-            cf.ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
-            # Line number of access
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                instr.lineno,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            # Instruction number of access
-            cf.ArtificialInstr("LOAD_CONST", instr_offset, lineno=instr.lineno),
-            # Call tracing method
-            cf.ArtificialInstr("CALL_METHOD", 6, lineno=instr.lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=instr.lineno),
-        )
-
-    @staticmethod
-    def _load_args(  # noqa: PLR0917
-        code_object_id: int,
-        node_id: int,
-        offset: int,
-        arg,
-        instr: Instr,
-        file_name: str,
-    ) -> tuple[cf.ArtificialInstr, ...]:
-        return (
-            # Current module
-            cf.ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
-            # Code object id
-            cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
-            # Basic block id
-            cf.ArtificialInstr("LOAD_CONST", node_id, lineno=instr.lineno),
-            # Instruction opcode
-            cf.ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
-            # Line number of access
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                instr.lineno,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            # Instruction number of access
-            cf.ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
-            # Argument name
-            cf.ArtificialInstr("LOAD_CONST", arg, lineno=instr.lineno),
-        )
-
-    @staticmethod
-    def _load_args_with_prop(  # noqa: PLR0917
-        code_object_id: int,
-        node_id: int,
-        offset: int,
-        arg,
-        instr: Instr,
-        file_name: str,
-    ) -> tuple[cf.ArtificialInstr, ...]:
-        return (
-            # Load arguments
-            #   Current module
-            cf.ArtificialInstr("LOAD_CONST", file_name, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Code object id
-            cf.ArtificialInstr("LOAD_CONST", code_object_id, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Basic block id
-            cf.ArtificialInstr("LOAD_CONST", node_id, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Instruction opcode
-            cf.ArtificialInstr("LOAD_CONST", instr.opcode, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Line number of access
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                instr.lineno,  # type: ignore[arg-type]
-                lineno=instr.lineno,
-            ),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Instruction number of access
-            cf.ArtificialInstr("LOAD_CONST", offset, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
-            #   Argument name
-            cf.ArtificialInstr("LOAD_CONST", arg, lineno=instr.lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=instr.lineno),
+            instr.lineno,
         )
 
 
@@ -1693,6 +1614,10 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.10."""
 
     _logger = logging.getLogger(__name__)
+
+    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
+    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
+    create_add_instruction = staticmethod(create_add_instruction)
 
     def __init__(  # noqa: D107
         self, dynamic_constant_provider: DynamicConstantProvider
@@ -1737,7 +1662,6 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                 node,
                 maybe_string_func,
                 maybe_string_func_index,
-                maybe_string_func.arg,
             )
             return
 
@@ -1775,70 +1699,57 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
+        node.basic_block[cf.before(instr_index)] = (
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.TWO_FIRST,
+                instr.lineno,
+            ),
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
+                instr.lineno,
+            ),
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
+                instr.lineno,
+            ),
+        )
 
-        node.basic_block[cf.before(instr_index)] = [
-            cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._dynamic_constant_provider,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                DynamicConstantProvider.add_value.__name__,
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._dynamic_constant_provider,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                DynamicConstantProvider.add_value.__name__,
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
-        ]
         self._logger.debug("Instrumented compare_op")
 
-    def visit_string_function_without_arg(  # noqa: D102, PLR0917
+    def visit_string_function_without_arg(  # noqa: D102
         self,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        function_name: str,
     ) -> None:
-        lineno = instr.lineno
+        node.basic_block[cf.before(instr_index + 1)] = (
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.FIRST,
+                instr.lineno,
+            ),
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value_for_strings.__name__,
+                    (
+                        InstrumentationStackValue.FIRST,
+                        InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    ),
+                ),
+                instr.lineno,
+            ),
+        )
 
-        node.basic_block[cf.before(instr_index + 1)] = [
-            cf.ArtificialInstr("DUP_TOP", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._dynamic_constant_provider,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                DynamicConstantProvider.add_value_for_strings.__name__,
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("LOAD_CONST", function_name, lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 2, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
-        ]
         self._logger.info("Instrumented string function")
 
     def visit_startswith_function(  # noqa: D102
@@ -1849,27 +1760,22 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
+        node.basic_block[cf.before(instr_index + 2)] = (
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.TWO_FIRST_REVERSED,
+                instr.lineno,
+            ),
+            self.create_add_instruction(instr.lineno),
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
+                instr.lineno,
+            ),
+        )
 
-        node.basic_block[cf.before(instr_index + 2)] = [
-            cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            cf.ArtificialInstr("ROT_TWO", lineno=lineno),
-            cf.ArtificialInstr("BINARY_ADD", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._dynamic_constant_provider,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                DynamicConstantProvider.add_value.__name__,
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
-        ]
         self._logger.info("Instrumented startswith function")
 
     def visit_endswith_function(  # noqa: D102
@@ -1880,24 +1786,20 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        lineno = instr.lineno
+        node.basic_block[cf.before(instr_index + 2)] = (
+            *self.convert_instrumentation_copy(
+                InstrumentationCopy.TWO_FIRST,
+                instr.lineno,
+            ),
+            self.create_add_instruction(instr.lineno),
+            *self.convert_instrumentation_method_call(
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
+                instr.lineno,
+            ),
+        )
 
-        node.basic_block[cf.before(instr_index + 2)] = [
-            cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-            cf.ArtificialInstr("BINARY_ADD", lineno=lineno),
-            cf.ArtificialInstr(
-                "LOAD_CONST",
-                self._dynamic_constant_provider,  # type: ignore[arg-type]
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr(
-                "LOAD_METHOD",
-                DynamicConstantProvider.add_value.__name__,
-                lineno=lineno,
-            ),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            cf.ArtificialInstr("CALL_METHOD", 1, lineno=lineno),
-            cf.ArtificialInstr("POP_TOP", lineno=lineno),
-        ]
         self._logger.info("Instrumented endswith function")

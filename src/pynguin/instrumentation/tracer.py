@@ -711,11 +711,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     ) -> None:
         """Track a generic instruction inside the trace.
 
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
-
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -737,16 +732,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: str | CellVar | FreeVar,
+        var_value: object,
     ) -> None:
         """Track a memory access instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -755,9 +744,8 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             opcode: the opcode of the instruction
             lineno: the line number of the instruction
             offset: the offset of the instruction
-            arg: the used variable
-            arg_address: the memory address of the variable
-            arg_type: the type of the variable
+            var_name: the used variable name
+            var_value: the value stored in the used variable
 
         Raises:
             ValueError: when no argument is given
@@ -773,17 +761,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
         """Track an attribute access instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -793,9 +774,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             lineno: the line number of the instruction
             offset: the offset of the instruction
             attr_name: the name of the accessed attribute
-            src_address: the memory address of the attribute
-            arg_address: the memory address of the argument
-            arg_type: the type of argument
+            obj: the object containing the accessed attribute
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -813,11 +792,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         target_id: int,
     ) -> None:
         """Track a jump instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -845,11 +819,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     ) -> None:
         """Track a method call instruction in the trace.
 
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
-
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -874,11 +843,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         offset: int,
     ) -> None:
         """Track a return instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -923,51 +887,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         Raises:
             RuntimeError: raised when called from another thread
         """
-
-    @classmethod
-    def attribute_lookup(cls, object_type, attribute: str) -> int:
-        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
-
-        The attribute must be a data descriptor to be prioritized here
-
-        Args:
-            object_type: The type object to check
-            attribute: the attribute to check for in the class
-
-        Returns:
-            The id of the object type or the class if it has the attribute, -1 otherwise
-        """
-        for clss in type(object_type).__mro__:
-            if attribute in clss.__dict__ and inspect.isdatadescriptor(
-                clss.__dict__.get(attribute)
-            ):
-                # Class in the MRO hierarchy has attribute
-                # Class has attribute and attribute is a data descriptor
-                return id(clss)
-
-        # This would lead to an infinite recursion and thus a crash of the program
-        if attribute in {"__getattr__", "__getitem__"}:
-            return -1
-        # Check if the dictionary of the object on which lookup is performed
-        if (
-            hasattr(object_type, "__dict__")
-            and object_type.__dict__
-            and attribute in object_type.__dict__
-        ):
-            return id(object_type)
-        if (
-            hasattr(object_type, "__slots__")
-            and object_type.__slots__
-            and attribute in object_type.__slots__
-        ):
-            return id(object_type)
-
-        # Check if attribute in MRO hierarchy (no need for data descriptor)
-        for clss in type(object_type).__mro__:
-            if attribute in clss.__dict__:
-                return id(clss)
-
-        return -1
 
     @abstractmethod
     def __getstate__(self) -> dict:
@@ -1394,28 +1313,30 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: str | CellVar | FreeVar,
+        var_value: object,
     ) -> None:
-        assert arg or version.is_import(opcode), (  # IMPORT_NAMEs may not have arguments
+        assert var_name or version.is_import(opcode), (  # IMPORT_NAMEs may not have arguments
             "A memory access instruction must have an argument or be an import"
         )
 
-        if isinstance(arg, CellVar | FreeVar):
-            arg = arg.name
+        var_address = id(var_value)
+        var_type = type(var_value)
+
+        if isinstance(var_name, CellVar | FreeVar):
+            var_name = var_name.name
 
         # Determine if this is a mutable type
-        mutable_type = True
-        if arg_type in immutable_types:
-            mutable_type = False
+        mutable_type = var_type not in immutable_types
 
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
-        object_creation = False
-        if arg_address and arg_address not in self._thread_local_state.trace.object_addresses:
-            object_creation = True
-            self._thread_local_state.trace.object_addresses.add(arg_address)
+        object_creation = (
+            bool(var_address) and var_address not in self._thread_local_state.trace.object_addresses
+        )
+
+        if object_creation:
+            self._thread_local_state.trace.object_addresses.add(var_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1424,8 +1345,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             opcode,
             lineno,
             offset,
-            arg,
-            arg_address,
+            var_name,
+            var_address,
             mutable_type,
             object_creation,
         )
@@ -1439,11 +1360,21 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
+        arg_type: type
+        if attr_name is None:
+            attr_name = "None"
+            src_address = id(obj)
+            arg_address = -1
+            arg_type = type(None)
+        else:
+            src_address = self.attribute_lookup(obj, attr_name)
+            attr_value = getattr(obj, attr_name)
+            arg_address = id(attr_value)
+            arg_type = type(attr_value)
+
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
         # The address is not recorded in such cases.
@@ -1554,6 +1485,51 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             )
         )
 
+    @staticmethod
+    def attribute_lookup(object_type, attribute: str) -> int:
+        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
+
+        The attribute must be a data descriptor to be prioritized here
+
+        Args:
+            object_type: The type object to check
+            attribute: the attribute to check for in the class
+
+        Returns:
+            The id of the object type or the class if it has the attribute, -1 otherwise
+        """
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__ and inspect.isdatadescriptor(
+                clss.__dict__.get(attribute)
+            ):
+                # Class in the MRO hierarchy has attribute
+                # Class has attribute and attribute is a data descriptor
+                return id(clss)
+
+        # This would lead to an infinite recursion and thus a crash of the program
+        if attribute in {"__getattr__", "__getitem__"}:
+            return -1
+        # Check if the dictionary of the object on which lookup is performed
+        if (
+            hasattr(object_type, "__dict__")
+            and object_type.__dict__
+            and attribute in object_type.__dict__
+        ):
+            return id(object_type)
+        if (
+            hasattr(object_type, "__slots__")
+            and object_type.__slots__
+            and attribute in object_type.__slots__
+        ):
+            return id(object_type)
+
+        # Check if attribute in MRO hierarchy (no need for data descriptor)
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__:
+                return id(clss)
+
+        return -1
+
     def __repr__(self) -> str:
         return "ExecutionTracer"
 
@@ -1656,9 +1632,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: str | CellVar | FreeVar,
+        var_value: object,
     ) -> None:
         self._tracer.track_memory_access(
             module,
@@ -1667,9 +1642,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             opcode,
             lineno,
             offset,
-            arg,
-            arg_address,
-            arg_type,
+            var_name,
+            var_value,
         )
 
     def track_attribute_access(  # noqa: PLR0917, D102
@@ -1680,10 +1654,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
         self._tracer.track_attribute_access(
             module,
@@ -1693,9 +1665,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             lineno,
             offset,
             attr_name,
-            src_address,
-            arg_address,
-            arg_type,
+            obj,
         )
 
     def track_jump(  # noqa: PLR0917, D102

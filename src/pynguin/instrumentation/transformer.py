@@ -514,14 +514,13 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         """
 
     @abstractmethod
-    def visit_string_function_without_arg(  # noqa: PLR0917
+    def visit_string_function_without_arg(
         self,
         cfg: cf.CFG,
         code_object_id: int,
         node: BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        function_name: str,
     ) -> None:
         """Instruments the isalnum function.
 
@@ -531,7 +530,6 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            function_name: The name of the function
         """
 
     @abstractmethod
