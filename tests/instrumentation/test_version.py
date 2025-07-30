@@ -49,7 +49,7 @@ def _conditional_combinations() -> list[tuple[int, int, bool]]:
     # (opcode, argument, jump)  # noqa: ERA001
     combinations: list[tuple[int, int, bool]] = []
     for op in opmap.values():
-        if op <= HAVE_ARGUMENT or op is opmap["SETUP_ASYNC_WITH"]:
+        if op <= HAVE_ARGUMENT or op is opmap.get("SETUP_ASYNC_WITH"):
             continue  # async is not supported
         for arg in args:
             combinations.extend(((op, arg, True), (op, arg, False)))

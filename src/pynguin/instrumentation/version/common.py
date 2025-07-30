@@ -230,7 +230,7 @@ def to_opcodes(*names: str) -> tuple[int, ...]:
     Returns:
         A tuple of integers representing the opcodes.
     """
-    return tuple(opmap[name] for name in names)
+    return tuple(opmap.get(name, -1) for name in names)
 
 
 def before(index: int) -> slice[int, int]:

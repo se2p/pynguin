@@ -993,7 +993,7 @@ class ControlDependenceGraph(ProgramGraph):
         predicate_nodes: Collection[ProgramNode],
         visited: set[ProgramNode],
     ) -> bool:
-        if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator]
+        if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator,unused-ignore]
             return True
         for pred in self.graph.predecessors(node):
             if pred in visited:

@@ -28,7 +28,7 @@ from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 11):
     dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", "", 0, b"", b"")
 else:
     dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
