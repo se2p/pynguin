@@ -32,6 +32,7 @@ from pynguin.instrumentation import StackEffect
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
+from pynguin.instrumentation.version.common import AST_FILENAME
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
@@ -49,6 +50,9 @@ from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationNameLoad
 from pynguin.instrumentation.version.common import InstrumentationStackValue
+from pynguin.instrumentation.version.common import after
+from pynguin.instrumentation.version.common import before
+from pynguin.instrumentation.version.common import override
 from pynguin.instrumentation.version.common import to_opcodes
 
 
@@ -856,7 +860,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         assert isinstance(for_loop_no_yield, BasicBlock)
 
         # Insert a call to the tracer before the for-loop body.
-        for_loop_body[cf.before(0)] = self.convert_instrumentation_method_call(
+        for_loop_body[before(0)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
@@ -869,7 +873,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         )
 
         # Insert a call to the tracer before the NOP instruction.
-        for_loop_no_yield[cf.before(0)] = self.convert_instrumentation_method_call(
+        for_loop_no_yield[before(0)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
@@ -913,7 +917,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        node.basic_block[cf.before(instr_index)] = (
+        node.basic_block[before(instr_index)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.TWO_FIRST,
                 instr.lineno,
@@ -952,7 +956,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        node.basic_block[cf.before(instr_index)] = (
+        node.basic_block[before(instr_index)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.TWO_FIRST,
                 instr.lineno,
@@ -990,7 +994,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
         # it to the tracer.
-        node.basic_block[cf.before(instr_index)] = (
+        node.basic_block[before(instr_index)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.FIRST,
                 instr.lineno,
@@ -1017,7 +1021,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         lineno = node.basic_block[0].lineno  # type: ignore[union-attr]
 
         # Insert instructions at the beginning.
-        node.basic_block[cf.before(0)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(0)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_code_object.__name__,
@@ -1051,7 +1055,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
         lineno: int | _UNSET | None = None
         # The bytecode instructions change during the iteration but it is something supported
         for instr_index, instr in enumerate(node.instructions):
-            if instr.lineno == lineno or cfg.bytecode_cfg.filename == cf.AST_FILENAME:
+            if instr.lineno == lineno or cfg.bytecode_cfg.filename == AST_FILENAME:
                 continue
 
             lineno = instr.lineno
@@ -1075,7 +1079,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
         )
 
         # Insert instructions before each line instructions.
-        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_line_visit.__name__,
@@ -1119,7 +1123,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 continue
 
             # Register all lines available
-            if instr.lineno != lineno and file_name != cf.AST_FILENAME:
+            if instr.lineno != lineno and file_name != AST_FILENAME:
                 lineno = instr.lineno
                 self._subject_properties.register_line(
                     tracer.LineMetaData(
@@ -1152,7 +1156,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_generic.__name__,
@@ -1199,10 +1203,10 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             case "DELETE_FAST":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
-                node.basic_block[cf.before(instr_index)] = instructions
+                node.basic_block[before(instr_index)] = instructions
             case "LOAD_FAST" | "STORE_FAST":
                 # Instrumentation after the original instruction
-                node.basic_block[cf.after(instr_index)] = instructions
+                node.basic_block[after(instr_index)] = instructions
 
     def visit_attr_access(  # noqa: D102, PLR0917
         self,
@@ -1234,7 +1238,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         match opname[instr.opcode]:
             case "LOAD_ATTR" | "DELETE_ATTR" | "IMPORT_FROM" | "LOAD_METHOD":
                 # Instrumentation before the original instruction
-                node.basic_block[cf.before(instr_index)] = (
+                node.basic_block[before(instr_index)] = (
                     *self.convert_instrumentation_copy(
                         InstrumentationCopy.FIRST,
                         instr.lineno,
@@ -1243,7 +1247,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 )
             case "STORE_ATTR":
                 # Instrumentation mostly after the original instruction
-                node.basic_block[cf.override(instr_index)] = (
+                node.basic_block[override(instr_index)] = (
                     *self.convert_instrumentation_copy(
                         InstrumentationCopy.FIRST_DOWN_TWO,
                         instr.lineno,
@@ -1282,7 +1286,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         match opname[instr.opcode]:
             case "STORE_SUBSCR":
                 # Instrumentation mostly after the original instruction
-                node.basic_block[cf.override(instr_index)] = (
+                node.basic_block[override(instr_index)] = (
                     *self.convert_instrumentation_copy(
                         InstrumentationCopy.SECOND_DOWN_THREE,
                         instr.lineno,
@@ -1292,7 +1296,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 )
             case "DELETE_SUBSCR":
                 # Instrumentation mostly after the original instruction
-                node.basic_block[cf.override(instr_index)] = (
+                node.basic_block[override(instr_index)] = (
                     *self.convert_instrumentation_copy(
                         InstrumentationCopy.SECOND_DOWN_TWO,
                         instr.lineno,
@@ -1302,7 +1306,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 )
             case "BINARY_SUBSCR":
                 # Instrumentation before the original instruction
-                node.basic_block[cf.before(instr_index)] = (
+                node.basic_block[before(instr_index)] = (
                     *self.convert_instrumentation_copy(
                         InstrumentationCopy.SECOND,
                         instr.lineno,
@@ -1341,10 +1345,10 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             case "DELETE_NAME":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
-                node.basic_block[cf.before(instr_index)] = instructions
+                node.basic_block[before(instr_index)] = instructions
             case "STORE_NAME" | "LOAD_NAME" | "IMPORT_NAME":
                 # Instrumentation after the original instruction
-                node.basic_block[cf.after(instr_index)] = instructions
+                node.basic_block[after(instr_index)] = instructions
 
     def visit_import_name_access(  # noqa: D102, PLR0917
         self,
@@ -1355,7 +1359,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        node.basic_block[cf.after(instr_index)] = (
+        node.basic_block[after(instr_index)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.FIRST,
                 instr.lineno,
@@ -1410,10 +1414,10 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             case "DELETE_GLOBAL":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
-                node.basic_block[cf.before(instr_index)] = instructions
+                node.basic_block[before(instr_index)] = instructions
             case "STORE_GLOBAL" | "LOAD_GLOBAL":
                 # Instrumentation after the original instruction
-                node.basic_block[cf.after(instr_index)] = instructions
+                node.basic_block[after(instr_index)] = instructions
 
     def visit_deref_access(  # noqa: D102, PLR0917
         self,
@@ -1452,10 +1456,10 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             case "DELETE_DEREF":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
-                node.basic_block[cf.before(instr_index)] = instructions
+                node.basic_block[before(instr_index)] = instructions
             case "STORE_DEREF" | "LOAD_DEREF" | "LOAD_CLASSDEREF":
                 # Instrumentation after the original instruction
-                node.basic_block[cf.after(instr_index)] = instructions
+                node.basic_block[after(instr_index)] = instructions
 
     def visit_jump(  # noqa: D102, PLR0917
         self,
@@ -1467,7 +1471,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_jump.__name__,
@@ -1497,7 +1501,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
 
         # Instrumentation before the original instruction
-        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_call.__name__,
@@ -1525,7 +1529,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     ) -> None:
         # Instrumentation before the original instruction
         # (otherwise we can not read the data)
-        node.basic_block[cf.before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_return.__name__,
@@ -1654,7 +1658,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        node.basic_block[cf.before(instr_index)] = (
+        node.basic_block[before(instr_index)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.TWO_FIRST,
                 instr.lineno,
@@ -1687,7 +1691,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        node.basic_block[cf.before(instr_index + 1)] = (
+        node.basic_block[before(instr_index + 1)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.FIRST,
                 instr.lineno,
@@ -1715,7 +1719,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        node.basic_block[cf.before(instr_index + 2)] = (
+        node.basic_block[before(instr_index + 2)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.TWO_FIRST_REVERSED,
                 instr.lineno,
@@ -1741,7 +1745,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        node.basic_block[cf.before(instr_index + 2)] = (
+        node.basic_block[before(instr_index + 2)] = (
             *self.convert_instrumentation_copy(
                 InstrumentationCopy.TWO_FIRST,
                 instr.lineno,

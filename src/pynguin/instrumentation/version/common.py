@@ -215,3 +215,42 @@ def to_opcodes(*names: str) -> tuple[int, ...]:
         A tuple of integers representing the opcodes.
     """
     return tuple(opmap[name] for name in names)
+
+
+def before(index: int) -> slice[int, int]:
+    """Get the slice for inserting an instruction before the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for inserting an instruction before the given index.
+    """
+    return slice(index, index)
+
+
+def after(index: int) -> slice[int, int]:
+    """Get the slice for inserting an instruction after the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for inserting an instruction after the given index.
+    """
+    return slice(index + 1, index + 1)
+
+
+def override(index: int) -> slice[int, int]:
+    """Get the slice for overriding an instruction at the given index.
+
+    Args:
+        index: The index of the instruction
+
+    Returns:
+        A slice for overriding an instruction at the given index.
+    """
+    return slice(index, index + 1)
+
+
+AST_FILENAME = "<ast>"

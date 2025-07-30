@@ -42,51 +42,12 @@ EDGE_DATA_BRANCH_VALUE = "branch_value"
 INSTRUCTION_OFFSET_INCREMENT = 2
 
 
-AST_FILENAME = "<ast>"
-
-
 class ArtificialInstr(Instr):
     """Marker subclass of an instruction.
 
     Used to distinguish between original instructions and instructions that were
     inserted by the instrumentation.
     """
-
-
-def before(index: int) -> slice[int, int]:
-    """Get the slice for inserting an instruction before the given index.
-
-    Args:
-        index: The index of the instruction
-
-    Returns:
-        A slice for inserting an instruction before the given index.
-    """
-    return slice(index, index)
-
-
-def after(index: int) -> slice[int, int]:
-    """Get the slice for inserting an instruction after the given index.
-
-    Args:
-        index: The index of the instruction
-
-    Returns:
-        A slice for inserting an instruction after the given index.
-    """
-    return slice(index + 1, index + 1)
-
-
-def override(index: int) -> slice[int, int]:
-    """Get the slice for overriding an instruction at the given index.
-
-    Args:
-        index: The index of the instruction
-
-    Returns:
-        A slice for overriding an instruction at the given index.
-    """
-    return slice(index, index + 1)
 
 
 class ArtificialNode(Enum):
