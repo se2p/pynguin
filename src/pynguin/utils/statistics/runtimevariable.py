@@ -224,5 +224,11 @@ class RuntimeVariable(str, enum.Enum):
     # Total assertions added to test cases
     TotalAssertionsReceivedFromLLM = "TotalAssertionsReceivedFromLLM"
 
+    # Discovered non-whitelisted C-extension modules in the SUT
+    CExtensionModules = "CExtensionModules"
+
+    # Whether the subprocess mode was used or not
+    SubprocessMode = "SubprocessMode"
+
     def __repr__(self):
         return f"{self.name}"
