@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import TYPE_CHECKING
 
-from pynguin.instrumentation.version import OP_ACCESS
-from pynguin.instrumentation.version import OP_STORES
+from pynguin.instrumentation.version import ACCESS_OPCODES
+from pynguin.instrumentation.version import STORE_OPCODES
 
 
 if TYPE_CHECKING:
@@ -141,11 +141,11 @@ class TraceStack:
                 # attribute should be included. However, the use data for these will
                 # not be searched for, since this would widen the scope of the search
                 # for complete objects rather than only for the attribute thereof.
-                if tos_instr.opcode in OP_STORES and len(curr_block_stack) > 0:
+                if tos_instr.opcode in STORE_OPCODES and len(curr_block_stack) > 0:
                     tos1_instr = curr_block_stack.peek()
                     if tos1_instr and tos1_instr.opcode == tos_instr.opcode:
                         include_use = False
-                if tos_instr.opcode in OP_ACCESS:
+                if tos_instr.opcode in ACCESS_OPCODES:
                     include_use = False
 
         return imp_dependency, include_use

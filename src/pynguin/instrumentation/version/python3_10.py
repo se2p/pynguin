@@ -53,16 +53,137 @@ def to_opcodes(*names: str) -> tuple[int, ...]:
     return tuple(opmap[name] for name in names)
 
 
-OP_UNARY = to_opcodes(
+# Fast opcodes
+LOAD_FAST_OPCODES = to_opcodes(
+    "LOAD_FAST",
+)
+MODIFY_FAST_OPCODES = to_opcodes(
+    "STORE_FAST",
+    "DELETE_FAST",
+)
+ACCESS_FAST_OPCODES = LOAD_FAST_OPCODES + MODIFY_FAST_OPCODES
+
+
+# Name opcodes
+LOAD_NAME_OPCODES = to_opcodes(
+    "LOAD_NAME",
+)
+STORE_NAME_OPCODES = to_opcodes(
+    "STORE_NAME",
+)
+MODIFY_NAME_OPCODES = STORE_NAME_OPCODES + to_opcodes(
+    "DELETE_NAME",
+)
+ACCESS_NAME_OPCODES = LOAD_NAME_OPCODES + MODIFY_NAME_OPCODES
+
+
+# Global opcodes
+LOAD_GLOBAL_OPCODES = to_opcodes(
+    "LOAD_GLOBAL",
+)
+MODIFY_GLOBAL_OPCODES = to_opcodes(
+    "STORE_GLOBAL",
+    "DELETE_GLOBAL",
+)
+ACCESS_GLOBAL_OPCODES = LOAD_GLOBAL_OPCODES + MODIFY_GLOBAL_OPCODES
+
+
+# Deref opcodes
+LOAD_DEREF_OPCODES = to_opcodes(
+    "LOAD_DEREF",
+    "LOAD_CLASSDEREF",
+)
+MODIFY_DEREF_OPCODES = to_opcodes(
+    "STORE_DEREF",
+    "DELETE_DEREF",
+)
+ACCESS_DEREF_OPCODES = LOAD_DEREF_OPCODES + MODIFY_DEREF_OPCODES
+
+
+# Closure opcodes
+CLOSURE_LOAD_OPCODES = to_opcodes(
+    "LOAD_CLOSURE",
+)
+
+
+# Import opcodes
+IMPORT_NAME_OPCODES = to_opcodes(
+    "IMPORT_NAME",
+)
+IMPORT_FROM_OPCODES = to_opcodes(
+    "IMPORT_FROM",
+)
+
+
+# Attr opcodes
+LOAD_ATTR_OPCODES = to_opcodes(
+    "LOAD_ATTR",
+)
+STORE_ATTR_OPCODES = to_opcodes(
+    "STORE_ATTR",
+)
+DELETE_ATTR_OPCODES = to_opcodes(
+    "DELETE_ATTR",
+)
+MODIFY_ATTR_OPCODES = STORE_ATTR_OPCODES + DELETE_ATTR_OPCODES
+ACCESS_ATTR_OPCODES = LOAD_ATTR_OPCODES + MODIFY_ATTR_OPCODES
+
+
+# Subscr opcodes
+STORE_SUBSCR_OPCODES = to_opcodes(
+    "STORE_SUBSCR",
+)
+BINARY_SUBSCR_OPCODES = to_opcodes(
+    "BINARY_SUBSCR",
+)
+ACCESS_SUBSCR_OPCODES = (
+    STORE_SUBSCR_OPCODES
+    + BINARY_SUBSCR_OPCODES
+    + to_opcodes(
+        "DELETE_SUBSCR",
+    )
+)
+
+
+# Remaining opcodes
+LOAD_METHOD_OPCODES = to_opcodes(
+    "LOAD_METHOD",
+)
+
+EXTENDED_ARG_OPCODES = to_opcodes(
+    "EXTENDED_ARG",
+)
+
+CALL_OPCODES = to_opcodes(
+    "CALL_FUNCTION",
+    "CALL_FUNCTION_KW",
+    "CALL_FUNCTION_EX",
+    "CALL_METHOD",
+    "YIELD_FROM",
+)
+
+YIELDING_OPCODES = to_opcodes(
+    "YIELD_VALUE",
+    "YIELD_FROM",
+)
+
+RETURNING_OPCODES = to_opcodes("RETURN_VALUE", "YIELD_VALUE")
+
+COMPARE_OPCODES = to_opcodes(
+    "COMPARE_OP",
+    "IS_OP",
+    "CONTAINS_OP",
+)
+
+OPERATION_OPCODES = COMPARE_OPCODES + to_opcodes(
+    # Unary operations
     "UNARY_POSITIVE",
     "UNARY_NEGATIVE",
     "UNARY_NOT",
     "UNARY_INVERT",
     "GET_ITER",
     "GET_YIELD_FROM_ITER",
-)
-
-OP_BINARY = to_opcodes(
+    # Binary operations
     "BINARY_POWER",
     "BINARY_MULTIPLY",
     "BINARY_MATRIX_MULTIPLY",
@@ -76,9 +197,7 @@ OP_BINARY = to_opcodes(
     "BINARY_AND",
     "BINARY_XOR",
     "BINARY_OR",
-)
-
-OP_INPLACE = to_opcodes(
+    # In-place operations
     "INPLACE_POWER",
     "INPLACE_MULTIPLY",
     "INPLACE_MATRIX_MULTIPLY",
@@ -94,171 +213,68 @@ OP_INPLACE = to_opcodes(
     "INPLACE_OR",
 )
 
-OP_COMPARE = to_opcodes(
-    "COMPARE_OP",
-    "IS_OP",
-    "CONTAINS_OP",
+FOR_ITER_OPCODES = to_opcodes(
+    "FOR_ITER",
 )
 
-OP_LOCAL_LOAD = to_opcodes(
-    "LOAD_FAST",
-)
-OP_LOCAL_MODIFY = to_opcodes(
-    "STORE_FAST",
-    "DELETE_FAST",
-)
-OP_LOCAL_ACCESS = OP_LOCAL_LOAD + OP_LOCAL_MODIFY
-
-OP_NAME_LOAD = to_opcodes(
-    "LOAD_NAME",
-)
-OP_NAME_MODIFY = to_opcodes(
-    "STORE_NAME",
-    "DELETE_NAME",
-)
-OP_NAME_ACCESS = OP_NAME_LOAD + OP_NAME_MODIFY
-
-OP_GLOBAL_LOAD = to_opcodes(
-    "LOAD_GLOBAL",
-)
-OP_GLOBAL_MODIFY = to_opcodes(
-    "STORE_GLOBAL",
-    "DELETE_GLOBAL",
-)
-OP_GLOBAL_ACCESS = OP_GLOBAL_LOAD + OP_GLOBAL_MODIFY
-
-OP_DEREF_LOAD = to_opcodes(
-    "LOAD_DEREF",
-    "LOAD_CLASSDEREF",
-)
-OP_DEREF_MODIFY = to_opcodes(
-    "STORE_DEREF",
-    "DELETE_DEREF",
-)
-OP_DEREF_ACCESS = OP_DEREF_LOAD + OP_DEREF_MODIFY
-OP_CLOSURE_LOAD = to_opcodes(
-    "LOAD_CLOSURE",
-)
-
-OP_ATTR_ACCESS = to_opcodes(
-    "STORE_ATTR",
-    "LOAD_ATTR",
-    "DELETE_ATTR",
-    "IMPORT_FROM",
-    "LOAD_METHOD",
-)
-OP_SUBSCR_ACCESS = to_opcodes(
-    "STORE_SUBSCR",
-    "DELETE_SUBSCR",
-    "BINARY_SUBSCR",
-)
-OP_IMPORT_NAME = to_opcodes(
-    "IMPORT_NAME",
-)
-OP_IMPORT_FROM = to_opcodes(
-    "IMPORT_FROM",
-)
-OP_EXTENDED_ARG = to_opcodes(
-    "EXTENDED_ARG",
-)
-OP_ABSOLUTE_JUMP = to_opcodes(
-    "JUMP_IF_FALSE_OR_POP",
-    "JUMP_IF_TRUE_OR_POP",
-    "JUMP_ABSOLUTE",
-    "POP_JUMP_IF_FALSE",
+COND_BRANCH_OPCODES = FOR_ITER_OPCODES + to_opcodes(
     "POP_JUMP_IF_TRUE",
+    "POP_JUMP_IF_FALSE",
+    "JUMP_IF_TRUE_OR_POP",
+    "JUMP_IF_FALSE_OR_POP",
     "JUMP_IF_NOT_EXC_MATCH",
 )
-OP_RELATIVE_JUMP = to_opcodes(
-    "FOR_ITER",
+
+OP_JUMPS = COND_BRANCH_OPCODES + to_opcodes(
+    "JUMP_ABSOLUTE",
     "JUMP_FORWARD",
     "SETUP_FINALLY",
     "SETUP_WITH",
     "SETUP_ASYNC_WITH",
 )
-OP_CALL = to_opcodes(
-    "CALL_FUNCTION",
-    "CALL_FUNCTION_KW",
-    "CALL_FUNCTION_EX",
-    "CALL_METHOD",
-    "YIELD_FROM",
-)
-OP_RETURN = to_opcodes("RETURN_VALUE", "YIELD_VALUE")
 
-OP_STORES = to_opcodes(
-    "STORE_ATTR",
-    "STORE_SUBSCR",
-)
-OP_ACCESS = to_opcodes("LOAD_ATTR", "DELETE_ATTR", "IMPORT_FROM")
-OP_STORE_NAME = to_opcodes(
-    "STORE_NAME",
-)
 
-TRACED_INSTRUCTIONS = (
-    OP_UNARY
-    + OP_BINARY
-    + OP_INPLACE
-    + OP_COMPARE
-    + OP_LOCAL_ACCESS
-    + OP_NAME_ACCESS
-    + OP_GLOBAL_ACCESS
-    + OP_DEREF_ACCESS
-    + OP_ATTR_ACCESS
-    + OP_SUBSCR_ACCESS
-    + OP_IMPORT_NAME
-    + OP_ABSOLUTE_JUMP
-    + OP_RELATIVE_JUMP
-    + OP_CALL
-    + OP_RETURN
+# Regrouping opcodes
+STORE_OPCODES = STORE_SUBSCR_OPCODES + STORE_ATTR_OPCODES
+
+ACCESS_OPCODES = IMPORT_FROM_OPCODES + LOAD_ATTR_OPCODES + DELETE_ATTR_OPCODES
+
+ATTRIBUTES_OPCODES = IMPORT_FROM_OPCODES + ACCESS_ATTR_OPCODES + LOAD_METHOD_OPCODES
+
+TRACED_OPCODES = (
+    OPERATION_OPCODES
+    + ACCESS_FAST_OPCODES
+    + ACCESS_NAME_OPCODES
+    + ACCESS_GLOBAL_OPCODES
+    + ACCESS_DEREF_OPCODES
+    + ATTRIBUTES_OPCODES
+    + ACCESS_SUBSCR_OPCODES
+    + IMPORT_NAME_OPCODES
+    + OP_JUMPS
+    + CALL_OPCODES
+    + RETURNING_OPCODES
 )
 
-MEMORY_USE_INSTRUCTIONS = to_opcodes(
-    "LOAD_FAST",
-    "LOAD_NAME",
-    "LOAD_GLOBAL",
-    "LOAD_ATTR",
-    "LOAD_DEREF",
-    "BINARY_SUBSCR",
-    "LOAD_METHOD",
-    "IMPORT_FROM",
-    "LOAD_CLOSURE",
-    "LOAD_CLASSDEREF",
+MEMORY_USE_OPCODES = (
+    LOAD_FAST_OPCODES
+    + LOAD_NAME_OPCODES
+    + LOAD_GLOBAL_OPCODES
+    + LOAD_DEREF_OPCODES
+    + LOAD_ATTR_OPCODES
+    + IMPORT_FROM_OPCODES
+    + LOAD_METHOD_OPCODES
+    + CLOSURE_LOAD_OPCODES
+    + BINARY_SUBSCR_OPCODES
 )
-MEMORY_DEF_INSTRUCTIONS = to_opcodes(
-    "STORE_FAST",
-    "STORE_NAME",
-    "STORE_GLOBAL",
-    "STORE_DEREF",
-    "STORE_ATTR",
-    "STORE_SUBSCR",
-    "BINARY_SUBSCR",
-    "DELETE_FAST",
-    "DELETE_NAME",
-    "DELETE_GLOBAL",
-    "DELETE_ATTR",
-    "DELETE_SUBSCR",
-    "DELETE_DEREF",
-    "IMPORT_NAME",
-)  # compensate incorrect stack effect for IMPORT_NAME
-COND_BRANCH_INSTRUCTIONS = to_opcodes(
-    "POP_JUMP_IF_TRUE",
-    "POP_JUMP_IF_FALSE",
-    "JUMP_IF_TRUE_OR_POP",
-    "JUMP_IF_FALSE_OR_POP",
-    "JUMP_IF_NOT_EXC_MATCH",
-    "FOR_ITER",
+MEMORY_DEF_OPCODES = (
+    MODIFY_FAST_OPCODES
+    + MODIFY_NAME_OPCODES
+    + MODIFY_GLOBAL_OPCODES
+    + MODIFY_DEREF_OPCODES
+    + MODIFY_ATTR_OPCODES
+    + IMPORT_NAME_OPCODES  # compensate incorrect stack effect for IMPORT_NAME
+    + ACCESS_SUBSCR_OPCODES
 )
-
-
-def is_yielding(opcode: int) -> bool:  # noqa: D103
-    return opname[opcode] in {
-        "YIELD_VALUE",
-        "YIELD_FROM",
-    }
-
-
-def is_for_loop(opcode: int) -> bool:  # noqa: D103
-    return opname[opcode] == "FOR_ITER"
 
 
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
@@ -269,7 +285,7 @@ def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
 
         if (
             isinstance(instruction, Instr)
-            and is_for_loop(instruction.opcode)
+            and instruction.opcode in FOR_ITER_OPCODES
             and isinstance(instruction.arg, Label)
         ):
             exit_label = instruction.arg
@@ -292,10 +308,6 @@ def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
         i += 1
 
     return bytecode_copy
-
-
-def is_import(opcode: int) -> bool:  # noqa: D103
-    return opname[opcode] == "IMPORT_NAME"
 
 
 def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
@@ -765,7 +777,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         maybe_jump_index = _JUMP_OP_POS
         maybe_jump = node.get_instruction(maybe_jump_index)
 
-        if is_for_loop(maybe_jump.opcode):
+        if maybe_jump.opcode in FOR_ITER_OPCODES:
             self.visit_for_loop(
                 cfg,
                 code_object_id,
@@ -782,7 +794,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             _COMPARE_OP_POS,
         )
 
-        if maybe_compare.opcode in OP_COMPARE:
+        if maybe_compare.opcode in COMPARE_OPCODES:
             self.visit_compare_based_conditional_jump(
                 cfg,
                 code_object_id,
@@ -1103,7 +1115,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 )
 
             # Perform the actual instrumentation
-            if instr.opcode in (OP_UNARY + OP_BINARY + OP_INPLACE + OP_COMPARE):
+            if instr.opcode in OPERATION_OPCODES:
                 self.visit_generic(
                     cfg,
                     code_object_id,
@@ -1112,7 +1124,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_LOCAL_ACCESS:
+            elif instr.opcode in ACCESS_FAST_OPCODES:
                 self.visit_local_access(
                     cfg,
                     code_object_id,
@@ -1121,7 +1133,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_ATTR_ACCESS:
+            elif instr.opcode in ATTRIBUTES_OPCODES:
                 self.visit_attr_access(
                     cfg,
                     code_object_id,
@@ -1130,7 +1142,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_SUBSCR_ACCESS:
+            elif instr.opcode in ACCESS_SUBSCR_OPCODES:
                 self.visit_subscr_access(
                     cfg,
                     code_object_id,
@@ -1139,7 +1151,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_NAME_ACCESS:
+            elif instr.opcode in ACCESS_NAME_OPCODES:
                 self.visit_name_access(
                     cfg,
                     code_object_id,
@@ -1148,7 +1160,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_IMPORT_NAME:
+            elif instr.opcode in IMPORT_NAME_OPCODES:
                 self.visit_import_name_access(
                     cfg,
                     code_object_id,
@@ -1157,7 +1169,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_GLOBAL_ACCESS:
+            elif instr.opcode in ACCESS_GLOBAL_OPCODES:
                 self.visit_global_access(
                     cfg,
                     code_object_id,
@@ -1166,7 +1178,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_DEREF_ACCESS:
+            elif instr.opcode in ACCESS_DEREF_OPCODES:
                 self.visit_deref_access(
                     cfg,
                     code_object_id,
@@ -1175,7 +1187,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_ABSOLUTE_JUMP + OP_RELATIVE_JUMP:
+            elif instr.opcode in OP_JUMPS:
                 self.visit_jump(
                     cfg,
                     code_object_id,
@@ -1184,7 +1196,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_CALL:
+            elif instr.opcode in CALL_OPCODES:
                 self.visit_call(
                     cfg,
                     code_object_id,
@@ -1193,7 +1205,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     instr_index,
                     instr_offset,
                 )
-            elif instr.opcode in OP_RETURN:
+            elif instr.opcode in RETURNING_OPCODES:
                 self.visit_return(
                     cfg,
                     code_object_id,

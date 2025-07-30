@@ -1316,7 +1316,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         var_name: str | CellVar | FreeVar,
         var_value: object,
     ) -> None:
-        assert var_name or version.is_import(opcode), (  # IMPORT_NAMEs may not have arguments
+        # IMPORT_NAMEs may not have arguments
+        assert var_name or opcode in version.IMPORT_NAME_OPCODES, (
             "A memory access instruction must have an argument or be an import"
         )
 

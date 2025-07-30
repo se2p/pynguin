@@ -425,7 +425,7 @@ class ProgramGraph:
         yield_nodes: set[ProgramNode] = set()
         for node in self.basic_block_nodes:
             for instr in node.instructions:
-                if version.is_yielding(instr.opcode):
+                if instr.opcode in version.YIELDING_OPCODES:
                     yield_nodes.add(node)
                     # exist the inner loop (over instructions)
                     # the node is already added thus continue with the next node
@@ -660,7 +660,7 @@ class CFG(ProgramGraph):
 
             last_instr = block[-1]
             if isinstance(last_instr, Instr) and (
-                last_instr.is_cond_jump() or version.is_for_loop(last_instr.opcode)
+                last_instr.is_cond_jump() or last_instr.opcode in version.FOR_ITER_OPCODES
             ):
                 assert next_block is not None
                 assert target_block is not None

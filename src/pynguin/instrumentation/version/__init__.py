@@ -50,36 +50,6 @@ class StackEffectFunction(Protocol):
         """
 
 
-class IsYieldingFunction(Protocol):
-    """A function that checks if an instruction is yielding."""
-
-    @abstractmethod
-    def __call__(self, opcode: int) -> bool:
-        """Check if the instruction is yielding.
-
-        Args:
-            opcode: The opcode of the instruction to check.
-
-        Returns:
-            True if the instruction is yielding, False otherwise.
-        """
-
-
-class IsForLoopFunction(Protocol):
-    """A function that checks if an instruction is a for loop."""
-
-    @abstractmethod
-    def __call__(self, opcode: int) -> bool:
-        """Check if the instruction is a for loop.
-
-        Args:
-            opcode: The opcode of the instruction to check.
-
-        Returns:
-            True if the instruction is a for loop, False otherwise.
-        """
-
-
 class AddForLoopNoYieldNodesFunction(Protocol):
     """A function that adds NOP nodes for for-loops that do not yield values.
 
@@ -128,21 +98,6 @@ class AddForLoopNoYieldNodesFunction(Protocol):
         """
 
 
-class IsImportFunction(Protocol):
-    """A function that checks if an instruction is an import statement."""
-
-    @abstractmethod
-    def __call__(self, opcode: int) -> bool:
-        """Check if the instruction is an import statement.
-
-        Args:
-            opcode: The opcode of the instruction to check.
-
-        Returns:
-            True if the instruction is an import statement, False otherwise.
-        """
-
-
 class GetBranchTypeFunction(Protocol):
     """A function that get the branch type of a conditional jump instruction."""
 
@@ -174,51 +129,46 @@ class EndWithExplicitReturnNoneFunction(Protocol):
         """
 
 
-class IsStoreNameFunction(Protocol):
-    """A function that checks if an instruction stores a name."""
-
-    @abstractmethod
-    def __call__(self, opcode: int) -> bool:
-        """Check if the instruction stores a name.
-
-        Args:
-            opcode: The opcode of the instruction to check.
-
-        Returns:
-            True if the instruction stores a name, False otherwise.
-        """
-
-
 stack_effect: StackEffectFunction
-is_yielding: IsYieldingFunction
-is_import: IsImportFunction
-is_for_loop: IsForLoopFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction
 end_with_explicit_return_none: EndWithExplicitReturnNoneFunction
+
 BranchCoverageInstrumentation: type[BranchCoverageInstrumentationAdapter]
 LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]
 CheckedCoverageInstrumentation: type[CheckedCoverageInstrumentationAdapter]
 DynamicSeedingInstrumentation: type[DynamicSeedingInstrumentationAdapter]
-TRACED_INSTRUCTIONS: tuple[int, ...]
-MEMORY_DEF_INSTRUCTIONS: tuple[int, ...]
-MEMORY_USE_INSTRUCTIONS: tuple[int, ...]
-COND_BRANCH_INSTRUCTIONS: tuple[int, ...]
-OP_EXTENDED_ARG: tuple[int, ...]
-OP_LOCAL_LOAD: tuple[int, ...]
-OP_LOCAL_MODIFY: tuple[int, ...]
-OP_NAME_LOAD: tuple[int, ...]
-OP_NAME_MODIFY: tuple[int, ...]
-OP_GLOBAL_LOAD: tuple[int, ...]
-OP_GLOBAL_MODIFY: tuple[int, ...]
-OP_DEREF_LOAD: tuple[int, ...]
-OP_DEREF_MODIFY: tuple[int, ...]
-OP_CLOSURE_LOAD: tuple[int, ...]
-OP_IMPORT_FROM: tuple[int, ...]
-OP_RETURN: tuple[int, ...]
-OP_STORES: tuple[int, ...]
-OP_ACCESS: tuple[int, ...]
-OP_STORE_NAME: tuple[int, ...]
+
+LOAD_FAST_OPCODES: tuple[int, ...]
+MODIFY_FAST_OPCODES: tuple[int, ...]
+
+LOAD_NAME_OPCODES: tuple[int, ...]
+STORE_NAME_OPCODES: tuple[int, ...]
+MODIFY_NAME_OPCODES: tuple[int, ...]
+
+LOAD_GLOBAL_OPCODES: tuple[int, ...]
+MODIFY_GLOBAL_OPCODES: tuple[int, ...]
+
+LOAD_DEREF_OPCODES: tuple[int, ...]
+MODIFY_DEREF_OPCODES: tuple[int, ...]
+
+CLOSURE_LOAD_OPCODES: tuple[int, ...]
+
+IMPORT_NAME_OPCODES: tuple[int, ...]
+IMPORT_FROM_OPCODES: tuple[int, ...]
+
+EXTENDED_ARG_OPCODES: tuple[int, ...]
+YIELDING_OPCODES: tuple[int, ...]
+RETURNING_OPCODES: tuple[int, ...]
+FOR_ITER_OPCODES: tuple[int, ...]
+COND_BRANCH_OPCODES: tuple[int, ...]
+
+STORE_OPCODES: tuple[int, ...]
+ACCESS_OPCODES: tuple[int, ...]
+TRACED_OPCODES: tuple[int, ...]
+MEMORY_USE_OPCODES: tuple[int, ...]
+MEMORY_DEF_OPCODES: tuple[int, ...]
+
 
 if sys.version_info >= (3, 10):  # noqa: UP036
     from .python3_10 import *  # noqa: F403
