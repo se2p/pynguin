@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 
+from opcode import cmp_op
 from opcode import opmap
 from opcode import opname
 from opcode import stack_effect as opcode_stack_effect
@@ -41,6 +42,7 @@ from pynguin.instrumentation.version.common import (
     ConvertInstrumentationMethodCallFunction,
 )
 from pynguin.instrumentation.version.common import CreateAddInstructionFunction
+from pynguin.instrumentation.version.common import ExtractComparisonFunction
 from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationCopy
@@ -736,6 +738,43 @@ def convert_instrumentation_copy(
             raise ValueError(f"Unsupported instrumentation copy: {instrumentation_copy}.")
 
 
+def extract_comparison(instr: Instr) -> PynguinCompare:
+    """Extract the comparison from an instruction.
+
+    Args:
+        instr: The instruction from which to extract the comparison.
+
+    Returns:
+        The extracted comparison.
+    """
+    match opname[instr.opcode]:
+        case "COMPARE_OP":
+            match cmp_op[instr.arg]:  # type: ignore[index]
+                case "<":
+                    return PynguinCompare.LT
+                case "<=":
+                    return PynguinCompare.LE
+                case "==":
+                    return PynguinCompare.EQ
+                case "!=":
+                    return PynguinCompare.NE
+                case ">":
+                    return PynguinCompare.GT
+                case ">=":
+                    return PynguinCompare.GE
+                case _:
+                    raise AssertionError(f"Unknown comparison op in {instr}.")
+        case "CONTAINS_OP":
+            return PynguinCompare.NOT_IN if instr.arg == 1 else PynguinCompare.IN
+        case "IS_OP":
+            # Beginning with 3.9, there are separate OPs for various comparisons.
+            # Map them back to the old operations, so we can use the enum from the
+            # bytecode library.
+            return PynguinCompare.IS_NOT if instr.arg == 1 else PynguinCompare.IS
+        case _:
+            raise AssertionError(f"Unknown comparison in {instr}")
+
+
 def create_add_instruction(lineno: int | _UNSET | None) -> cf.ArtificialInstr:
     """Create an artificial instruction to add a new instruction.
 
@@ -777,6 +816,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
     convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
         convert_instrumentation_copy
     )
+    extract_comparison: ExtractComparisonFunction = staticmethod(extract_comparison)
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
@@ -901,18 +941,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             )
         )
 
-        match instr.name:
-            case "COMPARE_OP":
-                compare = int(instr.arg)  # type: ignore[arg-type]
-            case "IS_OP":
-                # Beginning with 3.9, there are separate OPs for various comparisons.
-                # Map them back to the old operations, so we can use the enum from the
-                # bytecode library.
-                compare = PynguinCompare.IS_NOT.value if instr.arg else PynguinCompare.IS.value
-            case "CONTAINS_OP":
-                compare = PynguinCompare.NOT_IN.value if instr.arg else PynguinCompare.IN.value
-            case _:
-                raise AssertionError(f"Unknown comparison OP {instr}")
+        compare = self.extract_comparison(instr)
 
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report

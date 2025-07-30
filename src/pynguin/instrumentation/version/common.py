@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from bytecode.instr import _UNSET
     from bytecode.instr import Instr
 
+    from pynguin.instrumentation import PynguinCompare
     from pynguin.instrumentation import controlflow as cf
 
 
@@ -65,7 +66,7 @@ class InstrumentationStackValue(enum.IntEnum):
 class InstrumentationConstantLoad:
     """Represents a constant load used in instrumentation."""
 
-    value: int | str | bool | None
+    value: int | str | bool | enum.Enum | None
 
 
 @dataclass(frozen=True)
@@ -160,6 +161,21 @@ class ConvertInstrumentationCopyFunction(Protocol):
 
         Returns:
             A tuple of artificial instructions representing the copy.
+        """
+
+
+class ExtractComparisonFunction(Protocol):
+    """Represents a function that extracts a comparison from an instruction."""
+
+    @abstractmethod
+    def __call__(self, instr: Instr) -> PynguinCompare:
+        """Extract the comparison from an instruction.
+
+        Args:
+            instr: The instruction to extract the comparison from.
+
+        Returns:
+            The comparison extracted from the instruction.
         """
 
 
