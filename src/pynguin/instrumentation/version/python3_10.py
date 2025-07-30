@@ -26,31 +26,27 @@ from bytecode.instr import Instr
 from bytecode.instr import Label
 
 from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.instrumentation import InstrumentationClassDeref
-from pynguin.instrumentation import InstrumentationConstantLoad
-from pynguin.instrumentation import InstrumentationCopy
-from pynguin.instrumentation import InstrumentationDeref
-from pynguin.instrumentation import InstrumentationFastLoad
-from pynguin.instrumentation import InstrumentationGlobalLoad
-from pynguin.instrumentation import InstrumentationMethodCall
-from pynguin.instrumentation import InstrumentationNameLoad
-from pynguin.instrumentation import InstrumentationStackValue
 from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffect
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
+from pynguin.instrumentation.version.common import InstrumentationClassDeref
+from pynguin.instrumentation.version.common import InstrumentationConstantLoad
+from pynguin.instrumentation.version.common import InstrumentationCopy
+from pynguin.instrumentation.version.common import InstrumentationDeref
+from pynguin.instrumentation.version.common import InstrumentationFastLoad
+from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
+from pynguin.instrumentation.version.common import InstrumentationMethodCall
+from pynguin.instrumentation.version.common import InstrumentationNameLoad
+from pynguin.instrumentation.version.common import InstrumentationStackValue
+from pynguin.instrumentation.version.common import to_opcodes
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from bytecode import Bytecode
-
-
-def to_opcodes(*names: str) -> tuple[int, ...]:
-    """Convert a tuple of opcode names to their corresponding integer values."""
-    return tuple(opmap[name] for name in names)
 
 
 # Fast opcodes
