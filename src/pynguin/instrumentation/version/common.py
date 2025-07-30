@@ -11,9 +11,19 @@ from __future__ import annotations
 
 import enum
 
+from abc import abstractmethod
 from dataclasses import dataclass
 from opcode import opmap
+from typing import TYPE_CHECKING
 from typing import Any
+from typing import Protocol
+
+
+if TYPE_CHECKING:
+    from bytecode.instr import _UNSET
+    from bytecode.instr import Instr
+
+    from pynguin.instrumentation import controlflow as cf
 
 
 class InstrumentationCopy(enum.IntEnum):
@@ -111,6 +121,88 @@ InstrumentationArgument = (
     | InstrumentationDeref
     | InstrumentationClassDeref
 )
+
+
+class ConvertInstrumentationMethodCallFunction(Protocol):
+    """Represents a function that converts an instrumentation method call to instructions."""
+
+    @abstractmethod
+    def __call__(
+        self,
+        instrumentation_method_call: InstrumentationMethodCall,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        """Convert an instrumentation method call to instructions.
+
+        Args:
+            instrumentation_method_call: The method call to convert.
+            lineno: The line number for the instruction.
+
+        Returns:
+            A tuple of artificial instructions representing the method call.
+        """
+
+
+class ConvertInstrumentationCopyFunction(Protocol):
+    """Represents a function that converts an instrumentation copy to instructions."""
+
+    @abstractmethod
+    def __call__(
+        self,
+        instrumentation_copy: InstrumentationCopy,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        """Convert an instrumentation copy to instructions.
+
+        Args:
+            instrumentation_copy: The copy to convert.
+            lineno: The line number for the instruction.
+
+        Returns:
+            A tuple of artificial instructions representing the copy.
+        """
+
+
+class CreateAddInstructionFunction(Protocol):
+    """Represents a function that creates an add instruction."""
+
+    @abstractmethod
+    def __call__(self, lineno: int | _UNSET | None) -> cf.ArtificialInstr:
+        """Create an add instruction.
+
+        Args:
+            lineno: The line number for the instruction.
+
+        Returns:
+            An artificial instruction representing the add operation.
+        """
+
+
+class CheckedCoverageInstrumentationVisitorMethod(Protocol):
+    """Represents a visitor method used in checked coverage instrumentation."""
+
+    @abstractmethod
+    def __call__(  # noqa: PLR0917
+        _self,  # noqa: N805
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_offset: int,
+    ) -> None:
+        """Visit an instruction in the control flow graph.
+
+        Args:
+            self: The instance of the checked coverage instrumentation.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The instruction being visited.
+            instr_index: The index of the instruction in the basic block.
+            instr_offset: The offset of the instruction in the bytecode.
+        """
 
 
 def to_opcodes(*names: str) -> tuple[int, ...]:

@@ -18,6 +18,7 @@ from opcode import opmap
 from opcode import opname
 from opcode import stack_effect as opcode_stack_effect
 from typing import TYPE_CHECKING
+from typing import ClassVar
 
 from bytecode.cfg import BasicBlock
 from bytecode.instr import _UNSET
@@ -31,6 +32,14 @@ from pynguin.instrumentation import StackEffect
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
+from pynguin.instrumentation.version.common import (
+    CheckedCoverageInstrumentationVisitorMethod,
+)
+from pynguin.instrumentation.version.common import ConvertInstrumentationCopyFunction
+from pynguin.instrumentation.version.common import (
+    ConvertInstrumentationMethodCallFunction,
+)
+from pynguin.instrumentation.version.common import CreateAddInstructionFunction
 from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationCopy
@@ -758,8 +767,12 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
-    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
+    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
+        convert_instrumentation_method_call
+    )
+    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
+        convert_instrumentation_copy
+    )
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
@@ -1019,7 +1032,9 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
+    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
+        convert_instrumentation_method_call
+    )
 
     def __init__(  # noqa: D107
         self,
@@ -1075,13 +1090,17 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
-    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
+    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
+        convert_instrumentation_method_call
+    )
+    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
+        convert_instrumentation_copy
+    )
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
 
-    def visit_node(  # noqa: C901, D102
+    def visit_node(  # noqa: D102
         self,
         cfg: cf.CFG,
         code_object_id: int,
@@ -1111,105 +1130,10 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 )
 
             # Perform the actual instrumentation
-            if instr.opcode in OPERATION_OPCODES:
-                self.visit_generic(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ACCESS_FAST_OPCODES:
-                self.visit_local_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ATTRIBUTES_OPCODES:
-                self.visit_attr_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ACCESS_SUBSCR_OPCODES:
-                self.visit_subscr_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ACCESS_NAME_OPCODES:
-                self.visit_name_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in IMPORT_NAME_OPCODES:
-                self.visit_import_name_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ACCESS_GLOBAL_OPCODES:
-                self.visit_global_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in ACCESS_DEREF_OPCODES:
-                self.visit_deref_access(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in OP_JUMPS:
-                self.visit_jump(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in CALL_OPCODES:
-                self.visit_call(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
-            elif instr.opcode in RETURNING_OPCODES:
-                self.visit_return(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                    instr_offset,
-                )
+            for operations, method in self.METHODS.items():
+                if instr.opcode in operations:
+                    method(self, cfg, code_object_id, node, instr, instr_index, instr_offset)
+                    break
 
             # Update the instr_index to repoint at the original instruction
             while node.get_instruction(instr_index) != instr:
@@ -1617,15 +1541,38 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             instr.lineno,
         )
 
+    METHODS: ClassVar[
+        dict[
+            tuple[int, ...],
+            CheckedCoverageInstrumentationVisitorMethod,
+        ]
+    ] = {
+        OPERATION_OPCODES: visit_generic,
+        ACCESS_FAST_OPCODES: visit_local_access,
+        ATTRIBUTES_OPCODES: visit_attr_access,
+        ACCESS_SUBSCR_OPCODES: visit_subscr_access,
+        ACCESS_NAME_OPCODES: visit_name_access,
+        IMPORT_NAME_OPCODES: visit_import_name_access,
+        ACCESS_GLOBAL_OPCODES: visit_global_access,
+        ACCESS_DEREF_OPCODES: visit_deref_access,
+        OP_JUMPS: visit_jump,
+        CALL_OPCODES: visit_call,
+        RETURNING_OPCODES: visit_return,
+    }
+
 
 class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAdapter):
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.10."""
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call = staticmethod(convert_instrumentation_method_call)
-    convert_instrumentation_copy = staticmethod(convert_instrumentation_copy)
-    create_add_instruction = staticmethod(create_add_instruction)
+    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
+        convert_instrumentation_method_call
+    )
+    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
+        convert_instrumentation_copy
+    )
+    create_add_instruction: CreateAddInstructionFunction = staticmethod(create_add_instruction)
 
     def __init__(  # noqa: D107
         self, dynamic_constant_provider: DynamicConstantProvider
