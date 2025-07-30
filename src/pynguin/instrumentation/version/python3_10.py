@@ -8,7 +8,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 
-"""Provides enums for opcode numbers of instructions in bytecode for Python 3.10."""
+"""Provides version-specific functions for Python 3.10."""
 
 from __future__ import annotations
 
