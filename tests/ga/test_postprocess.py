@@ -807,7 +807,6 @@ def test_crash_preserving_minimization_visitor_with_dependencies(
 def test_suite_minimization_visitor_init(mock_fitness_function, test_suite_minimization_visitor):
     """Test that the TestSuiteMinimizationVisitor initializes correctly."""
     assert test_suite_minimization_visitor._fitness_function == mock_fitness_function
-    assert test_suite_minimization_visitor._removed_test_cases == 0
     assert test_suite_minimization_visitor.removed_test_cases == 0
 
 
