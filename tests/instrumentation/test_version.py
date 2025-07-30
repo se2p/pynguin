@@ -10,10 +10,22 @@ import dis
 from itertools import starmap
 from opcode import HAVE_ARGUMENT
 from opcode import opmap
+from unittest.mock import MagicMock
 
 import pytest
 
+from bytecode import Bytecode
+
 from pynguin.instrumentation.version import stack_effect
+from pynguin.instrumentation.version.common import InstrumentationConstantLoad
+from pynguin.instrumentation.version.common import InstrumentationCopy
+from pynguin.instrumentation.version.common import InstrumentationMethodCall
+from pynguin.instrumentation.version.common import InstrumentationStackValue
+from pynguin.instrumentation.version.common import before
+from pynguin.instrumentation.version.python3_10 import convert_instrumentation_copy
+from pynguin.instrumentation.version.python3_10 import (
+    convert_instrumentation_method_call,
+)
 from tests.utils.version import only_3_10
 
 
@@ -60,3 +72,117 @@ def test_conditional_opcodes(op, arg, jump):
 def test_async_setup_throws_exception():
     with pytest.raises(AssertionError):
         stack_effect(opmap["SETUP_ASYNC_WITH"], 0)
+
+
+def test_convert_instrumentation_method_call_with_constant():
+    def foo():
+        return
+
+    called = False
+
+    def method(a: int, b: bool) -> None:  # noqa: FBT001
+        nonlocal called
+        called = True
+
+        assert a == 42
+        assert b
+
+    mock = MagicMock()
+    mock.method = method
+
+    call = InstrumentationMethodCall(
+        mock,
+        method.__name__,
+        (
+            InstrumentationConstantLoad(value=42),
+            InstrumentationConstantLoad(value=True),
+        ),
+    )
+
+    bytecode = Bytecode.from_code(foo.__code__)
+    bytecode[before(-1)] = convert_instrumentation_method_call(call, 1)
+    foo.__code__ = bytecode.to_code()
+
+    foo()
+
+    assert called
+
+
+def test_convert_instrumentation_method_call_with_stack_argument():
+    def foo():
+        return 24
+
+    called = False
+
+    def method(a: int, b: int) -> None:
+        nonlocal called
+        called = True
+
+        assert a == 42
+        assert b == 24
+
+    mock = MagicMock()
+    mock.method = method
+
+    call = InstrumentationMethodCall(
+        mock,
+        method.__name__,
+        (
+            InstrumentationConstantLoad(value=42),
+            InstrumentationStackValue.FIRST,
+        ),
+    )
+
+    bytecode = Bytecode.from_code(foo.__code__)
+    bytecode[before(-1)] = (
+        *convert_instrumentation_copy(InstrumentationCopy.FIRST, 1),
+        *convert_instrumentation_method_call(call, 1),
+    )
+    foo.__code__ = bytecode.to_code()
+
+    foo()
+
+    assert called
+
+
+def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
+    CONSTANT = 3  # noqa: N806
+
+    def foo():
+        return 1 + CONSTANT
+
+    called = False
+
+    def method(a: int, b: int, c: int, d: int) -> None:
+        nonlocal called
+        called = True
+
+        assert a == 4
+        assert b == 3
+        assert c == 2
+        assert d == 1
+
+    mock = MagicMock()
+    mock.method = method
+
+    call = InstrumentationMethodCall(
+        mock,
+        method.__name__,
+        (
+            InstrumentationConstantLoad(value=4),
+            InstrumentationStackValue.FIRST,
+            InstrumentationConstantLoad(value=2),
+            InstrumentationStackValue.SECOND,
+        ),
+    )
+
+    bytecode = Bytecode.from_code(foo.__code__)
+    bytecode[before(-2)] = (
+        *convert_instrumentation_copy(InstrumentationCopy.TWO_FIRST, 1),
+        *convert_instrumentation_method_call(call, 1),
+    )
+    foo.__code__ = bytecode.to_code()
+
+    foo()
+
+    assert called
