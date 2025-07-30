@@ -69,11 +69,13 @@ def test_conditional_opcodes(op, arg, jump):
     assert expected == (pushes - pops)
 
 
+@only_3_10
 def test_async_setup_throws_exception():
     with pytest.raises(AssertionError):
         stack_effect(opmap["SETUP_ASYNC_WITH"], 0)
 
 
+@only_3_10
 def test_convert_instrumentation_method_call_with_constant():
     def foo():
         return
@@ -108,6 +110,7 @@ def test_convert_instrumentation_method_call_with_constant():
     assert called
 
 
+@only_3_10
 def test_convert_instrumentation_method_call_with_stack_argument():
     def foo():
         return 24
@@ -145,6 +148,7 @@ def test_convert_instrumentation_method_call_with_stack_argument():
     assert called
 
 
+@only_3_10
 def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
     CONSTANT = 3  # noqa: N806
 
