@@ -35,6 +35,8 @@ class LocalSearchPrompt(Prompt):
             f"Change the input value at position "
             f"{self.position}"
             f" of the test case to achieve higher branch coverage\n"
+            f"Make sure that the call really changes the branch coverage and add the needed call "
+            f"if necessary.\n"
             f"Give back only the whole test and not the variable itself as Python code for better "
             f"parsing\n"
             f"Also add a class where the test is in to the test_code.\n"

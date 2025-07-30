@@ -9,6 +9,7 @@
 import logging
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
@@ -18,6 +19,7 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.report import get_coverage_report
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 class LLMLocalSearch:
@@ -54,6 +56,7 @@ class LLMLocalSearch:
         Args:
             position (int): The position of the statement in the test case.
         """
+        self._logger.debug("Starting local search with LLMs at position %d", position)
         metrics = {config.CoverageMetric.BRANCH, config.CoverageMetric.LINE}
         report = get_coverage_report(self.suite, self.executor, metrics)
         agent = LLMAgent()
@@ -72,6 +75,12 @@ class LLMLocalSearch:
             self.chromosome.get_coverage_functions(),
         )
 
+        old_calls = stat.output_variables.get(RuntimeVariable.TotalLocalSearchLLMSuccessCalls.name)
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.TotalLocalSearchLLMSuccessCalls,
+            old_calls.value + 1 if old_calls is not None else 1,
+        )
+
         if len(test_cases) == 1:
             test_case = test_cases[0]
         else:
@@ -81,6 +90,12 @@ class LLMLocalSearch:
         if self.objective.has_improved(test_case):
             self._logger.debug("The llm request has improved the fitness of the test case")
             self.chromosome = test_case
+            old_success = stat.output_variables.get(
+                RuntimeVariable.TotalLocalSearchLLMSuccessCalls.name)
+            stat.set_output_variable_for_runtime_variable(
+                RuntimeVariable.TotalLocalSearchLLMSuccessCalls,
+                old_success.value + 1 if old_success is not None else 1,
+            )
         else:
             self._logger.debug(
                 "The llm request hasn't improved the fitness of the test case, "
