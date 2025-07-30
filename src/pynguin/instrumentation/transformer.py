@@ -199,7 +199,7 @@ class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
         instr: Instr,
         instr_index: int,
     ) -> None:
-        """Instrument instructions of a new line.
+        """Instrument a line.
 
         We add a call to the tracer which reports a line was executed.
 
@@ -234,6 +234,27 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
 
         Args:
             subject_properties: The properties of the subject that is being instrumented.
+        """
+
+    @abstractmethod
+    def visit_line(  # noqa: PLR0917
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_offset: int,
+    ) -> None:
+        """Instrument a line.
+
+        Args:
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The instruction to be instrumented.
+            instr_index: The index of the instruction in the basic block.
+            instr_offset: The offset of the instruction in the basic block.
         """
 
     @abstractmethod

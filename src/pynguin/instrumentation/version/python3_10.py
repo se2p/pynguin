@@ -1125,13 +1125,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             # Register all lines available
             if instr.lineno != lineno and file_name != AST_FILENAME:
                 lineno = instr.lineno
-                self._subject_properties.register_line(
-                    tracer.LineMetaData(
-                        code_object_id=code_object_id,
-                        file_name=file_name,
-                        line_number=lineno,  # type: ignore[arg-type]
-                    )
-                )
+                self.visit_line(cfg, code_object_id, node, instr, instr_index, instr_offset)
 
             # Perform the actual instrumentation
             for operations, method in self.METHODS.items():
@@ -1145,6 +1139,23 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
             instr_offset += cf.INSTRUCTION_OFFSET_INCREMENT
             instr_index += 1
+
+    def visit_line(  # noqa: D102, PLR0917
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_offset: int,
+    ) -> None:
+        self._subject_properties.register_line(
+            tracer.LineMetaData(
+                code_object_id=code_object_id,
+                file_name=cfg.bytecode_cfg.filename,
+                line_number=instr.lineno,  # type: ignore[arg-type]
+            )
+        )
 
     def visit_generic(  # noqa: D102, PLR0917
         self,
