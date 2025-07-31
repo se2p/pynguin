@@ -38,6 +38,7 @@ from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
 from pynguin.instrumentation.version.common import ExtractComparisonFunction
+from pynguin.instrumentation.version.common import InstrumentationArgument
 from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationDeref
@@ -588,6 +589,30 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 raise ValueError(f"Unsupported instrumentation setup action: {setup_action}.")
 
     @classmethod
+    def _generate_argument_instruction(
+        cls,
+        arg: InstrumentationArgument,
+        lineno: int | _UNSET | None,
+    ) -> cf.ArtificialInstr:
+        match arg:
+            case InstrumentationConstantLoad(value):
+                return cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
+            case InstrumentationFastLoad(name):
+                return cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno)
+            case InstrumentationNameLoad(name):
+                return cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
+            case InstrumentationGlobalLoad(name):
+                return cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+            case InstrumentationDeref(name):
+                return cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
+            case InstrumentationClassDeref(name):
+                return cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+            case InstrumentationStackValue():
+                raise ValueError(
+                    "There cannot be multiple stack arguments targeting the same positions"
+                )
+
+    @classmethod
     def generate_method_call_instructions(  # noqa: D102, C901, PLR0915
         cls,
         method_call: InstrumentationMethodCall,
@@ -674,35 +699,7 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 continue
 
             # We add the instructions to load the value onto the stack.
-            match arg:
-                case InstrumentationConstantLoad(value):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
-                    )
-                case InstrumentationFastLoad(name):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno)
-                    )
-                case InstrumentationNameLoad(name):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
-                    )
-                case InstrumentationGlobalLoad(name):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
-                    )
-                case InstrumentationDeref(name):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
-                    )
-                case InstrumentationClassDeref(name):
-                    arguments_instructions.append(
-                        cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
-                    )
-                case InstrumentationStackValue():
-                    raise ValueError(
-                        "There cannot be multiple stack arguments targeting the same positions"
-                    )
+            arguments_instructions.append(cls._generate_argument_instruction(arg, lineno=lineno))
 
             match len(target_positions):
                 case 0:
