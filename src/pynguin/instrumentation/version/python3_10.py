@@ -37,20 +37,16 @@ from pynguin.instrumentation.version.common import AST_FILENAME
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
-from pynguin.instrumentation.version.common import ConvertInstrumentationCopyFunction
-from pynguin.instrumentation.version.common import (
-    ConvertInstrumentationMethodCallFunction,
-)
-from pynguin.instrumentation.version.common import CreateAddInstructionFunction
 from pynguin.instrumentation.version.common import ExtractComparisonFunction
 from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationCopy
 from pynguin.instrumentation.version.common import InstrumentationDeref
 from pynguin.instrumentation.version.common import InstrumentationFastLoad
 from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
+from pynguin.instrumentation.version.common import InstrumentationInstructionsGenerator
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationNameLoad
+from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
@@ -537,205 +533,215 @@ def stack_effect(  # noqa: D103, C901, PLR0915
     return effect
 
 
-def convert_instrumentation_method_call(  # noqa: C901, PLR0915
-    instrumentation_method_call: InstrumentationMethodCall,
-    lineno: int | _UNSET | None,
-) -> tuple[cf.ArtificialInstr, ...]:
-    """Convert an instrumentation method call to a tuple of artificial instructions.
+class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsGenerator):
+    """Generates instrumentation instructions for Python 3.10."""
 
-    Args:
-        instrumentation_method_call: The instrumentation method call to convert.
-        lineno: The line number for the artificial instructions.
-
-    Returns:
-        A tuple of artificial instructions.
-    """
-    try:
-        first_index = instrumentation_method_call.args.index(InstrumentationStackValue.FIRST)
-    except ValueError:
-        first_index = None
-
-    try:
-        second_index = instrumentation_method_call.args.index(InstrumentationStackValue.SECOND)
-    except ValueError:
-        second_index = None
-
-    move_stack_arguments_up: tuple[cf.ArtificialInstr, ...]
-    match (first_index is not None, second_index is not None):
-        case (False, False):
-            move_stack_arguments_up = ()
-        case (True, False):
-            # The first stack argument is present but the second is not,
-            # so we need to move it after the LOAD_METHOD instruction while
-            # keeping the second stack argument at its original position.
-            move_stack_arguments_up = (
-                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            )
-        case (False, True):
-            # The second stack argument is present but the first is not,
-            # so we need to move it after the LOAD_METHOD instruction while
-            # keeping the first stack argument at its original position.
-            move_stack_arguments_up = (
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            )
-        case (True, True):
-            # Both stack arguments are present, so we need to move them
-            # after the LOAD_METHOD instruction.
-            move_stack_arguments_up = (
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-            )
-
-    target_positions: list[int]
-    swap_stack_arguments: tuple[cf.ArtificialInstr, ...]
-    match (first_index, second_index):
-        case (None, None):
-            # No stack arguments, so don't need to swap or move anything.
-            swap_stack_arguments = ()
-            target_positions = []
-        case (None, second_position):
-            assert isinstance(second_position, int)
-            # Only the second stack argument is present, so we need to target it.
-            swap_stack_arguments = ()
-            target_positions = [second_position]
-        case (first_position, None):
-            assert isinstance(first_position, int)
-            # Only the first stack argument is present, so we need to target it.
-            swap_stack_arguments = ()
-            target_positions = [first_position]
-        case (first_position, second_position):
-            assert isinstance(first_position, int)
-            assert isinstance(second_position, int)
-            if first_position < second_position:
-                # Both stack arguments are present, and the order in which they appear
-                # in the stack is different from the order in which they appear in the
-                # args tuple, so we need to swap them and target both.
-                swap_stack_arguments = (cf.ArtificialInstr("ROT_TWO", lineno=lineno),)
-                target_positions = [first_position, second_position]
-            else:
-                # Both stack arguments are present, and the order in which they appear
-                # in the stack is the same as in the args tuple, so we don't need to swap
-                # them, but we still need to target both.
-                swap_stack_arguments = ()
-                target_positions = [second_position, first_position]
-
-    arguments_instructions: list[cf.ArtificialInstr] = []
-    for i, arg in enumerate(instrumentation_method_call.args):
-        if target_positions and i == target_positions[0]:
-            # We are at the position of a targeted stack argument, so we just need
-            # to keep the value on the stack at this position and remove the target.
-            target_positions.pop(0)
-            continue
-
-        # We add the instructions to load the value onto the stack.
-        match arg:
-            case InstrumentationConstantLoad(value):
-                arguments_instructions.append(
-                    cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
+    @classmethod
+    def generate_setup_instructions(  # noqa: D102
+        cls,
+        setup_action: InstrumentationSetupAction,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        match setup_action:
+            case InstrumentationSetupAction.NO_ACTION:
+                return ()
+            case InstrumentationSetupAction.COPY_FIRST:
+                return (cf.ArtificialInstr("DUP_TOP", lineno=lineno),)
+            case InstrumentationSetupAction.COPY_FIRST_SHIFT_DOWN_TWO:
+                return (
+                    cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
                 )
-            case InstrumentationFastLoad(name):
-                arguments_instructions.append(cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno))
-            case InstrumentationNameLoad(name):
-                arguments_instructions.append(cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno))
-            case InstrumentationGlobalLoad(name):
-                arguments_instructions.append(
-                    cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+            case InstrumentationSetupAction.COPY_SECOND:
+                return (
+                    cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+                    cf.ArtificialInstr("POP_TOP", lineno=lineno),
                 )
-            case InstrumentationDeref(name):
-                arguments_instructions.append(cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno))
-            case InstrumentationClassDeref(name):
-                arguments_instructions.append(
-                    cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+            case InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_TWO:
+                return (
+                    cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+                    cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
                 )
-            case InstrumentationStackValue():
-                raise ValueError(
-                    "There cannot be multiple stack arguments targeting the same positions"
+            case InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_THREE:
+                return (
+                    cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+                    cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                    cf.ArtificialInstr("ROT_TWO", lineno=lineno),
                 )
-
-        match len(target_positions):
-            case 0:
-                # No more targeted stack arguments, so do not have to swap anything.
-                pass
-            case 1:
-                # There is only one target so we need to move the remaining stack argument
-                # above the value that we just loaded.
-                arguments_instructions.append(cf.ArtificialInstr("ROT_TWO", lineno=lineno))
-            case 2:
-                # There are two targets, so we need to move the two remaining stack arguments
-                # above the value that we just loaded.
-                arguments_instructions.append(cf.ArtificialInstr("ROT_THREE", lineno=lineno))
+            case InstrumentationSetupAction.COPY_FIRST_TWO:
+                return (cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),)
+            case InstrumentationSetupAction.ADD_FIRST_TWO:
+                return (
+                    cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+                    cf.ArtificialInstr("BINARY_ADD", lineno=lineno),
+                )
+            case InstrumentationSetupAction.ADD_FIRST_TWO_REVERSED:
+                return (
+                    cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
+                    cf.ArtificialInstr("ROT_TWO", lineno=lineno),
+                    cf.ArtificialInstr("BINARY_ADD", lineno=lineno),
+                )
             case _:
-                raise AssertionError("Unexpected number of target positions.")
+                raise ValueError(f"Unsupported instrumentation setup action: {setup_action}.")
 
-    assert not target_positions, "There should be no remaining target positions."
+    @classmethod
+    def generate_method_call_instructions(  # noqa: D102, C901, PLR0915
+        cls,
+        method_call: InstrumentationMethodCall,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        try:
+            first_index = method_call.args.index(InstrumentationStackValue.FIRST)
+        except ValueError:
+            first_index = None
 
-    return (
-        cf.ArtificialInstr("LOAD_CONST", instrumentation_method_call.self, lineno=lineno),
-        cf.ArtificialInstr("LOAD_METHOD", instrumentation_method_call.method_name, lineno=lineno),
-        *move_stack_arguments_up,
-        # Here, the two potential stack arguments are moved after the LOAD_METHOD instruction.
-        *swap_stack_arguments,
-        # Here, the two potential stack arguments are swapped so that they are in the same order
-        # as they appear in the args tuple.
-        *arguments_instructions,
-        # Here, all arguments are passed in the correct order.
-        cf.ArtificialInstr("CALL_METHOD", len(instrumentation_method_call.args), lineno=lineno),
-        cf.ArtificialInstr("POP_TOP", lineno=lineno),
-    )
+        try:
+            second_index = method_call.args.index(InstrumentationStackValue.SECOND)
+        except ValueError:
+            second_index = None
 
+        move_stack_arguments_up: tuple[cf.ArtificialInstr, ...]
+        match (first_index is not None, second_index is not None):
+            case (False, False):
+                move_stack_arguments_up = ()
+            case (True, False):
+                # The first stack argument is present but the second is not,
+                # so we need to move it after the LOAD_METHOD instruction while
+                # keeping the second stack argument at its original position.
+                move_stack_arguments_up = (
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                )
+            case (False, True):
+                # The second stack argument is present but the first is not,
+                # so we need to move it after the LOAD_METHOD instruction while
+                # keeping the first stack argument at its original position.
+                move_stack_arguments_up = (
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                )
+            case (True, True):
+                # Both stack arguments are present, so we need to move them
+                # after the LOAD_METHOD instruction.
+                move_stack_arguments_up = (
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                )
 
-def convert_instrumentation_copy(
-    instrumentation_copy: InstrumentationCopy,
-    lineno: int | _UNSET | None,
-) -> tuple[cf.ArtificialInstr, ...]:
-    """Convert an instrumentation copy to a tuple of artificial instructions.
+        target_positions: list[int]
+        swap_stack_arguments: tuple[cf.ArtificialInstr, ...]
+        match (first_index, second_index):
+            case (None, None):
+                # No stack arguments, so don't need to swap or move anything.
+                swap_stack_arguments = ()
+                target_positions = []
+            case (None, second_position):
+                assert isinstance(second_position, int)
+                # Only the second stack argument is present, so we need to target it.
+                swap_stack_arguments = ()
+                target_positions = [second_position]
+            case (first_position, None):
+                assert isinstance(first_position, int)
+                # Only the first stack argument is present, so we need to target it.
+                swap_stack_arguments = ()
+                target_positions = [first_position]
+            case (first_position, second_position):
+                assert isinstance(first_position, int)
+                assert isinstance(second_position, int)
+                if first_position < second_position:
+                    # Both stack arguments are present, and the order in which they appear
+                    # in the stack is different from the order in which they appear in the
+                    # args tuple, so we need to swap them and target both.
+                    swap_stack_arguments = (cf.ArtificialInstr("ROT_TWO", lineno=lineno),)
+                    target_positions = [first_position, second_position]
+                else:
+                    # Both stack arguments are present, and the order in which they appear
+                    # in the stack is the same as in the args tuple, so we don't need to swap
+                    # them, but we still need to target both.
+                    swap_stack_arguments = ()
+                    target_positions = [second_position, first_position]
 
-    Args:
-        instrumentation_copy: The instrumentation copy to convert.
-        lineno: The line number for the artificial instructions.
+        arguments_instructions: list[cf.ArtificialInstr] = []
+        for i, arg in enumerate(method_call.args):
+            if target_positions and i == target_positions[0]:
+                # We are at the position of a targeted stack argument, so we just need
+                # to keep the value on the stack at this position and remove the target.
+                target_positions.pop(0)
+                continue
 
-    Returns:
-        A tuple of artificial instructions.
-    """
-    match instrumentation_copy:
-        case InstrumentationCopy.FIRST:
-            return (cf.ArtificialInstr("DUP_TOP", lineno=lineno),)
-        case InstrumentationCopy.FIRST_DOWN_TWO:
-            return (
-                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
-                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            )
-        case InstrumentationCopy.SECOND:
-            return (
-                cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-                cf.ArtificialInstr("POP_TOP", lineno=lineno),
-            )
-        case InstrumentationCopy.SECOND_DOWN_TWO:
-            return (
-                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
-                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
-                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-                cf.ArtificialInstr("ROT_THREE", lineno=lineno),
-            )
-        case InstrumentationCopy.SECOND_DOWN_THREE:
-            return (
-                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
-                cf.ArtificialInstr("DUP_TOP", lineno=lineno),
-                cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
-                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
-            )
-        case InstrumentationCopy.TWO_FIRST:
-            return (cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),)
-        case InstrumentationCopy.TWO_FIRST_REVERSED:
-            return (
-                cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),
-                cf.ArtificialInstr("ROT_TWO", lineno=lineno),
-            )
-        case _:
-            raise ValueError(f"Unsupported instrumentation copy: {instrumentation_copy}.")
+            # We add the instructions to load the value onto the stack.
+            match arg:
+                case InstrumentationConstantLoad(value):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
+                    )
+                case InstrumentationFastLoad(name):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno)
+                    )
+                case InstrumentationNameLoad(name):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
+                    )
+                case InstrumentationGlobalLoad(name):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+                    )
+                case InstrumentationDeref(name):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
+                    )
+                case InstrumentationClassDeref(name):
+                    arguments_instructions.append(
+                        cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+                    )
+                case InstrumentationStackValue():
+                    raise ValueError(
+                        "There cannot be multiple stack arguments targeting the same positions"
+                    )
+
+            match len(target_positions):
+                case 0:
+                    # No more targeted stack arguments, so do not have to swap anything.
+                    pass
+                case 1:
+                    # There is only one target so we need to move the remaining stack argument
+                    # above the value that we just loaded.
+                    arguments_instructions.append(cf.ArtificialInstr("ROT_TWO", lineno=lineno))
+                case 2:
+                    # There are two targets, so we need to move the two remaining stack arguments
+                    # above the value that we just loaded.
+                    arguments_instructions.append(cf.ArtificialInstr("ROT_THREE", lineno=lineno))
+                case _:
+                    raise AssertionError("Unexpected number of target positions.")
+
+        assert not target_positions, "There should be no remaining target positions."
+
+        return (
+            cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
+            cf.ArtificialInstr("LOAD_METHOD", method_call.method_name, lineno=lineno),
+            *move_stack_arguments_up,
+            # Here, the two potential stack arguments are moved after the LOAD_METHOD instruction.
+            *swap_stack_arguments,
+            # Here, the two potential stack arguments are swapped so that they are in the same order
+            # as they appear in the args tuple.
+            *arguments_instructions,
+            # Here, all arguments are passed in the correct order.
+            cf.ArtificialInstr("CALL_METHOD", len(method_call.args), lineno=lineno),
+        )
+
+    @classmethod
+    def generate_teardown_instructions(  # noqa: D102
+        cls,
+        setup_action: InstrumentationSetupAction,  # noqa: ARG003
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        # Remove the None from the method call return value.
+        return (cf.ArtificialInstr("POP_TOP", lineno=lineno),)
 
 
 def extract_comparison(instr: Instr) -> PynguinCompare:
@@ -772,19 +778,7 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
             # bytecode library.
             return PynguinCompare.IS_NOT if instr.arg == 1 else PynguinCompare.IS
         case _:
-            raise AssertionError(f"Unknown comparison in {instr}")
-
-
-def create_add_instruction(lineno: int | _UNSET | None) -> cf.ArtificialInstr:
-    """Create an artificial instruction to add a new instruction.
-
-    Args:
-        lineno: The line number for the artificial instruction.
-
-    Returns:
-        An artificial instruction that represents the addition of a new instruction.
-    """
-    return cf.ArtificialInstr("BINARY_ADD", lineno=lineno)
+            raise AssertionError(f"Unknown comparison in {instr}.")
 
 
 # Jump operations are the last operation within a basic block
@@ -810,12 +804,10 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
-        convert_instrumentation_method_call
+    instructions_generator: ClassVar[type[InstrumentationInstructionsGenerator]] = (
+        Python310InstrumentationInstructionsGenerator
     )
-    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
-        convert_instrumentation_copy
-    )
+
     extract_comparison: ExtractComparisonFunction = staticmethod(extract_comparison)
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
@@ -900,7 +892,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         assert isinstance(for_loop_no_yield, BasicBlock)
 
         # Insert a call to the tracer before the for-loop body.
-        for_loop_body[before(0)] = self.convert_instrumentation_method_call(
+        for_loop_body[before(0)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
@@ -913,7 +906,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         )
 
         # Insert a call to the tracer before the NOP instruction.
-        for_loop_no_yield[before(0)] = self.convert_instrumentation_method_call(
+        for_loop_no_yield[before(0)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
@@ -946,24 +940,19 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the comparison.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        node.basic_block[before(instr_index)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.TWO_FIRST,
-                instr.lineno,
-            ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._subject_properties.instrumentation_tracer,
-                    tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
-                    (
-                        InstrumentationStackValue.SECOND,
-                        InstrumentationStackValue.FIRST,
-                        InstrumentationConstantLoad(value=predicate_id),
-                        InstrumentationConstantLoad(value=compare),
-                    ),
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST_TWO,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
+                (
+                    InstrumentationStackValue.SECOND,
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
+                    InstrumentationConstantLoad(value=compare),
                 ),
-                instr.lineno,
             ),
+            instr.lineno,
         )
 
     def visit_exception_based_conditional_jump(  # noqa: D102
@@ -985,23 +974,18 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the conditional jump.
         # We duplicate the values on top of the stack and report
         # them to the tracer.
-        node.basic_block[before(instr_index)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.TWO_FIRST,
-                instr.lineno,
-            ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._subject_properties.instrumentation_tracer,
-                    tracer.InstrumentationExecutionTracer.executed_exception_match.__name__,
-                    (
-                        InstrumentationStackValue.SECOND,
-                        InstrumentationStackValue.FIRST,
-                        InstrumentationConstantLoad(value=predicate_id),
-                    ),
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST_TWO,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_exception_match.__name__,
+                (
+                    InstrumentationStackValue.SECOND,
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
                 ),
-                instr.lineno,
             ),
+            instr.lineno,
         )
 
     def visit_bool_based_conditional_jump(  # noqa: D102
@@ -1023,22 +1007,17 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         # Insert instructions right before the conditional jump.
         # We duplicate the value on top of the stack and report
         # it to the tracer.
-        node.basic_block[before(instr_index)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.FIRST,
-                instr.lineno,
-            ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._subject_properties.instrumentation_tracer,
-                    tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
-                    (
-                        InstrumentationStackValue.FIRST,
-                        InstrumentationConstantLoad(value=predicate_id),
-                    ),
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_bool_predicate.__name__,
+                (
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=predicate_id),
                 ),
-                instr.lineno,
             ),
+            instr.lineno,
         )
 
     def visit_cfg(self, cfg: cf.CFG, code_object_id: int) -> None:  # noqa: D102
@@ -1050,7 +1029,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         lineno = node.basic_block[0].lineno  # type: ignore[union-attr]
 
         # Insert instructions at the beginning.
-        node.basic_block[before(0)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(0)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.executed_code_object.__name__,
@@ -1065,8 +1045,8 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
-        convert_instrumentation_method_call
+    instructions_generator: ClassVar[type[InstrumentationInstructionsGenerator]] = (
+        Python310InstrumentationInstructionsGenerator
     )
 
     def __init__(  # noqa: D107
@@ -1108,7 +1088,8 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
         )
 
         # Insert instructions before each line instructions.
-        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_line_visit.__name__,
@@ -1123,11 +1104,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
-        convert_instrumentation_method_call
-    )
-    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
-        convert_instrumentation_copy
+    instructions_generator: ClassVar[type[InstrumentationInstructionsGenerator]] = (
+        Python310InstrumentationInstructionsGenerator
     )
 
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
@@ -1196,7 +1174,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_generic.__name__,
@@ -1221,7 +1200,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = self.convert_instrumentation_method_call(
+        instructions = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
@@ -1257,43 +1237,40 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = self.convert_instrumentation_method_call(
-            InstrumentationMethodCall(
-                self._subject_properties.instrumentation_tracer,
-                tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
-                (
-                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                    InstrumentationConstantLoad(value=code_object_id),
-                    InstrumentationConstantLoad(value=node.index),
-                    InstrumentationConstantLoad(value=instr.opcode),
-                    InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
-                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    InstrumentationStackValue.FIRST,
-                ),
+        method_call = InstrumentationMethodCall(
+            self._subject_properties.instrumentation_tracer,
+            tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
+            (
+                InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                InstrumentationConstantLoad(value=code_object_id),
+                InstrumentationConstantLoad(value=node.index),
+                InstrumentationConstantLoad(value=instr.opcode),
+                InstrumentationConstantLoad(value=instr.lineno),
+                InstrumentationConstantLoad(value=instr_offset),
+                InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                InstrumentationStackValue.FIRST,
             ),
-            instr.lineno,
         )
 
         match opname[instr.opcode]:
             case "LOAD_ATTR" | "DELETE_ATTR" | "IMPORT_FROM" | "LOAD_METHOD":
                 # Instrumentation before the original instruction
                 node.basic_block[before(instr_index)] = (
-                    *self.convert_instrumentation_copy(
-                        InstrumentationCopy.FIRST,
+                    self.instructions_generator.generate_instructions(
+                        InstrumentationSetupAction.COPY_FIRST,
+                        method_call,
                         instr.lineno,
-                    ),
-                    *instructions,
+                    )
                 )
             case "STORE_ATTR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[override(instr_index)] = (
-                    *self.convert_instrumentation_copy(
-                        InstrumentationCopy.FIRST_DOWN_TWO,
+                    self.instructions_generator.generate_overriding_instructions(
+                        InstrumentationSetupAction.COPY_FIRST_SHIFT_DOWN_TWO,
+                        instr,
+                        method_call,
                         instr.lineno,
-                    ),
-                    instr,
-                    *instructions,
+                    )
                 )
 
     def visit_subscr_access(  # noqa: D102, PLR0917
@@ -1305,53 +1282,50 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = self.convert_instrumentation_method_call(
-            InstrumentationMethodCall(
-                self._subject_properties.instrumentation_tracer,
-                tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
-                (
-                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                    InstrumentationConstantLoad(value=code_object_id),
-                    InstrumentationConstantLoad(value=node.index),
-                    InstrumentationConstantLoad(value=instr.opcode),
-                    InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
-                    InstrumentationConstantLoad(value=None),
-                    InstrumentationStackValue.FIRST,
-                ),
+        method_call = InstrumentationMethodCall(
+            self._subject_properties.instrumentation_tracer,
+            tracer.InstrumentationExecutionTracer.track_attribute_access.__name__,
+            (
+                InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                InstrumentationConstantLoad(value=code_object_id),
+                InstrumentationConstantLoad(value=node.index),
+                InstrumentationConstantLoad(value=instr.opcode),
+                InstrumentationConstantLoad(value=instr.lineno),
+                InstrumentationConstantLoad(value=instr_offset),
+                InstrumentationConstantLoad(value=None),
+                InstrumentationStackValue.FIRST,
             ),
-            instr.lineno,
         )
 
         match opname[instr.opcode]:
             case "STORE_SUBSCR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[override(instr_index)] = (
-                    *self.convert_instrumentation_copy(
-                        InstrumentationCopy.SECOND_DOWN_THREE,
+                    self.instructions_generator.generate_overriding_instructions(
+                        InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_THREE,
+                        instr,
+                        method_call,
                         instr.lineno,
-                    ),
-                    instr,
-                    *instructions,
+                    )
                 )
             case "DELETE_SUBSCR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[override(instr_index)] = (
-                    *self.convert_instrumentation_copy(
-                        InstrumentationCopy.SECOND_DOWN_TWO,
+                    self.instructions_generator.generate_overriding_instructions(
+                        InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_TWO,
+                        instr,
+                        method_call,
                         instr.lineno,
-                    ),
-                    instr,
-                    *instructions,
+                    )
                 )
             case "BINARY_SUBSCR":
                 # Instrumentation before the original instruction
                 node.basic_block[before(instr_index)] = (
-                    *self.convert_instrumentation_copy(
-                        InstrumentationCopy.SECOND,
+                    self.instructions_generator.generate_instructions(
+                        InstrumentationSetupAction.COPY_SECOND,
+                        method_call,
                         instr.lineno,
-                    ),
-                    *instructions,
+                    )
                 )
 
     def visit_name_access(  # noqa: D102, PLR0917
@@ -1363,7 +1337,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = self.convert_instrumentation_method_call(
+        instructions = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
@@ -1399,28 +1374,23 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        node.basic_block[after(instr_index)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.FIRST,
-                instr.lineno,
-            ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._subject_properties.instrumentation_tracer,
-                    tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                    (
-                        InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                        InstrumentationConstantLoad(value=code_object_id),
-                        InstrumentationConstantLoad(value=node.index),
-                        InstrumentationConstantLoad(value=instr.opcode),
-                        InstrumentationConstantLoad(value=instr.lineno),
-                        InstrumentationConstantLoad(value=instr_offset),
-                        InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                        InstrumentationStackValue.FIRST,
-                    ),
+        node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationStackValue.FIRST,
                 ),
-                instr.lineno,
             ),
+            instr.lineno,
         )
 
     def visit_global_access(  # noqa: D102, PLR0917
@@ -1432,7 +1402,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_offset: int,
     ) -> None:
-        instructions = self.convert_instrumentation_method_call(
+        instructions = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
@@ -1474,7 +1445,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             else InstrumentationDeref(name=instr.arg)  # type: ignore[arg-type]
         )
 
-        instructions = self.convert_instrumentation_method_call(
+        instructions = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
@@ -1511,7 +1483,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_offset: int,
     ) -> None:
         # Instrumentation before the original instruction
-        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_jump.__name__,
@@ -1541,7 +1514,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
 
         # Instrumentation before the original instruction
-        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_call.__name__,
@@ -1569,7 +1543,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     ) -> None:
         # Instrumentation before the original instruction
         # (otherwise we can not read the data)
-        node.basic_block[before(instr_index)] = self.convert_instrumentation_method_call(
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
                 tracer.InstrumentationExecutionTracer.track_return.__name__,
@@ -1610,13 +1585,9 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     _logger = logging.getLogger(__name__)
 
-    convert_instrumentation_method_call: ConvertInstrumentationMethodCallFunction = staticmethod(
-        convert_instrumentation_method_call
+    instructions_generator: ClassVar[type[InstrumentationInstructionsGenerator]] = (
+        Python310InstrumentationInstructionsGenerator
     )
-    convert_instrumentation_copy: ConvertInstrumentationCopyFunction = staticmethod(
-        convert_instrumentation_copy
-    )
-    create_add_instruction: CreateAddInstructionFunction = staticmethod(create_add_instruction)
 
     def __init__(  # noqa: D107
         self, dynamic_constant_provider: DynamicConstantProvider
@@ -1698,25 +1669,31 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
+        method_call = InstrumentationMethodCall(
+            self._dynamic_constant_provider,
+            DynamicConstantProvider.add_value.__name__,
+            (InstrumentationStackValue.FIRST,),
+        )
+
         node.basic_block[before(instr_index)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.TWO_FIRST,
+            *self.instructions_generator.generate_setup_instructions(
+                InstrumentationSetupAction.COPY_FIRST_TWO,
                 instr.lineno,
             ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._dynamic_constant_provider,
-                    DynamicConstantProvider.add_value.__name__,
-                    (InstrumentationStackValue.FIRST,),
-                ),
+            *self.instructions_generator.generate_method_call_instructions(
+                method_call,
                 instr.lineno,
             ),
-            *self.convert_instrumentation_method_call(
-                InstrumentationMethodCall(
-                    self._dynamic_constant_provider,
-                    DynamicConstantProvider.add_value.__name__,
-                    (InstrumentationStackValue.FIRST,),
-                ),
+            *self.instructions_generator.generate_teardown_instructions(
+                InstrumentationSetupAction.COPY_FIRST,
+                instr.lineno,
+            ),
+            *self.instructions_generator.generate_method_call_instructions(
+                method_call,
+                instr.lineno,
+            ),
+            *self.instructions_generator.generate_teardown_instructions(
+                InstrumentationSetupAction.COPY_FIRST,
                 instr.lineno,
             ),
         )
@@ -1732,11 +1709,8 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr_index: int,
     ) -> None:
         node.basic_block[before(instr_index + 1)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.FIRST,
-                instr.lineno,
-            ),
-            *self.convert_instrumentation_method_call(
+            self.instructions_generator.generate_instructions(
+                InstrumentationSetupAction.COPY_FIRST,
                 InstrumentationMethodCall(
                     self._dynamic_constant_provider,
                     DynamicConstantProvider.add_value_for_strings.__name__,
@@ -1746,7 +1720,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                     ),
                 ),
                 instr.lineno,
-            ),
+            )
         )
 
         self._logger.info("Instrumented string function")
@@ -1760,19 +1734,15 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr_index: int,
     ) -> None:
         node.basic_block[before(instr_index + 2)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.TWO_FIRST_REVERSED,
-                instr.lineno,
-            ),
-            self.create_add_instruction(instr.lineno),
-            *self.convert_instrumentation_method_call(
+            self.instructions_generator.generate_instructions(
+                InstrumentationSetupAction.ADD_FIRST_TWO_REVERSED,
                 InstrumentationMethodCall(
                     self._dynamic_constant_provider,
                     DynamicConstantProvider.add_value.__name__,
                     (InstrumentationStackValue.FIRST,),
                 ),
                 instr.lineno,
-            ),
+            )
         )
 
         self._logger.info("Instrumented startswith function")
@@ -1786,19 +1756,15 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr_index: int,
     ) -> None:
         node.basic_block[before(instr_index + 2)] = (
-            *self.convert_instrumentation_copy(
-                InstrumentationCopy.TWO_FIRST,
-                instr.lineno,
-            ),
-            self.create_add_instruction(instr.lineno),
-            *self.convert_instrumentation_method_call(
+            self.instructions_generator.generate_instructions(
+                InstrumentationSetupAction.ADD_FIRST_TWO,
                 InstrumentationMethodCall(
                     self._dynamic_constant_provider,
                     DynamicConstantProvider.add_value.__name__,
                     (InstrumentationStackValue.FIRST,),
                 ),
                 instr.lineno,
-            ),
+            )
         )
 
         self._logger.info("Instrumented endswith function")

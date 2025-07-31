@@ -27,29 +27,35 @@ if TYPE_CHECKING:
     from pynguin.instrumentation import controlflow as cf
 
 
-class InstrumentationCopy(enum.IntEnum):
-    """An enum to represent what should be copied in instrumentation."""
+class InstrumentationSetupAction(enum.IntEnum):
+    """An enum to represent what should done in the instrumentation setup."""
 
-    FIRST = enum.auto()
+    NO_ACTION = enum.auto()
+    """No action is performed."""
+
+    COPY_FIRST = enum.auto()
     """The first element of the stack is copied."""
 
-    FIRST_DOWN_TWO = enum.auto()
-    """The first element of the stack is copied, and is moved down two times."""
+    COPY_FIRST_SHIFT_DOWN_TWO = enum.auto()
+    """The first element of the stack is copied, and is shifted down two times."""
 
-    SECOND = enum.auto()
+    COPY_SECOND = enum.auto()
     """The second element of the stack is copied."""
 
-    SECOND_DOWN_TWO = enum.auto()
-    """The second element of the stack is copied, and is moved down two times."""
+    COPY_SECOND_SHIFT_DOWN_TWO = enum.auto()
+    """The second element of the stack is copied, and is shifted down two times."""
 
-    SECOND_DOWN_THREE = enum.auto()
-    """The second element of the stack is copied, and is moved down three times."""
+    COPY_SECOND_SHIFT_DOWN_THREE = enum.auto()
+    """The second element of the stack is copied, and is shifted down three times."""
 
-    TWO_FIRST = enum.auto()
-    """The two first elements of the stack are copied."""
+    COPY_FIRST_TWO = enum.auto()
+    """The first two elements of the stack are copied."""
 
-    TWO_FIRST_REVERSED = enum.auto()
-    """The two first elements of the stack are copied, but in reversed order."""
+    ADD_FIRST_TWO = enum.auto()
+    """The first two elements of the stack are added."""
+
+    ADD_FIRST_TWO_REVERSED = enum.auto()
+    """The first two elements of the stack are reversed then added."""
 
 
 class InstrumentationStackValue(enum.IntEnum):
@@ -124,44 +130,108 @@ InstrumentationArgument = (
 )
 
 
-class ConvertInstrumentationMethodCallFunction(Protocol):
-    """Represents a function that converts an instrumentation method call to instructions."""
+class InstrumentationInstructionsGenerator(Protocol):
+    """Represents a class that generates instructions for instrumentation."""
 
+    @classmethod
     @abstractmethod
-    def __call__(
-        self,
+    def generate_setup_instructions(
+        cls,
+        setup_action: InstrumentationSetupAction,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        """Generate setup instructions for instrumentation.
+
+        Args:
+            setup_action: The action to perform in the setup.
+            lineno: The line number for the instruction.
+
+        Returns:
+            A tuple of artificial instructions that perform the setup.
+        """
+
+    @classmethod
+    @abstractmethod
+    def generate_method_call_instructions(
+        cls,
+        method_call: InstrumentationMethodCall,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        """Generate instructions for a method call in instrumentation.
+
+        Args:
+            method_call: The method call to perform.
+            lineno: The line number for the instruction.
+
+        Returns:
+            A tuple of artificial instructions that perform the method call.
+        """
+
+    @classmethod
+    @abstractmethod
+    def generate_teardown_instructions(
+        cls,
+        setup_action: InstrumentationSetupAction,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        """Generate teardown instructions for instrumentation.
+
+        Args:
+            setup_action: The action that was performed in the setup.
+            lineno: The line number for the instruction.
+
+        Returns:
+            A tuple of artificial instructions that perform the teardown.
+        """
+
+    @classmethod
+    def generate_instructions(
+        cls,
+        setup_action: InstrumentationSetupAction,
         instrumentation_method_call: InstrumentationMethodCall,
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
-        """Convert an instrumentation method call to instructions.
+        """Generate instructions for instrumentation.
 
         Args:
+            setup_action: The action to perform in the setup.
             instrumentation_method_call: The method call to convert.
             lineno: The line number for the instruction.
 
         Returns:
-            A tuple of artificial instructions representing the method call.
+            A tuple of artificial instructions representing the instrumentation.
         """
+        return (
+            *cls.generate_setup_instructions(setup_action, lineno),
+            *cls.generate_method_call_instructions(instrumentation_method_call, lineno),
+            *cls.generate_teardown_instructions(setup_action, lineno),
+        )
 
-
-class ConvertInstrumentationCopyFunction(Protocol):
-    """Represents a function that converts an instrumentation copy to instructions."""
-
-    @abstractmethod
-    def __call__(
-        self,
-        instrumentation_copy: InstrumentationCopy,
+    @classmethod
+    def generate_overriding_instructions(
+        cls,
+        setup_action: InstrumentationSetupAction,
+        instr: Instr,
+        instrumentation_method_call: InstrumentationMethodCall,
         lineno: int | _UNSET | None,
-    ) -> tuple[cf.ArtificialInstr, ...]:
-        """Convert an instrumentation copy to instructions.
+    ) -> tuple[cf.Instr, ...]:
+        """Generate instructions for overriding a existing instruction.
 
         Args:
-            instrumentation_copy: The copy to convert.
+            setup_action: The action to perform in the setup.
+            instr: The instruction to override.
+            instrumentation_method_call: The method call to convert.
             lineno: The line number for the instruction.
 
         Returns:
-            A tuple of artificial instructions representing the copy.
+            A tuple of instructions that override the existing instruction.
         """
+        return (
+            *cls.generate_setup_instructions(setup_action, lineno),
+            instr,
+            *cls.generate_method_call_instructions(instrumentation_method_call, lineno),
+            *cls.generate_teardown_instructions(setup_action, lineno),
+        )
 
 
 class ExtractComparisonFunction(Protocol):
@@ -176,21 +246,6 @@ class ExtractComparisonFunction(Protocol):
 
         Returns:
             The comparison extracted from the instruction.
-        """
-
-
-class CreateAddInstructionFunction(Protocol):
-    """Represents a function that creates an add instruction."""
-
-    @abstractmethod
-    def __call__(self, lineno: int | _UNSET | None) -> cf.ArtificialInstr:
-        """Create an add instruction.
-
-        Args:
-            lineno: The line number for the instruction.
-
-        Returns:
-            An artificial instruction representing the add operation.
         """
 
 

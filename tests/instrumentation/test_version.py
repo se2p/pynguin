@@ -18,13 +18,12 @@ from bytecode import Bytecode
 
 from pynguin.instrumentation.version import stack_effect
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationCopy
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
+from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.python3_10 import convert_instrumentation_copy
 from pynguin.instrumentation.version.python3_10 import (
-    convert_instrumentation_method_call,
+    Python310InstrumentationInstructionsGenerator,
 )
 from tests.utils.version import only_3_10
 
@@ -92,17 +91,20 @@ def test_convert_instrumentation_method_call_with_constant():
     mock = MagicMock()
     mock.method = method
 
-    call = InstrumentationMethodCall(
-        mock,
-        method.__name__,
-        (
-            InstrumentationConstantLoad(value=42),
-            InstrumentationConstantLoad(value=True),
-        ),
-    )
-
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-1)] = convert_instrumentation_method_call(call, 1)
+    bytecode[before(-1)] = (
+        Python310InstrumentationInstructionsGenerator.generate_method_call_instructions(
+            InstrumentationMethodCall(
+                mock,
+                method.__name__,
+                (
+                    InstrumentationConstantLoad(value=42),
+                    InstrumentationConstantLoad(value=True),
+                ),
+            ),
+            1,
+        )
+    )
     foo.__code__ = bytecode.to_code()
 
     foo()
@@ -127,19 +129,18 @@ def test_convert_instrumentation_method_call_with_stack_argument():
     mock = MagicMock()
     mock.method = method
 
-    call = InstrumentationMethodCall(
-        mock,
-        method.__name__,
-        (
-            InstrumentationConstantLoad(value=42),
-            InstrumentationStackValue.FIRST,
-        ),
-    )
-
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-1)] = (
-        *convert_instrumentation_copy(InstrumentationCopy.FIRST, 1),
-        *convert_instrumentation_method_call(call, 1),
+    bytecode[before(-1)] = Python310InstrumentationInstructionsGenerator.generate_instructions(
+        InstrumentationSetupAction.COPY_FIRST,
+        InstrumentationMethodCall(
+            mock,
+            method.__name__,
+            (
+                InstrumentationConstantLoad(value=42),
+                InstrumentationStackValue.FIRST,
+            ),
+        ),
+        1,
     )
     foo.__code__ = bytecode.to_code()
 
@@ -169,21 +170,20 @@ def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
     mock = MagicMock()
     mock.method = method
 
-    call = InstrumentationMethodCall(
-        mock,
-        method.__name__,
-        (
-            InstrumentationConstantLoad(value=4),
-            InstrumentationStackValue.FIRST,
-            InstrumentationConstantLoad(value=2),
-            InstrumentationStackValue.SECOND,
-        ),
-    )
-
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-2)] = (
-        *convert_instrumentation_copy(InstrumentationCopy.TWO_FIRST, 1),
-        *convert_instrumentation_method_call(call, 1),
+    bytecode[before(-2)] = Python310InstrumentationInstructionsGenerator.generate_instructions(
+        InstrumentationSetupAction.COPY_FIRST_TWO,
+        InstrumentationMethodCall(
+            mock,
+            method.__name__,
+            (
+                InstrumentationConstantLoad(value=4),
+                InstrumentationStackValue.FIRST,
+                InstrumentationConstantLoad(value=2),
+                InstrumentationStackValue.SECOND,
+            ),
+        ),
+        1,
     )
     foo.__code__ = bytecode.to_code()
 
