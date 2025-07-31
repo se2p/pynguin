@@ -17,6 +17,7 @@ from opcode import opmap
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
+from typing import TypeAlias
 
 
 if TYPE_CHECKING:
@@ -119,7 +120,7 @@ class InstrumentationMethodCall:
     args: tuple[InstrumentationArgument, ...]
 
 
-InstrumentationArgument = (
+InstrumentationArgument: TypeAlias = (
     InstrumentationConstantLoad
     | InstrumentationFastLoad
     | InstrumentationNameLoad

@@ -1666,31 +1666,23 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        method_call = InstrumentationMethodCall(
-            self._dynamic_constant_provider,
-            DynamicConstantProvider.add_value.__name__,
-            (InstrumentationStackValue.FIRST,),
-        )
-
         node.basic_block[before(instr_index)] = (
-            *self.instructions_generator.generate_setup_instructions(
-                InstrumentationSetupAction.COPY_FIRST_TWO,
-                instr.lineno,
-            ),
-            *self.instructions_generator.generate_method_call_instructions(
-                method_call,
-                instr.lineno,
-            ),
-            *self.instructions_generator.generate_teardown_instructions(
+            *self.instructions_generator.generate_instructions(
                 InstrumentationSetupAction.COPY_FIRST,
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
                 instr.lineno,
             ),
-            *self.instructions_generator.generate_method_call_instructions(
-                method_call,
-                instr.lineno,
-            ),
-            *self.instructions_generator.generate_teardown_instructions(
-                InstrumentationSetupAction.COPY_FIRST,
+            *self.instructions_generator.generate_instructions(
+                InstrumentationSetupAction.COPY_SECOND,
+                InstrumentationMethodCall(
+                    self._dynamic_constant_provider,
+                    DynamicConstantProvider.add_value.__name__,
+                    (InstrumentationStackValue.FIRST,),
+                ),
                 instr.lineno,
             ),
         )
