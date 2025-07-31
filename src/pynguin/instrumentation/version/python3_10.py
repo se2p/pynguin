@@ -532,7 +532,10 @@ def stack_effect(  # noqa: D103, C901, PLR0915
                 f"(arg={arg}, jump={jump}, stack_effect={opcode_stack_effect(opcode, arg, jump=jump)})"  # noqa: E501
             )
 
-    assert opcode_stack_effect(opcode, arg, jump=jump) == effect.pushes - effect.pops
+    assert opcode_stack_effect(opcode, arg, jump=jump) == effect.pushes - effect.pops, (
+        f"Expected a stack effect of {opcode_stack_effect(opcode, arg, jump=jump)} for {opname[opcode]} "  # noqa: E501
+        f"but got {effect.pushes - effect.pops}. ({effect.pushes} pushes / {effect.pops} pops)"
+    )
 
     return effect
 
