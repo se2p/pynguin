@@ -143,6 +143,9 @@ class InstrumentationInstructionsGenerator(Protocol):
     ) -> tuple[cf.ArtificialInstr, ...]:
         """Generate setup instructions for instrumentation.
 
+        It is recommended to directly use the `generate_overriding_instructions` or
+        `generate_instructions` methods when possible to avoid mistakes.
+
         Args:
             setup_action: The action to perform in the setup.
             lineno: The line number for the instruction.
@@ -160,6 +163,9 @@ class InstrumentationInstructionsGenerator(Protocol):
     ) -> tuple[cf.ArtificialInstr, ...]:
         """Generate instructions for a method call in instrumentation.
 
+        It is recommended to directly use the `generate_overriding_instructions` or
+        `generate_instructions` methods when possible to avoid mistakes.
+
         Args:
             method_call: The method call to perform.
             lineno: The line number for the instruction.
@@ -176,6 +182,9 @@ class InstrumentationInstructionsGenerator(Protocol):
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         """Generate teardown instructions for instrumentation.
+
+        It is recommended to directly use the `generate_overriding_instructions` or
+        `generate_instructions` methods when possible to avoid mistakes.
 
         Args:
             setup_action: The action that was performed in the setup.
