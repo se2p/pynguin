@@ -6,6 +6,7 @@
 #
 
 import dis
+import sys
 
 from itertools import starmap
 from opcode import HAVE_ARGUMENT
@@ -22,9 +23,21 @@ from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.python3_10 import (
-    Python310InstrumentationInstructionsGenerator,
-)
+
+
+if sys.version_info >= (3, 11):
+    from pynguin.instrumentation.version.python3_11 import (
+        Python311InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
+    )
+elif sys.version_info >= (3, 10):  # noqa: UP036
+    from pynguin.instrumentation.version.python3_10 import (
+        Python310InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
+    )
+else:
+    raise ImportError(
+        "This module requires Python 3.10 or higher. "
+        "Please upgrade your Python version to use this feature."
+    )
 from tests.utils.version import only_3_10
 
 
@@ -74,7 +87,6 @@ def test_async_setup_throws_exception():
         stack_effect(opmap["SETUP_ASYNC_WITH"], 0)
 
 
-@only_3_10
 def test_convert_instrumentation_method_call_with_constant():
     def foo():
         return
@@ -92,18 +104,16 @@ def test_convert_instrumentation_method_call_with_constant():
     mock.method = method
 
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-1)] = (
-        Python310InstrumentationInstructionsGenerator.generate_method_call_instructions(
-            InstrumentationMethodCall(
-                mock,
-                method.__name__,
-                (
-                    InstrumentationConstantLoad(value=42),
-                    InstrumentationConstantLoad(value=True),
-                ),
+    bytecode[before(-1)] = InstrumentationInstructionsGenerator.generate_method_call_instructions(
+        InstrumentationMethodCall(
+            mock,
+            method.__name__,
+            (
+                InstrumentationConstantLoad(value=42),
+                InstrumentationConstantLoad(value=True),
             ),
-            1,
-        )
+        ),
+        1,
     )
     foo.__code__ = bytecode.to_code()
 
@@ -112,7 +122,6 @@ def test_convert_instrumentation_method_call_with_constant():
     assert called
 
 
-@only_3_10
 def test_convert_instrumentation_method_call_with_stack_argument():
     def foo():
         return 24
@@ -130,7 +139,7 @@ def test_convert_instrumentation_method_call_with_stack_argument():
     mock.method = method
 
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-1)] = Python310InstrumentationInstructionsGenerator.generate_instructions(
+    bytecode[before(-1)] = InstrumentationInstructionsGenerator.generate_instructions(
         InstrumentationSetupAction.COPY_FIRST,
         InstrumentationMethodCall(
             mock,
@@ -149,7 +158,6 @@ def test_convert_instrumentation_method_call_with_stack_argument():
     assert called
 
 
-@only_3_10
 def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
     CONSTANT = 3  # noqa: N806
 
@@ -171,7 +179,7 @@ def test_convert_instrumentation_method_call_with_multiple_stack_arguments():
     mock.method = method
 
     bytecode = Bytecode.from_code(foo.__code__)
-    bytecode[before(-2)] = Python310InstrumentationInstructionsGenerator.generate_instructions(
+    bytecode[before(-2)] = InstrumentationInstructionsGenerator.generate_instructions(
         InstrumentationSetupAction.COPY_FIRST_TWO,
         InstrumentationMethodCall(
             mock,

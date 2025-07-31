@@ -170,7 +170,9 @@ MEMORY_USE_OPCODES: tuple[int, ...]
 MEMORY_DEF_OPCODES: tuple[int, ...]
 
 
-if sys.version_info >= (3, 10):  # noqa: UP036
+if sys.version_info >= (3, 11):
+    from .python3_11 import *  # noqa: F403
+elif sys.version_info >= (3, 10):  # noqa: UP036
     from .python3_10 import *  # noqa: F403
 else:
     raise ImportError(
