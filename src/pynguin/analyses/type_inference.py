@@ -7,6 +7,7 @@
 """Implements type inference strategies."""
 
 from abc import ABC, abstractmethod
+import asyncio
 from collections import OrderedDict
 from datetime import date
 import inspect
@@ -14,6 +15,8 @@ import json
 import logging
 import os
 import textwrap
+import time
+from typing import Any
 
 from pydantic import SecretStr
 
@@ -81,8 +84,11 @@ class InferenceStrategy(ABC):
 class LLMInference(InferenceStrategy):
     """LLM based type inference strategy for a testcluster."""
 
-    def __init__(self, test_cluster: TestCluster, provider: LLMProvider) -> None:
+    def __init__(
+        self, test_cluster: TestCluster, provider: LLMProvider, max_parallel_calls: int = 20
+    ) -> None:
         """Initialise the strategy with a reference to the test cluster and an LLM."""
+        self._max_parallel_calls = max_parallel_calls
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
@@ -94,11 +100,11 @@ class LLMInference(InferenceStrategy):
 
     def infer_types(self) -> None:
         """Enriches the testcluster with type information using an LLM."""
+        start = time.time()
         prompts = self._build_prompt_map()
-        inferences: OrderedDict[GenericCallableAccessibleObject, dict[str, str]] = OrderedDict()
-        for call in prompts:
-            res = self._send_prompt(prompts[call])
-            inferences[call] = json.JSONDecoder().decode(res)
+        inferences = self._send_prompts(prompts)
+        bench = time.time() - start
+        _LOGGER.debug("in time: %s", bench)
         _LOGGER.debug("inferred: %s", inferences)
 
     def _get_src_code(self, accessible: GenericCallableAccessibleObject) -> str:
@@ -139,7 +145,7 @@ class LLMInference(InferenceStrategy):
         return res
 
     def _build_prompt_map(self) -> OrderedDict[GenericCallableAccessibleObject, str]:
-        """Return an *OrderedDict* {callable ➔ prompt} for the whole cluster."""
+        """Return an *OrderedDict* {callable -> prompt} for the whole cluster."""
         prompts: OrderedDict[GenericCallableAccessibleObject, str] = OrderedDict()
         for callable_obj in self._test_cluster.function_data_for_accessibles:
             try:
@@ -151,3 +157,53 @@ class LLMInference(InferenceStrategy):
                 continue
             prompts[callable_obj] = prompt
         return prompts
+
+    def _send_prompts(
+        self,
+        prompts: dict[GenericCallableAccessibleObject, str],
+    ) -> dict[GenericCallableAccessibleObject, str]:
+        """Return {callable -> raw LLM response}, sending prompts in parallel."""
+        coro = self._gather_prompts_async(prompts)
+        return self._run_coro(coro)
+
+    async def _gather_prompts_async(
+        self,
+        prompts: dict[GenericCallableAccessibleObject, str],
+    ) -> dict[GenericCallableAccessibleObject, str]:
+        sem = asyncio.Semaphore(self._max_parallel_calls)
+        tasks = [
+            asyncio.create_task(self._prompt_worker(acc, prompt, sem))
+            for acc, prompt in prompts.items()
+        ]
+
+        results: dict[GenericCallableAccessibleObject, str] = OrderedDict()
+        for task in asyncio.as_completed(tasks):
+            try:
+                acc, resp = await task
+                results[acc] = resp
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.exception("Prompt for %s failed: %s", acc, exc)
+
+        # Preserve the original order for deterministic downstream handling
+        return OrderedDict((acc, results.get(acc, "")) for acc in prompts)
+
+    async def _prompt_worker(
+        self,
+        acc: GenericCallableAccessibleObject,
+        prompt: str,
+        sem: asyncio.Semaphore,
+    ) -> tuple[GenericCallableAccessibleObject, str]:
+        async with sem:
+            loop = asyncio.get_running_loop()
+            resp = await loop.run_in_executor(None, self._send_prompt, prompt)
+            return acc, resp
+
+    @staticmethod
+    def _run_coro(coro: asyncio.coroutines.coroutine) -> Any:
+        """Run *coro* no matter if an event loop is already running."""
+        try:
+            return asyncio.run(coro)
+        except RuntimeError:
+            loop = asyncio.get_running_loop()
+            _LOGGER.debug("Using existing event loop (%s) for parallel LLM calls", loop)
+            return loop.run_until_complete(coro)
