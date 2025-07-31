@@ -236,7 +236,7 @@ COND_BRANCH_OPCODES = FOR_ITER_OPCODES + to_opcodes(
     "JUMP_IF_NOT_EXC_MATCH",
 )
 
-OP_JUMPS = COND_BRANCH_OPCODES + to_opcodes(
+JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
     "JUMP_ABSOLUTE",
     "JUMP_FORWARD",
     "SETUP_FINALLY",
@@ -261,7 +261,7 @@ TRACED_OPCODES = (
     + ATTRIBUTES_OPCODES
     + ACCESS_SUBSCR_OPCODES
     + IMPORT_NAME_OPCODES
-    + OP_JUMPS
+    + JUMP_OPCODES
     + CALL_OPCODES
     + RETURNING_OPCODES
 )
@@ -1599,7 +1599,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         IMPORT_NAME_OPCODES: visit_import_name_access,
         ACCESS_GLOBAL_OPCODES: visit_global_access,
         ACCESS_DEREF_OPCODES: visit_deref_access,
-        OP_JUMPS: visit_jump,
+        JUMP_OPCODES: visit_jump,
         CALL_OPCODES: visit_call,
         RETURNING_OPCODES: visit_return,
     }
