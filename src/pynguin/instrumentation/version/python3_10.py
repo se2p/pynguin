@@ -528,13 +528,14 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             effect = StackEffect(3, 1) if arg == 3 else StackEffect(2, 1)
         case _:
             raise AssertionError(
-                f"The opcode {opcode} ({opname[opcode]}) isn't recognized. "
-                f"(arg={arg}, jump={jump}, stack_effect={opcode_stack_effect(opcode, arg, jump=jump)})"  # noqa: E501
+                f"The opcode {opcode} (name={opname[opcode]}, arg={arg}, jump={jump}, "
+                f"stack_effect={opcode_stack_effect(opcode, arg, jump=jump)}) isn't recognized."
             )
 
     assert opcode_stack_effect(opcode, arg, jump=jump) == effect.pushes - effect.pops, (
-        f"Expected a stack effect of {opcode_stack_effect(opcode, arg, jump=jump)} for {opname[opcode]} "  # noqa: E501
-        f"but got {effect.pushes - effect.pops}. ({effect.pushes} pushes / {effect.pops} pops)"
+        f"Expected a stack effect of {opcode_stack_effect(opcode, arg, jump=jump)} for "
+        f"{opname[opcode]} (arg={arg}, jump={jump}) but got {effect.pushes - effect.pops}. "
+        f"({effect.pushes} pushes / {effect.pops} pops)"
     )
 
     return effect
