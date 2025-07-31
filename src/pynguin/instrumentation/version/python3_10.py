@@ -527,7 +527,10 @@ def stack_effect(  # noqa: D103, C901, PLR0915
         case "BUILD_SLICE":
             effect = StackEffect(3, 1) if arg == 3 else StackEffect(2, 1)
         case _:
-            raise AssertionError(f"The opcode {opcode} ({opname[opcode]}) isn't recognized.")
+            raise AssertionError(
+                f"The opcode {opcode} ({opname[opcode]}) isn't recognized. "
+                f"(arg={arg}, jump={jump}, stack_effect={opcode_stack_effect(opcode, arg, jump=jump)})"  # noqa: E501
+            )
 
     assert opcode_stack_effect(opcode, arg, jump=jump) == effect.pushes - effect.pops
 
