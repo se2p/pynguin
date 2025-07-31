@@ -160,6 +160,9 @@ class TypeInferenceStrategy(str, enum.Enum):
     TYPE_HINTS = "TYPE_HINTS"
     """Use type information from type hints in the module under test."""
 
+    LLM = "LLM"
+    """Use an LLM to infer types for the module under test."""
+
 
 class StatisticsBackend(str, enum.Enum):
     """The different available statistics backends to write statistics."""
@@ -431,7 +434,7 @@ class RandomConfiguration:
 class TypeInferenceConfiguration:
     """Configuration related to type inference."""
 
-    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
+    type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.LLM
     """The strategy for type-inference that shall be used"""
 
     type_tracing: bool | float = 0.0

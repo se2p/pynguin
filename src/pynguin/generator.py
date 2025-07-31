@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+from pynguin.analyses.type_inference import LLMInference
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -159,6 +160,10 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
+    if config.configuration.type_inference.type_inference_strategy == "LLM":
+        _LOGGER.debug("start LLM type inference")
+        inference = LLMInference(test_cluster, LLMProvider.OPENAI)
+        inference.infer_types()
     return test_cluster
 
 

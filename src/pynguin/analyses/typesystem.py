@@ -1470,6 +1470,8 @@ class TypeSystem:  # noqa: PLR0904
         match type_inference_strategy:
             case config.TypeInferenceStrategy.TYPE_HINTS:
                 return self.infer_signature(method, self.type_hints_provider)
+            case config.TypeInferenceStrategy.LLM:
+                return self.infer_signature(method, self.type_hints_provider)
             case config.TypeInferenceStrategy.NONE:
                 return self.infer_signature(method, self.no_type_hints_provider)
             case _:
