@@ -7,17 +7,22 @@
 """Implements type inference strategies."""
 
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from datetime import date
 import inspect
+import json
 import logging
+import os
 import textwrap
+
+from pydantic import SecretStr
 
 from pynguin.analyses.module import CallableData, TestCluster
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.llm import LLM, LLMProvider
+from pynguin.utils.llm import LLM, LLMProvider, OpenAI
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +51,7 @@ _SYS_GUIDELINES = textwrap.dedent(
 _USER_PROMPT_TEMPLATE = textwrap.dedent(
     """
     {_ROLE_USER}
-    # Module: {module}
+    # Module and Class: {module}
 
     ```python
     {src}
@@ -55,6 +60,10 @@ _USER_PROMPT_TEMPLATE = textwrap.dedent(
     Infer the parameter and return types now.
     """
 ).lstrip()
+
+OPENAI_API_KEY = SecretStr(os.environ.get("OPENAI_API_KEY", ""))
+TEMPERATURE = 0.2
+MODEL = "gpt-4.1-nano-2025-04-14"
 
 
 class InferenceStrategy(ABC):
@@ -74,20 +83,23 @@ class LLMInference(InferenceStrategy):
 
     def __init__(self, test_cluster: TestCluster, provider: LLMProvider) -> None:
         """Initialise the strategy with a reference to the test cluster and an LLM."""
-        self._model = LLM.create(provider)
+        match provider:
+            case LLMProvider.OPENAI:
+                self._model = OpenAI(
+                    OPENAI_API_KEY, TEMPERATURE, self._build_system_prompt(), MODEL
+                )
+            case _:
+                raise NotImplementedError(f"Unknown provider {provider}")
         super().__init__(test_cluster)
 
     def infer_types(self) -> None:
         """Enriches the testcluster with type information using an LLM."""
-        callables = self._test_cluster.function_data_for_accessibles
-        _LOGGER.debug("started type inference with %s", callables)
-        for callable_obj in callables:
-            src_code = self._get_src_code(callable_obj)
-            _LOGGER.debug("extracted %s", src_code)
-            src_class_module = self._get_src_class_module(callable_obj)
-            _LOGGER.debug("in class: %s", src_class_module)
-            prompt = self._build_prompt(src_code, src_class_module)
-            _LOGGER.debug("built prompt: %s", prompt)
+        prompts = self._build_prompt_map()
+        inferences: OrderedDict[GenericCallableAccessibleObject, dict[str, str]] = OrderedDict()
+        for call in prompts:
+            res = self._send_prompt(prompts[call])
+            inferences[call] = json.JSONDecoder().decode(res)
+        _LOGGER.debug("inferred: %s", inferences)
 
     def _get_src_code(self, accessible: GenericCallableAccessibleObject) -> str:
         call = accessible.callable
@@ -120,3 +132,22 @@ class LLMInference(InferenceStrategy):
         system_prompt = self._build_system_prompt()
         user_prompt = self._build_user_prompt(src_code, class_module_name)
         return f"{system_prompt}\n{user_prompt}"
+
+    def _send_prompt(self, prompt: str) -> str:
+        res = self._model.chat(prompt)
+        _LOGGER.debug("LLM responded with: %s", res)
+        return res
+
+    def _build_prompt_map(self) -> OrderedDict[GenericCallableAccessibleObject, str]:
+        """Return an *OrderedDict* {callable ➔ prompt} for the whole cluster."""
+        prompts: OrderedDict[GenericCallableAccessibleObject, str] = OrderedDict()
+        for callable_obj in self._test_cluster.function_data_for_accessibles:
+            try:
+                src_code = self._get_src_code(callable_obj)
+                src_module = self._get_src_class_module(callable_obj)
+                prompt = self._build_prompt(src_code, src_module)
+            except Exception as exc:
+                _LOGGER.warning("Skipping %s - unable to build prompt: %s", callable_obj, exc)
+                continue
+            prompts[callable_obj] = prompt
+        return prompts
