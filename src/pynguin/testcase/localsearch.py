@@ -18,6 +18,7 @@ import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
@@ -29,6 +30,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     from pynguin.ga.chromosome import Chromosome
+    from pynguin.testcase.execution import TestCaseExecutor
     from pynguin.testcase.testfactory import TestFactory
 
 
@@ -42,6 +44,8 @@ class LocalSearch(ABC):
         self,
         chromosome: Chromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome,
         objective: LocalSearchObjective | None,
     ) -> None:
         """Executes local search on the chromosome."""
@@ -54,6 +58,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         self,
         chromosome: TestCaseChromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome,
         objective: LocalSearchObjective | None,
     ) -> None:
         assert objective is not None
@@ -76,7 +82,8 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                     lambda pos=i: self._search_other_datatype(chromosome, factory, objective, pos)
                 )
             if config.LocalSearchConfiguration.local_search_llm:
-                methods.append(lambda pos=i: self._search_llm(chromosome, factory, objective, pos))
+                methods.append(lambda pos=i: self._search_llm(chromosome, factory, objective,
+                                                              pos, suite, executor))
             if methods:
                 randomness.choice(methods)()
             else:
@@ -148,9 +155,11 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         factory: TestFactory,
         objective: LocalSearchObjective,
         position,
+        suite: TestSuiteChromosome,
+        executor: TestCaseExecutor
     ):
-        # TODO: Implement me!
-        pass
+        llm_local_search = LLMLocalSearch(chromosome, objective, factory, suite, executor)
+        llm_local_search.llm_local_search(position)
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):
@@ -160,6 +169,8 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
         self,
         chromosome: Chromosome,
         factory: TestFactory,
+        executor: TestCaseExecutor,
+        suite: TestSuiteChromosome | None = None,
         objective: LocalSearchObjective | None = None,
     ) -> None:
         assert isinstance(chromosome, TestSuiteChromosome)
@@ -177,7 +188,11 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
             # if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability: TODO: temporarily disabled for debugging purpose
             test_case_local_search = TestCaseLocalSearch()
             test_case_local_search.local_search(
-                chromosome.get_test_case_chromosome(i), factory, objective
+                chromosome.get_test_case_chromosome(i),
+                factory,
+                executor,
+                chromosome,
+                objective,
             )
 
     def double_branch_coverage(
@@ -203,9 +218,7 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
             for (
                 key,
                 value,
-            ) in (
-                test_case.get_last_execution_result().execution_trace.executed_predicates.items()  # type: ignore[union-attr]
-            ):
+            ) in test_case.get_last_execution_result().execution_trace.executed_predicates.items():
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case
 

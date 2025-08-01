@@ -236,5 +236,11 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of mutations made with local search of all statements mutated.
     LocalSearchTotalMutations = "LocalSearchTotalMutations"
 
+    # Total number of LLM local search calls
+    TotalLocalSearchLLMCalls = "TotalLocalSearchLLMCalls"
+
+    # Total number of LLM local search calls which were successful
+    TotalLocalSearchLLMSuccessCalls = "TotalLocalSearchLLMSuccessCalls"
+
     def __repr__(self):
         return f"{self.name}"

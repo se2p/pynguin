@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pynguin.testcase.testcase as tc
 
+from pynguin.large_language_model.parsing.helpers import add_line_numbers
 from pynguin.large_language_model.parsing.helpers import has_bound_variables
 from pynguin.large_language_model.parsing.helpers import has_call
 from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
@@ -342,3 +343,12 @@ def test_unparse_test_case_exception():
 
     # Verify the result is None
     assert result is None
+
+
+def test_add_line_numbers():
+    code_as_string: str = "def test_function(x): \n if x > 0: \n  return x \n else: \n  return -x"
+    result = add_line_numbers(code_as_string)
+    expected = (
+        "1: def test_function(x): \n2:  if x > 0: \n3:   return x \n4:  else: \n5:   return -x"
+    )
+    assert result == expected
