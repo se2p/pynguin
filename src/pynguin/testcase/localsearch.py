@@ -115,7 +115,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         position,
     ) -> None:
         statement = chromosome.test_case.statements[position]
-        self._logger.debug("Local search on other datatype for statement %s", statement)
+        self._logger.debug("Local search on other datatype for statement %s", statement.__class__)
         old_statement = statement.clone(chromosome.test_case, Mirror())
         last_execution_result = chromosome.get_last_execution_result()
 

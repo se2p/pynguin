@@ -31,6 +31,8 @@ from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import NoneStatement
+from pynguin.testcase.statement import UIntPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -896,7 +898,7 @@ class TestFactory:  # noqa: PLR0904
             (self._insert_random_collection_statement(test_case, temp_pos),)
         else:
             (self.insert_random_call(test_case, temp_pos),)
-        replacement = test_case.get_statement(position)
+        replacement = test_case.get_statement(temp_pos)
         if not isinstance(replacement, VariableCreatingStatement):
             return False
         replacement.ret_val = statement.ret_val
@@ -907,11 +909,50 @@ class TestFactory:  # noqa: PLR0904
         )
         return True
 
-    def _insert_random_primitive_statement(self, test_case: tc.TestCase, position: int) -> None:
-        pass
+    @staticmethod
+    def _insert_random_primitive_statement(test_case: tc.TestCase, position: int) -> None:
+        """Insert a random primitive statement at the given position.
 
-    def _insert_random_collection_statement(self, test_case: tc.TestCase, position: int) -> None:
-        pass
+        Enums are not included in the selection.
+
+        Args:
+            test_case: The test case to insert the statement into
+            position: The position where to insert the statement
+        """
+        subclasses = (
+            stmt.IntPrimitiveStatement,
+            stmt.FloatPrimitiveStatement,
+            stmt.ComplexPrimitiveStatement,
+            stmt.BooleanPrimitiveStatement,
+            stmt.StringPrimitiveStatement,
+            stmt.BytesPrimitiveStatement,
+            stmt.ClassPrimitiveStatement,
+            NoneStatement,
+            UIntPrimitiveStatement,
+        )
+        selected_class = randomness.choice(subclasses)
+        instance = selected_class(test_case=test_case)  # type: ignore[call-arg]
+        test_case.add_statement(instance, position)
+
+    @staticmethod
+    def _insert_random_collection_statement(test_case: tc.TestCase, position: int) -> None:
+        """Insert a random collection statement at the given position.
+
+        The new collection statement contains no elements.
+
+        Args:
+            test_case: The test case to insert the statement into
+            position: The position where to insert the statement
+        """
+        subclasses = (
+            stmt.DictStatement,
+            stmt.ListStatement,
+            stmt.SetStatement,
+            stmt.TupleStatement,
+        )
+        selected_class = randomness.choice(subclasses)
+        instance = selected_class(test_case=test_case, type_=Any, elements=[])
+        test_case.add_statement(instance, position)
 
     @staticmethod
     def _get_reuse_parameters(
