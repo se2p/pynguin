@@ -8,6 +8,7 @@ import contextlib
 import importlib
 import os
 import string
+import sys
 
 from opcode import opmap
 from unittest import mock
@@ -31,7 +32,6 @@ from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
 from pynguin.utils.orderedset import OrderedSet
-from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -61,7 +61,6 @@ def subject_properties_mock() -> MagicMock:
     return subject_properties
 
 
-@only_3_10
 def test_entered_function(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -73,7 +72,6 @@ def test_entered_function(simple_module, subject_properties_mock: MagicMock):
     subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_called_once()
 
 
-@only_3_10
 def test_entered_for_loop_no_jump(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -86,7 +84,6 @@ def test_entered_for_loop_no_jump(simple_module, subject_properties_mock: MagicM
     )
 
 
-@only_3_10
 def test_entered_for_loop_no_jump_not_entered(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -99,7 +96,6 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, subject_properties_
     )
 
 
-@only_3_10
 def test_entered_for_loop_full_loop(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -120,7 +116,6 @@ def test_entered_for_loop_full_loop(simple_module, subject_properties_mock: Magi
     )
 
 
-@only_3_10
 def test_entered_for_loop_full_loop_not_entered(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -135,7 +130,6 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, subject_propertie
     )
 
 
-@only_3_10
 def test_add_bool_predicate(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -147,7 +141,6 @@ def test_add_bool_predicate(simple_module, subject_properties_mock: MagicMock):
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_once()
 
 
-@only_3_10
 def test_add_cmp_predicate(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -159,7 +152,6 @@ def test_add_cmp_predicate(simple_module, subject_properties_mock: MagicMock):
     subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
 
 
-@only_3_10
 def test_transform_for_loop_multi(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -188,7 +180,6 @@ def test_transform_for_loop_multi(simple_module, subject_properties_mock: MagicM
     )
 
 
-@only_3_10
 def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -215,7 +206,6 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_
     )
 
 
-@only_3_10
 def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -232,7 +222,6 @@ def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicM
     )
 
 
-@only_3_10
 def test_conditional_assignment(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -248,7 +237,6 @@ def test_conditional_assignment(simple_module, subject_properties_mock: MagicMoc
     ])
 
 
-@only_3_10
 def test_conditionally_nested_class(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
@@ -265,7 +253,6 @@ def test_conditionally_nested_class(simple_module, subject_properties_mock: Magi
     subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
 
 
-@only_3_10
 def test_avoid_duplicate_instrumentation(simple_module, subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
@@ -274,7 +261,6 @@ def test_avoid_duplicate_instrumentation(simple_module, subject_properties: Subj
         transformer.instrument_module(already_instrumented)
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "function_name, branchless_function_count, branches_count",
     [
@@ -305,7 +291,6 @@ def test_integrate_branch_distance_instrumentation(
     assert len(list(subject_properties.existing_predicates)) == branches_count
 
 
-@only_3_10
 def test_integrate_line_coverage_instrumentation(
     simple_module, subject_properties: SubjectProperties
 ):
@@ -327,7 +312,6 @@ def test_integrate_line_coverage_instrumentation(
     } == subject_properties.existing_lines.keys()
 
 
-@only_3_10
 def test_offset_calculation_checked_coverage_instrumentation(
     simple_module, subject_properties: SubjectProperties
 ):
@@ -343,39 +327,74 @@ def test_offset_calculation_checked_coverage_instrumentation(
     24     >>    8 LOAD_CONST               2 (0)
                 10 RETURN_VALUE
     """
-    expected_executed_instructions = OrderedSet([
-        ExecutedMemoryInstruction(
-            file=simple_module.__file__,
-            code_object_id=0,
-            node_id=0,
-            opcode=opmap["LOAD_FAST"],
-            argument="a",
-            lineno=21,
-            offset=0,
-            arg_address=0,
-            is_mutable_type=True,
-            object_creation=True,
-        ),
-        ExecutedControlInstruction(
-            file=simple_module.__file__,
-            code_object_id=0,
-            node_id=0,
-            opcode=opmap["POP_JUMP_IF_FALSE"],
-            argument="a",
-            lineno=21,
-            offset=2,
-        ),
-        # the LOAD_CONST instruction is not traced by the slicer
-        ExecutedReturnInstruction(
-            file=simple_module.__file__,
-            code_object_id=0,
-            node_id=2,
-            opcode=opmap["RETURN_VALUE"],
-            argument=None,
-            lineno=24,
-            offset=10,
-        ),
-    ])
+    if sys.version_info >= (3, 11):
+        expected_executed_instructions = OrderedSet([
+            ExecutedMemoryInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["LOAD_FAST"],
+                argument="a",
+                lineno=21,
+                offset=2,
+                arg_address=94271749559808,
+                is_mutable_type=True,
+                object_creation=True,
+            ),
+            ExecutedControlInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["POP_JUMP_FORWARD_IF_FALSE"],
+                argument="a",
+                lineno=21,
+                offset=4,
+            ),
+            # the LOAD_CONST instruction is not traced by the slicer
+            ExecutedReturnInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=2,
+                opcode=opmap["RETURN_VALUE"],
+                argument=None,
+                lineno=24,
+                offset=12,
+            ),
+        ])
+    else:
+        expected_executed_instructions = OrderedSet([
+            ExecutedMemoryInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["LOAD_FAST"],
+                argument="a",
+                lineno=21,
+                offset=0,
+                arg_address=0,
+                is_mutable_type=True,
+                object_creation=True,
+            ),
+            ExecutedControlInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["POP_JUMP_IF_FALSE"],
+                argument="a",
+                lineno=21,
+                offset=2,
+            ),
+            # the LOAD_CONST instruction is not traced by the slicer
+            ExecutedReturnInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=2,
+                opcode=opmap["RETURN_VALUE"],
+                argument=None,
+                lineno=24,
+                offset=10,
+            ),
+        ])
 
     function_callable = simple_module.bool_predicate
     adapter = CheckedCoverageInstrumentation(subject_properties)
@@ -403,7 +422,6 @@ def test_offset_calculation_checked_coverage_instrumentation(
         assert expected_instr.offset == actual_instr.offset
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "op",
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
@@ -423,11 +441,12 @@ def test_comparison(comparison_module, op, subject_properties: SubjectProperties
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
-@only_3_10
 def test_exception(subject_properties: SubjectProperties):
+    value_error = ValueError("Test exception")
+
     def func():
         try:
-            raise ValueError
+            raise value_error
         except ValueError:
             pass
 
@@ -441,16 +460,20 @@ def test_exception(subject_properties: SubjectProperties):
         subject_properties.instrumentation_tracer,
     ):
         func()
-        trace_mock.assert_called_with(ValueError, ValueError, 0)
+        if sys.version_info >= (3, 11):
+            trace_mock.assert_called_with(value_error, ValueError, 0)
+        else:
+            trace_mock.assert_called_with(type(value_error), ValueError, 0)
 
 
-@only_3_10
 def test_exception_no_match():
     subject_properties = SubjectProperties()
 
+    runtime_error = RuntimeError("Test exception")
+
     def func():
         try:
-            raise RuntimeError
+            raise runtime_error
         except ValueError:
             pass  # pragma: no cover
 
@@ -465,10 +488,13 @@ def test_exception_no_match():
     ):
         with pytest.raises(RuntimeError):
             func()
-        trace_mock.assert_called_with(RuntimeError, ValueError, 0)
+
+        if sys.version_info >= (3, 11):
+            trace_mock.assert_called_with(runtime_error, ValueError, 0)
+        else:
+            trace_mock.assert_called_with(type(runtime_error), ValueError, 0)
 
 
-@only_3_10
 def test_exception_integrate(subject_properties: SubjectProperties):
     def func():
         try:
@@ -490,7 +516,6 @@ def test_exception_integrate(subject_properties: SubjectProperties):
     assert trace.false_distances == {0: 1.0}
 
 
-@only_3_10
 def test_multiple_instrumentations_share_code_object_ids(
     simple_module, subject_properties: SubjectProperties
 ):
@@ -512,7 +537,6 @@ def test_multiple_instrumentations_share_code_object_ids(
     )
 
 
-@only_3_10
 def test_exception_no_match_integrate(subject_properties: SubjectProperties):
     def func():
         try:
@@ -534,7 +558,6 @@ def test_exception_no_match_integrate(subject_properties: SubjectProperties):
     assert trace.false_distances == {0: 0.0}
 
 
-@only_3_10
 def test_jump_if_true_or_pop(subject_properties: SubjectProperties):
     def func(string, _int_type=int):
         return (hasattr(string, "is_integer") or hasattr(string, "__array__")) or (
@@ -555,7 +578,6 @@ def test_jump_if_true_or_pop(subject_properties: SubjectProperties):
     assert trace.false_distances == {0: 0.0, 1: 0.0}
 
 
-@only_3_10
 def test_tracking_covered_statements_explicit_return(
     simple_module, subject_properties: SubjectProperties
 ):
@@ -577,7 +599,6 @@ def test_tracking_covered_statements_explicit_return(
     ])
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "value1, value2, expected_lines",
     [
@@ -602,7 +623,6 @@ def test_tracking_covered_statements_cmp_predicate(
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "value, expected_lines",
     [
@@ -627,7 +647,6 @@ def test_tracking_covered_statements_bool_predicate(
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
@@ -652,7 +671,6 @@ def test_tracking_covered_statements_for_loop(
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "number, expected_lines",
     [
@@ -677,7 +695,6 @@ def test_tracking_covered_statements_while_loop(
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "func,arg,expected_lines",
     [
@@ -735,7 +752,6 @@ def dummy_module():
     return importlib.reload(dummy_module)
 
 
-@only_3_10
 def test_compare_op_int(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -747,7 +763,6 @@ def test_compare_op_int(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(int) == OrderedSet([11, 10])
 
 
-@only_3_10
 def test_compare_op_float(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -759,7 +774,6 @@ def test_compare_op_float(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(float) == OrderedSet([2.5, 1.0])
 
 
-@only_3_10
 def test_compare_op_string(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -771,7 +785,6 @@ def test_compare_op_string(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(str) == OrderedSet(["def", "abc"])
 
 
-@only_3_10
 def test_compare_op_other_type(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
     dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
@@ -786,7 +799,6 @@ def test_compare_op_other_type(dynamic_instr, dummy_module):
     assert dynamic.get_all_constants_for(str) == OrderedSet(["def"])
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "func_name,inp,tracked,result",
     [
@@ -836,7 +848,6 @@ def test_string_functions(dynamic_instr, func_name, inp, tracked, result):
     assert dynamic.get_all_constants_for(str) == OrderedSet([inp, tracked])
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "func_name,inp1,inp2,tracked,result",
     [

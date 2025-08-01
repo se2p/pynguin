@@ -30,6 +30,41 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.transformer import LineCoverageInstrumentationAdapter
 
 
+__all__ = [
+    "ACCESS_OPCODES",
+    "CALL_OPCODES",
+    "CLOSURE_LOAD_OPCODES",
+    "COND_BRANCH_OPCODES",
+    "EXTENDED_ARG_OPCODES",
+    "IMPORT_FROM_OPCODES",
+    "IMPORT_NAME_OPCODES",
+    "LOAD_DEREF_OPCODES",
+    "LOAD_FAST_OPCODES",
+    "LOAD_GLOBAL_OPCODES",
+    "LOAD_NAME_OPCODES",
+    "MEMORY_DEF_OPCODES",
+    "MEMORY_USE_OPCODES",
+    "MODIFY_DEREF_OPCODES",
+    "MODIFY_FAST_OPCODES",
+    "MODIFY_GLOBAL_OPCODES",
+    "MODIFY_NAME_OPCODES",
+    "RETURNING_OPCODES",
+    "STORE_NAME_OPCODES",
+    "STORE_OPCODES",
+    "TRACED_OPCODES",
+    "YIELDING_OPCODES",
+    "BranchCoverageInstrumentation",
+    "CheckedCoverageInstrumentation",
+    "DynamicSeedingInstrumentation",
+    "LineCoverageInstrumentation",
+    "add_for_loop_no_yield_nodes",
+    "end_with_explicit_return_none",
+    "get_branch_type",
+    "is_conditional_jump",
+    "stack_effect",
+]
+
+
 class StackEffectFunction(Protocol):
     """A function that calculates the stack effect of an opcode."""
 
@@ -47,6 +82,21 @@ class StackEffectFunction(Protocol):
 
         Returns:
             A tuple containing the number of pops and pushes as integer.
+        """
+
+
+class IsConditionalJumpFunction(Protocol):
+    """A function that checks if an opcode is a conditional jump."""
+
+    @abstractmethod
+    def __call__(self, instruction: Instr) -> bool:
+        """Check if the instruction is a conditional jump.
+
+        Args:
+            instruction: The instruction to check.
+
+        Returns:
+            True if the instruction is a conditional jump, False otherwise.
         """
 
 
@@ -130,6 +180,7 @@ class EndWithExplicitReturnNoneFunction(Protocol):
 
 
 stack_effect: StackEffectFunction
+is_conditional_jump: IsConditionalJumpFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction
 end_with_explicit_return_none: EndWithExplicitReturnNoneFunction
@@ -158,9 +209,9 @@ IMPORT_NAME_OPCODES: tuple[int, ...]
 IMPORT_FROM_OPCODES: tuple[int, ...]
 
 EXTENDED_ARG_OPCODES: tuple[int, ...]
+CALL_OPCODES: tuple[int, ...]
 YIELDING_OPCODES: tuple[int, ...]
 RETURNING_OPCODES: tuple[int, ...]
-FOR_ITER_OPCODES: tuple[int, ...]
 COND_BRANCH_OPCODES: tuple[int, ...]
 
 STORE_OPCODES: tuple[int, ...]

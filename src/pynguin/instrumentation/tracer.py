@@ -698,7 +698,12 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def executed_exception_match(self, err, exc, predicate: int):
+    def executed_exception_match(
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         """A predicate that is based on exception matching was executed.
 
         Args:
@@ -1289,7 +1294,12 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.enable()
 
     @_early_return
-    def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
+    def executed_exception_match(  # noqa: D102
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         try:
             self.disable()
             distance_true = 0.0
@@ -1297,6 +1307,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             # Might be necessary when using Proxies.
             err = tt.unwrap(err)
             exc = tt.unwrap(exc)
+
+            if isinstance(err, BaseException):
+                err = type(err)
+
             if given_exception_matches(err, exc):
                 distance_false = 1.0
             else:
@@ -1650,7 +1664,12 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
         self._tracer.executed_bool_predicate(value, predicate)
 
-    def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
+    def executed_exception_match(  # noqa: D102
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         self._tracer.executed_exception_match(err, exc, predicate)
 
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102

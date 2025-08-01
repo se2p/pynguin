@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import queue
 
+from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
@@ -20,12 +21,14 @@ from typing import TypeVar
 
 import networkx as nx
 
-from bytecode import Bytecode
-from bytecode import Compare
-from bytecode import ControlFlowGraph
-from bytecode import Instr
 from bytecode.cfg import BasicBlock
+from bytecode.cfg import ControlFlowGraph
 from bytecode.instr import UNSET
+from bytecode.instr import Compare
+from bytecode.instr import Instr
+from bytecode.instr import SetLineno
+from bytecode.instr import TryBegin
+from bytecode.instr import TryEnd
 
 from pynguin.instrumentation import version
 from pynguin.utils.orderedset import OrderedSet
@@ -35,11 +38,15 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from collections.abc import Iterable
 
+    from bytecode import Bytecode
+
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 # The increment of the instruction offset for each instruction.
 INSTRUCTION_OFFSET_INCREMENT = 2
+
+TRY_BEGIN_POSITION = -1
 
 
 class ArtificialInstr(Instr):
@@ -123,8 +130,8 @@ class BasicBlockNode:
             The instructions of the basic block
         """
         for instr in self._basic_block:
-            assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
-            yield instr
+            if isinstance(instr, Instr):
+                yield instr
 
     def get_instruction(self, index: int) -> Instr:
         """Get the instruction at the given index.
@@ -135,9 +142,7 @@ class BasicBlockNode:
         Returns:
             The instruction at the given index
         """
-        instr = self._basic_block[index]
-        assert isinstance(instr, Instr), "Instruction must be an instance of Instr."
-        return instr
+        return tuple(instr for instr in self.instructions)[index]
 
     def try_get_instruction(self, index: int) -> Instr | None:
         """Try to get the instruction at the given index.
@@ -216,19 +221,29 @@ class BasicBlockNode:
     def __str__(self) -> str:
         instructions = []
         for instr in self._basic_block:
-            arg = instr.arg  # type: ignore[union-attr]
-            if isinstance(arg, BasicBlock):
-                # We cannot determine which BasicBlockNode this is.
-                arg = "BasicBlockNode"
-            elif isinstance(arg, Compare):
-                arg = arg.name
-            elif arg is UNSET:
-                arg = ""
+            if isinstance(instr, Instr):
+                arg = instr.arg
+                if isinstance(arg, BasicBlock):
+                    # We cannot determine which BasicBlockNode this is.
+                    arg = "BasicBlockNode"
+                elif isinstance(arg, Compare):
+                    arg = arg.name
+                elif arg is UNSET:
+                    arg = ""
+                else:
+                    arg = repr(arg)
+                formatted = instr.name
+                if arg:
+                    formatted += f" {arg}"
+            elif isinstance(instr, TryBegin):
+                formatted = f"TryBegin {id(instr)}"
+            elif isinstance(instr, TryEnd):
+                formatted = f"TryEnd {id(instr.entry)}"
+            elif isinstance(instr, SetLineno):
+                formatted = f"SetLineno({instr.lineno})"
             else:
-                arg = repr(arg)
-            formatted = instr.name  # type: ignore[union-attr]
-            if arg:
-                formatted += f" {arg}"
+                raise AssertionError(f"Unknown instruction type {type(instr)}.")
+
             instructions.append(formatted)
 
         return f"BasicBlockNode({self._index})\n" + "\n".join(instructions)
@@ -523,6 +538,9 @@ class CFG(ProgramGraph):
         blocks = ControlFlowGraph.from_bytecode(version.add_for_loop_no_yield_nodes(bytecode))
         cfg = CFG(blocks)
 
+        # Split try begin blocks to ensure that all jumps are at the end of each block
+        CFG._split_try_begin_blocks(blocks)
+
         # Create the nodes and a mapping of all edges to generate
         edges, nodes = CFG._create_nodes_and_edges(blocks)
 
@@ -599,11 +617,23 @@ class CFG(ProgramGraph):
         return CFG.copy_graph(self)
 
     @staticmethod
+    def _split_try_begin_blocks(blocks: ControlFlowGraph) -> None:
+        for block in blocks:
+            for i, instr in enumerate(block):
+                if isinstance(instr, TryBegin):
+                    # We need to handle the next block manually here because there is a
+                    # bug in the bytecode library that does not set the next block correctly
+                    # after splitting a block.
+                    next_block = block.next_block
+                    new_block = blocks.split_block(block, i + 1)
+                    new_block.next_block = next_block
+
+    @staticmethod
     def _create_nodes_and_edges(
         blocks: ControlFlowGraph,
     ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramNode]]:
         nodes: dict[int, ProgramNode] = {}
-        edges: dict[int, list[tuple[int, dict]]] = {}
+        edges: dict[int, list[tuple[int, dict]]] = defaultdict(list)
         offset = 0
         for node_index, block in enumerate(blocks):
             node = BasicBlockNode(index=node_index, basic_block=block, offset=offset)
@@ -613,16 +643,14 @@ class CFG(ProgramGraph):
             offset += len(block) * INSTRUCTION_OFFSET_INCREMENT
 
             nodes[node_index] = node
-            if node_index not in edges:
-                edges[node_index] = []
 
             next_block = block.next_block
-            target_block = block.get_jump()
 
-            last_instr = block[-1]
-            if isinstance(last_instr, Instr) and (
-                last_instr.is_cond_jump() or last_instr.opcode in version.FOR_ITER_OPCODES
-            ):
+            last_instr = block.get_last_non_artificial_instruction()
+
+            if last_instr is not None and version.is_conditional_jump(last_instr):
+                target_block = block.get_jump()
+
                 assert next_block is not None
                 assert target_block is not None
 
@@ -648,10 +676,18 @@ class CFG(ProgramGraph):
                         {EDGE_DATA_BRANCH_VALUE: value, "label": value},
                     ))
             else:
-                if next_block:
+                maybe_try_begin = block[TRY_BEGIN_POSITION]
+
+                if isinstance(maybe_try_begin, TryBegin):
+                    assert isinstance(maybe_try_begin.target, BasicBlock)
+                    target_block = maybe_try_begin.target
+                else:
+                    target_block = block.get_jump()
+
+                if next_block is not None:
                     next_index = blocks.get_block_index(next_block)
                     edges[node_index].append((next_index, {}))
-                if target_block := block.get_jump():
+                if target_block is not None:
                     next_index = blocks.get_block_index(target_block)
                     edges[node_index].append((next_index, {}))
         return edges, nodes

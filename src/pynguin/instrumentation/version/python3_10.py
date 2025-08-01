@@ -34,6 +34,8 @@ from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version.common import AST_FILENAME
+from pynguin.instrumentation.version.common import COMPARE_OP_POS
+from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
@@ -60,6 +62,39 @@ if TYPE_CHECKING:
 
     from bytecode import Bytecode
 
+__all__ = [
+    "ACCESS_OPCODES",
+    "CALL_OPCODES",
+    "CLOSURE_LOAD_OPCODES",
+    "COND_BRANCH_OPCODES",
+    "EXTENDED_ARG_OPCODES",
+    "IMPORT_FROM_OPCODES",
+    "IMPORT_NAME_OPCODES",
+    "LOAD_DEREF_OPCODES",
+    "LOAD_FAST_OPCODES",
+    "LOAD_GLOBAL_OPCODES",
+    "LOAD_NAME_OPCODES",
+    "MEMORY_DEF_OPCODES",
+    "MEMORY_USE_OPCODES",
+    "MODIFY_DEREF_OPCODES",
+    "MODIFY_FAST_OPCODES",
+    "MODIFY_GLOBAL_OPCODES",
+    "MODIFY_NAME_OPCODES",
+    "RETURNING_OPCODES",
+    "STORE_NAME_OPCODES",
+    "STORE_OPCODES",
+    "TRACED_OPCODES",
+    "YIELDING_OPCODES",
+    "BranchCoverageInstrumentation",
+    "CheckedCoverageInstrumentation",
+    "DynamicSeedingInstrumentation",
+    "LineCoverageInstrumentation",
+    "add_for_loop_no_yield_nodes",
+    "end_with_explicit_return_none",
+    "get_branch_type",
+    "is_conditional_jump",
+    "stack_effect",
+]
 
 # Fast opcodes
 LOAD_FAST_OPCODES = to_opcodes(
@@ -221,16 +256,13 @@ OPERATION_OPCODES = COMPARE_OPCODES + to_opcodes(
     "INPLACE_OR",
 )
 
-FOR_ITER_OPCODES = to_opcodes(
-    "FOR_ITER",
-)
-
-COND_BRANCH_OPCODES = FOR_ITER_OPCODES + to_opcodes(
+COND_BRANCH_OPCODES = to_opcodes(
     "POP_JUMP_IF_TRUE",
     "POP_JUMP_IF_FALSE",
     "JUMP_IF_TRUE_OR_POP",
     "JUMP_IF_FALSE_OR_POP",
     "JUMP_IF_NOT_EXC_MATCH",
+    "FOR_ITER",
 )
 
 JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
@@ -285,6 +317,10 @@ MEMORY_DEF_OPCODES = (
 )
 
 
+def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
+    return instruction.is_cond_jump() or instruction.opcode == opmap["FOR_ITER"]
+
+
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
     bytecode_copy = bytecode.copy()
     i = 0
@@ -293,7 +329,7 @@ def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
 
         if (
             isinstance(instruction, Instr)
-            and instruction.opcode in FOR_ITER_OPCODES
+            and instruction.opcode == opmap["FOR_ITER"]
             and isinstance(instruction.arg, Label)
         ):
             exit_label = instruction.arg
@@ -545,7 +581,7 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
     """Generates instrumentation instructions for Python 3.10."""
 
     @classmethod
-    def generate_setup_instructions(  # noqa: D102
+    def generate_setup_instructions(
         cls,
         setup_action: InstrumentationSetupAction,
         lineno: int | _UNSET | None,
@@ -620,7 +656,7 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 )
 
     @classmethod
-    def generate_method_call_instructions(  # noqa: D102, C901, PLR0915
+    def generate_method_call_instructions(  # noqa: C901, PLR0915
         cls,
         method_call: InstrumentationMethodCall,
         lineno: int | _UNSET | None,
@@ -739,7 +775,7 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
         )
 
     @classmethod
-    def generate_teardown_instructions(  # noqa: D102
+    def generate_teardown_instructions(
         cls,
         setup_action: InstrumentationSetupAction,  # noqa: ARG003
         lineno: int | _UNSET | None,
@@ -785,24 +821,6 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
             raise AssertionError(f"Unknown comparison in {instr}.")
 
 
-# Jump operations are the last operation within a basic block
-_JUMP_OP_POS = -1
-
-# If a conditional jump is based on a comparison, it has to be the second-to-last
-# instruction within the basic block.
-_COMPARE_OP_POS = -2
-
-#  If one of the considered string functions needing no argument is used in the if
-#  statement, it will be loaded in the third last position. After it comes the
-#  call of the method and the jump operation.
-_STRING_FUNC_POS = -3
-
-# If one of the considered string functions needing one argument is used in the if
-# statement, it will be loaded in the fourth last position. After it comes the
-# load of the argument, the call of the method and the jump operation.
-_STRING_FUNC_POS_WITH_ARG = -4
-
-
 class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAdapter):
     """Specialized instrumentation adapter for branch coverage in Python 3.10."""
 
@@ -823,10 +841,10 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_jump_index = _JUMP_OP_POS
+        maybe_jump_index = JUMP_OP_POS
         maybe_jump = node.get_instruction(maybe_jump_index)
 
-        if maybe_jump.opcode in FOR_ITER_OPCODES:
+        if maybe_jump.opcode == opmap["FOR_ITER"]:
             self.visit_for_loop(
                 cfg,
                 code_object_id,
@@ -840,7 +858,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             return
 
         maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
-            _COMPARE_OP_POS,
+            COMPARE_OP_POS,
         )
 
         if maybe_compare.opcode in COMPARE_OPCODES:
@@ -1066,6 +1084,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
         node: cf.BasicBlockNode,
     ) -> None:
         lineno: int | _UNSET | None = None
+
         # The bytecode instructions change during the iteration but it is something supported
         for instr_index, instr in enumerate(node.instructions):
             if instr.lineno == lineno or cfg.bytecode_cfg.filename == AST_FILENAME:
@@ -1584,6 +1603,17 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     }
 
 
+# If one of the considered string functions needing no argument is used in the if
+# statement, it will be loaded in the third last position. After it comes the
+# call of the method and the jump operation.
+STRING_FUNC_POS = -3
+
+# If one of the considered string functions needing one argument is used in the if
+# statement, it will be loaded in the fourth last position. After it comes the
+# load of the argument, the call of the method and the jump operation.
+STRING_FUNC_POS_WITH_ARG = -4
+
+
 class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAdapter):
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.10."""
 
@@ -1604,7 +1634,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        maybe_compare_index = _COMPARE_OP_POS
+        maybe_compare_index = COMPARE_OP_POS
         maybe_compare = node.try_get_instruction(maybe_compare_index)
 
         if (
@@ -1621,7 +1651,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_index = _STRING_FUNC_POS
+        maybe_string_func_index = STRING_FUNC_POS
         maybe_string_func = node.try_get_instruction(maybe_string_func_index)
 
         if (
@@ -1639,7 +1669,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_with_arg_index = _STRING_FUNC_POS_WITH_ARG
+        maybe_string_func_with_arg_index = STRING_FUNC_POS_WITH_ARG
         maybe_string_func_with_arg = node.try_get_instruction(maybe_string_func_with_arg_index)
 
         if (

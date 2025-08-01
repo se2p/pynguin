@@ -28,6 +28,16 @@ if TYPE_CHECKING:
     from pynguin.instrumentation import controlflow as cf
 
 
+AST_FILENAME = "<ast>"
+
+# Jump operations are the last operation within a basic block
+JUMP_OP_POS = -1
+
+# If a conditional jump is based on a comparison, it has to be the second-to-last
+# instruction within the basic block.
+COMPARE_OP_POS = -2
+
+
 class InstrumentationSetupAction(enum.IntEnum):
     """An enum to represent what should done in the instrumentation setup."""
 
@@ -332,6 +342,3 @@ def override(index: int) -> slice[int, int]:
         A slice for overriding an instruction at the given index.
     """
     return slice(index, index + 1)
-
-
-AST_FILENAME = "<ast>"
