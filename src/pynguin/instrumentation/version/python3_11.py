@@ -44,7 +44,6 @@ if TYPE_CHECKING:
 from pynguin.instrumentation.version import python3_10
 
 from .python3_10 import ACCESS_OPCODES
-from .python3_10 import CALL_OPCODES
 from .python3_10 import CLOSURE_LOAD_OPCODES
 from .python3_10 import EXTENDED_ARG_OPCODES
 from .python3_10 import IMPORT_FROM_OPCODES
@@ -53,8 +52,6 @@ from .python3_10 import LOAD_DEREF_OPCODES
 from .python3_10 import LOAD_FAST_OPCODES
 from .python3_10 import LOAD_GLOBAL_OPCODES
 from .python3_10 import LOAD_NAME_OPCODES
-from .python3_10 import MEMORY_DEF_OPCODES
-from .python3_10 import MEMORY_USE_OPCODES
 from .python3_10 import MODIFY_DEREF_OPCODES
 from .python3_10 import MODIFY_FAST_OPCODES
 from .python3_10 import MODIFY_GLOBAL_OPCODES
@@ -62,8 +59,6 @@ from .python3_10 import MODIFY_NAME_OPCODES
 from .python3_10 import RETURNING_OPCODES
 from .python3_10 import STORE_NAME_OPCODES
 from .python3_10 import STORE_OPCODES
-from .python3_10 import TRACED_OPCODES
-from .python3_10 import YIELDING_OPCODES
 from .python3_10 import add_for_loop_no_yield_nodes
 from .python3_10 import end_with_explicit_return_none
 from .python3_10 import is_conditional_jump
@@ -104,6 +99,25 @@ __all__ = [
     "stack_effect",
 ]
 
+# Remaining opcodes
+CALL_OPCODES = to_opcodes(
+    "CALL",
+    "CALL_FUNCTION_EX",
+)
+
+YIELDING_OPCODES = to_opcodes("YIELD_VALUE")
+
+OPERATION_OPCODES = python3_10.COMPARE_OPCODES + to_opcodes(
+    # Unary operations
+    "UNARY_POSITIVE",
+    "UNARY_NEGATIVE",
+    "UNARY_NOT",
+    "UNARY_INVERT",
+    "GET_ITER",
+    "GET_YIELD_FROM_ITER",
+    # Binary and in-place operations
+    "BINARY_OP",
+)
 
 COND_BRANCH_OPCODES = to_opcodes(
     "POP_JUMP_FORWARD_IF_TRUE",
@@ -125,6 +139,43 @@ JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
     "JUMP_BACKWARD_NO_INTERRUPT",
     "BEFORE_WITH",
     "BEFORE_ASYNC_WITH",
+)
+
+
+# Regrouping opcodes
+TRACED_OPCODES = (
+    OPERATION_OPCODES
+    + python3_10.ACCESS_FAST_OPCODES
+    + python3_10.ACCESS_NAME_OPCODES
+    + python3_10.ACCESS_GLOBAL_OPCODES
+    + python3_10.ACCESS_DEREF_OPCODES
+    + python3_10.ATTRIBUTES_OPCODES
+    + python3_10.ACCESS_SUBSCR_OPCODES
+    + IMPORT_NAME_OPCODES
+    + JUMP_OPCODES
+    + CALL_OPCODES
+    + RETURNING_OPCODES
+)
+
+MEMORY_USE_OPCODES = (
+    LOAD_FAST_OPCODES
+    + LOAD_NAME_OPCODES
+    + LOAD_GLOBAL_OPCODES
+    + LOAD_DEREF_OPCODES
+    + python3_10.LOAD_ATTR_OPCODES
+    + IMPORT_FROM_OPCODES
+    + python3_10.LOAD_METHOD_OPCODES
+    + CLOSURE_LOAD_OPCODES
+    + python3_10.BINARY_SUBSCR_OPCODES
+)
+MEMORY_DEF_OPCODES = (
+    MODIFY_FAST_OPCODES
+    + MODIFY_NAME_OPCODES
+    + MODIFY_GLOBAL_OPCODES
+    + MODIFY_DEREF_OPCODES
+    + python3_10.MODIFY_ATTR_OPCODES
+    + IMPORT_NAME_OPCODES  # compensate incorrect stack effect for IMPORT_NAME
+    + python3_10.ACCESS_SUBSCR_OPCODES
 )
 
 
@@ -379,17 +430,17 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
             CheckedCoverageInstrumentationVisitorMethod,
         ]
     ] = {
-        python3_10.OPERATION_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_generic,
+        OPERATION_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_generic,
         python3_10.ACCESS_FAST_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_local_access,  # noqa: E501
         python3_10.ATTRIBUTES_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_attr_access,
         python3_10.ACCESS_SUBSCR_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_subscr_access,  # noqa: E501
         python3_10.ACCESS_NAME_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_name_access,
-        python3_10.IMPORT_NAME_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_import_name_access,  # noqa: E501
+        IMPORT_NAME_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_import_name_access,
         python3_10.ACCESS_GLOBAL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
         python3_10.ACCESS_DEREF_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_deref_access,  # noqa: E501
         JUMP_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_jump,
-        python3_10.CALL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_call,
-        python3_10.RETURNING_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_return,
+        CALL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_call,
+        RETURNING_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_return,
     }
 
 
