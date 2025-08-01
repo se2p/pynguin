@@ -1603,17 +1603,6 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     }
 
 
-# If one of the considered string functions needing no argument is used in the if
-# statement, it will be loaded in the third last position. After it comes the
-# call of the method and the jump operation.
-STRING_FUNC_POS = -3
-
-# If one of the considered string functions needing one argument is used in the if
-# statement, it will be loaded in the fourth last position. After it comes the
-# load of the argument, the call of the method and the jump operation.
-STRING_FUNC_POS_WITH_ARG = -4
-
-
 class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAdapter):
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.10."""
 
@@ -1623,8 +1612,15 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         Python310InstrumentationInstructionsGenerator
     )
 
-    STRING_FUNC_POS: ClassVar[int] = STRING_FUNC_POS
-    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = STRING_FUNC_POS_WITH_ARG
+    # If one of the considered string functions needing no argument is used in the if
+    # statement, it will be loaded in the third last position. After it comes the
+    # call of the method and the jump operation.
+    STRING_FUNC_POS: ClassVar[int] = -3
+
+    # If one of the considered string functions needing one argument is used in the if
+    # statement, it will be loaded in the fourth last position. After it comes the
+    # load of the argument, the call of the method and the jump operation.
+    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = -4
 
     def __init__(  # noqa: D107
         self, dynamic_constant_provider: DynamicConstantProvider

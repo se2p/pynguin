@@ -393,21 +393,11 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
     }
 
 
-# If one of the considered string functions needing no argument is used in the if
-# statement, it will be loaded in the third last position. After it comes the
-# call of the method and the jump operation.
-STRING_FUNC_POS = -4
-
-# If one of the considered string functions needing one argument is used in the if
-# statement, it will be loaded in the fourth last position. After it comes the
-# load of the argument, the call of the method and the jump operation.
-STRING_FUNC_POS_WITH_ARG = -5
-
-
 class DynamicSeedingInstrumentation(python3_10.DynamicSeedingInstrumentation):
     """Specialized instrumentation adapter for dynamic constant seeding in Python 3.11."""
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
-    STRING_FUNC_POS: ClassVar[int] = STRING_FUNC_POS
-    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = STRING_FUNC_POS_WITH_ARG
+    STRING_FUNC_POS = -4
+
+    STRING_FUNC_POS_WITH_ARG = -5
