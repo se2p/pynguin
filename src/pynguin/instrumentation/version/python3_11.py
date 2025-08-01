@@ -17,9 +17,6 @@ from opcode import opname
 from typing import TYPE_CHECKING
 from typing import ClassVar
 
-from bytecode.instr import Instr
-
-from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation.version.common import AST_FILENAME
 from pynguin.instrumentation.version.common import COMPARE_OP_POS
@@ -412,69 +409,5 @@ class DynamicSeedingInstrumentation(python3_10.DynamicSeedingInstrumentation):
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
-    def visit_node(  # noqa: D102
-        self,
-        cfg: cf.CFG,
-        code_object_id: int,
-        node: cf.BasicBlockNode,
-    ) -> None:
-        maybe_compare_index = COMPARE_OP_POS
-        maybe_compare = node.try_get_instruction(maybe_compare_index)
-
-        if (
-            maybe_compare is not None
-            and isinstance(maybe_compare, Instr)
-            and maybe_compare.opcode == opmap["COMPARE_OP"]
-        ):
-            self.visit_compare_op(
-                cfg,
-                code_object_id,
-                node,
-                maybe_compare,
-                maybe_compare_index,
-            )
-            return
-
-        maybe_string_func_index = STRING_FUNC_POS
-        maybe_string_func = node.try_get_instruction(maybe_string_func_index)
-
-        if (
-            isinstance(maybe_string_func, Instr)
-            and maybe_string_func.opcode == opmap["LOAD_METHOD"]
-            and isinstance(maybe_string_func.arg, str)
-            and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
-        ):
-            self.visit_string_function_without_arg(
-                cfg,
-                code_object_id,
-                node,
-                maybe_string_func,
-                maybe_string_func_index,
-            )
-            return
-
-        maybe_string_func_with_arg_index = STRING_FUNC_POS_WITH_ARG
-        maybe_string_func_with_arg = node.try_get_instruction(maybe_string_func_with_arg_index)
-
-        if (
-            isinstance(maybe_string_func_with_arg, Instr)
-            and maybe_string_func_with_arg.opcode == opmap["LOAD_METHOD"]
-            and isinstance(maybe_string_func_with_arg.arg, str)
-        ):
-            match maybe_string_func_with_arg.arg:
-                case "startswith":
-                    self.visit_startswith_function(
-                        cfg,
-                        code_object_id,
-                        node,
-                        maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
-                    )
-                case "endswith":
-                    self.visit_endswith_function(
-                        cfg,
-                        code_object_id,
-                        node,
-                        maybe_string_func_with_arg,
-                        maybe_string_func_with_arg_index,
-                    )
+    STRING_FUNC_POS: ClassVar[int] = STRING_FUNC_POS
+    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = STRING_FUNC_POS_WITH_ARG

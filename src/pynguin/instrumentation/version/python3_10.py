@@ -1623,6 +1623,9 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         Python310InstrumentationInstructionsGenerator
     )
 
+    STRING_FUNC_POS: ClassVar[int] = STRING_FUNC_POS
+    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = STRING_FUNC_POS_WITH_ARG
+
     def __init__(  # noqa: D107
         self, dynamic_constant_provider: DynamicConstantProvider
     ):
@@ -1651,7 +1654,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_index = STRING_FUNC_POS
+        maybe_string_func_index = self.STRING_FUNC_POS
         maybe_string_func = node.try_get_instruction(maybe_string_func_index)
 
         if (
@@ -1669,7 +1672,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             )
             return
 
-        maybe_string_func_with_arg_index = STRING_FUNC_POS_WITH_ARG
+        maybe_string_func_with_arg_index = self.STRING_FUNC_POS_WITH_ARG
         maybe_string_func_with_arg = node.try_get_instruction(maybe_string_func_with_arg_index)
 
         if (
