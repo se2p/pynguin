@@ -164,3 +164,16 @@ def unparse_test_case(test_case: tc.TestCase) -> str | None:
     except BaseException as e:  # noqa: BLE001
         logger.error("Error processing test case AST: %s", e)
         return None
+
+def add_line_numbers(input: str) -> str:
+    """Adds line numbers to the input string.
+
+    Args:
+        input: The input string to add line numbers to.
+
+    Returns:
+        The input string with line numbers added.
+    """
+    lines = input.splitlines()
+    numbered_lines = [f"{i + 1}: {line}" for i, line in enumerate(lines)]
+    return "\n".join(numbered_lines)
