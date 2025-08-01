@@ -62,7 +62,6 @@ def small_fixture(x, y):  # pragma: no cover
     return False
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "node_index,expected_deps",
     [
@@ -138,7 +137,6 @@ def test_get_control_dependencies(node_index, expected_deps, subject_properties:
     assert expected_deps == deps
 
 
-@only_3_10
 @pytest.mark.parametrize("node", ["foobar", None])
 def test_get_control_dependencies_asserts(node, subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
@@ -202,7 +200,6 @@ def test_is_control_dependent_on_root(
     assert expected_dependant == dependant
 
 
-@only_3_10
 def test_yield_instrumented(subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])

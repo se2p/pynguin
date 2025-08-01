@@ -27,10 +27,8 @@ from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
-from tests.utils.version import only_3_10
 
 
-@only_3_10
 def test_simple_execution(default_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     with install_import_hook(config.configuration.module_name, subject_properties):
@@ -43,7 +41,6 @@ def test_simple_execution(default_test_case, subject_properties: SubjectProperti
         assert not executor.execute(default_test_case).has_test_exceptions()
 
 
-@only_3_10
 def test_illegal_call(method_mock, default_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     int_stmt = IntPrimitiveStatement(default_test_case, 5)
@@ -60,7 +57,6 @@ def test_illegal_call(method_mock, default_test_case, subject_properties: Subjec
         assert result.has_test_exceptions()
 
 
-@only_3_10
 def test_no_exceptions(short_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     with install_import_hook(config.configuration.module_name, subject_properties):
@@ -73,7 +69,6 @@ def test_no_exceptions(short_test_case, subject_properties: SubjectProperties):
         assert not result.has_test_exceptions()
 
 
-@only_3_10
 def test_instrumentation(short_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
@@ -118,7 +113,6 @@ def test_module_provider(subject_properties: SubjectProperties):
     assert executor.module_provider == prov
 
 
-@only_3_10
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_killing_endless_loop(subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.examples.loop"
@@ -152,7 +146,6 @@ def test_killing_endless_loop(subject_properties: SubjectProperties):
         assert len(threading.enumerate()) == 1  # Only main thread should be alive.
 
 
-@only_3_10
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_empty_queue_with_llm_api_key(default_test_case, subject_properties: SubjectProperties):
     """Test handling of Empty exception when LLM API key is configured."""
@@ -181,7 +174,6 @@ def test_empty_queue_with_llm_api_key(default_test_case, subject_properties: Sub
         config.configuration.large_language_model.api_key = original_api_key
 
 
-@only_3_10
 @pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_empty_queue_without_llm_api_key(default_test_case, subject_properties: SubjectProperties):
     """Test handling of Empty exception when LLM API key is not configured."""

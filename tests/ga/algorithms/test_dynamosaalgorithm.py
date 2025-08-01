@@ -15,7 +15,6 @@ import pynguin.ga.coveragegoals as bg
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
-from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -40,7 +39,6 @@ def dynamosa_subject_properties_nested(subject_properties: SubjectProperties):
     return subject_properties
 
 
-@only_3_10
 def test_fitness_graph_root_branches(dynamosa_subject_properties):
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -51,7 +49,6 @@ def test_fitness_graph_root_branches(dynamosa_subject_properties):
     }
 
 
-@only_3_10
 def test_fitness_graph_structural_children(dynamosa_subject_properties):
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -65,7 +62,6 @@ def test_fitness_graph_structural_children(dynamosa_subject_properties):
     }
 
 
-@only_3_10
 def test_fitness_graph_no_structural_children(dynamosa_subject_properties):
     pool = bg.BranchGoalPool(dynamosa_subject_properties)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)
@@ -76,7 +72,6 @@ def test_fitness_graph_no_structural_children(dynamosa_subject_properties):
     assert {ff.goal for ff in ffgraph.get_structural_children(target)} == set()
 
 
-@only_3_10
 def test_fitness_graph_nested(dynamosa_subject_properties_nested):
     pool = bg.BranchGoalPool(dynamosa_subject_properties_nested)
     ffs = bg.create_branch_coverage_fitness_functions(MagicMock(), pool)

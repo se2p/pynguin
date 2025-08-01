@@ -14,7 +14,6 @@ from bytecode.instr import Instr
 
 from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.controlflow import ProgramGraph
-from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -140,7 +139,6 @@ def test_get_predecessors(graph, node, second_node):
     assert result == {node}
 
 
-@only_3_10
 def test_yield_nodes():
     graph = ProgramGraph()
     yield_instr = Instr(name="YIELD_VALUE")
@@ -153,7 +151,6 @@ def test_yield_nodes():
     assert len(yield_nodes) == 1
 
 
-@only_3_10
 def test_yield_nodes_2():
     graph = ProgramGraph()
 

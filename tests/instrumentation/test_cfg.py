@@ -325,7 +325,6 @@ def test_integration_no_exit():
         CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
 
 
-@only_3_10
 def test_cfg_from_yield():
     cfg = CFG.from_bytecode(Bytecode.from_code(yield_fun.__code__))
     assert cfg.entry_node is not None

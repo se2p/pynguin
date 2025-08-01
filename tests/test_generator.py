@@ -16,7 +16,6 @@ import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from tests.utils.version import only_3_10
 
 
 def test_init_with_configuration():
@@ -178,7 +177,6 @@ def test__setup_report_dir_not_required(tmp_path: Path):
     assert not path.exists()
 
 
-@only_3_10
 def test_run(tmp_path):
     gen.set_configuration(configuration=MagicMock(log_file=None, project_path=tmp_path / "nope"))
     with mock.patch("pynguin.generator._run") as run_mock:
@@ -186,7 +184,6 @@ def test_run(tmp_path):
         run_mock.assert_called_once()
 
 
-@only_3_10
 def test_integrate(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":
@@ -207,7 +204,6 @@ def test_integrate(tmp_path):
     assert result == gen.ReturnCode.OK
 
 
-@only_3_10
 def test_integrate_typetracing_union_type(tmp_path):
     project_path = Path().absolute()
     if project_path.name == "tests":

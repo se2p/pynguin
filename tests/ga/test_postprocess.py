@@ -32,7 +32,6 @@ from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.orderedset import OrderedSet
-from tests.utils.version import only_3_10
 
 
 def test_not_failing():
@@ -631,7 +630,6 @@ def _setup_integration_test(coverage_metric):
         return executor, test_case, first_function_generic
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "visitor_class",
     [

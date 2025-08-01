@@ -9,10 +9,8 @@ import importlib
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from tests.utils.version import only_3_10
 
 
-@only_3_10
 def test_hook(subject_properties: SubjectProperties):
     with install_import_hook("tests.fixtures.instrumentation.mixed", subject_properties):
         with subject_properties.instrumentation_tracer:
@@ -25,7 +23,6 @@ def test_hook(subject_properties: SubjectProperties):
             assert module.function(6) == 0
 
 
-@only_3_10
 def test_module_instrumentation_integration(subject_properties: SubjectProperties):
     """Tests the instrumentation for various function types."""
     with install_import_hook("tests.fixtures.instrumentation.mixed", subject_properties):
