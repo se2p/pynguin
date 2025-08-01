@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from pynguin.large_language_model.parsing.helpers import add_line_numbers
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import LineAnnotation
@@ -30,7 +31,7 @@ def test_prompt() -> None:
         f"Line of branches we failed to cover:\n"
         f"Line 2: Covered 1 of 2\n"
         f"Test case source code:\n `{test_case_code}` \n"
-        f"Module source code:\n `{source_code}`"
+        f"Module source code:\n `{add_line_numbers(source_code)}`"
     )
     assert result == str(prompt)
 

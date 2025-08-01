@@ -5,7 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides class prompt for generating assertions for a test case."""
-
+from pynguin.large_language_model.parsing.helpers import add_line_numbers
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.report import LineAnnotation
 
@@ -20,8 +20,11 @@ class LocalSearchPrompt(Prompt):
         module_code: str,
         branch_coverage: list[LineAnnotation],
     ):
-        """Initializes the prompt."""
-        super().__init__(module_code, "")
+        """Initializes the prompt.
+
+        Line numbers for the module code are added additionally.
+        """
+        super().__init__(add_line_numbers(module_code), "")
         self.test_case_code = test_case_code
         self.position = position
         self.branch_coverage = branch_coverage
