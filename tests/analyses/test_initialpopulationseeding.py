@@ -28,7 +28,6 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
-from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -252,7 +251,6 @@ def test_algorithm_generation_factory(
     assert type(test_case_factory) is fac_type
 
 
-@only_3_10
 @mock.patch("ast.parse")
 def test_module_not_readable(parse_mock, constant_provider, seed_modules_path, dummy_test_cluster):
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
