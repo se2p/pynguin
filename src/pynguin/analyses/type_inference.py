@@ -8,19 +8,24 @@
 
 from abc import ABC, abstractmethod
 import asyncio
+import builtins
 from collections import OrderedDict
 from datetime import date
+import importlib
 import inspect
 import json
 import logging
 import os
 import textwrap
 import time
+from types import ModuleType
 from typing import Any
+import typing
 
 from pydantic import SecretStr
 
 from pynguin.analyses.module import CallableData, TestCluster
+from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
@@ -106,6 +111,10 @@ class LLMInference(InferenceStrategy):
         bench = time.time() - start
         _LOGGER.debug("in time: %s", bench)
         _LOGGER.debug("inferred: %s", inferences)
+        for call in inferences:
+            # TODO: get data into testcluster
+            # self._test_cluster.function_data_for_accessibles[call].accessible.
+            self._map_to_signature(inferences[call])
 
     def _get_src_code(self, accessible: GenericCallableAccessibleObject) -> str:
         call = accessible.callable
@@ -207,3 +216,48 @@ class LLMInference(InferenceStrategy):
             loop = asyncio.get_running_loop()
             _LOGGER.debug("Using existing event loop (%s) for parallel LLM calls", loop)
             return loop.run_until_complete(coro)
+
+    def _map_to_signature(self, inference: str):
+        inf = json.loads(inference)
+        return_type = inf["return"]
+        params = {}
+        for param in inf:
+            if param == "return":
+                continue
+            params[param] = self._test_cluster.type_system.convert_type_hint(
+                self._resolve_type(inf[param])
+            )
+        _LOGGER.debug("resolved types: %s", params)
+
+    _BUILTINS: dict[str, Any] = {
+        t.__name__: t for t in vars(builtins).values() if isinstance(t, type)
+    }
+
+    _TYPING_GLOBALS: dict[str, Any] = {**vars(typing), **_BUILTINS, "None": type(None)}
+
+    def _resolve_type(self, type_str: str) -> Any:
+        """Best-effort conversion from *string* → *type object*."""
+        # TODO: rethink/refactor this logic
+        # 1. Explicit None
+        if type_str == "None":
+            return type(None)
+
+        # 2. Plain built-in (int, float, list, …)
+        builtin = self._BUILTINS.get(type_str)
+        if builtin is not None:
+            return builtin
+
+        # 3. Parameterised typing expression, e.g. "list[int]"
+        try:
+            return eval(type_str, self._TYPING_GLOBALS)  # nosec B307 – controlled input
+        except Exception:  # noqa: BLE001
+            pass  # fall through to dotted-path import
+
+        # 4. Dotted path to a user-defined class or alias
+        try:
+            module_path, attr_name = type_str.rsplit(".", 1)
+            module: ModuleType = importlib.import_module(module_path)
+            return getattr(module, attr_name)
+        except Exception:  # noqa: BLE001
+            # Last resort – unknown or ill-formed → Any
+            return typing.Any
