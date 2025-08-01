@@ -5,6 +5,9 @@
 #  SPDX-License-Identifier: MIT
 #
 """Provides class prompt for generating assertions for a test case."""
+
+import logging
+
 from pynguin.large_language_model.parsing.helpers import add_line_numbers
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.report import LineAnnotation
@@ -12,6 +15,8 @@ from pynguin.utils.report import LineAnnotation
 
 class LocalSearchPrompt(Prompt):
     """A prompt for local search."""
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(
         self,
@@ -22,10 +27,10 @@ class LocalSearchPrompt(Prompt):
     ):
         """Initializes the prompt.
 
-        Line numbers for the module code are added additionally.
+        Line numbers for the module code and the test code are added additionally.
         """
         super().__init__(add_line_numbers(module_code), "")
-        self.test_case_code = test_case_code
+        self.test_case_code = add_line_numbers(test_case_code)
         self.position = position
         self.branch_coverage = branch_coverage
 
@@ -33,13 +38,10 @@ class LocalSearchPrompt(Prompt):
         """Builds the prompt message."""
         uncovered_branches_list = self.build_uncovered_branch_section()
         uncovered_branches = "\n".join(uncovered_branches_list)
-
+        self._logger.debug("Initial test case:\n%s", self.test_case_code)
         return (
-            f"Change the input value at position "
-            f"{self.position}"
-            f" of the test case to achieve higher branch coverage\n"
-            f"Make sure that the call really changes the branch coverage and add the needed call "
-            f"if necessary.\n"
+            f"Mutate the statement at position {self.position + 2} of the test case to achieve "
+            f"higher branch coverage\n"
             f"Give back only the whole test and not the variable itself as Python code for better "
             f"parsing\n"
             f"Also add a class where the test is in to the test_code.\n"
