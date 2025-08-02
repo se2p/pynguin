@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import sys
+
 import pytest
 
 from bytecode import Bytecode
@@ -12,14 +14,66 @@ from pynguin.instrumentation.controlflow import CFG
 from pynguin.instrumentation.controlflow import ArtificialNode
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
-from tests.utils.version import only_3_10
 
 
-@only_3_10
 def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     dot_representation = cfg.dot
-    graph = """strict digraph  {
+
+    if sys.version_info >= (3, 11):
+        graph = """strict digraph  {
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_CONST 'no'";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
+LOAD_CONST 'no'"  [branch_value=False, label=False];
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+}"""
+    else:
+        graph = """strict digraph  {
 "BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
@@ -76,12 +130,65 @@ POP_JUMP_IF_FALSE BasicBlockNode";
     ).decode("unicode_escape")
 
 
-@only_3_10
 def test_integration_reverse_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     reversed_cfg = cfg.reversed()
     dot_representation = reversed_cfg.dot
-    graph = """strict digraph  {
+
+    if sys.version_info >= (3, 11):
+        graph = """strict digraph  {
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_CONST 'no'";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "ArtificialNode(ENTRY)";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "BasicBlockNode(2)
+LOAD_CONST 'no'";
+"ArtificialNode(EXIT)" -> "BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+}"""
+    else:
+        graph = """strict digraph  {
 "BasicBlockNode(0)
 LOAD_NAME 'print'
 LOAD_NAME 'test'
@@ -148,12 +255,175 @@ def control_flow_labelling(foo):  # pragma: no cover
         print("foo")  # noqa: T201
 
 
-@only_3_10
-@pytest.mark.parametrize(
-    "expected",
-    [
-        pytest.param(
-            """strict digraph  {
+def test_all_control_flow():
+    if sys.version_info >= (3, 11):
+        expected = """strict digraph  {
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_FAST 'foo'
+LOAD_CONST 42
+COMPARE_OP EQ
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(3)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+PRECALL 1
+CALL 1
+POP_TOP";
+"BasicBlockNode(4)
+LOAD_FAST 'foo'
+GET_ITER";
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST 'f'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode";
+"BasicBlockNode(7)
+NOP
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_TRUE BasicBlockNode";
+"BasicBlockNode(8)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+PRECALL 1
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE";
+"ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)";
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
+LOAD_FAST 'foo'
+LOAD_CONST 42
+COMPARE_OP EQ
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(1)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(4)
+LOAD_FAST 'foo'
+GET_ITER";
+"BasicBlockNode(2)
+LOAD_FAST 'foo'
+LOAD_CONST 42
+COMPARE_OP EQ
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(3)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+PRECALL 1
+CALL 1
+POP_TOP"  [branch_value=True, label=True];
+"BasicBlockNode(2)
+LOAD_FAST 'foo'
+LOAD_CONST 42
+COMPARE_OP EQ
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "BasicBlockNode(4)
+LOAD_FAST 'foo'
+GET_ITER"  [branch_value=False, label=False];
+"BasicBlockNode(3)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+PRECALL 1
+CALL 1
+POP_TOP" -> "BasicBlockNode(4)
+LOAD_FAST 'foo'
+GET_ITER";
+"BasicBlockNode(4)
+LOAD_FAST 'foo'
+GET_ITER" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST 'f'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(7)
+NOP
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_TRUE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST 'f'
+PRECALL 1
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(7)
+NOP
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_TRUE BasicBlockNode" -> "BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE"  [branch_value=True, label=True];
+"BasicBlockNode(7)
+NOP
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_TRUE BasicBlockNode" -> "BasicBlockNode(8)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+PRECALL 1
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE"  [branch_value=False, label=False];
+"BasicBlockNode(8)
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+PRECALL 1
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
+RESUME 0
+LOAD_FAST 'foo'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+}"""
+    else:
+        expected = """strict digraph  {
 "BasicBlockNode(0)
 LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE BasicBlockNode";
@@ -301,19 +571,13 @@ RETURN_VALUE" -> "ArtificialNode(EXIT)";
 "ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
 LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE BasicBlockNode";
-}""",
-            id="Python 3.10+, extract return None into separate node",
-        ),
-    ],
-)
-def test_all_control_flow(expected):
+}"""
     cfg = CFG.from_bytecode(Bytecode.from_code(control_flow_labelling.__code__))
     assert bytes(cfg.dot, "utf-8").decode("unicode_escape") == bytes(expected, "utf-8").decode(
         "unicode_escape"
     )
 
 
-@only_3_10
 def test_integration_copy_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
     copied_cfg = cfg.copy()

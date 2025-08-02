@@ -7,6 +7,7 @@
 import ast
 import importlib
 import inspect
+import sys
 
 from collections.abc import Callable
 from typing import Any
@@ -274,23 +275,46 @@ def reset_statistics_tracker():
     stat.reset()
 
 
-@pytest.fixture(scope="module")
-def conditional_jump_example_bytecode() -> Bytecode:
-    label_else = Label()
-    label_print = Label()
-    return Bytecode([
-        Instr("LOAD_NAME", "print"),
-        Instr("LOAD_NAME", "test"),
-        Instr("POP_JUMP_IF_FALSE", label_else),
-        Instr("LOAD_CONST", "yes"),
-        Instr("JUMP_FORWARD", label_print),
-        label_else,
-        Instr("LOAD_CONST", "no"),
-        label_print,
-        Instr("CALL_FUNCTION", 1),
-        Instr("LOAD_CONST", None),
-        Instr("RETURN_VALUE"),
-    ])
+if sys.version_info >= (3, 11):
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_FORWARD_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("PRECALL", 1),
+            Instr("CALL", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ])
+
+else:
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL_FUNCTION", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ])
 
 
 @pytest.fixture(scope="module")
