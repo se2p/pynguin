@@ -158,6 +158,7 @@ class ExecutionTrace:
         executed_instr = ei.ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_memory_instruction(  # noqa: PLR0917
@@ -199,6 +200,7 @@ class ExecutionTrace:
             is_mutable_type,
             object_creation,
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_attribute_instruction(  # noqa: PLR0917
@@ -240,6 +242,7 @@ class ExecutionTrace:
             arg_address,
             is_mutable_type,
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_jump_instruction(  # noqa: PLR0917
@@ -266,6 +269,7 @@ class ExecutionTrace:
         executed_instr = ei.ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_call_instruction(  # noqa: PLR0917
@@ -1497,6 +1501,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     @_early_return
     def track_assertion_position(self, assertion: ass.Assertion) -> None:  # noqa: D102
         exec_instr = self.get_trace().executed_instructions
+
         boolean_jump = len(exec_instr) - 1
         for instruction in reversed(exec_instr):
             if (

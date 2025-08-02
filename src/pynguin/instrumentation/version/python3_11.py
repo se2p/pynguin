@@ -14,11 +14,16 @@ from __future__ import annotations
 
 from opcode import opmap
 from opcode import opname
-from typing import TYPE_CHECKING
 from typing import ClassVar
+
+from bytecode.instr import _UNSET
+from bytecode.instr import UNSET
+from bytecode.instr import Instr
 
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation import controlflow as cf
+from pynguin.instrumentation import tracer
+from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version.common import COMPARE_OP_POS
 from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (
@@ -35,13 +40,8 @@ from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationNameLoad
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
+from pynguin.instrumentation.version.common import before
 from pynguin.instrumentation.version.common import to_opcodes
-
-
-if TYPE_CHECKING:
-    from bytecode.instr import _UNSET
-
-from pynguin.instrumentation.version import python3_10
 
 from .python3_10 import ACCESS_OPCODES
 from .python3_10 import CLOSURE_LOAD_OPCODES
@@ -424,6 +424,45 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
+    def visit_call(  # noqa: D102, PLR0917
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_offset: int,
+    ) -> None:
+        # Trace argument only for calls with integer arguments
+        argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
+
+        # We want to place the instrumentation instructions before the PRECALL and KW_NAMES
+        # instructions, if they are present, otherwise it may cause issues.
+        if node.get_instruction(instr_index - 1).opcode == opmap["PRECALL"]:
+            instr_index -= 1
+
+        if node.get_instruction(instr_index - 1).opcode == opmap["KW_NAMES"]:
+            instr_index -= 1
+
+        # Instrumentation before the original instruction
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.track_call.__name__,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=argument),
+                ),
+            ),
+            instr.lineno,
+        )
+
     METHODS: ClassVar[
         dict[
             tuple[int, ...],
@@ -439,7 +478,7 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
         python3_10.ACCESS_GLOBAL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
         python3_10.ACCESS_DEREF_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_deref_access,  # noqa: E501
         JUMP_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_jump,
-        CALL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_call,
+        CALL_OPCODES: visit_call,
         RETURNING_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_return,
     }
 

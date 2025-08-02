@@ -254,7 +254,6 @@ def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
     return test_suite
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "module_name, test_case_name, expected_assertions",
     [
