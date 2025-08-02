@@ -30,6 +30,8 @@ from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.ga.testcasechromosome import TestCaseChromosome
+from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import UIntPrimitiveStatement
@@ -877,33 +879,34 @@ class TestFactory:  # noqa: PLR0904
         test_case.set_statement(replacement, position)
         return True
 
-    def change_statement(self, test_case: tc.TestCase, position: int) -> bool:
+    def change_statement(self, chromosome: TestCaseChromosome, position: int) -> bool:
         """Replaces the statement at the given position with another statement of a different
         type.
         """  # noqa: D205
-        statement = test_case.get_statement(position)
-
+        statement = chromosome.test_case.statements[position]
         if not isinstance(statement, VariableCreatingStatement):
             return False
-
-        temp_pos = len(test_case.statements)
         probability = randomness.next_float()
         if probability <= config.configuration.local_search.other_type_primitive_probability:
-            (self._insert_random_primitive_statement(test_case, temp_pos),)
+            self._insert_random_primitive_statement(chromosome.test_case, position)
         elif (
             probability
             <= config.configuration.local_search.other_type_collection_probability
             + config.configuration.local_search.other_type_primitive_probability
         ):
-            (self._insert_random_collection_statement(test_case, temp_pos),)
-        else:
-            (self.insert_random_call(test_case, temp_pos),)
-        replacement = test_case.get_statement(temp_pos)
+            self._insert_random_collection_statement(chromosome.test_case, position)
+        elif not self.insert_random_call_on_object(chromosome.test_case, position):
+            return False
+        replacement = chromosome.test_case.get_statement(position)
         if not isinstance(replacement, VariableCreatingStatement):
             return False
-        replacement.ret_val = statement.ret_val
-        test_case.remove(temp_pos)
-        test_case.set_statement(replacement, position)
+
+        replacement.replace(replacement.ret_val, statement.ret_val)
+        mod_statements = [
+            stm for i, stm in enumerate(chromosome.test_case.statements) if i != position + 1
+        ]
+        test_case = DefaultTestCase(self._test_cluster)
+        test_case.add_statements(mod_statements)
         self._logger.debug(
             "Changed statement from %s to %s", statement.__class__, replacement.__class__
         )

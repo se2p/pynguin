@@ -24,7 +24,6 @@ from pynguin.testcase.localsearchstatement import StatementLocalSearch
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.utils import randomness
-from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -82,8 +81,11 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                     lambda pos=i: self._search_other_datatype(chromosome, factory, objective, pos)
                 )
             if config.LocalSearchConfiguration.local_search_llm:
-                methods.append(lambda pos=i: self._search_llm(chromosome, factory, objective,
-                                                              pos, suite, executor))
+                methods.append(
+                    lambda pos=i: LLMLocalSearch(
+                        chromosome, objective, factory, suite, executor
+                    ).llm_local_search(pos)
+                )
             if methods:
                 randomness.choice(methods)()
             else:
@@ -122,8 +124,12 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         position,
     ) -> None:
         statement = chromosome.test_case.statements[position]
-        self._logger.debug("Local search on other datatype for statement %s", statement.__class__)
-        old_statement = statement.clone(chromosome.test_case, Mirror())
+        self._logger.debug(
+            "Local search on other datatype for statement %s at position %d",
+            statement.__class__,
+            position,
+        )
+        old_test_case = chromosome.test_case.clone()
         last_execution_result = chromosome.get_last_execution_result()
 
         counter = 0
@@ -133,33 +139,20 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             and counter < config.LocalSearchConfiguration.max_other_type_mutation
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
-            if factory.change_statement(chromosome.test_case, position) and objective.has_improved(
+            if factory.change_statement(chromosome, position) and objective.has_improved(
                 chromosome
             ):
                 self._logger.debug("Local search has found another possible datatype")
                 found = True
+            else:
+                chromosome.test_case = old_test_case.clone()
+                chromosome.set_last_execution_result(last_execution_result)
             counter += 1
 
         if not found:
-            self._logger.debug(
-                "Local search did not find another possible datatype, reverting to old one"
-            )
-            chromosome.test_case.statements[position] = old_statement
-            chromosome.set_last_execution_result(last_execution_result)
+            self._logger.debug("Local search did not find another possible datatype.")
         else:
             self._search_same_datatype(chromosome, factory, objective, position)
-
-    def _search_llm(
-        self,
-        chromosome: TestCaseChromosome,
-        factory: TestFactory,
-        objective: LocalSearchObjective,
-        position,
-        suite: TestSuiteChromosome,
-        executor: TestCaseExecutor
-    ):
-        llm_local_search = LLMLocalSearch(chromosome, objective, factory, suite, executor)
-        llm_local_search.llm_local_search(position)
 
 
 class TestSuiteLocalSearch(LocalSearch, ABC):

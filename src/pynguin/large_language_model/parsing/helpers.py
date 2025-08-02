@@ -166,15 +166,15 @@ def unparse_test_case(test_case: tc.TestCase) -> str | None:
         return None
 
 
-def add_line_numbers(input: str) -> str:
+def add_line_numbers(original: str) -> str:
     """Adds line numbers to the input string.
 
     Args:
-        input: The input string to add line numbers to.
+        original: The input string to add line numbers to.
 
     Returns:
         The input string with line numbers added.
     """
-    lines = input.splitlines()
+    lines = original.splitlines()
     numbered_lines = [f"{i + 1}: {line}" for i, line in enumerate(lines)]
     return "\n".join(numbered_lines)
