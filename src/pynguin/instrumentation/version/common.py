@@ -28,8 +28,6 @@ if TYPE_CHECKING:
     from pynguin.instrumentation import controlflow as cf
 
 
-AST_FILENAME = "<ast>"
-
 # Jump operations are the last operation within a basic block
 JUMP_OP_POS = -1
 

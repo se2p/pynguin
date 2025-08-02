@@ -193,7 +193,7 @@ def test_assertion_checked_coverage_half_covered(subject_properties_mock, trace_
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
@@ -209,7 +209,7 @@ def test_assertion_checked_coverage_fully_covered(subject_properties_mock, trace
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0

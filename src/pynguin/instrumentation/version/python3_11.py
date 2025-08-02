@@ -17,8 +17,8 @@ from opcode import opname
 from typing import TYPE_CHECKING
 from typing import ClassVar
 
+from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation.version.common import AST_FILENAME
 from pynguin.instrumentation.version.common import COMPARE_OP_POS
 from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (

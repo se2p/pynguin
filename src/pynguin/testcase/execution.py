@@ -57,14 +57,13 @@ from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
-from pynguin.instrumentation.controlflow import ArtificialInstr
+from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.instrumentation.version import get_branch_type
 from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
@@ -482,32 +481,11 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 )
                 executor.execute_ast(assertion_node, exec_ctx)
 
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(
-                    executor.subject_properties
-                )
-                tracer.track_assertion_position(code_object_id, node_id, assertion)
+                tracer.track_assertion_position(assertion)
         finally:
             if enabled:
                 # Restore old state
                 tracer.disable()
-
-    def _get_assertion_node_and_code_object_ids(
-        self, subject_properties: SubjectProperties
-    ) -> tuple[int, int]:
-        existing_code_objects = subject_properties.existing_code_objects
-        code_object_id = len(existing_code_objects) - 1
-        code_object = existing_code_objects[code_object_id]
-        assert_node = None
-        for node in code_object.cfg.basic_block_nodes:
-            last_instr = node.get_instruction(-1)
-            if (
-                not isinstance(last_instr, ArtificialInstr)
-                and (is_true_branch := get_branch_type(last_instr.opcode)) is not None
-                and is_true_branch
-            ):
-                assert_node = node
-        assert assert_node
-        return code_object_id, assert_node.index
 
 
 class RemoteReturnTypeObserver(RemoteExecutionObserver):
@@ -1231,7 +1209,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         if _LOGGER.isEnabledFor(logging.DEBUG):
             _LOGGER.debug("Executing %s", ast.unparse(ast_node))
 
-        code = compile(ast_node, "<ast>", "exec")
+        code = compile(ast_node, AST_FILENAME, "exec")
         if self._instrument:
             code = self._checked_transformer.instrument_module(code)
 

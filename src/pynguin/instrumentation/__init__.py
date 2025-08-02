@@ -13,6 +13,9 @@ import enum
 from typing import NamedTuple
 
 
+AST_FILENAME = "<ast>"
+
+
 @enum.unique
 class PynguinCompare(enum.IntEnum):
     """Enum of all compare operations.

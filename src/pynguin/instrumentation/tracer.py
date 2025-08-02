@@ -63,10 +63,6 @@ immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 class ExecutedAssertion:
     """Data class for assertions of a testcase traced during execution for slicing."""
 
-    # the code object containing the executed assertion
-    code_object_id: int
-    # the node containing the executed assertion
-    node_id: int
     # the position inside the exection trace of the executed assertion
     trace_position: int
     # the assertion object of a statement that was executed
@@ -107,8 +103,6 @@ class ExecutionTrace:
         self.object_addresses.update(other.object_addresses)
         self.executed_assertions.extend(
             ExecutedAssertion(
-                executed_assertion.code_object_id,
-                executed_assertion.node_id,
                 executed_assertion.trace_position + shift,
                 executed_assertion.assertion,
             )
@@ -901,14 +895,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def track_assertion_position(
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:
         """Track the position of an assertion in the trace.
 
         Args:
-            code_object_id: code object containing the assertion to register
-            node_id: the id of the node containing the assertion to register
             assertion: the assertion of the statement
 
         Raises:
@@ -1494,25 +1484,18 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        if statement.has_only_exception_assertion():
-            trace = self._thread_local_state.trace
-            error_call_position = len(trace.executed_instructions) - 1
-            error_causing_instr = trace.executed_instructions[error_call_position]
-            code_object_id = error_causing_instr.code_object_id
-            node_id = error_causing_instr.node_id
-            trace.executed_assertions.append(
-                ExecutedAssertion(
-                    code_object_id,
-                    node_id,
-                    error_call_position,
-                    next(iter(statement.assertions)),
-                )
+        assert statement.has_only_exception_assertion()
+        trace = self._thread_local_state.trace
+        error_call_position = len(trace.executed_instructions) - 1
+        trace.executed_assertions.append(
+            ExecutedAssertion(
+                error_call_position,
+                next(iter(statement.assertions)),
             )
+        )
 
     @_early_return
-    def track_assertion_position(  # noqa: D102
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:  # noqa: D102
         exec_instr = self.get_trace().executed_instructions
         boolean_jump = len(exec_instr) - 1
         for instruction in reversed(exec_instr):
@@ -1525,8 +1508,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
         self._thread_local_state.trace.executed_assertions.append(
             ExecutedAssertion(
-                code_object_id,
-                node_id,
                 boolean_jump,
                 assertion,
             )
@@ -1770,10 +1751,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     ) -> None:
         self._tracer.track_exception_assertion(statement)
 
-    def track_assertion_position(  # noqa: D102
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
-        self._tracer.track_assertion_position(code_object_id, node_id, assertion)
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:  # noqa: D102
+        self._tracer.track_assertion_position(assertion)
 
     def __repr__(self) -> str:
         return "InstrumentationExecutionTracer"

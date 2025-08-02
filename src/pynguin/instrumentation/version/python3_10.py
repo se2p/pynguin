@@ -28,12 +28,12 @@ from bytecode.instr import Instr
 from bytecode.instr import Label
 
 from pynguin.analyses.constants import DynamicConstantProvider
+from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffect
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
-from pynguin.instrumentation.version.common import AST_FILENAME
 from pynguin.instrumentation.version.common import COMPARE_OP_POS
 from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (
