@@ -22,13 +22,16 @@ import pynguin.configuration as config
 from pynguin.analyses.typesystem import AnyType
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import DictStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
+from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
 from pynguin.testcase.statement import NonDictCollection
 from pynguin.testcase.statement import NoneStatement

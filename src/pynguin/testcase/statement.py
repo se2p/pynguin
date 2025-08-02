@@ -308,7 +308,7 @@ def create_statement(test_case: TestCase, value) -> VariableCreatingStatement | 
         return primitive_map[value_type](test_case, value)
     if value_type in collection_map:
         return (
-            collection_map[value_type](test_case, AnyType(), value)
+            collection_map[value_type](test_case, AnyType(), list(value))
             if value_type is not dict
             else (collection_map[value_type](value, AnyType(), value.items()))
         )
