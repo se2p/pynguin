@@ -286,20 +286,27 @@ class InstrumentedMutationController(ct.MutationController):
 
     def create_mutant(self, mutant_ast: ast.Module) -> types.ModuleType:  # noqa: D102
         self.subject_properties.reset()
+
         module_name = self._module.__name__
-        code = compile(mutant_ast, module_name, "exec")
+
+        code = self._transformer.instrument_module(
+            compile(
+                mutant_ast,
+                module_name,
+                "exec",
+            )
+        )
+
         if self._testing:
             self._testing_created_mutants.append(ast.unparse(mutant_ast))
-        code = self._transformer.instrument_module(code)
+
         module = types.ModuleType(module_name)
-        try:
-            with self.subject_properties.instrumentation_tracer:
-                exec(code, module.__dict__)  # noqa: S102
-        except Exception as exception:  # noqa: BLE001
-            _LOGGER.debug("Error creating mutant: %s", exception)
-        except SystemExit as exception:
-            _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
+
+        with self.subject_properties.instrumentation_tracer:
+            exec(code, module.__dict__)  # noqa: S102
+
         self.subject_properties.instrumentation_tracer.store_import_trace()
+
         return module
 
 
