@@ -11,6 +11,7 @@ from __future__ import annotations
 import abc
 import ast
 import copy
+import enum
 import logging
 import math
 import typing
@@ -40,6 +41,7 @@ if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
 from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
@@ -58,6 +60,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
     from pynguin.analyses import constants
+    from pynguin.testcase.testcase import TestCase
 
 T = TypeVar("T")
 
@@ -263,6 +266,54 @@ class Statement(abc.ABC):
         Returns:
             A hash.
         """
+
+
+def create_statement(test_case: TestCase, value) -> VariableCreatingStatement | None:
+    """Creates a new statement to the corresponding value.
+
+    Currently, this supports primitive types, collections, and enums.
+
+    Args:
+        test_case: The test case to which the statement belongs
+        value: The value for which a statement should be created
+
+    Returns:
+        A new statement that corresponds to the value, or None if no statement could be created.
+    """
+    logger = logging.getLogger(__name__)
+    logger.debug("Trying of creating new statement of type %r", value)
+    primitive_map = {
+        bool: BooleanPrimitiveStatement,
+        int: IntPrimitiveStatement,
+        str: StringPrimitiveStatement,
+        float: FloatPrimitiveStatement,
+        complex: ComplexPrimitiveStatement,
+        bytes: BytesPrimitiveStatement,
+    }
+
+    collection_map = {
+        list: ListStatement,
+        tuple: TupleStatement,
+        set: SetStatement,
+        dict: DictStatement,
+    }
+
+    if value is None:
+        return NoneStatement(test_case)
+    if isinstance(value, enum.Enum):
+        return EnumPrimitiveStatement(test_case, gao.GenericEnum(TypeInfo(enum.Enum)), value.value)
+
+    value_type = type(value)
+    if value_type in primitive_map:
+        return primitive_map[value_type](test_case, value)
+    if value_type in collection_map:
+        return (
+            collection_map[value_type](test_case, AnyType(), value)
+            if value_type is not dict
+            else (collection_map[value_type](value, AnyType(), value.items()))
+        )
+    logger.debug("Couldn't create a statement for value %r", value)
+    return None
 
 
 class VariableCreatingStatement(Statement, abc.ABC):

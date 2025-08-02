@@ -21,18 +21,14 @@ import pynguin.configuration as config
 
 from pynguin.analyses.typesystem import AnyType
 from pynguin.ga.testcasechromosome import TestCaseChromosome
-from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import DictStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import FloatPrimitiveStatement
 from pynguin.testcase.statement import FunctionStatement
-from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import MethodStatement
 from pynguin.testcase.statement import NonDictCollection
 from pynguin.testcase.statement import NoneStatement
@@ -41,10 +37,12 @@ from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
+from pynguin.testcase.statement import create_statement
 from pynguin.utils import randomness
 
 
 if TYPE_CHECKING:
+    from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.localsearchobjective import LocalSearchObjective
     from pynguin.testcase.testfactory import TestFactory
 
@@ -1252,8 +1250,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             statement.elements.append((randomness.choice(keys), randomness.choice(values)))
             objective_improvement = self._objective.has_improved(self._chromosome)
             if not objective_improvement:
-                pass  # TODO: active when method is correct
-                # objective_improvement = self._fix_possible_key_error(statement)
+                objective_improvement = self._fix_possible_key_error(statement)
             if objective_improvement:
                 improved = True
                 old_elements = statement.elements.copy()
@@ -1276,7 +1273,9 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             first_error_index = min(key_errors.keys())
             first_error = key_errors[first_error_index]
             key = first_error.args[0]
-            new_statement = None  # TODO: Create a new statement to fix the key error
+            new_statement = create_statement(self._chromosome.test_case, key)
+            if new_statement is None:
+                return False
             self._factory.append_statement(
                 self._chromosome.test_case, new_statement, position=self._position - 1
             )

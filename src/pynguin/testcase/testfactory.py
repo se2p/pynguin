@@ -30,7 +30,6 @@ from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
-from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import NoneStatement
@@ -47,6 +46,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.utils.orderedset import OrderedSet
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
