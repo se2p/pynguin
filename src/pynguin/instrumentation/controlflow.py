@@ -154,6 +154,35 @@ class BasicBlockNode:
             if not isinstance(instr, ArtificialInstr):
                 yield instr
 
+    @property
+    def instrumentation_original_instructions(self) -> Iterable[tuple[int, Instr]]:
+        """Provides the original instructions in a mode that is suitable for instrumentation.
+
+        This mode means that after each yield, the function will automatically skip all instructions
+        added by the instrumentation until the next instruction that was supposed to be yielded.
+
+        Returns:
+            An iterable of tuples containing the index of the instructions and the instructions
+        """
+        instr_index = 0
+        while instr_index < len(self._basic_block):
+            instr = self.get_instruction(instr_index)
+
+            if isinstance(instr, ArtificialInstr):
+                instr_index += 1
+                continue
+
+            yield instr_index, instr
+
+            # Update the instr_index to retarget at the original instruction
+            while (
+                isinstance(new_instr := self.get_instruction(instr_index), ArtificialInstr)
+                or new_instr != instr
+            ):
+                instr_index += 1
+
+            instr_index += 1
+
     def find_instruction_by_original_index(self, original_index: int) -> tuple[int, Instr]:
         """Find an index and instruction by its original index.
 

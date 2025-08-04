@@ -1101,8 +1101,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
 
         lineno: int | _UNSET | None = None
 
-        # The bytecode instructions change during the iteration but it is something supported
-        for instr_index, instr in enumerate(node.instructions):
+        for instr_index, instr in node.instrumentation_original_instructions:
             if self.should_instrument_line(instr, lineno):
                 lineno = instr.lineno
 
@@ -1168,15 +1167,9 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     ) -> None:
         lineno: int | _UNSET | None = None
 
-        instr_index = 0
-        instr_original_index = 0
-        while instr_index < len(node.basic_block):
-            instr = node.get_instruction(instr_index)
-
-            if isinstance(instr, cf.ArtificialInstr):
-                instr_index += 1
-                continue
-
+        for instr_original_index, (instr_index, instr) in enumerate(
+            node.instrumentation_original_instructions
+        ):
             # Register all lines available
             if cfg.bytecode_cfg.filename != AST_FILENAME and self.should_instrument_line(
                 instr, lineno
@@ -1204,13 +1197,6 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                         instr_original_index,
                     )
                     break
-
-            # Update the instr_index to repoint at the original instruction
-            while node.get_instruction(instr_index) != instr:
-                instr_index += 1
-
-            instr_original_index += 1
-            instr_index += 1
 
     def visit_line(  # noqa: D102, PLR0917
         self,
