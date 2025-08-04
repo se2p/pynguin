@@ -18,6 +18,7 @@ from typing import ClassVar
 
 from bytecode.instr import _UNSET
 from bytecode.instr import UNSET
+from bytecode.instr import BinaryOp
 from bytecode.instr import Instr
 
 from pynguin.instrumentation import StackEffects
@@ -331,7 +332,7 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 return (
                     cf.ArtificialInstr("COPY", 1, lineno=lineno),
                     cf.ArtificialInstr("COPY", 3, lineno=lineno),
-                    cf.ArtificialInstr("BINARY_OP", 0, lineno=lineno),
+                    cf.ArtificialInstr("BINARY_OP", BinaryOp.ADD.value, lineno=lineno),
                 )
             case _:
                 raise ValueError(f"Unsupported instrumentation setup action: {setup_action}.")
