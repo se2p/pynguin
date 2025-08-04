@@ -232,7 +232,6 @@ def stack_effects(  # noqa: D103, C901
             | "POP_JUMP_BACKWARD_IF_NONE"
             | "POP_JUMP_BACKWARD_IF_FALSE"
             | "POP_JUMP_BACKWARD_IF_TRUE"
-            | "CALL"
         ):
             return StackEffects(1, 0)
         case "CHECK_EXC_MATCH" | "CHECK_EG_MATCH" | "SWAP":
@@ -241,7 +240,7 @@ def stack_effects(  # noqa: D103, C901
             return StackEffects(1, 2)
         case "END_ASYNC_FOR":
             return StackEffects(2, 0)
-        case "BINARY_OP":
+        case "BINARY_OP" | "CALL":
             return StackEffects(2, 1)
         case "RERAISE":
             return StackEffects(1, 0)
@@ -274,7 +273,7 @@ def stack_effects(  # noqa: D103, C901
             return StackEffects(pops, 1)
         case "PRECALL":
             assert arg is not None
-            return StackEffects(arg, 0)
+            return StackEffects(2 + arg, 2)
         case _:
             return python3_10.stack_effects(
                 opcode,
@@ -352,7 +351,13 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
             case InstrumentationNameLoad(name):
                 return cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
             case InstrumentationGlobalLoad(name):
-                return cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+                # Starting with Python 3.11, LOAD_GLOBAL may load an extra NULL if a
+                # tuple (True, name) is passed as the argument. We do not need a NULL
+                # for our instrumentation, so we need to extract the name from the tuple
+                # if it is present.
+                if isinstance(name, tuple) and len(name) == 2:
+                    name = name[1]
+                return cf.ArtificialInstr("LOAD_GLOBAL", arg=(False, name), lineno=lineno)
             case InstrumentationDeref(name):
                 return cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
             case InstrumentationClassDeref(name):

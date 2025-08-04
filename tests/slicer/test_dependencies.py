@@ -8,18 +8,46 @@
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: E501, ERA001
 
-from bytecode import BasicBlock
-from bytecode import Compare
-from bytecode import Instr
+import sys
+
+from bytecode.cfg import BasicBlock
+from bytecode.instr import BinaryOp
+from bytecode.instr import Compare
+from bytecode.instr import Instr
 
 from tests.slicer.util import compare
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
-from tests.utils.version import only_3_10
 
 
-@only_3_10
+if sys.version_info >= (3, 11):
+    add_instr = Instr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        Instr("PUSH_NULL"),
+        Instr("LOAD_BUILD_CLASS"),
+        Instr("LOAD_CONST", arg=dummy_code_object),
+        Instr("MAKE_FUNCTION", arg=0),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("PRECALL", arg=2),
+        Instr("CALL", arg=2),
+        Instr("STORE_NAME", arg="Foo"),
+    )
+    pop_jump_if_false = "POP_JUMP_FORWARD_IF_FALSE"
+else:
+    add_instr = Instr("BINARY_ADD")
+    create_foo_class = (
+        Instr("LOAD_BUILD_CLASS"),
+        Instr("LOAD_CONST", arg=dummy_code_object),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("MAKE_FUNCTION", arg=0),
+        Instr("LOAD_CONST", arg="Foo"),
+        Instr("CALL_FUNCTION", arg=2),
+        Instr("STORE_NAME", arg="Foo"),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+
+
 def test_data_dependency_1():
     # Implicit data dependency at return, explicit (full cover) for result
     def func() -> int:
@@ -40,7 +68,6 @@ def test_data_dependency_1():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_data_dependency_2():
     # Implicit data dependency at return, explicit (full cover) for result;
     # foo must be excluded
@@ -63,7 +90,6 @@ def test_data_dependency_2():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_data_dependency_3():
     # Transitive explicit (full cover) dependencies
     def func() -> int:
@@ -78,7 +104,7 @@ def test_data_dependency_3():
         # result = 1 + foo
         Instr("LOAD_CONST", arg=1),
         Instr("LOAD_FAST", arg="foo"),
-        Instr("BINARY_ADD"),
+        add_instr,
         Instr("STORE_FAST", arg="result"),
         # return result
         Instr("LOAD_FAST", arg="result"),
@@ -90,18 +116,11 @@ def test_data_dependency_3():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
     module_block = BasicBlock([
         # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
+        *create_foo_class,
         # ob.attr1 = 1
         Instr("LOAD_CONST", arg=1),
         Instr("LOAD_FAST", arg="ob"),
@@ -112,7 +131,7 @@ def test_data_dependency_4():
         Instr("LOAD_FAST", arg="ob"),
         Instr("LOAD_ATTR", arg="attr1"),
         Instr("BUILD_LIST", arg=1),
-        Instr("BINARY_ADD"),
+        add_instr,
         Instr("LOAD_FAST", arg="ob"),
         Instr("STORE_ATTR", arg="attr2"),
         # result = ob.attr2
@@ -144,22 +163,26 @@ def test_data_dependency_4():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_data_dependency_5():
+    if sys.version_info >= (3, 11):
+        instantiate_foo_class = (
+            Instr("LOAD_GLOBAL", arg=(True, "Foo")),
+            Instr("STORE_FAST", arg="ob"),
+            Instr("PRECALL", arg=0),
+            Instr("CALL", arg=0),
+        )
+    else:
+        instantiate_foo_class = (
+            Instr("LOAD_GLOBAL", arg="Foo"),
+            Instr("CALL_FUNCTION", arg=0),
+            Instr("STORE_FAST", arg="ob"),
+        )
     # Explicit attribute dependencies (partial and full cover)
     module_block = BasicBlock([
         # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
+        *create_foo_class,
         # ob = Foo()
-        Instr("LOAD_GLOBAL", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="ob"),
+        *instantiate_foo_class,
         # ob.attr1 = 1
         Instr("LOAD_CONST", arg=1),
         Instr("LOAD_FAST", arg="ob"),
@@ -186,7 +209,6 @@ def test_data_dependency_5():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_simple_control_dependency_1():
     # If condition evaluated to true, with relevant variable foo
     def func() -> int:  # pragma: no cover
@@ -216,7 +238,7 @@ def test_simple_control_dependency_1():
         Instr("LOAD_FAST", arg="foo"),
         Instr("LOAD_CONST", arg=1),
         Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=return_basic_block),
+        Instr(pop_jump_if_false, arg=return_basic_block),
     ])
 
     expected_instructions = []
@@ -229,7 +251,6 @@ def test_simple_control_dependency_1():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_simple_control_dependency_2():
     # If condition evaluated to false, with two relevant variables (but no influence on result)
     def func() -> int:  # pragma: no cover
@@ -262,7 +283,6 @@ def test_simple_control_dependency_2():
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_simple_control_dependency_3():
     # If-elif-else with elif branch true
     def func() -> int:  # pragma: no cover
@@ -278,13 +298,26 @@ def test_simple_control_dependency_3():
 
         return result
 
-    elif_block = BasicBlock([
-        # result = 2
-        Instr("LOAD_CONST", arg=2),
-        Instr("STORE_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+    # result = 2
+    if sys.version_info >= (3, 11):
+        return_block = BasicBlock([
+            Instr("LOAD_FAST", arg="result"),
+            Instr("RETURN_VALUE"),
+        ])
+        elif_body = BasicBlock([
+            Instr("LOAD_CONST", arg=2),
+            Instr("STORE_FAST", arg="result"),
+            Instr("JUMP_FORWARD", arg=return_block),
+        ])
+    else:
+        elif_body = BasicBlock([
+            Instr("LOAD_CONST", arg=2),
+            Instr("STORE_FAST", arg="result"),
+            Instr("LOAD_FAST", arg="result"),
+            Instr("RETURN_VALUE"),
+        ])
+        return_block = BasicBlock([])
+
     else_block = BasicBlock([
         Instr("LOAD_CONST", arg=3),
         Instr("STORE_FAST", arg="result"),
@@ -294,14 +327,14 @@ def test_simple_control_dependency_3():
         Instr("LOAD_FAST", arg="foo"),
         Instr("LOAD_CONST", arg=1),
         Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=else_block),
+        Instr(pop_jump_if_false, arg=else_block),
     ])
     if_cond = BasicBlock([
         # if foo == bar
         Instr("LOAD_FAST", arg="foo"),
         Instr("LOAD_FAST", arg="bar"),
         Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
+        Instr(pop_jump_if_false, arg=elif_cond),
     ])
     init_block = BasicBlock([
         # foo = 1
@@ -316,14 +349,14 @@ def test_simple_control_dependency_3():
     expected_instructions.extend(init_block)
     expected_instructions.extend(if_cond)
     expected_instructions.extend(elif_cond)
-    expected_instructions.extend(elif_block)
+    expected_instructions.extend(elif_body)
+    expected_instructions.extend(return_block)
 
     sliced_instructions = slice_function_at_return(func)
     assert len(sliced_instructions) == len(expected_instructions)
     assert compare(sliced_instructions, expected_instructions)
 
 
-@only_3_10
 def test_simple_control_dependency_4():
     # If-elif-else with else branch true
     def func() -> int:  # pragma: no cover
@@ -354,14 +387,14 @@ def test_simple_control_dependency_4():
         Instr("LOAD_FAST", arg="foo"),
         Instr("LOAD_FAST", arg="bar"),
         Instr("COMPARE_OP", arg=Compare.GT),
-        Instr("POP_JUMP_IF_FALSE", arg=else_block),
+        Instr(pop_jump_if_false, arg=else_block),
     ])
     if_cond = BasicBlock([
         # if foo == bar
         Instr("LOAD_FAST", arg="foo"),
         Instr("LOAD_FAST", arg="bar"),
         Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
+        Instr(pop_jump_if_false, arg=elif_cond),
     ])
     init_block = BasicBlock([
         # foo = 1
