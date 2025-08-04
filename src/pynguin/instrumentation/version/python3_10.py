@@ -384,7 +384,6 @@ def stack_effects(  # noqa: D103, C901, PLR0915
     *,
     jump: bool = False,
 ) -> StackEffects:
-    effects: StackEffects
     match opname[opcode]:
         case (
             "NOP"
@@ -399,7 +398,7 @@ def stack_effects(  # noqa: D103, C901, PLR0915
             | "EXTENDED_ARG"
             | "ROT_N"
         ):
-            effects = StackEffects(0, 0)
+            return StackEffects(0, 0)
         case (
             "POP_TOP"
             | "PRINT_EXPR"
@@ -416,13 +415,13 @@ def stack_effects(  # noqa: D103, C901, PLR0915
             | "SET_ADD"
             | "GEN_START"
         ):
-            effects = StackEffects(1, 0)
+            return StackEffects(1, 0)
         case "DELETE_SUBSCR" | "STORE_ATTR" | "MAP_ADD" | "JUMP_IF_NOT_EXC_MATCH":
-            effects = StackEffects(2, 0)
+            return StackEffects(2, 0)
         case "STORE_SUBSCR" | "POP_EXCEPT" | "RERAISE":
-            effects = StackEffects(3, 0)
+            return StackEffects(3, 0)
         case "END_ASYNC_FOR":
-            effects = StackEffects(7, 0)  # TODO conditional 0 pops?
+            return StackEffects(7, 0)  # TODO conditional 0 pops?
         case (
             "LOAD_BUILD_CLASS"
             | "LOAD_CONST"
@@ -439,9 +438,9 @@ def stack_effects(  # noqa: D103, C901, PLR0915
             | "MATCH_MAPPING"
             | "MATCH_SEQUENCE"
         ):
-            effects = StackEffects(0, 1)
+            return StackEffects(0, 1)
         case "MATCH_KEYS":
-            effects = StackEffects(0, 2)
+            return StackEffects(0, 2)
         case (
             "UNARY_POSITIVE"
             | "UNARY_NEGATIVE"
@@ -454,18 +453,17 @@ def stack_effects(  # noqa: D103, C901, PLR0915
             | "GET_AWAITABLE"
             | "YIELD_VALUE"
             | "LOAD_ATTR"
-            | "FORMAT_VALUE"
             | "LIST_TO_TUPLE"
         ):
-            effects = StackEffects(1, 1)
+            return StackEffects(1, 1)
         case "ROT_TWO" | "COPY_DICT_WITHOUT_KEYS":
-            effects = StackEffects(2, 2)
+            return StackEffects(2, 2)
         case "ROT_THREE":
-            effects = StackEffects(3, 3)
+            return StackEffects(3, 3)
         case "ROT_FOUR":
-            effects = StackEffects(4, 4)
+            return StackEffects(4, 4)
         case "DUP_TOP" | "BEFORE_ASYNC_WITH" | "GET_ANEXT" | "LOAD_METHOD":
-            effects = StackEffects(1, 2)
+            return StackEffects(1, 2)
         case (
             "BINARY_MATRIX_MULTIPLY"
             | "INPLACE_MATRIX_MULTIPLY"
@@ -505,47 +503,49 @@ def stack_effects(  # noqa: D103, C901, PLR0915
             | "DICT_MERGE"
             | "DICT_UPDATE"
         ):
-            effects = StackEffects(2, 1)
+            return StackEffects(2, 1)
         case "DUP_TOP_TWO":
-            effects = StackEffects(2, 4)
+            return StackEffects(2, 4)
         # jump based operations
         case "SETUP_WITH":
-            effects = StackEffects(0, 6) if jump else StackEffects(0, 1)
+            return StackEffects(0, 6) if jump else StackEffects(0, 1)
         case "FOR_ITER":
-            effects = StackEffects(1, 0) if jump else StackEffects(1, 2)
+            return StackEffects(1, 0) if jump else StackEffects(1, 2)
         case "JUMP_IF_TRUE_OR_POP" | "JUMP_IF_FALSE_OR_POP":
-            effects = StackEffects(0, 0) if jump else StackEffects(1, 0)
+            return StackEffects(0, 0) if jump else StackEffects(1, 0)
+        case "SETUP_ASYNC_WITH":
+            return StackEffects(0, 5) if jump else StackEffects(0, 0)
         case "SETUP_FINALLY":
-            effects = StackEffects(0, 6) if jump else StackEffects(0, 0)
+            return StackEffects(0, 6) if jump else StackEffects(0, 0)
         # argument dependant operations
         case "UNPACK_SEQUENCE":
             assert arg is not None
-            effects = StackEffects(1, arg)
+            return StackEffects(1, arg)
         case "UNPACK_EX":
             assert arg is not None
-            effects = StackEffects(1, (arg & 0xFF) + (arg >> 8) + 1)
+            return StackEffects(1, (arg & 0xFF) + (arg >> 8) + 1)
         case "BUILD_TUPLE" | "BUILD_LIST" | "BUILD_SET" | "BUILD_STRING":
             assert arg is not None
-            effects = StackEffects(arg, 1)
+            return StackEffects(arg, 1)
         case "BUILD_MAP":
             assert arg is not None
-            effects = StackEffects(2 * arg, 1)
+            return StackEffects(2 * arg, 1)
         case "BUILD_CONST_KEY_MAP" | "CALL_FUNCTION":
             assert arg is not None
-            effects = StackEffects(1 + arg, 1)
+            return StackEffects(1 + arg, 1)
         case "RAISE_VARARGS":
             assert arg is not None
-            effects = StackEffects(arg, 0)
+            return StackEffects(arg, 0)
         case "CALL_METHOD" | "CALL_FUNCTION_KW":
             assert arg is not None
-            effects = StackEffects(2 + arg, 1)
+            return StackEffects(2 + arg, 1)
         case "CALL_FUNCTION_EX":
             assert arg is not None
             # argument contains flags
             pops = 2
             if arg & 0x01 != 0:
                 pops += 1
-            effects = StackEffects(pops, 1)
+            return StackEffects(pops, 1)
         case "MAKE_FUNCTION":
             assert arg is not None
             # argument contains flags
@@ -558,16 +558,23 @@ def stack_effects(  # noqa: D103, C901, PLR0915
                 pops += 1
             if arg & 0x08 != 0:
                 pops += 1
-            effects = StackEffects(pops, 1)
+            return StackEffects(pops, 1)
+        case "FORMAT_VALUE":
+            assert arg is not None
+            # argument contains flags
+            pops = 0
+            if arg & 0x03 in {0, 1, 2, 3}:
+                pops += 1
+            if arg & 0x04 == 4:
+                pops += 1
+            return StackEffects(pops, 1)
         case "BUILD_SLICE":
-            effects = StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
+            return StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
         case _:
             raise AssertionError(
                 f"The opcode {opcode} (name={opname[opcode]}, arg={arg}, jump={jump}, "
                 f"stack_effect={opcode_stack_effect(opcode, arg, jump=jump)}) isn't recognized."
             )
-
-    return effects
 
 
 class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsGenerator):
@@ -1070,22 +1077,36 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
     ) -> None:
         self._subject_properties = subject_properties
 
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:
+        """Check if the line should be instrumented.
+
+        Args:
+            instr: The instruction to check.
+            lineno: The line number to check against.
+
+        Returns:
+            True if the line should be instrumented, False otherwise.
+        """
+        return instr.lineno != lineno
+
     def visit_node(  # noqa: D102
         self,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
+        if cfg.bytecode_cfg.filename == AST_FILENAME:
+            # Do not instrument the AST file.
+            return
+
         lineno: int | _UNSET | None = None
 
         # The bytecode instructions change during the iteration but it is something supported
         for instr_index, instr in enumerate(node.instructions):
-            if instr.lineno == lineno or cfg.bytecode_cfg.filename == AST_FILENAME:
-                continue
+            if self.should_instrument_line(instr, lineno):
+                lineno = instr.lineno
 
-            lineno = instr.lineno
-
-            self.visit_line(cfg, code_object_id, node, instr, instr_index)
+                self.visit_line(cfg, code_object_id, node, instr, instr_index)
 
     def visit_line(  # noqa: D102
         self,
@@ -1127,13 +1148,24 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
 
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:
+        """Check if the line should be instrumented.
+
+        Args:
+            instr: The instruction to check.
+            lineno: The line number to check against.
+
+        Returns:
+            True if the line should be instrumented, False otherwise.
+        """
+        return instr.lineno != lineno
+
     def visit_node(  # noqa: D102
         self,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
-        file_name = cfg.bytecode_cfg.filename
         lineno: int | _UNSET | None = None
 
         instr_index = 0
@@ -1146,7 +1178,9 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 continue
 
             # Register all lines available
-            if instr.lineno != lineno and file_name != AST_FILENAME:
+            if cfg.bytecode_cfg.filename != AST_FILENAME and self.should_instrument_line(
+                instr, lineno
+            ):
                 lineno = instr.lineno
                 self.visit_line(
                     cfg,

@@ -38,10 +38,8 @@ else:
         "This module requires Python 3.10 or higher. "
         "Please upgrade your Python version to use this feature."
     )
-from tests.utils.version import only_3_10
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "op",
     [pytest.param(op) for op in opmap.values() if op < HAVE_ARGUMENT],
@@ -51,24 +49,22 @@ def test_argument_less_opcodes(op):
     pops, pushes = stack_effects(op, None)
     expected = dis.stack_effect(op)
 
-    assert expected == (pushes - pops)
+    assert expected == (pushes - pops), (
+        f"Opcode {op} ({dis.opname[op]}) stack effect mismatch: expected {expected}, got {(pushes - pops)}"  # noqa: E501
+    )
 
 
 def _conditional_combinations() -> list[tuple[int, int, bool]]:
     """Create a list of all combinations to call a conditional opcode's stack effect."""
-    args = [0, 1]
-
-    # (opcode, argument, jump)  # noqa: ERA001
     combinations: list[tuple[int, int, bool]] = []
     for op in opmap.values():
-        if op <= HAVE_ARGUMENT or op is opmap.get("SETUP_ASYNC_WITH"):
-            continue  # async is not supported
-        for arg in args:
+        if op <= HAVE_ARGUMENT:
+            continue
+        for arg in range(5):
             combinations.extend(((op, arg, True), (op, arg, False)))
     return combinations
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "op, arg, jump",
     list(starmap(pytest.param, _conditional_combinations())),
@@ -78,13 +74,9 @@ def test_conditional_opcodes(op, arg, jump):
     pops, pushes = stack_effects(op, arg, jump=jump)
     expected = dis.stack_effect(op, arg, jump=jump)
 
-    assert expected == (pushes - pops)
-
-
-@only_3_10
-def test_async_setup_throws_exception():
-    with pytest.raises(AssertionError):
-        stack_effects(opmap["SETUP_ASYNC_WITH"], 0)
+    assert expected == (pushes - pops), (
+        f"Opcode {op} ({dis.opname[op]}) stack effect mismatch: expected {expected}, got {(pushes - pops)}"  # noqa: E501
+    )
 
 
 def test_convert_instrumentation_method_call_with_constant():

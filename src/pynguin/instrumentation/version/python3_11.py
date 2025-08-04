@@ -20,7 +20,7 @@ from bytecode.instr import _UNSET
 from bytecode.instr import UNSET
 from bytecode.instr import Instr
 
-from pynguin.instrumentation import AST_FILENAME
+from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation.version import python3_10
@@ -61,7 +61,6 @@ from .python3_10 import STORE_OPCODES
 from .python3_10 import add_for_loop_no_yield_nodes
 from .python3_10 import end_with_explicit_return_none
 from .python3_10 import is_conditional_jump
-from .python3_10 import stack_effects
 
 
 __all__ = [
@@ -198,6 +197,89 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return False
         case _:
             return None
+
+
+def stack_effects(  # noqa: D103, C901
+    opcode: int,
+    arg: int | None,
+    *,
+    jump: bool = False,
+) -> StackEffects:
+    match opname[opcode]:
+        case (
+            "CACHE"
+            | "RETURN_GENERATOR"
+            | "ASYNC_GEN_WRAP"
+            | "JUMP_BACKWARD_NO_INTERRUPT"
+            | "MAKE_CELL"
+            | "JUMP_BACKWARD"
+            | "COPY_FREE_VARS"
+            | "RESUME"
+            | "KW_NAMES"
+        ):
+            return StackEffects(0, 0)
+        case "PUSH_NULL" | "MATCH_KEYS" | "BEFORE_WITH" | "COPY":
+            return StackEffects(0, 1)
+        case (
+            "PREP_RERAISE_STAR"
+            | "POP_EXCEPT"
+            | "POP_JUMP_FORWARD_IF_FALSE"
+            | "POP_JUMP_FORWARD_IF_TRUE"
+            | "POP_JUMP_FORWARD_IF_NOT_NONE"
+            | "POP_JUMP_FORWARD_IF_NONE"
+            | "POP_JUMP_BACKWARD_IF_NOT_NONE"
+            | "POP_JUMP_BACKWARD_IF_NONE"
+            | "POP_JUMP_BACKWARD_IF_FALSE"
+            | "POP_JUMP_BACKWARD_IF_TRUE"
+            | "CALL"
+        ):
+            return StackEffects(1, 0)
+        case "CHECK_EXC_MATCH" | "CHECK_EG_MATCH" | "SWAP":
+            return StackEffects(1, 1)
+        case "PUSH_EXC_INFO":
+            return StackEffects(1, 2)
+        case "END_ASYNC_FOR":
+            return StackEffects(2, 0)
+        case "BINARY_OP":
+            return StackEffects(2, 1)
+        case "RERAISE":
+            return StackEffects(1, 0)
+        case "MATCH_CLASS":
+            return StackEffects(3, 1)
+        case "LOAD_GLOBAL":
+            assert arg is not None
+            return StackEffects(0, 2) if arg % 2 == 1 else StackEffects(0, 1)
+        case "SEND":
+            return StackEffects(1, 0) if jump else StackEffects(0, 0)
+        case "MAKE_FUNCTION":
+            assert arg is not None
+            # argument contains flags
+            pops = 1
+            if arg & 0x01 != 0:
+                pops += 1
+            if arg & 0x02 != 0:
+                pops += 1
+            if arg & 0x04 != 0:
+                pops += 1
+            if arg & 0x08 != 0:
+                pops += 1
+            return StackEffects(pops, 1)
+        case "CALL_FUNCTION_EX":
+            assert arg is not None
+            # argument contains flags
+            pops = 3
+            if arg & 0x01 != 0:
+                pops += 1
+            return StackEffects(pops, 1)
+        case "PRECALL":
+            assert arg is not None
+            return StackEffects(arg, 0)
+        case _:
+            return python3_10.stack_effects(
+                opcode,
+                arg,
+                jump=jump,
+            )
 
 
 class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsGenerator):
@@ -395,32 +477,17 @@ class LineCoverageInstrumentation(python3_10.LineCoverageInstrumentation):
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
-    def visit_node(  # noqa: D102
-        self,
-        cfg: cf.CFG,
-        code_object_id: int,
-        node: cf.BasicBlockNode,
-    ) -> None:
-        lineno: int | _UNSET | None = None
-
-        # The bytecode instructions change during the iteration but it is something supported
-        for instr_index, instr in enumerate(node.instructions):
-            if (
-                instr.lineno == lineno
-                or instr.opcode == opmap["RESUME"]
-                or cfg.bytecode_cfg.filename == AST_FILENAME
-            ):
-                continue
-
-            lineno = instr.lineno
-
-            self.visit_line(cfg, code_object_id, node, instr, instr_index)
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
+        return instr.lineno != lineno and instr.opcode != opmap["RESUME"]
 
 
 class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
     """Specialized instrumentation adapter for checked coverage in Python 3.11."""
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
+
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
+        return instr.lineno != lineno and instr.opcode != opmap["RESUME"]
 
     def visit_call(  # noqa: D102, PLR0917
         self,
