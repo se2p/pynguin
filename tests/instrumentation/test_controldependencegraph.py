@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import sys
+
 from contextlib import contextmanager
 
 import pytest
@@ -14,7 +16,6 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from tests.fixtures.programgraph.yield_fun import yield_fun
-from tests.utils.version import only_3_10
 
 
 def test_integration(small_control_flow_graph):
@@ -165,10 +166,24 @@ def long_fixture(x, y):  # pragma: no cover
     return 9
 
 
-@only_3_10
-@pytest.mark.parametrize(
-    "node_index,expected_dependant",
-    [
+if sys.version_info >= (3, 11):
+    test_is_control_dependent_on_root_params = [
+        pytest.param(0, True),
+        pytest.param(1, False),
+        pytest.param(2, True),
+        pytest.param(3, True),
+        pytest.param(4, True),
+        pytest.param(5, True),
+        pytest.param(6, False),
+        pytest.param(7, True),
+        pytest.param(8, False),
+        pytest.param(9, False),
+        pytest.param(10, True),
+        pytest.param(11, False),
+        pytest.param(12, False),
+    ]
+else:
+    test_is_control_dependent_on_root_params = [
         pytest.param(0, True),
         pytest.param(1, False),
         pytest.param(2, True),
@@ -179,7 +194,12 @@ def long_fixture(x, y):  # pragma: no cover
         pytest.param(7, True),
         pytest.param(8, False),
         pytest.param(9, False),
-    ],
+    ]
+
+
+@pytest.mark.parametrize(
+    "node_index,expected_dependant",
+    test_is_control_dependent_on_root_params,
 )
 def test_is_control_dependent_on_root(
     node_index, expected_dependant, subject_properties: SubjectProperties
