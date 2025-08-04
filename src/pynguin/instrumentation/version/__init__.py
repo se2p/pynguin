@@ -60,7 +60,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "stack_effect",
+    "stack_effects",
 ]
 
 
@@ -178,7 +178,7 @@ class EndWithExplicitReturnNoneFunction(Protocol):
         """
 
 
-stack_effect: StackEffectsFunction
+stack_effects: StackEffectsFunction
 is_conditional_jump: IsConditionalJumpFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction

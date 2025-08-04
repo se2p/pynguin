@@ -17,7 +17,7 @@ import pytest
 
 from bytecode import Bytecode
 
-from pynguin.instrumentation.version import stack_effect
+from pynguin.instrumentation.version import stack_effects
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
@@ -48,7 +48,7 @@ from tests.utils.version import only_3_10
 )
 def test_argument_less_opcodes(op):
     """Test argument less opcode stack effects."""
-    pops, pushes = stack_effect(op, None)
+    pops, pushes = stack_effects(op, None)
     expected = dis.stack_effect(op)
 
     assert expected == (pushes - pops)
@@ -75,7 +75,7 @@ def _conditional_combinations() -> list[tuple[int, int, bool]]:
 )
 def test_conditional_opcodes(op, arg, jump):
     """Test opcodes with arguments and jumps."""
-    pops, pushes = stack_effect(op, arg, jump=jump)
+    pops, pushes = stack_effects(op, arg, jump=jump)
     expected = dis.stack_effect(op, arg, jump=jump)
 
     assert expected == (pushes - pops)
@@ -84,7 +84,7 @@ def test_conditional_opcodes(op, arg, jump):
 @only_3_10
 def test_async_setup_throws_exception():
     with pytest.raises(AssertionError):
-        stack_effect(opmap["SETUP_ASYNC_WITH"], 0)
+        stack_effects(opmap["SETUP_ASYNC_WITH"], 0)
 
 
 def test_convert_instrumentation_method_call_with_constant():

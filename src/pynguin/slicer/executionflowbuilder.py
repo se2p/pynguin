@@ -28,7 +28,7 @@ from pynguin.instrumentation.version import MEMORY_USE_OPCODES
 from pynguin.instrumentation.version import RETURNING_OPCODES
 from pynguin.instrumentation.version import TRACED_OPCODES
 from pynguin.instrumentation.version import YIELDING_OPCODES
-from pynguin.instrumentation.version import stack_effect
+from pynguin.instrumentation.version import stack_effects
 from pynguin.utils.exceptions import InstructionNotFoundException
 
 
@@ -164,7 +164,15 @@ class UniqueInstruction(Instr):
         else:
             arg = self.arg
 
-        return stack_effect(self.opcode, arg, jump=jump)
+        effects = stack_effects(self.opcode, arg, jump=jump)
+
+        assert self.stack_effect(jump) == effects.pushes - effects.pops, (
+            f"Expected a stack effect of {self.stack_effect(jump)} for "
+            f"{self.name} (arg={arg}, jump={jump}) but got {effects.pushes - effects.pops}. "
+            f"({effects.pushes} pushes / {effects.pops} pops)"
+        )
+
+        return effects
 
     def __hash__(self):
         return hash((self.name, self.code_object_id, self.node_id, self.instr_original_index))

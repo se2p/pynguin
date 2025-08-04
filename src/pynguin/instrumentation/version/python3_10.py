@@ -92,7 +92,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "stack_effect",
+    "stack_effects",
 ]
 
 # Fast opcodes
@@ -378,13 +378,13 @@ def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noq
     )
 
 
-def stack_effect(  # noqa: D103, C901, PLR0915
+def stack_effects(  # noqa: D103, C901, PLR0915
     opcode: int,
     arg: int | None,
     *,
     jump: bool = False,
 ) -> StackEffects:
-    effect: StackEffects
+    effects: StackEffects
     match opname[opcode]:
         case (
             "NOP"
@@ -399,7 +399,7 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "EXTENDED_ARG"
             | "ROT_N"
         ):
-            effect = StackEffects(0, 0)
+            effects = StackEffects(0, 0)
         case (
             "POP_TOP"
             | "PRINT_EXPR"
@@ -416,13 +416,13 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "SET_ADD"
             | "GEN_START"
         ):
-            effect = StackEffects(1, 0)
+            effects = StackEffects(1, 0)
         case "DELETE_SUBSCR" | "STORE_ATTR" | "MAP_ADD" | "JUMP_IF_NOT_EXC_MATCH":
-            effect = StackEffects(2, 0)
+            effects = StackEffects(2, 0)
         case "STORE_SUBSCR" | "POP_EXCEPT" | "RERAISE":
-            effect = StackEffects(3, 0)
+            effects = StackEffects(3, 0)
         case "END_ASYNC_FOR":
-            effect = StackEffects(7, 0)  # TODO conditional 0 pops?
+            effects = StackEffects(7, 0)  # TODO conditional 0 pops?
         case (
             "LOAD_BUILD_CLASS"
             | "LOAD_CONST"
@@ -439,9 +439,9 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "MATCH_MAPPING"
             | "MATCH_SEQUENCE"
         ):
-            effect = StackEffects(0, 1)
+            effects = StackEffects(0, 1)
         case "MATCH_KEYS":
-            effect = StackEffects(0, 2)
+            effects = StackEffects(0, 2)
         case (
             "UNARY_POSITIVE"
             | "UNARY_NEGATIVE"
@@ -457,15 +457,15 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "FORMAT_VALUE"
             | "LIST_TO_TUPLE"
         ):
-            effect = StackEffects(1, 1)
+            effects = StackEffects(1, 1)
         case "ROT_TWO" | "COPY_DICT_WITHOUT_KEYS":
-            effect = StackEffects(2, 2)
+            effects = StackEffects(2, 2)
         case "ROT_THREE":
-            effect = StackEffects(3, 3)
+            effects = StackEffects(3, 3)
         case "ROT_FOUR":
-            effect = StackEffects(4, 4)
+            effects = StackEffects(4, 4)
         case "DUP_TOP" | "BEFORE_ASYNC_WITH" | "GET_ANEXT" | "LOAD_METHOD":
-            effect = StackEffects(1, 2)
+            effects = StackEffects(1, 2)
         case (
             "BINARY_MATRIX_MULTIPLY"
             | "INPLACE_MATRIX_MULTIPLY"
@@ -505,47 +505,47 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "DICT_MERGE"
             | "DICT_UPDATE"
         ):
-            effect = StackEffects(2, 1)
+            effects = StackEffects(2, 1)
         case "DUP_TOP_TWO":
-            effect = StackEffects(2, 4)
+            effects = StackEffects(2, 4)
         # jump based operations
         case "SETUP_WITH":
-            effect = StackEffects(0, 6) if jump else StackEffects(0, 1)
+            effects = StackEffects(0, 6) if jump else StackEffects(0, 1)
         case "FOR_ITER":
-            effect = StackEffects(1, 0) if jump else StackEffects(1, 2)
+            effects = StackEffects(1, 0) if jump else StackEffects(1, 2)
         case "JUMP_IF_TRUE_OR_POP" | "JUMP_IF_FALSE_OR_POP":
-            effect = StackEffects(0, 0) if jump else StackEffects(1, 0)
+            effects = StackEffects(0, 0) if jump else StackEffects(1, 0)
         case "SETUP_FINALLY":
-            effect = StackEffects(0, 6) if jump else StackEffects(0, 0)
+            effects = StackEffects(0, 6) if jump else StackEffects(0, 0)
         # argument dependant operations
         case "UNPACK_SEQUENCE":
             assert arg is not None
-            effect = StackEffects(1, arg)
+            effects = StackEffects(1, arg)
         case "UNPACK_EX":
             assert arg is not None
-            effect = StackEffects(1, (arg & 0xFF) + (arg >> 8) + 1)
+            effects = StackEffects(1, (arg & 0xFF) + (arg >> 8) + 1)
         case "BUILD_TUPLE" | "BUILD_LIST" | "BUILD_SET" | "BUILD_STRING":
             assert arg is not None
-            effect = StackEffects(arg, 1)
+            effects = StackEffects(arg, 1)
         case "BUILD_MAP":
             assert arg is not None
-            effect = StackEffects(2 * arg, 1)
+            effects = StackEffects(2 * arg, 1)
         case "BUILD_CONST_KEY_MAP" | "CALL_FUNCTION":
             assert arg is not None
-            effect = StackEffects(1 + arg, 1)
+            effects = StackEffects(1 + arg, 1)
         case "RAISE_VARARGS":
             assert arg is not None
-            effect = StackEffects(arg, 0)
+            effects = StackEffects(arg, 0)
         case "CALL_METHOD" | "CALL_FUNCTION_KW":
             assert arg is not None
-            effect = StackEffects(2 + arg, 1)
+            effects = StackEffects(2 + arg, 1)
         case "CALL_FUNCTION_EX":
             assert arg is not None
             # argument contains flags
             pops = 2
             if arg & 0x01 != 0:
                 pops += 1
-            effect = StackEffects(pops, 1)
+            effects = StackEffects(pops, 1)
         case "MAKE_FUNCTION":
             assert arg is not None
             # argument contains flags
@@ -558,22 +558,16 @@ def stack_effect(  # noqa: D103, C901, PLR0915
                 pops += 1
             if arg & 0x08 != 0:
                 pops += 1
-            effect = StackEffects(pops, 1)
+            effects = StackEffects(pops, 1)
         case "BUILD_SLICE":
-            effect = StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
+            effects = StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
         case _:
             raise AssertionError(
                 f"The opcode {opcode} (name={opname[opcode]}, arg={arg}, jump={jump}, "
                 f"stack_effect={opcode_stack_effect(opcode, arg, jump=jump)}) isn't recognized."
             )
 
-    assert opcode_stack_effect(opcode, arg, jump=jump) == effect.pushes - effect.pops, (
-        f"Expected a stack effect of {opcode_stack_effect(opcode, arg, jump=jump)} for "
-        f"{opname[opcode]} (arg={arg}, jump={jump}) but got {effect.pushes - effect.pops}. "
-        f"({effect.pushes} pushes / {effect.pops} pops)"
-    )
-
-    return effect
+    return effects
 
 
 class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsGenerator):

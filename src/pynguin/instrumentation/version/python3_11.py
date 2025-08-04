@@ -61,7 +61,7 @@ from .python3_10 import STORE_OPCODES
 from .python3_10 import add_for_loop_no_yield_nodes
 from .python3_10 import end_with_explicit_return_none
 from .python3_10 import is_conditional_jump
-from .python3_10 import stack_effect
+from .python3_10 import stack_effects
 
 
 __all__ = [
@@ -94,7 +94,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "stack_effect",
+    "stack_effects",
 ]
 
 # Remaining opcodes
