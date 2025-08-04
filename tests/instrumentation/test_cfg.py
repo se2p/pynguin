@@ -12,12 +12,13 @@ from bytecode import Bytecode
 
 from pynguin.instrumentation.controlflow import CFG
 from pynguin.instrumentation.controlflow import ArtificialNode
+from pynguin.instrumentation.version import add_for_loop_no_yield_nodes
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
 
 
 def test_integration_create_cfg(conditional_jump_example_bytecode):
-    cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
+    cfg = CFG.from_bytecode(add_for_loop_no_yield_nodes(conditional_jump_example_bytecode))
     dot_representation = cfg.dot
 
     if sys.version_info >= (3, 11):
@@ -572,7 +573,9 @@ RETURN_VALUE" -> "ArtificialNode(EXIT)";
 LOAD_FAST 'foo'
 POP_JUMP_IF_FALSE BasicBlockNode";
 }"""
-    cfg = CFG.from_bytecode(Bytecode.from_code(control_flow_labelling.__code__))
+    cfg = CFG.from_bytecode(
+        add_for_loop_no_yield_nodes(Bytecode.from_code(control_flow_labelling.__code__))
+    )
     assert bytes(cfg.dot, "utf-8").decode("unicode_escape") == bytes(expected, "utf-8").decode(
         "unicode_escape"
     )

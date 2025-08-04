@@ -279,7 +279,7 @@ class CheckedCoverageInstrumentationVisitorMethod(Protocol):
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Visit an instruction in the control flow graph.
 
@@ -290,7 +290,7 @@ class CheckedCoverageInstrumentationVisitorMethod(Protocol):
             node: The node in the control flow graph.
             instr: The instruction being visited.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the bytecode.
+            instr_original_index: The original index of the instruction in the code object.
         """
 
 

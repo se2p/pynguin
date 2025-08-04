@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from bytecode import Bytecode
     from bytecode import Instr
 
-    from pynguin.instrumentation import StackEffect
+    from pynguin.instrumentation import StackEffects
     from pynguin.instrumentation.transformer import BranchCoverageInstrumentationAdapter
     from pynguin.instrumentation.transformer import (
         CheckedCoverageInstrumentationAdapter,
@@ -35,7 +35,6 @@ __all__ = [
     "CALL_OPCODES",
     "CLOSURE_LOAD_OPCODES",
     "COND_BRANCH_OPCODES",
-    "EXTENDED_ARG_OPCODES",
     "IMPORT_FROM_OPCODES",
     "IMPORT_NAME_OPCODES",
     "LOAD_DEREF_OPCODES",
@@ -65,14 +64,14 @@ __all__ = [
 ]
 
 
-class StackEffectFunction(Protocol):
-    """A function that calculates the stack effect of an opcode."""
+class StackEffectsFunction(Protocol):
+    """A function that calculates the stack effects of an opcode."""
 
     @abstractmethod
-    def __call__(self, opcode: int, arg: int | None, *, jump: bool = False) -> StackEffect:
-        """Get the stack effect.
+    def __call__(self, opcode: int, arg: int | None, *, jump: bool = False) -> StackEffects:
+        """Get the stack effects.
 
-        The effect is represented as a tuple of number of pops and number of pushes
+        The effects are represented as a tuple of number of pops and number of pushes
         for an opcode.
 
         Args:
@@ -179,7 +178,7 @@ class EndWithExplicitReturnNoneFunction(Protocol):
         """
 
 
-stack_effect: StackEffectFunction
+stack_effect: StackEffectsFunction
 is_conditional_jump: IsConditionalJumpFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction
@@ -208,7 +207,6 @@ CLOSURE_LOAD_OPCODES: tuple[int, ...]
 IMPORT_NAME_OPCODES: tuple[int, ...]
 IMPORT_FROM_OPCODES: tuple[int, ...]
 
-EXTENDED_ARG_OPCODES: tuple[int, ...]
 CALL_OPCODES: tuple[int, ...]
 YIELDING_OPCODES: tuple[int, ...]
 RETURNING_OPCODES: tuple[int, ...]

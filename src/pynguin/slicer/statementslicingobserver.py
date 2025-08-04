@@ -74,7 +74,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
                 code_object_id=last_traced_instr.code_object_id,
                 node_id=last_traced_instr.node_id,
                 code_meta=code_object,
-                offset=last_traced_instr.offset,
+                instr_original_index=last_traced_instr.instr_original_index,
                 arg=last_traced_instr.argument,
                 lineno=last_traced_instr.lineno,
             )

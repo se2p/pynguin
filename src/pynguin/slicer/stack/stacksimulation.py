@@ -13,20 +13,17 @@ from __future__ import annotations
 from collections import UserList
 from dataclasses import dataclass
 from dataclasses import field
-from typing import TYPE_CHECKING
 
 from pynguin.instrumentation.version import ACCESS_OPCODES
 from pynguin.instrumentation.version import STORE_OPCODES
+from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
-
-if TYPE_CHECKING:
-    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 DEFAULT_STACK_HEIGHT = 40
 DEFAULT_FRAME_HEIGHT = 40
 
 
-class BlockStack(UserList):
+class BlockStack(UserList[UniqueInstruction]):
     """Represents the stack for a block in a frame."""
 
     def push(self, instr: UniqueInstruction) -> None:
@@ -125,6 +122,7 @@ class TraceStack:
 
         # Handle push operations
         for _ in range(num_pushes):
+            tos_instr: UniqueInstruction | None
             try:
                 tos_instr = curr_block_stack.pop()
             except IndexError:
@@ -134,7 +132,7 @@ class TraceStack:
                 # course happen all the time, so this is not a problem
                 tos_instr = None
 
-            if tos_instr and tos_instr.in_slice:
+            if tos_instr is not None and tos_instr.in_slice:
                 imp_dependency = True
 
                 # For attribute accesses, instructions preparing TOS to access the
@@ -172,7 +170,7 @@ class TraceStack:
         for _ in range(num_pops):
             curr_block_stack.push(unique_instr)
 
-    def get_attribute_uses(self):
+    def get_attribute_uses(self) -> set[str]:
         """Get the attribute uses of the top of the stack.
 
         Returns:

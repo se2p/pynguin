@@ -125,7 +125,7 @@ def slice_function_at_return_with_result(
         code_object_id=last_traced_instr.code_object_id,
         node_id=last_traced_instr.node_id,
         code_meta=known_code_objects[last_traced_instr.code_object_id],
-        offset=last_traced_instr.offset,
+        instr_original_index=last_traced_instr.instr_original_index,
         lineno=last_traced_instr.lineno,
     )
     slicing_criterion = SlicingCriterion(slicing_instruction, len(trace.executed_instructions) - 2)
@@ -162,7 +162,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
             code_object_id=last_traced_instr.code_object_id,
             node_id=last_traced_instr.node_id,
             code_meta=known_code_objects[last_traced_instr.code_object_id],
-            offset=last_traced_instr.offset,
+            instr_original_index=last_traced_instr.instr_original_index,
             lineno=last_traced_instr.lineno,
         )
         slicing_criterion = SlicingCriterion(

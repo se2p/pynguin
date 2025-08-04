@@ -39,8 +39,8 @@ class PynguinCompare(enum.IntEnum):
     EXC_MATCH = 10
 
 
-class StackEffect(NamedTuple):
-    """A named tuple to represent the stack effect of an opcode."""
+class StackEffects(NamedTuple):
+    """A named tuple to represent the stack effects of an opcode."""
 
     pops: int
     pushes: int

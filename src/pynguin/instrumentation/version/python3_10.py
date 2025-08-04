@@ -30,7 +30,7 @@ from bytecode.instr import Label
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import StackEffect
+from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
@@ -67,7 +67,6 @@ __all__ = [
     "CALL_OPCODES",
     "CLOSURE_LOAD_OPCODES",
     "COND_BRANCH_OPCODES",
-    "EXTENDED_ARG_OPCODES",
     "IMPORT_FROM_OPCODES",
     "IMPORT_NAME_OPCODES",
     "LOAD_DEREF_OPCODES",
@@ -384,8 +383,8 @@ def stack_effect(  # noqa: D103, C901, PLR0915
     arg: int | None,
     *,
     jump: bool = False,
-) -> StackEffect:
-    effect: StackEffect
+) -> StackEffects:
+    effect: StackEffects
     match opname[opcode]:
         case (
             "NOP"
@@ -400,7 +399,7 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "EXTENDED_ARG"
             | "ROT_N"
         ):
-            effect = StackEffect(0, 0)
+            effect = StackEffects(0, 0)
         case (
             "POP_TOP"
             | "PRINT_EXPR"
@@ -417,13 +416,13 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "SET_ADD"
             | "GEN_START"
         ):
-            effect = StackEffect(1, 0)
+            effect = StackEffects(1, 0)
         case "DELETE_SUBSCR" | "STORE_ATTR" | "MAP_ADD" | "JUMP_IF_NOT_EXC_MATCH":
-            effect = StackEffect(2, 0)
+            effect = StackEffects(2, 0)
         case "STORE_SUBSCR" | "POP_EXCEPT" | "RERAISE":
-            effect = StackEffect(3, 0)
+            effect = StackEffects(3, 0)
         case "END_ASYNC_FOR":
-            effect = StackEffect(7, 0)  # TODO conditional 0 pops?
+            effect = StackEffects(7, 0)  # TODO conditional 0 pops?
         case (
             "LOAD_BUILD_CLASS"
             | "LOAD_CONST"
@@ -440,9 +439,9 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "MATCH_MAPPING"
             | "MATCH_SEQUENCE"
         ):
-            effect = StackEffect(0, 1)
+            effect = StackEffects(0, 1)
         case "MATCH_KEYS":
-            effect = StackEffect(0, 2)
+            effect = StackEffects(0, 2)
         case (
             "UNARY_POSITIVE"
             | "UNARY_NEGATIVE"
@@ -458,15 +457,15 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "FORMAT_VALUE"
             | "LIST_TO_TUPLE"
         ):
-            effect = StackEffect(1, 1)
+            effect = StackEffects(1, 1)
         case "ROT_TWO" | "COPY_DICT_WITHOUT_KEYS":
-            effect = StackEffect(2, 2)
+            effect = StackEffects(2, 2)
         case "ROT_THREE":
-            effect = StackEffect(3, 3)
+            effect = StackEffects(3, 3)
         case "ROT_FOUR":
-            effect = StackEffect(4, 4)
+            effect = StackEffects(4, 4)
         case "DUP_TOP" | "BEFORE_ASYNC_WITH" | "GET_ANEXT" | "LOAD_METHOD":
-            effect = StackEffect(1, 2)
+            effect = StackEffects(1, 2)
         case (
             "BINARY_MATRIX_MULTIPLY"
             | "INPLACE_MATRIX_MULTIPLY"
@@ -506,47 +505,47 @@ def stack_effect(  # noqa: D103, C901, PLR0915
             | "DICT_MERGE"
             | "DICT_UPDATE"
         ):
-            effect = StackEffect(2, 1)
+            effect = StackEffects(2, 1)
         case "DUP_TOP_TWO":
-            effect = StackEffect(2, 4)
+            effect = StackEffects(2, 4)
         # jump based operations
         case "SETUP_WITH":
-            effect = StackEffect(0, 6) if jump else StackEffect(0, 1)
+            effect = StackEffects(0, 6) if jump else StackEffects(0, 1)
         case "FOR_ITER":
-            effect = StackEffect(1, 0) if jump else StackEffect(1, 2)
+            effect = StackEffects(1, 0) if jump else StackEffects(1, 2)
         case "JUMP_IF_TRUE_OR_POP" | "JUMP_IF_FALSE_OR_POP":
-            effect = StackEffect(0, 0) if jump else StackEffect(1, 0)
+            effect = StackEffects(0, 0) if jump else StackEffects(1, 0)
         case "SETUP_FINALLY":
-            effect = StackEffect(0, 6) if jump else StackEffect(0, 0)
+            effect = StackEffects(0, 6) if jump else StackEffects(0, 0)
         # argument dependant operations
         case "UNPACK_SEQUENCE":
             assert arg is not None
-            effect = StackEffect(1, arg)
+            effect = StackEffects(1, arg)
         case "UNPACK_EX":
             assert arg is not None
-            effect = StackEffect(1, (arg & 0xFF) + (arg >> 8) + 1)
+            effect = StackEffects(1, (arg & 0xFF) + (arg >> 8) + 1)
         case "BUILD_TUPLE" | "BUILD_LIST" | "BUILD_SET" | "BUILD_STRING":
             assert arg is not None
-            effect = StackEffect(arg, 1)
+            effect = StackEffects(arg, 1)
         case "BUILD_MAP":
             assert arg is not None
-            effect = StackEffect(2 * arg, 1)
+            effect = StackEffects(2 * arg, 1)
         case "BUILD_CONST_KEY_MAP" | "CALL_FUNCTION":
             assert arg is not None
-            effect = StackEffect(1 + arg, 1)
+            effect = StackEffects(1 + arg, 1)
         case "RAISE_VARARGS":
             assert arg is not None
-            effect = StackEffect(arg, 0)
+            effect = StackEffects(arg, 0)
         case "CALL_METHOD" | "CALL_FUNCTION_KW":
             assert arg is not None
-            effect = StackEffect(2 + arg, 1)
+            effect = StackEffects(2 + arg, 1)
         case "CALL_FUNCTION_EX":
             assert arg is not None
             # argument contains flags
             pops = 2
             if arg & 0x01 != 0:
                 pops += 1
-            effect = StackEffect(pops, 1)
+            effect = StackEffects(pops, 1)
         case "MAKE_FUNCTION":
             assert arg is not None
             # argument contains flags
@@ -559,9 +558,9 @@ def stack_effect(  # noqa: D103, C901, PLR0915
                 pops += 1
             if arg & 0x08 != 0:
                 pops += 1
-            effect = StackEffect(pops, 1)
+            effect = StackEffects(pops, 1)
         case "BUILD_SLICE":
-            effect = StackEffect(3, 1) if arg == 3 else StackEffect(2, 1)
+            effect = StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
         case _:
             raise AssertionError(
                 f"The opcode {opcode} (name={opname[opcode]}, arg={arg}, jump={jump}, "
@@ -1144,7 +1143,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         lineno: int | _UNSET | None = None
 
         instr_index = 0
-        instr_offset = node.offset
+        instr_original_index = 0
         while instr_index < len(node.basic_block):
             instr = node.get_instruction(instr_index)
 
@@ -1155,19 +1154,34 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             # Register all lines available
             if instr.lineno != lineno and file_name != AST_FILENAME:
                 lineno = instr.lineno
-                self.visit_line(cfg, code_object_id, node, instr, instr_index, instr_offset)
+                self.visit_line(
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                    instr_original_index,
+                )
 
             # Perform the actual instrumentation
             for operations, method in self.METHODS.items():
                 if instr.opcode in operations:
-                    method(self, cfg, code_object_id, node, instr, instr_index, instr_offset)
+                    method(
+                        self,
+                        cfg,
+                        code_object_id,
+                        node,
+                        instr,
+                        instr_index,
+                        instr_original_index,
+                    )
                     break
 
             # Update the instr_index to repoint at the original instruction
             while node.get_instruction(instr_index) != instr:
                 instr_index += 1
 
-            instr_offset += cf.INSTRUCTION_OFFSET_INCREMENT
+            instr_original_index += 1
             instr_index += 1
 
     def visit_line(  # noqa: D102, PLR0917
@@ -1177,7 +1191,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         self._subject_properties.register_line(
             tracer.LineMetaData(
@@ -1194,7 +1208,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         # Instrumentation before the original instruction
         node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
@@ -1208,7 +1222,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                 ),
             ),
             instr.lineno,
@@ -1221,7 +1235,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
@@ -1234,7 +1248,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                     InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
@@ -1258,7 +1272,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         method_call = InstrumentationMethodCall(
             self._subject_properties.instrumentation_tracer,
@@ -1269,7 +1283,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 InstrumentationConstantLoad(value=node.index),
                 InstrumentationConstantLoad(value=instr.opcode),
                 InstrumentationConstantLoad(value=instr.lineno),
-                InstrumentationConstantLoad(value=instr_offset),
+                InstrumentationConstantLoad(value=instr_original_index),
                 InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                 InstrumentationStackValue.FIRST,
             ),
@@ -1303,7 +1317,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         method_call = InstrumentationMethodCall(
             self._subject_properties.instrumentation_tracer,
@@ -1314,7 +1328,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 InstrumentationConstantLoad(value=node.index),
                 InstrumentationConstantLoad(value=instr.opcode),
                 InstrumentationConstantLoad(value=instr.lineno),
-                InstrumentationConstantLoad(value=instr_offset),
+                InstrumentationConstantLoad(value=instr_original_index),
                 InstrumentationConstantLoad(value=None),
                 InstrumentationStackValue.FIRST,
             ),
@@ -1358,7 +1372,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
@@ -1371,7 +1385,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                     InstrumentationNameLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
@@ -1395,7 +1409,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.COPY_FIRST,
@@ -1408,7 +1422,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                     InstrumentationStackValue.FIRST,
                 ),
@@ -1423,7 +1437,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
@@ -1436,7 +1450,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                     InstrumentationGlobalLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
@@ -1460,7 +1474,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         value = (
             InstrumentationClassDeref(name=instr.arg)  # type: ignore[arg-type]
@@ -1479,7 +1493,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
                     value,
                 ),
@@ -1503,7 +1517,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         # Instrumentation before the original instruction
         node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
@@ -1517,7 +1531,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=cfg.bytecode_cfg.get_block_index(instr.arg)),  # type: ignore[arg-type]
                 ),
             ),
@@ -1531,7 +1545,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         # Trace argument only for calls with integer arguments
         argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
@@ -1548,7 +1562,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=argument),
                 ),
             ),
@@ -1562,7 +1576,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         # Instrumentation before the original instruction
         # (otherwise we can not read the data)
@@ -1577,7 +1591,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                 ),
             ),
             instr.lineno,

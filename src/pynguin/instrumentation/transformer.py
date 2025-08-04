@@ -20,11 +20,11 @@ from bytecode import Instr
 
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
+from pynguin.instrumentation import version
 
 
 if TYPE_CHECKING:
     from pynguin.analyses.constants import DynamicConstantProvider
-    from pynguin.instrumentation.controlflow import BasicBlockNode
 
 
 class InstrumentationAdapter(Protocol):
@@ -53,7 +53,7 @@ class InstrumentationAdapter(Protocol):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
     ) -> None:
         """Called for each basic block node in the CFG.
 
@@ -85,7 +85,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -114,7 +114,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -136,7 +136,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -158,7 +158,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -195,7 +195,7 @@ class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -241,10 +241,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument a line.
 
@@ -254,7 +254,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -262,10 +262,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument generic instructions.
 
@@ -275,7 +275,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -283,10 +283,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument local variable accesses.
 
@@ -296,7 +296,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -304,10 +304,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument attribute accesses.
 
@@ -317,7 +317,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -325,10 +325,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument subscription accesses.
 
@@ -338,7 +338,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -346,10 +346,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument name accesses.
 
@@ -359,7 +359,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -367,10 +367,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument import name accesses.
 
@@ -380,7 +380,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -388,10 +388,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument global variable accesses.
 
@@ -401,7 +401,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -409,10 +409,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument dereferenced variable accesses.
 
@@ -422,7 +422,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -430,10 +430,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument jump instructions.
 
@@ -443,7 +443,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -451,10 +451,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument call instructions.
 
@@ -464,7 +464,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
     @abstractmethod
@@ -472,10 +472,10 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         """Instrument return instructions.
 
@@ -485,7 +485,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
             node: The node in the control flow graph.
             instr: The instruction to be instrumented.
             instr_index: The index of the instruction in the basic block.
-            instr_offset: The offset of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
         """
 
 
@@ -518,7 +518,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -539,7 +539,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -558,7 +558,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -580,7 +580,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         self,
         cfg: cf.CFG,
         code_object_id: int,
-        node: BasicBlockNode,
+        node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
     ) -> None:
@@ -659,7 +659,9 @@ class InstrumentationTransformer:
 
         code_object_id = self._subject_properties.create_code_object_id()
 
-        cfg = cf.CFG.from_bytecode(Bytecode.from_code(code))
+        original_bytecode = version.add_for_loop_no_yield_nodes(Bytecode.from_code(code))
+
+        cfg = cf.CFG.from_bytecode(original_bytecode)
 
         for adapter in self._instrumentation_adapters:
             adapter.visit_cfg(cfg, code_object_id)
@@ -679,7 +681,7 @@ class InstrumentationTransformer:
             )
         )
 
-        original_cfg = cf.CFG.from_bytecode(Bytecode.from_code(code))
+        original_cfg = cf.CFG.from_bytecode(original_bytecode)
 
         original_code_object = original_cfg.bytecode_cfg.to_code()
 

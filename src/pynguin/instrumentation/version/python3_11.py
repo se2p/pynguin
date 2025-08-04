@@ -45,7 +45,6 @@ from pynguin.instrumentation.version.common import to_opcodes
 
 from .python3_10 import ACCESS_OPCODES
 from .python3_10 import CLOSURE_LOAD_OPCODES
-from .python3_10 import EXTENDED_ARG_OPCODES
 from .python3_10 import IMPORT_FROM_OPCODES
 from .python3_10 import IMPORT_NAME_OPCODES
 from .python3_10 import LOAD_DEREF_OPCODES
@@ -70,7 +69,6 @@ __all__ = [
     "CALL_OPCODES",
     "CLOSURE_LOAD_OPCODES",
     "COND_BRANCH_OPCODES",
-    "EXTENDED_ARG_OPCODES",
     "IMPORT_FROM_OPCODES",
     "IMPORT_NAME_OPCODES",
     "LOAD_DEREF_OPCODES",
@@ -431,7 +429,7 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
         node: cf.BasicBlockNode,
         instr: Instr,
         instr_index: int,
-        instr_offset: int,
+        instr_original_index: int,
     ) -> None:
         # Trace argument only for calls with integer arguments
         argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
@@ -456,7 +454,7 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
                     InstrumentationConstantLoad(value=node.index),
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_offset),
+                    InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=argument),
                 ),
             ),

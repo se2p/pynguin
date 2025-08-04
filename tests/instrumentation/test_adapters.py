@@ -336,7 +336,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["LOAD_FAST"],
                 argument="a",
                 lineno=21,
-                offset=2,
+                instr_original_index=1,
                 arg_address=94271749559808,
                 is_mutable_type=True,
                 object_creation=True,
@@ -348,7 +348,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["POP_JUMP_FORWARD_IF_FALSE"],
                 argument="a",
                 lineno=21,
-                offset=4,
+                instr_original_index=2,
             ),
             # the LOAD_CONST instruction is not traced by the slicer
             ExecutedReturnInstruction(
@@ -358,7 +358,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["RETURN_VALUE"],
                 argument=None,
                 lineno=24,
-                offset=12,
+                instr_original_index=1,
             ),
         ])
     else:
@@ -370,7 +370,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["LOAD_FAST"],
                 argument="a",
                 lineno=21,
-                offset=0,
+                instr_original_index=0,
                 arg_address=0,
                 is_mutable_type=True,
                 object_creation=True,
@@ -382,7 +382,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["POP_JUMP_IF_FALSE"],
                 argument="a",
                 lineno=21,
-                offset=2,
+                instr_original_index=1,
             ),
             # the LOAD_CONST instruction is not traced by the slicer
             ExecutedReturnInstruction(
@@ -392,7 +392,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
                 opcode=opmap["RETURN_VALUE"],
                 argument=None,
                 lineno=24,
-                offset=10,
+                instr_original_index=1,
             ),
         ])
 
@@ -419,7 +419,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
         assert expected_instr.code_object_id == actual_instr.code_object_id
         assert expected_instr.opcode == actual_instr.opcode
         assert expected_instr.lineno == actual_instr.lineno
-        assert expected_instr.offset == actual_instr.offset
+        assert expected_instr.instr_original_index == actual_instr.instr_original_index
 
 
 @pytest.mark.parametrize(

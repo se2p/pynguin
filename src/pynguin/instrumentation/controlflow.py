@@ -43,9 +43,6 @@ if TYPE_CHECKING:
 # Key for storing branch value in networkx edge.
 EDGE_DATA_BRANCH_VALUE = "branch_value"
 
-# The increment of the instruction offset for each instruction.
-INSTRUCTION_OFFSET_INCREMENT = 2
-
 TRY_BEGIN_POSITION = -1
 
 
@@ -81,18 +78,15 @@ class BasicBlockNode:
         self,
         index: int,
         basic_block: BasicBlock,
-        offset: int = 0,
     ) -> None:
         """Instantiates a node for a program graph.
 
         Args:
             index: The index of the node
             basic_block: The basic block in the code
-            offset: The offset of the first instruction of the node
         """
         self._index = index
         self._basic_block = basic_block
-        self._offset = offset
 
     @property
     def index(self) -> int:
@@ -102,15 +96,6 @@ class BasicBlockNode:
             The index of the node
         """
         return self._index
-
-    @property
-    def offset(self) -> int:
-        """Provides the offset of the node the first instruction of the node.
-
-        Returns:
-            The offset of the node
-        """
-        return self._offset
 
     @property
     def basic_block(self) -> BasicBlock:
@@ -169,18 +154,6 @@ class BasicBlockNode:
             if not isinstance(instr, ArtificialInstr):
                 yield instr
 
-    @property
-    def original_offset_instructions(self) -> Iterable[tuple[int, Instr]]:
-        """Provides the original offsets and instructions.
-
-        Returns:
-            An iterable of original offsets and instructions.
-        """
-        offset = self._offset
-        for instr in self.original_instructions:
-            yield offset, instr
-            offset += INSTRUCTION_OFFSET_INCREMENT
-
     def find_instruction_by_original_index(self, original_index: int) -> tuple[int, Instr]:
         """Find an index and instruction by its original index.
 
@@ -210,13 +183,11 @@ class BasicBlockNode:
         return {
             "index": self._index,
             "basic_block": self._basic_block,
-            "offset": self._offset,
         }
 
     def __setstate__(self, state: dict) -> None:
         self._index = state["index"]
         self._basic_block = state["basic_block"]
-        self._offset = state["offset"]
 
     def __str__(self) -> str:
         instructions = []
@@ -249,7 +220,7 @@ class BasicBlockNode:
         return f"BasicBlockNode({self._index})\n" + "\n".join(instructions)
 
     def __repr__(self) -> str:
-        return f"BasicBlockNode(index={self._index}, basic_block={self._basic_block}), offset={self._offset})"  # noqa: E501
+        return f"BasicBlockNode(index={self._index}, basic_block={self._basic_block})"
 
 
 ProgramNode: TypeAlias = ArtificialNode | BasicBlockNode
@@ -520,8 +491,8 @@ class CFG(ProgramGraph):
         """Generates a new control-flow graph from a bytecode segment.
 
         Besides generating a node for each block in the bytecode segment, as returned by
-        `bytecode`'s `ControlFlowGraph` implementation, we add dummy nodes for for-loops
-        that do not yield values and we add two artificial nodes to the generated CFG:
+        `bytecode`'s `ControlFlowGraph` implementation, we add two artificial nodes to
+        the generated CFG:
          - an artificial entry node that is guaranteed to fulfill the
            property of an entry node, i.e., there is no incoming edge, and
          - an artificial exit node that is guaranteed to
@@ -535,7 +506,7 @@ class CFG(ProgramGraph):
         Returns:
             The control-flow graph for the segment
         """
-        blocks = ControlFlowGraph.from_bytecode(version.add_for_loop_no_yield_nodes(bytecode))
+        blocks = ControlFlowGraph.from_bytecode(bytecode)
         cfg = CFG(blocks)
 
         # Split try begin blocks to ensure that all jumps are at the end of each block
@@ -634,13 +605,8 @@ class CFG(ProgramGraph):
     ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramNode]]:
         nodes: dict[int, ProgramNode] = {}
         edges: dict[int, list[tuple[int, dict]]] = defaultdict(list)
-        offset = 0
         for node_index, block in enumerate(blocks):
-            node = BasicBlockNode(index=node_index, basic_block=block, offset=offset)
-            # each instruction increases the offset by 2, therefore the offset at the
-            # beginning of the next block is the current offset plus twice the length
-            # of the current block
-            offset += len(block) * INSTRUCTION_OFFSET_INCREMENT
+            node = BasicBlockNode(index=node_index, basic_block=block)
 
             nodes[node_index] = node
 
@@ -690,6 +656,7 @@ class CFG(ProgramGraph):
                 if target_block is not None:
                     next_index = blocks.get_block_index(target_block)
                     edges[node_index].append((next_index, {}))
+
         return edges, nodes
 
     @staticmethod

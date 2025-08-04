@@ -22,7 +22,7 @@ class ExecutedInstruction:
     opcode: int
     argument: int | str | None
     lineno: int
-    offset: int
+    instr_original_index: int
 
     @property
     def name(self) -> str:
@@ -45,7 +45,7 @@ class ExecutedInstruction:
     def __str__(self) -> str:
         return (
             f"{'(-)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 
 
@@ -62,7 +62,7 @@ class ExecutedMemoryInstruction(ExecutedInstruction):
         return (
             f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
             f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
-            f"@ line: {self.lineno:d}-{self.offset:d}"
+            f"@ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 
 
@@ -91,7 +91,7 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
         return (
             f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
             f"{self.combined_attr:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
+            f"@ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 
 
@@ -112,7 +112,7 @@ class ExecutedControlInstruction(ExecutedInstruction):
         return (
             f"{'(crtl)':<7} {self.file:<40} {opname[self.opcode]:<20} "
             f"{self.argument:<51} {self.code_object_id:02d} "
-            f"@ line: {self.lineno:d}-{self.offset:d}"
+            f"@ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 
 
@@ -123,7 +123,7 @@ class ExecutedCallInstruction(ExecutedInstruction):
     def __str__(self) -> str:
         return (
             f"{'(func)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 
 
@@ -134,5 +134,5 @@ class ExecutedReturnInstruction(ExecutedInstruction):
     def __str__(self) -> str:
         return (
             f"{'(ret)':<7} {self.file:<40} {opname[self.opcode]:<72} "
-            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.offset:d}"
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
