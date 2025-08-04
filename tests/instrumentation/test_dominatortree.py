@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 
+import sys
+
 from bytecode import Bytecode
 
 from pynguin.instrumentation.controlflow import CFG
@@ -12,15 +14,63 @@ from pynguin.instrumentation.controlflow import ArtificialNode
 from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.controlflow import DominatorTree
 from tests.fixtures.programgraph.samples import for_loop
-from tests.utils.version import only_3_10
 
 
-@only_3_10
 def test_integration_post_dominator_tree(conditional_jump_example_bytecode):
     control_flow_graph = CFG.from_bytecode(conditional_jump_example_bytecode)
     post_dominator_tree = DominatorTree.compute_post_dominator_tree(control_flow_graph)
     dot_representation = post_dominator_tree.dot
-    graph = """strict digraph  {
+    if sys.version_info >= (3, 11):
+        graph = """strict digraph  {
+"ArtificialNode(EXIT)";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_CONST 'no'";
+"ArtificialNode(ENTRY)";
+"ArtificialNode(EXIT)" -> "BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(3)
+PRECALL 1
+CALL 1
+LOAD_CONST None
+RETURN_VALUE" -> "BasicBlockNode(2)
+LOAD_CONST 'no'";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "ArtificialNode(ENTRY)";
+}"""
+    else:
+        graph = """strict digraph  {
 "ArtificialNode(EXIT)";
 "BasicBlockNode(3)
 CALL_FUNCTION 1
