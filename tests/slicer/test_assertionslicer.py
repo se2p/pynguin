@@ -28,7 +28,6 @@ from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.variablereference import FieldReference
 from pynguin.testcase.variablereference import StaticFieldReference
 from tests.fixtures.linecoverage.plus import Plus
-from tests.utils.version import only_3_10
 
 
 @pytest.fixture
@@ -291,7 +290,6 @@ def test_assertion_detection_on_test_case(
         assert len(result.execution_trace.executed_assertions) == expected_assertions
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "module_name, test_case_name, expected_lines",
     [
@@ -343,7 +341,6 @@ def test_slicing_after_test_execution(
         assert checked_lines == expected_lines
 
 
-@only_3_10
 @pytest.mark.parametrize(
     "module_name, test_suite_name, expected_coverage",
     [
