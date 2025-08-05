@@ -831,8 +831,13 @@ class DynamicSlicer:
                 ))
         # Add global variables
         elif traced_instr.opcode in LOAD_GLOBAL_OPCODES:
-            self._logger.debug("GLOBAL VARIABLE USE: '%s'", traced_instr.argument)
-            context.global_var_uses.add((traced_instr.argument, traced_instr.file))
+            # Starting with Python 3.11, LOAD_GLOBAL uses a tuple for the argument
+            if isinstance(traced_instr.argument, tuple):
+                argument = traced_instr.argument[1]
+            else:
+                argument = traced_instr.argument
+            self._logger.debug("GLOBAL VARIABLE USE: '%s'", argument)
+            context.global_var_uses.add((argument, traced_instr.file))
         # Add nonlocal variables
         elif traced_instr.opcode in LOAD_DEREF_OPCODES + CLOSURE_LOAD_OPCODES:
             variable_scope: set[int] = set()
