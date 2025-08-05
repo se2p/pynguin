@@ -832,7 +832,7 @@ class DynamicSlicer:
         # Add global variables
         elif traced_instr.opcode in LOAD_GLOBAL_OPCODES:
             # Starting with Python 3.11, LOAD_GLOBAL uses a tuple for the argument
-            if isinstance(traced_instr.argument, tuple):
+            if isinstance(traced_instr.argument, tuple) and len(traced_instr.argument) == 2:
                 argument = traced_instr.argument[1]
             else:
                 argument = traced_instr.argument

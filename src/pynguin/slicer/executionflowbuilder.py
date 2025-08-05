@@ -31,7 +31,6 @@ from pynguin.instrumentation.version import RETURNING_OPCODES
 from pynguin.instrumentation.version import TRACED_OPCODES
 from pynguin.instrumentation.version import YIELDING_OPCODES
 from pynguin.instrumentation.version import stack_effects
-from pynguin.utils.exceptions import InstructionNotFoundException
 
 
 if TYPE_CHECKING:
@@ -548,12 +547,12 @@ class ExecutionFlowBuilder:
         _, last_instr = node.find_instruction_by_original_index(
             last_traced_instr.instr_original_index
         )
-
-        if (
-            last_traced_instr.opcode != last_instr.opcode
-            or last_traced_instr.lineno != last_instr.lineno
-        ):
-            raise InstructionNotFoundException
+        assert (
+            last_traced_instr.opcode == last_instr.opcode
+            or last_traced_instr.lineno == last_instr.lineno
+        ), (
+            f"Executed instruction {last_traced_instr} references a wrong bytecode instruction {last_instr}."  # noqa: E501
+        )
 
         efb_state.instr_original_index = last_traced_instr.instr_original_index
 
