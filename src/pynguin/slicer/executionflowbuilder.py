@@ -13,8 +13,10 @@ from __future__ import annotations
 import opcode
 
 from dataclasses import dataclass
+from types import CodeType
 from typing import TYPE_CHECKING
 
+from bytecode.cfg import BasicBlock
 from bytecode.instr import BITFLAG2_OPCODES
 from bytecode.instr import BITFLAG_OPCODES
 from bytecode.instr import UNSET
@@ -58,7 +60,6 @@ class UniqueInstruction(Instr):
         instr_original_index: int,
         arg=UNSET,
         lineno: int | None = None,
-        in_slice: bool = False,
     ):
         """Initializes a unique instruction.
 
@@ -71,7 +72,6 @@ class UniqueInstruction(Instr):
             instr_original_index: The original index of the instruction in the code object
             arg: Additional arguments
             lineno: The instruction's line number
-            in_slice: Whether the instruction is part of a slice
         """
         self.file = file
         if arg is not UNSET:
@@ -81,7 +81,6 @@ class UniqueInstruction(Instr):
         self.code_object_id = code_object_id
         self.node_id = node_id
         self.instr_original_index = instr_original_index
-        self._in_slice = in_slice
 
         node = code_meta.original_cfg.get_basic_block_node(self.node_id)
 
@@ -92,24 +91,6 @@ class UniqueInstruction(Instr):
             basic_block_node.basic_block.get_jump() is node.basic_block
             for basic_block_node in code_meta.original_cfg.basic_block_nodes
         )
-
-    @property
-    def in_slice(self) -> bool:
-        """Returns a boolean if the instruction is inside the slice.
-
-        Returns:
-            True if the instructions is part of the slice, False otherwise.
-        """
-        return self._in_slice
-
-    @in_slice.setter
-    def in_slice(self, in_slice) -> None:
-        """Sets whether the instruction is inside the slice.
-
-        Args:
-            in_slice: whether the instruction is inside the slice
-        """
-        self._in_slice = in_slice
 
     def is_def(self) -> bool:
         """Returns a boolean if the instruction is a definition.
@@ -174,6 +155,24 @@ class UniqueInstruction(Instr):
 
         return effects
 
+    def __str__(self) -> str:
+        if isinstance(self.arg, BasicBlock):
+            try:
+                first_instr = self.arg[0]
+            except IndexError:
+                first_instr = None
+
+            if isinstance(first_instr, Instr):
+                arg = f"<BB {first_instr.name} lineno={first_instr.lineno}>"
+            else:
+                arg = "<BB>"
+        elif isinstance(self.arg, CodeType):
+            arg = f"<CodeObject '{self.arg.co_name}'>"
+        else:
+            arg = str(self.arg)
+
+        return f"<UniqueInstruction {self.name} arg={arg} lineno={self.lineno}>"
+
     def __hash__(self):
         return hash((self.name, self.code_object_id, self.node_id, self.instr_original_index))
 
@@ -222,7 +221,7 @@ class ExecutionFlowBuilderState:
 class ExecutionFlowBuilder:
     """The ExecutionFlowBuilder reconstructs the execution flow of a program run.
 
-    It does so in a backwards direction with the help of an execution trace.  The trace
+    It does so in a backwards direction with the help of an execution trace. The trace
     must contain instructions relevant for the control flow of the specific execution.
 
     Note: The solution here is designed to provide a last instruction whenever possible.

@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from collections import UserList
 from dataclasses import dataclass
 from dataclasses import field
@@ -23,14 +25,19 @@ DEFAULT_STACK_HEIGHT = 40
 DEFAULT_FRAME_HEIGHT = 40
 
 
-class BlockStack(UserList[UniqueInstruction]):
+class BlockStack(UserList[tuple[UniqueInstruction, bool]]):
     """Represents the stack for a block in a frame."""
 
-    def push(self, instr: UniqueInstruction) -> None:
-        """Push an instruction onto the stack."""
-        self.append(instr)
+    def push(self, instr: UniqueInstruction, in_slice: bool) -> None:  # noqa: FBT001
+        """Push an instruction onto the stack.
 
-    def peek(self) -> UniqueInstruction | None:
+        Args:
+            instr: The instruction to push onto the stack.
+            in_slice: Whether the instruction is part of the slice.
+        """
+        self.append((instr, in_slice))
+
+    def peek(self) -> tuple[UniqueInstruction, bool] | None:
         """Return the instruction on top of the stack without removing it.
 
         Returns:
@@ -51,14 +58,52 @@ class FrameStack:
     attribute_uses: set[str] = field(default_factory=set)
     import_name_instr: UniqueInstruction | None = None
 
+    @property
+    def last_block(self) -> BlockStack:
+        """Return the last block stack of this frame stack.
+
+        Raises:
+            IndexError: If the frame stack is empty.
+
+        Returns:
+            The last block stack of this frame stack.
+        """
+        return self.block_stacks[-1]
+
 
 class TraceStack:
     """Simulates the tracing on the stack."""
+
+    _logger = logging.getLogger(__name__)
 
     def __init__(self):  # noqa: D107
         self.frame_stacks: list[FrameStack] = []
         self._reset()
         self._prepare_stack()
+
+    @property
+    def last_frame_stack(self) -> FrameStack:
+        """Return the last frame stack.
+
+        Raises:
+            IndexError: If the stack is empty.
+
+        Returns:
+            The last frame stack.
+        """
+        return self.frame_stacks[-1]
+
+    @property
+    def caller_frame_stack(self) -> FrameStack:
+        """Return the caller frame stack, i.e., the one before the last one.
+
+        Raises:
+            IndexError: If the stack is empty or has only one frame.
+
+        Returns:
+            The caller frame stack.
+        """
+        return self.frame_stacks[-2]
 
     def _reset(self) -> None:
         """Remove all frame stacks from this trace."""
@@ -108,31 +153,41 @@ class TraceStack:
                 1. implicit dependency
                 2. include use
         """
-        curr_frame_stack = self.frame_stacks[-1]
-        curr_block_stack = curr_frame_stack.block_stacks[-1]
-
         imp_dependency: bool = False
         include_use: bool = True
 
         if returned:
-            prev_frame_stack = self.frame_stacks[-2]
-            prev_block_stack_instr = prev_frame_stack.block_stacks[-1].peek()
-            if prev_block_stack_instr and prev_block_stack_instr.in_slice:
-                imp_dependency = True
+            match self.caller_frame_stack.last_block.peek():
+                case (caller_block_stack_instr, True):
+                    self._logger.debug(
+                        "IMPLICIT DEPENDENCY (IN SLICE METHOD CALL RETURN): %s",
+                        caller_block_stack_instr,
+                    )
+                    imp_dependency = True
 
-        # Handle push operations
+        if num_pushes > 0:
+            self._logger.debug("STACK POPPING: [%s time(s)]", num_pushes)
+
+        curr_block_stack = self.last_frame_stack.last_block
         for _ in range(num_pushes):
             tos_instr: UniqueInstruction | None
             try:
-                tos_instr = curr_block_stack.pop()
+                tos_instr, in_slice = curr_block_stack.pop()
             except IndexError:
                 # Started backward tracing not at the end of execution. In forward
                 # direction this corresponds to popping from an empty stack when
                 # starting the execution at an arbitrary point. For slicing this can of
                 # course happen all the time, so this is not a problem
                 tos_instr = None
+                in_slice = False
 
-            if tos_instr is not None and tos_instr.in_slice:
+            self._logger.debug(
+                "POP (%s): %s",
+                "IN SLICE" if in_slice else "NOT IN SLICE",
+                tos_instr,
+            )
+            if tos_instr is not None and in_slice:
+                self._logger.debug("IMPLICIT DEPENDENCY (IN SLICE): %s", tos_instr)
                 imp_dependency = True
 
                 # For attribute accesses, instructions preparing TOS to access the
@@ -140,10 +195,14 @@ class TraceStack:
                 # not be searched for, since this would widen the scope of the search
                 # for complete objects rather than only for the attribute thereof.
                 if tos_instr.opcode in STORE_OPCODES and len(curr_block_stack) > 0:
-                    tos1_instr = curr_block_stack.peek()
-                    if tos1_instr and tos1_instr.opcode == tos_instr.opcode:
-                        include_use = False
+                    match curr_block_stack.peek():
+                        case (tos1_instr, True) if tos1_instr.opcode in STORE_OPCODES:  # type: ignore[union-attr]
+                            self._logger.debug(
+                                "DISABLED INCLUDE USE (STORE OPCODE): %s", tos1_instr
+                            )
+                            include_use = False
                 if tos_instr.opcode in ACCESS_OPCODES:
+                    self._logger.debug("DISABLED INCLUDE USE (ACCESS OPCODE): %s", tos_instr)
                     include_use = False
 
         return imp_dependency, include_use
@@ -160,34 +219,14 @@ class TraceStack:
             unique_instr: the instruction for which the stack is updated
             in_slice: whether the instruction is part of the slice
         """
-        curr_frame_stack = self.frame_stacks[-1]
-        curr_block_stack = curr_frame_stack.block_stacks[-1]
+        if num_pops > 0:
+            self._logger.debug(
+                "STACK PUSHING (%s): [%s time(s)] %s",
+                "IN SLICE" if in_slice else "NOT IN SLICE",
+                num_pops,
+                unique_instr,
+            )
 
-        if in_slice:
-            unique_instr.in_slice = True
-
-        # Handle pop operations
+        curr_block_stack = self.last_frame_stack.last_block
         for _ in range(num_pops):
-            curr_block_stack.push(unique_instr)
-
-    def get_attribute_uses(self) -> set[str]:
-        """Get the attribute uses of the top of the stack.
-
-        Returns:
-            The attribute uses of the top of the stack, none if frame stacks are empty.
-        """
-        return self.frame_stacks[-1].attribute_uses
-
-    def set_attribute_uses(self, attribute_uses: set[str]) -> None:
-        """Set attribute uses of frame stack on top of stack."""
-        self.frame_stacks[-1].attribute_uses = set()
-        for attr in attribute_uses:
-            self.frame_stacks[-1].attribute_uses.add(attr)
-
-    def get_import_frame(self) -> UniqueInstruction | None:
-        """Get the import frame instruction, None if frame stacks are empty."""
-        return self.frame_stacks[-1].import_name_instr
-
-    def set_import_frame(self, import_name_instr: UniqueInstruction | None):
-        """Set import name instruction of frame stack on top of stack."""
-        self.frame_stacks[-1].import_name_instr = import_name_instr
+            curr_block_stack.push(unique_instr, in_slice)
