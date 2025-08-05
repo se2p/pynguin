@@ -35,6 +35,7 @@ from pynguin.testcase.statement import ListStatement
 from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import TupleStatement
+from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 
 
@@ -45,9 +46,9 @@ def setup_timer():
 
 
 @pytest.fixture
-def tc_mock():
+def tc_mock(default_test_case):
     test_case = MagicMock()
-    tc_mock.test_case = MagicMock()
+    tc_mock.test_case = default_test_case
     statements = [MagicMock() for _ in range(3)]
     test_case.test_case.statements = statements
     return test_case
@@ -862,9 +863,9 @@ def test_dict_remove(tc_mock, result, size, side_effect):
 @pytest.mark.parametrize(
     "result, size, side_effect",
     [
-        (True, 2, [True] + [False] * 10),
-        (True, 3, [True] * 2 + [False] * 10),
-        (False, 1, [False] * 10),
+        (True, 2, [False] + [True] + [False] * 10),
+        (True, 3, [False] + [True] * 2 + [False] * 10),
+        (False, 1, [False] * 11),
     ],
 )
 def test_dict_add(tc_mock, result, size, side_effect):
@@ -888,7 +889,7 @@ def test_dict_add(tc_mock, result, size, side_effect):
 
 def test_dict_add_missing_key(tc_mock):
     objective = MagicMock()
-    objective.has_improved.side_effect = [True] * 10
+    objective.has_improved.side_effect = [False] * 20
     int_statement = IntPrimitiveStatement(tc_mock, 42)
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     statement = DictStatement(tc_mock, ANY, [(int_statement.ret_val, int_statement_2.ret_val)])
@@ -943,3 +944,44 @@ def test_dict_replace_max_insertions(tc_mock, monkeypatch):
     assert not local_search.replace_entries(statement)
     assert statement.elements[0] == (int_statement.ret_val, int_statement_2.ret_val)
     assert len(statement.elements) == 1
+
+
+def test_fix_key_error(tc_mock, default_test_case):
+    tc_mock.test_case = default_test_case
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+        ],
+    )
+    local_search = DictStatementLocalSearch(tc_mock, 0, MagicMock(), TestFactory(MagicMock()))
+    error = KeyError(23)
+    execution_result = MagicMock
+    tc_mock.get_last_execution_result = execution_result
+    errors: dict = dict.fromkeys(range(3))
+    execution_result.exceptions = errors
+    execution_result.exceptions[0] = error
+    default_test_case.statements.append(statement)
+
+    assert local_search._fix_possible_key_error(statement)
+    assert len(default_test_case.statements) == 2
+    assert default_test_case.statements[1] == statement
+    assert default_test_case.statements[0].value == 23
+
+
+def test_fix_key_error_no_key_error(tc_mock, default_test_case):
+    tc_mock.test_case = default_test_case
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = DictStatement(
+        tc_mock,
+        ANY,
+        [
+            (int_statement.ret_val, int_statement_2.ret_val),
+        ],
+    )
+    local_search = DictStatementLocalSearch(tc_mock, 0, MagicMock(), TestFactory(MagicMock()))
+    assert not local_search._fix_possible_key_error(statement)

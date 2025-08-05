@@ -1231,6 +1231,8 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
     def add_entries(self, statement: DictStatement) -> bool:
         """Adds entries to the dictionary at every possible place.
 
+        First, possible key errors will be added, then random keys and values will be added.
+
         Args:
             statement (DictStatement): The dictionary which should be modified.
 
@@ -1239,8 +1241,19 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         """
         old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
-        insertions = 0
+        has_key_errors = True
         improved = False
+        while has_key_errors and not LocalSearchTimer.get_instance().limit_reached():
+            has_key_errors = self._fix_possible_key_error(statement)
+            if self._objective.has_improved(self._chromosome):
+                improved = True
+                old_elements = statement.elements.copy()
+                last_execution_result = self._chromosome.get_last_execution_result()
+            else:
+                has_key_errors = False
+                statement.elements = old_elements.copy()
+                self._chromosome.set_last_execution_result(last_execution_result)
+        insertions = 0
         while (
             insertions < config.LocalSearchConfiguration.dict_max_insertions
             and not LocalSearchTimer.get_instance().limit_reached()
@@ -1251,10 +1264,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             if len(keys) == 0:
                 return improved  # TODO: Maybe create new statement?
             statement.elements.append((randomness.choice(keys), randomness.choice(values)))
-            objective_improvement = self._objective.has_improved(self._chromosome)
-            if not objective_improvement:
-                objective_improvement = self._fix_possible_key_error(statement)
-            if objective_improvement:
+            if self._objective.has_improved(self._chromosome):
                 improved = True
                 old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
@@ -1280,9 +1290,9 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             if new_statement is None:
                 return False
             self._factory.append_statement(
-                self._chromosome.test_case, new_statement, position=self._position - 1
+                self._chromosome.test_case, new_statement, position=self._position
             )
-            values = self._chromosome.test_case.get_objects(AnyType(), self._position)
+            values = self._chromosome.test_case.get_objects(AnyType(), self._position + 1)
             statement.elements.append((key, randomness.choice(values)))
             return True
 
