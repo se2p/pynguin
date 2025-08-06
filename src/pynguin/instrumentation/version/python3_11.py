@@ -42,25 +42,24 @@ from pynguin.instrumentation.version.common import InstrumentationNameLoad
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
-
-from .python3_10 import ACCESS_NAMES
-from .python3_10 import CLOSURE_LOAD_NAMES
-from .python3_10 import IMPORT_FROM_NAMES
-from .python3_10 import IMPORT_NAME_NAMES
-from .python3_10 import LOAD_DEREF_NAMES
-from .python3_10 import LOAD_FAST_NAMES
-from .python3_10 import LOAD_GLOBAL_NAMES
-from .python3_10 import LOAD_NAME_NAMES
-from .python3_10 import MODIFY_DEREF_NAMES
-from .python3_10 import MODIFY_FAST_NAMES
-from .python3_10 import MODIFY_GLOBAL_NAMES
-from .python3_10 import MODIFY_NAME_NAMES
-from .python3_10 import RETURNING_NAMES
-from .python3_10 import STORE_NAME_NAMES
-from .python3_10 import STORE_NAMES
-from .python3_10 import add_for_loop_no_yield_nodes
-from .python3_10 import end_with_explicit_return_none
-from .python3_10 import is_conditional_jump
+from pynguin.instrumentation.version.python3_10 import ACCESS_NAMES
+from pynguin.instrumentation.version.python3_10 import CLOSURE_LOAD_NAMES
+from pynguin.instrumentation.version.python3_10 import IMPORT_FROM_NAMES
+from pynguin.instrumentation.version.python3_10 import IMPORT_NAME_NAMES
+from pynguin.instrumentation.version.python3_10 import LOAD_DEREF_NAMES
+from pynguin.instrumentation.version.python3_10 import LOAD_FAST_NAMES
+from pynguin.instrumentation.version.python3_10 import LOAD_GLOBAL_NAMES
+from pynguin.instrumentation.version.python3_10 import LOAD_NAME_NAMES
+from pynguin.instrumentation.version.python3_10 import MODIFY_DEREF_NAMES
+from pynguin.instrumentation.version.python3_10 import MODIFY_FAST_NAMES
+from pynguin.instrumentation.version.python3_10 import MODIFY_GLOBAL_NAMES
+from pynguin.instrumentation.version.python3_10 import MODIFY_NAME_NAMES
+from pynguin.instrumentation.version.python3_10 import RETURNING_NAMES
+from pynguin.instrumentation.version.python3_10 import STORE_NAME_NAMES
+from pynguin.instrumentation.version.python3_10 import STORE_NAMES
+from pynguin.instrumentation.version.python3_10 import add_for_loop_no_yield_nodes
+from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
+from pynguin.instrumentation.version.python3_10 import is_conditional_jump
 
 
 __all__ = [
