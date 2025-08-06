@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+# ruff: noqa: PLC2701
+
 import inspect
 import operator
 
@@ -17,18 +19,14 @@ import pytest
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES  # noqa: PLC2701
-from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES  # noqa: PLC2701
-from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES  # noqa: PLC2701
-from pynguin.analyses.typesystem import _DICT_VALUE_FROM_ARGUMENT_TYPES  # noqa: PLC2701
-from pynguin.analyses.typesystem import _LIST_ELEMENT_ATTRIBUTES  # noqa: PLC2701
-from pynguin.analyses.typesystem import (
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES,  # noqa: PLC2701
-)
-from pynguin.analyses.typesystem import _SET_ELEMENT_ATTRIBUTES  # noqa: PLC2701
-from pynguin.analyses.typesystem import (
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES,  # noqa: PLC2701
-)
+from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES
+from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES
+from pynguin.analyses.typesystem import _DICT_VALUE_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _LIST_ELEMENT_ATTRIBUTES
+from pynguin.analyses.typesystem import _LIST_ELEMENT_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _SET_ELEMENT_ATTRIBUTES
+from pynguin.analyses.typesystem import _SET_ELEMENT_FROM_ARGUMENT_TYPES
 from pynguin.analyses.typesystem import UNSUPPORTED
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
@@ -38,7 +36,7 @@ from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
 from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import _is_partial_type_match  # noqa: PLC2701
+from pynguin.analyses.typesystem import _is_partial_type_match
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
