@@ -564,9 +564,15 @@ class ExecutionFlowBuilder:
 
         efb_state.bb_id -= 1
         basic_block_node = self._get_basic_block_node(efb_state.co_id, efb_state.bb_id)
-        last_instr = basic_block_node.get_instruction(-1)
+        last_instr = basic_block_node.try_get_instruction(-1)
+
+        if last_instr is None:
+            # No instruction in the basic block, so we continue at the last basic block
+            return self._continue_at_last_basic_block(efb_state)
+
         # Set instr_original_index to the last instruction of the new basic block
         efb_state.instr_original_index = sum(1 for _ in basic_block_node.original_instructions) - 1
+
         return last_instr
 
     def _continue_before_import(

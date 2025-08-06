@@ -22,6 +22,7 @@ from bytecode.instr import UNSET
 from bytecode.instr import CellVar
 from bytecode.instr import FreeVar
 from bytecode.instr import Instr
+from bytecode.instr import TryEnd
 
 import pynguin.configuration as config
 
@@ -73,6 +74,11 @@ def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: l
                         f"Expected argument {expected_instr.arg} at index {i} but got "
                         f"{current_instr.arg}\n{general_exception_message}"
                     )
+                case TryEnd():
+                    assert isinstance(current_instr.arg[0], TryEnd), (
+                        f"Expected TryEnd argument at index {i} but got "
+                        f"{current_instr.arg}\n{general_exception_message}"
+                    )
                 case CodeType():
                     assert isinstance(current_instr.arg, CodeType), (
                         f"Expected CodeType argument at index {i} but got "
@@ -90,7 +96,7 @@ def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: l
                         f"{current_block_instr.name}\n{general_exception_message}"
                     )
                     match current_block_instr.arg:
-                        case int() | str() | tuple() | _UNSET() | None:
+                        case int() | str() | tuple() | FreeVar() | CellVar() | _UNSET() | None:
                             assert current_block_instr.arg == arg, (
                                 f"Expected argument {arg} in first instruction at index {i} "
                                 f"but got {current_block_instr.arg}\n{general_exception_message}"

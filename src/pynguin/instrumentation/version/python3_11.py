@@ -202,7 +202,11 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
 
 
 def is_dominant_node(cdg: cf.ControlDependenceGraph, node: cf.ProgramNode) -> bool:  # noqa: ARG001, D103
-    return isinstance(node, cf.BasicBlockNode) and node.get_instruction(-1).name != "SEND"
+    return (
+        isinstance(node, cf.BasicBlockNode)
+        and (last_instr := node.try_get_instruction(-1)) is not None
+        and last_instr.name != "SEND"
+    )
 
 
 def stack_effects(  # noqa: D103, C901

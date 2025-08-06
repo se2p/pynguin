@@ -166,7 +166,10 @@ class BasicBlockNode:
         """
         instr_index = 0
         while instr_index < len(self._basic_block):
-            instr = self.get_instruction(instr_index)
+            instr = self.try_get_instruction(instr_index)
+
+            if instr is None:
+                break
 
             if isinstance(instr, ArtificialInstr):
                 instr_index += 1
