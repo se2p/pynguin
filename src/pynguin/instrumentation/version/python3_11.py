@@ -94,6 +94,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
+    "is_dominant_node",
     "stack_effects",
 ]
 
@@ -200,6 +201,10 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return None
 
 
+def is_dominant_node(cdg: cf.ControlDependenceGraph, node: cf.ProgramNode) -> bool:  # noqa: ARG001, D103
+    return isinstance(node, cf.BasicBlockNode) and node.get_instruction(-1).name != "SEND"
+
+
 def stack_effects(  # noqa: D103, C901
     opcode: int,
     arg: int | None,
@@ -250,7 +255,7 @@ def stack_effects(  # noqa: D103, C901
             assert arg is not None
             return StackEffects(0, 2) if arg % 2 == 1 else StackEffects(0, 1)
         case "SEND":
-            return StackEffects(1, 0) if jump else StackEffects(0, 0)
+            return StackEffects(2, 1) if jump else StackEffects(2, 2)
         case "MAKE_FUNCTION":
             assert arg is not None
             # argument contains flags

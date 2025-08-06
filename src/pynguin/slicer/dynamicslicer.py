@@ -23,7 +23,7 @@ from typing import TypeVar
 import pynguin.configuration as config
 
 from pynguin.instrumentation import AST_FILENAME
-from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation import version
 from pynguin.instrumentation.version import CLOSURE_LOAD_OPCODES
 from pynguin.instrumentation.version import IMPORT_FROM_OPCODES
 from pynguin.instrumentation.version import IMPORT_NAME_OPCODES
@@ -544,7 +544,7 @@ class DynamicSlicer:
         last_node = cdg.get_basic_block_node(last_unique_instr.node_id)
         assert last_node is not None, "Invalid node id"
 
-        # The dominated nodes in the control dependency graph (CDG) are the nodes that are
+        # The dominated nodes in the control-dependence graph (CDG) are the nodes that are
         # control dependent on the last instruction. They are the successors of the last node
         # in the CDG.
         dominated_nodes = cdg.get_successors(last_node)
@@ -570,7 +570,7 @@ class DynamicSlicer:
         last_unique_instr: UniqueInstruction,
         code_object_id: int,
     ) -> None:
-        """Add the last unique instruction to the control dependency if it is control dependent.
+        """Add the last unique instruction to the control-dependence graph if required.
 
         Args:
             context: the slicing context
@@ -582,11 +582,11 @@ class DynamicSlicer:
         last_node = cdg.get_basic_block_node(last_unique_instr.node_id)
         assert last_node is not None, "Invalid node id"
 
-        # The dominant nodes in the control dependency graph (CDG) are the nodes on which
+        # The dominant nodes in the control-dependence graph (CDG) are the nodes on which
         # the last instruction is control dependent. They are the predecessors of the last node
         # in the CDG.
         dominant_nodes = cdg.get_predecessors(last_node)
-        if any(isinstance(dominant_node, BasicBlockNode) for dominant_node in dominant_nodes):
+        if any(version.is_dominant_node(cdg, dominant_node) for dominant_node in dominant_nodes):
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", last_unique_instr)
             context.instr_ctrl_deps.add(last_unique_instr)
 

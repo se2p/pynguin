@@ -92,6 +92,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
+    "is_dominant_node",
     "stack_effects",
 ]
 
@@ -376,6 +377,10 @@ def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noq
         and instructions[-2].arg is None
         and instructions[-1].opcode == opmap["RETURN_VALUE"]
     )
+
+
+def is_dominant_node(cdg: cf.ControlDependenceGraph, node: cf.ProgramNode) -> bool:  # noqa: ARG001, D103
+    return isinstance(node, cf.BasicBlockNode)
 
 
 def stack_effects(  # noqa: D103, C901, PLR0915

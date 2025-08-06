@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from bytecode import Instr
 
     from pynguin.instrumentation import StackEffects
+    from pynguin.instrumentation.controlflow import ControlDependenceGraph
+    from pynguin.instrumentation.controlflow import ProgramNode
     from pynguin.instrumentation.transformer import BranchCoverageInstrumentationAdapter
     from pynguin.instrumentation.transformer import (
         CheckedCoverageInstrumentationAdapter,
@@ -60,6 +62,7 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
+    "is_dominant_node",
     "stack_effects",
 ]
 
@@ -178,11 +181,28 @@ class EndWithExplicitReturnNoneFunction(Protocol):
         """
 
 
+class IsDominantNodeFunction(Protocol):
+    """A function that checks if a node is a dominant node in the control-dependence graph."""
+
+    @abstractmethod
+    def __call__(self, cdg: ControlDependenceGraph, node: ProgramNode) -> bool:
+        """Check if the node is a dominant node in the control-dependence graph.
+
+        Args:
+            cdg: The control-dependence graph to check.
+            node: The node to check.
+
+        Returns:
+            True if the node is a dominant node, False otherwise.
+        """
+
+
 stack_effects: StackEffectsFunction
 is_conditional_jump: IsConditionalJumpFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction
 end_with_explicit_return_none: EndWithExplicitReturnNoneFunction
+is_dominant_node: IsDominantNodeFunction
 
 BranchCoverageInstrumentation: type[BranchCoverageInstrumentationAdapter]
 LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]
