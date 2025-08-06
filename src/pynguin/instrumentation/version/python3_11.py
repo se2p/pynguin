@@ -255,7 +255,7 @@ def stack_effects(  # noqa: D103, C901
             return StackEffects(3, 1)
         case "LOAD_GLOBAL":
             assert arg is not None
-            return StackEffects(0, 2) if arg % 2 == 1 else StackEffects(0, 1)
+            return StackEffects(0, 2) if arg & 0x01 != 0 else StackEffects(0, 1)
         case "SEND":
             return StackEffects(2, 1) if jump else StackEffects(2, 2)
         case "MAKE_FUNCTION":
