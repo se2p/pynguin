@@ -6,16 +6,22 @@
 #
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
+from __future__ import annotations
 
 import importlib.util
 import sys
 
-from collections.abc import Callable
+from dataclasses import dataclass
 from types import CodeType
+from typing import TYPE_CHECKING
 from typing import Any
 
-from bytecode import Instr
 from bytecode.cfg import BasicBlock
+from bytecode.instr import _UNSET  # noqa: PLC2701
+from bytecode.instr import UNSET
+from bytecode.instr import CellVar
+from bytecode.instr import FreeVar
+from bytecode.instr import Instr
 
 import pynguin.configuration as config
 
@@ -28,78 +34,74 @@ from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
 if sys.version_info >= (3, 11):
     dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", "", 0, b"", b"")
 else:
     dummy_code_object = CodeType(0, 0, 0, 0, 0, 0, b"", (), (), (), "", "", 0, b"")
 
 
-def compare(dynamic_slice: list[UniqueInstruction], expected_slice: list[Instr]):
-    expected_copy = expected_slice.copy()
-    slice_copy = dynamic_slice.copy()
-
-    for unique_instr in dynamic_slice:
-        if isinstance(unique_instr.arg, BasicBlock | CodeType | tuple):
-            # Don't distinguish arguments for basic blocks, code objects and tuples
-            jump_instr = _contains_name_argtype(expected_copy, unique_instr)
-            try:
-                expected_copy.remove(jump_instr)
-                slice_copy.remove(unique_instr)
-            except ValueError as err:  # pragma: no cover
-                msg = str(unique_instr) + " not in expected slice\n"
-                msg += "Remaining in expected: " + str(expected_copy) + "\n"
-                msg += "Remaining in computed: " + str(slice_copy)
-                raise ValueError(msg) from err
-        else:
-            found_instr = _contains_name_arg(expected_slice, unique_instr)
-            if found_instr:
-                try:
-                    expected_copy.remove(found_instr)
-                    slice_copy.remove(unique_instr)
-                except ValueError as err:  # pragma: no cover
-                    msg = str(found_instr) + " not in expected slice\n"
-                    msg += "Remaining in expected: " + str(expected_copy) + "\n"
-                    msg += "Remaining in computed: " + str(slice_copy)
-                    raise ValueError(msg) from err
-            else:  # pragma: no cover
-                msg = str(unique_instr) + " not in expected slice\n"
-                msg += "Remaining in expected: " + str(expected_copy) + "\n"
-                msg += "Remaining in computed: " + str(slice_copy)
-                raise ValueError(msg)
-
-    if len(expected_copy) != 0:
-        raise ValueError(
-            "Expected slice has remaining instructions:", expected_copy
-        )  # pragma: no cover
-    if len(slice_copy) != 0:
-        raise ValueError("Real slice has remaining instructions:", slice_copy)  # pragma: no cover
-
-    return True
+@dataclass(frozen=True)
+class TracedInstr:
+    name: str
+    arg: int | str | tuple | FreeVar | CellVar | CodeType | TracedInstr | _UNSET | None = UNSET
 
 
-def _contains_name_arg(instr_list: list[Instr], unique_instr: UniqueInstruction) -> Instr | None:
-    for instr in instr_list:
-        if instr.name == unique_instr.name:
-            if isinstance(unique_instr.arg, BasicBlock | CodeType):
-                # Instruction is a jump to a basic block
-                return instr  # pragma: no cover
-            if isinstance(unique_instr.arg, tuple) and isinstance(instr.arg, tuple):
-                for elem in unique_instr.arg:  # pragma: no cover
-                    if elem not in instr.arg:
-                        break
-                return instr  # pragma: no cover
-            if instr.arg == unique_instr.arg:
-                return instr
-    return None  # pragma: no cover
-
-
-def _contains_name_argtype(
-    instr_list: list[Instr], unique_instr: UniqueInstruction
-) -> Instr | None:
-    for instr in instr_list:
-        if instr.name == unique_instr.name and isinstance(instr.arg, type(unique_instr.arg)):
-            return instr
-    return None  # pragma: no cover
+def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: list[TracedInstr]):
+    expected_instrs = "\n".join(f"[{i}] {instr}" for i, instr in enumerate(expected_slice))
+    current_instrs = "\n".join(
+        f"[{i}] {instr.name} {instr.arg}" for i, instr in enumerate(current_slice)
+    )
+    general_exception_message = (
+        f"Expected ({len(expected_slice)}):\n{expected_instrs}\n\n"
+        f"Got ({len(current_slice)}):\n{current_instrs}"
+    )
+    try:
+        for i, (current_instr, expected_instr) in enumerate(
+            zip(current_slice, expected_slice, strict=True)
+        ):
+            assert current_instr.name == expected_instr.name, (
+                f"Expected {expected_instr.name} instruction at index {i} but got "
+                f"{current_instr.name}\n{general_exception_message}"
+            )
+            match expected_instr.arg:
+                case int() | str() | tuple() | FreeVar() | CellVar() | _UNSET() | None:
+                    assert current_instr.arg == expected_instr.arg, (
+                        f"Expected argument {expected_instr.arg} at index {i} but got "
+                        f"{current_instr.arg}\n{general_exception_message}"
+                    )
+                case CodeType():
+                    assert isinstance(current_instr.arg, CodeType), (
+                        f"Expected CodeType argument at index {i} but got "
+                        f"{current_instr.arg}\n{general_exception_message}"
+                    )
+                case TracedInstr(name, arg):
+                    assert isinstance(current_instr.arg, BasicBlock), (
+                        f"Expected BasicBlock argument at index {i} but got "
+                        f"{current_instr.arg}\n{general_exception_message}"
+                    )
+                    current_block_instr = current_instr.arg[0]
+                    assert isinstance(current_block_instr, Instr)
+                    assert current_block_instr.name == name, (
+                        f"Expected {name} first instruction at index {i} but got "
+                        f"{current_block_instr.name}\n{general_exception_message}"
+                    )
+                    match current_block_instr.arg:
+                        case int() | str() | tuple() | _UNSET() | None:
+                            assert current_block_instr.arg == arg, (
+                                f"Expected argument {arg} in first instruction at index {i} "
+                                f"but got {current_block_instr.arg}\n{general_exception_message}"
+                            )
+                        case BasicBlock():
+                            assert isinstance(current_block_instr.arg, BasicBlock), (
+                                f"Expected BasicBlock argument in first instruction at index {i} "
+                                f"but got {current_block_instr.arg}\n{general_exception_message}"
+                            )
+    except ValueError:
+        assert len(current_slice) == len(expected_slice), general_exception_message
 
 
 def slice_function_at_return_with_result(
