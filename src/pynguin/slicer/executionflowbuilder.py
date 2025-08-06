@@ -22,14 +22,14 @@ from bytecode.instr import BITFLAG_OPCODES
 from bytecode.instr import UNSET
 from bytecode.instr import Instr
 
-from pynguin.instrumentation.version import CALL_OPCODES
-from pynguin.instrumentation.version import COND_BRANCH_OPCODES
-from pynguin.instrumentation.version import IMPORT_NAME_OPCODES
-from pynguin.instrumentation.version import MEMORY_DEF_OPCODES
-from pynguin.instrumentation.version import MEMORY_USE_OPCODES
-from pynguin.instrumentation.version import RETURNING_OPCODES
-from pynguin.instrumentation.version import TRACED_OPCODES
-from pynguin.instrumentation.version import YIELDING_OPCODES
+from pynguin.instrumentation.version import CALL_NAMES
+from pynguin.instrumentation.version import COND_BRANCH_NAMES
+from pynguin.instrumentation.version import IMPORT_NAME_NAMES
+from pynguin.instrumentation.version import MEMORY_DEF_NAMES
+from pynguin.instrumentation.version import MEMORY_USE_NAMES
+from pynguin.instrumentation.version import RETURNING_NAMES
+from pynguin.instrumentation.version import TRACED_NAMES
+from pynguin.instrumentation.version import YIELDING_NAMES
 from pynguin.instrumentation.version import stack_effects
 
 
@@ -97,7 +97,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a definition, False otherwise.
         """
-        return self.opcode in MEMORY_DEF_OPCODES
+        return self.name in MEMORY_DEF_NAMES
 
     def is_use(self) -> bool:
         """Returns a boolean if the instruction is a use.
@@ -105,7 +105,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a use, False otherwise.
         """
-        return self.opcode in MEMORY_USE_OPCODES
+        return self.name in MEMORY_USE_NAMES
 
     def is_cond_branch(self) -> bool:
         """Returns a boolean if the instruction is a conditional branching.
@@ -113,7 +113,7 @@ class UniqueInstruction(Instr):
         Returns:
             True if the instructions is a conditional branching, False otherwise.
         """
-        return self.opcode in COND_BRANCH_OPCODES
+        return self.name in COND_BRANCH_NAMES
 
     def stack_effects(self, jump: bool = False) -> StackEffects:  # noqa: FBT001, FBT002
         """Returns the stack effects of the instruction.
@@ -349,7 +349,7 @@ class ExecutionFlowBuilder:
         )
 
         # Handle return instruction
-        if last_traced_instr.opcode in RETURNING_OPCODES:
+        if last_traced_instr.name in RETURNING_NAMES:
             last_instr = self._handle_return_instructions(
                 efb_state,
                 instr,
@@ -429,7 +429,7 @@ class ExecutionFlowBuilder:
         last_traced_instr: ExecutedInstruction,
         unique_instr: UniqueInstruction,
     ):
-        if instr.opcode not in IMPORT_NAME_OPCODES:
+        if instr.name not in IMPORT_NAME_NAMES:
             # Coming back from a method call. If last_instr is a call, then the
             # method was called explicitly.
             # If last_instr is not a call, but is traced and does not match the
@@ -437,8 +437,8 @@ class ExecutionFlowBuilder:
             # to a magic method (such as __get__). Since we collect instructions
             # invoking these methods, we can safely switch to the called method.
             if last_instr is not None:
-                if (last_instr.opcode in CALL_OPCODES) or (
-                    last_instr.opcode in TRACED_OPCODES
+                if (last_instr.name in CALL_NAMES) or (
+                    last_instr.name in TRACED_NAMES
                     and last_instr.opcode != last_traced_instr.opcode
                 ):
                     last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
@@ -494,14 +494,14 @@ class ExecutionFlowBuilder:
         last_instr: Instr,
         last_traced_instr: ExecutedInstruction,
     ) -> Instr:
-        if last_instr.opcode in YIELDING_OPCODES:
+        if last_instr.name in YIELDING_NAMES:
             # Generators produce an unusual execution flow: the interpreter handles
             # jumps to the respective yield statement internally and we can not see
             # this in the trace. So we assume that this unusual case (explained in
             # the next branch) is not an exception but the return from a generator.
             last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
 
-        elif last_instr.opcode in TRACED_OPCODES and last_instr.opcode != last_traced_instr.opcode:
+        elif last_instr.name in TRACED_NAMES and last_instr.opcode != last_traced_instr.opcode:
             # The last instruction that is determined is not in the trace,
             # despite the fact that it should be. There is only one known remaining
             # reasons for this: during an exception. Tracing continues with the last

@@ -16,8 +16,8 @@ from collections import UserList
 from dataclasses import dataclass
 from dataclasses import field
 
-from pynguin.instrumentation.version import ACCESS_OPCODES
-from pynguin.instrumentation.version import STORE_OPCODES
+from pynguin.instrumentation.version import ACCESS_NAMES
+from pynguin.instrumentation.version import STORE_NAMES
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
@@ -194,14 +194,14 @@ class TraceStack:
                 # attribute should be included. However, the use data for these will
                 # not be searched for, since this would widen the scope of the search
                 # for complete objects rather than only for the attribute thereof.
-                if tos_instr.opcode in STORE_OPCODES and len(curr_block_stack) > 0:
+                if tos_instr.name in STORE_NAMES and len(curr_block_stack) > 0:
                     match curr_block_stack.peek():
-                        case (tos1_instr, True) if tos1_instr.opcode in STORE_OPCODES:  # type: ignore[union-attr]
+                        case (tos1_instr, True) if tos1_instr.name in STORE_NAMES:  # type: ignore[union-attr]
                             self._logger.debug(
                                 "DISABLED INCLUDE USE (STORE OPCODE): %s", tos1_instr
                             )
                             include_use = False
-                if tos_instr.opcode in ACCESS_OPCODES:
+                if tos_instr.name in ACCESS_NAMES:
                     self._logger.debug("DISABLED INCLUDE USE (ACCESS OPCODE): %s", tos_instr)
                     include_use = False
 

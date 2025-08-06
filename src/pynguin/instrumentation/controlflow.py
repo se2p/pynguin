@@ -404,7 +404,7 @@ class ProgramGraph:
         yield_nodes: set[ProgramNode] = set()
         for node in self.basic_block_nodes:
             for instr in node.instructions:
-                if instr.opcode in version.YIELDING_OPCODES:
+                if instr.name in version.YIELDING_NAMES:
                     yield_nodes.add(node)
                     # exist the inner loop (over instructions)
                     # the node is already added thus continue with the next node

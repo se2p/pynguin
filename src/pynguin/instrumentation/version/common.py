@@ -13,7 +13,6 @@ import enum
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from opcode import opmap
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
@@ -292,18 +291,6 @@ class CheckedCoverageInstrumentationVisitorMethod(Protocol):
             instr_index: The index of the instruction in the basic block.
             instr_original_index: The original index of the instruction in the code object.
         """
-
-
-def to_opcodes(*names: str) -> tuple[int, ...]:
-    """Convert a tuple of opcode names to their corresponding integer values.
-
-    Args:
-        names: The names of the opcodes to convert.
-
-    Returns:
-        A tuple of integers representing the opcodes.
-    """
-    return tuple(opmap.get(name, -1) for name in names)
 
 
 def before(index: int) -> slice[int, int]:

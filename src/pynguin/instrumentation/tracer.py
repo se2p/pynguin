@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from functools import wraps
 from math import inf
+from opcode import opname
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
 from types import CodeType
@@ -1357,7 +1358,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         var_value: object,
     ) -> None:
         # IMPORT_NAMEs may not have arguments
-        assert var_name or opcode in version.IMPORT_NAME_OPCODES, (
+        assert var_name or opname[opcode] in version.IMPORT_NAME_NAMES, (
             "A memory access instruction must have an argument or be an import"
         )
 

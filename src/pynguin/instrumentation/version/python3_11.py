@@ -12,7 +12,6 @@
 
 from __future__ import annotations
 
-from opcode import opmap
 from opcode import opname
 from typing import ClassVar
 
@@ -42,50 +41,49 @@ from pynguin.instrumentation.version.common import InstrumentationNameLoad
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.common import to_opcodes
 
-from .python3_10 import ACCESS_OPCODES
-from .python3_10 import CLOSURE_LOAD_OPCODES
-from .python3_10 import IMPORT_FROM_OPCODES
-from .python3_10 import IMPORT_NAME_OPCODES
-from .python3_10 import LOAD_DEREF_OPCODES
-from .python3_10 import LOAD_FAST_OPCODES
-from .python3_10 import LOAD_GLOBAL_OPCODES
-from .python3_10 import LOAD_NAME_OPCODES
-from .python3_10 import MODIFY_DEREF_OPCODES
-from .python3_10 import MODIFY_FAST_OPCODES
-from .python3_10 import MODIFY_GLOBAL_OPCODES
-from .python3_10 import MODIFY_NAME_OPCODES
-from .python3_10 import RETURNING_OPCODES
-from .python3_10 import STORE_NAME_OPCODES
-from .python3_10 import STORE_OPCODES
+from .python3_10 import ACCESS_NAMES
+from .python3_10 import CLOSURE_LOAD_NAMES
+from .python3_10 import IMPORT_FROM_NAMES
+from .python3_10 import IMPORT_NAME_NAMES
+from .python3_10 import LOAD_DEREF_NAMES
+from .python3_10 import LOAD_FAST_NAMES
+from .python3_10 import LOAD_GLOBAL_NAMES
+from .python3_10 import LOAD_NAME_NAMES
+from .python3_10 import MODIFY_DEREF_NAMES
+from .python3_10 import MODIFY_FAST_NAMES
+from .python3_10 import MODIFY_GLOBAL_NAMES
+from .python3_10 import MODIFY_NAME_NAMES
+from .python3_10 import RETURNING_NAMES
+from .python3_10 import STORE_NAME_NAMES
+from .python3_10 import STORE_NAMES
 from .python3_10 import add_for_loop_no_yield_nodes
 from .python3_10 import end_with_explicit_return_none
 from .python3_10 import is_conditional_jump
 
 
 __all__ = [
-    "ACCESS_OPCODES",
-    "CALL_OPCODES",
-    "CLOSURE_LOAD_OPCODES",
-    "COND_BRANCH_OPCODES",
-    "IMPORT_FROM_OPCODES",
-    "IMPORT_NAME_OPCODES",
-    "LOAD_DEREF_OPCODES",
-    "LOAD_FAST_OPCODES",
-    "LOAD_GLOBAL_OPCODES",
-    "LOAD_NAME_OPCODES",
-    "MEMORY_DEF_OPCODES",
-    "MEMORY_USE_OPCODES",
-    "MODIFY_DEREF_OPCODES",
-    "MODIFY_FAST_OPCODES",
-    "MODIFY_GLOBAL_OPCODES",
-    "MODIFY_NAME_OPCODES",
-    "RETURNING_OPCODES",
-    "STORE_NAME_OPCODES",
-    "STORE_OPCODES",
-    "TRACED_OPCODES",
-    "YIELDING_OPCODES",
+    "ACCESS_NAMES",
+    "CALL_NAMES",
+    "CLOSURE_LOAD_NAMES",
+    "COND_BRANCH_NAMES",
+    "IMPORT_FROM_NAMES",
+    "IMPORT_NAME_NAMES",
+    "LOAD_DEREF_NAMES",
+    "LOAD_FAST_NAMES",
+    "LOAD_GLOBAL_NAMES",
+    "LOAD_NAME_NAMES",
+    "MEMORY_DEF_NAMES",
+    "MEMORY_USE_NAMES",
+    "MODIFY_DEREF_NAMES",
+    "MODIFY_FAST_NAMES",
+    "MODIFY_GLOBAL_NAMES",
+    "MODIFY_NAME_NAMES",
+    "RETURNING_NAMES",
+    "STORE_NAMES",
+    "STORE_NAME_NAMES",
+    "TRACED_NAMES",
+    "YIELDING_NAMES",
     "BranchCoverageInstrumentation",
     "CheckedCoverageInstrumentation",
     "DynamicSeedingInstrumentation",
@@ -99,14 +97,15 @@ __all__ = [
 ]
 
 # Remaining opcodes
-CALL_OPCODES = to_opcodes(
+CALL_NAMES = (
     "CALL",
     "CALL_FUNCTION_EX",
 )
 
-YIELDING_OPCODES = to_opcodes("YIELD_VALUE")
+YIELDING_NAMES = ("YIELD_VALUE",)
 
-OPERATION_OPCODES = python3_10.COMPARE_OPCODES + to_opcodes(
+OPERATION_NAMES = (
+    *python3_10.COMPARE_NAMES,
     # Unary operations
     "UNARY_POSITIVE",
     "UNARY_NEGATIVE",
@@ -118,7 +117,7 @@ OPERATION_OPCODES = python3_10.COMPARE_OPCODES + to_opcodes(
     "BINARY_OP",
 )
 
-COND_BRANCH_OPCODES = to_opcodes(
+COND_BRANCH_NAMES = (
     "POP_JUMP_FORWARD_IF_TRUE",
     "POP_JUMP_BACKWARD_IF_TRUE",
     "POP_JUMP_FORWARD_IF_NOT_NONE",
@@ -132,7 +131,8 @@ COND_BRANCH_OPCODES = to_opcodes(
     "FOR_ITER",
 )
 
-JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
+JUMP_NAMES = (
+    *COND_BRANCH_NAMES,
     "JUMP_FORWARD",
     "JUMP_BACKWARD",
     "JUMP_BACKWARD_NO_INTERRUPT",
@@ -142,39 +142,39 @@ JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
 
 
 # Regrouping opcodes
-TRACED_OPCODES = (
-    OPERATION_OPCODES
-    + python3_10.ACCESS_FAST_OPCODES
-    + python3_10.ACCESS_NAME_OPCODES
-    + python3_10.ACCESS_GLOBAL_OPCODES
-    + python3_10.ACCESS_DEREF_OPCODES
-    + python3_10.ATTRIBUTES_OPCODES
-    + python3_10.ACCESS_SUBSCR_OPCODES
-    + IMPORT_NAME_OPCODES
-    + JUMP_OPCODES
-    + CALL_OPCODES
-    + RETURNING_OPCODES
+TRACED_NAMES = (
+    OPERATION_NAMES
+    + python3_10.ACCESS_FAST_NAMES
+    + python3_10.ACCESS_NAME_NAMES
+    + python3_10.ACCESS_GLOBAL_NAMES
+    + python3_10.ACCESS_DEREF_NAMES
+    + python3_10.ATTRIBUTES_NAMES
+    + python3_10.ACCESS_SUBSCR_NAMES
+    + IMPORT_NAME_NAMES
+    + JUMP_NAMES
+    + CALL_NAMES
+    + RETURNING_NAMES
 )
 
-MEMORY_USE_OPCODES = (
-    LOAD_FAST_OPCODES
-    + LOAD_NAME_OPCODES
-    + LOAD_GLOBAL_OPCODES
-    + LOAD_DEREF_OPCODES
-    + python3_10.LOAD_ATTR_OPCODES
-    + IMPORT_FROM_OPCODES
-    + python3_10.LOAD_METHOD_OPCODES
-    + CLOSURE_LOAD_OPCODES
-    + python3_10.BINARY_SUBSCR_OPCODES
+MEMORY_USE_NAMES = (
+    LOAD_FAST_NAMES
+    + LOAD_NAME_NAMES
+    + LOAD_GLOBAL_NAMES
+    + LOAD_DEREF_NAMES
+    + python3_10.LOAD_ATTR_NAMES
+    + IMPORT_FROM_NAMES
+    + python3_10.LOAD_METHOD_NAMES
+    + CLOSURE_LOAD_NAMES
+    + python3_10.BINARY_SUBSCR_NAMES
 )
-MEMORY_DEF_OPCODES = (
-    MODIFY_FAST_OPCODES
-    + MODIFY_NAME_OPCODES
-    + MODIFY_GLOBAL_OPCODES
-    + MODIFY_DEREF_OPCODES
-    + python3_10.MODIFY_ATTR_OPCODES
-    + IMPORT_NAME_OPCODES  # compensate incorrect stack effect for IMPORT_NAME
-    + python3_10.ACCESS_SUBSCR_OPCODES
+MEMORY_DEF_NAMES = (
+    MODIFY_FAST_NAMES
+    + MODIFY_NAME_NAMES
+    + MODIFY_GLOBAL_NAMES
+    + MODIFY_DEREF_NAMES
+    + python3_10.MODIFY_ATTR_NAMES
+    + IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
+    + python3_10.ACCESS_SUBSCR_NAMES
 )
 
 
@@ -441,7 +441,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         if maybe_jump is None:
             return
 
-        if maybe_jump.opcode == opmap["FOR_ITER"]:
+        if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(
                 cfg,
                 code_object_id,
@@ -458,7 +458,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             COMPARE_OP_POS,
         )
 
-        if maybe_compare.opcode in python3_10.COMPARE_OPCODES:
+        if maybe_compare.name in python3_10.COMPARE_NAMES:
             self.visit_compare_based_conditional_jump(
                 cfg,
                 code_object_id,
@@ -468,7 +468,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
-        if maybe_compare.opcode == opmap["CHECK_EXC_MATCH"]:
+        if maybe_compare.name == "CHECK_EXC_MATCH":
             self.visit_exception_based_conditional_jump(
                 cfg,
                 code_object_id,
@@ -493,7 +493,7 @@ class LineCoverageInstrumentation(python3_10.LineCoverageInstrumentation):
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
     def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return instr.lineno != lineno and instr.opcode != opmap["RESUME"]
+        return instr.lineno != lineno and instr.name != "RESUME"
 
 
 class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
@@ -502,7 +502,7 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
     def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return instr.lineno != lineno and instr.opcode != opmap["RESUME"]
+        return instr.lineno != lineno and instr.name != "RESUME"
 
     def visit_call(  # noqa: D102, PLR0917
         self,
@@ -518,10 +518,10 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
 
         # We want to place the instrumentation instructions before the PRECALL and KW_NAMES
         # instructions, if they are present, otherwise it may cause issues.
-        if node.get_instruction(instr_index - 1).opcode == opmap["PRECALL"]:
+        if node.get_instruction(instr_index - 1).name == "PRECALL":
             instr_index -= 1
 
-        if node.get_instruction(instr_index - 1).opcode == opmap["KW_NAMES"]:
+        if node.get_instruction(instr_index - 1).name == "KW_NAMES":
             instr_index -= 1
 
         # Instrumentation before the original instruction
@@ -545,21 +545,21 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
 
     METHODS: ClassVar[
         dict[
-            tuple[int, ...],
+            tuple[str, ...],
             CheckedCoverageInstrumentationVisitorMethod,
         ]
     ] = {
-        OPERATION_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_generic,
-        python3_10.ACCESS_FAST_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_local_access,  # noqa: E501
-        python3_10.ATTRIBUTES_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_attr_access,
-        python3_10.ACCESS_SUBSCR_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_subscr_access,  # noqa: E501
-        python3_10.ACCESS_NAME_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_name_access,
-        IMPORT_NAME_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_import_name_access,
-        python3_10.ACCESS_GLOBAL_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
-        python3_10.ACCESS_DEREF_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_deref_access,  # noqa: E501
-        JUMP_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_jump,
-        CALL_OPCODES: visit_call,
-        RETURNING_OPCODES: python3_10.CheckedCoverageInstrumentation.visit_return,
+        OPERATION_NAMES: python3_10.CheckedCoverageInstrumentation.visit_generic,
+        python3_10.ACCESS_FAST_NAMES: python3_10.CheckedCoverageInstrumentation.visit_local_access,
+        python3_10.ATTRIBUTES_NAMES: python3_10.CheckedCoverageInstrumentation.visit_attr_access,
+        python3_10.ACCESS_SUBSCR_NAMES: python3_10.CheckedCoverageInstrumentation.visit_subscr_access,  # noqa: E501
+        python3_10.ACCESS_NAME_NAMES: python3_10.CheckedCoverageInstrumentation.visit_name_access,
+        IMPORT_NAME_NAMES: python3_10.CheckedCoverageInstrumentation.visit_import_name_access,
+        python3_10.ACCESS_GLOBAL_NAMES: python3_10.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
+        python3_10.ACCESS_DEREF_NAMES: python3_10.CheckedCoverageInstrumentation.visit_deref_access,
+        JUMP_NAMES: python3_10.CheckedCoverageInstrumentation.visit_jump,
+        CALL_NAMES: visit_call,
+        RETURNING_NAMES: python3_10.CheckedCoverageInstrumentation.visit_return,
     }
 
 

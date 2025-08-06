@@ -33,27 +33,27 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "ACCESS_OPCODES",
-    "CALL_OPCODES",
-    "CLOSURE_LOAD_OPCODES",
-    "COND_BRANCH_OPCODES",
-    "IMPORT_FROM_OPCODES",
-    "IMPORT_NAME_OPCODES",
-    "LOAD_DEREF_OPCODES",
-    "LOAD_FAST_OPCODES",
-    "LOAD_GLOBAL_OPCODES",
-    "LOAD_NAME_OPCODES",
-    "MEMORY_DEF_OPCODES",
-    "MEMORY_USE_OPCODES",
-    "MODIFY_DEREF_OPCODES",
-    "MODIFY_FAST_OPCODES",
-    "MODIFY_GLOBAL_OPCODES",
-    "MODIFY_NAME_OPCODES",
-    "RETURNING_OPCODES",
-    "STORE_NAME_OPCODES",
-    "STORE_OPCODES",
-    "TRACED_OPCODES",
-    "YIELDING_OPCODES",
+    "ACCESS_NAMES",
+    "CALL_NAMES",
+    "CLOSURE_LOAD_NAMES",
+    "COND_BRANCH_NAMES",
+    "IMPORT_FROM_NAMES",
+    "IMPORT_NAME_NAMES",
+    "LOAD_DEREF_NAMES",
+    "LOAD_FAST_NAMES",
+    "LOAD_GLOBAL_NAMES",
+    "LOAD_NAME_NAMES",
+    "MEMORY_DEF_NAMES",
+    "MEMORY_USE_NAMES",
+    "MODIFY_DEREF_NAMES",
+    "MODIFY_FAST_NAMES",
+    "MODIFY_GLOBAL_NAMES",
+    "MODIFY_NAME_NAMES",
+    "RETURNING_NAMES",
+    "STORE_NAMES",
+    "STORE_NAME_NAMES",
+    "TRACED_NAMES",
+    "YIELDING_NAMES",
     "BranchCoverageInstrumentation",
     "CheckedCoverageInstrumentation",
     "DynamicSeedingInstrumentation",
@@ -209,34 +209,34 @@ LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]
 CheckedCoverageInstrumentation: type[CheckedCoverageInstrumentationAdapter]
 DynamicSeedingInstrumentation: type[DynamicSeedingInstrumentationAdapter]
 
-LOAD_FAST_OPCODES: tuple[int, ...]
-MODIFY_FAST_OPCODES: tuple[int, ...]
+LOAD_FAST_NAMES: tuple[str, ...]
+MODIFY_FAST_NAMES: tuple[str, ...]
 
-LOAD_NAME_OPCODES: tuple[int, ...]
-STORE_NAME_OPCODES: tuple[int, ...]
-MODIFY_NAME_OPCODES: tuple[int, ...]
+LOAD_NAME_NAMES: tuple[str, ...]
+STORE_NAME_NAMES: tuple[str, ...]
+MODIFY_NAME_NAMES: tuple[str, ...]
 
-LOAD_GLOBAL_OPCODES: tuple[int, ...]
-MODIFY_GLOBAL_OPCODES: tuple[int, ...]
+LOAD_GLOBAL_NAMES: tuple[str, ...]
+MODIFY_GLOBAL_NAMES: tuple[str, ...]
 
-LOAD_DEREF_OPCODES: tuple[int, ...]
-MODIFY_DEREF_OPCODES: tuple[int, ...]
+LOAD_DEREF_NAMES: tuple[str, ...]
+MODIFY_DEREF_NAMES: tuple[str, ...]
 
-CLOSURE_LOAD_OPCODES: tuple[int, ...]
+CLOSURE_LOAD_NAMES: tuple[str, ...]
 
-IMPORT_NAME_OPCODES: tuple[int, ...]
-IMPORT_FROM_OPCODES: tuple[int, ...]
+IMPORT_NAME_NAMES: tuple[str, ...]
+IMPORT_FROM_NAMES: tuple[str, ...]
 
-CALL_OPCODES: tuple[int, ...]
-YIELDING_OPCODES: tuple[int, ...]
-RETURNING_OPCODES: tuple[int, ...]
-COND_BRANCH_OPCODES: tuple[int, ...]
+CALL_NAMES: tuple[str, ...]
+YIELDING_NAMES: tuple[str, ...]
+RETURNING_NAMES: tuple[str, ...]
+COND_BRANCH_NAMES: tuple[str, ...]
 
-STORE_OPCODES: tuple[int, ...]
-ACCESS_OPCODES: tuple[int, ...]
-TRACED_OPCODES: tuple[int, ...]
-MEMORY_USE_OPCODES: tuple[int, ...]
-MEMORY_DEF_OPCODES: tuple[int, ...]
+STORE_NAMES: tuple[str, ...]
+ACCESS_NAMES: tuple[str, ...]
+TRACED_NAMES: tuple[str, ...]
+MEMORY_USE_NAMES: tuple[str, ...]
+MEMORY_DEF_NAMES: tuple[str, ...]
 
 
 if sys.version_info >= (3, 11):

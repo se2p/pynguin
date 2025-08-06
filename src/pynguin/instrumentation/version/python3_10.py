@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 
 from opcode import cmp_op
-from opcode import opmap
 from opcode import opname
 from opcode import stack_effect as opcode_stack_effect
 from typing import TYPE_CHECKING
@@ -54,7 +53,6 @@ from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
 from pynguin.instrumentation.version.common import override
-from pynguin.instrumentation.version.common import to_opcodes
 
 
 if TYPE_CHECKING:
@@ -63,27 +61,27 @@ if TYPE_CHECKING:
     from bytecode import Bytecode
 
 __all__ = [
-    "ACCESS_OPCODES",
-    "CALL_OPCODES",
-    "CLOSURE_LOAD_OPCODES",
-    "COND_BRANCH_OPCODES",
-    "IMPORT_FROM_OPCODES",
-    "IMPORT_NAME_OPCODES",
-    "LOAD_DEREF_OPCODES",
-    "LOAD_FAST_OPCODES",
-    "LOAD_GLOBAL_OPCODES",
-    "LOAD_NAME_OPCODES",
-    "MEMORY_DEF_OPCODES",
-    "MEMORY_USE_OPCODES",
-    "MODIFY_DEREF_OPCODES",
-    "MODIFY_FAST_OPCODES",
-    "MODIFY_GLOBAL_OPCODES",
-    "MODIFY_NAME_OPCODES",
-    "RETURNING_OPCODES",
-    "STORE_NAME_OPCODES",
-    "STORE_OPCODES",
-    "TRACED_OPCODES",
-    "YIELDING_OPCODES",
+    "ACCESS_NAMES",
+    "CALL_NAMES",
+    "CLOSURE_LOAD_NAMES",
+    "COND_BRANCH_NAMES",
+    "IMPORT_FROM_NAMES",
+    "IMPORT_NAME_NAMES",
+    "LOAD_DEREF_NAMES",
+    "LOAD_FAST_NAMES",
+    "LOAD_GLOBAL_NAMES",
+    "LOAD_NAME_NAMES",
+    "MEMORY_DEF_NAMES",
+    "MEMORY_USE_NAMES",
+    "MODIFY_DEREF_NAMES",
+    "MODIFY_FAST_NAMES",
+    "MODIFY_GLOBAL_NAMES",
+    "MODIFY_NAME_NAMES",
+    "RETURNING_NAMES",
+    "STORE_NAMES",
+    "STORE_NAME_NAMES",
+    "TRACED_NAMES",
+    "YIELDING_NAMES",
     "BranchCoverageInstrumentation",
     "CheckedCoverageInstrumentation",
     "DynamicSeedingInstrumentation",
@@ -97,107 +95,74 @@ __all__ = [
 ]
 
 # Fast opcodes
-LOAD_FAST_OPCODES = to_opcodes(
-    "LOAD_FAST",
-)
-MODIFY_FAST_OPCODES = to_opcodes(
+LOAD_FAST_NAMES = ("LOAD_FAST",)
+MODIFY_FAST_NAMES = (
     "STORE_FAST",
     "DELETE_FAST",
 )
-ACCESS_FAST_OPCODES = LOAD_FAST_OPCODES + MODIFY_FAST_OPCODES
+ACCESS_FAST_NAMES = LOAD_FAST_NAMES + MODIFY_FAST_NAMES
 
 
 # Name opcodes
-LOAD_NAME_OPCODES = to_opcodes(
-    "LOAD_NAME",
-)
-STORE_NAME_OPCODES = to_opcodes(
-    "STORE_NAME",
-)
-MODIFY_NAME_OPCODES = STORE_NAME_OPCODES + to_opcodes(
+LOAD_NAME_NAMES = ("LOAD_NAME",)
+STORE_NAME_NAMES = ("STORE_NAME",)
+MODIFY_NAME_NAMES = (
+    *STORE_NAME_NAMES,
     "DELETE_NAME",
 )
-ACCESS_NAME_OPCODES = LOAD_NAME_OPCODES + MODIFY_NAME_OPCODES
+ACCESS_NAME_NAMES = LOAD_NAME_NAMES + MODIFY_NAME_NAMES
 
 
 # Global opcodes
-LOAD_GLOBAL_OPCODES = to_opcodes(
-    "LOAD_GLOBAL",
-)
-MODIFY_GLOBAL_OPCODES = to_opcodes(
+LOAD_GLOBAL_NAMES = ("LOAD_GLOBAL",)
+MODIFY_GLOBAL_NAMES = (
     "STORE_GLOBAL",
     "DELETE_GLOBAL",
 )
-ACCESS_GLOBAL_OPCODES = LOAD_GLOBAL_OPCODES + MODIFY_GLOBAL_OPCODES
+ACCESS_GLOBAL_NAMES = LOAD_GLOBAL_NAMES + MODIFY_GLOBAL_NAMES
 
 
 # Deref opcodes
-LOAD_DEREF_OPCODES = to_opcodes(
+LOAD_DEREF_NAMES = (
     "LOAD_DEREF",
     "LOAD_CLASSDEREF",
 )
-MODIFY_DEREF_OPCODES = to_opcodes(
+MODIFY_DEREF_NAMES = (
     "STORE_DEREF",
     "DELETE_DEREF",
 )
-ACCESS_DEREF_OPCODES = LOAD_DEREF_OPCODES + MODIFY_DEREF_OPCODES
+ACCESS_DEREF_NAMES = LOAD_DEREF_NAMES + MODIFY_DEREF_NAMES
 
 
 # Closure opcodes
-CLOSURE_LOAD_OPCODES = to_opcodes(
-    "LOAD_CLOSURE",
-)
+CLOSURE_LOAD_NAMES = ("LOAD_CLOSURE",)
 
 
 # Import opcodes
-IMPORT_NAME_OPCODES = to_opcodes(
-    "IMPORT_NAME",
-)
-IMPORT_FROM_OPCODES = to_opcodes(
-    "IMPORT_FROM",
-)
+IMPORT_NAME_NAMES = ("IMPORT_NAME",)
+IMPORT_FROM_NAMES = ("IMPORT_FROM",)
 
 
 # Attr opcodes
-LOAD_ATTR_OPCODES = to_opcodes(
-    "LOAD_ATTR",
-)
-STORE_ATTR_OPCODES = to_opcodes(
-    "STORE_ATTR",
-)
-DELETE_ATTR_OPCODES = to_opcodes(
-    "DELETE_ATTR",
-)
-MODIFY_ATTR_OPCODES = STORE_ATTR_OPCODES + DELETE_ATTR_OPCODES
-ACCESS_ATTR_OPCODES = LOAD_ATTR_OPCODES + MODIFY_ATTR_OPCODES
+LOAD_ATTR_NAMES = ("LOAD_ATTR",)
+STORE_ATTR_NAMES = ("STORE_ATTR",)
+DELETE_ATTR_NAMES = ("DELETE_ATTR",)
+MODIFY_ATTR_NAMES = STORE_ATTR_NAMES + DELETE_ATTR_NAMES
+ACCESS_ATTR_NAMES = LOAD_ATTR_NAMES + MODIFY_ATTR_NAMES
 
 
 # Subscr opcodes
-STORE_SUBSCR_OPCODES = to_opcodes(
-    "STORE_SUBSCR",
-)
-BINARY_SUBSCR_OPCODES = to_opcodes(
-    "BINARY_SUBSCR",
-)
-ACCESS_SUBSCR_OPCODES = (
-    STORE_SUBSCR_OPCODES
-    + BINARY_SUBSCR_OPCODES
-    + to_opcodes(
-        "DELETE_SUBSCR",
-    )
-)
+STORE_SUBSCR_NAMES = ("STORE_SUBSCR",)
+BINARY_SUBSCR_NAMES = ("BINARY_SUBSCR",)
+ACCESS_SUBSCR_NAMES = STORE_SUBSCR_NAMES + BINARY_SUBSCR_NAMES + ("DELETE_SUBSCR",)
 
 
 # Remaining opcodes
-LOAD_METHOD_OPCODES = to_opcodes(
-    "LOAD_METHOD",
-)
+LOAD_METHOD_NAMES = ("LOAD_METHOD",)
 
-EXTENDED_ARG_OPCODES = to_opcodes(
-    "EXTENDED_ARG",
-)
+EXTENDED_ARG_NAMES = ("EXTENDED_ARG",)
 
-CALL_OPCODES = to_opcodes(
+CALL_NAMES = (
     "CALL_FUNCTION",
     "CALL_FUNCTION_KW",
     "CALL_FUNCTION_EX",
@@ -205,20 +170,21 @@ CALL_OPCODES = to_opcodes(
     "YIELD_FROM",
 )
 
-YIELDING_OPCODES = to_opcodes(
+YIELDING_NAMES = (
     "YIELD_VALUE",
     "YIELD_FROM",
 )
 
-RETURNING_OPCODES = to_opcodes("RETURN_VALUE", "YIELD_VALUE")
+RETURNING_NAMES = ("RETURN_VALUE", "YIELD_VALUE")
 
-COMPARE_OPCODES = to_opcodes(
+COMPARE_NAMES = (
     "COMPARE_OP",
     "IS_OP",
     "CONTAINS_OP",
 )
 
-OPERATION_OPCODES = COMPARE_OPCODES + to_opcodes(
+OPERATION_NAMES = (
+    *COMPARE_NAMES,
     # Unary operations
     "UNARY_POSITIVE",
     "UNARY_NEGATIVE",
@@ -256,7 +222,7 @@ OPERATION_OPCODES = COMPARE_OPCODES + to_opcodes(
     "INPLACE_OR",
 )
 
-COND_BRANCH_OPCODES = to_opcodes(
+COND_BRANCH_NAMES = (
     "POP_JUMP_IF_TRUE",
     "POP_JUMP_IF_FALSE",
     "JUMP_IF_TRUE_OR_POP",
@@ -265,7 +231,8 @@ COND_BRANCH_OPCODES = to_opcodes(
     "FOR_ITER",
 )
 
-JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
+JUMP_NAMES = (
+    *COND_BRANCH_NAMES,
     "JUMP_ABSOLUTE",
     "JUMP_FORWARD",
     "SETUP_FINALLY",
@@ -275,50 +242,50 @@ JUMP_OPCODES = COND_BRANCH_OPCODES + to_opcodes(
 
 
 # Regrouping opcodes
-STORE_OPCODES = STORE_SUBSCR_OPCODES + STORE_ATTR_OPCODES
+STORE_NAMES = STORE_SUBSCR_NAMES + STORE_ATTR_NAMES
 
-ACCESS_OPCODES = IMPORT_FROM_OPCODES + LOAD_ATTR_OPCODES + DELETE_ATTR_OPCODES
+ACCESS_NAMES = IMPORT_FROM_NAMES + LOAD_ATTR_NAMES + DELETE_ATTR_NAMES
 
-ATTRIBUTES_OPCODES = IMPORT_FROM_OPCODES + ACCESS_ATTR_OPCODES + LOAD_METHOD_OPCODES
+ATTRIBUTES_NAMES = IMPORT_FROM_NAMES + ACCESS_ATTR_NAMES + LOAD_METHOD_NAMES
 
-TRACED_OPCODES = (
-    OPERATION_OPCODES
-    + ACCESS_FAST_OPCODES
-    + ACCESS_NAME_OPCODES
-    + ACCESS_GLOBAL_OPCODES
-    + ACCESS_DEREF_OPCODES
-    + ATTRIBUTES_OPCODES
-    + ACCESS_SUBSCR_OPCODES
-    + IMPORT_NAME_OPCODES
-    + JUMP_OPCODES
-    + CALL_OPCODES
-    + RETURNING_OPCODES
+TRACED_NAMES = (
+    OPERATION_NAMES
+    + ACCESS_FAST_NAMES
+    + ACCESS_NAME_NAMES
+    + ACCESS_GLOBAL_NAMES
+    + ACCESS_DEREF_NAMES
+    + ATTRIBUTES_NAMES
+    + ACCESS_SUBSCR_NAMES
+    + IMPORT_NAME_NAMES
+    + JUMP_NAMES
+    + CALL_NAMES
+    + RETURNING_NAMES
 )
 
-MEMORY_USE_OPCODES = (
-    LOAD_FAST_OPCODES
-    + LOAD_NAME_OPCODES
-    + LOAD_GLOBAL_OPCODES
-    + LOAD_DEREF_OPCODES
-    + LOAD_ATTR_OPCODES
-    + IMPORT_FROM_OPCODES
-    + LOAD_METHOD_OPCODES
-    + CLOSURE_LOAD_OPCODES
-    + BINARY_SUBSCR_OPCODES
+MEMORY_USE_NAMES = (
+    LOAD_FAST_NAMES
+    + LOAD_NAME_NAMES
+    + LOAD_GLOBAL_NAMES
+    + LOAD_DEREF_NAMES
+    + LOAD_ATTR_NAMES
+    + IMPORT_FROM_NAMES
+    + LOAD_METHOD_NAMES
+    + CLOSURE_LOAD_NAMES
+    + BINARY_SUBSCR_NAMES
 )
-MEMORY_DEF_OPCODES = (
-    MODIFY_FAST_OPCODES
-    + MODIFY_NAME_OPCODES
-    + MODIFY_GLOBAL_OPCODES
-    + MODIFY_DEREF_OPCODES
-    + MODIFY_ATTR_OPCODES
-    + IMPORT_NAME_OPCODES  # compensate incorrect stack effect for IMPORT_NAME
-    + ACCESS_SUBSCR_OPCODES
+MEMORY_DEF_NAMES = (
+    MODIFY_FAST_NAMES
+    + MODIFY_NAME_NAMES
+    + MODIFY_GLOBAL_NAMES
+    + MODIFY_DEREF_NAMES
+    + MODIFY_ATTR_NAMES
+    + IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
+    + ACCESS_SUBSCR_NAMES
 )
 
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
-    return instruction.is_cond_jump() or instruction.opcode == opmap["FOR_ITER"]
+    return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
 
 
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
@@ -329,7 +296,7 @@ def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
 
         if (
             isinstance(instruction, Instr)
-            and instruction.opcode == opmap["FOR_ITER"]
+            and instruction.name == "FOR_ITER"
             and isinstance(instruction.arg, Label)
         ):
             exit_label = instruction.arg
@@ -373,9 +340,9 @@ def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noq
         len(instructions) >= 3
         # check if the "return None" is implicit or explicit
         and instructions[-3].lineno != instructions[-2].lineno
-        and instructions[-2].opcode == opmap["LOAD_CONST"]
+        and instructions[-2].name == "LOAD_CONST"
         and instructions[-2].arg is None
-        and instructions[-1].opcode == opmap["RETURN_VALUE"]
+        and instructions[-1].name == "RETURN_VALUE"
     )
 
 
@@ -798,7 +765,7 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
     Returns:
         The extracted comparison.
     """
-    match opname[instr.opcode]:
+    match instr.name:
         case "COMPARE_OP":
             match cmp_op[instr.arg]:  # type: ignore[index]
                 case "<":
@@ -849,7 +816,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         maybe_jump_index = JUMP_OP_POS
         maybe_jump = node.get_instruction(maybe_jump_index)
 
-        if maybe_jump.opcode == opmap["FOR_ITER"]:
+        if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(
                 cfg,
                 code_object_id,
@@ -866,7 +833,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             COMPARE_OP_POS,
         )
 
-        if maybe_compare.opcode in COMPARE_OPCODES:
+        if maybe_compare.name in COMPARE_NAMES:
             self.visit_compare_based_conditional_jump(
                 cfg,
                 code_object_id,
@@ -876,7 +843,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             )
             return
 
-        if maybe_jump.opcode == opmap["JUMP_IF_NOT_EXC_MATCH"]:
+        if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
             self.visit_exception_based_conditional_jump(
                 cfg,
                 code_object_id,
@@ -1191,7 +1158,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
             # Perform the actual instrumentation
             for operations, method in self.METHODS.items():
-                if instr.opcode in operations:
+                if instr.name in operations:
                     method(
                         self,
                         cfg,
@@ -1275,7 +1242,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             instr.lineno,
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "DELETE_FAST":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
@@ -1308,7 +1275,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "LOAD_ATTR" | "DELETE_ATTR" | "IMPORT_FROM" | "LOAD_METHOD":
                 # Instrumentation before the original instruction
                 node.basic_block[before(instr_index)] = (
@@ -1353,7 +1320,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ),
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "STORE_SUBSCR":
                 # Instrumentation mostly after the original instruction
                 node.basic_block[override(instr_index)] = (
@@ -1412,7 +1379,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             instr.lineno,
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "DELETE_NAME":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
@@ -1477,7 +1444,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             instr.lineno,
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "DELETE_GLOBAL":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
@@ -1497,7 +1464,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
     ) -> None:
         value = (
             InstrumentationClassDeref(name=instr.arg)  # type: ignore[arg-type]
-            if opname[instr.opcode] == "LOAD_CLASSDEREF"
+            if instr.name == "LOAD_CLASSDEREF"
             else InstrumentationDeref(name=instr.arg)  # type: ignore[arg-type]
         )
 
@@ -1520,7 +1487,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             instr.lineno,
         )
 
-        match opname[instr.opcode]:
+        match instr.name:
             case "DELETE_DEREF":
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
@@ -1618,21 +1585,21 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     METHODS: ClassVar[
         dict[
-            tuple[int, ...],
+            tuple[str, ...],
             CheckedCoverageInstrumentationVisitorMethod,
         ]
     ] = {
-        OPERATION_OPCODES: visit_generic,
-        ACCESS_FAST_OPCODES: visit_local_access,
-        ATTRIBUTES_OPCODES: visit_attr_access,
-        ACCESS_SUBSCR_OPCODES: visit_subscr_access,
-        ACCESS_NAME_OPCODES: visit_name_access,
-        IMPORT_NAME_OPCODES: visit_import_name_access,
-        ACCESS_GLOBAL_OPCODES: visit_global_access,
-        ACCESS_DEREF_OPCODES: visit_deref_access,
-        JUMP_OPCODES: visit_jump,
-        CALL_OPCODES: visit_call,
-        RETURNING_OPCODES: visit_return,
+        OPERATION_NAMES: visit_generic,
+        ACCESS_FAST_NAMES: visit_local_access,
+        ATTRIBUTES_NAMES: visit_attr_access,
+        ACCESS_SUBSCR_NAMES: visit_subscr_access,
+        ACCESS_NAME_NAMES: visit_name_access,
+        IMPORT_NAME_NAMES: visit_import_name_access,
+        ACCESS_GLOBAL_NAMES: visit_global_access,
+        ACCESS_DEREF_NAMES: visit_deref_access,
+        JUMP_NAMES: visit_jump,
+        CALL_NAMES: visit_call,
+        RETURNING_NAMES: visit_return,
     }
 
 
@@ -1672,7 +1639,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
         if (
             maybe_compare is not None
             and isinstance(maybe_compare, Instr)
-            and maybe_compare.opcode == opmap["COMPARE_OP"]
+            and maybe_compare.name == "COMPARE_OP"
         ):
             self.visit_compare_op(
                 cfg,
@@ -1688,7 +1655,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
         if (
             isinstance(maybe_string_func, Instr)
-            and maybe_string_func.opcode == opmap["LOAD_METHOD"]
+            and maybe_string_func.name == "LOAD_METHOD"
             and isinstance(maybe_string_func.arg, str)
             and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
@@ -1706,7 +1673,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
         if (
             isinstance(maybe_string_func_with_arg, Instr)
-            and maybe_string_func_with_arg.opcode == opmap["LOAD_METHOD"]
+            and maybe_string_func_with_arg.name == "LOAD_METHOD"
             and isinstance(maybe_string_func_with_arg.arg, str)
         ):
             match maybe_string_func_with_arg.arg:

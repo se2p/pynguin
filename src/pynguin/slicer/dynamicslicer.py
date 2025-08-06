@@ -24,18 +24,18 @@ import pynguin.configuration as config
 
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation import version
-from pynguin.instrumentation.version import CLOSURE_LOAD_OPCODES
-from pynguin.instrumentation.version import IMPORT_FROM_OPCODES
-from pynguin.instrumentation.version import IMPORT_NAME_OPCODES
-from pynguin.instrumentation.version import LOAD_DEREF_OPCODES
-from pynguin.instrumentation.version import LOAD_FAST_OPCODES
-from pynguin.instrumentation.version import LOAD_GLOBAL_OPCODES
-from pynguin.instrumentation.version import LOAD_NAME_OPCODES
-from pynguin.instrumentation.version import MODIFY_DEREF_OPCODES
-from pynguin.instrumentation.version import MODIFY_FAST_OPCODES
-from pynguin.instrumentation.version import MODIFY_GLOBAL_OPCODES
-from pynguin.instrumentation.version import MODIFY_NAME_OPCODES
-from pynguin.instrumentation.version import TRACED_OPCODES
+from pynguin.instrumentation.version import CLOSURE_LOAD_NAMES
+from pynguin.instrumentation.version import IMPORT_FROM_NAMES
+from pynguin.instrumentation.version import IMPORT_NAME_NAMES
+from pynguin.instrumentation.version import LOAD_DEREF_NAMES
+from pynguin.instrumentation.version import LOAD_FAST_NAMES
+from pynguin.instrumentation.version import LOAD_GLOBAL_NAMES
+from pynguin.instrumentation.version import LOAD_NAME_NAMES
+from pynguin.instrumentation.version import MODIFY_DEREF_NAMES
+from pynguin.instrumentation.version import MODIFY_FAST_NAMES
+from pynguin.instrumentation.version import MODIFY_GLOBAL_NAMES
+from pynguin.instrumentation.version import MODIFY_NAME_NAMES
+from pynguin.instrumentation.version import TRACED_NAMES
 from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder
@@ -242,7 +242,7 @@ class DynamicSlicer:
 
             # Adjust trace position
             last_traced_instr = None
-            if last_state.last_instr.opcode in TRACED_OPCODES:
+            if last_state.last_instr.name in TRACED_NAMES:
                 last_traced_instr = trace.executed_instructions[slc.trace_position]
                 self._logger.debug(
                     "========================= [POSITION %s] =========================",
@@ -696,7 +696,7 @@ class DynamicSlicer:
         complete_cover = False
 
         # Check local variables
-        if traced_instr.opcode in MODIFY_FAST_OPCODES:
+        if traced_instr.name in MODIFY_FAST_NAMES:
             complete_cover = self._check_scope_for_def(
                 context.local_var_uses,
                 traced_instr.argument,
@@ -705,7 +705,7 @@ class DynamicSlicer:
             )
 
         # Check global variables (with *_NAME instructions)
-        elif traced_instr.opcode in MODIFY_NAME_OPCODES:
+        elif traced_instr.name in MODIFY_NAME_NAMES:
             if (
                 traced_instr.code_object_id in self._known_code_objects
                 and self._known_code_objects[traced_instr.code_object_id] is not None
@@ -727,7 +727,7 @@ class DynamicSlicer:
                 )
 
         # Check global variables
-        elif traced_instr.opcode in MODIFY_GLOBAL_OPCODES:
+        elif traced_instr.name in MODIFY_GLOBAL_NAMES:
             complete_cover = self._check_scope_for_def(
                 context.global_var_uses,
                 traced_instr.argument,
@@ -736,7 +736,7 @@ class DynamicSlicer:
             )
 
         # Check nonlocal variables
-        elif traced_instr.opcode in MODIFY_DEREF_OPCODES:
+        elif traced_instr.name in MODIFY_DEREF_NAMES:
             complete_cover = self._check_scope_for_def(
                 context.nonlocal_var_uses,
                 traced_instr.argument,
@@ -747,7 +747,7 @@ class DynamicSlicer:
         # Check IMPORT_NAME instructions
         # IMPORT_NAME gets a special treatment: it has an incorrect stack effect,
         # but it is compensated by treating it as a definition
-        elif traced_instr.opcode in IMPORT_NAME_OPCODES:
+        elif traced_instr.name in IMPORT_NAME_NAMES:
             if (
                 traced_instr.arg_address
                 and hex(traced_instr.arg_address) in context.var_address_uses
@@ -808,14 +808,14 @@ class DynamicSlicer:
             self._logger.debug("VARIABLE ADDRESS USE: '%s' address", hex(traced_instr.arg_address))
             context.var_address_uses.add(hex(traced_instr.arg_address))
         # Add local variables
-        if traced_instr.opcode in LOAD_FAST_OPCODES:
+        if traced_instr.name in LOAD_FAST_NAMES:
             self._logger.debug("FAST VARIABLE USE: '%s'", traced_instr.argument)
             context.local_var_uses.add((
                 traced_instr.argument,
                 traced_instr.code_object_id,
             ))
         # Add global variables (with *_NAME instructions)
-        elif traced_instr.opcode in LOAD_NAME_OPCODES:
+        elif traced_instr.name in LOAD_NAME_NAMES:
             self._logger.debug("NAME VARIABLE USE: '%s'", traced_instr.argument)
             if (
                 traced_instr.code_object_id in self._known_code_objects
@@ -830,7 +830,7 @@ class DynamicSlicer:
                     traced_instr.code_object_id,
                 ))
         # Add global variables
-        elif traced_instr.opcode in LOAD_GLOBAL_OPCODES:
+        elif traced_instr.name in LOAD_GLOBAL_NAMES:
             # Starting with Python 3.11, LOAD_GLOBAL uses a tuple for the argument
             if isinstance(traced_instr.argument, tuple) and len(traced_instr.argument) == 2:
                 argument = traced_instr.argument[1]
@@ -839,7 +839,7 @@ class DynamicSlicer:
             self._logger.debug("GLOBAL VARIABLE USE: '%s'", argument)
             context.global_var_uses.add((argument, traced_instr.file))
         # Add nonlocal variables
-        elif traced_instr.opcode in LOAD_DEREF_OPCODES + CLOSURE_LOAD_OPCODES:
+        elif traced_instr.name in LOAD_DEREF_NAMES + CLOSURE_LOAD_NAMES:
             variable_scope: set[int] = set()
             current_code_object_id = traced_instr.code_object_id
             while True:
@@ -875,7 +875,7 @@ class DynamicSlicer:
         # Special case for access to composite types and imports:
         # We want the complete definition of composite types and
         # the imported module, respectively
-        if not traced_instr.arg_address or traced_instr.opcode in IMPORT_FROM_OPCODES:
+        if not traced_instr.arg_address or traced_instr.name in IMPORT_FROM_NAMES:
             self._logger.debug(
                 "PARTIAL VARIABLE ADDRESS USE: '%s' address", hex(traced_instr.src_address)
             )
