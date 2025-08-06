@@ -20,6 +20,7 @@ from bytecode.instr import UNSET
 from bytecode.instr import BinaryOp
 from bytecode.instr import Instr
 
+from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
@@ -117,16 +118,20 @@ OPERATION_NAMES = (
     "BINARY_OP",
 )
 
-COND_BRANCH_NAMES = (
-    "POP_JUMP_FORWARD_IF_TRUE",
-    "POP_JUMP_BACKWARD_IF_TRUE",
+NONE_BASED_COND_BRANCH_NAMES = (
     "POP_JUMP_FORWARD_IF_NOT_NONE",
     "POP_JUMP_BACKWARD_IF_NOT_NONE",
+    "POP_JUMP_FORWARD_IF_NONE",
+    "POP_JUMP_BACKWARD_IF_NONE",
+)
+
+COND_BRANCH_NAMES = (
+    *NONE_BASED_COND_BRANCH_NAMES,
+    "POP_JUMP_FORWARD_IF_TRUE",
+    "POP_JUMP_BACKWARD_IF_TRUE",
     "JUMP_IF_TRUE_OR_POP",
     "POP_JUMP_FORWARD_IF_FALSE",
     "POP_JUMP_BACKWARD_IF_FALSE",
-    "POP_JUMP_FORWARD_IF_NONE",
-    "POP_JUMP_BACKWARD_IF_NONE",
     "JUMP_IF_FALSE_OR_POP",
     "FOR_ITER",
 )
@@ -451,6 +456,16 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
+        if maybe_jump.name in NONE_BASED_COND_BRANCH_NAMES:
+            self.visit_compare_based_conditional_jump(
+                cfg,
+                code_object_id,
+                node,
+                maybe_jump,
+                maybe_jump_index,
+            )
+            return
+
         if not maybe_jump.is_cond_jump():
             return
 
@@ -484,6 +499,52 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             node,
             maybe_jump,
             maybe_jump_index,
+        )
+
+    def visit_compare_based_conditional_jump(  # noqa: D102
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        match instr.name:
+            case "POP_JUMP_FORWARD_IF_NOT_NONE" | "POP_JUMP_BACKWARD_IF_NOT_NONE":
+                comparison = PynguinCompare.IS_NOT
+            case "POP_JUMP_FORWARD_IF_NONE" | "POP_JUMP_BACKWARD_IF_NONE":
+                comparison = PynguinCompare.IS
+            case _:
+                super().visit_compare_based_conditional_jump(
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                )
+                return
+
+        predicate_id = self._subject_properties.register_predicate(
+            tracer.PredicateMetaData(
+                line_no=instr.lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
+        )
+
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.executed_compare_predicate.__name__,
+                (
+                    InstrumentationStackValue.FIRST,
+                    InstrumentationConstantLoad(value=None),
+                    InstrumentationConstantLoad(value=predicate_id),
+                    InstrumentationConstantLoad(value=comparison),
+                ),
+            ),
+            instr.lineno,
         )
 
 

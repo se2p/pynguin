@@ -441,6 +441,48 @@ def test_comparison(comparison_module, op, subject_properties: SubjectProperties
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
+def test_is_none_comparison(comparison_module, subject_properties: SubjectProperties):
+    if sys.version_info >= (3, 11):
+        # Python 3.11 inverts the condition in its JUMP instruction
+        expected_compare = PynguinCompare.IS_NOT
+    else:
+        expected_compare = PynguinCompare.IS
+
+    function_callable = comparison_module._is_none
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    with (
+        mock.patch.object(
+            subject_properties.instrumentation_tracer, "executed_compare_predicate"
+        ) as trace_mock,
+        subject_properties.instrumentation_tracer,
+    ):
+        function_callable("a")
+        trace_mock.assert_called_with("a", None, 0, expected_compare)
+
+
+def test_is_not_none_comparison(comparison_module, subject_properties: SubjectProperties):
+    if sys.version_info >= (3, 11):
+        # Python 3.11 inverts the condition in its JUMP instruction
+        expected_compare = PynguinCompare.IS
+    else:
+        expected_compare = PynguinCompare.IS_NOT
+
+    function_callable = comparison_module._is_not_none
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    with (
+        mock.patch.object(
+            subject_properties.instrumentation_tracer, "executed_compare_predicate"
+        ) as trace_mock,
+        subject_properties.instrumentation_tracer,
+    ):
+        function_callable("a")
+        trace_mock.assert_called_with("a", None, 0, expected_compare)
+
+
 def test_exception(subject_properties: SubjectProperties):
     value_error = ValueError("Test exception")
 
