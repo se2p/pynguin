@@ -1244,6 +1244,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         has_key_errors = True
         improved = False
         while has_key_errors and not LocalSearchTimer.get_instance().limit_reached():
+            # TODO: What to do if key error didnt get fixed, especially when it's reoccurring
             has_key_errors = self._fix_possible_key_error(statement)
             if self._objective.has_improved(self._chromosome):
                 improved = True

@@ -755,7 +755,7 @@ class LocalSearchConfiguration:
     local_search: bool = True
     """Defines if local search is generally enabled or not"""
 
-    local_search_same_datatype: bool = True
+    local_search_same_datatype: bool = False
     """Defines if local search within same datatype is enabled or not"""
 
     local_search_other_datatype: bool = False
@@ -767,7 +767,7 @@ class LocalSearchConfiguration:
     local_search_probability: float = 0.02
     """Probability of starting local search on the specific candidate"""
 
-    local_search_time: int = 20000
+    local_search_time: int = 5000
     """The budget which each local search iteration has in ms."""
 
     int_delta_increasing_factor: int = 2
