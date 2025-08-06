@@ -541,9 +541,16 @@ def stack_effects(  # noqa: D103, C901, PLR0915
         case "BUILD_SLICE":
             return StackEffects(3, 1) if arg == 3 else StackEffects(2, 1)
         case _:
+            try:
+                stack_effect = opcode_stack_effect(opcode, arg, jump=jump)
+            except ValueError:
+                # If an argument is used for an opcode that does not support it,
+                # it raises a ValueError.
+                stack_effect = None
+
             raise AssertionError(
                 f"The opcode {opcode} (name={opname[opcode]}, arg={arg}, jump={jump}, "
-                f"stack_effect={opcode_stack_effect(opcode, arg, jump=jump)}) isn't recognized."
+                f"stack_effect={stack_effect}) isn't recognized."
             )
 
 
