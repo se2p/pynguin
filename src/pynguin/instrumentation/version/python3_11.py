@@ -68,6 +68,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
+    "EXCLUDED_DOMINANT_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -93,11 +94,12 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "is_dominant_node",
     "stack_effects",
 ]
 
 # Remaining opcodes
+EXCLUDED_DOMINANT_NAMES = ("SEND",)
+
 CALL_NAMES = (
     "CALL",
     "CALL_FUNCTION_EX",
@@ -204,14 +206,6 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return False
         case _:
             return None
-
-
-def is_dominant_node(cdg: cf.ControlDependenceGraph, node: cf.ProgramNode) -> bool:  # noqa: ARG001, D103
-    return (
-        isinstance(node, cf.BasicBlockNode)
-        and (last_instr := node.try_get_instruction(-1)) is not None
-        and last_instr.name != "SEND"
-    )
 
 
 def stack_effects(  # noqa: D103, C901

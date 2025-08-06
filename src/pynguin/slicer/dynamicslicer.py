@@ -23,8 +23,9 @@ from typing import TypeVar
 import pynguin.configuration as config
 
 from pynguin.instrumentation import AST_FILENAME
-from pynguin.instrumentation import version
+from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.version import CLOSURE_LOAD_NAMES
+from pynguin.instrumentation.version import EXCLUDED_DOMINANT_NAMES
 from pynguin.instrumentation.version import IMPORT_FROM_NAMES
 from pynguin.instrumentation.version import IMPORT_NAME_NAMES
 from pynguin.instrumentation.version import LOAD_DEREF_NAMES
@@ -586,7 +587,12 @@ class DynamicSlicer:
         # the last instruction is control dependent. They are the predecessors of the last node
         # in the CDG.
         dominant_nodes = cdg.get_predecessors(last_node)
-        if any(version.is_dominant_node(cdg, dominant_node) for dominant_node in dominant_nodes):
+        if any(
+            isinstance(dominant_node, BasicBlockNode)
+            and (dominant_instr := dominant_node.try_get_instruction(-1)) is not None
+            and dominant_instr.name not in EXCLUDED_DOMINANT_NAMES
+            for dominant_node in dominant_nodes
+        ):
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", last_unique_instr)
             context.instr_ctrl_deps.add(last_unique_instr)
 

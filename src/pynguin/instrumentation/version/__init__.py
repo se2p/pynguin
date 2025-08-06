@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from bytecode import Instr
 
     from pynguin.instrumentation import StackEffects
-    from pynguin.instrumentation.controlflow import ControlDependenceGraph
-    from pynguin.instrumentation.controlflow import ProgramNode
     from pynguin.instrumentation.transformer import BranchCoverageInstrumentationAdapter
     from pynguin.instrumentation.transformer import (
         CheckedCoverageInstrumentationAdapter,
@@ -37,6 +35,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
+    "EXCLUDED_DOMINANT_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -62,7 +61,6 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "is_dominant_node",
     "stack_effects",
 ]
 
@@ -181,33 +179,17 @@ class EndWithExplicitReturnNoneFunction(Protocol):
         """
 
 
-class IsDominantNodeFunction(Protocol):
-    """A function that checks if a node is a dominant node in the control-dependence graph."""
-
-    @abstractmethod
-    def __call__(self, cdg: ControlDependenceGraph, node: ProgramNode) -> bool:
-        """Check if the node is a dominant node in the control-dependence graph.
-
-        Args:
-            cdg: The control-dependence graph to check.
-            node: The node to check.
-
-        Returns:
-            True if the node is a dominant node, False otherwise.
-        """
-
-
 stack_effects: StackEffectsFunction
 is_conditional_jump: IsConditionalJumpFunction
 add_for_loop_no_yield_nodes: AddForLoopNoYieldNodesFunction
 get_branch_type: GetBranchTypeFunction
 end_with_explicit_return_none: EndWithExplicitReturnNoneFunction
-is_dominant_node: IsDominantNodeFunction
 
 BranchCoverageInstrumentation: type[BranchCoverageInstrumentationAdapter]
 LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]
 CheckedCoverageInstrumentation: type[CheckedCoverageInstrumentationAdapter]
 DynamicSeedingInstrumentation: type[DynamicSeedingInstrumentationAdapter]
+
 
 LOAD_FAST_NAMES: tuple[str, ...]
 MODIFY_FAST_NAMES: tuple[str, ...]
@@ -227,6 +209,7 @@ CLOSURE_LOAD_NAMES: tuple[str, ...]
 IMPORT_NAME_NAMES: tuple[str, ...]
 IMPORT_FROM_NAMES: tuple[str, ...]
 
+EXCLUDED_DOMINANT_NAMES: tuple[str, ...]
 CALL_NAMES: tuple[str, ...]
 YIELDING_NAMES: tuple[str, ...]
 RETURNING_NAMES: tuple[str, ...]

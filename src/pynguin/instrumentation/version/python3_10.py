@@ -65,6 +65,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
+    "EXCLUDED_DOMINANT_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -90,7 +91,6 @@ __all__ = [
     "end_with_explicit_return_none",
     "get_branch_type",
     "is_conditional_jump",
-    "is_dominant_node",
     "stack_effects",
 ]
 
@@ -158,6 +158,8 @@ ACCESS_SUBSCR_NAMES = STORE_SUBSCR_NAMES + BINARY_SUBSCR_NAMES + ("DELETE_SUBSCR
 
 
 # Remaining opcodes
+EXCLUDED_DOMINANT_NAMES = ()
+
 LOAD_METHOD_NAMES = ("LOAD_METHOD",)
 
 EXTENDED_ARG_NAMES = ("EXTENDED_ARG",)
@@ -344,10 +346,6 @@ def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noq
         and instructions[-2].arg is None
         and instructions[-1].name == "RETURN_VALUE"
     )
-
-
-def is_dominant_node(cdg: cf.ControlDependenceGraph, node: cf.ProgramNode) -> bool:  # noqa: ARG001, D103
-    return isinstance(node, cf.BasicBlockNode)
 
 
 def stack_effects(  # noqa: D103, C901, PLR0915
