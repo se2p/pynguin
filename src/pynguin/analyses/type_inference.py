@@ -18,17 +18,21 @@ import logging
 import os
 import textwrap
 import time
-from types import ModuleType
-from typing import Any
+from types import FunctionType, ModuleType
+from typing import Any, TypeAlias
 import typing
 
 from pydantic import SecretStr
 
 from pynguin.analyses.module import CallableData, TestCluster
-from pynguin.analyses.typesystem import InferredSignature
+from pynguin.analyses.typesystem import ANY, NONE_TYPE, UNSUPPORTED, InferredSignature, ProperType
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+    TypesOfCallables,
 )
 from pynguin.utils.llm import LLM, LLMProvider, OpenAI
 
@@ -112,9 +116,55 @@ class LLMInference(InferenceStrategy):
         _LOGGER.debug("in time: %s", bench)
         _LOGGER.debug("inferred: %s", inferences)
         for call in inferences:
-            # TODO: get data into testcluster
-            # self._test_cluster.function_data_for_accessibles[call].accessible.
-            self._map_to_signature(inferences[call])
+            self._feed_into_test_cluster(inferences, call)
+        _LOGGER.debug("resulting cluster: %s", self._test_cluster)
+
+    def _feed_into_test_cluster(self, inferences, call):
+        test_cluster_accessible = self._test_cluster.function_data_for_accessibles[call].accessible
+        test_cluster_callable: GenericCallableAccessibleObject = test_cluster_accessible
+        method_inference = json.loads(inferences[call])
+        parameters: dict[str, ProperType] = {}
+        parameters_for_statistics: dict[str, ProperType] = {}
+        return_type: ProperType
+        return_type_for_statistics: ProperType
+        for key in method_inference:
+            if key == "return":
+                return_type = self._convert_type_hint_str(method_inference[key])
+                return_type_for_statistics = self._convert_type_hint_str(
+                    method_inference[key], unsupported=UNSUPPORTED
+                )
+                continue
+            parameters[key] = self._convert_type_hint_str(method_inference[key])
+            parameters_for_statistics[key] = self._convert_type_hint_str(
+                method_inference[key], unsupported=UNSUPPORTED
+            )
+        inferred_signature: InferredSignature = InferredSignature(
+            signature=test_cluster_callable.inferred_signature.signature,
+            original_parameters=parameters,
+            original_return_type=return_type,
+            type_system=test_cluster_callable.inferred_signature.type_system,
+            parameters_for_statistics=parameters_for_statistics,
+            return_type_for_statistics=return_type_for_statistics,
+        )
+        if test_cluster_accessible.is_constructor():
+            self._test_cluster.function_data_for_accessibles[call].accessible = GenericConstructor(
+                test_cluster_callable.owner, inferred_signature
+            )
+
+        if test_cluster_accessible.is_classmethod() | test_cluster_accessible.is_method():
+            test_cluster_method: GenericMethod = test_cluster_callable
+            self._test_cluster.function_data_for_accessibles[call].accessible = GenericMethod(
+                test_cluster_method.owner,
+                test_cluster_method.callable,
+                inferred_signature,
+            )
+
+        if test_cluster_accessible.is_function():
+            self._test_cluster.function_data_for_accessibles[call].accessible = GenericFunction(
+                test_cluster_callable.callable, inferred_signature
+            )
+
+    InferenceMap: TypeAlias = OrderedDict[GenericCallableAccessibleObject, str]
 
     def _get_src_code(self, accessible: GenericCallableAccessibleObject) -> str:
         call = accessible.callable
@@ -170,7 +220,7 @@ class LLMInference(InferenceStrategy):
     def _send_prompts(
         self,
         prompts: dict[GenericCallableAccessibleObject, str],
-    ) -> dict[GenericCallableAccessibleObject, str]:
+    ) -> InferenceMap:
         """Return {callable -> raw LLM response}, sending prompts in parallel."""
         coro = self._gather_prompts_async(prompts)
         return self._run_coro(coro)
@@ -178,7 +228,7 @@ class LLMInference(InferenceStrategy):
     async def _gather_prompts_async(
         self,
         prompts: dict[GenericCallableAccessibleObject, str],
-    ) -> dict[GenericCallableAccessibleObject, str]:
+    ) -> InferenceMap:
         sem = asyncio.Semaphore(self._max_parallel_calls)
         tasks = [
             asyncio.create_task(self._prompt_worker(acc, prompt, sem))
@@ -190,10 +240,8 @@ class LLMInference(InferenceStrategy):
             try:
                 acc, resp = await task
                 results[acc] = resp
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # noqa: PERF203
                 _LOGGER.exception("Prompt for %s failed: %s", acc, exc)
-
-        # Preserve the original order for deterministic downstream handling
         return OrderedDict((acc, results.get(acc, "")) for acc in prompts)
 
     async def _prompt_worker(
@@ -217,19 +265,20 @@ class LLMInference(InferenceStrategy):
             _LOGGER.debug("Using existing event loop (%s) for parallel LLM calls", loop)
             return loop.run_until_complete(coro)
 
-    def _map_to_signature(self, inference: str):
+    def _map_to_signature(
+        self, inference: str
+    ) -> dict[GenericCallableAccessibleObject, InferredSignature]:
         inf = json.loads(inference)
-        return_type = inf["return"]
         params = {}
         for param in inf:
             if param == "return":
-                continue
+                return_type = self._resolve_type(inf[param])
             params[param] = self._test_cluster.type_system.convert_type_hint(
                 self._resolve_type(inf[param])
             )
         _LOGGER.debug("resolved types: %s", params)
 
-    _BUILTINS: dict[str, Any] = {
+    _BUILTINS: dict[str, Any] = {  # noqa: RUF012
         t.__name__: t for t in vars(builtins).values() if isinstance(t, type)
     }
 
@@ -261,3 +310,32 @@ class LLMInference(InferenceStrategy):
         except Exception:  # noqa: BLE001
             # Last resort – unknown or ill-formed → Any
             return typing.Any
+
+    def _convert_type_hint_str(self, hint_str: str, unsupported: ProperType = ANY) -> ProperType:
+        """Like convert_type_hint, but takes the hint as a string.
+
+        The string is evaluated (e.g. "int", "tuple[int, str]", "None") in a
+        namespace containing builtins and typing symbols, and then passed
+        to convert_type_hint.
+
+        Args:
+            hint_str: A string encoding of a Python type hint.
+            unsupported: What to return if parsing or conversion fails.
+
+        Returns:
+            A ProperType, just like convert_type_hint would.
+        """
+        # TODO: make custom types work (FibonacciHeapNode)
+        try:
+            # Build a safe namespace for eval: builtins + all typing names
+            namespace = {
+                **{k: getattr(builtins, k) for k in dir(builtins)},
+                **{k: getattr(typing, k) for k in dir(typing)},
+            }
+            # Evaluate the string to get a real type object
+            hint = eval(hint_str, namespace)
+        except Exception:
+            # On any parse or eval error, fall back
+            return unsupported
+        # Delegate to your existing logic
+        return self._test_cluster.type_system.convert_type_hint(hint, unsupported=unsupported)
