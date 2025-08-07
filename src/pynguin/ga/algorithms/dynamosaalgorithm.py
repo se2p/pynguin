@@ -71,7 +71,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self.before_first_search_iteration(self.create_test_suite(self._archive.solutions))
         while self.resources_left() and len(self._archive.uncovered_goals) > 0:
             self.evolve()
-            if config.LocalSearchConfiguration.local_search:
+            if config.configuration.local_search.local_search:
                 self.local_search()
             self.after_search_iteration(self.create_test_suite(self._archive.solutions))
 

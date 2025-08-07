@@ -66,7 +66,10 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return
-            if randomness.next_float() <= config.LocalSearchConfiguration.local_search_probability:
+            if (
+                randomness.next_float()
+                <= config.configuration.local_search.local_search_probability
+            ):
                 methods: list = []
                 old_stat = stat.output_variables.get(
                     RuntimeVariable.LocalSearchTotalStatements.name
@@ -75,19 +78,19 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                     RuntimeVariable.LocalSearchTotalStatements,
                     old_stat.value + 1 if old_stat is not None else 0,
                 )
-                if config.LocalSearchConfiguration.local_search_same_datatype:
+                if config.configuration.local_search.local_search_same_datatype is True:
                     methods.append(
                         lambda pos=i: self._search_same_datatype(
                             chromosome, factory, objective, pos
                         )
                     )
-                if config.LocalSearchConfiguration.local_search_other_datatype:
+                if config.configuration.local_search.local_search_other_datatype:
                     methods.append(
                         lambda pos=i: self._search_other_datatype(
                             chromosome, factory, objective, pos
                         )
                     )
-                if config.LocalSearchConfiguration.local_search_llm:
+                if config.configuration.local_search.local_search_llm:
                     methods.append(
                         lambda pos=i: LLMLocalSearch(
                             chromosome, objective, factory, suite, executor
@@ -100,6 +103,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                         "No local search method is activated, despite general local search being "
                         "activated!"
                     )
+                    return
 
     def _search_same_datatype(
         self,
@@ -144,7 +148,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         found = False
         while (
             not found
-            and counter < config.LocalSearchConfiguration.max_other_type_mutation
+            and counter < config.configuration.local_search.max_other_type_mutation
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             if factory.change_statement(chromosome, position) and objective.has_improved(
