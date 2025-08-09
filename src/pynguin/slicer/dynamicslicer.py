@@ -459,8 +459,8 @@ class DynamicSlicer:
         assert node is not None, "Invalid node id"
 
         # The dominated nodes in the control-dependence graph (CDG) are the nodes that are
-        # control dependent on the last instruction. They are the successors of the last node
-        # in the CDG.
+        # control dependent on the current instruction. They are the successors of the current
+        # node in the CDG.
         dominated_nodes = cdg.get_successors(node)
         dominated_instr_ctrl_deps = {
             instr
