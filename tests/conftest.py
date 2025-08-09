@@ -347,32 +347,32 @@ def small_control_flow_graph() -> CFG:
 @pytest.fixture(scope="module")
 def yield_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = ArtificialNode.ENTRY
+
     y_assign_0_node = BasicBlockNode(index=0, basic_block=MagicMock())
     y_eq_0_node = BasicBlockNode(index=1, basic_block=MagicMock())
     yield_y_node = BasicBlockNode(index=2, basic_block=MagicMock())  # yield_y_node, 2
     jmp_node = BasicBlockNode(index=3, basic_block=MagicMock())
 
-    cfg.add_node(entry)
     cfg.add_node(y_assign_0_node)
     cfg.add_node(y_eq_0_node)
     cfg.add_node(yield_y_node)
     cfg.add_node(jmp_node)
 
-    cfg.add_edge(entry, y_assign_0_node)
     cfg.add_edge(y_assign_0_node, y_eq_0_node)
     cfg.add_edge(y_eq_0_node, yield_y_node, label="True")
     cfg.add_edge(y_eq_0_node, jmp_node, label="False")
     cfg.add_edge(yield_y_node, jmp_node)
-    # No outgoing edge - will be constructed from yield node
+
+    CFG._insert_dummy_entry_node(cfg)
+    CFG._insert_dummy_exit_node(cfg)
 
     return cfg
 
 
 @pytest.fixture(scope="module")
 def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
-    graph = CFG(MagicMock())
-    entry = ArtificialNode.ENTRY
+    cfg = CFG(MagicMock())
+
     n_1 = BasicBlockNode(index=1, basic_block=MagicMock())
     n_2 = BasicBlockNode(index=2, basic_block=MagicMock())
     n_3 = BasicBlockNode(index=3, basic_block=MagicMock())
@@ -390,48 +390,49 @@ def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     n_200 = BasicBlockNode(index=200, basic_block=MagicMock())
     n_210 = BasicBlockNode(index=210, basic_block=MagicMock())
     n_300 = BasicBlockNode(index=300, basic_block=MagicMock())
-    n_exit = ArtificialNode.EXIT
-    graph.add_node(entry)
-    graph.add_node(n_1)
-    graph.add_node(n_2)
-    graph.add_node(n_3)
-    graph.add_node(n_5)
-    graph.add_node(n_100)
-    graph.add_node(n_110)
-    graph.add_node(n_120)
-    graph.add_node(n_130)
-    graph.add_node(n_140)
-    graph.add_node(n_150)
-    graph.add_node(n_160)
-    graph.add_node(n_170)
-    graph.add_node(n_180)
-    graph.add_node(n_190)
-    graph.add_node(n_200)
-    graph.add_node(n_210)
-    graph.add_node(n_300)
-    graph.add_node(n_exit)
-    graph.add_edge(entry, n_1)
-    graph.add_edge(n_1, n_2)
-    graph.add_edge(n_2, n_3)
-    graph.add_edge(n_3, n_5)
-    graph.add_edge(n_5, n_100)
-    graph.add_edge(n_100, n_110)
-    graph.add_edge(n_110, n_120, label="true")
-    graph.add_edge(n_120, n_130)
-    graph.add_edge(n_130, n_140)
-    graph.add_edge(n_140, n_150, label="true")
-    graph.add_edge(n_150, n_160)
-    graph.add_edge(n_160, n_170, label="false")
-    graph.add_edge(n_170, n_180)
-    graph.add_edge(n_180, n_190)
-    graph.add_edge(n_160, n_190, label="true")
-    graph.add_edge(n_190, n_140)
-    graph.add_edge(n_140, n_200, label="false")
-    graph.add_edge(n_200, n_210)
-    graph.add_edge(n_210, n_110)
-    graph.add_edge(n_110, n_300, label="false")
-    graph.add_edge(n_300, n_exit)
-    return graph
+
+    cfg.add_node(n_1)
+    cfg.add_node(n_2)
+    cfg.add_node(n_3)
+    cfg.add_node(n_5)
+    cfg.add_node(n_100)
+    cfg.add_node(n_110)
+    cfg.add_node(n_120)
+    cfg.add_node(n_130)
+    cfg.add_node(n_140)
+    cfg.add_node(n_150)
+    cfg.add_node(n_160)
+    cfg.add_node(n_170)
+    cfg.add_node(n_180)
+    cfg.add_node(n_190)
+    cfg.add_node(n_200)
+    cfg.add_node(n_210)
+    cfg.add_node(n_300)
+
+    cfg.add_edge(n_1, n_2)
+    cfg.add_edge(n_2, n_3)
+    cfg.add_edge(n_3, n_5)
+    cfg.add_edge(n_5, n_100)
+    cfg.add_edge(n_100, n_110)
+    cfg.add_edge(n_110, n_120, label="true")
+    cfg.add_edge(n_120, n_130)
+    cfg.add_edge(n_130, n_140)
+    cfg.add_edge(n_140, n_150, label="true")
+    cfg.add_edge(n_150, n_160)
+    cfg.add_edge(n_160, n_170, label="false")
+    cfg.add_edge(n_170, n_180)
+    cfg.add_edge(n_180, n_190)
+    cfg.add_edge(n_160, n_190, label="true")
+    cfg.add_edge(n_190, n_140)
+    cfg.add_edge(n_140, n_200, label="false")
+    cfg.add_edge(n_200, n_210)
+    cfg.add_edge(n_210, n_110)
+    cfg.add_edge(n_110, n_300, label="false")
+
+    CFG._insert_dummy_entry_node(cfg)
+    CFG._insert_dummy_exit_node(cfg)
+
+    return cfg
 
 
 @pytest.fixture

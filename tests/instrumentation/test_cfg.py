@@ -131,120 +131,6 @@ POP_JUMP_IF_FALSE BasicBlockNode";
     ).decode("unicode_escape")
 
 
-def test_integration_reverse_cfg(conditional_jump_example_bytecode):
-    cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
-    reversed_cfg = cfg.reversed()
-    dot_representation = reversed_cfg.dot
-
-    if sys.version_info >= (3, 11):
-        graph = """strict digraph  {
-"BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_FORWARD_IF_FALSE BasicBlockNode";
-"BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode";
-"BasicBlockNode(2)
-LOAD_CONST 'no'";
-"BasicBlockNode(3)
-PRECALL 1
-CALL 1
-LOAD_CONST None
-RETURN_VALUE";
-"ArtificialNode(EXIT)";
-"ArtificialNode(ENTRY)";
-"BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_FORWARD_IF_FALSE BasicBlockNode" -> "ArtificialNode(ENTRY)";
-"BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_FORWARD_IF_FALSE BasicBlockNode"  [branch_value=True, label=True];
-"BasicBlockNode(2)
-LOAD_CONST 'no'" -> "BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_FORWARD_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
-"BasicBlockNode(3)
-PRECALL 1
-CALL 1
-LOAD_CONST None
-RETURN_VALUE" -> "BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode";
-"BasicBlockNode(3)
-PRECALL 1
-CALL 1
-LOAD_CONST None
-RETURN_VALUE" -> "BasicBlockNode(2)
-LOAD_CONST 'no'";
-"ArtificialNode(EXIT)" -> "BasicBlockNode(3)
-PRECALL 1
-CALL 1
-LOAD_CONST None
-RETURN_VALUE";
-}"""
-    else:
-        graph = """strict digraph  {
-"BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_IF_FALSE BasicBlockNode";
-"BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode";
-"BasicBlockNode(2)
-LOAD_CONST 'no'";
-"BasicBlockNode(3)
-CALL_FUNCTION 1
-LOAD_CONST None
-RETURN_VALUE";
-"ArtificialNode(EXIT)";
-"ArtificialNode(ENTRY)";
-"BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_IF_FALSE BasicBlockNode" -> "ArtificialNode(ENTRY)";
-"BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=True, label=True];
-"BasicBlockNode(2)
-LOAD_CONST 'no'" -> "BasicBlockNode(0)
-LOAD_NAME 'print'
-LOAD_NAME 'test'
-POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
-"BasicBlockNode(3)
-CALL_FUNCTION 1
-LOAD_CONST None
-RETURN_VALUE" -> "BasicBlockNode(1)
-LOAD_CONST 'yes'
-JUMP_FORWARD BasicBlockNode";
-"BasicBlockNode(3)
-CALL_FUNCTION 1
-LOAD_CONST None
-RETURN_VALUE" -> "BasicBlockNode(2)
-LOAD_CONST 'no'";
-"ArtificialNode(EXIT)" -> "BasicBlockNode(3)
-CALL_FUNCTION 1
-LOAD_CONST None
-RETURN_VALUE";
-}"""
-    assert reversed_cfg.cyclomatic_complexity == 2
-    assert cfg.diameter == 6
-    assert isinstance(cfg.entry_node, ArtificialNode)
-    assert len(cfg.exit_nodes) == 1
-    assert bytes(dot_representation, "utf-8").decode("unicode_escape") == bytes(
-        graph, "utf-8"
-    ).decode("unicode_escape")
-
-
 def control_flow_labelling(foo):  # pragma: no cover
     if foo:
         print("a")  # noqa: T201
@@ -579,12 +465,6 @@ POP_JUMP_IF_FALSE BasicBlockNode";
     assert bytes(cfg.dot, "utf-8").decode("unicode_escape") == bytes(expected, "utf-8").decode(
         "unicode_escape"
     )
-
-
-def test_integration_copy_cfg(conditional_jump_example_bytecode):
-    cfg = CFG.from_bytecode(conditional_jump_example_bytecode)
-    copied_cfg = cfg.copy()
-    assert copied_cfg.dot == cfg.dot
 
 
 def test_integration_no_exit():

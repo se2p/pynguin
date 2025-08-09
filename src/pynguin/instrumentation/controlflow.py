@@ -8,8 +8,6 @@
 
 from __future__ import annotations
 
-import queue
-
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
@@ -506,9 +504,6 @@ def filter_dead_code_nodes(graph: G, entry_node: ProgramNode) -> G:
 class CFG(ProgramGraph):
     """The control-flow graph implementation based on the program graph."""
 
-    # Attribute where the predicate id of the instrumentation is stored
-    PREDICATE_ID: str = "predicate_id"
-
     def __init__(self, bytecode_cfg: ControlFlowGraph):
         """Create new CFG. Do not call directly, use static factory methods.
 
@@ -570,54 +565,6 @@ class CFG(ProgramGraph):
             The raw control-flow graph from the code object
         """
         return self._bytecode_cfg
-
-    @staticmethod
-    def reverse(cfg: CFG) -> CFG:
-        """Reverses a control-flow graph.
-
-        Generates a copy of the original control-flow graph.
-
-        Args:
-            cfg: The control-flow graph to reverse
-
-        Returns:
-            The reversed control-flow graph
-        """
-        reversed_cfg = CFG(cfg.bytecode_cfg)
-
-        reversed_cfg._graph = cfg._graph.reverse(copy=True)
-        return reversed_cfg
-
-    def reversed(self) -> CFG:
-        """Provides the reversed graph of this graph.
-
-        Returns:
-            The reversed graph
-        """
-        return CFG.reverse(self)
-
-    @staticmethod
-    def copy_graph(cfg: CFG) -> CFG:
-        """Provides a copy of the control-flow graph.
-
-        Args:
-            cfg: The original graph
-
-        Returns:
-            The copied graph
-        """
-        copy = CFG(ControlFlowGraph())  # TODO(fk) Cloning the bytecode cfg is complicated.
-
-        copy._graph = cfg._graph.copy()
-        return copy
-
-    def copy(self) -> CFG:
-        """Provides a copy of the control-flow graph.
-
-        Returns:
-            The copied graph
-        """
-        return CFG.copy_graph(self)
 
     @staticmethod
     def _split_try_begin_blocks(blocks: ControlFlowGraph) -> None:
@@ -791,131 +738,47 @@ class CFG(ProgramGraph):
 
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
-        for node, data in state["nodes"]:
-            self._graph.add_node(node, **data)
-        for source, target, data in state["edges"]:
-            self._graph.add_edge(source, target, **data)
+        for node, attr in state["nodes"]:
+            self._graph.add_node(node, **attr)
+        for source, target, attr in state["edges"]:
+            self._graph.add_edge(source, target, **attr)
         self._bytecode_cfg = state["bytecode_cfg"]
-
-
-class DominatorTree(ProgramGraph):
-    """Implements a dominator tree."""
-
-    @staticmethod
-    def compute(graph: CFG) -> DominatorTree:
-        """Computes the dominator tree for a control-flow graph.
-
-        Args:
-            graph: The control-flow graph
-
-        Returns:
-            The dominator tree for the control-flow graph
-        """
-        return DominatorTree.compute_dominance_tree(graph)
-
-    @staticmethod
-    def compute_post_dominator_tree(graph: CFG) -> DominatorTree:
-        """Computes the post-dominator tree for a control-flow graph.
-
-        Args:
-            graph: The control-flow graph
-
-        Returns:
-            The post-dominator tree for the control-flow graph
-        """
-        reversed_cfg = graph.reversed()
-        return DominatorTree.compute(reversed_cfg)
-
-    @staticmethod
-    def compute_dominance_tree(graph: CFG) -> DominatorTree:
-        """Computes the dominance tree for a control-flow graph.
-
-        Args:
-            graph: The control-flow graph
-
-        Returns:
-            The dominance tree for the control-flow graph
-        """
-        dominance: dict[ProgramNode, set[ProgramNode]] = DominatorTree._calculate_dominance(graph)
-        for dominance_node, nodes in dominance.items():
-            nodes.discard(dominance_node)
-        dominance_tree = DominatorTree()
-        entry_node = graph.entry_node
-        assert entry_node is not None
-        dominance_tree.add_node(entry_node)
-
-        node_queue: queue.SimpleQueue[ProgramNode] = queue.SimpleQueue()
-        node_queue.put(entry_node)
-        while not node_queue.empty():
-            node = node_queue.get()
-            for current, dominators in dominance.items():
-                if node in dominators:
-                    dominators.remove(node)
-                    if len(dominators) == 0:
-                        dominance_tree.add_node(current)
-                        dominance_tree.add_edge(node, current)
-                        node_queue.put(current)
-        return dominance_tree
-
-    @staticmethod
-    def _calculate_dominance(
-        graph: CFG,
-    ) -> dict[ProgramNode, set[ProgramNode]]:
-        dominance_map: dict[ProgramNode, set[ProgramNode]] = {}
-        entry = graph.entry_node
-        assert entry, "Cannot work with a graph without entry nodes"
-        entry_dominators: set[ProgramNode] = {entry}
-        dominance_map[entry] = entry_dominators
-
-        for node in graph.nodes:
-            if node == entry:
-                continue
-            all_nodes: set[ProgramNode] = set(graph.nodes)
-            dominance_map[node] = all_nodes
-
-        changed: bool = True
-        while changed:
-            changed = False
-            for node in graph.nodes:
-                if node == entry:
-                    continue
-                current_dominators = dominance_map.get(node)
-                new_dominators = DominatorTree._calculate_dominators(graph, dominance_map, node)
-
-                if current_dominators != new_dominators:
-                    changed = True
-                    dominance_map[node] = new_dominators
-                    break
-
-        return dominance_map
-
-    @staticmethod
-    def _calculate_dominators(
-        graph: CFG,
-        dominance_map: dict[ProgramNode, set[ProgramNode]],
-        node: ProgramNode,
-    ) -> set[ProgramNode]:
-        dominators: set[ProgramNode] = {node}
-        intersection: set[ProgramNode] = set()
-        predecessors = graph.get_predecessors(node)
-        if not predecessors:
-            return set()
-
-        first_time: bool = True
-        for predecessor in predecessors:
-            predecessor_dominators = dominance_map.get(predecessor)
-            assert predecessor_dominators is not None, "Cannot be None"
-            if first_time:
-                intersection = intersection.union(predecessor_dominators)
-                first_time = False
-            else:
-                intersection.intersection_update(predecessor_dominators)
-        intersection = intersection.union(dominators)
-        return intersection  # noqa: RET504
 
 
 class ControlDependenceGraph(ProgramGraph):
     """Implements a control-dependence graph."""
+
+    @staticmethod
+    def _create_augmented_graph(cfg: CFG) -> ProgramGraph:
+        entry_node = cfg.entry_node
+        assert entry_node, "Cannot work with CFG without entry node"
+
+        augmented_graph = ProgramGraph()
+
+        augmented_graph.add_node(ArtificialNode.START)
+        for node, attr in cfg.graph.nodes(data=True):
+            augmented_graph.add_node(node, **attr)
+
+        augmented_graph.add_edge(ArtificialNode.START, entry_node)
+        for exit_node in cfg.exit_nodes:
+            augmented_graph.add_edge(ArtificialNode.START, exit_node)
+        for source, target, attr in cfg.graph.edges(data=True):
+            augmented_graph.add_edge(source, target, **attr)
+
+        return augmented_graph
+
+    @staticmethod
+    def _compute_post_dominator_tree(augmented_cfg: ProgramGraph) -> ProgramGraph:
+        idoms: dict[ProgramNode, ProgramNode] = nx.immediate_dominators(
+            augmented_cfg.graph.reverse(copy=False),
+            ArtificialNode.EXIT,
+        )
+        post_dominator_tree = ProgramGraph()
+        for node, idom in idoms.items():
+            if node != idom:
+                post_dominator_tree.add_edge(idom, node)
+
+        return post_dominator_tree
 
     @staticmethod
     def compute(graph: CFG) -> ControlDependenceGraph:
@@ -928,7 +791,7 @@ class ControlDependenceGraph(ProgramGraph):
             The control-dependence graph
         """
         augmented_cfg = ControlDependenceGraph._create_augmented_graph(graph)
-        post_dominator_tree = DominatorTree.compute_post_dominator_tree(augmented_cfg)
+        post_dominator_tree = ControlDependenceGraph._compute_post_dominator_tree(augmented_cfg)
         cdg = ControlDependenceGraph()
         nodes = augmented_cfg.nodes
 
@@ -1050,23 +913,10 @@ class ControlDependenceGraph(ProgramGraph):
 
     def __setstate__(self, state: dict):
         self._graph = nx.DiGraph()
-        for node, data in state["nodes"]:
-            self._graph.add_node(node, **data)
-        for source, target, data in state["edges"]:
-            self._graph.add_edge(source, target, **data)
-
-    @staticmethod
-    def _create_augmented_graph(graph: CFG) -> CFG:
-        entry_node = graph.entry_node
-        assert entry_node, "Cannot work with CFG without entry node"
-        exit_nodes = graph.exit_nodes
-        augmented_graph = graph.copy()
-        start_node = ArtificialNode.START
-        augmented_graph.add_node(start_node)
-        augmented_graph.add_edge(start_node, entry_node)
-        for exit_node in exit_nodes:
-            augmented_graph.add_edge(start_node, exit_node)
-        return augmented_graph
+        for node, attr in state["nodes"]:
+            self._graph.add_node(node, **attr)
+        for source, target, attr in state["edges"]:
+            self._graph.add_edge(source, target, **attr)
 
     @dataclass(frozen=True)
     class _Edge:
