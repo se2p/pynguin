@@ -178,7 +178,7 @@ class UniqueInstruction(Instr):
         else:
             arg = str(self.arg)
 
-        return f"<UniqueInstruction {self.name} arg={arg} lineno={self.lineno} {self.is_method}>"
+        return f"<UniqueInstruction {self.name} arg={arg} lineno={self.lineno}>"
 
     def __hash__(self):
         return hash((self.name, self.code_object_id, self.node_id, self.instr_original_index))

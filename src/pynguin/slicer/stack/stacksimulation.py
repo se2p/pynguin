@@ -201,7 +201,7 @@ class TraceStack:
                                 "DISABLED INCLUDE USE (STORE INSTRUCTION): %s", tos1_instr
                             )
                             include_use = False
-                if tos_instr.name in ACCESS_NAMES:
+                if tos_instr.name in ACCESS_NAMES and not tos_instr.is_method:
                     self._logger.debug("DISABLED INCLUDE USE (ACCESS INSTRUCTION): %s", tos_instr)
                     include_use = False
 
