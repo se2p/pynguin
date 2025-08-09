@@ -198,11 +198,11 @@ class TraceStack:
                     match curr_block_stack.peek():
                         case (tos1_instr, True) if tos1_instr.name in STORE_NAMES:  # type: ignore[union-attr]
                             self._logger.debug(
-                                "DISABLED INCLUDE USE (STORE OPCODE): %s", tos1_instr
+                                "DISABLED INCLUDE USE (STORE INSTRUCTION): %s", tos1_instr
                             )
                             include_use = False
                 if tos_instr.name in ACCESS_NAMES:
-                    self._logger.debug("DISABLED INCLUDE USE (ACCESS OPCODE): %s", tos_instr)
+                    self._logger.debug("DISABLED INCLUDE USE (ACCESS INSTRUCTION): %s", tos_instr)
                     include_use = False
 
         return imp_dependency, include_use

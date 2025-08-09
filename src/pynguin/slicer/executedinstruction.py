@@ -77,6 +77,7 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
     src_address: int
     arg_address: int
     is_mutable_type: bool
+    is_method: bool
 
     @property
     def combined_attr(self):
@@ -89,8 +90,8 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
 
     def __str__(self) -> str:
         return (
-            f"{'(attr)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.combined_attr:<51} {self.code_object_id:02d} "
+            f"{'(meth)' if self.is_method else '(attr)':<7} {self.file:<40} "
+            f"{opname[self.opcode]:<20} {self.combined_attr:<51} {self.code_object_id:02d} "
             f"@ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 

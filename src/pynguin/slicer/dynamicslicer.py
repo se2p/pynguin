@@ -36,7 +36,6 @@ from pynguin.instrumentation.version import MODIFY_DEREF_NAMES
 from pynguin.instrumentation.version import MODIFY_FAST_NAMES
 from pynguin.instrumentation.version import MODIFY_GLOBAL_NAMES
 from pynguin.instrumentation.version import MODIFY_NAME_NAMES
-from pynguin.instrumentation.version import TRACED_NAMES
 from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder
@@ -47,25 +46,20 @@ from pynguin.utils.exceptions import SlicingTimeoutException
 
 if TYPE_CHECKING:
     from bytecode.instr import _UNSET
-    from bytecode.instr import Instr
 
     from pynguin.instrumentation.tracer import CodeObjectMetaData
     from pynguin.instrumentation.tracer import ExecutedAssertion
     from pynguin.instrumentation.tracer import ExecutionTrace
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.executedinstruction import ExecutedInstruction
-    from pynguin.slicer.executionflowbuilder import LastInstrState
+    from pynguin.slicer.executionflowbuilder import InstrState
 
 
-@dataclass
+@dataclass(frozen=True)
 class SlicingCriterion:
-    """The slicing criterion, consists of instruction and position in the trace."""
+    """The slicing criterion consists of the position of an instruction in an execution trace."""
 
-    unique_instr: UniqueInstruction
     trace_position: int
-
-    def __str__(self) -> str:
-        return f"SlicingCriterion({self.unique_instr}, position={self.trace_position})"
 
 
 @dataclass
@@ -104,43 +98,17 @@ class SlicingState:
     The state is tracked for each analysed instruction.
     """
 
-    node_id: int
-    code_object_id: int
     context: SlicingContext
-    curr_instr: Instr
     execution_flow_builder: ExecutionFlowBuilder
-    file: str
     new_attribute_object_uses: set[str]
-    instr_original_index: int
+    state: InstrState
     pops: int
     pushes: int
     timeout: float
-    trace_position: int
     trace_stack: TraceStack
     code_object_dependent: bool = False
     import_back_call: UniqueInstruction | None = None
     stack_simulation: bool = True  # must be disabled for exceptions
-
-    def update_state(self) -> LastInstrState:
-        """Updates the slicing state for the next instruction.
-
-        Returns:
-            The new last instruction as LastInst
-        """
-        last_state = self.execution_flow_builder.get_last_instruction(
-            self.file,
-            self.curr_instr,
-            self.trace_position,
-            self.instr_original_index,
-            self.code_object_id,
-            self.node_id,
-            self.import_back_call,
-        )
-        self.file = last_state.file
-        self.instr_original_index = last_state.instr_original_index
-        self.code_object_id = last_state.code_object_id
-        self.node_id = last_state.basic_block_id
-        return last_state
 
 
 T = TypeVar(
@@ -210,137 +178,116 @@ class DynamicSlicer:
             SlicingTimeoutException: when the slicing takes longer than the
                 configured budget
         """
-        self._logger.debug("========================= [START] =========================")
-        self._logger.debug("\t %s", slicing_criterion.unique_instr)
-        self._logger.debug("-----------------------------------------------------------")
-
         slc = self._setup_slicing_configuration(slicing_criterion, trace)
+
+        self._logger.debug("========================= [START] =========================")
+        self._logger.debug("\t %s", slc.state.instr)
+        self._logger.debug("-----------------------------------------------------------")
 
         self._log_iteration_results(slc)
 
         while True:
+            # Get previous instruction state
+            state = slc.execution_flow_builder.get_previous_instruction_state(
+                slc.state,
+                slc.import_back_call,
+            )
+
+            if state is None:
+                # Reached end of executed instructions
+                break
+
+            slc.state = state
+            context = slc.context
+            instr = state.instr
+
             criterion_in_slice = False
             imp_data_dep = False
             include_use = True
 
-            # Get last instruction
-            last_state = slc.update_state()
-
-            if last_state.last_instr is None:
-                # Reached end of executed instructions
-                break
-
-            last_unique_instr = UniqueInstruction(
-                file=slc.file,
-                name=last_state.last_instr.name,
-                code_object_id=slc.code_object_id,
-                node_id=slc.node_id,
-                code_meta=self._known_code_objects[slc.code_object_id],
-                instr_original_index=slc.instr_original_index,
-                arg=last_state.last_instr.arg,
-                lineno=last_state.last_instr.lineno,
-            )
-
-            # Adjust trace position
-            last_traced_instr = None
-            if last_state.last_instr.name in TRACED_NAMES:
-                last_traced_instr = trace.executed_instructions[slc.trace_position]
+            if instr.is_traced:
                 self._logger.debug(
                     "========================= [POSITION %s] =========================",
-                    slc.trace_position,
+                    state.trace_position,
                 )
-                slc.trace_position -= 1
             else:
                 self._logger.debug(
                     "========================= [NOT TRACED] ========================="
                 )
 
-            self._logger.debug("     %s", last_unique_instr)
+            self._logger.debug("     %s", instr)
             self._logger.debug("----------------------------------------------------------------")
 
             # Stack can not be reliably simulated when an exception occurred
-            if last_state.exception:
+            if state.exception:
                 self._logger.debug("EXCEPTION: An exception occurred, disabling stack simulation.")
                 slc.stack_simulation = False
 
             # Stack housekeeping
-            prev_import_back_call = self._stack_housekeeping(last_state, last_unique_instr, slc)
+            previous_frame_import_back_call = self._stack_housekeeping(slc)
 
             # Control dependency
-            control_dependency = self.check_control_dependency(
-                slc.context, last_unique_instr, slc.code_object_id
-            )
+            control_dependency = self.check_control_dependency(context, instr)
 
             if control_dependency:
-                self._logger.debug("CRITERION IN SLICE (CONTROL DEPENDENCY): %s", last_unique_instr)
+                self._logger.debug("CRITERION IN SLICE (CONTROL DEPENDENCY): %s", instr)
                 criterion_in_slice = True
 
             # Explicit data dependency
             exp_data_dep, slc.new_attribute_object_uses = self.check_explicit_data_dependency(
-                slc.context, last_unique_instr, last_traced_instr
+                context,
+                state.traced_instr,
+                instr,
             )
 
             if exp_data_dep:
-                self._logger.debug(
-                    "CRITERION IN SLICE (EXPLICIT DATA DEPENDENCY): %s", last_unique_instr
-                )
+                self._logger.debug("CRITERION IN SLICE (EXPLICIT DATA DEPENDENCY): %s", instr)
                 criterion_in_slice = True
 
             # Implicit data dependency
-            if last_state.call and slc.code_object_dependent:
+            if state.call and slc.code_object_dependent:
                 # via method call
                 imp_data_dep = True
                 slc.code_object_dependent = False
 
-                if prev_import_back_call is not None and last_state.import_start:
+                if previous_frame_import_back_call is not None and state.import_start:
                     # We need to include the import statement after determining
                     # if one of the instructions executed by the import is included
                     # (because IMPORT_NAME is traced afterwards).
-                    num_import_pops, _ = prev_import_back_call.stack_effects(jump=False)
+                    num_import_pops, _ = previous_frame_import_back_call.stack_effects(jump=False)
                     slc.trace_stack.update_pop_operations(
-                        num_import_pops, prev_import_back_call, in_slice=True
+                        num_import_pops, previous_frame_import_back_call, in_slice=True
                     )
-                    self._logger.debug("IN SLICE: %s", prev_import_back_call)
-                    slc.context.instr_in_slice.append(prev_import_back_call)
+                    self._logger.debug("IN SLICE: %s", previous_frame_import_back_call)
+                    slc.context.instr_in_slice.append(previous_frame_import_back_call)
 
             if slc.stack_simulation:
                 # over stack
                 stack_dep, include_use = slc.trace_stack.update_push_operations(
-                    slc.pushes, returned=last_state.returned
+                    slc.pushes, returned=state.returned
                 )
                 if stack_dep:
-                    self._logger.debug("IMPLICIT DATA DEPENDENCY (STACK): %s", last_unique_instr)
+                    self._logger.debug("IMPLICIT DATA DEPENDENCY (STACK): %s", instr)
                     imp_data_dep = True
 
-            slc.code_object_dependent = not last_state.returned or (
-                not last_state.call and criterion_in_slice
+            slc.code_object_dependent = not state.returned or (
+                not state.call and criterion_in_slice
             )
 
             if imp_data_dep:
-                self._logger.debug(
-                    "CRITERION IN SLICE (IMPLICIT DATA DEPENDENCY): %s", last_unique_instr
-                )
+                self._logger.debug("CRITERION IN SLICE (IMPLICIT DATA DEPENDENCY): %s", instr)
                 criterion_in_slice = True
 
             # Unconditional jumps
-            if last_state.jump and last_state.last_instr.is_uncond_jump():
-                self._logger.debug("CRITERION IN SLICE (UNCONDITIONAL JUMP): %s", last_unique_instr)
+            if state.jump and instr.is_uncond_jump():
+                self._logger.debug("CRITERION IN SLICE (UNCONDITIONAL JUMP): %s", instr)
                 criterion_in_slice = True
 
             # Housekeeping for execution trace, stack
-            self._trace_housekeeping(
-                criterion_in_slice,
-                include_use,
-                last_traced_instr,
-                last_unique_instr,
-                slc,
-            )
+            self._trace_housekeeping(criterion_in_slice, include_use, slc)
 
             # Log current iteration
             self._log_iteration_results(slc)
-
-            # Next iteration
-            slc.curr_instr = last_state.last_instr
 
             if time.time() > slc.timeout:
                 raise SlicingTimeoutException
@@ -357,6 +304,37 @@ class DynamicSlicer:
         self._logger.debug("========================= [END] =========================")
 
         return slice_instructions
+
+    def _setup_slicing_configuration(
+        self,
+        slicing_criterion: SlicingCriterion,
+        trace: ExecutionTrace,
+    ):
+        execution_flow_builder = ExecutionFlowBuilder(trace, self._known_code_objects)
+        state = execution_flow_builder.create_instruction_state(slicing_criterion.trace_position)
+        new_attribute_object_uses: set[str] = set()
+        timeout = time.time() + config.configuration.stopping.maximum_slicing_time
+
+        trace_stack = TraceStack()
+        pops, pushes = state.instr.stack_effects()
+        trace_stack.update_push_operations(pushes, returned=False)
+        trace_stack.update_pop_operations(pops, state.instr, in_slice=True)
+
+        context = SlicingContext()
+        context.instr_in_slice.append(state.instr)
+        self._logger.debug("IN SLICE: %s", state.instr)
+        self.add_control_dependency(context, state.instr)
+
+        return SlicingState(
+            context,
+            execution_flow_builder,
+            new_attribute_object_uses,
+            state,
+            pops,
+            pushes,
+            timeout,
+            trace_stack,
+        )
 
     def _log_iteration_results(self, slc: SlicingState):
         if not self._logger.isEnabledFor(logging.DEBUG):
@@ -404,25 +382,20 @@ class DynamicSlicer:
             len(slc.trace_stack.frame_stacks),
         )
 
-    def _stack_housekeeping(
-        self,
-        last_state: LastInstrState,
-        last_unique_instr: UniqueInstruction,
-        slc: SlicingState,
-    ) -> UniqueInstruction | None:
-        prev_import_back_call = slc.trace_stack.last_frame_stack.import_name_instr
+    def _stack_housekeeping(self, slc: SlicingState) -> UniqueInstruction | None:
+        previous_frame_import_back_call = slc.trace_stack.last_frame_stack.import_name_instr
 
         slc.trace_stack.last_frame_stack.attribute_uses = slc.context.attribute_variables.copy()
 
-        if last_state.returned:
+        if slc.state.returned:
             # New frame
-            slc.trace_stack.push_stack(slc.code_object_id)
+            slc.trace_stack.push_stack(slc.state.instr.code_object_id)
             slc.trace_stack.last_frame_stack.attribute_uses = slc.new_attribute_object_uses.copy()
-            slc.trace_stack.last_frame_stack.import_name_instr = last_state.import_back_call
+            slc.trace_stack.last_frame_stack.import_name_instr = slc.state.import_back_call
             slc.new_attribute_object_uses.clear()
             self._logger.debug("NEW FRAME: %s", len(slc.trace_stack.frame_stacks))
 
-        if last_state.call or last_state.import_start:
+        if slc.state.call or slc.state.import_start:
             # Frame finished
             self._logger.debug("FRAME FINISHED: %s", len(slc.trace_stack.frame_stacks))
             slc.trace_stack.pop_stack()
@@ -434,121 +407,61 @@ class DynamicSlicer:
 
         slc.context.attribute_variables = slc.trace_stack.last_frame_stack.attribute_uses
         slc.import_back_call = slc.trace_stack.last_frame_stack.import_name_instr
-        slc.pops, slc.pushes = last_unique_instr.stack_effects(jump=last_state.jump)
+        slc.pops, slc.pushes = slc.state.instr.stack_effects(jump=slc.state.jump)
 
-        return prev_import_back_call
+        return previous_frame_import_back_call
 
     def _trace_housekeeping(
         self,
         criterion_in_slice: bool,  # noqa: FBT001
         include_use: bool,  # noqa: FBT001
-        last_traced_instr: ExecutedInstruction | None,
-        last_unique_instr: UniqueInstruction,
         slc: SlicingState,
     ):
+        state = slc.state
+
         # Add current instruction to the stack
         if slc.stack_simulation:
             slc.trace_stack.update_pop_operations(
-                slc.pops, last_unique_instr, in_slice=criterion_in_slice
+                slc.pops, state.instr, in_slice=criterion_in_slice
             )
 
         if not criterion_in_slice:
             return
 
         # Add instruction to slice
-        self._logger.debug("IN SLICE: %s", last_unique_instr)
-        slc.context.instr_in_slice.append(last_unique_instr)
+        self._logger.debug("IN SLICE: %s", state.instr)
+        slc.context.instr_in_slice.append(state.instr)
 
         # Add control dependencies (for S_C)
-        self.add_control_dependency(slc.context, last_unique_instr, slc.code_object_id)
+        self.add_control_dependency(slc.context, state.instr)
 
         # Add uses (for S_D)
-        if last_unique_instr.is_use() and include_use:
-            self.add_uses(slc.context, last_traced_instr)
+        if state.instr.is_use and include_use:
+            self.add_uses(slc.context, state.traced_instr)
 
-    def _setup_slicing_configuration(
-        self,
-        slicing_criterion: SlicingCriterion,
-        trace: ExecutionTrace,
-    ):
-        last_unique_instr = slicing_criterion.unique_instr
-        basic_block_id = last_unique_instr.node_id
-        code_object_id = last_unique_instr.code_object_id
-        execution_flow_builder = ExecutionFlowBuilder(trace, self._known_code_objects)
-        new_attribute_object_uses: set[str] = set()
-        timeout = time.time() + config.configuration.stopping.maximum_slicing_time
-
-        code_object = self._known_code_objects[code_object_id]
-        node = code_object.original_cfg.get_basic_block_node(basic_block_id)
-        assert node is not None, (
-            f"The instruction of the slicing criterion {slicing_criterion} is not in the CFG."
-        )
-
-        _, bytecode_instr = node.find_instruction_by_original_index(
-            last_unique_instr.instr_original_index
-        )
-        assert (
-            last_unique_instr.opcode == bytecode_instr.opcode
-            or last_unique_instr.lineno == bytecode_instr.lineno
-        ), (
-            f"Slicing criterion {slicing_criterion} references a wrong bytecode instruction {bytecode_instr}."  # noqa: E501
-        )
-
-        trace_stack = TraceStack()
-        pops, pushes = last_unique_instr.stack_effects()
-        trace_stack.update_push_operations(pushes, returned=False)
-        trace_stack.update_pop_operations(pops, last_unique_instr, in_slice=True)
-
-        context = SlicingContext()
-        context.instr_in_slice.append(last_unique_instr)
-        self._logger.debug("IN SLICE: %s", last_unique_instr)
-        self.add_control_dependency(context, last_unique_instr, code_object_id)
-
-        return SlicingState(
-            basic_block_id,
-            code_object_id,
-            context,
-            bytecode_instr,
-            execution_flow_builder,
-            last_unique_instr.file,
-            new_attribute_object_uses,
-            last_unique_instr.instr_original_index,
-            pops,
-            pushes,
-            timeout,
-            slicing_criterion.trace_position,
-            trace_stack,
-        )
-
-    def check_control_dependency(
-        self,
-        context: SlicingContext,
-        last_unique_instr: UniqueInstruction,
-        code_object_id: int,
-    ) -> bool:
-        """Check if any instruction on S_C is control dependent on the last unique instruction.
+    def check_control_dependency(self, context: SlicingContext, instr: UniqueInstruction) -> bool:
+        """Check if any instruction on S_C is control dependent on the current instruction.
 
         Args:
             context: the slicing context
-            last_unique_instr: the last instruction to check for
-            code_object_id: the id of the code object containing the last instruction
+            instr: the current instruction to check
 
         Returns:
-            True if the last instruction is part of the slice due to a control dependency,
+            True if the current instruction is part of the slice due to a control dependency,
             False otherwise
         """
-        if not last_unique_instr.is_cond_branch():
+        if not instr.is_cond_branch:
             return False
 
-        code_object = self._known_code_objects[code_object_id]
+        code_object = self._known_code_objects[instr.code_object_id]
         cdg = code_object.cdg
-        last_node = cdg.get_basic_block_node(last_unique_instr.node_id)
-        assert last_node is not None, "Invalid node id"
+        node = cdg.get_basic_block_node(instr.node_id)
+        assert node is not None, "Invalid node id"
 
         # The dominated nodes in the control-dependence graph (CDG) are the nodes that are
         # control dependent on the last instruction. They are the successors of the last node
         # in the CDG.
-        dominated_nodes = cdg.get_successors(last_node)
+        dominated_nodes = cdg.get_successors(node)
         dominated_instr_ctrl_deps = {
             instr
             for instr in context.instr_ctrl_deps
@@ -568,57 +481,55 @@ class DynamicSlicer:
     def add_control_dependency(
         self,
         context: SlicingContext,
-        last_unique_instr: UniqueInstruction,
-        code_object_id: int,
+        instr: UniqueInstruction,
     ) -> None:
-        """Add the last unique instruction to the control-dependence graph if required.
+        """Add the current instruction to the control-dependence graph if required.
 
         Args:
             context: the slicing context
-            last_unique_instr: the last instruction to add
-            code_object_id: the id of the code object containing the last instruction
+            instr: the instruction to add
         """
-        code_object = self._known_code_objects[code_object_id]
+        code_object = self._known_code_objects[instr.code_object_id]
         cdg = code_object.cdg
-        last_node = cdg.get_basic_block_node(last_unique_instr.node_id)
-        assert last_node is not None, "Invalid node id"
+        node = cdg.get_basic_block_node(instr.node_id)
+        assert node is not None, "Invalid node id"
 
         # The dominant nodes in the control-dependence graph (CDG) are the nodes on which
-        # the last instruction is control dependent. They are the predecessors of the last node
-        # in the CDG.
-        dominant_nodes = cdg.get_predecessors(last_node)
+        # the current instruction is control dependent. They are the predecessors of the
+        # current node in the CDG.
+        dominant_nodes = cdg.get_predecessors(node)
         if any(
             isinstance(dominant_node, BasicBlockNode)
             and (dominant_instr := dominant_node.try_get_instruction(-1)) is not None
             and dominant_instr.name not in EXCLUDED_DOMINANT_NAMES
             for dominant_node in dominant_nodes
         ):
-            self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", last_unique_instr)
-            context.instr_ctrl_deps.add(last_unique_instr)
+            self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", instr)
+            context.instr_ctrl_deps.add(instr)
 
     def check_explicit_data_dependency(  # noqa: C901
         self,
         context: SlicingContext,
-        unique_instr: UniqueInstruction,
         traced_instr: ExecutedInstruction | None,
+        instr: UniqueInstruction,
     ) -> tuple[bool, set[str]]:
         """Analyses the explicit data dependencies from one instruction to another.
 
         Args:
-            context: The slicing context used in the analyses
-            unique_instr: the instruction checked if it has explicit data dependency
-            traced_instr: the instruction the data dependency can be to
+            context: The slicing context
+            traced_instr: The executed instruction that is used to check for dependencies
+            instr: The instruction to check for explicit data dependencies
 
         Returns:
             A tuple with either False and an empty set or True and a set containing all
             explicit attribute creation uses.
         """
+        if not instr.is_def:
+            return False, set()
+
         complete_cover = False
         partial_cover = False
         attribute_creation_uses = set()
-
-        if not unique_instr.is_def():
-            return False, set()
 
         # Check variable definitions
         if isinstance(traced_instr, ExecutedMemoryInstruction):
@@ -837,13 +748,8 @@ class DynamicSlicer:
                 ))
         # Add global variables
         elif traced_instr.name in LOAD_GLOBAL_NAMES:
-            # Starting with Python 3.11, LOAD_GLOBAL uses a tuple for the argument
-            if isinstance(traced_instr.argument, tuple) and len(traced_instr.argument) == 2:
-                argument = traced_instr.argument[1]
-            else:
-                argument = traced_instr.argument
-            self._logger.debug("GLOBAL VARIABLE USE: '%s'", argument)
-            context.global_var_uses.add((argument, traced_instr.file))
+            self._logger.debug("GLOBAL VARIABLE USE: '%s'", traced_instr.argument)
+            context.global_var_uses.add((traced_instr.argument, traced_instr.file))
         # Add nonlocal variables
         elif traced_instr.name in LOAD_DEREF_NAMES + CLOSURE_LOAD_NAMES:
             variable_scope: set[int] = set()
@@ -957,37 +863,6 @@ class AssertionSlicer:
         """
         self._known_code_objects = known_code_objects
 
-    def _slicing_criterion_from_assertion(
-        self, assertion: ExecutedAssertion, trace: ExecutionTrace
-    ) -> SlicingCriterion:
-        traced_instr = trace.executed_instructions[assertion.trace_position]
-        code_meta = self._known_code_objects[traced_instr.code_object_id]
-
-        # find out the basic block of the assertion
-        node = code_meta.original_cfg.get_basic_block_node(traced_instr.node_id)
-        assert node is not None, "Invalid node id"
-
-        # the traced instruction is always the jump at the end of the bb
-        original_instr = None
-        for instr in reversed(tuple(node.original_instructions)):
-            if instr.opcode == traced_instr.opcode:
-                original_instr = instr
-                break
-        assert original_instr is not None, "Original instruction not found in basic block"
-
-        unique_instr = UniqueInstruction(
-            file=traced_instr.file,
-            name=traced_instr.name,
-            code_object_id=traced_instr.code_object_id,
-            node_id=traced_instr.node_id,
-            code_meta=code_meta,
-            instr_original_index=traced_instr.instr_original_index,
-            arg=original_instr.arg,
-            lineno=traced_instr.lineno,
-        )
-
-        return SlicingCriterion(unique_instr, assertion.trace_position - 1)
-
     def slice_assertion(
         self, assertion: ExecutedAssertion, trace: ExecutionTrace
     ) -> list[UniqueInstruction]:
@@ -1000,6 +875,5 @@ class AssertionSlicer:
         Returns:
             The list of executed instructions contained in the slice of the assertion.
         """
-        slicing_criterion = self._slicing_criterion_from_assertion(assertion, trace)
         slicer = DynamicSlicer(self._known_code_objects)
-        return slicer.slice(trace, slicing_criterion)
+        return slicer.slice(trace, SlicingCriterion(assertion.trace_position))

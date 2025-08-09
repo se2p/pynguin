@@ -25,6 +25,7 @@ from opcode import opname
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
 from types import CodeType
+from types import MethodType
 from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Concatenate
@@ -216,6 +217,7 @@ class ExecutionTrace:
         src_address: int,
         arg_address: int,
         is_mutable_type: bool,  # noqa: FBT001
+        is_method: bool,  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedAttributeInstruction object and adds it to the trace.
 
@@ -230,6 +232,7 @@ class ExecutionTrace:
             src_address: the memory address of the attribute
             arg_address: the memory address of the argument
             is_mutable_type: if the attribute is mutable
+            is_method: if the attribute is a method
         """
         executed_instr = ei.ExecutedAttributeInstruction(
             module,
@@ -242,6 +245,7 @@ class ExecutionTrace:
             src_address,
             arg_address,
             is_mutable_type,
+            is_method,
         )
 
         self.executed_instructions.append(executed_instr)
@@ -1428,6 +1432,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         if arg_type in immutable_types:
             mutable_type = False
 
+        is_method = arg_type is MethodType
+
         self._thread_local_state.trace.add_attribute_instruction(
             module,
             code_object_id,
@@ -1439,6 +1445,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             src_address,
             arg_address,
             mutable_type,
+            is_method,
         )
 
     @_early_return

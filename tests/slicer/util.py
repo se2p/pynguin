@@ -32,11 +32,12 @@ from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.dynamicslicer import SlicingCriterion
-from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 if sys.version_info >= (3, 11):
@@ -124,24 +125,18 @@ def slice_function_at_return_with_result(
 
     trace = subject_properties.instrumentation_tracer.get_trace()
     known_code_objects = subject_properties.existing_code_objects
+
     dynamic_slicer = DynamicSlicer(known_code_objects)
 
-    last_traced_instr = trace.executed_instructions[-1]
-    slicing_instruction = UniqueInstruction(
-        file=last_traced_instr.file,
-        name=last_traced_instr.name,
-        code_object_id=last_traced_instr.code_object_id,
-        node_id=last_traced_instr.node_id,
-        code_meta=known_code_objects[last_traced_instr.code_object_id],
-        instr_original_index=last_traced_instr.instr_original_index,
-        lineno=last_traced_instr.lineno,
+    return (
+        dynamic_slicer.slice(
+            trace,
+            SlicingCriterion(
+                len(trace.executed_instructions) - 1,
+            ),
+        ),
+        result,
     )
-    slicing_criterion = SlicingCriterion(slicing_instruction, len(trace.executed_instructions) - 2)
-
-    return dynamic_slicer.slice(
-        trace,
-        slicing_criterion,
-    ), result
 
 
 def slice_function_at_return(function: Callable[[], Any]) -> list[UniqueInstruction]:
@@ -158,23 +153,14 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
             module.func()
 
         trace = subject_properties.instrumentation_tracer.get_trace()
-        known_code_objects = subject_properties.existing_code_objects
-
-        assert known_code_objects
-        dynamic_slicer = DynamicSlicer(known_code_objects)
         assert trace.executed_instructions
-        last_traced_instr = trace.executed_instructions[-1]
-        slicing_instruction = UniqueInstruction(
-            file=last_traced_instr.file,
-            name=last_traced_instr.name,
-            code_object_id=last_traced_instr.code_object_id,
-            node_id=last_traced_instr.node_id,
-            code_meta=known_code_objects[last_traced_instr.code_object_id],
-            instr_original_index=last_traced_instr.instr_original_index,
-            lineno=last_traced_instr.lineno,
+
+        known_code_objects = subject_properties.existing_code_objects
+        assert known_code_objects
+
+        dynamic_slicer = DynamicSlicer(known_code_objects)
+
+        return dynamic_slicer.slice(
+            trace,
+            SlicingCriterion(len(trace.executed_instructions) - 1),
         )
-        slicing_criterion = SlicingCriterion(
-            slicing_instruction,
-            len(trace.executed_instructions) - 2,
-        )
-        return dynamic_slicer.slice(trace, slicing_criterion)

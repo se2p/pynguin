@@ -21,6 +21,7 @@ from bytecode.instr import BITFLAG2_OPCODES
 from bytecode.instr import BITFLAG_OPCODES
 from bytecode.instr import UNSET
 from bytecode.instr import Instr
+from bytecode.instr import InstrArg
 
 from pynguin.instrumentation.version import CALL_NAMES
 from pynguin.instrumentation.version import COND_BRANCH_NAMES
@@ -31,6 +32,7 @@ from pynguin.instrumentation.version import RETURNING_NAMES
 from pynguin.instrumentation.version import TRACED_NAMES
 from pynguin.instrumentation.version import YIELDING_NAMES
 from pynguin.instrumentation.version import stack_effects
+from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
 
 
 if TYPE_CHECKING:
@@ -55,9 +57,10 @@ class UniqueInstruction(Instr):
         name: str,
         code_object_id: int,
         node_id: int,
-        code_meta: CodeObjectMetaData,
         instr_original_index: int,
-        arg=UNSET,
+        is_method: bool,
+        is_jump_target: bool,
+        arg: InstrArg = UNSET,
         lineno: int | None = None,
     ):
         """Initializes a unique instruction.
@@ -67,30 +70,33 @@ class UniqueInstruction(Instr):
             name: The name of the callable where the instruction is from
             code_object_id: The code object ID containing the instruction
             node_id: The node ID
-            code_meta: Meta information about the code object
             instr_original_index: The original index of the instruction in the code object
+            is_method: Whether the instruction is a method call
+            is_jump_target: Whether the instruction is a jump target
             arg: Additional arguments
             lineno: The instruction's line number
         """
-        self.file = file
         if arg is not UNSET:
             super().__init__(name, arg, lineno=lineno)
         else:
             super().__init__(name, lineno=lineno)
+        self.file = file
         self.code_object_id = code_object_id
         self.node_id = node_id
         self.instr_original_index = instr_original_index
+        self.is_method = is_method
+        self.is_jump_target = is_jump_target
 
-        node = code_meta.original_cfg.get_basic_block_node(self.node_id)
+    @property
+    def is_traced(self) -> bool:
+        """Returns a boolean if the instruction is traced.
 
-        assert node is not None, "Invalid basic block node id"
+        Returns:
+            True if the instruction is traced, False otherwise.
+        """
+        return self.name in TRACED_NAMES
 
-        # The jump target is always the first instruction in a basic block
-        self.is_jump_target = instr_original_index == 0 and any(
-            basic_block_node.basic_block.get_jump() is node.basic_block
-            for basic_block_node in code_meta.original_cfg.basic_block_nodes
-        )
-
+    @property
     def is_def(self) -> bool:
         """Returns a boolean if the instruction is a definition.
 
@@ -99,6 +105,7 @@ class UniqueInstruction(Instr):
         """
         return self.name in MEMORY_DEF_NAMES
 
+    @property
     def is_use(self) -> bool:
         """Returns a boolean if the instruction is a use.
 
@@ -107,6 +114,7 @@ class UniqueInstruction(Instr):
         """
         return self.name in MEMORY_USE_NAMES
 
+    @property
     def is_cond_branch(self) -> bool:
         """Returns a boolean if the instruction is a conditional branching.
 
@@ -170,15 +178,15 @@ class UniqueInstruction(Instr):
         else:
             arg = str(self.arg)
 
-        return f"<UniqueInstruction {self.name} arg={arg} lineno={self.lineno}>"
+        return f"<UniqueInstruction {self.name} arg={arg} lineno={self.lineno} {self.is_method}>"
 
     def __hash__(self):
         return hash((self.name, self.code_object_id, self.node_id, self.instr_original_index))
 
 
-@dataclass
-class LastInstrState:
-    """The state at the last instruction.
+@dataclass(frozen=True)
+class InstrState:
+    """The state after the backward execution of some instructions.
 
     When the execution flow is reconstructed with traced instructions there are some
     events which can happen between instructions, e.g. a switch to a different code
@@ -188,11 +196,9 @@ class LastInstrState:
     is represented here.
     """
 
-    file: str
-    last_instr: Instr | None
-    code_object_id: int
-    basic_block_id: int
-    instr_original_index: int
+    instr: UniqueInstruction
+    trace_position: int
+    traced_instr: ExecutedInstruction | None
     jump: bool = False
     call: bool = False
     returned: bool = False
@@ -205,10 +211,11 @@ class LastInstrState:
 class ExecutionFlowBuilderState:
     """Holds the configuration and state of the execution flow builder."""
 
-    bb_id: int
-    co_id: int
-    file: str
-    instr_original_index: int
+    previous_instr: Instr | None
+    previous_file: str
+    previous_code_object_id: int
+    previous_node_id: int
+    previous_instr_original_index: int
     jump: bool = False
     call: bool = False
     returned: bool = False
@@ -233,149 +240,169 @@ class ExecutionFlowBuilder:
         self,
         trace: ExecutionTrace,
         known_code_objects: dict[int, CodeObjectMetaData],
-    ):
+    ) -> None:
         """Initializes the builder.
 
         Args:
             trace: The execution trace
             known_code_objects: A dictionary of known code object data
         """
-        self.trace = trace
-        self.known_code_objects = known_code_objects
+        self._trace = trace
+        self._known_code_objects = known_code_objects
 
-    def _finish_basic_block(
-        self,
-        instr_index: int,
-        basic_block_node: BasicBlockNode,
-        import_instr: UniqueInstruction | None,
-        efb_state: ExecutionFlowBuilderState,
-    ) -> LastInstrState:
-        last_instr: Instr | None
-
-        # This is the last location where instructions must be reconstructed,
-        # so it is either the end or there are remaining instruction in the same
-        # code object (and no jump since this would have been traced.)
-        if instr_index > 0:
-            # Instruction has exactly one possible predecessor
-            last_instr = basic_block_node.get_instruction(instr_index - 1)
-            efb_state.instr_original_index -= 1
-        else:
-            last_instr = self._continue_at_last_basic_block(efb_state)
-
-        # Special case inside the special case. Imports are "special calls":
-        # the instructions on the module level of the imported module are executed
-        # before the IMPORT_NAME instruction ("import back call").
-        # This case is the end of these module instructions
-        # and we continue before the IMPORT_NAME.
-        if last_instr is None and import_instr:
-            last_instr = self._continue_before_import(efb_state, import_instr)
-            return LastInstrState(
-                efb_state.file,
-                last_instr,
-                efb_state.co_id,
-                efb_state.bb_id,
-                efb_state.instr_original_index,
-                import_start=True,
-            )
-
-        return LastInstrState(
-            efb_state.file,
-            last_instr,
-            efb_state.co_id,
-            efb_state.bb_id,
-            efb_state.instr_original_index,
-        )
-
-    def get_last_instruction(  # noqa: PLR0917
-        self,
-        file: str,
-        instr: Instr,
-        trace_pos: int,
-        instr_original_index: int,
-        co_id: int,
-        bb_id: int,
-        import_instr: UniqueInstruction | None = None,
-    ) -> LastInstrState:
-        """Look for the last instruction that must have been executed before ``instr``.
+    def create_instruction_state(self, trace_position: int) -> InstrState:
+        """Creates an instruction state starting from the given trace position.
 
         Args:
-            file: File of parameter instr
-            instr: Instruction for which the instruction executed beforehand is searched
-            trace_pos: Position in the execution trace where instr occurs (or, in case
-                it is not a traced one, the position of the last instruction traced
-                before instr)
-            instr_original_index: the original index of the instruction in the code object
-            co_id: Code object id of instr
-            bb_id: Basic block id of instr
-            import_instr: This instruction is necessary if the execution of
-                ``instr`` is caused directly (i.e. no calls in between) by an
+            trace_position: Position in the execution trace where the first traced instr occurs
+                (or, in case it is not a traced one, the position of the last instruction
+                traced before instr)
+
+        Returns:
+            The instruction state
+        """
+        traced_instr = self._trace.executed_instructions[trace_position]
+        node, _ = self._get_node(traced_instr.code_object_id, traced_instr.node_id)
+        _, original_instr = node.find_instruction_by_original_index(
+            traced_instr.instr_original_index
+        )
+
+        unique_instr = self._create_unique_instruction(
+            file=traced_instr.file,
+            name=traced_instr.name,
+            code_object_id=traced_instr.code_object_id,
+            node_id=traced_instr.node_id,
+            instr_original_index=traced_instr.instr_original_index,
+            arg=original_instr.arg,
+            lineno=traced_instr.lineno,
+            traced_instr=traced_instr,
+        )
+
+        return InstrState(
+            instr=unique_instr,
+            trace_position=trace_position,
+            traced_instr=self._trace.executed_instructions[trace_position],
+            import_back_call=None,
+        )
+
+    def get_previous_instruction_state(
+        self,
+        state: InstrState,
+        import_back_call: UniqueInstruction | None = None,
+    ) -> InstrState | None:
+        """Get the state that was before the current instruction state.
+
+        Args:
+            state: The current instruction state
+            import_back_call: This instruction is necessary if the execution of
+                ``state.instr`` is caused directly (i.e. no calls in between) by an
                 IMPORT_NAME instruction. The argument is this import instruction.
 
         Returns:
-            The last instruction and the state when it is executed
+            The previous instruction state, or None if there is no previous instruction state
         """
-        # Find the basic block and the exact location of the current instruction
-        basic_block_node = self._get_basic_block_node(co_id, bb_id)
+        instr = state.instr
+        previous_trace_position = (
+            state.trace_position - 1 if instr.is_traced else state.trace_position
+        )
 
-        instr_index, _ = basic_block_node.find_instruction_by_original_index(instr_original_index)
-
-        # Variables to keep track of what happened
-        efb_state = ExecutionFlowBuilderState(bb_id, co_id, file, instr_original_index)
+        efb_state = ExecutionFlowBuilderState(
+            previous_instr=None,
+            previous_file=instr.file,
+            previous_code_object_id=instr.code_object_id,
+            previous_node_id=instr.node_id,
+            previous_instr_original_index=instr.instr_original_index,
+            import_back_call=import_back_call,
+        )
 
         # Special case: if there are not remaining instructions in the trace,
         # finish this basic block
-        if trace_pos < 0:
-            return self._finish_basic_block(instr_index, basic_block_node, import_instr, efb_state)
+        if previous_trace_position < 0:
+            self._finish_basic_block(efb_state)
 
-        # Get the current instruction in the disassembly for further information
-        unique_instr = self._create_unique_instruction(
-            efb_state.file,
-            instr,
-            efb_state.co_id,
-            efb_state.bb_id,
-            efb_state.instr_original_index,
+            return self._create_instr_state(efb_state, previous_trace_position, None)
+
+        previous_traced_instr = self._trace.executed_instructions[previous_trace_position]
+        self._determine_previous_instruction(efb_state, previous_traced_instr, instr)
+        self._handle_return_instructions(efb_state, previous_traced_instr, instr)
+        self._handle_method_invocation(efb_state, previous_traced_instr)
+        self._handle_generator_and_exceptions(efb_state, previous_traced_instr)
+
+        return self._create_instr_state(efb_state, previous_trace_position, previous_traced_instr)
+
+    def _get_node(
+        self, code_object_id: int, node_id: int
+    ) -> tuple[BasicBlockNode, CodeObjectMetaData]:
+        code_meta = self._known_code_objects[code_object_id]
+
+        node = code_meta.original_cfg.get_basic_block_node(node_id)
+        assert node, "Invalid basic block node id"
+
+        return node, code_meta
+
+    def _create_unique_instruction(  # noqa: PLR0917
+        self,
+        file: str,
+        name: str,
+        code_object_id: int,
+        node_id: int,
+        instr_original_index: int,
+        arg: InstrArg,
+        lineno: int | None,
+        traced_instr: ExecutedInstruction | None,
+    ) -> UniqueInstruction:
+        node, code_meta = self._get_node(code_object_id, node_id)
+
+        # The jump target is always the first instruction in a basic block
+        is_jump_target = instr_original_index == 0 and any(
+            basic_block_node.basic_block.get_jump() is node.basic_block
+            for basic_block_node in code_meta.original_cfg.basic_block_nodes
         )
 
-        # Get the instruction last in the trace
-        last_traced_instr = self.trace.executed_instructions[trace_pos]
-
-        # Determine last instruction
-        last_instr = self._determine_last_instruction(
-            efb_state,
-            basic_block_node,
-            instr_index,
-            last_traced_instr,
-            unique_instr,
+        is_method = (
+            isinstance(traced_instr, ExecutedAttributeInstruction) and traced_instr.is_method
         )
 
-        # Handle return instruction
-        if last_traced_instr.name in RETURNING_NAMES:
-            last_instr = self._handle_return_instructions(
-                efb_state,
-                instr,
-                last_instr,
-                last_traced_instr,
-                unique_instr,
-            )
+        return UniqueInstruction(
+            file=file,
+            name=name,
+            code_object_id=code_object_id,
+            node_id=node_id,
+            instr_original_index=instr_original_index,
+            is_method=is_method,
+            is_jump_target=is_jump_target,
+            arg=arg,
+            lineno=lineno,
+        )
 
-        # Handle method invocation
-        if last_instr is None:
-            last_instr = self._handle_method_invocation(efb_state, import_instr, last_traced_instr)
+    def _create_instr_state(
+        self,
+        efb_state: ExecutionFlowBuilderState,
+        previous_trace_position: int,
+        previous_traced_instr: ExecutedInstruction | None,
+    ) -> InstrState | None:
+        if efb_state.previous_instr is None:
+            return None
 
-        # Handle generators and exceptions
-        if last_instr is not None and not efb_state.call and not efb_state.returned:
-            last_instr = self._handle_generator_and_exceptions(
-                efb_state,
-                last_instr,
-                last_traced_instr,
-            )
+        instr = self._create_unique_instruction(
+            file=efb_state.previous_file,
+            name=efb_state.previous_instr.name,
+            code_object_id=efb_state.previous_code_object_id,
+            node_id=efb_state.previous_node_id,
+            instr_original_index=efb_state.previous_instr_original_index,
+            arg=efb_state.previous_instr.arg,
+            lineno=efb_state.previous_instr.lineno,
+            traced_instr=previous_traced_instr,
+        )
 
-        return LastInstrState(
-            efb_state.file,
-            last_instr,
-            efb_state.co_id,
-            efb_state.bb_id,
-            instr_original_index=efb_state.instr_original_index,
+        traced_instr = (
+            self._trace.executed_instructions[previous_trace_position] if instr.is_traced else None
+        )
+
+        return InstrState(
+            instr=instr,
+            trace_position=previous_trace_position,
+            traced_instr=traced_instr,
             jump=efb_state.jump,
             call=efb_state.call,
             returned=efb_state.returned,
@@ -384,228 +411,203 @@ class ExecutionFlowBuilder:
             import_back_call=efb_state.import_back_call,
         )
 
-    def _determine_last_instruction(
+    def _decrease_instr_original_index(self, efb_state: ExecutionFlowBuilderState) -> bool:
+        node, _ = self._get_node(efb_state.previous_code_object_id, efb_state.previous_node_id)
+
+        previous_instr_original_index = efb_state.previous_instr_original_index - 1
+
+        if previous_instr_original_index < 0:
+            return False
+
+        _, efb_state.previous_instr = node.find_instruction_by_original_index(
+            previous_instr_original_index
+        )
+
+        efb_state.previous_instr_original_index = previous_instr_original_index
+
+        return True
+
+    def _finish_basic_block(self, efb_state: ExecutionFlowBuilderState) -> None:
+        # This is the last location where instructions must be reconstructed,
+        # so it is either the end or there are remaining instruction in the same
+        # code object (and no jump since this would have been traced.)
+        if not self._decrease_instr_original_index(efb_state):
+            self._continue_at_last_basic_block(efb_state)
+
+        # Special case inside the special case. Imports are "special calls":
+        # the instructions on the module level of the imported module are executed
+        # before the IMPORT_NAME instruction ("import back call").
+        # This case is the end of these module instructions
+        # and we continue before the IMPORT_NAME.
+        if efb_state.previous_instr is None and efb_state.import_back_call is not None:
+            self._continue_before_import(efb_state)
+
+    def _determine_previous_instruction(
         self,
         efb_state: ExecutionFlowBuilderState,
-        basic_block_node: BasicBlockNode,
-        instr_index: int,
-        last_traced_instr: ExecutedInstruction,
-        unique_instr: UniqueInstruction,
-    ) -> Instr | None:
-        last_instr: Instr | None
-
-        if instr_index > 0:
-            # Instruction has exactly one possible predecessor
-            last_instr = basic_block_node.get_instruction(instr_index - 1)
-            efb_state.instr_original_index -= 1
-        elif unique_instr.is_jump_target:
-            # Instruction is the last instruction in this basic block
-            # -> decide what to do with this instruction
-            # The instruction is a jump target, check if it was jumped to
-            if last_traced_instr.is_jump() and last_traced_instr.argument == efb_state.bb_id:
-                # It was jumped to this instruction,
-                # continue with target basic block of last traced
-                assert efb_state.co_id == last_traced_instr.code_object_id, (
+        previous_traced_instr: ExecutedInstruction,
+        instr: UniqueInstruction,
+    ) -> None:
+        if not self._decrease_instr_original_index(efb_state):
+            if (
+                instr.is_jump_target
+                and previous_traced_instr.is_jump()
+                and previous_traced_instr.argument == efb_state.previous_node_id
+            ):
+                # The previous instruction jumps to the current instruction,
+                # so we continue at the previous traced instruction.
+                assert efb_state.previous_code_object_id == previous_traced_instr.code_object_id, (
                     "Jump to instruction must originate from same code object"
                 )
-                last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
+                self._continue_at_previous_traced(previous_traced_instr, efb_state)
                 efb_state.jump = True
             else:
-                # If this is not a jump target,
-                # proceed with previous block (in case there is one)
-                last_instr = self._continue_at_last_basic_block(efb_state)
-        else:
-            # If this is not a jump target,
-            # proceed with previous block (in case there is one)
-            last_instr = self._continue_at_last_basic_block(efb_state)
-
-        return last_instr
+                # This is not a jump target, so proceed with previous block (in case there is one)
+                self._continue_at_last_basic_block(efb_state)
 
     def _handle_return_instructions(
         self,
         efb_state: ExecutionFlowBuilderState,
-        instr: Instr,
-        last_instr: Instr | None,
-        last_traced_instr: ExecutedInstruction,
-        unique_instr: UniqueInstruction,
-    ):
-        if instr.name not in IMPORT_NAME_NAMES:
-            # Coming back from a method call. If last_instr is a call, then the
-            # method was called explicitly.
-            # If last_instr is not a call, but is traced and does not match the
-            # last instruction in the trace, there must have been an implicit call
-            # to a magic method (such as __get__). Since we collect instructions
-            # invoking these methods, we can safely switch to the called method.
-            if last_instr is not None:
-                if (last_instr.name in CALL_NAMES) or (
-                    last_instr.name in TRACED_NAMES
-                    and last_instr.opcode != last_traced_instr.opcode
-                ):
-                    last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
-                    efb_state.returned = True
+        previous_traced_instr: ExecutedInstruction,
+        instr: UniqueInstruction,
+    ) -> None:
+        if previous_traced_instr.name not in RETURNING_NAMES:
+            return
 
-            else:
-                # Edge case: reached the end of a method, but there is neither
-                # a call nor any previous instruction. Can happen for example with
-                # setUp(), i.e. when no calls but multiple methods are involved.
-                # The only way to resolve this is to continue at the last traced
-                # instruction (RETURN).
-                last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
-                efb_state.returned = True
-        else:
+        if instr.name in IMPORT_NAME_NAMES:
             # Imports are "special calls": The instructions on the module level of
             # the imported module are executed before the IMPORT_NAME instruction
             # We call this an "import back call" here.
-            last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
-            efb_state.import_back_call = unique_instr
+            self._continue_at_previous_traced(previous_traced_instr, efb_state)
+            efb_state.import_back_call = instr
             efb_state.returned = True
-        return last_instr
+            return
+
+        if efb_state.previous_instr is None:
+            # Edge case: reached the end of a method, but there is neither
+            # a call nor any previous instruction. Can happen for example with
+            # setUp(), i.e. when no calls but multiple methods are involved.
+            # The only way to resolve this is to continue at the last traced
+            # instruction (RETURN).
+            self._continue_at_previous_traced(previous_traced_instr, efb_state)
+            efb_state.returned = True
+            return
+
+        # Coming back from a method call. If last_instr is a call, then the
+        # method was called explicitly.
+        # If last_instr is not a call, but is traced and does not match the
+        # last instruction in the trace, there must have been an implicit call
+        # to a magic method (such as __get__). Since we collect instructions
+        # invoking these methods, we can safely switch to the called method.
+        if (efb_state.previous_instr.name in CALL_NAMES) or (
+            efb_state.previous_instr.name in TRACED_NAMES
+            and efb_state.previous_instr.opcode != previous_traced_instr.opcode
+        ):
+            self._continue_at_previous_traced(previous_traced_instr, efb_state)
+            efb_state.returned = True
 
     def _handle_method_invocation(
         self,
         efb_state: ExecutionFlowBuilderState,
-        import_instr: UniqueInstruction | None,
-        last_traced_instr: ExecutedInstruction,
-    ) -> Instr | None:
-        # There is not last instruction in code object,
-        # so there must have been a call.
+        previous_traced_instr: ExecutedInstruction,
+    ) -> None:
+        if efb_state.previous_instr is not None:
+            return
+
+        # There is no previous instruction in code object, so there must have been a call.
         efb_state.call = True
 
-        last_instr: Instr | None
-        if import_instr is None:
-            # Switch to another function/method.
-            # Either an explicit call (when the last traced is a call instruction),
-            # or an implicit call to a magic method. In both cases tracing is
-            # continued at the caller.
-            last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
-        else:
+        if efb_state.import_back_call is not None:
             # Imports are "special calls": the instructions on the module level of
             # the imported module are executed before the IMPORT_NAME instruction
             # ("import back call"). This case is the end of these module
             # instructions and we continue before the IMPORT_NAME.
-            last_instr = self._continue_before_import(efb_state, import_instr)
-            efb_state.import_start = True
+            self._continue_before_import(efb_state)
 
-        return last_instr
+        # Switch to another function/method.
+        # Either an explicit call (when the previous traced is a call instruction),
+        # or an implicit call to a magic method. In both cases tracing is
+        # continued at the caller.
+        self._continue_at_previous_traced(previous_traced_instr, efb_state)
 
     def _handle_generator_and_exceptions(
         self,
         efb_state: ExecutionFlowBuilderState,
-        last_instr: Instr,
-        last_traced_instr: ExecutedInstruction,
-    ) -> Instr:
-        if last_instr.name in YIELDING_NAMES:
+        previous_traced_instr: ExecutedInstruction,
+    ) -> None:
+        if efb_state.previous_instr is None or efb_state.call or efb_state.returned:
+            return
+
+        if efb_state.previous_instr.name in YIELDING_NAMES:
             # Generators produce an unusual execution flow: the interpreter handles
             # jumps to the respective yield statement internally and we can not see
             # this in the trace. So we assume that this unusual case (explained in
             # the next branch) is not an exception but the return from a generator.
-            last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
+            self._continue_at_previous_traced(previous_traced_instr, efb_state)
 
-        elif last_instr.name in TRACED_NAMES and last_instr.opcode != last_traced_instr.opcode:
+        if (
+            efb_state.previous_instr.name in TRACED_NAMES
+            and efb_state.previous_instr.opcode != previous_traced_instr.opcode
+        ):
             # The last instruction that is determined is not in the trace,
             # despite the fact that it should be. There is only one known remaining
             # reasons for this: during an exception. Tracing continues with the last
             # traced instruction (and probably misses some in between).
-            last_instr = self._continue_at_last_traced(last_traced_instr, efb_state)
+            self._continue_at_previous_traced(previous_traced_instr, efb_state)
             efb_state.exception = True
 
-        return last_instr
-
-    def _create_unique_instruction(
+    def _continue_at_previous_traced(
         self,
-        module: str,
-        instr: Instr,
-        code_object_id: int,
-        node_id: int,
-        instr_original_index: int,
-    ) -> UniqueInstruction:
-        return UniqueInstruction(
-            file=module,
-            name=instr.name,
-            code_object_id=code_object_id,
-            node_id=node_id,
-            code_meta=self.known_code_objects[code_object_id],
-            instr_original_index=instr_original_index,
-            arg=instr.arg,
-            lineno=instr.lineno,
-        )
-
-    def _continue_at_last_traced(
-        self,
-        last_traced_instr: ExecutedInstruction,
+        previous_traced_instr: ExecutedInstruction,
         efb_state: ExecutionFlowBuilderState,
-    ) -> Instr:
-        efb_state.file = last_traced_instr.file
-        efb_state.co_id = last_traced_instr.code_object_id
-        efb_state.bb_id = last_traced_instr.node_id
+    ) -> None:
+        efb_state.previous_file = previous_traced_instr.file
+        efb_state.previous_code_object_id = previous_traced_instr.code_object_id
+        efb_state.previous_node_id = previous_traced_instr.node_id
+        efb_state.previous_instr_original_index = previous_traced_instr.instr_original_index
 
-        node = self._get_basic_block_node(
-            last_traced_instr.code_object_id,
-            last_traced_instr.node_id,
-        )
+        node, _ = self._get_node(efb_state.previous_code_object_id, efb_state.previous_node_id)
 
-        _, last_instr = node.find_instruction_by_original_index(
-            last_traced_instr.instr_original_index
+        _, efb_state.previous_instr = node.find_instruction_by_original_index(
+            previous_traced_instr.instr_original_index
         )
         assert (
-            last_traced_instr.opcode == last_instr.opcode
-            or last_traced_instr.lineno == last_instr.lineno
+            previous_traced_instr.opcode == efb_state.previous_instr.opcode
+            or previous_traced_instr.lineno == efb_state.previous_instr.lineno
         ), (
-            f"Executed instruction {last_traced_instr} references a wrong bytecode instruction {last_instr}."  # noqa: E501
+            f"Executed instruction {previous_traced_instr} references a wrong bytecode "
+            f"instruction {efb_state.previous_instr}."
         )
 
-        efb_state.instr_original_index = last_traced_instr.instr_original_index
+    def _continue_at_last_basic_block(self, efb_state: ExecutionFlowBuilderState) -> None:
+        if efb_state.previous_node_id <= 0:
+            return
 
-        return last_instr
+        efb_state.previous_node_id -= 1
+        node, _ = self._get_node(efb_state.previous_code_object_id, efb_state.previous_node_id)
 
-    def _continue_at_last_basic_block(self, efb_state: ExecutionFlowBuilderState) -> Instr | None:
-        if efb_state.bb_id <= 0:
-            return None
+        instr = node.try_get_instruction(-1)
 
-        efb_state.bb_id -= 1
-        basic_block_node = self._get_basic_block_node(efb_state.co_id, efb_state.bb_id)
-        last_instr = basic_block_node.try_get_instruction(-1)
-
-        if last_instr is None:
+        if instr is None:
             # No instruction in the basic block, so we continue at the last basic block
-            return self._continue_at_last_basic_block(efb_state)
+            self._continue_at_last_basic_block(efb_state)
+            return
 
         # Set instr_original_index to the last instruction of the new basic block
-        efb_state.instr_original_index = sum(1 for _ in basic_block_node.original_instructions) - 1
+        efb_state.previous_instr = instr
+        efb_state.previous_instr_original_index = sum(1 for _ in node.original_instructions) - 1
 
-        return last_instr
-
-    def _continue_before_import(
-        self,
-        efb_state: ExecutionFlowBuilderState,
-        import_instr: UniqueInstruction,
-    ) -> Instr | None:
-        efb_state.co_id = import_instr.code_object_id
-        efb_state.bb_id = import_instr.node_id
-        efb_state.instr_original_index = import_instr.instr_original_index
-
-        # Find the basic block and the exact location of the current instruction
-        basic_block_node = self._get_basic_block_node(efb_state.co_id, efb_state.bb_id)
-
-        instr_index, _ = basic_block_node.find_instruction_by_original_index(
-            efb_state.instr_original_index
+    def _continue_before_import(self, efb_state: ExecutionFlowBuilderState) -> None:
+        import_back_call = efb_state.import_back_call
+        assert import_back_call is not None, (
+            "Cannot continue before import without an import back call"
         )
 
-        last_instr: Instr | None
-        if instr_index > 0:
-            # Instruction has exactly one possible predecessor
-            last_instr = basic_block_node.get_instruction(instr_index - 1)
-            efb_state.instr_original_index -= 1
-        else:
-            last_instr = self._continue_at_last_basic_block(efb_state)
+        efb_state.previous_code_object_id = import_back_call.code_object_id
+        efb_state.previous_node_id = import_back_call.node_id
+        efb_state.previous_instr_original_index = import_back_call.instr_original_index
 
-        return last_instr
+        if not self._decrease_instr_original_index(efb_state):
+            self._continue_at_last_basic_block(efb_state)
 
-    def _get_basic_block_node(self, code_object_id: int, node_id: int) -> BasicBlockNode:
-        code_object = self.known_code_objects.get(code_object_id)
-        assert code_object, "Unknown code object id"
-
-        basic_block_node = code_object.original_cfg.get_basic_block_node(node_id)
-        assert basic_block_node, "Invalid basic block node id"
-
-        return basic_block_node
+        efb_state.import_start = True
