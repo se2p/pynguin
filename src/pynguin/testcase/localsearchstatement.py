@@ -113,7 +113,7 @@ class StatementLocalSearch(abc.ABC):
             return NonDictCollectionLocalSearch(chromosome, position, objective)
         elif isinstance(statement, DictStatement):
             logger.debug("%s dict statement found", statement.__class__.__name__)
-            return DictStatementLocalSearch(chromosome, position, objective)
+            return DictStatementLocalSearch(chromosome, position, objective, factory)
         elif (
             isinstance(statement, FunctionStatement)
             | isinstance(statement, ConstructorStatement)
