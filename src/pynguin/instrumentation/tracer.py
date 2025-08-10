@@ -365,17 +365,11 @@ class CodeObjectMetaData:
     # The instrumented code object.
     code_object: CodeType
 
-    # The original code object, before instrumentation.
-    original_code_object: CodeType
-
     # Id of the parent code object, if any
     parent_code_object_id: int | None
 
     # CFG of this code object
     cfg: CFG
-
-    # CFG of the original code object, before instrumentation.
-    original_cfg: CFG
 
     # CDG of this code object
     cdg: ControlDependenceGraph
@@ -383,19 +377,15 @@ class CodeObjectMetaData:
     def __getstate__(self) -> dict:
         return {
             "code_object": self.code_object,
-            "original_code_object": self.original_code_object,
             "parent_code_object_id": self.parent_code_object_id,
             "cfg": self.cfg,
-            "original_cfg": self.original_cfg,
             "cdg": self.cdg,
         }
 
     def __setstate__(self, state: dict) -> None:
         self.code_object = state["code_object"]
-        self.original_code_object = state["original_code_object"]
         self.parent_code_object_id = state["parent_code_object_id"]
         self.cfg = state["cfg"]
-        self.original_cfg = state["original_cfg"]
         self.cdg = state["cdg"]
 
 

@@ -334,7 +334,7 @@ class ExecutionFlowBuilder:
         self, code_object_id: int, node_id: int
     ) -> tuple[BasicBlockNode, CodeObjectMetaData]:
         code_meta = self._known_code_objects[code_object_id]
-        node = code_meta.original_cfg.get_basic_block_node(node_id)
+        node = code_meta.cfg.get_basic_block_node(node_id)
         return node, code_meta
 
     def _create_unique_instruction(  # noqa: PLR0917
@@ -353,7 +353,7 @@ class ExecutionFlowBuilder:
         # The jump target is always the first instruction in a basic block
         is_jump_target = instr_original_index == 0 and any(
             basic_block_node.basic_block.get_jump() is node.basic_block
-            for basic_block_node in code_meta.original_cfg.basic_block_nodes
+            for basic_block_node in code_meta.cfg.basic_block_nodes
         )
 
         is_method = (
@@ -583,9 +583,9 @@ class ExecutionFlowBuilder:
         efb_state.previous_node_id -= 1
         node, _ = self._get_node(efb_state.previous_code_object_id, efb_state.previous_node_id)
 
-        instr = node.try_get_instruction(-1)
-
-        if instr is None:
+        try:
+            _, instr = node.find_instruction_by_original_index(-1)
+        except IndexError:
             # No instruction in the basic block, so we continue at the last basic block
             self._continue_at_last_basic_block(efb_state)
             return

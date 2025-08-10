@@ -27,6 +27,7 @@ from bytecode.instr import TryEnd
 import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
@@ -49,10 +50,24 @@ else:
 @dataclass(frozen=True)
 class TracedInstr:
     name: str
-    arg: int | str | tuple | FreeVar | CellVar | CodeType | TracedInstr | _UNSET | None = UNSET
+    arg: (
+        int
+        | str
+        | tuple
+        | FreeVar
+        | CellVar
+        | CodeType
+        | TracedInstr
+        | InstrumentationExecutionTracer
+        | _UNSET
+        | None
+    ) = UNSET
 
 
-def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: list[TracedInstr]):
+def assert_slice_equal(  # noqa: C901
+    current_slice: list[UniqueInstruction],
+    expected_slice: list[TracedInstr],
+) -> None:
     expected_instrs = "\n".join(f"[{i}] {instr}" for i, instr in enumerate(expected_slice))
     current_instrs = "\n".join(
         f"[{i}] {instr.name} {instr.arg}" for i, instr in enumerate(current_slice)
@@ -114,6 +129,12 @@ def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: l
                             assert isinstance(current_block_instr.arg, BasicBlock), (
                                 f"Expected BasicBlock argument in first instruction at index {i} "
                                 f"but got {current_block_instr.arg}\n{general_exception_message}"
+                            )
+                        case InstrumentationExecutionTracer():
+                            assert isinstance(arg, InstrumentationExecutionTracer), (
+                                f"Expected InstrumentationExecutionTracer argument in first "
+                                f"instruction at index {i} but got {current_block_instr.arg}\n"
+                                f"{general_exception_message}"
                             )
     except ValueError:
         assert len(current_slice) == len(expected_slice), general_exception_message

@@ -362,8 +362,7 @@ def _track_sut_data(subject_properties: SubjectProperties, test_cluster: ModuleT
         len(subject_properties.existing_lines),
     )
     cyclomatic_complexities: list[int] = [
-        code.original_cfg.cyclomatic_complexity
-        for code in subject_properties.existing_code_objects.values()
+        code.cfg.cyclomatic_complexity for code in subject_properties.existing_code_objects.values()
     ]
     stat.track_output_variable(
         RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)

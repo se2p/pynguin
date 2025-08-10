@@ -10,11 +10,14 @@
 
 import sys
 
+from unittest.mock import MagicMock
+
 from bytecode.instr import BinaryOp
 from bytecode.instr import CellVar
 from bytecode.instr import Compare
 from bytecode.instr import FreeVar
 
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
 from tests.slicer.util import TracedInstr
 from tests.slicer.util import assert_slice_equal
 from tests.slicer.util import dummy_code_object
@@ -23,6 +26,7 @@ from tests.slicer.util import slice_function_at_return_with_result
 from tests.slicer.util import slice_module_at_return
 
 
+jump_target = TracedInstr("LOAD_CONST", arg=InstrumentationExecutionTracer(MagicMock()))
 if sys.version_info >= (3, 12):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
@@ -105,8 +109,8 @@ def test_simple_loop():
         TracedInstr("STORE_FAST", arg="result"),
         TracedInstr(
             jump_backward_absolute,
-            # the loop header
-            arg=TracedInstr("FOR_ITER", arg=end_for),
+            # the instrumentation of the jump
+            arg=jump_target,
         ),
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
@@ -285,13 +289,13 @@ def test_generators():
         last_jumps = (
             TracedInstr(
                 jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
+                # the instrumentation of the jump
+                arg=jump_target,
             ),
             TracedInstr(
                 jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
+                # the instrumentation of the jump
+                arg=jump_target,
             ),
         )
     elif sys.version_info >= (3, 11):
@@ -326,18 +330,14 @@ def test_generators():
         yield_gen = TracedInstr("YIELD_VALUE")
         second_comparison_jump = TracedInstr(
             pop_jump_forward_if_false,
-            # the jump which leads back to the loop header
-            arg=TracedInstr(
-                jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
-            ),
+            # the instrumented jump which leads back to the loop header
+            arg=jump_target,
         )
         last_jumps = (
             TracedInstr(
                 jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
+                # the instrumentation of the jump
+                arg=jump_target,
             ),
         )
     else:
@@ -367,18 +367,14 @@ def test_generators():
         yield_gen = TracedInstr("YIELD_VALUE")
         second_comparison_jump = TracedInstr(
             pop_jump_forward_if_false,
-            # the jump which leads back to the loop header
-            arg=TracedInstr(
-                jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
-            ),
+            # the instrumented jump which leads back to the loop header
+            arg=jump_target,
         )
         last_jumps = (
             TracedInstr(
                 jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
+                # the instrumentation of the jump
+                arg=jump_target,
             ),
         )
 

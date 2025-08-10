@@ -685,7 +685,7 @@ class InstrumentationTransformer:
             The instrumented code object of the module
         """
         for metadata in self._subject_properties.existing_code_objects.values():
-            if metadata.code_object is module_code or metadata.original_code_object is module_code:
+            if metadata.code_object is module_code:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
                 raise AssertionError("Tried to instrument already instrumented module.")
@@ -701,9 +701,7 @@ class InstrumentationTransformer:
 
         code_object_id = self._subject_properties.create_code_object_id()
 
-        original_bytecode = version.add_for_loop_no_yield_nodes(Bytecode.from_code(code))
-
-        cfg = cf.CFG.from_bytecode(original_bytecode)
+        cfg = cf.CFG.from_bytecode(version.add_for_loop_no_yield_nodes(Bytecode.from_code(code)))
 
         for adapter in self._instrumentation_adapters:
             adapter.visit_cfg(cfg, code_object_id)
@@ -723,18 +721,12 @@ class InstrumentationTransformer:
             )
         )
 
-        original_cfg = cf.CFG.from_bytecode(original_bytecode)
-
-        original_code_object = original_cfg.bytecode_cfg.to_code()
-
         self._subject_properties.register_code_object(
             code_object_id,
             tracer.CodeObjectMetaData(
                 code_object=code_object,
-                original_code_object=original_code_object,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
-                original_cfg=original_cfg,
                 cdg=cf.ControlDependenceGraph.compute(cfg),
             ),
         )
