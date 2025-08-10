@@ -592,9 +592,9 @@ class DynamicSeedingInstrumentation(python3_11.DynamicSeedingInstrumentation):
 
     instructions_generator = Python312InstrumentationInstructionsGenerator
 
-    STRING_FUNC_POS: ClassVar[int] = -3
+    STRING_FUNC_POS = -3
 
-    STRING_FUNC_POS_WITH_ARG: ClassVar[int] = -4
+    STRING_FUNC_POS_WITH_ARG = -4
 
     def extract_method_name(self, instr: Instr) -> str | None:  # noqa: D102
         return extract_name(instr.arg) if instr.name == "LOAD_ATTR" else None
