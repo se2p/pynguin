@@ -38,7 +38,6 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
 from pynguin.instrumentation.controlflow import CFG
-from pynguin.instrumentation.controlflow import ArtificialNode
 from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -320,27 +319,31 @@ else:
 @pytest.fixture(scope="module")
 def small_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = BasicBlockNode(index=0, basic_block=MagicMock())
+
+    n0 = BasicBlockNode(index=0, basic_block=MagicMock())
+    n1 = BasicBlockNode(index=1, basic_block=MagicMock())
     n2 = BasicBlockNode(index=2, basic_block=MagicMock())
     n3 = BasicBlockNode(index=3, basic_block=MagicMock())
     n4 = BasicBlockNode(index=4, basic_block=MagicMock())
     n5 = BasicBlockNode(index=5, basic_block=MagicMock())
-    n6 = BasicBlockNode(index=6, basic_block=MagicMock())
-    exit_node = ArtificialNode.EXIT
-    cfg.add_node(entry)
+
+    cfg.add_node(n0)
+    cfg.add_node(n1)
     cfg.add_node(n2)
     cfg.add_node(n3)
     cfg.add_node(n4)
     cfg.add_node(n5)
-    cfg.add_node(n6)
-    cfg.add_node(exit_node)
-    cfg.add_edge(entry, n6)
-    cfg.add_edge(n6, n5)
+
+    cfg.add_edge(n0, n5)
     cfg.add_edge(n5, n4)
-    cfg.add_edge(n5, n3)
+    cfg.add_edge(n4, n3)
     cfg.add_edge(n4, n2)
-    cfg.add_edge(n3, n2)
-    cfg.add_edge(n2, exit_node)
+    cfg.add_edge(n3, n1)
+    cfg.add_edge(n2, n1)
+
+    CFG._insert_dummy_entry_node(cfg)
+    CFG._insert_dummy_exit_node(cfg)
+
     return cfg
 
 

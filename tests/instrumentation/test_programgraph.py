@@ -101,28 +101,6 @@ def test_entry_exit_node_without_nodes(graph):
     assert graph.exit_nodes == set()
 
 
-def test_get_transitive_successors(graph, node, second_node, third_node, fourth_node):
-    graph.add_node(fourth_node)
-    graph.add_node(node)
-    graph.add_node(second_node)
-    graph.add_node(third_node)
-    graph.add_edge(node, second_node)
-    graph.add_edge(second_node, third_node)
-    graph.add_edge(third_node, fourth_node)
-    result = graph.get_transitive_successors(second_node)
-    assert result == {third_node, fourth_node}
-
-
-def test_get_least_common_ancestor(graph, node, second_node, third_node):
-    graph.add_node(node)
-    graph.add_node(second_node)
-    graph.add_node(third_node)
-    graph.add_edge(node, second_node)
-    graph.add_edge(node, third_node)
-    result = graph.get_least_common_ancestor(second_node, third_node)
-    assert result == node
-
-
 def test_to_dot(graph, node, second_node):
     graph.add_node(node)
     graph.add_node(second_node)

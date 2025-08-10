@@ -24,6 +24,8 @@ def test_integration(small_control_flow_graph):
     graph = """strict digraph  {
 "BasicBlockNode(0)
 ";
+"BasicBlockNode(1)
+";
 "BasicBlockNode(2)
 ";
 "BasicBlockNode(3)
@@ -32,22 +34,20 @@ def test_integration(small_control_flow_graph):
 ";
 "BasicBlockNode(5)
 ";
-"BasicBlockNode(6)
-";
-"ArtificialNode(START)";
-"BasicBlockNode(5)
-" -> "BasicBlockNode(4)
-";
-"BasicBlockNode(5)
+"ArtificialNode(AUGMENTED_ENTRY)";
+"BasicBlockNode(4)
 " -> "BasicBlockNode(3)
 ";
-"ArtificialNode(START)" -> "BasicBlockNode(0)
+"BasicBlockNode(4)
+" -> "BasicBlockNode(2)
 ";
-"ArtificialNode(START)" -> "BasicBlockNode(6)
+"ArtificialNode(AUGMENTED_ENTRY)" -> "BasicBlockNode(0)
 ";
-"ArtificialNode(START)" -> "BasicBlockNode(5)
+"ArtificialNode(AUGMENTED_ENTRY)" -> "BasicBlockNode(5)
 ";
-"ArtificialNode(START)" -> "BasicBlockNode(2)
+"ArtificialNode(AUGMENTED_ENTRY)" -> "BasicBlockNode(4)
+";
+"ArtificialNode(AUGMENTED_ENTRY)" -> "BasicBlockNode(1)
 ";
 }"""
     assert dot_representation == graph

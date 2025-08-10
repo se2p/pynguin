@@ -55,10 +55,12 @@ class ArtificialInstr(Instr):
 class ArtificialNode(Enum):
     """Types of artificial nodes in the program graph."""
 
-    START = "START"
-    """An artificial start node."""
+    AUGMENTED_ENTRY = "AUGMENTED_ENTRY"
+    """An artificial augmented entry node used in the control-dependence graph."""
+
     ENTRY = "ENTRY"
     """An artificial entry node."""
+
     EXIT = "EXIT"
     """An artificial exit node."""
 
@@ -263,8 +265,13 @@ class ProgramGraph:
     do all the operations on it.
     """
 
-    def __init__(self) -> None:  # noqa: D107
-        self._graph: nx.DiGraph[ProgramNode] = nx.DiGraph()
+    def __init__(self, graph: nx.DiGraph[ProgramNode] | None = None) -> None:
+        """Initializes a new program graph.
+
+        Args:
+            graph: The graph to use for this program graph, or None to create a new empty one.
+        """
+        self._graph: nx.DiGraph[ProgramNode] = graph if graph is not None else nx.DiGraph()
 
     def add_node(self, node: ProgramNode, **attr: Any) -> None:
         """Add a node to the graph.
@@ -409,48 +416,6 @@ class ProgramGraph:
                     break
         return yield_nodes
 
-    def get_transitive_successors(self, node: ProgramNode) -> set[ProgramNode]:
-        """Calculates the transitive closure (the transitive successors) of a node.
-
-        Args:
-            node: The node to start with
-
-        Returns:
-            The transitive closure of the node
-        """
-        return self._get_transitive_successors(node, set())
-
-    def _get_transitive_successors(
-        self,
-        node: ProgramNode,
-        done: set[ProgramNode],
-    ) -> set[ProgramNode]:
-        successors: set[ProgramNode] = set()
-        for successor_node in self.get_successors(node):
-            if successor_node not in done:
-                successors.add(successor_node)
-                done.add(successor_node)
-                successors.update(self._get_transitive_successors(successor_node, done))
-        return successors
-
-    def get_least_common_ancestor(
-        self,
-        first: ProgramNode,
-        second: ProgramNode,
-    ) -> ProgramNode:
-        """Calculates the least or lowest common ancestor node of two nodes.
-
-        Both nodes have to be part of the graph!
-
-        Args:
-            first: The first node
-            second: The second node
-
-        Returns:
-            The least common ancestor node of the two nodes
-        """
-        return nx.lowest_common_ancestor(self._graph, first, second)
-
     @property
     def dot(self) -> str:
         """Provides the DOT representation of this graph.
@@ -551,9 +516,10 @@ class CFG(ProgramGraph):
         cfg = filter_dead_code_nodes(cfg, entry_node)
 
         # Insert dummy exit and entry nodes
-        cfg = CFG._insert_dummy_exit_node(cfg)
-        cfg = CFG._insert_dummy_entry_node(cfg)
-        return cfg  # noqa: RET504
+        CFG._insert_dummy_exit_node(cfg)
+        CFG._insert_dummy_entry_node(cfg)
+
+        return cfg
 
     @property
     def bytecode_cfg(self) -> ControlFlowGraph:
@@ -668,19 +634,17 @@ class CFG(ProgramGraph):
         return nodes
 
     @staticmethod
-    def _insert_dummy_entry_node(cfg: CFG) -> CFG:
-        dummy_entry_node = ArtificialNode.ENTRY
-        # Search node with index 0. This block contains the instruction where
-        # the execution of a code object begins.
-        entry_node = cfg.get_basic_block_node(0)
-        assert entry_node is not None, "There has to be a node with index 0 in the CFG."
-        cfg.add_node(dummy_entry_node)
-        cfg.add_edge(dummy_entry_node, entry_node)
-        return cfg
+    def _insert_dummy_entry_node(cfg: CFG) -> None:
+        assert cfg.entry_node is not None, (
+            "Control flow must have an entry node. Offending CFG: " + cfg.dot
+        )
+
+        cfg.add_node(ArtificialNode.ENTRY)
+
+        cfg.add_edge(ArtificialNode.ENTRY, cfg.entry_node)
 
     @staticmethod
-    def _insert_dummy_exit_node(cfg: CFG) -> CFG:
-        dummy_exit_node = ArtificialNode.EXIT
+    def _insert_dummy_exit_node(cfg: CFG) -> None:
         exit_nodes = cfg.exit_nodes
         yield_nodes = cfg.yield_nodes
         assert exit_nodes.union(yield_nodes), (
@@ -688,20 +652,19 @@ class CFG(ProgramGraph):
         )
 
         # Add the dummy exit node to the graph
-        cfg.add_node(dummy_exit_node)
+        cfg.add_node(ArtificialNode.EXIT)
 
         # Connect the dummy exit node to all yield nodes
         for yield_node in yield_nodes:
-            cfg.add_edge(yield_node, dummy_exit_node)
+            cfg.add_edge(yield_node, ArtificialNode.EXIT)
 
         # Connect the dummy exit node to all exit nodes
         for exit_node in exit_nodes:
-            if exit_node is not dummy_exit_node:
-                cfg.add_edge(exit_node, dummy_exit_node)
+            cfg.add_edge(exit_node, ArtificialNode.EXIT)
 
+        # Connect the dummy exit node to all infinite loop nodes
         for infinite_loop_node in CFG._infinite_loop_nodes(cfg):
-            cfg.add_edge(infinite_loop_node, dummy_exit_node)
-        return cfg
+            cfg.add_edge(infinite_loop_node, ArtificialNode.EXIT)
 
     @property
     def cyclomatic_complexity(self) -> int:
@@ -750,74 +713,70 @@ class ControlDependenceGraph(ProgramGraph):
 
     @staticmethod
     def _create_augmented_graph(cfg: CFG) -> ProgramGraph:
-        entry_node = cfg.entry_node
-        assert entry_node, "Cannot work with CFG without entry node"
+        augmented_graph = ProgramGraph(cfg.graph.copy())
 
-        augmented_graph = ProgramGraph()
-
-        augmented_graph.add_node(ArtificialNode.START)
-        for node, attr in cfg.graph.nodes(data=True):
-            augmented_graph.add_node(node, **attr)
-
-        augmented_graph.add_edge(ArtificialNode.START, entry_node)
-        for exit_node in cfg.exit_nodes:
-            augmented_graph.add_edge(ArtificialNode.START, exit_node)
-        for source, target, attr in cfg.graph.edges(data=True):
-            augmented_graph.add_edge(source, target, **attr)
+        augmented_graph.add_node(ArtificialNode.AUGMENTED_ENTRY)
+        augmented_graph.add_edge(ArtificialNode.AUGMENTED_ENTRY, ArtificialNode.ENTRY)
+        augmented_graph.add_edge(ArtificialNode.AUGMENTED_ENTRY, ArtificialNode.EXIT)
 
         return augmented_graph
 
     @staticmethod
     def _compute_post_dominator_tree(augmented_cfg: ProgramGraph) -> ProgramGraph:
-        idoms: dict[ProgramNode, ProgramNode] = nx.immediate_dominators(
+        immediate_dominators: dict[ProgramNode, ProgramNode] = nx.immediate_dominators(
             augmented_cfg.graph.reverse(copy=False),
             ArtificialNode.EXIT,
         )
-        post_dominator_tree = ProgramGraph()
-        for node, idom in idoms.items():
-            if node != idom:
-                post_dominator_tree.add_edge(idom, node)
-
-        return post_dominator_tree
+        return ProgramGraph(
+            nx.DiGraph(
+                (immediate_dominator, node)
+                for node, immediate_dominator in immediate_dominators.items()
+                if node != immediate_dominator
+            )
+        )
 
     @staticmethod
-    def compute(graph: CFG) -> ControlDependenceGraph:
+    def compute(cfg: CFG) -> ControlDependenceGraph:
         """Computes the control-dependence graph for a given control-flow graph.
 
         Args:
-            graph: The control-flow graph
+            cfg: The control-flow graph
 
         Returns:
             The control-dependence graph
         """
-        augmented_cfg = ControlDependenceGraph._create_augmented_graph(graph)
+        augmented_cfg = ControlDependenceGraph._create_augmented_graph(cfg)
         post_dominator_tree = ControlDependenceGraph._compute_post_dominator_tree(augmented_cfg)
         cdg = ControlDependenceGraph()
-        nodes = augmented_cfg.nodes
 
-        for node in nodes:
+        for node in augmented_cfg.nodes:
             cdg.add_node(node)
 
         # Find matching edges in the CFG.
-        edges: set[ControlDependenceGraph._Edge] = set()
-        for source in nodes:
-            for target in augmented_cfg.get_successors(source):
-                if source not in post_dominator_tree.get_transitive_successors(target):
-                    # Store branching data from edge, i.e., which outcome of the
-                    # branching node leads to this node.
-                    data = frozenset(augmented_cfg.graph.get_edge_data(source, target).items())
-                    edges.add(ControlDependenceGraph._Edge(source=source, target=target, data=data))
+        edges: tuple[tuple[ProgramNode, ProgramNode, dict], ...] = tuple(
+            # Store branching data from edge, i.e., which outcome of the
+            # branching node leads to this node.
+            (source, target, attr)
+            for source, target, attr in augmented_cfg.graph.edges(data=True)
+            if target not in nx.ancestors(post_dominator_tree.graph, source)
+        )
 
-        # Mark nodes in the PDT and construct edges for them.
-        for edge in edges:
-            least_common_ancestor = post_dominator_tree.get_least_common_ancestor(
-                edge.source, edge.target
+        # Mark nodes in the post-dominator tree and construct edges for them.
+        for source, target, attr in edges:
+            least_common_ancestor: ProgramNode = nx.lowest_common_ancestor(
+                post_dominator_tree.graph,
+                source,
+                target,
             )
-            current = edge.target
+
+            if least_common_ancestor is source:
+                cdg.add_edge(source, least_common_ancestor, **attr)
+
+            current = target
             while current != least_common_ancestor:
                 # TODO(fk) can the branching info be actually used here?
                 # Seems ok?
-                cdg.add_edge(edge.source, current, **dict(edge.data))
+                cdg.add_edge(source, current, **attr)
                 predecessors = post_dominator_tree.get_predecessors(current)
                 assert len(predecessors) == 1, (
                     "Cannot have more than one predecessor in a tree, this violates a "
@@ -825,10 +784,11 @@ class ControlDependenceGraph(ProgramGraph):
                 )
                 current = predecessors.pop()
 
-            if least_common_ancestor is edge.source:
-                cdg.add_edge(edge.source, least_common_ancestor, **dict(edge.data))
+        # Remove dummy exit and entry nodes
+        cdg.graph.remove_node(ArtificialNode.ENTRY)
+        cdg.graph.remove_node(ArtificialNode.EXIT)
 
-        return filter_dead_code_nodes(cdg, ArtificialNode.START)
+        return cdg
 
     def get_control_dependencies(self, node: ProgramNode) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.
@@ -917,12 +877,6 @@ class ControlDependenceGraph(ProgramGraph):
             self._graph.add_node(node, **attr)
         for source, target, attr in state["edges"]:
             self._graph.add_edge(source, target, **attr)
-
-    @dataclass(frozen=True)
-    class _Edge:
-        source: ProgramNode
-        target: ProgramNode
-        data: frozenset
 
 
 @dataclass(frozen=True)
