@@ -597,12 +597,4 @@ class DynamicSeedingInstrumentation(python3_11.DynamicSeedingInstrumentation):
     STRING_FUNC_POS_WITH_ARG: ClassVar[int] = -4
 
     def extract_method_name(self, instr: Instr) -> str | None:  # noqa: D102
-        if (
-            instr.name != "LOAD_ATTR"
-            or not isinstance(instr.arg, tuple)
-            or len(instr.arg) != 2
-            or not isinstance(method_name := instr.arg[1], str)
-        ):
-            return None
-
-        return method_name
+        return extract_name(instr.arg) if instr.name == "LOAD_ATTR" else None
