@@ -261,6 +261,13 @@ def test_avoid_duplicate_instrumentation(simple_module, subject_properties: Subj
         transformer.instrument_module(already_instrumented)
 
 
+# Starting with Python 3.12, the generators are not distinct code objects anymore
+if sys.version_info >= (3, 12):
+    comprehension_branchless_function_count = 0
+else:
+    comprehension_branchless_function_count = 1
+
+
 @pytest.mark.parametrize(
     "function_name, branchless_function_count, branches_count",
     [
@@ -270,7 +277,7 @@ def test_avoid_duplicate_instrumentation(simple_module, subject_properties: Subj
         ("for_loop", 0, 1),
         ("full_for_loop", 0, 1),
         ("multi_loop", 0, 3),
-        ("comprehension", 1, 2),
+        ("comprehension", comprehension_branchless_function_count, 2),
         ("lambda_func", 1, 1),
         ("conditional_assignment", 0, 1),
         ("conditionally_nested_class", 2, 1),
@@ -327,7 +334,40 @@ def test_offset_calculation_checked_coverage_instrumentation(
     24     >>    8 LOAD_CONST               2 (0)
                 10 RETURN_VALUE
     """
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        expected_executed_instructions = OrderedSet([
+            ExecutedMemoryInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["LOAD_FAST"],
+                argument="a",
+                lineno=21,
+                instr_original_index=1,
+                arg_address=94271749559808,
+                is_mutable_type=True,
+                object_creation=True,
+            ),
+            ExecutedControlInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["POP_JUMP_IF_FALSE"],
+                argument="a",
+                lineno=21,
+                instr_original_index=2,
+            ),
+            ExecutedReturnInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=2,
+                opcode=opmap["RETURN_CONST"],
+                argument=None,
+                lineno=24,
+                instr_original_index=0,
+            ),
+        ])
+    elif sys.version_info >= (3, 11):
         expected_executed_instructions = OrderedSet([
             ExecutedMemoryInstruction(
                 file=simple_module.__file__,

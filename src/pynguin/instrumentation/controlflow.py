@@ -292,19 +292,23 @@ class ProgramGraph:
         """
         self._graph.add_edge(start, end, **attr)
 
-    def get_basic_block_node(self, index: int) -> BasicBlockNode | None:
+    def get_basic_block_node(self, index: int) -> BasicBlockNode:
         """Provides the basic block node with the given index.
 
         Args:
             index: The index of the basic block node
 
+        Raises:
+            ValueError: If no basic block node with the given index exists
+
         Returns:
-            The basic block node with the given index or None if no such node exists
+            The basic block node with the given index
         """
         for node in self._graph.nodes:
             if isinstance(node, BasicBlockNode) and node.index == index:
                 return node
-        return None
+
+        raise ValueError(f"No BasicBlockNode found with index {index}")
 
     def get_predecessors(self, node: ProgramNode) -> set[ProgramNode]:
         """Provides a set of all direct predecessors of a node.
@@ -317,6 +321,20 @@ class ProgramGraph:
         """
         return set(self._graph.predecessors(node))
 
+    def get_ancestors(self, node: ProgramNode) -> set[ProgramNode]:
+        """Provides a set of all ancestors of a node.
+
+        An ancestor is a non-direct predecessor of a node, i.e., a node that can be reached
+        from the given node by following the edges in the graph in reverse direction.
+
+        Args:
+            node: The node to start
+
+        Returns:
+            A set of all ancestors of the node
+        """
+        return nx.ancestors(self._graph, node)
+
     def get_successors(self, node: ProgramNode) -> set[ProgramNode]:
         """Provides a set of all direct successors of a node.
 
@@ -327,6 +345,20 @@ class ProgramGraph:
             A set of direct successors of the node
         """
         return set(self._graph.successors(node))
+
+    def get_descendants(self, node: ProgramNode) -> set[ProgramNode]:
+        """Provides a set of all descendants of a node.
+
+        A descendant is a non-direct successor of a node, i.e., a node that can be reached
+        from the given node by following the edges in the graph.
+
+        Args:
+            node: The node to start
+
+        Returns:
+            A set of all descendants of the node
+        """
+        return nx.descendants(self._graph, node)
 
     @property
     def nodes(self) -> set[ProgramNode]:
@@ -390,7 +422,7 @@ class ProgramGraph:
         """
         exit_nodes: set[ProgramNode] = set()
         for node in self._graph.nodes:
-            if len(self.get_successors(node)) == 0:
+            if self._graph.out_degree(node) == 0:
                 exit_nodes.add(node)
         return exit_nodes
 
@@ -459,8 +491,8 @@ def filter_dead_code_nodes(graph: G, entry_node: ProgramNode) -> G:
         for node in graph.nodes:
             if node != entry_node and not graph.get_predecessors(node):
                 # The only node in the graph that is allowed to have no predecessor
-                # is the entry node, i.e., the node with index 0.  All other nodes
-                # without predecessors are considered dead code and thus removed.
+                # is the entry node. All other nodes without predecessors are considered
+                # dead code and thus removed.
                 graph.graph.remove_node(node)
                 has_changed = True
     return graph
@@ -510,16 +542,12 @@ class CFG(ProgramGraph):
         # Insert all edges between the previously generated nodes
         CFG._create_graph(cfg, edges, nodes)
 
-        # Filter all dead-code nodes
-        entry_node = cfg.get_basic_block_node(0)
-        assert entry_node is not None, "There has to be a node with index 0 in the CFG."
-        cfg = filter_dead_code_nodes(cfg, entry_node)
-
-        # Insert dummy exit and entry nodes
-        CFG._insert_dummy_exit_node(cfg)
+        # Insert dummy entry and exit nodes
         CFG._insert_dummy_entry_node(cfg)
+        CFG._insert_dummy_exit_node(cfg)
 
-        return cfg
+        # Filter all dead-code nodes and return
+        return filter_dead_code_nodes(cfg, ArtificialNode.ENTRY)
 
     @property
     def bytecode_cfg(self) -> ControlFlowGraph:
@@ -758,7 +786,7 @@ class ControlDependenceGraph(ProgramGraph):
             # branching node leads to this node.
             (source, target, attr)
             for source, target, attr in augmented_cfg.graph.edges(data=True)
-            if target not in nx.ancestors(post_dominator_tree.graph, source)
+            if target not in post_dominator_tree.get_ancestors(source)
         )
 
         # Mark nodes in the post-dominator tree and construct edges for them.
@@ -784,11 +812,27 @@ class ControlDependenceGraph(ProgramGraph):
                 )
                 current = predecessors.pop()
 
-        # Remove dummy exit and entry nodes
+        # Remove dummy entry and exit nodes
         cdg.graph.remove_node(ArtificialNode.ENTRY)
         cdg.graph.remove_node(ArtificialNode.EXIT)
 
         return cdg
+
+    def get_dominator_loops(self, node: BasicBlockNode) -> set[BasicBlockNode]:
+        """Provides the set of loops that dominate the given node.
+
+        Args:
+            node: The node to check
+
+        Returns:
+            The set of loops that dominate the given node
+        """
+        dominators = self.get_ancestors(node)
+        return {
+            node
+            for node in self.graph.nodes
+            if isinstance(node, BasicBlockNode) and self.graph.has_edge(node, node) and dominators
+        }
 
     def get_control_dependencies(self, node: ProgramNode) -> OrderedSet[ControlDependency]:
         """Get the immediate control dependencies of this node.

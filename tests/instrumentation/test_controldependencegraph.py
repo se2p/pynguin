@@ -124,9 +124,7 @@ def test_get_control_dependencies(node_index, expected_deps, subject_properties:
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(small_fixture.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
-
     node = cdg.get_basic_block_node(node_index)
-    assert node is not None
 
     nodes_predicates = {
         meta_data.node: predicate_id
@@ -166,7 +164,22 @@ def long_fixture(x, y):  # pragma: no cover
     return 9
 
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 12):
+    test_is_control_dependent_on_root_params = [
+        pytest.param(0, True),
+        pytest.param(1, False),
+        pytest.param(2, True),
+        pytest.param(3, True),
+        pytest.param(4, True),
+        pytest.param(5, False),
+        pytest.param(6, False),
+        pytest.param(7, True),
+        pytest.param(8, True),
+        pytest.param(9, False),
+        pytest.param(10, False),
+        pytest.param(11, True),
+    ]
+elif sys.version_info >= (3, 11):
     test_is_control_dependent_on_root_params = [
         pytest.param(0, True),
         pytest.param(1, False),
@@ -208,9 +221,7 @@ def test_is_control_dependent_on_root(
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(long_fixture.__code__)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
-
     node = cdg.get_basic_block_node(node_index)
-    assert node is not None
 
     dependant = cdg.is_control_dependent_on_root(
         node,

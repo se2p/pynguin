@@ -4,6 +4,8 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import sys
+
 from opcode import opmap
 from unittest.mock import MagicMock
 
@@ -117,9 +119,14 @@ def test_get_predecessors(graph, node, second_node):
     assert result == {node}
 
 
+if sys.version_info >= (3, 12):
+    yield_instr = Instr(name="YIELD_VALUE", arg=0)
+else:
+    yield_instr = Instr(name="YIELD_VALUE")
+
+
 def test_yield_nodes():
     graph = ProgramGraph()
-    yield_instr = Instr(name="YIELD_VALUE")
     yield_instr.opcode = opmap["YIELD_VALUE"]
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
@@ -132,14 +139,13 @@ def test_yield_nodes():
 def test_yield_nodes_2():
     graph = ProgramGraph()
 
-    yield_instr = Instr(name="YIELD_VALUE")
     yield_instr.opcode = opmap["YIELD_VALUE"]
     instructions = [yield_instr]
     basic_block = BasicBlock(instructions=instructions)
     node = BasicBlockNode(index=42, basic_block=basic_block)
     graph.add_node(node)
 
-    yield_instr_2 = Instr(name="YIELD_VALUE")
+    yield_instr_2 = yield_instr.copy()
     yield_instr_2.opcode = opmap["YIELD_VALUE"]
     instructions_2 = [yield_instr_2]
     basic_block_2 = BasicBlock(instructions=instructions_2)

@@ -20,7 +20,19 @@ from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
 
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 12):
+    add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        TracedInstr("PUSH_NULL"),
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("MAKE_FUNCTION", arg=0),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("CALL", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
+elif sys.version_info >= (3, 11):
     add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     create_foo_class = (
         TracedInstr("PUSH_NULL"),
@@ -32,6 +44,10 @@ if sys.version_info >= (3, 11):
         TracedInstr("CALL", arg=2),
     )
     pop_jump_if_false = "POP_JUMP_FORWARD_IF_FALSE"
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 else:
     add_instr = TracedInstr("BINARY_ADD")
     create_foo_class = (
@@ -43,6 +59,10 @@ else:
         TracedInstr("CALL_FUNCTION", arg=2),
     )
     pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 
 
 def test_data_dependency_1():
@@ -112,6 +132,13 @@ def test_data_dependency_3():
 
 def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
+    if sys.version_info >= (3, 12):
+        attr1 = (False, "attr1")
+        attr2 = (False, "attr2")
+    else:
+        attr1 = "attr1"
+        attr2 = "attr2"
+
     expected_instructions = [
         # class Foo:
         *create_foo_class,
@@ -119,8 +146,7 @@ def test_data_dependency_4():
         TracedInstr("LOAD_CONST", arg=(1, 2, 3)),
         TracedInstr("LIST_EXTEND", arg=1),
         TracedInstr("STORE_NAME", arg="attr2"),
-        TracedInstr("LOAD_CONST", arg=None),
-        TracedInstr("RETURN_VALUE"),
+        *return_none,
         TracedInstr("STORE_NAME", arg="Foo"),
         # ob.attr1 = 1
         TracedInstr("LOAD_CONST", arg=1),
@@ -128,16 +154,16 @@ def test_data_dependency_4():
         TracedInstr("STORE_ATTR", arg="attr1"),
         # ob.attr2 = ob.attr2 + [ob.attr1]
         TracedInstr("LOAD_FAST", arg="ob"),
-        TracedInstr("LOAD_ATTR", arg="attr2"),
+        TracedInstr("LOAD_ATTR", arg=attr2),
         TracedInstr("LOAD_FAST", arg="ob"),
-        TracedInstr("LOAD_ATTR", arg="attr1"),
+        TracedInstr("LOAD_ATTR", arg=attr1),
         TracedInstr("BUILD_LIST", arg=1),
         add_instr,
         TracedInstr("LOAD_FAST", arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr2"),
         # result = ob.attr2
         TracedInstr("LOAD_FAST", arg="ob"),
-        TracedInstr("LOAD_ATTR", arg="attr2"),
+        TracedInstr("LOAD_ATTR", arg=attr2),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
@@ -151,7 +177,13 @@ def test_data_dependency_4():
 
 def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        instantiate_foo_class = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "Foo")),
+            TracedInstr("CALL", arg=0),
+            TracedInstr("STORE_FAST", arg="ob"),
+        )
+    elif sys.version_info >= (3, 11):
         instantiate_foo_class = (
             TracedInstr("LOAD_GLOBAL", arg=(True, "Foo")),
             TracedInstr("PRECALL", arg=0),
@@ -168,8 +200,7 @@ def test_data_dependency_5():
     expected_instructions = [
         # class Foo:
         *create_foo_class,
-        TracedInstr("LOAD_CONST", arg=None),
-        TracedInstr("RETURN_VALUE"),
+        *return_none,
         TracedInstr("STORE_NAME", arg="Foo"),
         # ob = Foo()
         *instantiate_foo_class,
@@ -266,7 +297,9 @@ def test_simple_control_dependency_3():
 
         return result
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        jump_instruction = ()
+    elif sys.version_info >= (3, 11):
         jump_instruction = (
             TracedInstr(
                 "JUMP_FORWARD",

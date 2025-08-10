@@ -25,7 +25,7 @@ import pynguin.configuration as config
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.version import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version import EXCLUDED_DOMINANT_NAMES
+from pynguin.instrumentation.version import EXCLUDED_DOMINATOR_NAMES
 from pynguin.instrumentation.version import IMPORT_FROM_NAMES
 from pynguin.instrumentation.version import IMPORT_NAME_NAMES
 from pynguin.instrumentation.version import LOAD_DEREF_NAMES
@@ -456,23 +456,34 @@ class DynamicSlicer:
         code_object = self._known_code_objects[instr.code_object_id]
         cdg = code_object.cdg
         node = cdg.get_basic_block_node(instr.node_id)
-        assert node is not None, "Invalid node id"
 
-        # The dominated nodes in the control-dependence graph (CDG) are the nodes that are
-        # control dependent on the current instruction. They are the successors of the current
-        # node in the CDG.
-        dominated_nodes = cdg.get_successors(node)
+        # The descendants of the current node in the control-dependence graph (CDG) are the
+        # dominated nodes which are control dependent on the current instruction. The jumps
+        # used to make loops must be handled separately because they must only be dominated
+        # by the loops to which they are attached and this is not necessarily reflected in
+        # the CDG.
+        dominated_nodes = cdg.get_descendants(node)
+        dominator_loops = cdg.get_dominator_loops(node)
         dominated_instr_ctrl_deps = {
             instr
             for instr in context.instr_ctrl_deps
-            if cdg.get_basic_block_node(instr.node_id) in dominated_nodes
+            if (
+                dominated_node := self._known_code_objects[
+                    instr.code_object_id
+                ].cdg.get_basic_block_node(instr.node_id)
+            )
+            in dominated_nodes
+            and (
+                not instr.has_jump()
+                or code_object.cfg.get_successors(dominated_node).isdisjoint(dominator_loops)
+            )
         }
         context.instr_ctrl_deps = context.instr_ctrl_deps.difference(dominated_instr_ctrl_deps)
         control_dependency = bool(dominated_instr_ctrl_deps)
 
         if control_dependency:
             self._logger.debug(
-                "CONTROL DEPENDENCIES (DOMINANT): Remove %d dominated instructions",
+                "CONTROL DEPENDENCIES (DOMINATOR): Remove %d dominated instructions",
                 len(dominated_instr_ctrl_deps),
             )
 
@@ -492,17 +503,15 @@ class DynamicSlicer:
         code_object = self._known_code_objects[instr.code_object_id]
         cdg = code_object.cdg
         node = cdg.get_basic_block_node(instr.node_id)
-        assert node is not None, "Invalid node id"
 
-        # The dominant nodes in the control-dependence graph (CDG) are the nodes on which
-        # the current instruction is control dependent. They are the predecessors of the
-        # current node in the CDG.
-        dominant_nodes = cdg.get_predecessors(node)
+        # The ancestors of the current node in the control-dependence graph (CDG) are the
+        # dominator nodes on which the current instruction is control dependent.
+        dominator_nodes = cdg.get_ancestors(node)
         if any(
-            isinstance(dominant_node, BasicBlockNode)
-            and (dominant_instr := dominant_node.try_get_instruction(-1)) is not None
-            and dominant_instr.name not in EXCLUDED_DOMINANT_NAMES
-            for dominant_node in dominant_nodes
+            isinstance(dominator_node, BasicBlockNode)
+            and (dominator_instr := dominator_node.try_get_instruction(-1)) is not None
+            and dominator_instr.name not in EXCLUDED_DOMINATOR_NAMES
+            for dominator_node in dominator_nodes
         ):
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", instr)
             context.instr_ctrl_deps.add(instr)

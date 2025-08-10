@@ -1432,7 +1432,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         if arg_type in immutable_types:
             mutable_type = False
 
-        is_method = arg_type is MethodType
+        is_method = arg_type is MethodType or arg_type is BuiltinMethodType
 
         self._thread_local_state.trace.add_attribute_instruction(
             module,

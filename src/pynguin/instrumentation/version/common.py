@@ -22,6 +22,7 @@ from typing import TypeAlias
 if TYPE_CHECKING:
     from bytecode.instr import _UNSET
     from bytecode.instr import Instr
+    from bytecode.instr import InstrArg
 
     from pynguin.instrumentation import PynguinCompare
     from pynguin.instrumentation import controlflow as cf
@@ -55,6 +56,12 @@ class InstrumentationSetupAction(enum.IntEnum):
 
     COPY_SECOND_SHIFT_DOWN_THREE = enum.auto()
     """The second element of the stack is copied, and is shifted down three times."""
+
+    COPY_THIRD_SHIFT_DOWN_THREE = enum.auto()
+    """The third element of the stack is copied, and is shifted down three times."""
+
+    COPY_THIRD_SHIFT_DOWN_FOUR = enum.auto()
+    """The third element of the stack is copied, and is shifted down four times."""
 
     COPY_FIRST_TWO = enum.auto()
     """The first two elements of the stack are copied."""
@@ -327,3 +334,26 @@ def override(index: int) -> slice[int, int]:
         A slice for overriding an instruction at the given index.
     """
     return slice(index, index + 1)
+
+
+def extract_name(arg: InstrArg) -> str | None:
+    """Extract the name from an instruction argument.
+
+    Starting with Python 3.11, some instructions use a tuple as argument. However, we
+    sometimes just need the name part of the argument. This function handles both cases.
+    If the argument is a str, it returns it directly. If it is a tuple, it returns the
+    second element of the tuple, which is expected to be the name.
+
+    Args:
+        arg: The argument from which to extract the name.
+
+    Returns:
+        The name extracted from the instruction, or None if the argument is not a string or tuple.
+    """
+    match arg:
+        case str(name):
+            return name
+        case (bool(), str(name)):
+            return name
+        case _:
+            return None

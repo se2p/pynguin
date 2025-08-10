@@ -90,7 +90,15 @@ def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: l
                         f"Expected BasicBlock argument at index {i} but got "
                         f"{current_instr.arg}\n{general_exception_message}"
                     )
+
                     current_block_instr = current_instr.arg[0]
+                    if isinstance(current_block_instr, TryEnd):
+                        assert name == "TRY_END", (
+                            f"Expected TRY_END instruction at index {i} but got "
+                            f"{current_block_instr}\n{general_exception_message}"
+                        )
+                        return
+
                     assert isinstance(current_block_instr, Instr)
                     assert current_block_instr.name == name, (
                         f"Expected {name} first instruction at index {i} but got "

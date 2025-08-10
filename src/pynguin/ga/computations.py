@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 
+from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.version import end_with_explicit_return_none
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 
@@ -871,10 +871,10 @@ def _cleanse_included_implicit_return_none(
 ):
     # check if the last included instructions before the store
     # are a explicit "return None"
-    if end_with_explicit_return_none(statement_slice[:-1]):
+    if version.end_with_explicit_return_none(statement_slice[:-1]):
         statement_checked_lines.remove(
             DynamicSlicer.get_line_id_by_instruction(
-                statement_slice[-3],
+                statement_slice[-version.RETURN_NONE_SIZE - 1],
                 subject_properties,
             )
         )

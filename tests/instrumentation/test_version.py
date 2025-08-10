@@ -9,8 +9,6 @@ import dis
 import sys
 
 from itertools import starmap
-from opcode import HAVE_ARGUMENT
-from opcode import opmap
 from unittest.mock import MagicMock
 
 import pytest
@@ -25,24 +23,34 @@ from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
 
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 12):
+    from pynguin.instrumentation.version.python3_12 import (
+        Python312InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
+    )
+elif sys.version_info >= (3, 11):
     from pynguin.instrumentation.version.python3_11 import (
         Python311InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
     )
-elif sys.version_info >= (3, 10):  # noqa: UP036
+else:
     from pynguin.instrumentation.version.python3_10 import (
         Python310InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
     )
+
+if sys.version_info >= (3, 12):
+    has_arg = {op for op in dis.hasarg if dis.opname[op] != "INSTRUMENTED_LINE"}
+    no_arg = {
+        op
+        for op in dis.opmap.values()
+        if op not in has_arg and dis.opname[op] != "INSTRUMENTED_LINE"
+    }
 else:
-    raise ImportError(
-        "This module requires Python 3.10 or higher. "
-        "Please upgrade your Python version to use this feature."
-    )
+    has_arg = {op for op in dis.opmap.values() if op >= dis.HAVE_ARGUMENT}
+    no_arg = {op for op in dis.opmap.values() if op < dis.HAVE_ARGUMENT}
 
 
 @pytest.mark.parametrize(
     "op",
-    [pytest.param(op) for op in opmap.values() if op < HAVE_ARGUMENT],
+    [pytest.param(op) for op in no_arg],
 )
 def test_argument_less_opcodes(op):
     """Test argument less opcode stack effects."""
@@ -57,8 +65,8 @@ def test_argument_less_opcodes(op):
 def _conditional_combinations() -> list[tuple[int, int, bool]]:
     """Create a list of all combinations to call a conditional opcode's stack effect."""
     combinations: list[tuple[int, int, bool]] = []
-    for op in opmap.values():
-        if op <= HAVE_ARGUMENT:
+    for op in dis.opmap.values():
+        if op not in has_arg:
             continue
         for arg in range(5):
             combinations.extend(((op, arg, True), (op, arg, False)))
@@ -116,7 +124,8 @@ def test_convert_instrumentation_method_call_with_constant():
 
 def test_convert_instrumentation_method_call_with_stack_argument():
     def foo():
-        return 24
+        a = 24
+        return a  # noqa: RET504
 
     called = False
 

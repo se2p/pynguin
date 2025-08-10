@@ -89,12 +89,12 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         instr: Instr,
         instr_index: int,
     ) -> None:
-        """Instrument the for-loops using the NOP nodes added in the CFG.
+        """Instrument the for-loops.
 
-        When breaks or returns are used in for-loops, the control flow jumps to the
-        exit nodes without making the for-loops yield new values. We do not
-        want to trigger the tracer in these cases because it would hide the cases where
-        the for-loop actually did not finish iterating.
+        We want to instrument each iteration of the for-loop as well as its natural exit.
+        The natural exit is when the for-loop ends because there is nothing left to yield.
+        Therefore, it is important to be careful not to trigger the tracer if the loop is exited
+        by a break or return statement, as this would prevent us from tracing the natural exits.
 
         Since Python is a structured programming language, there can be no jumps
         directly into the loop that bypass the loop header (e.g., GOTO).
@@ -106,6 +106,26 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
             instr: The instruction that is the for-loop header.
+            instr_index: The index of the instruction in the basic block.
+        """
+
+    def visit_none_based_conditional_jump(
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+    ) -> None:
+        """Instrument none-based conditional jumps.
+
+        It is only used in Python 3.11 and later versions.
+
+        Args:
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The instruction that is the comparison operation.
             instr_index: The index of the instruction in the basic block.
         """
 
@@ -331,6 +351,28 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         instr_original_index: int,
     ) -> None:
         """Instrument subscription accesses.
+
+        Args:
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The instruction to be instrumented.
+            instr_index: The index of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
+        """
+
+    def visit_slice_access(  # noqa: PLR0917
+        self,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_original_index: int,
+    ) -> None:
+        """Instrument slice accesses.
+
+        It is only used in Python 3.12 and later versions.
 
         Args:
             cfg: The control flow graph.

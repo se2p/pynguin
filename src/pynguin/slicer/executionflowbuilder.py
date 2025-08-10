@@ -334,10 +334,7 @@ class ExecutionFlowBuilder:
         self, code_object_id: int, node_id: int
     ) -> tuple[BasicBlockNode, CodeObjectMetaData]:
         code_meta = self._known_code_objects[code_object_id]
-
         node = code_meta.original_cfg.get_basic_block_node(node_id)
-        assert node, "Invalid basic block node id"
-
         return node, code_meta
 
     def _create_unique_instruction(  # noqa: PLR0917

@@ -35,7 +35,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINANT_NAMES",
+    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -49,6 +49,7 @@ __all__ = [
     "MODIFY_GLOBAL_NAMES",
     "MODIFY_NAME_NAMES",
     "RETURNING_NAMES",
+    "RETURN_NONE_SIZE",
     "STORE_NAMES",
     "STORE_NAME_NAMES",
     "TRACED_NAMES",
@@ -190,6 +191,7 @@ LineCoverageInstrumentation: type[LineCoverageInstrumentationAdapter]
 CheckedCoverageInstrumentation: type[CheckedCoverageInstrumentationAdapter]
 DynamicSeedingInstrumentation: type[DynamicSeedingInstrumentationAdapter]
 
+RETURN_NONE_SIZE: int
 
 LOAD_FAST_NAMES: tuple[str, ...]
 MODIFY_FAST_NAMES: tuple[str, ...]
@@ -209,7 +211,7 @@ CLOSURE_LOAD_NAMES: tuple[str, ...]
 IMPORT_NAME_NAMES: tuple[str, ...]
 IMPORT_FROM_NAMES: tuple[str, ...]
 
-EXCLUDED_DOMINANT_NAMES: tuple[str, ...]
+EXCLUDED_DOMINATOR_NAMES: tuple[str, ...]
 CALL_NAMES: tuple[str, ...]
 YIELDING_NAMES: tuple[str, ...]
 RETURNING_NAMES: tuple[str, ...]
@@ -221,8 +223,9 @@ TRACED_NAMES: tuple[str, ...]
 MEMORY_USE_NAMES: tuple[str, ...]
 MEMORY_DEF_NAMES: tuple[str, ...]
 
-
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 12):
+    from .python3_12 import *  # noqa: F403
+elif sys.version_info >= (3, 11):
     from .python3_11 import *  # noqa: F403
 elif sys.version_info >= (3, 10):  # noqa: UP036
     from .python3_10 import *  # noqa: F403

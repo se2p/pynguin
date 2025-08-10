@@ -52,6 +52,7 @@ from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
+from pynguin.instrumentation.version.common import extract_name
 from pynguin.instrumentation.version.common import override
 
 
@@ -65,7 +66,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINANT_NAMES",
+    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -79,6 +80,7 @@ __all__ = [
     "MODIFY_GLOBAL_NAMES",
     "MODIFY_NAME_NAMES",
     "RETURNING_NAMES",
+    "RETURN_NONE_SIZE",
     "STORE_NAMES",
     "STORE_NAME_NAMES",
     "TRACED_NAMES",
@@ -158,7 +160,7 @@ ACCESS_SUBSCR_NAMES = STORE_SUBSCR_NAMES + BINARY_SUBSCR_NAMES + ("DELETE_SUBSCR
 
 
 # Remaining opcodes
-EXCLUDED_DOMINANT_NAMES = ()
+EXCLUDED_DOMINATOR_NAMES = ()
 
 LOAD_METHOD_NAMES = ("LOAD_METHOD",)
 
@@ -335,6 +337,9 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
         case _:
             # Not a conditional jump or a for loop instruction
             return None
+
+
+RETURN_NONE_SIZE: int = 2
 
 
 def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noqa: D103
@@ -558,7 +563,7 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
     """Generates instrumentation instructions for Python 3.10."""
 
     @classmethod
-    def generate_setup_instructions(
+    def generate_setup_instructions(  # noqa: C901
         cls,
         setup_action: InstrumentationSetupAction,
         lineno: int | _UNSET | None,
@@ -592,6 +597,16 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                     cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
                     cf.ArtificialInstr("ROT_TWO", lineno=lineno),
                 )
+            case InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_THREE:
+                return (
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                    cf.ArtificialInstr("ROT_THREE", lineno=lineno),
+                    cf.ArtificialInstr("DUP_TOP", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                    cf.ArtificialInstr("ROT_FOUR", lineno=lineno),
+                )
+            case InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_FOUR:
+                raise ValueError("COPY_THIRD_SHIFT_DOWN_FOUR cannot be implemented in Python 3.10")
             case InstrumentationSetupAction.COPY_FIRST_TWO:
                 return (cf.ArtificialInstr("DUP_TOP_TWO", lineno=lineno),)
             case InstrumentationSetupAction.ADD_FIRST_TWO:
@@ -885,11 +900,27 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         )
 
         for_loop_body = node.basic_block.next_block
-        for_loop_no_yield = instr.arg
+        for_loop_natural_exit = instr.arg
 
         assert isinstance(for_loop_body, BasicBlock)
-        assert isinstance(for_loop_no_yield, BasicBlock)
+        assert isinstance(for_loop_natural_exit, BasicBlock)
 
+        self.visit_for_loop_body(for_loop_body, predicate_id, lineno)
+        self.visit_for_loop_natural_exit(for_loop_natural_exit, predicate_id, lineno)
+
+    def visit_for_loop_body(
+        self,
+        for_loop_body: cf.BasicBlock,
+        predicate_id: int,
+        lineno: int | _UNSET | None,
+    ) -> None:
+        """Instrument the body of a for-loop.
+
+        Args:
+            for_loop_body: The basic block representing the body of the for-loop.
+            predicate_id: The ID of the predicate to be registered.
+            lineno: The line number of the first instruction in the for-loop body.
+        """
         # Insert a call to the tracer before the for-loop body.
         for_loop_body[before(0)] = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
@@ -904,8 +935,21 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             lineno,
         )
 
-        # Insert a call to the tracer before the NOP instruction.
-        for_loop_no_yield[before(0)] = self.instructions_generator.generate_instructions(
+    def visit_for_loop_natural_exit(
+        self,
+        for_loop_natural_exit: cf.BasicBlock,
+        predicate_id: int,
+        lineno: int | _UNSET | None,
+    ) -> None:
+        """Instrument the natural exit of a for-loop.
+
+        Args:
+            for_loop_natural_exit: The basic block representing the natural exit of the for-loop.
+            predicate_id: The ID of the predicate to be registered.
+            lineno: The line number of the first instruction in the for-loop without yielding.
+        """
+        # Insert a call to the tracer before the NOP instruction that we added in the transformer.
+        for_loop_natural_exit[before(0)] = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
@@ -1430,6 +1474,9 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_original_index: int,
     ) -> None:
+        name = extract_name(instr.arg)
+        assert name is not None, "Global access must have a name."
+
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
@@ -1442,8 +1489,8 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=instr.opcode),
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
-                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    InstrumentationGlobalLoad(name=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationConstantLoad(value=name),
+                    InstrumentationGlobalLoad(name=name),
                 ),
             ),
             instr.lineno,
@@ -1467,7 +1514,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
         instr_index: int,
         instr_original_index: int,
     ) -> None:
-        value = (
+        value_instruction = (
             InstrumentationClassDeref(name=instr.arg)  # type: ignore[arg-type]
             if instr.name == "LOAD_CLASSDEREF"
             else InstrumentationDeref(name=instr.arg)  # type: ignore[arg-type]
@@ -1486,7 +1533,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    value,
+                    value_instruction,
                 ),
             ),
             instr.lineno,
@@ -1632,6 +1679,17 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
     ):
         self._dynamic_constant_provider = dynamic_constant_provider
 
+    def extract_method_name(self, instr: Instr) -> str | None:
+        """Extract the method name from the instruction.
+
+        Args:
+            instr: The instruction to extract the method name from.
+
+        Returns:
+            The method name if it is a call method instruction, None otherwise.
+        """
+        return extract_name(instr.arg) if instr.name == "LOAD_METHOD" else None
+
     def visit_node(  # noqa: D102
         self,
         cfg: cf.CFG,
@@ -1660,9 +1718,8 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
         if (
             isinstance(maybe_string_func, Instr)
-            and maybe_string_func.name == "LOAD_METHOD"
-            and isinstance(maybe_string_func.arg, str)
-            and maybe_string_func.arg in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
+            and (method_name := self.extract_method_name(maybe_string_func)) is not None
+            and method_name in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
             self.visit_string_function_without_arg(
                 cfg,
@@ -1678,10 +1735,9 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
         if (
             isinstance(maybe_string_func_with_arg, Instr)
-            and maybe_string_func_with_arg.name == "LOAD_METHOD"
-            and isinstance(maybe_string_func_with_arg.arg, str)
+            and (method_name := self.extract_method_name(maybe_string_func_with_arg)) is not None
         ):
-            match maybe_string_func_with_arg.arg:
+            match method_name:
                 case "startswith":
                     self.visit_startswith_function(
                         cfg,
@@ -1746,7 +1802,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                     DynamicConstantProvider.add_value_for_strings.__name__,
                     (
                         InstrumentationStackValue.FIRST,
-                        InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                        InstrumentationConstantLoad(value=self.extract_method_name(instr)),
                     ),
                 ),
                 instr.lineno,

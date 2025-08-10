@@ -23,18 +23,36 @@ from tests.slicer.util import slice_function_at_return_with_result
 from tests.slicer.util import slice_module_at_return
 
 
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 12):
+    inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
+    binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    jump_backward_absolute = "JUMP_BACKWARD"
+    pop_jump_forward_if_true = "POP_JUMP_IF_TRUE"
+    pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
+    end_for = TracedInstr("END_FOR")
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
+elif sys.version_info >= (3, 11):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     jump_backward_absolute = "JUMP_BACKWARD"
     pop_jump_forward_if_true = "POP_JUMP_FORWARD_IF_TRUE"
     pop_jump_forward_if_false = "POP_JUMP_FORWARD_IF_FALSE"
+    end_for = TracedInstr("NOP")
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 else:
     inplace_add_instruction = TracedInstr("INPLACE_ADD")
     binary_add_instruction = TracedInstr("BINARY_ADD")
     jump_backward_absolute = "JUMP_ABSOLUTE"
     pop_jump_forward_if_true = "POP_JUMP_IF_TRUE"
     pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
+    end_for = TracedInstr("NOP")
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 
 
 def test_simple_loop():
@@ -44,7 +62,14 @@ def test_simple_loop():
             result += i
         return result
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        range_call = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("LOAD_CONST", arg=3),
+            TracedInstr("CALL", arg=2),
+        )
+    elif sys.version_info >= (3, 11):
         range_call = (
             TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
             TracedInstr("LOAD_CONST", arg=0),
@@ -70,7 +95,7 @@ def test_simple_loop():
         TracedInstr(
             "FOR_ITER",
             # the first instruction of the return block
-            arg=TracedInstr("NOP"),
+            arg=end_for,
         ),
         TracedInstr("STORE_FAST", arg="i"),
         # result += i
@@ -81,7 +106,7 @@ def test_simple_loop():
         TracedInstr(
             jump_backward_absolute,
             # the loop header
-            arg=TracedInstr("FOR_ITER", arg=TracedInstr("NOP")),
+            arg=TracedInstr("FOR_ITER", arg=end_for),
         ),
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
@@ -93,7 +118,17 @@ def test_simple_loop():
 
 
 def test_call_without_arguments():
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("CALL", arg=0),
+        )
+        return_zero = (TracedInstr("RETURN_CONST", arg=0),)
+    elif sys.version_info >= (3, 11):
         create_callee = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=0),
@@ -102,6 +137,10 @@ def test_call_without_arguments():
             TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
             TracedInstr("PRECALL", arg=0),
             TracedInstr("CALL", arg=0),
+        )
+        return_zero = (
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("RETURN_VALUE"),
         )
     else:
         create_callee = (
@@ -113,6 +152,10 @@ def test_call_without_arguments():
             TracedInstr("LOAD_GLOBAL", arg="callee"),
             TracedInstr("CALL_FUNCTION", arg=0),
         )
+        return_zero = (
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("RETURN_VALUE"),
+        )
 
     expected_instructions = [
         # def callee():
@@ -121,8 +164,7 @@ def test_call_without_arguments():
         # ... = callee()
         *call_callee,
         # return 0
-        TracedInstr("LOAD_CONST", arg=0),
-        TracedInstr("RETURN_VALUE"),
+        *return_zero,
         # result = ...
         TracedInstr("STORE_FAST", arg="result"),
         # return result
@@ -137,7 +179,18 @@ def test_call_without_arguments():
 
 def test_call_with_arguments():
     # Call with two arguments, one of which is used in the callee
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+            TracedInstr("CALL", arg=2),
+        )
+    elif sys.version_info >= (3, 11):
         create_callee = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=4),
@@ -196,7 +249,35 @@ def test_call_with_arguments():
 
 def test_generators():
     # YIELD_VALUE and YIELD_FROM
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_abc_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        create_abc_xyz_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_abc_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        call_abc_xyz_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_xyz_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        yield_from = ()
+        send = (
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr(
+                "SEND",
+                # the first instruction of the send target block
+                arg=TracedInstr("TRY_END"),
+            ),
+            TracedInstr("YIELD_VALUE"),
+        )
+        yield_gen = TracedInstr("YIELD_VALUE", arg=1)
+    elif sys.version_info >= (3, 11):
         create_abc_generator = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=0),
@@ -225,6 +306,7 @@ def test_generators():
             ),
             TracedInstr("YIELD_VALUE"),
         )
+        yield_gen = TracedInstr("YIELD_VALUE")
     else:
         create_abc_generator = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
@@ -249,6 +331,7 @@ def test_generators():
             TracedInstr("YIELD_FROM"),
         )
         send = ()
+        yield_gen = TracedInstr("YIELD_VALUE")
 
     expected_instructions = [
         # def abc_generator():
@@ -269,7 +352,7 @@ def test_generators():
         TracedInstr(
             "FOR_ITER",
             # the first instruction of the return block
-            arg=TracedInstr("NOP"),
+            arg=end_for,
         ),
         # x = "x"
         TracedInstr("LOAD_CONST", arg="x"),
@@ -283,7 +366,7 @@ def test_generators():
         TracedInstr("STORE_FAST", arg="a"),
         # yield a
         TracedInstr("LOAD_FAST", arg="a"),
-        TracedInstr("YIELD_VALUE"),
+        yield_gen,
         *send,
         # for letter in ...:
         TracedInstr("STORE_FAST", arg="letter"),
@@ -305,7 +388,7 @@ def test_generators():
             arg=TracedInstr(
                 jump_backward_absolute,
                 # the loop header
-                arg=TracedInstr("FOR_ITER", arg=TracedInstr("NOP")),
+                arg=TracedInstr("FOR_ITER", arg=end_for),
             ),
         ),
         # result += letter
@@ -316,7 +399,7 @@ def test_generators():
         TracedInstr(
             jump_backward_absolute,
             # the loop header
-            arg=TracedInstr("FOR_ITER", arg=TracedInstr("NOP")),
+            arg=TracedInstr("FOR_ITER", arg=end_for),
         ),
         # yield x
         TracedInstr("LOAD_FAST", arg="x"),
@@ -325,7 +408,6 @@ def test_generators():
         TracedInstr("LOAD_FAST", arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
-
     module = "tests.fixtures.slicer.generator"
     sliced_instructions = slice_module_at_return(module)
     assert_slice_equal(sliced_instructions, expected_instructions)
@@ -380,8 +462,25 @@ def test_nested_class():
         return result  # noqa: RET504
 
     cellvar_x = CellVar("x")
+    freevar_x = FreeVar("x")
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+        )
+        load_class_deref = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x),
+        )
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+    elif sys.version_info >= (3, 11):
         create_nested_class = (
             TracedInstr("PUSH_NULL"),
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -393,6 +492,8 @@ def test_nested_class():
             TracedInstr("PRECALL", arg=2),
             TracedInstr("CALL", arg=2),
         )
+        load_class_deref = (TracedInstr("LOAD_CLASSDEREF", arg=freevar_x),)
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
     else:
         create_nested_class = (
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -404,22 +505,22 @@ def test_nested_class():
             TracedInstr("LOAD_CONST", arg="NestedClass"),
             TracedInstr("CALL_FUNCTION", arg=2),
         )
+        load_class_deref = (TracedInstr("LOAD_CLASSDEREF", arg=freevar_x),)
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
 
-    freevar_x = FreeVar("x")
     expected_instructions = [
         # x = []
         TracedInstr("BUILD_LIST", arg=0),
         TracedInstr("STORE_DEREF", arg=cellvar_x),
         # class NestedClass:
         *create_nested_class,
-        TracedInstr("LOAD_CLASSDEREF", arg=freevar_x),
+        *load_class_deref,
         TracedInstr("STORE_NAME", arg="y"),
-        TracedInstr("LOAD_CONST", arg=None),
-        TracedInstr("RETURN_VALUE"),
+        *return_none,
         TracedInstr("STORE_FAST", arg="NestedClass"),
         # class_attr = NestedClass.y
         TracedInstr("LOAD_FAST", arg="NestedClass"),
-        TracedInstr("LOAD_ATTR", arg="y"),
+        load_y,
         TracedInstr("STORE_FAST", arg="class_attr"),
         # result = class_attr
         TracedInstr("LOAD_FAST", arg="class_attr"),
@@ -462,7 +563,41 @@ def test_nested_class_2():
     cellvar_x1 = CellVar("x1")
     cellvar_x2 = CellVar("x2")
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_foo_class = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x1),
+            TracedInstr("STORE_NAME", arg="foo"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=freevar_x2),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x2),
+            TracedInstr("STORE_NAME", arg="y"),
+        )
+        create_bar_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x1),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x2),
+            TracedInstr("BUILD_TUPLE", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("CALL", arg=2),
+            *create_foo_class,
+            *return_none,
+            TracedInstr("STORE_NAME", arg="Foo"),
+        )
+        load_foo = TracedInstr("LOAD_ATTR", arg=(False, "foo"))
+        load_foo_class = TracedInstr("LOAD_ATTR", arg=(False, "Foo"))
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+    elif sys.version_info >= (3, 11):
         create_foo_class = (
             TracedInstr("LOAD_CLASSDEREF", arg=freevar_x1),
             TracedInstr("STORE_NAME", arg="foo"),
@@ -477,8 +612,6 @@ def test_nested_class_2():
             TracedInstr("CALL", arg=2),
             TracedInstr("LOAD_CLASSDEREF", arg=freevar_x2),
             TracedInstr("STORE_NAME", arg="y"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
         create_bar_class = (
             TracedInstr("PUSH_NULL"),
@@ -492,10 +625,12 @@ def test_nested_class_2():
             TracedInstr("PRECALL", arg=2),
             TracedInstr("CALL", arg=2),
             *create_foo_class,
+            *return_none,
             TracedInstr("STORE_NAME", arg="Foo"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
+        load_foo = TracedInstr("LOAD_ATTR", arg="foo")
+        load_foo_class = TracedInstr("LOAD_ATTR", arg="Foo")
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
     else:
         create_foo_class = (
             TracedInstr("LOAD_CLASSDEREF", arg=freevar_x1),
@@ -510,8 +645,6 @@ def test_nested_class_2():
             TracedInstr("CALL_FUNCTION", arg=2),
             TracedInstr("LOAD_CLASSDEREF", arg=freevar_x2),
             TracedInstr("STORE_NAME", arg="y"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
         create_bar_class = (
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -524,10 +657,12 @@ def test_nested_class_2():
             TracedInstr("LOAD_CONST", arg="Bar"),
             TracedInstr("CALL_FUNCTION", arg=2),
             *create_foo_class,
+            *return_none,
             TracedInstr("STORE_NAME", arg="Foo"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
+        load_foo = TracedInstr("LOAD_ATTR", arg="foo")
+        load_foo_class = TracedInstr("LOAD_ATTR", arg="Foo")
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
 
     expected_instructions = [
         # x1 = [1]
@@ -540,15 +675,16 @@ def test_nested_class_2():
         TracedInstr("STORE_DEREF", arg=cellvar_x2),
         # class Bar:
         *create_bar_class,
+        *return_none,
         TracedInstr("STORE_FAST", arg="Bar"),
         # class_attr = Bar.y
         TracedInstr("LOAD_FAST", arg="Bar"),
-        TracedInstr("LOAD_ATTR", arg="foo"),
+        load_foo,
         TracedInstr("STORE_FAST", arg="class_attr"),
         # class_attr2 = Bar.Foo.y
         TracedInstr("LOAD_FAST", arg="Bar"),
-        TracedInstr("LOAD_ATTR", arg="Foo"),
-        TracedInstr("LOAD_ATTR", arg="y"),
+        load_foo_class,
+        load_y,
         TracedInstr("STORE_FAST", arg="class_attr2"),
         # result = class_attr + class_attr2
         TracedInstr("LOAD_FAST", arg="class_attr"),
@@ -572,7 +708,18 @@ def test_lambda():
         result = x(1)
         return result  # noqa: RET504
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_lambda = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_lambda = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="x"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
         create_lambda = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=0),
@@ -627,7 +774,14 @@ def test_builtin_addresses():
         result = test_dict.get(1)
         return result  # noqa: RET504
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        call_get = (
+            TracedInstr("LOAD_FAST", arg="test_dict"),
+            TracedInstr("LOAD_ATTR", arg=(True, "get")),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
         call_get = (
             TracedInstr("LOAD_FAST", arg="test_dict"),
             TracedInstr("LOAD_METHOD", arg="get"),
@@ -664,7 +818,19 @@ def test_builtin_addresses():
 
 def test_data_dependency_immutable_attribute():
     # Explicit attribute dependency of immutable type
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_foo_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("STORE_NAME", arg="attr"),
+        )
+        load_attr = TracedInstr("LOAD_ATTR", arg=(False, "attr"))
+    elif sys.version_info >= (3, 11):
         create_foo_class = (
             TracedInstr("PUSH_NULL"),
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -675,9 +841,8 @@ def test_data_dependency_immutable_attribute():
             TracedInstr("CALL", arg=2),
             TracedInstr("LOAD_CONST", arg=1),
             TracedInstr("STORE_NAME", arg="attr"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
+        load_attr = TracedInstr("LOAD_ATTR", arg="attr")
     else:
         create_foo_class = (
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -688,16 +853,17 @@ def test_data_dependency_immutable_attribute():
             TracedInstr("CALL_FUNCTION", arg=2),
             TracedInstr("LOAD_CONST", arg=1),
             TracedInstr("STORE_NAME", arg="attr"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
+        load_attr = TracedInstr("LOAD_ATTR", arg="attr")
+
     expected_instructions = [
         # class Foo:
         *create_foo_class,
+        *return_none,
         TracedInstr("STORE_NAME", arg="Foo"),
         # result = ob.attr
         TracedInstr("LOAD_FAST", arg="ob"),
-        TracedInstr("LOAD_ATTR", arg="attr"),
+        load_attr,
         TracedInstr("STORE_FAST", arg="result"),
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
@@ -724,7 +890,30 @@ def test_object_modification_call():
         result = ob.x
         return result  # noqa: RET504
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("STORE_NAME", arg="inc_x"),
+        )
+        call_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("CALL", arg=0),
+        )
+        call_inc_x_method = (
+            TracedInstr("LOAD_FAST", arg="ob"),
+            TracedInstr("LOAD_ATTR", arg=(True, "inc_x")),
+            TracedInstr("CALL", arg=0),
+        )
+        load_x = TracedInstr("LOAD_ATTR", arg=(False, "x"))
+    elif sys.version_info >= (3, 11):
         create_nested_class = (
             TracedInstr("PUSH_NULL"),
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -736,8 +925,6 @@ def test_object_modification_call():
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=0),
             TracedInstr("STORE_NAME", arg="inc_x"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
         call_nested_class = (
             TracedInstr("PUSH_NULL"),
@@ -751,6 +938,7 @@ def test_object_modification_call():
             TracedInstr("PRECALL", arg=0),
             TracedInstr("CALL", arg=0),
         )
+        load_x = TracedInstr("LOAD_ATTR", arg="x")
     else:
         create_nested_class = (
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -774,8 +962,6 @@ def test_object_modification_call():
             ),
             TracedInstr("MAKE_FUNCTION", arg=0),
             TracedInstr("STORE_NAME", arg="inc_x"),
-            TracedInstr("LOAD_CONST", arg=None),
-            TracedInstr("RETURN_VALUE"),
         )
         call_nested_class = (
             TracedInstr("LOAD_FAST", arg="NestedClass"),
@@ -786,30 +972,31 @@ def test_object_modification_call():
             TracedInstr("LOAD_METHOD", arg="inc_x"),
             TracedInstr("CALL_METHOD", arg=0),
         )
+        load_x = TracedInstr("LOAD_ATTR", arg="x")
 
     expected_instructions = [
         # class NestedClass:
         *create_nested_class,
+        *return_none,
         TracedInstr("STORE_FAST", arg="NestedClass"),
         # ob = NestedClass()
         *call_nested_class,
         TracedInstr("LOAD_CONST", arg=1),
         TracedInstr("LOAD_FAST", arg="self"),
         TracedInstr("STORE_ATTR", arg="x"),
-        TracedInstr("LOAD_CONST", arg=None),
-        TracedInstr("RETURN_VALUE"),
+        *return_none,
         TracedInstr("STORE_FAST", arg="ob"),
         # ob.inc_x()
         *call_inc_x_method,
         TracedInstr("LOAD_FAST", arg="self"),
-        TracedInstr("LOAD_ATTR", arg="x"),
+        load_x,
         TracedInstr("LOAD_CONST", arg=1),
         binary_add_instruction,
         TracedInstr("LOAD_FAST", arg="self"),
         TracedInstr("STORE_ATTR", arg="x"),
         # result = ob.x
         TracedInstr("LOAD_FAST", arg="ob"),
-        TracedInstr("LOAD_ATTR", arg="x"),
+        load_x,
         TracedInstr("STORE_FAST", arg="result"),
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
@@ -826,7 +1013,29 @@ def test_closures():
     freevar_foo = FreeVar("foo")
     cellvar_foo = CellVar("foo")
 
-    if sys.version_info >= (3, 11):
+    if sys.version_info >= (3, 12):
+        create_outer_function = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_outer_function = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "outer_function")),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("CALL", arg=1),
+        )
+        create_inner_function = (
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_foo),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+        )
+        call_inner_function = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="inner"),
+            TracedInstr("LOAD_CONST", arg="abc"),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
         create_outer_function = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=0),

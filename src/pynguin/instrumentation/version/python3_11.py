@@ -54,6 +54,7 @@ from pynguin.instrumentation.version.python3_10 import MODIFY_DEREF_NAMES
 from pynguin.instrumentation.version.python3_10 import MODIFY_FAST_NAMES
 from pynguin.instrumentation.version.python3_10 import MODIFY_GLOBAL_NAMES
 from pynguin.instrumentation.version.python3_10 import MODIFY_NAME_NAMES
+from pynguin.instrumentation.version.python3_10 import RETURN_NONE_SIZE
 from pynguin.instrumentation.version.python3_10 import RETURNING_NAMES
 from pynguin.instrumentation.version.python3_10 import STORE_NAME_NAMES
 from pynguin.instrumentation.version.python3_10 import STORE_NAMES
@@ -67,7 +68,7 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINANT_NAMES",
+    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -81,6 +82,7 @@ __all__ = [
     "MODIFY_GLOBAL_NAMES",
     "MODIFY_NAME_NAMES",
     "RETURNING_NAMES",
+    "RETURN_NONE_SIZE",
     "STORE_NAMES",
     "STORE_NAME_NAMES",
     "TRACED_NAMES",
@@ -97,7 +99,7 @@ __all__ = [
 ]
 
 # Remaining opcodes
-EXCLUDED_DOMINANT_NAMES = ("SEND",)
+EXCLUDED_DOMINATOR_NAMES = ("SEND",)
 
 CALL_NAMES = (
     "CALL",
@@ -119,15 +121,11 @@ OPERATION_NAMES = (
     "BINARY_OP",
 )
 
-NONE_BASED_COND_BRANCH_NAMES = (
+COND_BRANCH_NAMES = (
     "POP_JUMP_FORWARD_IF_NOT_NONE",
     "POP_JUMP_BACKWARD_IF_NOT_NONE",
     "POP_JUMP_FORWARD_IF_NONE",
     "POP_JUMP_BACKWARD_IF_NONE",
-)
-
-COND_BRANCH_NAMES = (
-    *NONE_BASED_COND_BRANCH_NAMES,
     "POP_JUMP_FORWARD_IF_TRUE",
     "POP_JUMP_BACKWARD_IF_TRUE",
     "JUMP_IF_TRUE_OR_POP",
@@ -328,6 +326,20 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                     cf.ArtificialInstr("SWAP", 3, lineno=lineno),
                     cf.ArtificialInstr("SWAP", 2, lineno=lineno),
                 )
+            case InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_THREE:
+                return (
+                    cf.ArtificialInstr("COPY", 3, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 3, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 2, lineno=lineno),
+                )
+            case InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_FOUR:
+                return (
+                    cf.ArtificialInstr("COPY", 3, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 5, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 4, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 3, lineno=lineno),
+                    cf.ArtificialInstr("SWAP", 2, lineno=lineno),
+                )
             case InstrumentationSetupAction.ADD_FIRST_TWO:
                 return (
                     cf.ArtificialInstr("COPY", 2, lineno=lineno),
@@ -358,12 +370,6 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
             case InstrumentationNameLoad(name):
                 return cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
             case InstrumentationGlobalLoad(name):
-                # Starting with Python 3.11, LOAD_GLOBAL may load an extra NULL if a
-                # tuple (True, name) is passed as the argument. We do not need a NULL
-                # for our instrumentation, so we need to extract the name from the tuple
-                # if it is present.
-                if isinstance(name, tuple) and len(name) == 2:
-                    name = name[1]
                 return cf.ArtificialInstr("LOAD_GLOBAL", arg=(False, name), lineno=lineno)
             case InstrumentationDeref(name):
                 return cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
@@ -409,6 +415,8 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 | InstrumentationSetupAction.COPY_SECOND
                 | InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_TWO
                 | InstrumentationSetupAction.COPY_SECOND_SHIFT_DOWN_THREE
+                | InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_THREE
+                | InstrumentationSetupAction.COPY_THIRD_SHIFT_DOWN_FOUR
                 | InstrumentationSetupAction.ADD_FIRST_TWO
                 | InstrumentationSetupAction.ADD_FIRST_TWO_REVERSED
             ):
@@ -426,6 +434,13 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
     """Specialized instrumentation adapter for branch coverage in Python 3.11."""
 
     instructions_generator = Python311InstrumentationInstructionsGenerator
+
+    NONE_BASED_JUMPS_MAPPING: ClassVar[dict[str, PynguinCompare]] = {
+        "POP_JUMP_FORWARD_IF_NOT_NONE": PynguinCompare.IS_NOT,
+        "POP_JUMP_BACKWARD_IF_NOT_NONE": PynguinCompare.IS_NOT,
+        "POP_JUMP_FORWARD_IF_NONE": PynguinCompare.IS,
+        "POP_JUMP_BACKWARD_IF_NONE": PynguinCompare.IS,
+    }
 
     def visit_node(  # noqa: D102
         self,
@@ -449,8 +464,8 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             )
             return
 
-        if maybe_jump.name in NONE_BASED_COND_BRANCH_NAMES:
-            self.visit_compare_based_conditional_jump(
+        if maybe_jump.name in self.NONE_BASED_JUMPS_MAPPING:
+            self.visit_none_based_conditional_jump(
                 cfg,
                 code_object_id,
                 node,
@@ -494,7 +509,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             maybe_jump_index,
         )
 
-    def visit_compare_based_conditional_jump(  # noqa: D102
+    def visit_none_based_conditional_jump(  # noqa: D102
         self,
         cfg: cf.CFG,
         code_object_id: int,
@@ -502,21 +517,6 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         instr: Instr,
         instr_index: int,
     ) -> None:
-        match instr.name:
-            case "POP_JUMP_FORWARD_IF_NOT_NONE" | "POP_JUMP_BACKWARD_IF_NOT_NONE":
-                comparison = PynguinCompare.IS_NOT
-            case "POP_JUMP_FORWARD_IF_NONE" | "POP_JUMP_BACKWARD_IF_NONE":
-                comparison = PynguinCompare.IS
-            case _:
-                super().visit_compare_based_conditional_jump(
-                    cfg,
-                    code_object_id,
-                    node,
-                    instr,
-                    instr_index,
-                )
-                return
-
         predicate_id = self._subject_properties.register_predicate(
             tracer.PredicateMetaData(
                 line_no=instr.lineno,  # type: ignore[arg-type]
@@ -534,7 +534,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
                     InstrumentationStackValue.FIRST,
                     InstrumentationConstantLoad(value=None),
                     InstrumentationConstantLoad(value=predicate_id),
-                    InstrumentationConstantLoad(value=comparison),
+                    InstrumentationConstantLoad(value=self.NONE_BASED_JUMPS_MAPPING[instr.name]),
                 ),
             ),
             instr.lineno,
