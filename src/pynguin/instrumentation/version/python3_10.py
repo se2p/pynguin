@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 
-from opcode import cmp_op
 from opcode import opname
 from opcode import stack_effect as opcode_stack_effect
 from typing import TYPE_CHECKING
@@ -23,6 +22,7 @@ from typing import ClassVar
 from bytecode.cfg import BasicBlock
 from bytecode.instr import _UNSET
 from bytecode.instr import UNSET
+from bytecode.instr import Compare
 from bytecode.instr import Instr
 from bytecode.instr import Label
 
@@ -784,18 +784,18 @@ def extract_comparison(instr: Instr) -> PynguinCompare:
     """
     match instr.name:
         case "COMPARE_OP":
-            match cmp_op[instr.arg]:  # type: ignore[index]
-                case "<":
+            match instr.arg:
+                case Compare.LT:
                     return PynguinCompare.LT
-                case "<=":
+                case Compare.LE:
                     return PynguinCompare.LE
-                case "==":
+                case Compare.EQ:
                     return PynguinCompare.EQ
-                case "!=":
+                case Compare.NE:
                     return PynguinCompare.NE
-                case ">":
+                case Compare.GT:
                     return PynguinCompare.GT
-                case ">=":
+                case Compare.GE:
                     return PynguinCompare.GE
                 case _:
                     raise AssertionError(f"Unknown comparison op in {instr}.")
