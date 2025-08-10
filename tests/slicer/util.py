@@ -97,7 +97,7 @@ def assert_slice_equal(current_slice: list[UniqueInstruction], expected_slice: l
                             f"Expected TRY_END instruction at index {i} but got "
                             f"{current_block_instr}\n{general_exception_message}"
                         )
-                        return
+                        continue
 
                     assert isinstance(current_block_instr, Instr)
                     assert current_block_instr.name == name, (

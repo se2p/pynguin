@@ -274,9 +274,26 @@ def test_generators():
                 # the first instruction of the send target block
                 arg=TracedInstr("TRY_END"),
             ),
-            TracedInstr("YIELD_VALUE"),
+            TracedInstr("YIELD_VALUE", arg=2),
         )
         yield_gen = TracedInstr("YIELD_VALUE", arg=1)
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_true,
+            # the jump which leads back to the loop header
+            arg=TracedInstr("LOAD_FAST", arg="result"),
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+            TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+        )
     elif sys.version_info >= (3, 11):
         create_abc_generator = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
@@ -307,6 +324,22 @@ def test_generators():
             TracedInstr("YIELD_VALUE"),
         )
         yield_gen = TracedInstr("YIELD_VALUE")
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_false,
+            # the jump which leads back to the loop header
+            arg=TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+        )
     else:
         create_abc_generator = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
@@ -332,6 +365,22 @@ def test_generators():
         )
         send = ()
         yield_gen = TracedInstr("YIELD_VALUE")
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_false,
+            # the jump which leads back to the loop header
+            arg=TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the loop header
+                arg=TracedInstr("FOR_ITER", arg=end_for),
+            ),
+        )
 
     expected_instructions = [
         # def abc_generator():
@@ -382,28 +431,16 @@ def test_generators():
         TracedInstr("LOAD_FAST", arg="letter"),
         TracedInstr("LOAD_CONST", arg="a"),
         TracedInstr("COMPARE_OP", arg=Compare.EQ),
-        TracedInstr(
-            pop_jump_forward_if_false,
-            # the jump which leads back to the loop header
-            arg=TracedInstr(
-                jump_backward_absolute,
-                # the loop header
-                arg=TracedInstr("FOR_ITER", arg=end_for),
-            ),
-        ),
+        second_comparison_jump,
         # result += letter
         TracedInstr("LOAD_FAST", arg="result"),
         TracedInstr("LOAD_FAST", arg="letter"),
         inplace_add_instruction,
         TracedInstr("STORE_FAST", arg="result"),
-        TracedInstr(
-            jump_backward_absolute,
-            # the loop header
-            arg=TracedInstr("FOR_ITER", arg=end_for),
-        ),
+        *last_jumps,
         # yield x
         TracedInstr("LOAD_FAST", arg="x"),
-        TracedInstr("YIELD_VALUE"),
+        yield_gen,
         # return result
         TracedInstr("LOAD_FAST", arg="result"),
         TracedInstr("RETURN_VALUE"),
