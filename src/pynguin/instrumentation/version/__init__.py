@@ -35,7 +35,6 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -211,7 +210,6 @@ CLOSURE_LOAD_NAMES: tuple[str, ...]
 IMPORT_NAME_NAMES: tuple[str, ...]
 IMPORT_FROM_NAMES: tuple[str, ...]
 
-EXCLUDED_DOMINATOR_NAMES: tuple[str, ...]
 CALL_NAMES: tuple[str, ...]
 YIELDING_NAMES: tuple[str, ...]
 RETURNING_NAMES: tuple[str, ...]

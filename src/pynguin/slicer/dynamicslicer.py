@@ -25,7 +25,6 @@ import pynguin.configuration as config
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.version import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version import EXCLUDED_DOMINATOR_NAMES
 from pynguin.instrumentation.version import IMPORT_FROM_NAMES
 from pynguin.instrumentation.version import IMPORT_NAME_NAMES
 from pynguin.instrumentation.version import LOAD_DEREF_NAMES
@@ -458,10 +457,10 @@ class DynamicSlicer:
         node = cdg.get_basic_block_node(instr.node_id)
 
         # The descendants of the current node in the control-dependence graph (CDG) are the
-        # dominated nodes which are control dependent on the current instruction. The jumps
-        # used to make loops must be handled separately because they must only be dominated
-        # by the loops to which they are attached and this is not necessarily reflected in
-        # the CDG.
+        # dominated nodes which are control dependent on the current instruction. We also
+        # handle the special case of jumps used to create loops, as they should only be
+        # dominated by the loops to which they are connected, and this is not necessarily
+        # reflected in the CDG.
         dominated_nodes = cdg.get_descendants(node)
         dominator_loops = cdg.get_dominator_loops(node)
         dominated_instr_ctrl_deps = {
@@ -505,13 +504,14 @@ class DynamicSlicer:
         node = cdg.get_basic_block_node(instr.node_id)
 
         # The ancestors of the current node in the control-dependence graph (CDG) are the
-        # dominator nodes on which the current instruction is control dependent.
+        # dominator nodes on which the current instruction is control dependent. We also
+        # handle the special case where there is a loop in the CDG.
         dominator_nodes = cdg.get_ancestors(node)
+        dominated_nodes = cdg.get_descendants(node)
         if any(
             isinstance(dominator_node, BasicBlockNode)
-            and (dominator_instr := dominator_node.try_get_instruction(-1)) is not None
-            and dominator_instr.name not in EXCLUDED_DOMINATOR_NAMES
             for dominator_node in dominator_nodes
+            if dominator_node not in dominated_nodes
         ):
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", instr)
             context.instr_ctrl_deps.add(instr)

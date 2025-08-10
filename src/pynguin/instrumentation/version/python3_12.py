@@ -43,7 +43,6 @@ from pynguin.instrumentation.version.common import extract_name
 from pynguin.instrumentation.version.common import override
 from pynguin.instrumentation.version.python3_11 import CALL_NAMES
 from pynguin.instrumentation.version.python3_11 import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version.python3_11 import EXCLUDED_DOMINATOR_NAMES
 from pynguin.instrumentation.version.python3_11 import IMPORT_FROM_NAMES
 from pynguin.instrumentation.version.python3_11 import IMPORT_NAME_NAMES
 from pynguin.instrumentation.version.python3_11 import LOAD_GLOBAL_NAMES
@@ -66,7 +65,6 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",

@@ -68,7 +68,6 @@ __all__ = [
     "CALL_NAMES",
     "CLOSURE_LOAD_NAMES",
     "COND_BRANCH_NAMES",
-    "EXCLUDED_DOMINATOR_NAMES",
     "IMPORT_FROM_NAMES",
     "IMPORT_NAME_NAMES",
     "LOAD_DEREF_NAMES",
@@ -99,8 +98,6 @@ __all__ = [
 ]
 
 # Remaining opcodes
-EXCLUDED_DOMINATOR_NAMES = ("SEND",)
-
 CALL_NAMES = (
     "CALL",
     "CALL_FUNCTION_EX",
