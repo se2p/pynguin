@@ -27,7 +27,6 @@ import json
 import logging
 import math
 import sys
-import threading
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -196,18 +195,16 @@ def _setup_import_hook(
 
 
 def _load_sut(subject_properties: SubjectProperties) -> bool:
+    module_name = config.configuration.module_name
     try:
-        # We need to set the current thread ident so the import trace is recorded.
-        subject_properties.instrumentation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
-        module_name = config.configuration.module_name
-        # If the module is already imported, we need to reload it for the
-        # ExecutionTracer to successfully register the subject_properties
-        if module_name in sys.modules:
-            importlib.reload(sys.modules[module_name])
-        else:
-            importlib.import_module(module_name)
+        # We need to activate the tracer so the import trace is recorded.
+        with subject_properties.instrumentation_tracer:
+            # If the module is already imported, we need to reload it for the
+            # ExecutionTracer to successfully register the subject_properties
+            if module_name in sys.modules:
+                importlib.reload(sys.modules[module_name])
+            else:
+                importlib.import_module(module_name)
     except Exception as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed or any error is raised during the import
@@ -417,9 +414,6 @@ def _reload_instrumentation_loader(
 ):
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     first_finder: InstrumentationFinder | None = None
     for finder in sys.meta_path:
         if isinstance(finder, InstrumentationFinder):
@@ -432,7 +426,8 @@ def _reload_instrumentation_loader(
         dynamic_constant_provider=dynamic_constant_provider,
     )
     try:
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            importlib.reload(module)
     except Exception as e:  # noqa: BLE001
         _LOGGER.warning("Reload of module %s failed: %s", module_name, e)
 
@@ -839,9 +834,6 @@ def _setup_mutation_analysis_assertion_generator(
     module = importlib.import_module(config.configuration.module_name)
 
     _LOGGER.info("Build AST for %s", module.__name__)
-    executor.subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     module_source_code = inspect.getsource(module)
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
 

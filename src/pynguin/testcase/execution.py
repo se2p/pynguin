@@ -1098,9 +1098,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             )
         )
         if thread.is_alive():
-            # Set thread ident to invalid value, such that the tracer
-            # kills the thread
-            self._subject_properties.instrumentation_tracer.current_thread_identifier = -1
+            # Kills the thread
+            self._subject_properties.instrumentation_tracer.stop()
             # Wait for the thread so that stdout/stderr is not redirected anymore
             _LOGGER.debug("Waiting for thread to finish")
             thread.join(timeout=self._maximum_test_execution_timeout)
@@ -1140,10 +1139,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._before_test_case_execution(test_case)
             result = ExecutionResult()
             exec_ctx = ExecutionContext(self._module_provider)
-            self._subject_properties.instrumentation_tracer.current_thread_identifier = (
-                threading.current_thread().ident
-            )
-            with output_suppression_context:
+            with output_suppression_context, self._subject_properties.instrumentation_tracer:
                 for idx, statement in enumerate(test_case.statements):
                     ast_node = self._before_statement_execution(statement, exec_ctx)
                     exception = self.execute_ast(ast_node, exec_ctx)
@@ -1201,12 +1197,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
     ) -> ast.Module:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
-        if (
-            self._subject_properties.instrumentation_tracer.current_thread_identifier
-            != threading.current_thread().ident
-        ):
-            # Kill this thread
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+        self._subject_properties.instrumentation_tracer.check()
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
@@ -1262,12 +1253,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         exception: BaseException | None,
     ):
         # See comments in _before_statement_execution
-        if (
-            self._subject_properties.instrumentation_tracer.current_thread_identifier
-            != threading.current_thread().ident
-        ):
-            # Kill this thread
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+        self.subject_properties.instrumentation_tracer.check()
 
         self._subject_properties.instrumentation_tracer.disable()
         try:
@@ -1766,35 +1752,29 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             results = tuple(executor.execute_multiple(test_cases))
 
-            # We need to set the current thread identifier to the current thread
-            # because pickle can execute code of the instrumented module and it would
-            # kill the subprocess which is not what we want.
-            subject_properties.instrumentation_tracer.current_thread_identifier = (
-                threading.current_thread().ident
-            )
+            # We need to activate the tracer because pickle can execute code of the
+            # instrumented module and it would kill the subprocess which is not what we want.
+            with subject_properties.instrumentation_tracer:
+                for result in results:
+                    SubprocessTestCaseExecutor._fix_result_for_pickle(result)
 
-            for result in results:
-                SubprocessTestCaseExecutor._fix_result_for_pickle(result)
-
-            new_references_bindings = tuple(
-                SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
-                    result,
-                    reference_bindings,
+                new_references_bindings = tuple(
+                    SubprocessTestCaseExecutor._create_new_reference_bindings(  # noqa: FURB140
+                        result,
+                        reference_bindings,
+                    )
+                    for result, reference_bindings in zip(results, references_bindings, strict=True)
                 )
-                for result, reference_bindings in zip(results, references_bindings, strict=True)
-            )
 
-            sending_connection.send((
-                subject_properties.instrumentation_tracer.tracer,
-                module_provider,
-                results,
-                new_references_bindings,
-                randomness.RNG.getstate(),
-            ))
+                sending_connection.send((
+                    subject_properties.instrumentation_tracer.tracer,
+                    module_provider,
+                    results,
+                    new_references_bindings,
+                    randomness.RNG.getstate(),
+                ))
 
-            sending_connection.close()
-
-            subject_properties.instrumentation_tracer.current_thread_identifier = -1
+                sending_connection.close()
         except Exception as e:  # noqa: BLE001
             # Suppress all exceptions from the subprocess
             _LOGGER.warning(

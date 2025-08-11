@@ -7,7 +7,6 @@
 import ast
 import importlib
 import inspect
-import threading
 
 from unittest.mock import MagicMock
 
@@ -65,13 +64,10 @@ def test_testsuite_statement_checked_coverage_calculation(
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
@@ -90,13 +86,10 @@ def test_testcase_statement_checked_coverage_calculation(
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
@@ -156,13 +149,10 @@ def test_only_void_function(setter_test, subject_properties: SubjectProperties):
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
@@ -223,13 +213,10 @@ def test_getter_before_setter(getter_setter_test, subject_properties: SubjectPro
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
@@ -306,13 +293,10 @@ def test_getter_after_setter(setter_getter_test, subject_properties: SubjectProp
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())

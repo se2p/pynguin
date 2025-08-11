@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import importlib
-import threading
 
 import pynguin.configuration as config
 
@@ -20,25 +19,19 @@ from tests.utils.version import only_3_10
 def test_simple_execution(short_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
 
         result = executor.execute(short_test_case)
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
 

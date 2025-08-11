@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import importlib
-import threading
 
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -172,12 +171,10 @@ def test_compute_fitness_values_mocked(executor_mock: MagicMock, execution_trace
 @only_3_10
 def test_compute_fitness_values_no_branches(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.branchcoverage.nobranches"
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         chromosome = _get_test_for_no_branches_fixture(module_name)
@@ -259,12 +256,10 @@ def test_fitness_simple_nesting(
     subject_properties: SubjectProperties,
 ):
     module_name = "tests.fixtures.branchcoverage.simplenesting"
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         chromosome = chrom_factory(module_name)
@@ -323,12 +318,10 @@ def test_fitness_simple_nesting(
 def test_compute_fitness_values_branches(
     test_case, expected_fitness, module_name, subject_properties: SubjectProperties
 ):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
 
@@ -376,12 +369,10 @@ def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
 @only_3_10
 def test_compute_fitness_values_statement_coverage_empty(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.emptyfile"
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         chromosome = _get_empty_test()
@@ -441,14 +432,12 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
 
     subject_properties.existing_lines = _get_lines_data_for_plus_module()
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     executor_mock.subject_properties = subject_properties
 
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         test_case = plus_test_with_object_assertion
         chromosome = tcc.TestCaseChromosome(test_case=test_case)

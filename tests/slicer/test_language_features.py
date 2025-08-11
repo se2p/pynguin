@@ -17,6 +17,7 @@ from bytecode import Instr
 from tests.slicer.util import compare
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
+from tests.slicer.util import slice_function_at_return_with_result
 from tests.slicer.util import slice_module_at_return
 from tests.utils.version import only_3_10
 
@@ -438,8 +439,8 @@ def test_nested_class_2():
     expected_instructions.extend(function_block)
     expected_instructions.extend(foo_block)
     expected_instructions.extend(bar_block)
-    sliced_instructions = slice_function_at_return(func)
-    assert func() == [1, 2]
+    sliced_instructions, result = slice_function_at_return_with_result(func)
+    assert result == [1, 2]
     assert len(sliced_instructions) == len(expected_instructions)
     assert compare(sliced_instructions, expected_instructions)
 

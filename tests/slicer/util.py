@@ -9,9 +9,10 @@
 
 import importlib.util
 import sys
-import threading
 
+from collections.abc import Callable
 from types import CodeType
+from typing import Any
 
 from bytecode import Instr
 from bytecode.cfg import BasicBlock
@@ -101,16 +102,17 @@ def _contains_name_argtype(
     return None  # pragma: no cover
 
 
-def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
+def slice_function_at_return_with_result(
+    function: Callable[[], Any],
+) -> tuple[list[UniqueInstruction], Any]:
     subject_properties = SubjectProperties()
     instrumentation = CheckedCoverageInstrumentation(subject_properties)
     instrumentation_transformer = InstrumentationTransformer(subject_properties, [instrumentation])
 
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    function()
+
+    with subject_properties.instrumentation_tracer:
+        result = function()
 
     trace = subject_properties.instrumentation_tracer.get_trace()
     known_code_objects = subject_properties.existing_code_objects
@@ -127,22 +129,25 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
         lineno=last_traced_instr.lineno,
     )
     slicing_criterion = SlicingCriterion(slicing_instruction, len(trace.executed_instructions) - 2)
+
     return dynamic_slicer.slice(
         trace,
         slicing_criterion,
-    )
+    ), result
+
+
+def slice_function_at_return(function: Callable[[], Any]) -> list[UniqueInstruction]:
+    return slice_function_at_return_with_result(function)[0]
 
 
 def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
     subject_properties = SubjectProperties()
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-        module.func()
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+            module.func()
 
         trace = subject_properties.instrumentation_tracer.get_trace()
         known_code_objects = subject_properties.existing_code_objects

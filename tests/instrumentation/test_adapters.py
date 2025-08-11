@@ -8,7 +8,6 @@ import contextlib
 import importlib
 import os
 import string
-import threading
 
 from opcode import opmap
 from unittest import mock
@@ -378,15 +377,14 @@ def test_offset_calculation_checked_coverage_instrumentation(
         ),
     ])
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     function_callable = simple_module.bool_predicate
     adapter = CheckedCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
 
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
-    function_callable(False)  # noqa: FBT003
+
+    with subject_properties.instrumentation_tracer:
+        function_callable(False)  # noqa: FBT003
 
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.executed_instructions
@@ -411,26 +409,22 @@ def test_offset_calculation_checked_coverage_instrumentation(
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
 )
 def test_comparison(comparison_module, op, subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     function_callable = getattr(comparison_module, "_" + op.name.lower())
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
-    with mock.patch.object(
-        subject_properties.instrumentation_tracer, "executed_compare_predicate"
-    ) as trace_mock:
+    with (
+        mock.patch.object(
+            subject_properties.instrumentation_tracer, "executed_compare_predicate"
+        ) as trace_mock,
+        subject_properties.instrumentation_tracer,
+    ):
         function_callable("a", "a")
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
 @only_3_10
 def test_exception(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     def func():
         try:
             raise ValueError
@@ -440,9 +434,12 @@ def test_exception(subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(
-        subject_properties.instrumentation_tracer, "executed_exception_match"
-    ) as trace_mock:
+    with (
+        mock.patch.object(
+            subject_properties.instrumentation_tracer, "executed_exception_match"
+        ) as trace_mock,
+        subject_properties.instrumentation_tracer,
+    ):
         func()
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
@@ -450,9 +447,6 @@ def test_exception(subject_properties: SubjectProperties):
 @only_3_10
 def test_exception_no_match():
     subject_properties = SubjectProperties()
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
 
     def func():
         try:
@@ -463,9 +457,12 @@ def test_exception_no_match():
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(
-        subject_properties.instrumentation_tracer, "executed_exception_match"
-    ) as trace_mock:
+    with (
+        mock.patch.object(
+            subject_properties.instrumentation_tracer, "executed_exception_match"
+        ) as trace_mock,
+        subject_properties.instrumentation_tracer,
+    ):
         with pytest.raises(RuntimeError):
             func()
         trace_mock.assert_called_with(RuntimeError, ValueError, 0)
@@ -482,10 +479,10 @@ def test_exception_integrate(subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    func()
+
+    with subject_properties.instrumentation_tracer:
+        func()
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert OrderedSet([0]) == trace.executed_code_objects
     assert trace.executed_predicates == {0: 1}
@@ -504,10 +501,9 @@ def test_multiple_instrumentations_share_code_object_ids(
         simple_module.simple_function.__code__
     )
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.simple_function(42)
+    with subject_properties.instrumentation_tracer:
+        simple_module.simple_function(42)
+
     assert {0} == subject_properties.existing_code_objects.keys()
     assert {0} == set(subject_properties.branch_less_code_objects)
     assert (
@@ -527,11 +523,10 @@ def test_exception_no_match_integrate(subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    with pytest.raises(RuntimeError):
+
+    with pytest.raises(RuntimeError), subject_properties.instrumentation_tracer:
         func()
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert OrderedSet([0]) == trace.executed_code_objects
     assert trace.executed_predicates == {0: 1}
@@ -549,11 +544,10 @@ def test_jump_if_true_or_pop(subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    with contextlib.nullcontext():
+
+    with contextlib.nullcontext(), subject_properties.instrumentation_tracer:
         func("123")
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert OrderedSet([0]) == trace.executed_code_objects
     assert trace.executed_predicates == {0: 1, 1: 1}
@@ -570,10 +564,10 @@ def test_tracking_covered_statements_explicit_return(
     simple_module.explicit_none_return.__code__ = transformer.instrument_module(
         simple_module.explicit_none_return.__code__
     )
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.explicit_none_return()
+
+    with subject_properties.instrumentation_tracer:
+        simple_module.explicit_none_return()
+
     assert subject_properties.instrumentation_tracer.get_trace().covered_line_ids
     assert subject_properties.lineids_to_linenos(
         subject_properties.instrumentation_tracer.get_trace().covered_line_ids
@@ -599,10 +593,10 @@ def test_tracking_covered_statements_cmp_predicate(
     simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
     )
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.cmp_predicate(value1, value2)
+
+    with subject_properties.instrumentation_tracer:
+        simple_module.cmp_predicate(value1, value2)
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.covered_line_ids
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
@@ -624,10 +618,10 @@ def test_tracking_covered_statements_bool_predicate(
     simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
     )
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.bool_predicate(value)
+
+    with subject_properties.instrumentation_tracer:
+        simple_module.bool_predicate(value)
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.covered_line_ids
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
@@ -649,10 +643,10 @@ def test_tracking_covered_statements_for_loop(
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.full_for_loop(number)
+
+    with subject_properties.instrumentation_tracer:
+        simple_module.full_for_loop(number)
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.covered_line_ids
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
@@ -674,10 +668,10 @@ def test_tracking_covered_statements_while_loop(
     simple_module.while_loop.__code__ = transformer.instrument_module(
         simple_module.while_loop.__code__
     )
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    simple_module.while_loop(number)
+
+    with subject_properties.instrumentation_tracer:
+        simple_module.while_loop(number)
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.covered_line_ids
     assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
@@ -707,10 +701,10 @@ def test_expected_covered_lines(
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func_object = getattr(artificial_none_module, func)
     func_object.__code__ = transformer.instrument_module(func_object.__code__)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    func_object(arg)
+
+    with subject_properties.instrumentation_tracer:
+        func_object(arg)
+
     assert (
         subject_properties.lineids_to_linenos(
             subject_properties.instrumentation_tracer.get_trace().covered_line_ids

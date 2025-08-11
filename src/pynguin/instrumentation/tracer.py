@@ -24,6 +24,7 @@ from math import inf
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
 from types import CodeType
+from types import TracebackType
 from typing import TYPE_CHECKING
 from typing import Concatenate
 from typing import ParamSpec
@@ -49,6 +50,8 @@ from pynguin.utils.type_utils import string_lt_distance
 
 
 if TYPE_CHECKING:
+    from typing_extensions import Self
+
     from pynguin.instrumentation.controlflow import CFG
     from pynguin.instrumentation.controlflow import BasicBlockNode
     from pynguin.instrumentation.controlflow import ControlDependenceGraph
@@ -556,24 +559,35 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     The results are stored in an execution trace.
     """
 
-    @property
     @abstractmethod
-    def current_thread_identifier(self) -> int | None:
-        """Get the current thread identifier.
+    def __enter__(self) -> AbstractExecutionTracer:
+        """Activate the tracer for the current thread.
 
         Returns:
-            The current thread identifier
+            The tracer itself, so it can be used as a context manager.
         """
 
-    @current_thread_identifier.setter
     @abstractmethod
-    def current_thread_identifier(self, current: int) -> None:
-        """Set the current thread identifier.
-
-        Tracing calls from any other thread are ignored.
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Deactivate the tracer for the current thread.
 
         Args:
-            current: the current thread
+            exc_type: The type of the exception, if any.
+            exc_value: The value of the exception, if any.
+            traceback: The traceback of the exception, if any.
+        """
+
+    @abstractmethod
+    def check(self) -> None:
+        """Check if the thread that called this method should still be running.
+
+        Raises:
+            RuntimeError: if the thread is not running anymore.
         """
 
     @property
@@ -623,6 +637,14 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     @abstractmethod
     def disable(self) -> None:
         """Disable tracing."""
+
+    @abstractmethod
+    def stop(self) -> None:
+        """Stop the tracer.
+
+        This should be called when the tracer is no longer needed, e.g., when the test
+        case execution is finished.
+        """
 
     @abstractmethod
     def get_trace(self) -> ExecutionTrace:
@@ -1056,8 +1078,7 @@ def _early_return(
 ) -> Callable[Concatenate[ExecutionTracer, _P], None]:
     @wraps(func)
     def wrapper(self: ExecutionTracer, *args: _P.args, **kwargs: _P.kwargs) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+        self.check()
 
         if self.is_disabled():
             return
@@ -1094,13 +1115,21 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._current_thread_identifier: int | None = None
         self._current_code_object_id = 0
 
-    @property
-    def current_thread_identifier(self) -> int | None:  # noqa: D102
-        return self._current_thread_identifier
+    def __enter__(self) -> Self:
+        self._current_thread_identifier = threading.current_thread().ident
+        return self
 
-    @current_thread_identifier.setter
-    def current_thread_identifier(self, current: int) -> None:
-        self._current_thread_identifier = current
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.stop()
+
+    def check(self) -> None:  # noqa: D102
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
@@ -1158,6 +1187,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def disable(self) -> None:  # noqa: D102
         self._thread_local_state.enabled = False
+
+    def stop(self) -> None:  # noqa: D102
+        self._current_thread_identifier = None
 
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._thread_local_state.trace
@@ -1564,13 +1596,20 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def tracer(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    @property
-    def current_thread_identifier(self) -> int | None:  # noqa: D102
-        return self._tracer.current_thread_identifier
+    def __enter__(self) -> Self:
+        self._tracer.__enter__()
+        return self
 
-    @current_thread_identifier.setter
-    def current_thread_identifier(self, current: int) -> None:
-        self._tracer.current_thread_identifier = current
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self._tracer.__exit__(exc_type, exc_value, traceback)
+
+    def check(self) -> None:  # noqa: D102
+        self._tracer.check()
 
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
@@ -1593,6 +1632,9 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def disable(self) -> None:  # noqa: D102
         self._tracer.disable()
+
+    def stop(self) -> None:  # noqa: D102
+        self._tracer.stop()
 
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.get_trace()

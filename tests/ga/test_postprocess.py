@@ -6,7 +6,6 @@
 #
 import ast
 import importlib
-import threading
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -603,15 +602,13 @@ def _setup_integration_test(coverage_metric):
 
     # Create a real tracer and executor
     subject_properties = SubjectProperties()
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
 
     with install_import_hook(
         config.configuration.module_name, subject_properties, {coverage_metric}
     ):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
         first_function = module.first
 
         # Create a real executor

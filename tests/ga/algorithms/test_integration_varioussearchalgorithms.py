@@ -6,7 +6,6 @@
 #
 import importlib
 import itertools
-import threading
 
 from logging import Logger
 from unittest.mock import MagicMock
@@ -64,13 +63,11 @@ def test_integrate_algorithms(module_name: str, algorithm, subject_properties: S
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
     logger = MagicMock(Logger)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation.
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)
@@ -117,13 +114,11 @@ def test_integrate_whole_suite_plus_archive(
     config.configuration.search_algorithm.filter_covered_targets_from_test_cluster = True
 
     logger = MagicMock(Logger)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation.
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)

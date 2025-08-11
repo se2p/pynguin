@@ -11,7 +11,6 @@ from __future__ import annotations
 import ast
 import dataclasses
 import logging
-import threading
 import types
 
 from typing import TYPE_CHECKING
@@ -286,9 +285,6 @@ class InstrumentedMutationController(ct.MutationController):
         return self._transformer
 
     def create_mutant(self, mutant_ast: ast.Module) -> types.ModuleType:  # noqa: D102
-        self.subject_properties.instrumentation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
         self.subject_properties.reset()
         module_name = self._module.__name__
         code = compile(mutant_ast, module_name, "exec")
@@ -297,7 +293,8 @@ class InstrumentedMutationController(ct.MutationController):
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         try:
-            exec(code, module.__dict__)  # noqa: S102
+            with self.subject_properties.instrumentation_tracer:
+                exec(code, module.__dict__)  # noqa: S102
         except Exception as exception:  # noqa: BLE001
             _LOGGER.debug("Error creating mutant: %s", exception)
         except SystemExit as exception:

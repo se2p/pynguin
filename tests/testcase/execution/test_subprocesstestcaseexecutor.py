@@ -12,7 +12,6 @@ import logging
 import multiprocessing.connection as mp_conn
 import os
 import signal
-import threading
 import unittest.mock
 
 from typing import Any
@@ -169,13 +168,11 @@ def test_crashing_execution(
     config.configuration.test_case_output.crash_path = tmp_path
     config.configuration.module_name = "tests.fixtures.crash.seg_fault"
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
         subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
         with SegFaultOutputSuppressionContext():
             exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
@@ -190,13 +187,10 @@ def test_eof_error_during_receiving_results(
     """Test handling of EOFError during receiving results from subprocess."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Add a statement to the test case
         default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
@@ -220,13 +214,10 @@ def test_empty_test_case_no_results(default_test_case, subject_properties: Subje
     """Test handling of empty test case with no results."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Ensure the test case is empty
         assert default_test_case.size() == 0
@@ -246,13 +237,10 @@ def test_non_empty_test_case_no_results(short_test_case, subject_properties: Sub
     """Test handling of non-empty test case with no results."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Ensure the test case is not empty
         assert short_test_case.size() > 0

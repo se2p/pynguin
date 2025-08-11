@@ -36,11 +36,11 @@ def test_function_already_registered(subject_properties: SubjectProperties):
 
 
 def test_entered_function(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_code_object(0, MagicMock(CodeObjectMetaData))
-    subject_properties.instrumentation_tracer.executed_code_object(0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_code_object(0)
+
     assert 0 in subject_properties.instrumentation_tracer.get_trace().executed_code_objects
 
 
@@ -59,12 +59,11 @@ def test_line_registration(subject_properties: SubjectProperties):
 
 
 def test_line_visit(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-    subject_properties.instrumentation_tracer.track_line_visit(42)
-    subject_properties.instrumentation_tracer.track_line_visit(43)
-    subject_properties.instrumentation_tracer.track_line_visit(42)
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.track_line_visit(42)
+        subject_properties.instrumentation_tracer.track_line_visit(43)
+        subject_properties.instrumentation_tracer.track_line_visit(42)
+
     assert subject_properties.instrumentation_tracer.get_trace().covered_line_ids == OrderedSet([
         42,
         43,
@@ -72,12 +71,16 @@ def test_line_visit(subject_properties: SubjectProperties):
 
 
 def test_update_metrics_covered(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(1, 0, 0, PynguinCompare.EQ)
-    subject_properties.instrumentation_tracer.executed_compare_predicate(1, 0, 0, PynguinCompare.EQ)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            1, 0, 0, PynguinCompare.EQ
+        )
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            1, 0, 0, PynguinCompare.EQ
+        )
+
     assert (
         0,
         2,
@@ -86,42 +89,54 @@ def test_update_metrics_covered(subject_properties: SubjectProperties):
 
 @pytest.mark.parametrize("true_dist,false_dist", [(-1, 0), (0, -1), (0, 0), (1, 1)])
 def test_update_metrics_assertions(true_dist, false_dist, subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
     with pytest.raises(AssertionError):
         subject_properties.instrumentation_tracer.tracer._update_metrics(false_dist, true_dist, 0)
 
 
 def test_update_metrics_true_dist_min(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(5, 0, 0, PynguinCompare.EQ)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            5, 0, 0, PynguinCompare.EQ
+        )
     assert (0, 5) in subject_properties.instrumentation_tracer.get_trace().true_distances.items()
-    subject_properties.instrumentation_tracer.executed_compare_predicate(4, 0, 0, PynguinCompare.EQ)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            4, 0, 0, PynguinCompare.EQ
+        )
+
     assert (0, 4) in subject_properties.instrumentation_tracer.get_trace().true_distances.items()
 
 
 def test_update_metrics_false_dist_min(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(3, 1, 0, PynguinCompare.NE)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            3, 1, 0, PynguinCompare.NE
+        )
+
     assert (0, 2) in subject_properties.instrumentation_tracer.get_trace().false_distances.items()
-    subject_properties.instrumentation_tracer.executed_compare_predicate(2, 1, 0, PynguinCompare.NE)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            2, 1, 0, PynguinCompare.NE
+        )
+
     assert (0, 1) in subject_properties.instrumentation_tracer.get_trace().false_distances.items()
 
 
 def test_passed_cmp_predicate(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(1, 0, 0, PynguinCompare.EQ)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            1, 0, 0, PynguinCompare.EQ
+        )
+
     assert (
         0,
         1,
@@ -129,11 +144,13 @@ def test_passed_cmp_predicate(subject_properties: SubjectProperties):
 
 
 def test_passed_exception_match(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_exception_match(ValueError(), ValueError, 0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_exception_match(
+            ValueError(), ValueError, 0
+        )
+
     assert (
         0,
         1,
@@ -143,11 +160,13 @@ def test_passed_exception_match(subject_properties: SubjectProperties):
 
 
 def test_passed_exception_match_not(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_exception_match(NameError(), ValueError, 0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_exception_match(
+            NameError(), ValueError, 0
+        )
+
     assert (
         0,
         1,
@@ -216,11 +235,11 @@ def test_cmp(  # noqa: PLR0917
     false_dist,
     subject_properties: SubjectProperties,
 ):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(val1, val2, 0, cmp)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(val1, val2, 0, cmp)
+
     assert (
         0,
         true_dist,
@@ -232,13 +251,13 @@ def test_cmp(  # noqa: PLR0917
 
 
 def test_compare_ignores_proxy(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(
-        tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ
-    )
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            tt.ObjectProxy(5), tt.ObjectProxy(0), 0, PynguinCompare.EQ
+        )
+
     assert (0, 5) in subject_properties.instrumentation_tracer.get_trace().true_distances.items()
     assert (0, 0) in subject_properties.instrumentation_tracer.get_trace().false_distances.items()
 
@@ -259,13 +278,13 @@ def test_compare_ignores_proxy(subject_properties: SubjectProperties):
 def test_string_equals_distance(
     string1, string2, true_distance, false_distance, subject_properties: SubjectProperties
 ):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(
-        string1, string2, 0, PynguinCompare.EQ
-    )
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            string1, string2, 0, PynguinCompare.EQ
+        )
+
     assert (
         0,
         true_distance,
@@ -292,13 +311,13 @@ def test_string_equals_distance(
 def test_string_lt_distance(
     string1, string2, true_distance, false_distance, subject_properties: SubjectProperties
 ):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(
-        string1, string2, 0, PynguinCompare.LT
-    )
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            string1, string2, 0, PynguinCompare.LT
+        )
+
     assert (
         0,
         true_distance,
@@ -325,13 +344,12 @@ def test_string_lt_distance(
 def test_string_le_distance(
     string1, string2, true_distance, false_distance, subject_properties: SubjectProperties
 ):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_compare_predicate(
-        string1, string2, 0, PynguinCompare.LE
-    )
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            string1, string2, 0, PynguinCompare.LE
+        )
     assert (
         0,
         true_distance,
@@ -343,32 +361,32 @@ def test_string_le_distance(
 
 
 def test_bool_ignores_proxy(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_bool_predicate(tt.ObjectProxy([1, 2, 3]), 0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_bool_predicate(
+            tt.ObjectProxy([1, 2, 3]), 0
+        )
+
     assert (0, 0.0) in subject_properties.instrumentation_tracer.get_trace().true_distances.items()
     assert (0, 3.0) in subject_properties.instrumentation_tracer.get_trace().false_distances.items()
 
 
 def test_unknown_comp(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    with pytest.raises(Exception):  # noqa: B017, PT011
+
+    with pytest.raises(Exception), subject_properties.instrumentation_tracer:  # noqa: B017, PT011
         subject_properties.instrumentation_tracer.executed_compare_predicate(
             1, 1, 0, PynguinCompare.EXC_MATCH
         )
 
 
 def test_passed_bool_predicate(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
+
     assert (
         0,
         1,
@@ -406,11 +424,11 @@ def test_passed_bool_predicate(subject_properties: SubjectProperties):
     ],
 )
 def test_bool_distances(val, true_dist, false_dist, subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    subject_properties.instrumentation_tracer.executed_bool_predicate(val, 0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_bool_predicate(val, 0)
+
     assert subject_properties.instrumentation_tracer.get_trace().true_distances.get(0) == true_dist
     assert (
         subject_properties.instrumentation_tracer.get_trace().false_distances.get(0) == false_dist
@@ -418,45 +436,47 @@ def test_bool_distances(val, true_dist, false_dist, subject_properties: SubjectP
 
 
 def test_init(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_code_object(0, MagicMock(CodeObjectMetaData))
-    subject_properties.instrumentation_tracer.executed_code_object(0)
+
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_code_object(0)
+
     trace = subject_properties.instrumentation_tracer.get_trace()
     subject_properties.instrumentation_tracer.init_trace()
     assert subject_properties.instrumentation_tracer.get_trace() != trace
 
 
 def test_enable_disable_cmp(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
     subject_properties.instrumentation_tracer.disable()
-    subject_properties.instrumentation_tracer.executed_compare_predicate(0, 0, 0, PynguinCompare.EQ)
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            0, 0, 0, PynguinCompare.EQ
+        )
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
     subject_properties.instrumentation_tracer.enable()
-    subject_properties.instrumentation_tracer.executed_compare_predicate(0, 0, 0, PynguinCompare.EQ)
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_compare_predicate(
+            0, 0, 0, PynguinCompare.EQ
+        )
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 1
 
 
 def test_enable_disable_bool(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_predicate(MagicMock(code_object_id=0))
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
     subject_properties.instrumentation_tracer.disable()
-    subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
     subject_properties.instrumentation_tracer.enable()
-    subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
+    with subject_properties.instrumentation_tracer:
+        subject_properties.instrumentation_tracer.executed_bool_predicate(True, 0)  # noqa: FBT003
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 1
 
 
@@ -506,9 +526,6 @@ def test_no_branchless_code_object_register_multiple(subject_properties: Subject
 
 
 def test_code_object_executed_other_thread(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_code_object(0, MagicMock())
 
     def wrapper(*args):
@@ -516,17 +533,17 @@ def test_code_object_executed_other_thread(subject_properties: SubjectProperties
             subject_properties.instrumentation_tracer.executed_code_object(*args)
 
     thread = threading.Thread(target=wrapper, args=(0,))
-    thread.start()
-    thread.join()
+
+    with subject_properties.instrumentation_tracer:
+        thread.start()
+        thread.join()
+
     assert (
         subject_properties.instrumentation_tracer.get_trace().executed_code_objects == OrderedSet()
     )
 
 
 def test_bool_predicate_executed_other_thread(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_code_object(0, MagicMock())
     subject_properties.register_code_object(1, MagicMock(code_object_id=0))
 
@@ -535,15 +552,15 @@ def test_bool_predicate_executed_other_thread(subject_properties: SubjectPropert
             subject_properties.instrumentation_tracer.executed_bool_predicate(*args)
 
     thread = threading.Thread(target=wrapper, args=(True, 0))
-    thread.start()
-    thread.join()
+
+    with subject_properties.instrumentation_tracer:
+        thread.start()
+        thread.join()
+
     assert subject_properties.instrumentation_tracer.get_trace().executed_predicates == {}
 
 
 def test_compare_predicate_executed_other_thread(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     subject_properties.register_code_object(0, MagicMock())
     subject_properties.register_code_object(1, MagicMock(code_object_id=0))
 
@@ -552,8 +569,11 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
             subject_properties.instrumentation_tracer.executed_compare_predicate(*args)
 
     thread = threading.Thread(target=wrapper, args=(True, False, PynguinCompare.EQ, 0))
-    thread.start()
-    thread.join()
+
+    with subject_properties.instrumentation_tracer:
+        thread.start()
+        thread.join()
+
     assert subject_properties.instrumentation_tracer.get_trace().executed_predicates == {}
 
 
@@ -568,8 +588,5 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
     ],
 )
 def test_killed_by_thread_guard(method, inputs, subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident + 1
-    )
     with pytest.raises(RuntimeError):
         getattr(subject_properties.instrumentation_tracer, method)(*inputs)

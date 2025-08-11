@@ -33,12 +33,11 @@ from tests.utils.version import only_3_10
 @only_3_10
 def test_simple_execution(default_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
         default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
         executor = TestCaseExecutor(subject_properties)
         assert not executor.execute(default_test_case).has_test_exceptions()
@@ -51,12 +50,11 @@ def test_illegal_call(method_mock, default_test_case, subject_properties: Subjec
     method_stmt = MethodStatement(default_test_case, method_mock, int_stmt.ret_val)
     default_test_case.add_statement(int_stmt)
     default_test_case.add_statement(method_stmt)
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
         executor = TestCaseExecutor(subject_properties)
         result = executor.execute(default_test_case)
         assert result.has_test_exceptions()
@@ -65,12 +63,11 @@ def test_illegal_call(method_mock, default_test_case, subject_properties: Subjec
 @only_3_10
 def test_no_exceptions(short_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
         executor = TestCaseExecutor(subject_properties)
         result = executor.execute(short_test_case)
         assert not result.has_test_exceptions()
@@ -80,12 +77,11 @@ def test_no_exceptions(short_test_case, subject_properties: SubjectProperties):
 def test_instrumentation(short_test_case, subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(config.configuration.module_name, subject_properties):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
+
         executor = TestCaseExecutor(subject_properties)
         result = executor.execute(short_test_case)
         assert not result.has_test_exceptions()
@@ -93,9 +89,6 @@ def test_instrumentation(short_test_case, subject_properties: SubjectProperties)
 
 
 def test_observers(short_test_case, subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     executor = TestCaseExecutor(subject_properties)
     observer = MagicMock()
     observer.remote_observer = MagicMock()
@@ -111,9 +104,6 @@ def test_observers(short_test_case, subject_properties: SubjectProperties):
 
 
 def test_observers_clear(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     executor = TestCaseExecutor(subject_properties)
     observer = MagicMock()
     executor.add_observer(observer)
@@ -123,9 +113,6 @@ def test_observers_clear(subject_properties: SubjectProperties):
 
 
 def test_module_provider(subject_properties: SubjectProperties):
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     prov = ModuleProvider()
     executor = TestCaseExecutor(subject_properties, prov)
     assert executor.module_provider == prov
@@ -136,13 +123,11 @@ def test_module_provider(subject_properties: SubjectProperties):
 def test_killing_endless_loop(subject_properties: SubjectProperties):
     config.configuration.module_name = "tests.fixtures.examples.loop"
     module_name = config.configuration.module_name
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)
@@ -177,13 +162,11 @@ def test_empty_queue_with_llm_api_key(default_test_case, subject_properties: Sub
 
     try:
         config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-        subject_properties.instrumentation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
 
         with install_import_hook(config.configuration.module_name, subject_properties):
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
+            with subject_properties.instrumentation_tracer:
+                module = importlib.import_module(config.configuration.module_name)
+                importlib.reload(module)
 
             default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
             executor = TestCaseExecutor(subject_properties)
@@ -208,13 +191,11 @@ def test_empty_queue_without_llm_api_key(default_test_case, subject_properties: 
 
     try:
         config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-        subject_properties.instrumentation_tracer.current_thread_identifier = (
-            threading.current_thread().ident
-        )
 
         with install_import_hook(config.configuration.module_name, subject_properties):
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
+            with subject_properties.instrumentation_tracer:
+                module = importlib.import_module(config.configuration.module_name)
+                importlib.reload(module)
 
             default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
             executor = TestCaseExecutor(subject_properties)

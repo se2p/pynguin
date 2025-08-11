@@ -60,12 +60,10 @@ def test_generate_mutation_assertions(
 ):
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
             cluster,
@@ -294,12 +292,10 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
 ):
     config.configuration.module_name = module
     module_name = config.configuration.module_name
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
     with install_import_hook(module_name, subject_properties):
-        module_type = importlib.import_module(module_name)
-        importlib.reload(module_type)
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module_name)
+            importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
             cluster,

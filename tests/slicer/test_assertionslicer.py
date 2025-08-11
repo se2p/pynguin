@@ -6,7 +6,6 @@
 #
 import ast
 import importlib
-import threading
 
 import pytest
 
@@ -281,13 +280,10 @@ def test_assertion_detection_on_test_case(
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
@@ -323,13 +319,10 @@ def test_slicing_after_test_execution(
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
@@ -391,13 +384,10 @@ def test_testsuite_assertion_checked_coverage_calculation(
         config.CoverageMetric.CHECKED,
     ]
 
-    subject_properties.instrumentation_tracer.current_thread_identifier = (
-        threading.current_thread().ident
-    )
-
     with install_import_hook(module_name, subject_properties):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
