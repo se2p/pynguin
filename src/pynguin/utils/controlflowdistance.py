@@ -162,14 +162,15 @@ def get_non_root_control_flow_distance(
         The control flow distance.
     """
     trace = result.execution_trace
-    code_object_id = subject_properties.existing_predicates[predicate_id].code_object_id
+    existing_code_objects = subject_properties.existing_code_objects
+    existing_predicates = subject_properties.existing_predicates
+
+    code_object_id = existing_predicates[predicate_id].code_object_id
 
     distance = ControlFlowDistance()
     # Code Object was not executed, simply use diameter as upper bound.
     if code_object_id not in trace.executed_code_objects:
-        distance.approach_level = subject_properties.existing_code_objects[
-            code_object_id
-        ].cfg.diameter
+        distance.approach_level = existing_code_objects[code_object_id].cfg.diameter
         return distance
 
     # Predicate was executed, simply use distance of correct branch.
@@ -181,17 +182,20 @@ def get_non_root_control_flow_distance(
         distance.branch_distance = branch_distance
         return distance
 
-    cdg = subject_properties.existing_code_objects[code_object_id].cdg
-    target_node = subject_properties.existing_predicates[predicate_id].node
+    cdg = existing_code_objects[code_object_id].cdg
+    target_node = existing_predicates[predicate_id].node
 
     # Choose diameter as upper bound
-    distance.approach_level = subject_properties.existing_code_objects[code_object_id].cfg.diameter
+    distance.approach_level = existing_code_objects[code_object_id].cfg.diameter
 
     # We check for the closest predicate that was executed and compute the approach
     # level as the length of the path from such a predicate node to the desired
     # predicate node.
     for executed_predicate_id in trace.executed_predicates:
-        node = subject_properties.existing_predicates[executed_predicate_id].node
+        if existing_predicates[executed_predicate_id].code_object_id != code_object_id:
+            continue
+
+        node = existing_predicates[executed_predicate_id].node
         try:
             candidate = ControlFlowDistance()
             candidate.approach_level = nx.shortest_path_length(cdg.graph, node, target_node)
