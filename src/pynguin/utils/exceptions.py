@@ -27,10 +27,6 @@ class TimerError(Exception):
     """A custom exception used to report errors in use of Timer class."""
 
 
-class InstructionNotFoundException(BaseException):
-    """A custom exception if no matching instruction is found for a search."""
-
-
 class TestTimeoutException(BaseException):
     """Raised, if the execution took longer than the configured maximum duration."""
 

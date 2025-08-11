@@ -8,6 +8,7 @@
 
 import ast
 import dataclasses
+import sys
 
 from pathlib import Path
 
@@ -133,20 +134,38 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         with_self_arg: bool,
         is_failing: bool,
     ) -> ast.FunctionDef:
+        name = f"test_{function_name}"
+        args = ast.arguments(
+            args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],  # type: ignore[arg-type, list-item]
+            defaults=[],
+            vararg=None,
+            kwarg=None,
+            posonlyargs=[],
+            kwonlyargs=[],
+            kw_defaults=[],
+        )
+        decorator_list = PyTestChromosomeToAstVisitor.__create_decorator_list(is_failing)
+        returns = None
+        type_comment = None
+
+        if sys.version_info >= (3, 12):
+            return ast.FunctionDef(
+                name=name,
+                args=args,
+                body=nodes,
+                decorator_list=decorator_list,
+                returns=returns,
+                type_comment=type_comment,
+                type_params=[],
+            )
+
         return ast.FunctionDef(
-            name=f"test_{function_name}",
-            args=ast.arguments(
-                args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],  # type: ignore[arg-type, list-item]
-                defaults=[],
-                vararg=None,
-                kwarg=None,
-                posonlyargs=[],
-                kwonlyargs=[],
-                kw_defaults=[],
-            ),
+            name=name,
+            args=args,
             body=nodes,
-            decorator_list=PyTestChromosomeToAstVisitor.__create_decorator_list(is_failing),
-            returns=None,
+            decorator_list=decorator_list,
+            returns=returns,
+            type_comment=type_comment,
         )
 
     @staticmethod

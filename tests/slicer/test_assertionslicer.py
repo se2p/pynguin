@@ -6,7 +6,6 @@
 #
 import ast
 import importlib
-import threading
 
 import pytest
 
@@ -21,7 +20,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.ga.computations import TestSuiteAssertionCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
@@ -270,19 +269,21 @@ def no_cover_plus_testsuite(default_test_case) -> tsc.TestSuiteChromosome:
     ],
 )
 def test_assertion_detection_on_test_case(
-    module_name, test_case_name, expected_assertions, request
+    module_name,
+    test_case_name,
+    expected_assertions,
+    request,
+    subject_properties: SubjectProperties,
 ):
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
         result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
@@ -309,24 +310,24 @@ def test_assertion_detection_on_test_case(
         ),
     ],
 )
-def test_slicing_after_test_execution(module_name, test_case_name, expected_lines, request):
+def test_slicing_after_test_execution(
+    module_name, test_case_name, expected_lines, request, subject_properties: SubjectProperties
+):
     test_case = request.getfixturevalue(test_case_name)
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
         result = executor.execute(test_case)
         assert result.execution_trace.executed_assertions
 
         instructions_in_slice = []
-        assertion_slicer = AssertionSlicer(tracer.get_subject_properties().existing_code_objects)
+        assertion_slicer = AssertionSlicer(subject_properties.existing_code_objects)
         for assertion in result.execution_trace.executed_assertions:
             instructions_in_slice.extend(
                 assertion_slicer.slice_assertion(assertion, result.execution_trace)
@@ -334,7 +335,7 @@ def test_slicing_after_test_execution(module_name, test_case_name, expected_line
         assert instructions_in_slice
 
         checked_lines = DynamicSlicer.map_instructions_to_lines(
-            instructions_in_slice, tracer.get_subject_properties()
+            instructions_in_slice, subject_properties
         )
         assert checked_lines
         assert checked_lines == expected_lines
@@ -368,21 +369,23 @@ def test_slicing_after_test_execution(module_name, test_case_name, expected_line
     ],
 )
 def test_testsuite_assertion_checked_coverage_calculation(
-    module_name, test_suite_name, expected_coverage, request
+    module_name,
+    test_suite_name,
+    expected_coverage,
+    request,
+    subject_properties: SubjectProperties,
 ):
     test_suite = request.getfixturevalue(test_suite_name)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
-
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteAssertionExecutionObserver())
         ff = TestSuiteAssertionCheckedCoverageFunction(executor)
         assert ff.compute_coverage(test_suite) == pytest.approx(expected_coverage, 0.1, 0.1)

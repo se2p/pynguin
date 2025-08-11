@@ -73,6 +73,8 @@ class ParentNodeTransformer(ast.NodeTransformer):
             node = copy.copy(node)
             if hasattr(node, "lineno"):
                 delattr(node, "lineno")
+            if hasattr(node, "end_lineno"):
+                delattr(node, "end_lineno")
 
         node.parent = self.parent  # type: ignore[attr-defined]
         node.children = set()  # type: ignore[attr-defined]

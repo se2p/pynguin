@@ -6,7 +6,6 @@
 #
 import importlib
 import inspect
-import threading
 
 from pathlib import Path
 
@@ -22,7 +21,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from tests.fixtures.crash.seg_fault import cause_segmentation_fault
@@ -76,14 +75,14 @@ def test_generate_crashing_test_integration(tmp_path: Path, crash_test_expected:
     config.configuration.search_algorithm.population = 2
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties = SubjectProperties()
+    with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation.
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = SubprocessTestCaseExecutor(tracer)
+        executor = SubprocessTestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)
         search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
@@ -113,14 +112,14 @@ def test_generate_partly_crashing_test_integration(tmp_path: Path):
     config.configuration.search_algorithm.population = 2
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties = SubjectProperties()
+    with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation.
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = SubprocessTestCaseExecutor(tracer)
+        executor = SubprocessTestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)
         search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
