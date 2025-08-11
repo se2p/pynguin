@@ -26,7 +26,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 from tests.utils.version import only_3_10
 
@@ -55,12 +55,15 @@ human_0.get_name()""",
         ),
     ],
 )
-def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0914
+def test_generate_mutation_assertions(
+    generator, expected_result, subject_properties: SubjectProperties
+):
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
         cluster = generate_test_cluster(module_name)
@@ -92,13 +95,16 @@ def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0
             ])
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
-            mutation_tracer = ExecutionTracer()
+            mutation_subject_properties = SubjectProperties()
             mutation_controller = ag.InstrumentedMutationController(
-                mutant_generator, module_ast, module, mutation_tracer
+                mutant_generator,
+                module_ast,
+                module,
+                mutation_subject_properties,
             )
-            gen = generator(TestCaseExecutor(tracer), mutation_controller)
+            gen = generator(TestCaseExecutor(subject_properties), mutation_controller)
         else:
-            gen = generator(TestCaseExecutor(tracer))
+            gen = generator(TestCaseExecutor(subject_properties))
         suite.accept(gen)
 
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
@@ -284,12 +290,14 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
     metrics,
     killed,
     timeout,
+    subject_properties: SubjectProperties,
 ):
     config.configuration.module_name = module
     module_name = config.configuration.module_name
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
+    with install_import_hook(module_name, subject_properties):
         module_type = importlib.import_module(module_name)
         importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
@@ -311,12 +319,16 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
-        mutation_tracer = ExecutionTracer()
+        mutation_subject_properties = SubjectProperties()
         mutation_controller = ag.InstrumentedMutationController(
-            mutant_generator, module_ast, module_type, mutation_tracer, testing=True
+            mutant_generator,
+            module_ast,
+            module_type,
+            mutation_subject_properties,
+            testing=True,
         )
         gen = ag.MutationAnalysisAssertionGenerator(
-            TestCaseExecutor(tracer), mutation_controller, testing=True
+            TestCaseExecutor(subject_properties), mutation_controller, testing=True
         )
         suite.accept(gen)
 

@@ -28,8 +28,8 @@ from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrument
 from pynguin.instrumentation.injection import DynamicSeedingInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.injection import LineCoverageInjectionInstrumentation
-from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.executedinstruction import ExecutedControlInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
@@ -56,117 +56,121 @@ def comparison_module():
 
 
 @pytest.fixture
-def tracer_mock():
-    tracer = MagicMock()
-    tracer.subject_properties = MagicMock()
-    tracer.subject_properties.create_code_object_id.side_effect = range(100)
-    tracer.subject_properties.register_predicate.side_effect = range(100)
-    return tracer
+def subject_properties_mock() -> MagicMock:
+    subject_properties = MagicMock()
+    subject_properties.create_code_object_id.side_effect = range(100)
+    subject_properties.register_predicate.side_effect = range(100)
+    subject_properties.instrumentation_tracer = InstrumentationExecutionTracer(MagicMock())
+    return subject_properties
 
 
 @only_3_10
-def test_entered_function(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_entered_function(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.simple_function.__code__ = transformer.instrument_module(
         simple_module.simple_function.__code__
     )
     simple_module.simple_function(1)
-    tracer_mock.subject_properties.register_code_object.assert_called_once()
-    tracer_mock.executed_code_object.assert_called_once()
+    subject_properties_mock.register_code_object.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_called_once()
 
 
 @only_3_10
-def test_entered_for_loop_no_jump(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_entered_for_loop_no_jump(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
     simple_module.for_loop(3)
-    tracer_mock.executed_bool_predicate.assert_called_with(True, 0)  # noqa: FBT003
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
+        True,  # noqa: FBT003
+        0,
+    )
 
 
 @only_3_10
-def test_entered_for_loop_no_jump_not_entered(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_entered_for_loop_no_jump_not_entered(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
     simple_module.for_loop(0)
-    tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
+        False,  # noqa: FBT003
+        0,
+    )
 
 
 @only_3_10
-def test_entered_for_loop_full_loop(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_entered_for_loop_full_loop(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
-    tracer_mock.executed_bool_predicate.assert_has_calls([
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_has_calls([
         call(True, 0),  # noqa: FBT003
         call(True, 0),  # noqa: FBT003
         call(True, 0),  # noqa: FBT003
         call(False, 0),  # noqa: FBT003
     ])
-    assert tracer_mock.executed_bool_predicate.call_count == 4
+    assert (
+        subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.call_count
+        == 4
+    )
 
 
 @only_3_10
-def test_entered_for_loop_full_loop_not_entered(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_entered_for_loop_full_loop_not_entered(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
-    tracer_mock.executed_bool_predicate.assert_called_with(False, 0)  # noqa: FBT003
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
+        False,  # noqa: FBT003
+        0,
+    )
 
 
 @only_3_10
-def test_add_bool_predicate(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_add_bool_predicate(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
     )
     simple_module.bool_predicate(True)  # noqa: FBT003
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
-    tracer_mock.executed_bool_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_once()
 
 
 @only_3_10
-def test_add_cmp_predicate(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_add_cmp_predicate(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
     )
     simple_module.cmp_predicate(1, 2)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
-    tracer_mock.executed_compare_predicate.assert_called_once()
+    subject_properties_mock.register_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
 
 
 @only_3_10
-def test_transform_for_loop_multi(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_transform_for_loop_multi(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.multi_loop.__code__ = transformer.instrument_module(
         simple_module.multi_loop.__code__
     )
     assert simple_module.multi_loop(2) == 4
-    assert tracer_mock.subject_properties.register_predicate.call_count == 3
+    assert subject_properties_mock.register_predicate.call_count == 3
     # fmt: off
     calls = [
         call(True, 0),  # noqa: FBT003
@@ -178,85 +182,96 @@ def test_transform_for_loop_multi(simple_module, tracer_mock):
         call(False, 2),  # noqa: FBT003
     ]
     # fmt: on
-    assert tracer_mock.executed_bool_predicate.call_count == len(calls)
-    tracer_mock.executed_bool_predicate.assert_has_calls(calls)
+    assert (
+        subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.call_count
+        == len(calls)
+    )
+    subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_has_calls(
+        calls
+    )
 
 
 @only_3_10
-def test_add_cmp_predicate_loop_comprehension(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.comprehension.__code__ = transformer.instrument_module(
         simple_module.comprehension.__code__
     )
     call_count = 5
     simple_module.comprehension(call_count, 3)
-    assert tracer_mock.subject_properties.register_predicate.call_count == 2
-    assert tracer_mock.executed_compare_predicate.call_count == call_count
-    assert tracer_mock.executed_bool_predicate.mock_calls == [
-        call(True, 0),  # noqa: FBT003
-        call(True, 0),  # noqa: FBT003
-        call(True, 0),  # noqa: FBT003
-        call(True, 0),  # noqa: FBT003
-        call(True, 0),  # noqa: FBT003
-        call(False, 0),  # noqa: FBT003
-    ]
+    assert subject_properties_mock.register_predicate.call_count == 2
+    assert (
+        subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.call_count
+        == call_count
+    )
+    assert (
+        subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.mock_calls
+        == [
+            call(True, 0),  # noqa: FBT003
+            call(True, 0),  # noqa: FBT003
+            call(True, 0),  # noqa: FBT003
+            call(True, 0),  # noqa: FBT003
+            call(True, 0),  # noqa: FBT003
+            call(False, 0),  # noqa: FBT003
+        ]
+    )
 
 
 @only_3_10
-def test_add_cmp_predicate_lambda(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.lambda_func.__code__ = transformer.instrument_module(
         simple_module.lambda_func.__code__
     )
     lam = simple_module.lambda_func(10)
     lam(5)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
-    assert tracer_mock.subject_properties.register_code_object.call_count == 2
-    tracer_mock.executed_compare_predicate.assert_called_once()
-    tracer_mock.executed_code_object.assert_has_calls([call(0), call(1)], any_order=True)
+    subject_properties_mock.register_predicate.assert_called_once()
+    assert subject_properties_mock.register_code_object.call_count == 2
+    subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_has_calls(
+        [call(0), call(1)], any_order=True
+    )
 
 
 @only_3_10
-def test_conditional_assignment(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_conditional_assignment(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.conditional_assignment.__code__ = transformer.instrument_module(
         simple_module.conditional_assignment.__code__
     )
     simple_module.conditional_assignment(10)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
-    assert tracer_mock.subject_properties.register_code_object.call_count == 1
-    tracer_mock.executed_compare_predicate.assert_called_once()
-    tracer_mock.executed_code_object.assert_has_calls([call(0)])
+    subject_properties_mock.register_predicate.assert_called_once()
+    assert subject_properties_mock.register_code_object.call_count == 1
+    subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_has_calls([
+        call(0)
+    ])
 
 
 @only_3_10
-def test_conditionally_nested_class(simple_module, tracer_mock):
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer_mock)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_conditionally_nested_class(simple_module, subject_properties_mock: MagicMock):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties_mock)
+    transformer = InjectionInstrumentationTransformer(subject_properties_mock, [adapter])
     simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
         simple_module.conditionally_nested_class.__code__
     )
-    assert tracer_mock.subject_properties.register_code_object.call_count == 3
+    assert subject_properties_mock.register_code_object.call_count == 3
 
     simple_module.conditionally_nested_class(6)
-    tracer_mock.executed_code_object.assert_has_calls([call(0), call(1), call(2)], any_order=True)
-    tracer_mock.subject_properties.register_predicate.assert_called_once()
-    tracer_mock.executed_compare_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_has_calls(
+        [call(0), call(1), call(2)], any_order=True
+    )
+    subject_properties_mock.register_predicate.assert_called_once()
+    subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
 
 
 @only_3_10
-def test_avoid_duplicate_instrumentation(simple_module):
-    tracer = ExecutionTracer()
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_avoid_duplicate_instrumentation(simple_module, subject_properties: SubjectProperties):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     already_instrumented = transformer.instrument_module(simple_module.cmp_predicate.__code__)
     with pytest.raises(AssertionError):
         transformer.instrument_module(already_instrumented)
@@ -297,30 +312,26 @@ def test_integrate_branch_distance_instrumentation(
     function_name,
     branchless_function_count,
     branches_count,
+    subject_properties: SubjectProperties,
 ):
-    tracer = ExecutionTracer()
     function_callable = getattr(simple_module, function_name)
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
-    assert (
-        sum(1 for _ in tracer.subject_properties.branch_less_code_objects)
-        == branchless_function_count
-    )
-    assert len(list(tracer.subject_properties.existing_predicates)) == branches_count
+    assert sum(1 for _ in subject_properties.branch_less_code_objects) == branchless_function_count
+    assert len(list(subject_properties.existing_predicates)) == branches_count
 
 
 @only_3_10
-def test_integrate_line_coverage_instrumentation(simple_module):
-    tracer = ExecutionTracer()
+def test_integrate_line_coverage_instrumentation(
+    simple_module, subject_properties: SubjectProperties
+):
     function_callable = simple_module.multi_loop
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
 
-    assert tracer.subject_properties.existing_lines
+    assert subject_properties.existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
     assert {
         0,
@@ -330,11 +341,13 @@ def test_integrate_line_coverage_instrumentation(simple_module):
         4,
         5,
         6,
-    } == tracer.subject_properties.existing_lines.keys()
+    } == subject_properties.existing_lines.keys()
 
 
 @only_3_10
-def test_offset_calculation_checked_coverage_instrumentation(simple_module):
+def test_offset_calculation_checked_coverage_instrumentation(
+    simple_module, subject_properties: SubjectProperties
+):
     """Checks if the instructions in the checked coverage are traced correctly.
 
     The disassembled method 'bool_predicate' looks as such:
@@ -381,17 +394,17 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
         ),
     ])
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     function_callable = simple_module.bool_predicate
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = CheckedCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = CheckedCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
 
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
     function_callable(False)  # noqa: FBT003
 
-    trace = tracer.get_trace()
+    trace = subject_properties.instrumentation_tracer.get_trace()
     assert trace.executed_instructions
     assert len(trace.executed_instructions) == len(expected_executed_instructions)
     for expected_instr, actual_instr in zip(
@@ -413,23 +426,26 @@ def test_offset_calculation_checked_coverage_instrumentation(simple_module):
     "op",
     [op for op in PynguinCompare if op != PynguinCompare.EXC_MATCH],
 )
-def test_comparison(comparison_module, op):
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+def test_comparison(comparison_module, op, subject_properties: SubjectProperties):
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     function_callable = getattr(comparison_module, "_" + op.name.lower())
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
-    with mock.patch.object(tracer, "executed_compare_predicate") as trace_mock:
+    with mock.patch.object(
+        subject_properties.instrumentation_tracer, "executed_compare_predicate"
+    ) as trace_mock:
         function_callable("a", "a")
         trace_mock.assert_called_with("a", "a", 0, op)
 
 
 @only_3_10
-def test_exception():
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+def test_exception(subject_properties: SubjectProperties):
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
     def func():
         try:
@@ -437,19 +453,22 @@ def test_exception():
         except ValueError:
             pass
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
+    with mock.patch.object(
+        subject_properties.instrumentation_tracer, "executed_exception_match"
+    ) as trace_mock:
         func()
         trace_mock.assert_called_with(ValueError, ValueError, 0)
 
 
 @only_3_10
 def test_exception_no_match():
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties = SubjectProperties()
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
     def func():
         try:
@@ -457,118 +476,126 @@ def test_exception_no_match():
         except ValueError:
             pass  # pragma: no cover
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    with mock.patch.object(tracer, "executed_exception_match") as trace_mock:
+    with mock.patch.object(
+        subject_properties.instrumentation_tracer, "executed_exception_match"
+    ) as trace_mock:
         with pytest.raises(RuntimeError):
             func()
         trace_mock.assert_called_with(RuntimeError, ValueError, 0)
 
 
 @only_3_10
-def test_exception_integrate():
-    tracer = ExecutionTracer()
-
+def test_exception_integrate(subject_properties: SubjectProperties):
     def func():
         try:
             raise ValueError
         except ValueError:
             pass
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     func()
-    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
-    assert tracer.get_trace().executed_predicates == {0: 1}
-    assert tracer.get_trace().true_distances == {0: 0.0}
-    assert tracer.get_trace().false_distances == {0: 1.0}
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert OrderedSet([0]) == trace.executed_code_objects
+    assert trace.executed_predicates == {0: 1}
+    assert trace.true_distances == {0: 0.0}
+    assert trace.false_distances == {0: 1.0}
 
 
 @only_3_10
-def test_multiple_instrumentations_share_code_object_ids(simple_module):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    line_instr = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    branch_instr = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
+def test_multiple_instrumentations_share_code_object_ids(
+    simple_module, subject_properties: SubjectProperties
+):
+    line_instr = LineCoverageInjectionInstrumentation(subject_properties)
+    branch_instr = BranchCoverageInjectionInstrumentation(subject_properties)
     transformer = InjectionInstrumentationTransformer(
-        instrumentation_tracer, [line_instr, branch_instr]
+        subject_properties, [line_instr, branch_instr]
     )
     simple_module.simple_function.__code__ = transformer.instrument_module(
         simple_module.simple_function.__code__
     )
 
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.simple_function(42)
-    assert {0} == tracer.subject_properties.existing_code_objects.keys()
-    assert {0} == set(tracer.subject_properties.branch_less_code_objects)
-    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
+    assert {0} == subject_properties.existing_code_objects.keys()
+    assert {0} == set(subject_properties.branch_less_code_objects)
+    assert (
+        OrderedSet([0])
+        == subject_properties.instrumentation_tracer.get_trace().executed_code_objects
+    )
 
 
 @only_3_10
-def test_exception_no_match_integrate():
-    tracer = ExecutionTracer()
-
+def test_exception_no_match_integrate(subject_properties: SubjectProperties):
     def func():
         try:
             raise RuntimeError
         except ValueError:
             pass  # pragma: no cover
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     with pytest.raises(RuntimeError):
         func()
-    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
-    assert tracer.get_trace().executed_predicates == {0: 1}
-    assert tracer.get_trace().true_distances == {0: 1.0}
-    assert tracer.get_trace().false_distances == {0: 0.0}
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert OrderedSet([0]) == trace.executed_code_objects
+    assert trace.executed_predicates == {0: 1}
+    assert trace.true_distances == {0: 1.0}
+    assert trace.false_distances == {0: 0.0}
 
 
 @only_3_10
-def test_jump_if_true_or_pop():
-    tracer = ExecutionTracer()
-
+def test_jump_if_true_or_pop(subject_properties: SubjectProperties):
     def func(string, _int_type=int):
         return (hasattr(string, "is_integer") or hasattr(string, "__array__")) or (
             isinstance(string, bytes | str)
         )
 
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func.__code__ = transformer.instrument_module(func.__code__)
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     with contextlib.nullcontext():
         func("123")
-    assert OrderedSet([0]) == tracer.get_trace().executed_code_objects
-    assert tracer.get_trace().executed_predicates == {0: 1, 1: 1}
-    assert tracer.get_trace().true_distances == {0: 1.0, 1: 1.0}
-    assert tracer.get_trace().false_distances == {0: 0.0, 1: 0.0}
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert OrderedSet([0]) == trace.executed_code_objects
+    assert trace.executed_predicates == {0: 1, 1: 1}
+    assert trace.true_distances == {0: 1.0, 1: 1.0}
+    assert trace.false_distances == {0: 0.0, 1: 0.0}
 
 
 @only_3_10
-def test_tracking_covered_statements_explicit_return(simple_module):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    instr = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [instr])
+def test_tracking_covered_statements_explicit_return(
+    simple_module, subject_properties: SubjectProperties
+):
+    instr = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [instr])
     simple_module.explicit_none_return.__code__ = transformer.instrument_module(
         simple_module.explicit_none_return.__code__
     )
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.explicit_none_return()
-    assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == OrderedSet([
+    assert subject_properties.instrumentation_tracer.get_trace().covered_line_ids
+    assert subject_properties.lineids_to_linenos(
+        subject_properties.instrumentation_tracer.get_trace().covered_line_ids
+    ) == OrderedSet([
         77,
         78,
     ])
@@ -582,19 +609,21 @@ def test_tracking_covered_statements_explicit_return(simple_module):
         pytest.param(1, 0, OrderedSet([14, 15])),
     ],
 )
-def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2, expected_lines):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_tracking_covered_statements_cmp_predicate(
+    simple_module, value1, value2, expected_lines, subject_properties: SubjectProperties
+):
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     simple_module.cmp_predicate.__code__ = transformer.instrument_module(
         simple_module.cmp_predicate.__code__
     )
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.cmp_predicate(value1, value2)
-    assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.covered_line_ids
+    assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
 @only_3_10
@@ -605,19 +634,21 @@ def test_tracking_covered_statements_cmp_predicate(simple_module, value1, value2
         pytest.param(True, OrderedSet([21, 22])),
     ],
 )
-def test_tracking_covered_statements_bool_predicate(simple_module, value, expected_lines):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_tracking_covered_statements_bool_predicate(
+    simple_module, value, expected_lines, subject_properties: SubjectProperties
+):
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     simple_module.bool_predicate.__code__ = transformer.instrument_module(
         simple_module.bool_predicate.__code__
     )
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.bool_predicate(value)
-    assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.covered_line_ids
+    assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
 @only_3_10
@@ -628,19 +659,21 @@ def test_tracking_covered_statements_bool_predicate(simple_module, value, expect
         pytest.param(1, OrderedSet([33, 34])),
     ],
 )
-def test_tracking_covered_statements_for_loop(simple_module, number, expected_lines):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_tracking_covered_statements_for_loop(
+    simple_module, number, expected_lines, subject_properties: SubjectProperties
+):
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     simple_module.full_for_loop.__code__ = transformer.instrument_module(
         simple_module.full_for_loop.__code__
     )
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.full_for_loop(number)
-    assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.covered_line_ids
+    assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
 @only_3_10
@@ -651,19 +684,21 @@ def test_tracking_covered_statements_for_loop(simple_module, number, expected_li
         pytest.param(1, OrderedSet([48, 49, 50])),
     ],
 )
-def test_tracking_covered_statements_while_loop(simple_module, number, expected_lines):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_tracking_covered_statements_while_loop(
+    simple_module, number, expected_lines, subject_properties: SubjectProperties
+):
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     simple_module.while_loop.__code__ = transformer.instrument_module(
         simple_module.while_loop.__code__
     )
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     simple_module.while_loop(number)
-    assert tracer.get_trace().covered_line_ids
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    assert trace.covered_line_ids
+    assert subject_properties.lineids_to_linenos(trace.covered_line_ids) == expected_lines
 
 
 @only_3_10
@@ -683,21 +718,27 @@ def test_tracking_covered_statements_while_loop(simple_module, number, expected_
         ("for_return", [1], OrderedSet([38, 39])),
     ],
 )
-def test_expected_covered_lines(func, arg, expected_lines, artificial_none_module):
-    tracer = ExecutionTracer()
-
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = LineCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_expected_covered_lines(
+    func, arg, expected_lines, artificial_none_module, subject_properties: SubjectProperties
+):
+    adapter = LineCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     func_object = getattr(artificial_none_module, func)
     func_object.__code__ = transformer.instrument_module(func_object.__code__)
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     func_object(arg)
-    assert tracer.lineids_to_linenos(tracer.get_trace().covered_line_ids) == expected_lines
+    assert (
+        subject_properties.lineids_to_linenos(
+            subject_properties.instrumentation_tracer.get_trace().covered_line_ids
+        )
+        == expected_lines
+    )
 
 
 @pytest.fixture
-def dynamic_instr():
+def dynamic_instr(subject_properties: SubjectProperties):
     constant_pool = ConstantPool()
     constant_provider = DynamicConstantProvider(
         pool=constant_pool,
@@ -706,9 +747,7 @@ def dynamic_instr():
         max_constant_length=50,
     )
     adapter = DynamicSeedingInjectionInstrumentation(constant_provider)
-    transformer = InjectionInstrumentationTransformer(
-        InstrumentationExecutionTracer(ExecutionTracer()), [adapter]
-    )
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     return constant_pool, transformer
 
 

@@ -23,7 +23,7 @@ import pynguin.ga.computations as ff
 
 
 if TYPE_CHECKING:
-    from pynguin.instrumentation.tracer import ExecutionTracer
+    from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.execution import ExecutionResult
 
 
@@ -119,19 +119,21 @@ class ControlFlowDistance:
 
 
 def get_root_control_flow_distance(
-    result: ExecutionResult, code_object_id: int, tracer: ExecutionTracer
+    result: ExecutionResult,
+    code_object_id: int,
+    subject_properties: SubjectProperties,
 ) -> ControlFlowDistance:
     """Computes the control flow distance for a root branch.
 
     Args:
         result: the execution result.
         code_object_id: The code object id for which we want to get the root distance.
-        tracer: the execution tracer
+        subject_properties: the subject properties
 
     Returns:
         The control flow distance, (0.0, 0.0) if it was executed, otherwise (1.0, 0.0)
     """
-    assert code_object_id in tracer.subject_properties.branch_less_code_objects
+    assert code_object_id in subject_properties.branch_less_code_objects
 
     distance = ControlFlowDistance()
     if code_object_id in result.execution_trace.executed_code_objects:
@@ -146,7 +148,7 @@ def get_non_root_control_flow_distance(
     result: ExecutionResult,
     predicate_id: int,
     value: bool,  # noqa: FBT001
-    tracer: ExecutionTracer,
+    subject_properties: SubjectProperties,
 ) -> ControlFlowDistance:
     """Computes the control flow distance for a predicate.
 
@@ -154,18 +156,18 @@ def get_non_root_control_flow_distance(
         result: the execution result.
         predicate_id: The predicate id for which we want to get the root distance.
         value: compute distance to the true or the false branch?
-        tracer: the execution tracer
+        subject_properties: the subject properties
 
     Returns:
         The control flow distance.
     """
     trace = result.execution_trace
-    code_object_id = tracer.subject_properties.existing_predicates[predicate_id].code_object_id
+    code_object_id = subject_properties.existing_predicates[predicate_id].code_object_id
 
     distance = ControlFlowDistance()
     # Code Object was not executed, simply use diameter as upper bound.
     if code_object_id not in trace.executed_code_objects:
-        distance.approach_level = tracer.subject_properties.existing_code_objects[
+        distance.approach_level = subject_properties.existing_code_objects[
             code_object_id
         ].cfg.diameter
         return distance
@@ -178,8 +180,6 @@ def get_non_root_control_flow_distance(
             branch_distance = _predicate_fitness(predicate_id, trace.false_distances)
         distance.branch_distance = branch_distance
         return distance
-
-    subject_properties = tracer.subject_properties
 
     cdg = subject_properties.existing_code_objects[code_object_id].cdg
     target_node = subject_properties.existing_predicates[predicate_id].node

@@ -24,7 +24,7 @@ from pynguin.analyses.typesystem import InferredSignature
 from pynguin.ga.computations import TestCaseStatementCheckedCoverageFunction
 from pynguin.ga.computations import TestSuiteStatementCheckedCoverageFunction
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase.execution import TestCaseExecutor
@@ -55,7 +55,9 @@ def plus_three_test():
 
 
 @only_3_10
-def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
+def test_testsuite_statement_checked_coverage_calculation(
+    plus_three_test, subject_properties: SubjectProperties
+):
     module_name = "tests.fixtures.linecoverage.plus"
     test_suite = tsc.TestSuiteChromosome()
     test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=plus_three_test))
@@ -63,14 +65,15 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
-    with install_import_hook(module_name, tracer):
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
         ff = TestSuiteStatementCheckedCoverageFunction(executor)
@@ -78,21 +81,24 @@ def test_testsuite_statement_checked_coverage_calculation(plus_three_test):
 
 
 @only_3_10
-def test_testcase_statement_checked_coverage_calculation(plus_three_test):
+def test_testcase_statement_checked_coverage_calculation(
+    plus_three_test, subject_properties: SubjectProperties
+):
     module_name = "tests.fixtures.linecoverage.plus"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=plus_three_test)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
-    with install_import_hook(module_name, tracer):
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
@@ -143,21 +149,22 @@ def setter_test():
 
 
 @only_3_10
-def test_only_void_function(setter_test):
+def test_only_void_function(setter_test, subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_test)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
-    with install_import_hook(module_name, tracer):
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
@@ -209,21 +216,22 @@ def getter_setter_test():
 
 
 @only_3_10
-def test_getter_before_setter(getter_setter_test):
+def test_getter_before_setter(getter_setter_test, subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=getter_setter_test)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
-    with install_import_hook(module_name, tracer):
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)
@@ -291,21 +299,22 @@ def setter_getter_test():
 
 
 @only_3_10
-def test_getter_after_setter(setter_getter_test):
+def test_getter_after_setter(setter_getter_test, subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.setter_getter"
     test_case_chromosome = tcc.TestCaseChromosome(test_case=setter_getter_test)
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.CHECKED,
     ]
 
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
-    with install_import_hook(module_name, tracer):
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
         ff = TestCaseStatementCheckedCoverageFunction(executor)

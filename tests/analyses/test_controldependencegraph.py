@@ -12,8 +12,7 @@ from pynguin.analyses.controlflow import ArtificialNode
 from pynguin.analyses.controlflow import ControlDependenceGraph
 from pynguin.instrumentation.injection import BranchCoverageInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
-from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from tests.fixtures.programgraph.yield_fun import yield_fun
 from tests.utils.version import only_3_10
 
@@ -120,13 +119,10 @@ def small_fixture(x, y):  # pragma: no cover
         ),
     ],
 )
-def test_get_control_dependencies(node_index, expected_deps):
-    tracer = ExecutionTracer()
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_get_control_dependencies(node_index, expected_deps, subject_properties: SubjectProperties):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    subject_properties = tracer.subject_properties
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
     node = cdg.get_basic_block_node(node_index)
@@ -144,13 +140,11 @@ def test_get_control_dependencies(node_index, expected_deps):
 
 @only_3_10
 @pytest.mark.parametrize("node", ["foobar", None])
-def test_get_control_dependencies_asserts(node):
-    tracer = ExecutionTracer()
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_get_control_dependencies_asserts(node, subject_properties: SubjectProperties):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(small_fixture.__code__)
-    cdg = next(iter(tracer.subject_properties.existing_code_objects.values())).cdg
+    cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)
 
@@ -189,13 +183,12 @@ def long_fixture(x, y):  # pragma: no cover
         pytest.param(9, False),
     ],
 )
-def test_is_control_dependent_on_root(node_index, expected_dependant):
-    tracer = ExecutionTracer()
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_is_control_dependent_on_root(
+    node_index, expected_dependant, subject_properties: SubjectProperties
+):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(long_fixture.__code__)
-    subject_properties = tracer.subject_properties
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
 
     node = cdg.get_basic_block_node(node_index)
@@ -210,13 +203,11 @@ def test_is_control_dependent_on_root(node_index, expected_dependant):
 
 
 @only_3_10
-def test_yield_instrumented():
-    tracer = ExecutionTracer()
-    instrumentation_tracer = InstrumentationExecutionTracer(tracer)
-    adapter = BranchCoverageInjectionInstrumentation(instrumentation_tracer)
-    transformer = InjectionInstrumentationTransformer(instrumentation_tracer, [adapter])
+def test_yield_instrumented(subject_properties: SubjectProperties):
+    adapter = BranchCoverageInjectionInstrumentation(subject_properties)
+    transformer = InjectionInstrumentationTransformer(subject_properties, [adapter])
     transformer.instrument_module(yield_fun.__code__)
-    cdg = next(iter(tracer.subject_properties.existing_code_objects.values())).cdg
+    cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     assert cdg
 
 

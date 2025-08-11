@@ -61,11 +61,11 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
     ) -> None:
         if exception is None:
             assert isinstance(statement, st.VariableCreatingStatement)
-            trace = executor.tracer.get_trace()
+            trace = executor.subject_properties.instrumentation_tracer.get_trace()
             last_traced_instr = trace.executed_instructions[-2]
             assert last_traced_instr.opcode == op.STORE_NAME
 
-            code_object = executor.tracer.subject_properties.existing_code_objects[
+            code_object = executor.subject_properties.existing_code_objects[
                 last_traced_instr.code_object_id
             ]
             slicing_instruction = UniqueInstruction(
@@ -93,7 +93,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
         checked_lines = compute_statement_checked_lines(
             test_case.statements,
             result.execution_trace,
-            executor.tracer.subject_properties,
+            executor.subject_properties,
             self._slicing_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)

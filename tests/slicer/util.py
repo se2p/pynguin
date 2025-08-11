@@ -13,15 +13,15 @@ import threading
 
 from types import CodeType
 
-from bytecode import BasicBlock
 from bytecode import Instr
+from bytecode.cfg import BasicBlock
 
 import pynguin.configuration as config
 
 from pynguin.instrumentation.injection import CheckedCoverageInjectionInstrumentation
 from pynguin.instrumentation.injection import InjectionInstrumentationTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
@@ -102,16 +102,20 @@ def _contains_name_argtype(
 
 
 def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
-    tracer = ExecutionTracer()
-    instrumentation = CheckedCoverageInjectionInstrumentation(tracer)
-    instrumentation_transformer = InjectionInstrumentationTransformer(tracer, [instrumentation])
+    subject_properties = SubjectProperties()
+    instrumentation = CheckedCoverageInjectionInstrumentation(subject_properties)
+    instrumentation_transformer = InjectionInstrumentationTransformer(
+        subject_properties, [instrumentation]
+    )
 
     function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
     function()
 
-    trace = tracer.get_trace()
-    known_code_objects = tracer.subject_properties.existing_code_objects
+    trace = subject_properties.instrumentation_tracer.get_trace()
+    known_code_objects = subject_properties.existing_code_objects
     dynamic_slicer = DynamicSlicer(known_code_objects)
 
     last_traced_instr = trace.executed_instructions[-1]
@@ -120,7 +124,7 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
         name=last_traced_instr.name,
         code_object_id=last_traced_instr.code_object_id,
         node_id=last_traced_instr.node_id,
-        code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+        code_meta=known_code_objects[last_traced_instr.code_object_id],
         offset=last_traced_instr.offset,
         lineno=last_traced_instr.lineno,
     )
@@ -133,15 +137,17 @@ def slice_function_at_return(function: callable) -> list[UniqueInstruction]:
 
 def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties = SubjectProperties()
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
+    with install_import_hook(module_name, subject_properties):
         module = importlib.import_module(module_name)
         importlib.reload(module)
         module.func()
 
-        trace = tracer.get_trace()
-        known_code_objects = tracer.subject_properties.existing_code_objects
+        trace = subject_properties.instrumentation_tracer.get_trace()
+        known_code_objects = subject_properties.existing_code_objects
 
         assert known_code_objects
         dynamic_slicer = DynamicSlicer(known_code_objects)
@@ -152,7 +158,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
             name=last_traced_instr.name,
             code_object_id=last_traced_instr.code_object_id,
             node_id=last_traced_instr.node_id,
-            code_meta=known_code_objects.get(last_traced_instr.code_object_id),
+            code_meta=known_code_objects[last_traced_instr.code_object_id],
             offset=last_traced_instr.offset,
             lineno=last_traced_instr.lineno,
         )

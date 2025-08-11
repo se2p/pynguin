@@ -158,7 +158,7 @@ def get_coverage_report(
         assert result is not None
         results.append(result)
     trace = ff.analyze_results(results)
-    subject_properties = executor.tracer.subject_properties
+    subject_properties = executor.subject_properties
     try:
         source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
     except Exception as e:
@@ -198,8 +198,8 @@ def get_coverage_report(
     lines = CoverageEntry()
     if config.CoverageMetric.LINE in metrics:
         line_coverage = ff.compute_line_coverage(trace, subject_properties)
-        covered_lines = executor.tracer.lineids_to_linenos(trace.covered_line_ids)
-        existing_lines = executor.tracer.lineids_to_linenos(
+        covered_lines = subject_properties.lineids_to_linenos(trace.covered_line_ids)
+        existing_lines = subject_properties.lineids_to_linenos(
             OrderedSet(subject_properties.existing_lines.keys())
         )
         lines += CoverageEntry(len(covered_lines), len(existing_lines))

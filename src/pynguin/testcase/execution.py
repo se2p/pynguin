@@ -65,7 +65,7 @@ from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
@@ -465,7 +465,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
     ) -> None:
         # This is a bit cumbersome, because the tracer is disabled by default.
         enabled = False
-        tracer = executor.tracer
+        tracer = executor.subject_properties.instrumentation_tracer
         try:
             if tracer.is_disabled():
                 enabled = True
@@ -482,15 +482,19 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 )
                 executor.execute_ast(assertion_node, exec_ctx)
 
-                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(tracer)
+                code_object_id, node_id = self._get_assertion_node_and_code_object_ids(
+                    executor.subject_properties
+                )
                 tracer.track_assertion_position(code_object_id, node_id, assertion)
         finally:
             if enabled:
                 # Restore old state
                 tracer.disable()
 
-    def _get_assertion_node_and_code_object_ids(self, tracer: ExecutionTracer) -> tuple[int, int]:
-        existing_code_objects = tracer.subject_properties.existing_code_objects
+    def _get_assertion_node_and_code_object_ids(
+        self, subject_properties: SubjectProperties
+    ) -> tuple[int, int]:
+        existing_code_objects = subject_properties.existing_code_objects
         code_object_id = len(existing_code_objects) - 1
         code_object = existing_code_objects[code_object_id]
         assert_node = None
@@ -934,11 +938,11 @@ class AbstractTestCaseExecutor(abc.ABC):
 
     @property
     @abstractmethod
-    def tracer(self) -> ExecutionTracer:
-        """Provide access to the execution tracer.
+    def subject_properties(self) -> SubjectProperties:
+        """Provide access to the subject properties.
 
         Returns:
-            The execution tracer
+            The subject properties
         """
 
     @abstractmethod
@@ -976,7 +980,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
     def __init__(
         self,
-        tracer: ExecutionTracer,
+        subject_properties: SubjectProperties,
         module_provider: ModuleProvider | None = None,
         maximum_test_execution_timeout: int = 5,
         test_execution_time_per_statement: int = 1,
@@ -984,7 +988,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         """Create new test case executor.
 
         Args:
-            tracer: the execution tracer
+            subject_properties: The properties of the subject under test.
             module_provider: The used module provider
             maximum_test_execution_timeout: The minimum timeout time (in seconds)
                 before a test case execution times out.
@@ -995,16 +999,16 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._test_execution_time_per_statement = test_execution_time_per_statement
 
         self._module_provider = module_provider if module_provider is not None else ModuleProvider()
-        self._tracer = tracer
+        self._subject_properties = subject_properties
         self._observers: list[ExecutionObserver] = []
         self._remote_observers: list[RemoteExecutionObserver] = []
         self._instrument = (
             config.CoverageMetric.CHECKED in config.configuration.statistics_output.coverage_metrics
         )
-        instrumentation_tracer = InstrumentationExecutionTracer(self._tracer)
-        checked_instrumentation = CheckedCoverageInjectionInstrumentation(instrumentation_tracer)
+        checked_instrumentation = CheckedCoverageInjectionInstrumentation(self._subject_properties)
         self._checked_transformer = InjectionInstrumentationTransformer(
-            instrumentation_tracer, [checked_instrumentation]
+            self._subject_properties,
+            [checked_instrumentation],
         )
 
         def log_thread_exception(arg: threading.ExceptHookArgs) -> None:
@@ -1062,8 +1066,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         yield from (observer.remote_observer for observer in self._observers)
 
     @property
-    def tracer(self) -> ExecutionTracer:  # noqa: D102
-        return self._tracer
+    def subject_properties(self) -> SubjectProperties:  # noqa: D102
+        return self._subject_properties
 
     def set_instrument(self, instrument: bool) -> None:  # noqa: FBT001
         """Set if the test is to be instrumented as well.
@@ -1095,7 +1099,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         if thread.is_alive():
             # Set thread ident to invalid value, such that the tracer
             # kills the thread
-            self._tracer.current_thread_identifier = -1
+            self._subject_properties.instrumentation_tracer.current_thread_identifier = -1
             # Wait for the thread so that stdout/stderr is not redirected anymore
             _LOGGER.debug("Waiting for thread to finish")
             thread.join(timeout=self._maximum_test_execution_timeout)
@@ -1117,10 +1121,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 _LOGGER.error("Bug in Pynguin!")
                 result = ExecutionResult(timeout=True)
         self._after_remote_test_case_execution(test_case, result)
+        self._subject_properties.validate_execution_trace(result.execution_trace)
         return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
-        self._tracer.init_trace()
+        self._subject_properties.instrumentation_tracer.init_trace()
         for observer in self._yield_remote_observers():
             observer.before_test_case_execution(test_case)
 
@@ -1134,7 +1139,9 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._before_test_case_execution(test_case)
             result = ExecutionResult()
             exec_ctx = ExecutionContext(self._module_provider)
-            self._tracer.current_thread_identifier = threading.current_thread().ident
+            self._subject_properties.instrumentation_tracer.current_thread_identifier = (
+                threading.current_thread().ident
+            )
             with output_suppression_context:
                 for idx, statement in enumerate(test_case.statements):
                     ast_node = self._before_statement_execution(statement, exec_ctx)
@@ -1163,7 +1170,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             test_case: The executed test case
             result: The execution result
         """
-        result.execution_trace = self._tracer.get_trace()
+        result.execution_trace = self._subject_properties.instrumentation_tracer.get_trace()
         for observer in self._yield_remote_observers():
             observer.after_test_case_execution(self, test_case, result)
 
@@ -1193,21 +1200,24 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
     ) -> ast.Module:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
-        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+        if (
+            self._subject_properties.instrumentation_tracer.current_thread_identifier
+            != threading.current_thread().ident
+        ):
             # Kill this thread
             raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
-        self._tracer.disable()
+        self._subject_properties.instrumentation_tracer.disable()
 
         ast_node = exec_ctx.node_for_statement(statement)
         try:
             for observer in self._yield_remote_observers():
                 ast_node = observer.before_statement_execution(statement, ast_node, exec_ctx)
         finally:
-            self._tracer.enable()
+            self._subject_properties.instrumentation_tracer.enable()
         return ExecutionContext.wrap_node_in_module(ast_node)
 
     def execute_ast(
@@ -1251,16 +1261,19 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         exception: BaseException | None,
     ):
         # See comments in _before_statement_execution
-        if self.tracer.current_thread_identifier != threading.current_thread().ident:
+        if (
+            self._subject_properties.instrumentation_tracer.current_thread_identifier
+            != threading.current_thread().ident
+        ):
             # Kill this thread
             raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
 
-        self._tracer.disable()
+        self._subject_properties.instrumentation_tracer.disable()
         try:
             for observer in reversed(tuple(self._yield_remote_observers())):
                 observer.after_statement_execution(statement, self, exec_ctx, exception)
         finally:
-            self._tracer.enable()
+            self._subject_properties.instrumentation_tracer.enable()
 
 
 SUPPORTED_EXIT_CODE_MESSAGES = {}
@@ -1308,7 +1321,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     def __init__(
         self,
-        tracer: ExecutionTracer,
+        subject_properties: SubjectProperties,
         module_provider: ModuleProvider | None = None,
         maximum_test_execution_timeout: int = 5,
         test_execution_time_per_statement: int = 1,
@@ -1316,7 +1329,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         """Create new subprocess test case executor.
 
         Args:
-            tracer: the execution tracer
+            subject_properties: The subject properties
             module_provider: The used module provider
             maximum_test_execution_timeout: The minimum timeout time (in seconds)
                 before a test case execution times out.
@@ -1324,7 +1337,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 added to the timeout per statement, up to minimum_test_execution_timeout
         """
         super().__init__(
-            tracer,
+            subject_properties,
             module_provider,
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
@@ -1486,7 +1499,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         remote_observers = tuple(self._yield_remote_observers())
 
         args = (
-            self._tracer,
+            self._subject_properties,
             self._module_provider,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
@@ -1569,7 +1582,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                             result.assertion_trace, reference_bindings, new_reference_bindings
                         )
 
-                self._tracer.state = new_tracer.state
+                self._subject_properties.instrumentation_tracer.tracer.state = new_tracer.state
 
         return results
 
@@ -1621,7 +1634,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         # `_before_remote_test_case_execution` so we only need to run the
         # remote observers.
         executor = SubprocessTestCaseExecutor(
-            self._tracer,
+            self._subject_properties,
             self._module_provider,
             self._maximum_test_execution_timeout,
             self._test_execution_time_per_statement,
@@ -1726,7 +1739,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
-        tracer: ExecutionTracer,
+        subject_properties: SubjectProperties,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,
         test_execution_time_per_statement: int,
@@ -1736,10 +1749,12 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         sending_connection: mp_conn.Connection,
     ) -> None:
         try:
-            SubprocessTestCaseExecutor._replace_tracer(tracer)
+            SubprocessTestCaseExecutor._replace_tracer(
+                subject_properties.instrumentation_tracer.tracer
+            )
 
             executor = TestCaseExecutor(
-                tracer,
+                subject_properties,
                 module_provider,
                 maximum_test_execution_timeout,
                 test_execution_time_per_statement,
@@ -1753,7 +1768,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             # We need to set the current thread identifier to the current thread
             # because pickle can execute code of the instrumented module and it would
             # kill the subprocess which is not what we want.
-            tracer.current_thread_identifier = threading.current_thread().ident
+            subject_properties.instrumentation_tracer.current_thread_identifier = (
+                threading.current_thread().ident
+            )
 
             for result in results:
                 SubprocessTestCaseExecutor._fix_result_for_pickle(result)
@@ -1767,7 +1784,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
 
             sending_connection.send((
-                tracer,
+                subject_properties.instrumentation_tracer.tracer,
                 module_provider,
                 results,
                 new_references_bindings,
@@ -1776,7 +1793,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             sending_connection.close()
 
-            tracer.current_thread_identifier = -1
+            subject_properties.instrumentation_tracer.current_thread_identifier = -1
         except Exception as e:  # noqa: BLE001
             # Suppress all exceptions from the subprocess
             _LOGGER.warning(
@@ -1825,7 +1842,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         instrumentation_finder = sys.meta_path[0]
 
         if isinstance(instrumentation_finder, InstrumentationFinder):
-            instrumentation_finder.instrumentation_tracer.tracer = tracer
+            instrumentation_finder.subject_properties.instrumentation_tracer.tracer = tracer
 
     @staticmethod
     def _log_different_results(reason: str, obj: Any) -> None:
@@ -2054,8 +2071,8 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return self._delegate.temporarily_add_remote_observer(remote_observer)
 
     @property
-    def tracer(self) -> ExecutionTracer:  # noqa: D102
-        return self._delegate.tracer
+    def subject_properties(self) -> SubjectProperties:  # noqa: D102
+        return self._delegate.subject_properties
 
     def execute(self, test_case: tc.TestCase) -> ExecutionResult:  # noqa: D102
         if not (randomness.next_float() < self._type_tracing_probability):

@@ -39,7 +39,10 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
@@ -608,10 +611,32 @@ def plus_test_with_multiple_assertions():
 
 
 @pytest.fixture
-def result():
+def result() -> ExecutionResult:
     result = ExecutionResult()
     result.num_executed_statements = 1
     return result
+
+
+@pytest.fixture
+def result_mock() -> MagicMock:
+    return MagicMock(ExecutionResult)
+
+
+@pytest.fixture
+def subject_properties() -> SubjectProperties:
+    return SubjectProperties()
+
+
+@pytest.fixture
+def executor_mock(subject_properties: SubjectProperties) -> MagicMock:
+    executor = MagicMock(TestCaseExecutor)
+    executor.subject_properties.return_value = subject_properties
+    return executor
+
+
+@pytest.fixture
+def execution_trace() -> ExecutionTrace:
+    return ExecutionTrace()
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

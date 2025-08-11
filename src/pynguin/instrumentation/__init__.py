@@ -28,7 +28,7 @@ from pynguin.analyses.controlflow import ControlDependenceGraph
 if TYPE_CHECKING:
     from types import CodeType
 
-    from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 
 @enum.unique
@@ -129,22 +129,22 @@ class InstrumentationTransformer(ABC):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, instrumentation_tracer: InstrumentationExecutionTracer):
+    def __init__(self, subject_properties: SubjectProperties):
         """Initialize the instrumentation transformer.
 
         Args:
-            instrumentation_tracer: The tracer that is used for the instrumentation.
+            subject_properties: The properties of the subject that is being instrumented
         """
-        self._instrumentation_tracer = instrumentation_tracer
+        self._subject_properties = subject_properties
 
     @property
-    def instrumentation_tracer(self) -> InstrumentationExecutionTracer:
-        """Get the tracer that is used for the instrumentation.
+    def subject_properties(self) -> SubjectProperties:
+        """Get the subject properties that are used for the instrumentation.
 
         Returns:
-            The tracer that is used for the instrumentation.
+            The subject properties that are used for the instrumentation.
         """
-        return self._instrumentation_tracer
+        return self._subject_properties
 
     def instrument_module(self, module_code: CodeType) -> CodeType:
         """Instrument the given code object of a module.
@@ -160,9 +160,7 @@ class InstrumentationTransformer(ABC):
         return self._instrument_code_recursive(module_code)
 
     def _check_module_not_instrumented(self, module_code: CodeType) -> None:
-        subject_properties = self._instrumentation_tracer.subject_properties
-
-        for metadata in subject_properties.existing_code_objects.values():
+        for metadata in self._subject_properties.existing_code_objects.values():
             if metadata.code_object is module_code or metadata.original_code_object is module_code:
                 # Abort instrumentation, since we have already
                 # instrumented this code object.
@@ -177,7 +175,7 @@ class InstrumentationTransformer(ABC):
 
         cfg = CFG.from_bytecode(Bytecode.from_code(code))
 
-        code_object_id = self._instrumentation_tracer.subject_properties.create_code_object_id()
+        code_object_id = self._subject_properties.create_code_object_id()
 
         instrumented_code = self._visit_nodes(
             code,
@@ -185,7 +183,7 @@ class InstrumentationTransformer(ABC):
             code_object_id,
         )
 
-        self._instrumentation_tracer.subject_properties.register_code_object(
+        self._subject_properties.register_code_object(
             code_object_id,
             CodeObjectMetaData(
                 code_object=instrumented_code,

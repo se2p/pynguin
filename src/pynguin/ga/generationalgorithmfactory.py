@@ -254,7 +254,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             A fully configured test-generation strategy
         """
         strategy = self._get_generation_strategy()
-        strategy.branch_goal_pool = bg.BranchGoalPool(self._executor.tracer.subject_properties)
+        strategy.branch_goal_pool = bg.BranchGoalPool(self._executor.subject_properties)
         strategy.test_case_fitness_functions = self._get_test_case_fitness_functions(strategy)
         strategy.test_suite_fitness_functions = self._get_test_suite_fitness_functions()
         strategy.test_suite_coverage_functions = self._get_test_suite_coverage_functions()
@@ -429,7 +429,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             return FilteredModuleTestCluster(
                 self._test_cluster,
                 strategy.archive,
-                self._executor.tracer.subject_properties,
+                self._executor.subject_properties,
                 strategy.test_case_fitness_functions,
             )
         return self._test_cluster

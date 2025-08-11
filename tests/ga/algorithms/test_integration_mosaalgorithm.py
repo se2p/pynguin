@@ -18,7 +18,7 @@ import pynguin.ga.generationalgorithmfactory as gaf
 
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 from tests.utils.version import only_3_10
 
@@ -44,7 +44,7 @@ from tests.utils.version import only_3_10
         [config.Algorithm.MOSA, config.Algorithm.DYNAMOSA],
     ),
 )
-def test_integrate_mosa(module_name: str, algorithm):
+def test_integrate_mosa(module_name: str, algorithm, subject_properties: SubjectProperties):
     config.configuration.algorithm = algorithm
     config.configuration.stopping.maximum_iterations = 2
     config.configuration.module_name = module_name
@@ -55,14 +55,15 @@ def test_integrate_mosa(module_name: str, algorithm):
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
     logger = MagicMock(Logger)
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
+    with install_import_hook(module_name, subject_properties):
         # Need to force reload in order to apply instrumentation
         module = importlib.import_module(module_name)
         importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         cluster = generate_test_cluster(module_name)
         algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster

@@ -29,8 +29,6 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.instrumentation.machinery import ExecutionTracer
-from pynguin.instrumentation.machinery import InstrumentationExecutionTracer
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
@@ -46,6 +44,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
     from pynguin.instrumentation import InstrumentationTransformer
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -243,7 +242,7 @@ class InstrumentedMutationController(ct.MutationController):
         mutant_generator: mu.Mutator,
         module_ast: ast.Module,
         module: types.ModuleType,
-        tracer: ExecutionTracer,
+        subject_properties: SubjectProperties,
         *,
         testing: bool = False,
     ) -> None:
@@ -253,13 +252,13 @@ class InstrumentedMutationController(ct.MutationController):
             mutant_generator: The mutant generator.
             module_ast: The module AST.
             module: The module.
-            tracer: The execution tracer.
+            subject_properties: The subject properties.
             testing: Enable test mode, currently required for integration testing.
         """
         super().__init__(mutant_generator, module_ast, module)
 
         self._transformer = build_transformer(
-            InstrumentationExecutionTracer(tracer),
+            subject_properties,
             {config.CoverageMetric.BRANCH},
             DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
         )
@@ -269,13 +268,13 @@ class InstrumentedMutationController(ct.MutationController):
         self._testing_created_mutants: list[str] = []
 
     @property
-    def tracer(self) -> ExecutionTracer:
-        """Provides the execution tracer.
+    def subject_properties(self) -> SubjectProperties:
+        """Provides the subject properties.
 
         Returns:
-            The execution tracer.
+            The subject properties.
         """
-        return self._transformer.instrumentation_tracer.tracer
+        return self._transformer.subject_properties
 
     @property
     def transformer(self) -> InstrumentationTransformer:
@@ -286,13 +285,15 @@ class InstrumentedMutationController(ct.MutationController):
         """
         return self._transformer
 
-    def create_mutant(self, ast_node: ast.Module) -> types.ModuleType:  # noqa: D102
-        self.tracer.current_thread_identifier = threading.current_thread().ident
-        self.tracer.reset()
+    def create_mutant(self, mutant_ast: ast.Module) -> types.ModuleType:  # noqa: D102
+        self.subject_properties.instrumentation_tracer.current_thread_identifier = (
+            threading.current_thread().ident
+        )
+        self.subject_properties.reset()
         module_name = self._module.__name__
-        code = compile(ast_node, module_name, "exec")
+        code = compile(mutant_ast, module_name, "exec")
         if self._testing:
-            self._testing_created_mutants.append(ast.unparse(ast_node))
+            self._testing_created_mutants.append(ast.unparse(mutant_ast))
         code = self._transformer.instrument_module(code)
         module = types.ModuleType(module_name)
         try:
@@ -301,7 +302,7 @@ class InstrumentedMutationController(ct.MutationController):
             _LOGGER.debug("Error creating mutant: %s", exception)
         except SystemExit as exception:
             _LOGGER.debug("Caught SystemExit during mutant creation/execution: %s", exception)
-        self.tracer.store_import_trace()
+        self.subject_properties.instrumentation_tracer.store_import_trace()
         return module
 
 
@@ -327,10 +328,12 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         # We use a separate tracer and executor to execute tests on the mutants.
         if config.configuration.subprocess:
             self._mutation_executor: ex.TestCaseExecutor = ex.SubprocessTestCaseExecutor(
-                mutation_controller.tracer
+                mutation_controller.subject_properties
             )
         else:
-            self._mutation_executor = ex.TestCaseExecutor(mutation_controller.tracer)
+            self._mutation_executor = ex.TestCaseExecutor(
+                mutation_controller.subject_properties,
+            )
 
         self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
 

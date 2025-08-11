@@ -77,6 +77,7 @@ class ExecutionTrace:
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ei.ExecutedInstruction] = field(default_factory=list)
+    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
     checked_lines: OrderedSet[int] = field(default_factory=OrderedSet)
 
@@ -95,6 +96,7 @@ class ExecutionTrace:
         self.checked_lines.update(other.checked_lines)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
+        self.object_addresses.update(other.object_addresses)
         self.executed_assertions.extend(
             ExecutedAssertion(
                 executed_assertion.code_object_id,
@@ -345,12 +347,20 @@ class LineMetaData:
         return self.line_number == other.line_number and self.file_name == other.file_name
 
 
+DEFAULT_CODE_OBJECT_ID = 0
+
+
 @dataclass
 class SubjectProperties:
     """Contains properties about the subject under test."""
 
+    # The instrumentation tracer that is used to trace the execution
+    instrumentation_tracer: InstrumentationExecutionTracer = field(
+        default_factory=lambda: InstrumentationExecutionTracer(ExecutionTracer())
+    )
+
     # The next code object id to be created.
-    next_code_object_id: int = 0
+    next_code_object_id: int = DEFAULT_CODE_OBJECT_ID
 
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
@@ -360,9 +370,6 @@ class SubjectProperties:
 
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
-
-    # Stores known memory attribute object addresses
-    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
 
     # Get the existing code objects do not contain a branch, i.e.,
     # they do not contain a predicate. Every code object is initially seen as
@@ -385,11 +392,11 @@ class SubjectProperties:
 
     def reset(self) -> None:
         """Resets the subject properties."""
-        self.next_code_object_id = 0
+        self.next_code_object_id = DEFAULT_CODE_OBJECT_ID
         self.existing_code_objects.clear()
         self.existing_predicates.clear()
         self.existing_lines.clear()
-        self.object_addresses.clear()
+        self.instrumentation_tracer.reset()
 
     def create_code_object_id(self) -> int:
         """Create a new code object ID.
@@ -452,6 +459,39 @@ class SubjectProperties:
             line_id = list(self.existing_lines.keys())[index]
         return line_id
 
+    def validate_execution_trace(self, execution_trace: ExecutionTrace) -> None:
+        """Validate the execution trace.
+
+        Args:
+            execution_trace: The execution trace to validate
+
+        Raises:
+            AssertionError: if the execution trace is invalid
+        """
+        for code_object_id in execution_trace.executed_code_objects:
+            assert code_object_id in self.existing_code_objects, (
+                f"Code object id {code_object_id} not registered in subject properties"
+            )
+        for predicate_id in execution_trace.executed_predicates:
+            assert predicate_id in self.existing_predicates, (
+                f"Predicate id {predicate_id} not registered in subject properties"
+            )
+        for line_id in execution_trace.covered_line_ids:
+            assert line_id in self.existing_lines, (
+                f"Line id {line_id} not registered in subject properties"
+            )
+
+    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
+        """Convenience method to translate line ids to line numbers.
+
+        Args:
+            line_ids: The ids that should be translated.
+
+        Returns:
+            The line numbers.
+        """
+        return OrderedSet([self.existing_lines[line_id].line_number for line_id in line_ids])
+
 
 class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     """An abstract execution tracer.
@@ -486,15 +526,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
 
         Returns:
             The execution trace after executing the import statements
-        """
-
-    @property
-    @abstractmethod
-    def subject_properties(self) -> SubjectProperties:
-        """Provide known data.
-
-        Returns:
-            The known data about the execution
         """
 
     @abstractmethod
@@ -882,17 +913,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         return -1
 
     @abstractmethod
-    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
-        """Convenience method to translate line ids to line numbers.
-
-        Args:
-            line_ids: The ids that should be translated.
-
-        Returns:
-            The line numbers.
-        """
-
-    @abstractmethod
     def __getstate__(self) -> dict:
         """Gets the state.
 
@@ -1088,7 +1108,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.trace = ExecutionTrace()
 
     def __init__(self) -> None:  # noqa: D107
-        self._subject_properties = SubjectProperties()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
 
@@ -1114,10 +1133,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         return copied
 
     @property
-    def subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self._subject_properties
-
-    @property
     def state(self) -> dict:
         """Get the current state.
 
@@ -1125,10 +1140,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             The current state
         """
         return {
-            "subject_properties": self._subject_properties,
             "import_trace": self._import_trace,
             "current_thread_identifier": self._current_thread_identifier,
-            "current_code_object_id": self._current_code_object_id,
             "thread_local_state": {
                 "enabled": self._thread_local_state.enabled,
                 "trace": self._thread_local_state.trace,
@@ -1142,16 +1155,13 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         Args:
             state: The state to set
         """
-        self._subject_properties = state["subject_properties"]
         self._import_trace = state["import_trace"]
         self._current_thread_identifier = state["current_thread_identifier"]
-        self._current_code_object_id = state["current_code_object_id"]
         self._thread_local_state = ExecutionTracer.TracerLocalState()
         self._thread_local_state.enabled = state["thread_local_state"]["enabled"]
         self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
     def reset(self) -> None:  # noqa: D102
-        self._subject_properties.reset()
         self._import_trace = ExecutionTrace()
         self.init_trace()
 
@@ -1178,9 +1188,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     @_early_return
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
-        assert code_object_id in self._subject_properties.existing_code_objects, (
-            "Cannot trace unknown code object"
-        )
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
     @_early_return
@@ -1189,9 +1196,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     ) -> None:
         try:
             self.disable()
-            assert predicate in self._subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
 
@@ -1250,9 +1254,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
         try:
             self.disable()
-            assert predicate in self._subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1283,9 +1284,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
         try:
             self.disable()
-            assert predicate in self._subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1305,9 +1303,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._thread_local_state.trace.covered_line_ids.add(line_id)
 
     def _update_metrics(self, distance_false: float, distance_true: float, predicate: int):
-        assert predicate in self._subject_properties.existing_predicates, (
-            "Cannot update unknown predicate"
-        )
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
         assert (distance_true == 0.0) ^ (distance_false == 0.0), (
@@ -1359,9 +1354,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         # Determine if this is a definition of a completely new object
         # (required later during slicing)
         object_creation = False
-        if arg_address and arg_address not in self._subject_properties.object_addresses:
+        if arg_address and arg_address not in self._thread_local_state.trace.object_addresses:
             object_creation = True
-            self._subject_properties.object_addresses.add(arg_address)
+            self._thread_local_state.trace.object_addresses.add(arg_address)
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1503,13 +1498,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def __repr__(self) -> str:
         return "ExecutionTracer"
 
-    def lineids_to_linenos(  # noqa: D102
-        self, line_ids: OrderedSet[int]
-    ) -> OrderedSet[int]:
-        return OrderedSet([
-            self._subject_properties.existing_lines[line_id].line_number for line_id in line_ids
-        ])
-
     def __getstate__(self) -> dict:
         return self.state
 
@@ -1551,10 +1539,6 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.import_trace
-
-    @property
-    def subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self._tracer.subject_properties
 
     def reset(self) -> None:  # noqa: D102
         self._tracer.reset()
@@ -1699,11 +1683,6 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self, code_object_id: int, node_id: int, assertion: ass.Assertion
     ) -> None:
         self._tracer.track_assertion_position(code_object_id, node_id, assertion)
-
-    def lineids_to_linenos(  # noqa: D102
-        self, line_ids: OrderedSet[int]
-    ) -> OrderedSet[int]:
-        return self._tracer.lineids_to_linenos(line_ids)
 
     def __repr__(self) -> str:
         return "InstrumentationExecutionTracer"

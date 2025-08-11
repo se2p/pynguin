@@ -20,7 +20,7 @@ import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import CoverageReport
@@ -229,7 +229,9 @@ def sample_report() -> CoverageReport:
 
 
 @only_3_10
-def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
+def test_get_coverage_report(
+    sample_report, tmp_path: Path, demo_module, subject_properties: SubjectProperties
+):
     target = tmp_path / "foo"
     target.mkdir()
     test_module = "cov_demo"
@@ -249,16 +251,17 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
     )
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties.instrumentation_tracer.current_thread_identifier = (
+        threading.current_thread().ident
+    )
 
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.LINE,
         config.CoverageMetric.BRANCH,
     ]
-    with install_import_hook(test_module, tracer):
+    with install_import_hook(test_module, subject_properties):
         importlib.import_module(test_module)
-    executor = MagicMock(tracer=tracer)
+    executor = MagicMock(subject_properties=subject_properties)
     config.configuration.module_name = test_module
     assert (
         get_coverage_report(

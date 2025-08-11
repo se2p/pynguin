@@ -20,7 +20,6 @@ from pynguin.utils.orderedset import OrderedSet
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
 
-    from pynguin.instrumentation.tracer import ExecutionTracer
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
@@ -154,13 +153,15 @@ class AbstractBranchCoverageGoal(AbstractCoverageGoal):
 
     @abstractmethod
     def get_distance(
-        self, result: ExecutionResult, tracer: ExecutionTracer
+        self,
+        result: ExecutionResult,
+        subject_properties: SubjectProperties,
     ) -> cfd.ControlFlowDistance:
         """Computes the control-flow distance of an execution result.
 
         Args:
             result: The execution result
-            tracer: The execution tracer
+            subject_properties: The subject properties
 
         Returns:
             The control-flow distance
@@ -192,9 +193,15 @@ class BranchlessCodeObjectGoal(AbstractBranchCoverageGoal):
         super().__init__(code_object_id=code_object_id, is_branchless_code_object=True)
 
     def get_distance(  # noqa: D102
-        self, result: ExecutionResult, tracer: ExecutionTracer
+        self,
+        result: ExecutionResult,
+        subject_properties: SubjectProperties,
     ) -> cfd.ControlFlowDistance:
-        return cfd.get_root_control_flow_distance(result, self._code_object_id, tracer)
+        return cfd.get_root_control_flow_distance(
+            result,
+            self._code_object_id,
+            subject_properties,
+        )
 
     def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         return self._code_object_id in result.execution_trace.executed_code_objects
@@ -227,10 +234,15 @@ class BranchGoal(AbstractBranchCoverageGoal):
         self._value = value
 
     def get_distance(  # noqa: D102
-        self, result: ExecutionResult, tracer: ExecutionTracer
+        self,
+        result: ExecutionResult,
+        subject_properties: SubjectProperties,
     ) -> cfd.ControlFlowDistance:
         return cfd.get_non_root_control_flow_distance(
-            result, self._predicate_id, self._value, tracer
+            result,
+            self._predicate_id,
+            self._value,
+            subject_properties,
         )
 
     def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
@@ -356,7 +368,7 @@ class BranchCoverageTestFitness(ff.TestCaseFitnessFunction):
     ) -> float:
         result = self._run_test_case_chromosome(individual)
 
-        distance = self._goal.get_distance(result, self._executor.tracer)
+        distance = self._goal.get_distance(result, self._executor.subject_properties)
         return distance.get_resulting_branch_fitness()
 
     def compute_is_covered(  # noqa: D102
@@ -473,7 +485,7 @@ def create_line_coverage_fitness_functions(
         for (
             line_id,
             line_meta,
-        ) in executor.tracer.subject_properties.existing_lines.items()
+        ) in executor.subject_properties.existing_lines.items()
     ])
 
 
@@ -496,5 +508,5 @@ def create_checked_coverage_fitness_functions(
         for (
             line_id,
             line_meta,
-        ) in executor.tracer.subject_properties.existing_lines.items()
+        ) in executor.subject_properties.existing_lines.items()
     ])
