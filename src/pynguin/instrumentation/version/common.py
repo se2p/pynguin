@@ -98,6 +98,13 @@ class InstrumentationFastLoad:
 
 
 @dataclass(frozen=True)
+class InstrumentationFastLoadTuple:
+    """Represents two fast loads stored in a tuple and used in instrumentation."""
+
+    names: tuple[str, str]
+
+
+@dataclass(frozen=True)
 class InstrumentationNameLoad:
     """Represents a name load used in instrumentation."""
 
@@ -137,6 +144,7 @@ class InstrumentationMethodCall:
 InstrumentationArgument: TypeAlias = (
     InstrumentationConstantLoad
     | InstrumentationFastLoad
+    | InstrumentationFastLoadTuple
     | InstrumentationNameLoad
     | InstrumentationGlobalLoad
     | InstrumentationStackValue

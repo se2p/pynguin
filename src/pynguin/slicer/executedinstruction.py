@@ -20,7 +20,7 @@ class ExecutedInstruction:
     code_object_id: int
     node_id: int
     opcode: int
-    argument: int | str | None
+    argument: int | str | tuple[str, str] | None
     lineno: int
     instr_original_index: int
 
@@ -53,15 +53,20 @@ class ExecutedInstruction:
 class ExecutedMemoryInstruction(ExecutedInstruction):
     """Represents an executed instructions which read from or wrote to memory."""
 
-    arg_address: int
-    is_mutable_type: bool
-    object_creation: bool
+    arg_address: int | tuple[int, int]
+    is_mutable_type: bool | tuple[bool, bool]
+    object_creation: bool | tuple[bool, bool]
 
     def __str__(self) -> str:
         arg_address = self.arg_address or -1
+        hex_address = (
+            hex(arg_address)
+            if isinstance(arg_address, int)
+            else (hex(arg_address[0]), hex(arg_address[1]))
+        )
         return (
             f"{'(mem)':<7} {self.file:<40} {opname[self.opcode]:<20} "
-            f"{self.argument:<25} {hex(arg_address):<25} {self.code_object_id:02d}"
+            f"{self.argument:<25} {hex_address:<25} {self.code_object_id:02d}"
             f"@ line: {self.lineno:d}-{self.instr_original_index:d}"
         )
 

@@ -94,7 +94,24 @@ def test_dunder_definition():
 
         return NestedClass()
 
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 13):
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("RETURN_CONST", arg=None),
+        )
+        call_nested_class = (
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("CALL", arg=0),
+            # MISSING: __init__ method call
+            TracedInstr("RETURN_CONST", arg=None),
+        )
+    elif sys.version_info >= (3, 12):
         create_nested_class = (
             TracedInstr("PUSH_NULL"),
             TracedInstr("LOAD_BUILD_CLASS"),
@@ -189,7 +206,25 @@ def test_mod_untraced_object():
 
 def test_call_unused_argument():
     # Call with two arguments, one of which is used in the callee
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 13):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("BUILD_TUPLE", arg=4),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_FAST", arg="a"),
+            TracedInstr("RETURN_VALUE"),
+        )
+    elif sys.version_info >= (3, 12):
         create_callee = (
             TracedInstr("LOAD_CONST", arg="a"),
             TracedInstr("LOAD_NAME", arg="int"),
@@ -285,13 +320,25 @@ def test_exception():
 
         return result
 
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 13):
         catch_exception = (
             TracedInstr("LOAD_GLOBAL", arg=(False, "ZeroDivisionError")),
             TracedInstr("CHECK_EXC_MATCH"),
             TracedInstr("POP_JUMP_IF_FALSE", arg=TryEnd(0)),
         )
         jump_instruction = ()
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
+    elif sys.version_info >= (3, 12):
+        catch_exception = (
+            TracedInstr("LOAD_GLOBAL", arg=(False, "ZeroDivisionError")),
+            TracedInstr("CHECK_EXC_MATCH"),
+            TracedInstr("POP_JUMP_IF_FALSE", arg=TryEnd(0)),
+        )
+        jump_instruction = ()
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
     elif sys.version_info >= (3, 11):
         catch_exception = (
             TracedInstr("LOAD_GLOBAL", arg=(False, "ZeroDivisionError")),
@@ -305,6 +352,10 @@ def test_exception():
                 arg=TracedInstr("LOAD_FAST", arg="result"),
             ),
         )
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
     else:
         catch_exception = (
             TracedInstr("DUP_TOP"),
@@ -316,6 +367,10 @@ def test_exception():
             ),
         )
         jump_instruction = ()
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
 
     expected_instructions = [
         # foo = 1
@@ -327,8 +382,7 @@ def test_exception():
         # except ZeroDivisionError:
         *catch_exception,
         # result = foo + bar
-        TracedInstr("LOAD_FAST", arg="foo"),
-        TracedInstr("LOAD_FAST", arg="bar"),
+        *load_foo_and_bar,
         binary_add_instruction,
         TracedInstr("STORE_FAST", arg="result"),
         *jump_instruction,
@@ -356,7 +410,53 @@ def test_data_dependency_6():
         var_1 = plus_0.plus_four(int_0)
         return plus_0.plus_four(var_1)
 
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 13):
+        create_plus = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg="Plus"),
+            TracedInstr("CALL", arg=2),
+            # BAD: falsely included
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("STORE_NAME", arg="calculations"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("STORE_NAME", arg="plus_four"),
+            TracedInstr("RETURN_CONST", arg=None),
+        )
+        call_plus = (
+            TracedInstr("LOAD_FAST", arg="Plus"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("CALL", arg=0),
+        )
+        call_plus_four_int = (
+            TracedInstr("LOAD_FAST", arg="plus_0"),
+            TracedInstr("LOAD_ATTR", arg=(True, "plus_four")),
+            TracedInstr("LOAD_FAST", arg="int_0"),
+            TracedInstr("CALL", arg=1),
+            # BAD: self.calculations += 1
+            TracedInstr("LOAD_FAST", arg="self"),
+            TracedInstr("COPY", arg=1),
+            TracedInstr("LOAD_ATTR", arg=(False, "calculations")),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value),
+            TracedInstr("SWAP", arg=2),
+            TracedInstr("STORE_ATTR", arg="calculations"),
+            # return number + 4
+            TracedInstr("LOAD_FAST", arg="number"),
+            TracedInstr("LOAD_CONST", arg=4),
+            TracedInstr("BINARY_OP", arg=0),
+            TracedInstr("RETURN_VALUE"),
+        )
+        call_plus_four_var = (
+            TracedInstr("LOAD_FAST", arg="plus_0"),
+            TracedInstr("LOAD_ATTR", arg=(True, "plus_four")),
+            TracedInstr("LOAD_FAST", arg="var_1"),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 12):
         create_plus = (
             TracedInstr("PUSH_NULL"),
             TracedInstr("LOAD_BUILD_CLASS"),

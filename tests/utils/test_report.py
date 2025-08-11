@@ -271,7 +271,7 @@ def test_get_coverage_report(
 
 
 def test_render_coverage_report(sample_report, tmp_path: Path):
-    if sys.version_info >= (3, 12):
+    if sys.version_info < (3, 13) and sys.version_info >= (3, 12):  # noqa: PYI066
         expected = [
             "<!DOCTYPE html>\n",
             '<html lang="en">\n',

@@ -171,10 +171,10 @@ class ExecutionTrace:
         opcode: int,
         lineno: int,
         offset: int,
-        arg_name: str,
-        arg_address: int,
-        is_mutable_type: bool,  # noqa: FBT001
-        object_creation: bool,  # noqa: FBT001
+        arg_name: str | tuple[str, str],
+        arg_address: int | tuple[int, int],
+        is_mutable_type: bool | tuple[bool, bool],  # noqa: FBT001
+        object_creation: bool | tuple[bool, bool],  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedMemoryInstruction object and adds it to the trace.
 
@@ -752,7 +752,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        var_name: str | CellVar | FreeVar,
+        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
         var_value: object,
     ) -> None:
         """Track a memory access instruction in the trace.
@@ -1339,23 +1339,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    @_early_return
-    def track_memory_access(  # noqa: PLR0917, D102
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        var_name: str | CellVar | FreeVar,
-        var_value: object,
-    ) -> None:
-        # IMPORT_NAMEs may not have arguments
-        assert var_name or opname[opcode] in version.IMPORT_NAME_NAMES, (
-            "A memory access instruction must have an argument or be an import"
-        )
-
+    def _extract_arguments(
+        self, var_name: str | CellVar | FreeVar, var_value: object
+    ) -> tuple[str, int, bool, bool]:
         var_address = id(var_value)
         var_type = type(var_value)
 
@@ -1374,6 +1360,48 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         if object_creation:
             self._thread_local_state.trace.object_addresses.add(var_address)
 
+        return (var_name, var_address, mutable_type, object_creation)
+
+    @_early_return
+    def track_memory_access(  # noqa: PLR0914, PLR0917, D102
+        self,
+        module: str,
+        code_object_id: int,
+        node_id: int,
+        opcode: int,
+        lineno: int,
+        offset: int,
+        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
+        var_value: object,
+    ) -> None:
+        # IMPORT_NAMEs may not have arguments
+        assert var_name or opname[opcode] in version.IMPORT_NAME_NAMES, (
+            "A memory access instruction must have an argument or be an import"
+        )
+
+        arg_name: str | tuple[str, str]
+        arg_address: int | tuple[int, int]
+        mutable_type: bool | tuple[bool, bool]
+        object_creation: bool | tuple[bool, bool]
+        match (var_name, var_value):
+            case ((var_name0, var_name1), (var_value0, var_value1)):
+                arg_name0, arg_address0, mutable_type0, object_creation0 = self._extract_arguments(
+                    var_name0, var_value0
+                )
+                arg_name1, arg_address1, mutable_type1, object_creation1 = self._extract_arguments(
+                    var_name1, var_value1
+                )
+                arg_name = (arg_name0, arg_name1)
+                arg_address = (arg_address0, arg_address1)
+                mutable_type = (mutable_type0, mutable_type1)
+                object_creation = (object_creation0, object_creation1)
+            case (var_name, var_value) if isinstance(var_name, (str, CellVar, FreeVar)):
+                arg_name, arg_address, mutable_type, object_creation = self._extract_arguments(
+                    var_name, var_value
+                )
+            case _:
+                raise AssertionError(f"Unexpected argument types: {var_name}, {var_value}")
+
         self._thread_local_state.trace.add_memory_instruction(
             module,
             code_object_id,
@@ -1381,8 +1409,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             opcode,
             lineno,
             offset,
-            var_name,
-            var_address,
+            arg_name,
+            arg_address,
             mutable_type,
             object_creation,
         )
@@ -1678,7 +1706,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        var_name: str | CellVar | FreeVar,
+        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
         var_value: object,
     ) -> None:
         self._tracer.track_memory_access(

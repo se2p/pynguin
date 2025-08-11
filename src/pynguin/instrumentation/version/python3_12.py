@@ -309,7 +309,7 @@ class Python312InstrumentationInstructionsGenerator(
                     cf.ArtificialInstr("LOAD_FROM_DICT_OR_DEREF", name, lineno=lineno),
                 )
             case _:
-                return (super()._generate_argument_instruction(arg, position, lineno),)
+                return super()._generate_argument_instructions(arg, position, lineno)
 
     @classmethod
     def generate_method_call_instructions(
@@ -322,7 +322,7 @@ class Python312InstrumentationInstructionsGenerator(
             cf.ArtificialInstr("LOAD_ATTR", (True, method_call.method_name), lineno=lineno),
             *chain(
                 *(
-                    cls._generate_argument_instructions(arg, position, lineno=lineno)
+                    cls._generate_argument_instructions(arg, position, lineno)
                     for position, arg in enumerate(method_call.args)
                 )
             ),

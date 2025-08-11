@@ -516,6 +516,31 @@ class DynamicSlicer:
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", instr)
             context.instr_ctrl_deps.add(instr)
 
+    def _extract_arguments(
+        self,
+        traced_instr: ExecutedMemoryInstruction,
+    ) -> tuple[tuple[str, int, bool, bool], ...]:
+        match traced_instr:
+            case ExecutedMemoryInstruction(
+                argument=str(argument),
+                arg_address=int(arg_address),
+                is_mutable_type=bool(is_mutable_type),
+                object_creation=bool(object_creation),
+            ):
+                return ((argument, arg_address, is_mutable_type, object_creation),)
+            case ExecutedMemoryInstruction(
+                argument=(str(argument0), str(argument1)),
+                arg_address=(int(arg_address0), int(arg_address1)),
+                is_mutable_type=(bool(is_mutable_type0), bool(is_mutable_type1)),
+                object_creation=(bool(object_creation0), bool(object_creation1)),
+            ):
+                return (
+                    (argument0, arg_address0, is_mutable_type0, object_creation0),
+                    (argument1, arg_address1, is_mutable_type1, object_creation1),
+                )
+            case _:
+                raise AssertionError(f"Invalid traced instruction: {traced_instr}")
+
     def check_explicit_data_dependency(  # noqa: C901
         self,
         context: SlicingContext,
@@ -542,57 +567,65 @@ class DynamicSlicer:
 
         # Check variable definitions
         if isinstance(traced_instr, ExecutedMemoryInstruction):
-            complete_cover = self._check_variables(context, traced_instr)
+            complete_cover = False
 
-            if complete_cover:
-                self._logger.debug(
-                    "EXPLICIT DATA DEPENDENCY (VARIABLE): '%s'",
-                    traced_instr.argument,
+            for argument, arg_address, is_mutable_type, object_creation in self._extract_arguments(
+                traced_instr
+            ):
+                complete_cover = complete_cover or self._check_variables(
+                    context,
+                    instr.file,
+                    instr.code_object_id,
+                    instr.name,
+                    argument,
+                    arg_address,
+                    object_creation,
                 )
 
-            # When an object, of which certain used attributes are taken from,
-            # is created, the slicer has to look for the definition of normal variables
-            # instead of these attributes, since they are defined as variables and not
-            # as attributes on class/module level.
-            if traced_instr.arg_address and traced_instr.object_creation:
-                attribute_uses = set()
-                for use in context.attr_uses:
-                    if use.startswith(hex(traced_instr.arg_address)) and len(use) > len(
-                        hex(traced_instr.arg_address)
-                    ):
-                        attribute_name = "_".join(use.split("_")[1:])
+                if complete_cover:
+                    self._logger.debug("EXPLICIT DATA DEPENDENCY (VARIABLE): '%s'", argument)
+
+                # When an object, of which certain used attributes are taken from,
+                # is created, the slicer has to look for the definition of normal variables
+                # instead of these attributes, since they are defined as variables and not
+                # as attributes on class/module level.
+                if arg_address and object_creation:
+                    attribute_uses = set()
+                    for use in context.attr_uses:
+                        if use.startswith(hex(arg_address)) and len(use) > len(hex(arg_address)):
+                            attribute_name = "_".join(use.split("_")[1:])
+                            self._logger.debug(
+                                "EXPLICIT DATA DEPENDENCY (ATTRIBUTE): '%s'",
+                                attribute_name,
+                            )
+                            complete_cover = True
+                            attribute_uses.add(use)
+                            attribute_creation_uses.add(attribute_name)
+                    for use in attribute_uses:
+                        context.attr_uses.remove(use)
+
+                # Check for address dependencies
+                if is_mutable_type and object_creation:
+                    # Note that the definition of an object here means the
+                    # creation of the object.
+                    address_dependency = self._check_scope_for_def(
+                        context.var_address_uses,
+                        hex(arg_address),
+                        None,
+                        None,
+                    )
+                    if address_dependency:
                         self._logger.debug(
-                            "EXPLICIT DATA DEPENDENCY (ATTRIBUTE): '%s'",
-                            attribute_name,
+                            "EXPLICIT DATA DEPENDENCY (VARIABLE ADDRESS): '%s'",
+                            hex(arg_address),
                         )
                         complete_cover = True
-                        attribute_uses.add(use)
-                        attribute_creation_uses.add(attribute_name)
-                for use in attribute_uses:
-                    context.attr_uses.remove(use)
 
-            # Check for address dependencies
-            if traced_instr.is_mutable_type and traced_instr.object_creation:
-                # Note that the definition of an object here means the
-                # creation of the object.
-                address_dependency = self._check_scope_for_def(
-                    context.var_address_uses,
-                    hex(traced_instr.arg_address),
-                    None,
-                    None,
-                )
-                if address_dependency:
-                    self._logger.debug(
-                        "EXPLICIT DATA DEPENDENCY (VARIABLE ADDRESS): '%s'",
-                        hex(traced_instr.arg_address),
-                    )
+                # Check for the attributes which were converted to variables
+                # (explained in the previous construct)
+                if argument in context.attribute_variables:
                     complete_cover = True
-
-            # Check for the attributes which were converted to variables
-            # (explained in the previous construct)
-            if traced_instr.argument in context.attribute_variables:
-                complete_cover = True
-                context.attribute_variables.remove(str(traced_instr.argument))
+                    context.attribute_variables.remove(str(argument))
 
         if isinstance(traced_instr, ExecutedAttributeInstruction):
             # check attribute defs
@@ -614,73 +647,58 @@ class DynamicSlicer:
 
         return (complete_cover or partial_cover), attribute_creation_uses
 
-    def _check_variables(
+    def _check_variables(  # noqa: PLR0917
         self,
         context: SlicingContext,
-        traced_instr: ExecutedMemoryInstruction,
+        file: str,
+        code_object_id: int,
+        name: str,
+        argument: str,
+        arg_address: int,
+        object_creation: bool,  # noqa: FBT001
     ) -> bool:
         complete_cover = False
 
         # Check local variables
-        if traced_instr.name in MODIFY_FAST_NAMES:
+        if name in MODIFY_FAST_NAMES:
             complete_cover = self._check_scope_for_def(
-                context.local_var_uses,
-                traced_instr.argument,
-                traced_instr.code_object_id,
-                operator.eq,
+                context.local_var_uses, argument, code_object_id, operator.eq
             )
 
         # Check global variables (with *_NAME instructions)
-        elif traced_instr.name in MODIFY_NAME_NAMES:
+        elif name in MODIFY_NAME_NAMES:
             if (
-                traced_instr.code_object_id in self._known_code_objects
-                and self._known_code_objects[traced_instr.code_object_id] is not None
-                and self._known_code_objects[traced_instr.code_object_id].code_object.co_name
-                == "<module>"
+                code_object_id in self._known_code_objects
+                and self._known_code_objects[code_object_id] is not None
+                and self._known_code_objects[code_object_id].code_object.co_name == "<module>"
             ):
                 complete_cover = self._check_scope_for_def(
-                    context.global_var_uses,
-                    traced_instr.argument,
-                    traced_instr.file,
-                    operator.eq,
+                    context.global_var_uses, argument, file, operator.eq
                 )
             else:
                 complete_cover = self._check_scope_for_def(
-                    context.local_var_uses,
-                    traced_instr.argument,
-                    traced_instr.code_object_id,
-                    operator.eq,
+                    context.local_var_uses, argument, code_object_id, operator.eq
                 )
 
         # Check global variables
-        elif traced_instr.name in MODIFY_GLOBAL_NAMES:
+        elif name in MODIFY_GLOBAL_NAMES:
             complete_cover = self._check_scope_for_def(
-                context.global_var_uses,
-                traced_instr.argument,
-                traced_instr.file,
-                operator.eq,
+                context.global_var_uses, argument, file, operator.eq
             )
 
         # Check nonlocal variables
-        elif traced_instr.name in MODIFY_DEREF_NAMES:
+        elif name in MODIFY_DEREF_NAMES:
             complete_cover = self._check_scope_for_def(
-                context.nonlocal_var_uses,
-                traced_instr.argument,
-                traced_instr.code_object_id,
-                operator.contains,
+                context.nonlocal_var_uses, argument, code_object_id, operator.contains
             )
 
         # Check IMPORT_NAME instructions
         # IMPORT_NAME gets a special treatment: it has an incorrect stack effect,
         # but it is compensated by treating it as a definition
-        elif traced_instr.name in IMPORT_NAME_NAMES:
-            if (
-                traced_instr.arg_address
-                and hex(traced_instr.arg_address) in context.var_address_uses
-                and traced_instr.object_creation
-            ):
+        elif name in IMPORT_NAME_NAMES:
+            if arg_address and hex(arg_address) in context.var_address_uses and object_creation:
                 complete_cover = True
-                context.var_address_uses.remove(hex(traced_instr.arg_address))
+                context.var_address_uses.remove(hex(arg_address))
 
         else:
             # There should be no other possible instructions
@@ -730,55 +748,58 @@ class DynamicSlicer:
         context: SlicingContext,
         traced_instr: ExecutedMemoryInstruction,
     ) -> None:
-        if traced_instr.arg_address and traced_instr.is_mutable_type:
-            self._logger.debug("VARIABLE ADDRESS USE: '%s' address", hex(traced_instr.arg_address))
-            context.var_address_uses.add(hex(traced_instr.arg_address))
-        # Add local variables
-        if traced_instr.name in LOAD_FAST_NAMES:
-            self._logger.debug("FAST VARIABLE USE: '%s'", traced_instr.argument)
-            context.local_var_uses.add((
-                traced_instr.argument,
-                traced_instr.code_object_id,
-            ))
-        # Add global variables (with *_NAME instructions)
-        elif traced_instr.name in LOAD_NAME_NAMES:
-            self._logger.debug("NAME VARIABLE USE: '%s'", traced_instr.argument)
-            if (
-                traced_instr.code_object_id in self._known_code_objects
-                and self._known_code_objects[traced_instr.code_object_id] is not None
-                and self._known_code_objects[traced_instr.code_object_id].code_object.co_name
-                == "<module>"
-            ):
-                context.global_var_uses.add((traced_instr.argument, traced_instr.file))
-            else:
+        for argument, arg_address, is_mutable_type, _ in self._extract_arguments(traced_instr):
+            if arg_address and is_mutable_type:
+                self._logger.debug("VARIABLE ADDRESS USE: '%s' address", hex(arg_address))
+                context.var_address_uses.add(hex(arg_address))
+            # Add local variables
+            if traced_instr.name in LOAD_FAST_NAMES:
+                self._logger.debug("FAST VARIABLE USE: '%s'", argument)
                 context.local_var_uses.add((
-                    traced_instr.argument,
+                    argument,
                     traced_instr.code_object_id,
                 ))
-        # Add global variables
-        elif traced_instr.name in LOAD_GLOBAL_NAMES:
-            self._logger.debug("GLOBAL VARIABLE USE: '%s'", traced_instr.argument)
-            context.global_var_uses.add((traced_instr.argument, traced_instr.file))
-        # Add nonlocal variables
-        elif traced_instr.name in LOAD_DEREF_NAMES + CLOSURE_LOAD_NAMES:
-            variable_scope: set[int] = set()
-            current_code_object_id = traced_instr.code_object_id
-            while True:
-                current_code_meta = self._known_code_objects[current_code_object_id]
-                variable_scope.add(current_code_object_id)
-                if traced_instr.argument in current_code_meta.code_object.co_cellvars:
-                    break
+            # Add global variables (with *_NAME instructions)
+            elif traced_instr.name in LOAD_NAME_NAMES:
+                self._logger.debug("NAME VARIABLE USE: '%s'", argument)
+                if (
+                    traced_instr.code_object_id in self._known_code_objects
+                    and self._known_code_objects[traced_instr.code_object_id] is not None
+                    and self._known_code_objects[traced_instr.code_object_id].code_object.co_name
+                    == "<module>"
+                ):
+                    context.global_var_uses.add((argument, traced_instr.file))
+                else:
+                    context.local_var_uses.add((
+                        argument,
+                        traced_instr.code_object_id,
+                    ))
+            # Add global variables
+            elif traced_instr.name in LOAD_GLOBAL_NAMES:
+                self._logger.debug("GLOBAL VARIABLE USE: '%s'", argument)
+                context.global_var_uses.add((argument, traced_instr.file))
+            # Add nonlocal variables
+            elif traced_instr.name in LOAD_DEREF_NAMES + CLOSURE_LOAD_NAMES:
+                variable_scope: set[int] = set()
+                current_code_object_id = traced_instr.code_object_id
+                while True:
+                    current_code_meta = self._known_code_objects[current_code_object_id]
+                    variable_scope.add(current_code_object_id)
+                    if argument in current_code_meta.code_object.co_cellvars:
+                        break
 
-                assert current_code_meta.parent_code_object_id is not None
-                current_code_object_id = current_code_meta.parent_code_object_id
-            self._logger.debug("DEREF VARIABLE USE: '%s'", traced_instr.argument)
-            context.nonlocal_var_uses.add((
-                traced_instr.argument,
-                tuple(variable_scope),
-            ))
-        else:
-            # There should be no other possible instructions
-            raise AssertionError(f"Instruction {traced_instr} can not be analyzed for definitions.")
+                    assert current_code_meta.parent_code_object_id is not None
+                    current_code_object_id = current_code_meta.parent_code_object_id
+                self._logger.debug("DEREF VARIABLE USE: '%s'", argument)
+                context.nonlocal_var_uses.add((
+                    argument,
+                    tuple(variable_scope),
+                ))
+            else:
+                # There should be no other possible instructions
+                raise AssertionError(
+                    f"Instruction {traced_instr} can not be analyzed for definitions."
+                )
 
     def _add_attribute_uses(
         self,

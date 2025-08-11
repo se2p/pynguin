@@ -44,6 +44,7 @@ from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationDeref
 from pynguin.instrumentation.version.common import InstrumentationFastLoad
+from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
 from pynguin.instrumentation.version.common import InstrumentationInstructionsGenerator
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
@@ -621,24 +622,31 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 raise ValueError(f"Unsupported instrumentation setup action: {setup_action}.")
 
     @classmethod
-    def _generate_argument_instruction(
+    def _generate_argument_instructions(
         cls,
         arg: InstrumentationArgument,
+        position: int,  # noqa: ARG003
         lineno: int | _UNSET | None,
-    ) -> cf.ArtificialInstr:
+    ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
             case InstrumentationConstantLoad(value):
-                return cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
+                return (cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno),)  # type: ignore[arg-type]
             case InstrumentationFastLoad(name):
-                return cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno),)
+            case InstrumentationFastLoadTuple(names):
+                return (
+                    cf.ArtificialInstr("LOAD_FAST", names[0], lineno=lineno),
+                    cf.ArtificialInstr("LOAD_FAST", names[1], lineno=lineno),
+                    cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+                )
             case InstrumentationNameLoad(name):
-                return cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno),)
             case InstrumentationGlobalLoad(name):
-                return cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_GLOBAL", name, lineno=lineno),)
             case InstrumentationDeref(name):
-                return cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno),)
             case InstrumentationClassDeref(name):
-                return cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno),)
             case InstrumentationStackValue():
                 raise ValueError(
                     "There cannot be multiple stack arguments targeting the same positions"
@@ -723,15 +731,17 @@ class Python310InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                     target_positions = [second_position, first_position]
 
         arguments_instructions: list[cf.ArtificialInstr] = []
-        for i, arg in enumerate(method_call.args):
-            if target_positions and i == target_positions[0]:
+        for position, arg in enumerate(method_call.args):
+            if target_positions and position == target_positions[0]:
                 # We are at the position of a targeted stack argument, so we just need
                 # to keep the value on the stack at this position and remove the target.
                 target_positions.pop(0)
                 continue
 
             # We add the instructions to load the value onto the stack.
-            arguments_instructions.append(cls._generate_argument_instruction(arg, lineno=lineno))
+            arguments_instructions.extend(
+                cls._generate_argument_instructions(arg, position, lineno)
+            )
 
             match len(target_positions):
                 case 0:

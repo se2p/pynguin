@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from itertools import chain
 from opcode import opname
 from typing import ClassVar
 
@@ -31,14 +32,9 @@ from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
 from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationClassDeref
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationDeref
-from pynguin.instrumentation.version.common import InstrumentationFastLoad
 from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
-from pynguin.instrumentation.version.common import InstrumentationInstructionsGenerator
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationNameLoad
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
@@ -284,7 +280,9 @@ def stack_effects(  # noqa: D103, C901
             )
 
 
-class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsGenerator):
+class Python311InstrumentationInstructionsGenerator(
+    python3_10.Python310InstrumentationInstructionsGenerator
+):
     """Generates instrumentation instructions for Python 3.11."""
 
     @classmethod
@@ -353,27 +351,19 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
                 raise ValueError(f"Unsupported instrumentation setup action: {setup_action}.")
 
     @classmethod
-    def _generate_argument_instruction(
+    def _generate_argument_instructions(
         cls,
         arg: InstrumentationArgument,
         position: int,
         lineno: int | _UNSET | None,
-    ) -> cf.ArtificialInstr:
+    ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
-            case InstrumentationConstantLoad(value):
-                return cf.ArtificialInstr("LOAD_CONST", value, lineno=lineno)  # type: ignore[arg-type]
-            case InstrumentationFastLoad(name):
-                return cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno)
-            case InstrumentationNameLoad(name):
-                return cf.ArtificialInstr("LOAD_NAME", name, lineno=lineno)
             case InstrumentationGlobalLoad(name):
-                return cf.ArtificialInstr("LOAD_GLOBAL", arg=(False, name), lineno=lineno)
-            case InstrumentationDeref(name):
-                return cf.ArtificialInstr("LOAD_DEREF", name, lineno=lineno)
-            case InstrumentationClassDeref(name):
-                return cf.ArtificialInstr("LOAD_CLASSDEREF", name, lineno=lineno)
+                return (cf.ArtificialInstr("LOAD_GLOBAL", arg=(False, name), lineno=lineno),)
             case InstrumentationStackValue():
-                return cf.ArtificialInstr("COPY", position + 2 + arg.value, lineno=lineno)
+                return (cf.ArtificialInstr("COPY", position + 2 + arg.value, lineno=lineno),)
+            case _:
+                return super()._generate_argument_instructions(arg, position, lineno)
 
     @classmethod
     def generate_method_call_instructions(
@@ -384,9 +374,11 @@ class Python311InstrumentationInstructionsGenerator(InstrumentationInstructionsG
         return (
             cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
             cf.ArtificialInstr("LOAD_METHOD", method_call.method_name, lineno=lineno),
-            *(
-                cls._generate_argument_instruction(arg, position, lineno=lineno)
-                for position, arg in enumerate(method_call.args)
+            *chain(
+                *(
+                    cls._generate_argument_instructions(arg, position, lineno)
+                    for position, arg in enumerate(method_call.args)
+                )
             ),
             cf.ArtificialInstr("PRECALL", len(method_call.args), lineno=lineno),
             cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
