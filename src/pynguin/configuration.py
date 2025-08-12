@@ -797,6 +797,9 @@ class LocalSearchConfiguration:
     dict_max_insertions: int = 10
     """Max number of unsuccessful insertions of entries."""
 
+    enable_complex_objects_local_search: bool = True
+    """Enable local search for complex objects (objects which are no primitives or collections)."""
+
 
 @dataclasses.dataclass
 class Configuration:

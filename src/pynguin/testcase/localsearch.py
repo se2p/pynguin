@@ -20,6 +20,10 @@ from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import choose_local_search_statement
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.statement import ConstructorStatement
+from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import FunctionStatement
+from pynguin.testcase.statement import MethodStatement
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -75,6 +79,13 @@ class TestCaseLocalSearch:
             if (
                 randomness.next_float()
                 <= config.configuration.local_search.local_search_probability
+                and (
+                    config.configuration.local_search.enable_complex_objects_local_search
+                    or not isinstance(
+                        chromosome.test_case.statements[i],
+                        FieldStatement | MethodStatement | FunctionStatement | ConstructorStatement,
+                    )
+                )
             ):
                 methods: list = []
                 old_stat = stat.output_variables.get(
