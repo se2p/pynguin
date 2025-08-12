@@ -52,9 +52,12 @@ class TestCaseLocalSearch:
         """
         assert total_statements > 0, "Total statements must be greater than zero."
         self._max_mutations: int = (
-            config.configuration.local_search.max_other_type_mutation
-            * config.configuration.local_search.local_search_time
-        ) // total_statements
+            int(
+                config.configuration.local_search.max_other_type_mutation
+                * config.configuration.local_search.local_search_time
+            )
+            // total_statements
+        )
         self._suite = suite
         self._executor = executor
 
