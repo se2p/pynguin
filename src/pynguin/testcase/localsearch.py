@@ -209,7 +209,8 @@ class TestSuiteLocalSearch:
         self.double_branch_coverage(chromosome)
 
         total_statements = sum(
-            len(test_case.statements) for test_case in chromosome.test_case_chromosomes
+            len(test_case_chrom.test_case.statements)
+            for test_case_chrom in chromosome.test_case_chromosomes
         )
 
         indices = list(range(len(chromosome.test_case_chromosomes)))
