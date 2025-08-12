@@ -62,6 +62,14 @@ class StatementLocalSearch(abc.ABC):
         objective: LocalSearchObjective,
         factory: TestFactory | None = None,
     ):
+        """Initializes the local search strategy for a specific statement.
+
+        Args:
+            chromosome (TestCaseChromosome): The test case chromosome containing the statement.
+            position (int): The position of the statement in the test case.
+            objective (LocalSearchObjective): The objective to check for improvements.
+            factory (TestFactory | None): The factory to create new statements, if needed.
+        """
         self._chromosome = chromosome
         self._objective = objective
         self._position = position
@@ -70,61 +78,6 @@ class StatementLocalSearch(abc.ABC):
     @abstractmethod
     def search(self) -> None:
         """Applies local search to a specific statement of the chromosome."""
-
-    @staticmethod
-    def choose_local_search_statement(
-        chromosome: TestCaseChromosome,
-        position: int,
-        objective: LocalSearchObjective,
-        factory: TestFactory,
-    ) -> StatementLocalSearch | None:
-        statement = chromosome.test_case.statements[position]
-        logger = logging.getLogger(__name__)
-        logger.debug("Choose local search statement from statement")
-        if isinstance(statement, NoneStatement):
-            logger.debug("None local search statement found")
-            return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
-        if isinstance(statement, EnumPrimitiveStatement):
-            logger.debug("Statement is enum %r", statement.value)
-            return EnumLocalSearch(chromosome, position, objective)
-        if isinstance(statement, PrimitiveStatement):
-            primitive_type = statement.value
-            if isinstance(primitive_type, bool):
-                logger.debug("Primitive type is bool %s", primitive_type)
-                return BooleanLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, int):
-                logger.debug("Primitive type is int %d", primitive_type)
-                return IntegerLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, str):
-                logger.debug("Primitive type is string %s", primitive_type)
-                return StringLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, float):
-                logger.debug("Primitive type is float %f", primitive_type)
-                return FloatLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, complex):
-                logger.debug("Primitive type is complex %s", primitive_type)
-                return ComplexLocalSearch(chromosome, position, objective)
-            if isinstance(primitive_type, bytes):
-                logger.debug("Primitive type is bytes %s", primitive_type)
-                return BytesLocalSearch(chromosome, position, objective)
-            logger.debug("Unknown primitive type: %s", primitive_type)
-        elif isinstance(statement, NonDictCollection):
-            logger.debug("%s non-dict collection found", statement.__class__.__name__)
-            return NonDictCollectionLocalSearch(chromosome, position, objective)
-        elif isinstance(statement, DictStatement):
-            logger.debug("%s dict statement found", statement.__class__.__name__)
-            return DictStatementLocalSearch(chromosome, position, objective, factory)
-        elif (
-            isinstance(statement, FunctionStatement)
-            | isinstance(statement, ConstructorStatement)
-            | isinstance(statement, MethodStatement)
-        ) or isinstance(statement, FieldStatement):
-            logger.debug("%s statement found", statement.__class__.__name__)
-            return FieldStatementLocalSearch(chromosome, position, objective, factory)
-
-        else:
-            logger.debug("No local search statement found for %s", statement.__class__.__name__)
-        return None
 
 
 class BooleanLocalSearch(StatementLocalSearch, ABC):
@@ -1301,3 +1254,66 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
 
         self._logger.debug("No key error available")
         return False
+
+
+def choose_local_search_statement(  # noqa: C901
+    chromosome: TestCaseChromosome,
+    position: int,
+    objective: LocalSearchObjective,
+    factory: TestFactory,
+) -> StatementLocalSearch | None:
+    """Chooses the local search strategy for the statement at the position.
+
+    Args:
+        chromosome (TestCaseChromosome): The test case which should be changed.
+        position (int): The position of the statement in the test case.
+        objective (LocalSearchObjective): The objective which checks if improvements are made.
+        factory (TestFactory): The test factory which modifies the test case.
+    """
+    statement = chromosome.test_case.statements[position]
+    logger = logging.getLogger(__name__)
+    logger.debug("Choose local search statement from statement")
+    if isinstance(statement, NoneStatement):
+        logger.debug("None local search statement found")
+        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+    if isinstance(statement, EnumPrimitiveStatement):
+        logger.debug("Statement is enum %r", statement.value)
+        return EnumLocalSearch(chromosome, position, objective)
+    if isinstance(statement, PrimitiveStatement):
+        primitive_type = statement.value
+        if isinstance(primitive_type, bool):
+            logger.debug("Primitive type is bool %s", primitive_type)
+            return BooleanLocalSearch(chromosome, position, objective)
+        if isinstance(primitive_type, int):
+            logger.debug("Primitive type is int %d", primitive_type)
+            return IntegerLocalSearch(chromosome, position, objective)
+        if isinstance(primitive_type, str):
+            logger.debug("Primitive type is string %s", primitive_type)
+            return StringLocalSearch(chromosome, position, objective)
+        if isinstance(primitive_type, float):
+            logger.debug("Primitive type is float %f", primitive_type)
+            return FloatLocalSearch(chromosome, position, objective)
+        if isinstance(primitive_type, complex):
+            logger.debug("Primitive type is complex %s", primitive_type)
+            return ComplexLocalSearch(chromosome, position, objective)
+        if isinstance(primitive_type, bytes):
+            logger.debug("Primitive type is bytes %s", primitive_type)
+            return BytesLocalSearch(chromosome, position, objective)
+        logger.debug("Unknown primitive type: %s", primitive_type)
+    elif isinstance(statement, NonDictCollection):
+        logger.debug("%s non-dict collection found", statement.__class__.__name__)
+        return NonDictCollectionLocalSearch(chromosome, position, objective)
+    elif isinstance(statement, DictStatement):
+        logger.debug("%s dict statement found", statement.__class__.__name__)
+        return DictStatementLocalSearch(chromosome, position, objective, factory)
+    elif (
+        isinstance(statement, FunctionStatement)
+        | isinstance(statement, ConstructorStatement)
+        | isinstance(statement, MethodStatement)
+    ) or isinstance(statement, FieldStatement):
+        logger.debug("%s statement found", statement.__class__.__name__)
+        return FieldStatementLocalSearch(chromosome, position, objective, factory)
+
+    else:
+        logger.debug("No local search statement found for %s", statement.__class__.__name__)
+    return None

@@ -7,10 +7,8 @@
 
 from __future__ import annotations
 
-import abc
 import logging
 
-from abc import ABC
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
@@ -20,7 +18,7 @@ from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
-from pynguin.testcase.localsearchstatement import StatementLocalSearch
+from pynguin.testcase.localsearchstatement import choose_local_search_statement
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.utils import randomness
@@ -33,34 +31,42 @@ if TYPE_CHECKING:
     from pynguin.testcase.testfactory import TestFactory
 
 
-class LocalSearch(ABC):
-    """An abstract class for local search."""
+class TestCaseLocalSearch:
+    """Local search for a single test case."""
 
     _logger = logging.getLogger(__name__)
 
-    @abc.abstractmethod
-    def local_search(
-        self,
-        chromosome: Chromosome,
-        factory: TestFactory,
-        executor: TestCaseExecutor,
-        suite: TestSuiteChromosome,
-        objective: LocalSearchObjective | None,
+    def __init__(
+        self, total_statements: int, suite: TestSuiteChromosome, executor: TestCaseExecutor
     ) -> None:
-        """Executes local search on the chromosome."""
+        """Initializes the local search for a test case.
 
+        Args:
+            total_statements (int): The total number of statements in the test case.
+            suite (TestSuiteChromosome): The test suite containing the test case.
+            executor (TestCaseExecutor): The executor to run the test cases.
+        """
+        assert total_statements > 0, "Total statements must be greater than zero."
+        self._max_mutations: int = (
+            config.configuration.local_search.max_other_type_mutation
+            * config.configuration.local_search.local_search_time
+        ) // total_statements
+        self._suite = suite
+        self._executor = executor
 
-class TestCaseLocalSearch(LocalSearch, ABC):
-    """Local search for a single test case."""
-
-    def local_search(  # noqa: D102
+    def local_search(
         self,
         chromosome: TestCaseChromosome,
         factory: TestFactory,
-        executor: TestCaseExecutor,
-        suite: TestSuiteChromosome,
-        objective: LocalSearchObjective | None,
+        objective: LocalSearchObjective,
     ) -> None:
+        """Executes local search on the test case.
+
+        Args:
+            chromosome (TestCaseChromosome): The test chromosome.
+            factory (TestFactory): The factory to modify the test case.
+            objective (LocalSearchObjective): The objective to check if improvements are made.
+        """
         assert objective is not None
 
         for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
@@ -93,7 +99,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
                 if config.configuration.local_search.local_search_llm:
                     methods.append(
                         lambda pos=i: LLMLocalSearch(
-                            chromosome, objective, factory, suite, executor
+                            chromosome, objective, factory, self._suite, self._executor
                         ).llm_local_search(pos)
                     )
                 if methods:
@@ -117,10 +123,9 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
             statement.randomize_value()
 
-        local_search_statement = StatementLocalSearch.choose_local_search_statement(
+        local_search_statement = choose_local_search_statement(
             chromosome, position, objective, factory
         )
-        # TODO: Change
         if local_search_statement is not None:
             self._logger.debug("Local search statement found for the statement %s", statement)
             local_search_statement.search()
@@ -148,7 +153,7 @@ class TestCaseLocalSearch(LocalSearch, ABC):
         found = False
         while (
             not found
-            and counter < config.configuration.local_search.max_other_type_mutation
+            and counter < self._max_mutations
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             if factory.change_statement(chromosome, position) and objective.has_improved(
@@ -167,39 +172,46 @@ class TestCaseLocalSearch(LocalSearch, ABC):
             self._search_same_datatype(chromosome, factory, objective, position)
 
 
-class TestSuiteLocalSearch(LocalSearch, ABC):
+class TestSuiteLocalSearch:
     """Local search for a whole test suite."""
 
-    def local_search(  # noqa: D102
+    _logger = logging.getLogger(__name__)
+
+    def local_search(
         self,
         chromosome: Chromosome,
         factory: TestFactory,
         executor: TestCaseExecutor,
-        suite: TestSuiteChromosome | None = None,
-        objective: LocalSearchObjective | None = None,
     ) -> None:
+        """Executes local search on the suite.
+
+        Args:
+            chromosome (Chromosome): The test suite chromosome to be modified.
+            factory (TestFactory): The factory to modify the test cases.
+            executor (TestCaseExecutor): The executor to run the test cases.
+        """
         assert isinstance(chromosome, TestSuiteChromosome)
 
-        self.double_branch_coverage(chromosome, LocalSearchObjective(chromosome, 0))
+        self.double_branch_coverage(chromosome)
+
+        total_statements = sum(
+            len(test_case.statements) for test_case in chromosome.test_case_chromosomes
+        )
 
         indices = list(range(len(chromosome.test_case_chromosomes)))
         randomness.shuffle(indices)
+        test_case_local_search = TestCaseLocalSearch(total_statements, chromosome, executor)
         for i in indices:
             if LocalSearchTimer.get_instance().limit_reached():
                 return
             objective = LocalSearchObjective(chromosome, i)
-            test_case_local_search = TestCaseLocalSearch()
             test_case_local_search.local_search(
                 chromosome.get_test_case_chromosome(i),
                 factory,
-                executor,
-                chromosome,
                 objective,
             )
 
-    def double_branch_coverage(
-        self, suite: TestSuiteChromosome, objective: LocalSearchObjective
-    ) -> None:
+    def double_branch_coverage(self, suite: TestSuiteChromosome) -> None:
         """Expand the test cases that each branch is at least covered twice.
 
         This ensures that switching through branches increases the coverage properly
@@ -208,8 +220,6 @@ class TestSuiteLocalSearch(LocalSearch, ABC):
 
         Args:
             suite (TestSuiteChromosome): the test suite which should be extended.
-            objective (LocalSearchObjective): the objective which delivers
-                information about the fitness of the test cases.
         """
         self._logger.debug("Starting double branch coverage check")
         old_test_count = len(suite.test_case_chromosomes)
