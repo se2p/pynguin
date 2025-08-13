@@ -176,11 +176,13 @@ class TestCaseLocalSearch:
             and counter < self._max_mutations
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
+            old_size = len(chromosome.test_case.statements)
             if factory.change_statement(chromosome, position) and objective.has_improved(
                 chromosome
             ):
                 self._logger.debug("Local search has found another possible datatype")
                 found = True
+                position += len(chromosome.test_case.statements) - old_size
             else:
                 chromosome.test_case = old_test_case.clone()
                 chromosome.set_last_execution_result(last_execution_result)
