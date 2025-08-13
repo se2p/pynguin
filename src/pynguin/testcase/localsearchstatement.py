@@ -17,11 +17,11 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import cast
 
-
 import pynguin.configuration as config
 
-from pynguin.analyses.typesystem import AnyType, ProperType, is_primitive_type
-from pynguin.ga.testcasechromosome import TestCaseChromosome
+from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
@@ -46,6 +46,7 @@ from pynguin.utils import randomness
 
 
 if TYPE_CHECKING:
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.localsearchobjective import LocalSearchObjective
     from pynguin.testcase.testfactory import TestFactory
@@ -650,7 +651,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             return
 
         last_execution_result = self._chromosome.get_last_execution_result()
-        old_chromosome = TestCaseChromosome(None, None, self._chromosome)
+        old_test_case = self._chromosome.test_case.clone()
 
         class Operations(enum.Enum):
             REPLACE = 0
@@ -678,19 +679,16 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
 
             if changed and self._objective.has_improved(self._chromosome):
                 last_execution_result = self._chromosome.get_last_execution_result()
-                old_chromosome = self._chromosome
+                old_test_case = self._chromosome.test_case.clone()
                 mutations = 0
                 self._position += len(self._chromosome.test_case.statements) - old_size
             else:
-                self._chromosome = TestCaseChromosome(None, None, old_chromosome)
+                self._chromosome.test_case = old_test_case.clone()
                 self._chromosome.set_last_execution_result(
                     last_execution_result
                 ) if last_execution_result is not None else None
-                for _ in range(len(self._chromosome.test_case.statements) - old_size):
-                    self._chromosome.test_case.remove(self._position)
                 statement = self._chromosome.test_case.statements[self._position]
                 mutations += 1
-
 
     def replace(self) -> bool:
         """Replaces a call with another possible call.
@@ -755,10 +753,8 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             return False
         parameter = randomness.choice(list(params))
         types = self._chromosome.test_case.get_objects(parameter.type, self._position)
-        if (randomness.next_float() < self._get_reuse_probability(parameter.type)
-            or len(types) == 0):
-            self._logger.debug("Creating new fitting reference for param %r",
-                               parameter.type)
+        if randomness.next_float() < self._get_reuse_probability(parameter.type) or len(types) == 0:
+            self._logger.debug("Creating new fitting reference for param %r", parameter.type)
             new_parameter = self._factory.create_fitting_reference(
                 self._chromosome.test_case, parameter.type, position=self._position
             )
@@ -781,9 +777,13 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         # Check if callee or params should be replaced
         if possible_replacements == randomness.next_int(1, possible_replacements + 1):
             types = self._chromosome.test_case.get_objects(statement.callee.type, self._position)
-            if (randomness.next_float() < self._get_reuse_probability(statement.callee.type)
-                or len(types) == 0):
-                self._logger.debug("Creating new fitting reference for callee %r", statement.callee.type)
+            if (
+                randomness.next_float() < self._get_reuse_probability(statement.callee.type)
+                or len(types) == 0
+            ):
+                self._logger.debug(
+                    "Creating new fitting reference for callee %r", statement.callee.type
+                )
                 new_type = self._factory.create_fitting_reference(
                     self._chromosome.test_case, statement.ret_val.type, position=self._position
                 )
@@ -791,16 +791,18 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                     statement.callee = new_type
                     return True
                 return False
-            self._logger.debug("Replacing callee %r with another possible call",statement.callee)
+            self._logger.debug("Replacing callee %r with another possible call", statement.callee)
             statement.callee = randomness.choice(types)
             return True
         return self._replace_parameter(statement)
 
     @staticmethod
-    def _get_reuse_probability(input: ProperType) -> float:
-        return (config.configuration.test_creation.primitive_reuse_probability
-            if input.accept(is_primitive_type)
-            else config.configuration.test_creation.object_reuse_probability)
+    def _get_reuse_probability(input_type: ProperType) -> float:
+        return (
+            config.configuration.test_creation.primitive_reuse_probability
+            if input_type.accept(is_primitive_type)
+            else config.configuration.test_creation.object_reuse_probability
+        )
 
 
 class FieldStatementLocalSearch(StatementLocalSearch, ABC):
@@ -809,7 +811,7 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
     def search(self) -> None:  # noqa: D102
         assert self._factory is not None
         last_execution_result = self._chromosome.get_last_execution_result()
-        old_chromosome = TestCaseChromosome(None, None, self._chromosome)
+        old_test_case = self._chromosome.test_case.clone()
 
         changed = True
         mutations = 0
@@ -824,10 +826,10 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
             if changed:
                 if not self._objective.has_improved(self._chromosome):
                     changed = False
-                    self._chromosome = old_chromosome
+                    self._chromosome.test_case = old_test_case
                     self._chromosome.set_last_execution_result(last_execution_result)
                 else:
-                    old_chromosome = TestCaseChromosome(None, None, self._chromosome)
+                    old_test_case = self._chromosome.test_case.clone()
                     last_execution_result = self._chromosome.get_last_execution_result()
             mutations += 1
 
@@ -1098,7 +1100,9 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         pos = 0
         improved = False
         self._logger.debug("Starting to add entries from %s", statement)
-        while pos < len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached():
+        while (
+            pos <= len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached()
+        ):
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
                 objects = [obj for obj in objects if obj not in statement.elements]
@@ -1116,11 +1120,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             if isinstance(statement, SetStatement):
                 statement.elements.append(randomness.choice(objects))
             else:
-                statement.elements = [
-                    *statement.elements[:pos],
-                    [randomness.choice(objects)],
-                    *statement.elements[pos:],
-                ]
+                statement.elements.insert(pos, randomness.choice(objects))
             pos += 1
             if self._objective.has_improved(self._chromosome):
                 improved = True
