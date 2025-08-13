@@ -731,9 +731,11 @@ def test_non_dict_add_set(result1, result2, side_effect, tc_mock):
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
 
     statement = SetStatement(tc_mock, int_statement.ret_val.type, [int_statement.ret_val])
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
     tc_mock.test_case.statements[2] = statement
-    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
+    factory = MagicMock()
+    factory.create_fitting_reference.return_value = None
+    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective, factory)
     assert local_search.add_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -745,8 +747,9 @@ def test_non_dict_add_set2(tc_mock):
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     int_statement_3 = IntPrimitiveStatement(tc_mock, 17)
     statement = SetStatement(tc_mock, int_statement.ret_val.type, [int_statement.ret_val])
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
-    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
+    tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
+    factory = MagicMock()
+    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective, factory)
     assert local_search.add_entries(statement)
     assert len(statement.elements) == 2
     assert (
@@ -778,7 +781,7 @@ def test_non_dict_replace_list(result1, pos_element, pos_list, side_effect, tc_m
         int_statement.ret_val.type,
         [int_statement.ret_val, int_statement_2.ret_val],
     )
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
     local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
     assert local_search.replace_entries(statement) == result1
     assert len(statement.elements) == 2
@@ -804,7 +807,7 @@ def test_non_dict_replace_tuple(result1, pos_element, pos_list, side_effect, tc_
         int_statement.ret_val.type,
         [int_statement.ret_val, int_statement_2.ret_val],
     )
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
     tc_mock.test_case.statements[0] = statement
     local_search = NonDictCollectionLocalSearch(tc_mock, 0, objective)
     assert local_search.replace_entries(statement) == result1
@@ -823,7 +826,11 @@ def test_non_dict_replace_set(tc_mock):
         int_statement.ret_val.type,
         [int_statement.ret_val, int_statement_2.ret_val],
     )
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement, int_statement_3]
+    tc_mock.test_case.get_objects.return_value = [
+        int_statement_2.ret_val,
+        int_statement.ret_val,
+        int_statement_3.ret_val,
+    ]
     local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
     assert local_search.replace_entries(statement)
     assert len(statement.elements) == 2
@@ -983,5 +990,9 @@ def test_fix_key_error_no_key_error(tc_mock, default_test_case):
             (int_statement.ret_val, int_statement_2.ret_val),
         ],
     )
+    execution_result = MagicMock
+    tc_mock.get_last_execution_result = execution_result
+    errors: dict = dict.fromkeys(range(3))
+    execution_result.exceptions = errors
     local_search = DictStatementLocalSearch(tc_mock, 0, MagicMock(), TestFactory(MagicMock()))
     assert not local_search._fix_possible_key_error(statement)

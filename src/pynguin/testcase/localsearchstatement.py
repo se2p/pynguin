@@ -17,6 +17,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import cast
 
+
 import pynguin.configuration as config
 
 from pynguin.analyses.typesystem import AnyType
@@ -1000,6 +1001,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
         improved = False
+        self._logger.debug("Starting to remove entries from %s", statement)
         for i in range(len(statement.elements) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 return improved
@@ -1025,34 +1027,36 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         old_elements = statement.elements.copy()
         last_execution_result = self._chromosome.get_last_execution_result()
         improved = False
+        self._logger.debug("Starting to replace entries from %s", statement)
         for i in range(len(statement.elements)):
             if LocalSearchTimer.get_instance().limit_reached():
                 return improved
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
-                objects = [
-                    obj
-                    for obj in objects
-                    if isinstance(obj, VariableCreatingStatement)
-                    and obj.ret_val not in statement.elements
-                ]
+                objects = [obj for obj in objects if obj not in statement.elements]
             else:
-                objects = [
-                    obj
-                    for obj in objects
-                    if isinstance(obj, VariableCreatingStatement)
-                    and obj.ret_val != statement.elements[i]
-                ]
+                objects = [obj for obj in objects if obj != statement.elements[i]]
+            size_change = 0
             if len(objects) == 0:
-                return improved  # TODO: Maybe create new statement?
-            statement.elements[i] = randomness.choice(objects).ret_val
+                old_size = self._chromosome.test_case.size()
+                new_element = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, statement.ret_val.type, position=self._position
+                )
+                if new_element is None:
+                    continue
+                objects.append(new_element)
+                size_change = self._chromosome.test_case.size() - old_size
+            statement.elements[i] = randomness.choice(objects)
             if self._objective.has_improved(self._chromosome):
                 improved = True
                 old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
+                self._position += size_change
             else:
                 statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
+                for _ in range(size_change):
+                    self._chromosome.test_case.remove(self._position)
         return improved
 
     def add_entries(self, statement: NonDictCollection) -> bool:
@@ -1068,19 +1072,24 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         last_execution_result = self._chromosome.get_last_execution_result()
         pos = 0
         improved = False
+        self._logger.debug("Starting to add entries from %s", statement)
         while pos < len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached():
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
-                objects = [
-                    obj
-                    for obj in objects
-                    if isinstance(obj, VariableCreatingStatement)
-                    and obj.ret_val not in statement.elements
-                ]
+                objects = [obj for obj in objects if obj not in statement.elements]
+            size_change = 0
             if len(objects) == 0:
-                return improved  # TODO: Maybe create new statement?
+                old_size = self._chromosome.test_case.size()
+                new_element = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, statement.ret_val.type, position=self._position
+                )
+                if new_element is None:
+                    pos += 1
+                    continue
+                objects.append(new_element)
+                size_change = self._chromosome.test_case.size() - old_size
             if isinstance(statement, SetStatement):
-                statement.elements.append(randomness.choice(objects).ret_val)
+                statement.elements.append(randomness.choice(objects))
             else:
                 statement.elements = [
                     *statement.elements[:pos],
@@ -1092,9 +1101,12 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
                 improved = True
                 old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
+                self._position += size_change
             else:
                 statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
+                for _ in range(size_change):
+                    self._chromosome.test_case.remove(self._position)
         return improved
 
 
@@ -1135,7 +1147,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
                 self._chromosome.set_last_execution_result(last_execution_result)
         return improved
 
-    def replace_entries(self, statement: DictStatement) -> bool:
+    def replace_entries(self, statement: DictStatement) -> bool:  # noqa: C901, PLR0915
         """Replaces entries in the dictionary with other possible entries.
 
         Args:
@@ -1155,31 +1167,70 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             keys_reference = self._chromosome.test_case.get_objects(key.type, self._position)
             key_elements = {k for (k, _) in statement.elements}
             keys = [k for k in keys_reference if k not in key_elements]
-            if len(keys) == 0 or len(values) == 0:
-                continue  # TODO: Maybe create new statement?
-            for available_key in randomness.sample(
-                keys, min(len(keys), config.configuration.local_search.dict_max_insertions)
-            ):
-                statement.elements[i] = (available_key, value)
-                if self._objective.has_improved(self._chromosome):
-                    improved = True
-                    old_elements = statement.elements.copy()
-                    last_execution_result = self._chromosome.get_last_execution_result()
-                    break
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
-            key, value = statement.elements[i]
-            for available_value in randomness.sample(
-                values, min(len(values), config.configuration.local_search.dict_max_insertions)
-            ):
-                statement.elements[i] = (key, available_value)
-                if not self._objective.has_improved(self._chromosome):
+            # Replace key
+            if len(keys) == 0:
+                old_size = self._chromosome.test_case.size()
+                new_key = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, key.type, position=self._position
+                )
+                if new_key is not None:
+                    statement.elements[i] = (new_key, value)
+                    size_change = self._chromosome.test_case.size() - old_size
+                    if self._objective.has_improved(self._chromosome):
+                        old_elements = statement.elements.copy()
+                        last_execution_result = self._chromosome.get_last_execution_result()
+                        self._position += size_change
+                        improved = True
+                    else:
+                        statement.elements = old_elements.copy()
+                        self._chromosome.set_last_execution_result(last_execution_result)
+                        for _ in range(size_change):
+                            self._chromosome.test_case.remove(self._position)
+            else:
+                for available_key in randomness.sample(
+                    keys, min(len(keys), config.configuration.local_search.dict_max_insertions)
+                ):
+                    statement.elements[i] = (available_key, value)
+                    if self._objective.has_improved(self._chromosome):
+                        improved = True
+                        old_elements = statement.elements.copy()
+                        last_execution_result = self._chromosome.get_last_execution_result()
+                        break
                     statement.elements = old_elements.copy()
                     self._chromosome.set_last_execution_result(last_execution_result)
-                else:
-                    improved = True
-                    old_elements = statement.elements.copy()
-                    last_execution_result = self._chromosome.get_last_execution_result()
+
+            key, value = statement.elements[i]
+            # Replace value
+            if len(values) == 0:
+                old_size = self._chromosome.test_case.size()
+                new_value = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, value.type, position=self._position
+                )
+                if new_value is not None:
+                    statement.elements[i] = (key, new_value)
+                    size_change = self._chromosome.test_case.size() - old_size
+                    if self._objective.has_improved(self._chromosome):
+                        last_execution_result = self._chromosome.get_last_execution_result()
+                        improved = True
+                        old_elements = statement.elements.copy()
+                        self._position += size_change
+                    else:
+                        statement.elements = old_elements.copy()
+                        self._chromosome.set_last_execution_result(last_execution_result)
+                        for _ in range(size_change):
+                            self._chromosome.test_case.remove(self._position)
+            else:
+                for available_value in randomness.sample(
+                    values, min(len(values), config.configuration.local_search.dict_max_insertions)
+                ):
+                    statement.elements[i] = (key, available_value)
+                    if not self._objective.has_improved(self._chromosome):
+                        statement.elements = old_elements.copy()
+                        self._chromosome.set_last_execution_result(last_execution_result)
+                    else:
+                        improved = True
+                        old_elements = statement.elements.copy()
+                        last_execution_result = self._chromosome.get_last_execution_result()
                     break
         return improved
 
@@ -1199,7 +1250,6 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         has_key_errors = True
         improved = False
         while has_key_errors and not LocalSearchTimer.get_instance().limit_reached():
-            # TODO: What to do if key error didnt get fixed, especially when it's reoccurring
             has_key_errors = self._fix_possible_key_error(statement)
             if self._objective.has_improved(self._chromosome):
                 improved = True
@@ -1217,17 +1267,32 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             values = self._chromosome.test_case.get_objects(AnyType(), self._position)
             key_elements = {k for (k, _) in statement.elements}
             keys = [key for key in values if key not in key_elements]
+            size_change = 0
             if len(keys) == 0:
-                return improved  # TODO: Maybe create new statement?
-            statement.elements.append((randomness.choice(keys), randomness.choice(values)))
+                old_size = self._chromosome.test_case.size()
+                new_key = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, statement.ret_val.type, position=self._position
+                )
+                if new_key is None:
+                    continue
+                values.append(new_key)
+                statement.elements.append((new_key, randomness.choice(values)))
+                size_change = self._chromosome.test_case.size() - old_size
+            else:
+                statement.elements.append((randomness.choice(keys), randomness.choice(values)))
+
             if self._objective.has_improved(self._chromosome):
                 improved = True
                 old_elements = statement.elements.copy()
                 last_execution_result = self._chromosome.get_last_execution_result()
+                if len(keys) == 0:
+                    self._position += size_change
             else:
                 insertions += 1
                 statement.elements = old_elements.copy()
                 self._chromosome.set_last_execution_result(last_execution_result)
+                for _ in range(size_change):
+                    self._chromosome.test_case.remove(self._position)
         return improved
 
     def _fix_possible_key_error(self, statement: DictStatement) -> bool:
@@ -1302,7 +1367,7 @@ def choose_local_search_statement(  # noqa: C901
         logger.debug("Unknown primitive type: %s", primitive_type)
     elif isinstance(statement, NonDictCollection):
         logger.debug("%s non-dict collection found", statement.__class__.__name__)
-        return NonDictCollectionLocalSearch(chromosome, position, objective)
+        return NonDictCollectionLocalSearch(chromosome, position, objective, factory)
     elif isinstance(statement, DictStatement):
         logger.debug("%s dict statement found", statement.__class__.__name__)
         return DictStatementLocalSearch(chromosome, position, objective, factory)

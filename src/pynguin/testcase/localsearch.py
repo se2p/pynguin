@@ -135,6 +135,12 @@ class TestCaseLocalSearch:
         statement = chromosome.test_case.statements[position]
         # Randomize value because it's likely to be at a local optima
         if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
+            self._logger.debug(
+                "Randomizing value of statement %s at position %d since local "
+                "search was already applied.",
+                statement,
+                position,
+            )
             statement.randomize_value()
 
         local_search_statement = choose_local_search_statement(

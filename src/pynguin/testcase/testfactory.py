@@ -957,6 +957,45 @@ class TestFactory:  # noqa: PLR0904
         instance = selected_class(test_case=test_case, type_=Any, elements=[])
         test_case.add_statement(instance, position)
 
+    def create_fitting_reference(
+        self,
+        test_case: tc.TestCase,
+        param_type: ProperType,
+        *,
+        position: int = -1,
+        recursion_depth: int = 0,
+        allow_none: bool = True,
+    ) -> vr.VariableReference | None:
+        """Get a fitting variable references for the given type.
+
+        Args:
+            test_case: The test case
+            param_type: The type of the variable that is needed
+            position: The position to limit the search
+            recursion_depth: The recursion depth
+            allow_none: Whether a variable can be a None value
+
+        Returns:
+            A variable reference for the type
+        """
+        if position < 0:
+            position = test_case.size()
+
+        try:
+            var = self._attempt_generation(
+                test_case,
+                param_type,
+                position,
+                recursion_depth,
+                allow_none=allow_none,
+            )
+        except ConstructionFailedException:
+            self._logger.debug(
+                "Failed to create variable for type %s at position %d", param_type, position
+            )
+            return None
+        return var
+
     @staticmethod
     def _get_reuse_parameters(
         test_case: tc.TestCase,
