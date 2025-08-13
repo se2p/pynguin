@@ -887,6 +887,7 @@ class TestFactory:  # noqa: PLR0904
         if not isinstance(statement, VariableCreatingStatement):
             return False
         probability = randomness.next_float()
+        old_size = len(chromosome.test_case.statements)
         if probability <= config.configuration.local_search.other_type_primitive_probability:
             self._insert_random_primitive_statement(chromosome.test_case, position)
         elif (
@@ -897,17 +898,12 @@ class TestFactory:  # noqa: PLR0904
             self._insert_random_collection_statement(chromosome.test_case, position)
         elif not self.insert_random_call_on_object(chromosome.test_case, position):
             return False
-        replacement = chromosome.test_case.get_statement(position)
+        position += len(chromosome.test_case.statements) - old_size
+        replacement = chromosome.test_case.get_statement(position-1)
         if not isinstance(replacement, VariableCreatingStatement):
             return False
-
         replacement.replace(replacement.ret_val, statement.ret_val)
-        mod_statements = [
-            stm for i, stm in enumerate(chromosome.test_case.statements) if i != position + 1
-        ]
-        test_case = DefaultTestCase(self._test_cluster)
-        test_case.add_statements(mod_statements)
-        chromosome.test_case = test_case
+        chromosome.test_case.statements.pop(position)
         self._logger.debug(
             "Changed statement from %s to %s", statement.__class__, replacement.__class__
         )
