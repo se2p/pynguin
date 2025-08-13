@@ -20,7 +20,7 @@ from typing import cast
 
 import pynguin.configuration as config
 
-from pynguin.analyses.typesystem import AnyType
+from pynguin.analyses.typesystem import AnyType, ProperType, is_primitive_type
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
@@ -667,7 +667,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 operations.append(Operations.RANDOM_CALL)
                 if len(statement.args) > 0:  # type: ignore[attr-defined]
                     operations.append(Operations.PARAMETER)
-
+            old_size = len(self._chromosome.test_case.statements)
             random = randomness.choice(operations)
             if random == Operations.RANDOM_CALL:
                 changed = self.random_call()
@@ -680,13 +680,17 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 last_execution_result = self._chromosome.get_last_execution_result()
                 old_chromosome = self._chromosome
                 mutations = 0
+                self._position += len(self._chromosome.test_case.statements) - old_size
             else:
                 self._chromosome = TestCaseChromosome(None, None, old_chromosome)
                 self._chromosome.set_last_execution_result(
                     last_execution_result
                 ) if last_execution_result is not None else None
+                for _ in range(len(self._chromosome.test_case.statements) - old_size):
+                    self._chromosome.test_case.remove(self._position)
                 statement = self._chromosome.test_case.statements[self._position]
                 mutations += 1
+
 
     def replace(self) -> bool:
         """Replaces a call with another possible call.
@@ -745,21 +749,30 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         return False
 
     def _replace_parameter(self, statement: ParametrizedStatement) -> bool:
+        self._logger.debug("Replacing parameter of %s", statement)
         params = statement.args.values()
         if len(params) == 0:
             return False
         parameter = randomness.choice(list(params))
-        types = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
-        if len(types) == 0:
-            self._logger.debug(
-                "No other possible calls found for datatype %r", statement.ret_val.type
+        types = self._chromosome.test_case.get_objects(parameter.type, self._position)
+        if (randomness.next_float() < self._get_reuse_probability(parameter.type)
+            or len(types) == 0):
+            self._logger.debug("Creating new fitting reference for param %r",
+                               parameter.type)
+            new_parameter = self._factory.create_fitting_reference(
+                self._chromosome.test_case, parameter.type, position=self._position
             )
+            if new_parameter is not None:
+                statement.replace(parameter, new_parameter)
+                return True
             return False
+        self._logger.debug("Replacing param %r with another possible param", parameter.type)
         new_parameter = randomness.choice(types)
         statement.replace(parameter, new_parameter)
         return True
 
     def _replace_params_or_callee(self, statement: MethodStatement) -> bool:
+        self._logger.debug("Replacing parameter or callee of %s", statement)
         params = statement.args.values()
         possible_replacements = len(params)
         if not statement.accessible_object().is_static():
@@ -768,14 +781,26 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         # Check if callee or params should be replaced
         if possible_replacements == randomness.next_int(1, possible_replacements + 1):
             types = self._chromosome.test_case.get_objects(statement.callee.type, self._position)
-            if len(types) == 0:
-                self._logger.debug(
-                    "No other possible calls found for callee %r", statement.callee.type
+            if (randomness.next_float() < self._get_reuse_probability(statement.callee.type)
+                or len(types) == 0):
+                self._logger.debug("Creating new fitting reference for callee %r", statement.callee.type)
+                new_type = self._factory.create_fitting_reference(
+                    self._chromosome.test_case, statement.ret_val.type, position=self._position
                 )
+                if new_type is not None:
+                    statement.callee = new_type
+                    return True
                 return False
+            self._logger.debug("Replacing callee %r with another possible call",statement.callee)
             statement.callee = randomness.choice(types)
             return True
         return self._replace_parameter(statement)
+
+    @staticmethod
+    def _get_reuse_probability(input: ProperType) -> float:
+        return (config.configuration.test_creation.primitive_reuse_probability
+            if input.accept(is_primitive_type)
+            else config.configuration.test_creation.object_reuse_probability)
 
 
 class FieldStatementLocalSearch(StatementLocalSearch, ABC):
