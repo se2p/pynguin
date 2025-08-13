@@ -664,7 +664,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             < config.configuration.local_search.random_parametrized_statement_call_count
         ):
             operations: list[Operations] = [Operations.REPLACE]
-            if not isinstance(statement, NoneStatement):
+            if isinstance(statement, ParametrizedStatement):
                 operations.append(Operations.RANDOM_CALL)
                 if len(statement.args) > 0:  # type: ignore[attr-defined]
                     operations.append(Operations.PARAMETER)
@@ -1400,7 +1400,11 @@ def choose_local_search_statement(  # noqa: C901
         isinstance(statement, FunctionStatement)
         | isinstance(statement, ConstructorStatement)
         | isinstance(statement, MethodStatement)
-    ) or isinstance(statement, FieldStatement):
+    ):
+        logger.debug("%s statement found", statement.__class__.__name__)
+        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+
+    elif isinstance(statement, FieldStatement):
         logger.debug("%s statement found", statement.__class__.__name__)
         return FieldStatementLocalSearch(chromosome, position, objective, factory)
 

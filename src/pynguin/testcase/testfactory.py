@@ -907,6 +907,7 @@ class TestFactory:  # noqa: PLR0904
         ]
         test_case = DefaultTestCase(self._test_cluster)
         test_case.add_statements(mod_statements)
+        chromosome.test_case = test_case
         self._logger.debug(
             "Changed statement from %s to %s", statement.__class__, replacement.__class__
         )
