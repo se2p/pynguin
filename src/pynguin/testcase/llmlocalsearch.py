@@ -75,11 +75,7 @@ class LLMLocalSearch:
             self.chromosome.get_coverage_functions(),
         )
 
-        old_calls = stat.output_variables.get(RuntimeVariable.TotalLocalSearchLLMSuccessCalls.name)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.TotalLocalSearchLLMSuccessCalls,
-            old_calls.value + 1 if old_calls is not None else 1,
-        )
+
 
         if len(test_cases) == 1:
             test_case = test_cases[0]
