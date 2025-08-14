@@ -45,6 +45,8 @@ class LocalSearchPrompt(Prompt):
             f"Give back only the whole test and not the variable itself as Python code for better "
             f"parsing\n"
             f"Also add a class where the test is in to the test_code.\n"
+            f"Pick a branch where mutating the provided statement can actually increase the "
+            f"branch coverage.\n "
             f"Line of branches we failed to cover:\n"
             f"{uncovered_branches}\n"
             f"Test case source code:\n `{self.test_case_code}` \n"

@@ -30,7 +30,6 @@ from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
-from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import UIntPrimitiveStatement
@@ -899,7 +898,7 @@ class TestFactory:  # noqa: PLR0904
         elif not self.insert_random_call_on_object(chromosome.test_case, position):
             return False
         position += len(chromosome.test_case.statements) - old_size
-        replacement = chromosome.test_case.get_statement(position-1)
+        replacement = chromosome.test_case.get_statement(position - 1)
         if not isinstance(replacement, VariableCreatingStatement):
             return False
         replacement.replace(replacement.ret_val, statement.ret_val)

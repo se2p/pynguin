@@ -75,8 +75,6 @@ class LLMLocalSearch:
             self.chromosome.get_coverage_functions(),
         )
 
-
-
         if len(test_cases) == 1:
             test_case = test_cases[0]
         else:
