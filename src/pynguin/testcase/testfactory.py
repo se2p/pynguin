@@ -29,6 +29,8 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
@@ -37,6 +39,7 @@ from pynguin.testcase.statement import UIntPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
+from pynguin.utils.type_utils import PRIMITIVES
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -883,20 +886,37 @@ class TestFactory:  # noqa: PLR0904
         """Replaces the statement at the given position with another statement of a different
         type.
         """  # noqa: D205
+        primitives = UnionType(tuple(Instance(TypeInfo(typ)) for typ in PRIMITIVES))
+        collection = UnionType(
+            tuple(
+                Instance(TypeInfo(typ)) if not isinstance(typ, tuple) else TupleType(tuple())
+                for typ in PRIMITIVES
+            )
+        )
+
         statement = chromosome.test_case.statements[position]
         if not isinstance(statement, VariableCreatingStatement):
             return False
         probability = randomness.next_float()
         old_size = len(chromosome.test_case.statements)
-        if probability <= config.configuration.local_search.other_type_primitive_probability:
-            self._insert_random_primitive_statement(chromosome.test_case, position)
-        elif (
-            probability
-            <= config.configuration.local_search.other_type_collection_probability
-            + config.configuration.local_search.other_type_primitive_probability
-        ):
-            self._insert_random_collection_statement(chromosome.test_case, position)
-        elif not self.insert_random_call_on_object(chromosome.test_case, position):
+        try:
+            if probability <= config.configuration.local_search.other_type_primitive_probability:
+                self._attempt_generation(
+                    chromosome.test_case, primitives, position, 0, allow_none=False
+                )
+            elif (
+                probability
+                <= config.configuration.local_search.other_type_collection_probability
+                + config.configuration.local_search.other_type_primitive_probability
+            ):
+                self._attempt_generation(
+                    chromosome.test_case, collection, position, 0, allow_none=False
+                )
+            elif not self._attempt_generation(
+                chromosome.test_case, ANY, position, 0, allow_none=False
+            ):
+                return False
+        except ConstructionFailedException:
             return False
         position += len(chromosome.test_case.statements) - old_size
         replacement = chromosome.test_case.get_statement(position - 1)
