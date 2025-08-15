@@ -23,6 +23,7 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.typesystem import ANY
+from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
@@ -943,14 +944,31 @@ class TestFactory:  # noqa: PLR0904
             test_case: The test case to insert the statement into
             position: The position where to insert the statement
         """
-        subclasses = (
-            stmt.DictStatement,
-            stmt.ListStatement,
-            stmt.SetStatement,
-            stmt.TupleStatement,
-        )
-        selected_class = randomness.choice(subclasses)
-        instance = selected_class(test_case=test_case, type_=Any, elements=[])
+        classes = [
+            stmt.DictStatement(
+                test_case=test_case,
+                type_=Instance(test_case.test_cluster.type_system.to_type_info(dict)),
+                elements=[],
+            ),
+            stmt.ListStatement(
+                test_case=test_case,
+                type_=Instance(test_case.test_cluster.type_system.to_type_info(list)),
+                elements=[],
+            ),
+            stmt.TupleStatement(
+                test_case=test_case,
+                type_=TupleType(
+                    (AnyType(),),
+                ),
+                elements=[],
+            ),
+            stmt.SetStatement(
+                test_case=test_case,
+                type_=Instance(test_case.test_cluster.type_system.to_type_info(set)),
+                elements=[],
+            ),
+        ]
+        instance = randomness.choice(classes)
         test_case.add_statement(instance, position)
 
     def create_fitting_reference(
