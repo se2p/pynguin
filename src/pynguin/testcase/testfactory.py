@@ -23,23 +23,18 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import NoneStatement
-from pynguin.testcase.statement import UIntPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import PRIMITIVES
 from pynguin.utils.type_utils import is_arg_or_kwarg
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -886,13 +881,8 @@ class TestFactory:  # noqa: PLR0904
         """Replaces the statement at the given position with another statement of a different
         type.
         """  # noqa: D205
-        primitives = UnionType(tuple(Instance(TypeInfo(typ)) for typ in PRIMITIVES))
-        collection = UnionType(
-            tuple(
-                Instance(TypeInfo(typ)) if not isinstance(typ, tuple) else TupleType(tuple())
-                for typ in PRIMITIVES
-            )
-        )
+        primitives = UnionType(self._test_cluster.type_system.primitive_proper_types)
+        collection = UnionType(self._test_cluster.type_system.collection_proper_types)
 
         statement = chromosome.test_case.statements[position]
         if not isinstance(statement, VariableCreatingStatement):
@@ -928,68 +918,6 @@ class TestFactory:  # noqa: PLR0904
             "Changed statement from %s to %s", statement.__class__, replacement.__class__
         )
         return True
-
-    @staticmethod
-    def _insert_random_primitive_statement(test_case: tc.TestCase, position: int) -> None:
-        """Insert a random primitive statement at the given position.
-
-        Enums are not included in the selection.
-
-        Args:
-            test_case: The test case to insert the statement into
-            position: The position where to insert the statement
-        """
-        subclasses = (
-            stmt.IntPrimitiveStatement,
-            stmt.FloatPrimitiveStatement,
-            stmt.ComplexPrimitiveStatement,
-            stmt.BooleanPrimitiveStatement,
-            stmt.StringPrimitiveStatement,
-            stmt.BytesPrimitiveStatement,
-            stmt.ClassPrimitiveStatement,
-            NoneStatement,
-            UIntPrimitiveStatement,
-        )
-        selected_class = randomness.choice(subclasses)
-        instance = selected_class(test_case=test_case)  # type: ignore[call-arg]
-        test_case.add_statement(instance, position)
-
-    @staticmethod
-    def _insert_random_collection_statement(test_case: tc.TestCase, position: int) -> None:
-        """Insert a random collection statement at the given position.
-
-        The new collection statement contains no elements.
-
-        Args:
-            test_case: The test case to insert the statement into
-            position: The position where to insert the statement
-        """
-        classes = [
-            stmt.DictStatement(
-                test_case=test_case,
-                type_=Instance(test_case.test_cluster.type_system.to_type_info(dict)),
-                elements=[],
-            ),
-            stmt.ListStatement(
-                test_case=test_case,
-                type_=Instance(test_case.test_cluster.type_system.to_type_info(list)),
-                elements=[],
-            ),
-            stmt.TupleStatement(
-                test_case=test_case,
-                type_=TupleType(
-                    (AnyType(),),
-                ),
-                elements=[],
-            ),
-            stmt.SetStatement(
-                test_case=test_case,
-                type_=Instance(test_case.test_cluster.type_system.to_type_info(set)),
-                elements=[],
-            ),
-        ]
-        instance = randomness.choice(classes)
-        test_case.add_statement(instance, position)
 
     def create_fitting_reference(
         self,

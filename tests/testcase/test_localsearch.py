@@ -679,8 +679,8 @@ def test_non_dict_remove_set(result1, result2, side_effect, tc_mock) -> None:
 @pytest.mark.parametrize(
     "result1, result2, side_effect",
     [
-        (True, 2, [True, False]),
-        (True, 5, [True] * 4 + [False]),
+        (True, 2, [True, False, False]),
+        (True, 5, [True] * 4 + [False] * 2),
         (False, 1, [False] * 2),
     ],
 )
@@ -690,7 +690,7 @@ def test_non_dict_add_list(result1, result2, side_effect, tc_mock):
     int_statement = IntPrimitiveStatement(tc_mock, 42)
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     statement = ListStatement(tc_mock, int_statement.ret_val.type, [int_statement.ret_val])
-    tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
+    tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
     local_search = NonDictCollectionLocalSearch(tc_mock, 3, objective)
     assert local_search.add_entries(statement) == result1
     assert len(statement.elements) == result2
@@ -699,8 +699,8 @@ def test_non_dict_add_list(result1, result2, side_effect, tc_mock):
 @pytest.mark.parametrize(
     "result1, result2, side_effect",
     [
-        (True, 2, [True, False]),
-        (True, 5, [True] * 4 + [False]),
+        (True, 2, [True, False, False]),
+        (True, 5, [True] * 4 + [False] * 2),
         (False, 1, [False] * 2),
     ],
 )
@@ -742,7 +742,7 @@ def test_non_dict_add_set(result1, result2, side_effect, tc_mock):
 
 def test_non_dict_add_set2(tc_mock):
     objective = MagicMock()
-    objective.has_improved.side_effect = [True, False]
+    objective.has_improved.side_effect = [True, False, False]
     int_statement = IntPrimitiveStatement(tc_mock, 42)
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     int_statement_3 = IntPrimitiveStatement(tc_mock, 17)
