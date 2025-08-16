@@ -22,6 +22,26 @@ All contributions to Pynguin should keep these important rules in mind.
 Publications on Pynguin
 -----------------------
 
+* L. Krodinger, S. Lukasczyk, and G. Fraser.
+  **Combining Type Inference and Automated Unit Test Generation for Python**
+  `arXiv:2507.01477 <https://arxiv.org/abs/2507.01477>`_.
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+      @article{DBLP:journals/corr/abs-2507-01477,
+        author       = {Lukas Krodinger and
+                        Stephan Lukasczyk and
+                        Gordon Fraser},
+        title        = {Combining Type Inference and Automated Unit Test Generation for Python},
+        journal      = {CoRR},
+        volume       = {abs/2507.01477},
+        year         = {2025},
+        eprinttype   = {arXiv},
+        eprint       = {2507.01477},
+      }
+
 * P. Straubinger, M. Kreis, S. Lukasczyk, and G. Fraser.
   **Mutation Testing via Iterative Large Language Model-Driven Scientific Debugging**.
   In *IEEE International Conference on Software Testing, Verification and Validation Workshops.*

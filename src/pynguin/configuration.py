@@ -150,6 +150,13 @@ class MinimizationStrategy(str, enum.Enum):
     CASE = "CASE"
     """Apply minimization at the test case level."""
 
+    SUITE = "SUITE"
+    """Apply minimization at the test suite level, i.e., remove entire test cases that
+    do not contribute to the coverage of the module under test."""
+
+    COMBINED = "COMBINED"
+    """Apply minimization at the test case level but check against all test cases in the suite."""
+
 
 class TypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""
@@ -806,6 +813,10 @@ class Configuration:
 
     subprocess: bool = False
     """Run the test generation in a subprocess."""
+
+    subprocess_if_recommended: bool = True
+    """Use the subprocess mode if the SUT analysis recommends it based on used
+    C extension modules."""
 
 
 # Singleton instance of the configuration.
