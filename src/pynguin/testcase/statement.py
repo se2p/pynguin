@@ -888,10 +888,11 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
         # TODO(fk) what if the current type is not correct?
-        if isinstance(self.ret_val.type, AnyType | NoneType) :
+        if isinstance(self.ret_val.type, AnyType | NoneType):
             arg_type = self.ret_val.type
         else:
-            arg_type = cast("Instance", self.ret_val.type).args[0]
+            instance = cast("Instance", self.ret_val.type)
+            arg_type = instance.args[0] if instance.args else ANY
         possible_insertions = self.test_case.get_objects(arg_type, self.get_position())
         if len(possible_insertions) == 0:
             return None
@@ -1070,12 +1071,13 @@ class DictStatement(CollectionStatement[tuple[vr.VariableReference, vr.VariableR
         self,
     ) -> tuple[vr.VariableReference, vr.VariableReference] | None:
         # TODO(fk) what if the current type is not correct?
-        if isinstance(self.ret_val.type, AnyType | NoneType) :
+        if isinstance(self.ret_val.type, AnyType | NoneType):
             key_type = self.ret_val.type
             val_type = self.ret_val.type
         else:
-            key_type = cast("Instance", self.ret_val.type).args[0]
-            val_type = cast("Instance", self.ret_val.type).args[1]
+            instance = cast("Instance", self.ret_val.type)
+            key_type = instance.args[0] if instance.args else ANY
+            val_type = instance.args[1] if instance.args else ANY
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
         if len(possibles_keys) == 0 or len(possibles_values) == 0:

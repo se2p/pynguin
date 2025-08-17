@@ -894,6 +894,7 @@ class TestFactory:  # noqa: PLR0904
                 self._attempt_generation(
                     chromosome.test_case, primitives, position, 0, allow_none=False
                 )
+                self._logger.debug("Changed statement from %s to primitive", statement.__class__)
             elif (
                 probability
                 <= config.configuration.local_search.other_type_collection_probability
@@ -902,8 +903,13 @@ class TestFactory:  # noqa: PLR0904
                 self._attempt_generation(
                     chromosome.test_case, collection, position, 0, allow_none=False
                 )
+                self._logger.debug("Changed statement from %s to collection", statement.__class__)
             elif not self._attempt_generation(
-                chromosome.test_case, ANY, position, 0, allow_none=False
+                chromosome.test_case,
+                UnionType(tuple(self._test_cluster.get_all_generatable_types())),
+                position,
+                0,
+                allow_none=False,
             ):
                 return False
         except ConstructionFailedException:
