@@ -47,6 +47,7 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import UnionType
 from pynguin.large_language_model.parsing import astscoping
 from pynguin.utils import mutation_utils
 from pynguin.utils import randomness
@@ -888,7 +889,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
 
     def _insertion_supplier(self) -> vr.VariableReference | None:
         # TODO(fk) what if the current type is not correct?
-        if isinstance(self.ret_val.type, AnyType | NoneType):
+        if isinstance(self.ret_val.type, AnyType | NoneType | UnionType):
             arg_type = self.ret_val.type
         else:
             instance = cast("Instance", self.ret_val.type)
@@ -1071,13 +1072,13 @@ class DictStatement(CollectionStatement[tuple[vr.VariableReference, vr.VariableR
         self,
     ) -> tuple[vr.VariableReference, vr.VariableReference] | None:
         # TODO(fk) what if the current type is not correct?
-        if isinstance(self.ret_val.type, AnyType | NoneType):
+        if isinstance(self.ret_val.type, AnyType | NoneType | UnionType):
             key_type = self.ret_val.type
             val_type = self.ret_val.type
         else:
             instance = cast("Instance", self.ret_val.type)
             key_type = instance.args[0] if instance.args else ANY
-            val_type = instance.args[1] if instance.args else ANY
+            val_type = instance.args[1] if len(instance.args) > 1 else ANY
         possibles_keys = self.test_case.get_objects(key_type, self.get_position())
         possibles_values = self.test_case.get_objects(val_type, self.get_position())
         if len(possibles_keys) == 0 or len(possibles_values) == 0:
