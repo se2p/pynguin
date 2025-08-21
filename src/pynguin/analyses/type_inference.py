@@ -18,11 +18,12 @@ import logging
 import os
 import textwrap
 import time
-from types import FunctionType, ModuleType
+from types import ModuleType
 from typing import Any, TypeAlias
 import typing
 
 from pydantic import SecretStr
+import pynguin.configuration as config
 
 from pynguin.analyses.module import CallableData, TestCluster
 from pynguin.analyses.typesystem import ANY, NONE_TYPE, UNSUPPORTED, InferredSignature, ProperType
@@ -64,6 +65,7 @@ _USER_PROMPT_TEMPLATE = textwrap.dedent(
     """
     {_ROLE_USER}
     # Module and Class: {module}
+    # Defined types: {types}
 
     ```python
     {src}
@@ -186,16 +188,17 @@ class LLMInference(InferenceStrategy):
         header = f"{_ROLE_SYSTEM}\n## Static-Analysis Instructions ({today})"
         return f"{header}\n{_SYS_GUIDELINES}"
 
-    def _build_user_prompt(self, src_code: str, class_module_name: str) -> str:
+    def _build_user_prompt(self, src_code: str, class_module_name: str, usable_types: str) -> str:
         return _USER_PROMPT_TEMPLATE.format(
             _ROLE_USER=_ROLE_USER,
             module=class_module_name,
+            types=usable_types,
             src=src_code.rstrip(),
         )
 
-    def _build_prompt(self, src_code: str, class_module_name: str) -> str:
+    def _build_prompt(self, src_code: str, class_module_name: str, usable_types: list[str]) -> str:
         system_prompt = self._build_system_prompt()
-        user_prompt = self._build_user_prompt(src_code, class_module_name)
+        user_prompt = self._build_user_prompt(src_code, class_module_name, usable_types)
         return f"{system_prompt}\n{user_prompt}"
 
     def _send_prompt(self, prompt: str) -> str:
@@ -210,7 +213,10 @@ class LLMInference(InferenceStrategy):
             try:
                 src_code = self._get_src_code(callable_obj)
                 src_module = self._get_src_class_module(callable_obj)
-                prompt = self._build_prompt(src_code, src_module)
+                src_usable_types: list[str] = [
+                    t.full_name for t in self._test_cluster.type_system.get_all_types()
+                ]
+                prompt = self._build_prompt(src_code, src_module, src_usable_types)
             except Exception as exc:
                 _LOGGER.warning("Skipping %s - unable to build prompt: %s", callable_obj, exc)
                 continue
@@ -325,17 +331,65 @@ class LLMInference(InferenceStrategy):
         Returns:
             A ProperType, just like convert_type_hint would.
         """
-        # TODO: make custom types work (FibonacciHeapNode)
-        try:
-            # Build a safe namespace for eval: builtins + all typing names
-            namespace = {
-                **{k: getattr(builtins, k) for k in dir(builtins)},
-                **{k: getattr(typing, k) for k in dir(typing)},
-            }
-            # Evaluate the string to get a real type object
-            hint = eval(hint_str, namespace)
-        except Exception:
-            # On any parse or eval error, fall back
+        # Make best-effort parsing of LLM-provided type strings. We try the
+        # following in order:
+        #  - sanitize the string (strip markdown, quotes)
+        #  - eval in a namespace that contains builtins, typing names and the
+        #    module-under-test globals (so local classes resolve)
+        #  - fallback to _resolve_type which handles dotted imports and typing eval
+        # On any unrecoverable error, return the provided `unsupported` marker.
+        # TODO: make custom types work (FibonacciHeapNode) more robustly.
+        # Sanitize common LLM output artifacts
+        if not isinstance(hint_str, str):
             return unsupported
-        # Delegate to your existing logic
-        return self._test_cluster.type_system.convert_type_hint(hint, unsupported=unsupported)
+        s = hint_str.strip()
+        # remove markdown/code fences and backticks
+        if s.startswith("```") and s.endswith("```"):
+            # strip triple fences and optional leading language id
+            inner = s.lstrip("`").rstrip("`")
+            # remove leading language token like python
+            inner = inner.split("\n", 1)[-1] if "\n" in inner else inner
+            s = inner.strip()
+        s = s.strip(' `"')
+
+        # Build eval namespace with builtins and typing names
+        namespace: dict[str, Any] = {
+            **{k: getattr(builtins, k) for k in dir(builtins)},
+            **{k: getattr(typing, k) for k in dir(typing)},
+        }
+
+        # Try to include the module-under-test globals so that local types
+        # (declared in the SUT) can be resolved by name.
+        try:
+            module_name = getattr(config.configuration, "module_name", None)
+            if module_name:
+                try:
+                    sut_mod = importlib.import_module(module_name)
+                    # Import module dict but avoid private names
+                    namespace.update({
+                        k: v for k, v in sut_mod.__dict__.items() if not k.startswith("__")
+                    })
+                except Exception:
+                    # ignore failures to import the module; we'll fallback later
+                    _LOGGER.debug(
+                        "Could not import module %s for eval namespace", module_name, exc_info=True
+                    )
+        except Exception:
+            # If accessing configuration fails for any reason, continue without module globals
+            _LOGGER.debug("Failed to enrich eval namespace with module globals", exc_info=True)
+
+        # Try eval first (useful for expressions like 'list[int]' or 'Optional[int]').
+        try:
+            hint = eval(s, namespace)  # nosec B307 – controlled-ish input
+        except Exception:
+            # Fallback: try the resolver which handles dotted paths and other forms
+            try:
+                hint = self._resolve_type(s)
+            except Exception:
+                return unsupported
+
+        try:
+            return self._test_cluster.type_system.convert_type_hint(hint, unsupported=unsupported)
+        except Exception:
+            _LOGGER.debug("convert_type_hint failed for %s -> %s", s, hint, exc_info=True)
+            return unsupported
