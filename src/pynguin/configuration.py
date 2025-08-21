@@ -782,8 +782,8 @@ class LocalSearchConfiguration:
     """The number of mutations made to a parametrized statement call to determine if it's worth to
     further do local search"""
 
-    max_other_type_mutation_factor: float = 1
-    """The factor for the max number of searches for other datatypes"""
+    max_other_type_mutations: int = 20
+    """The max number of searches for other datatypes"""
 
     other_type_primitive_probability: float = 0.3
     """Weight of generating primitive statements when changing the statement type."""

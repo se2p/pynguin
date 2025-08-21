@@ -41,23 +41,15 @@ class TestCaseLocalSearch:
     _logger = logging.getLogger(__name__)
 
     def __init__(
-        self, total_statements: int, suite: TestSuiteChromosome, executor: TestCaseExecutor
+        self, suite: TestSuiteChromosome, executor: TestCaseExecutor
     ) -> None:
         """Initializes the local search for a test case.
 
         Args:
-            total_statements (int): The total number of statements in the test case.
             suite (TestSuiteChromosome): The test suite containing the test case.
             executor (TestCaseExecutor): The executor to run the test cases.
         """
-        assert total_statements > 0, "Total statements must be greater than zero."
-        self._max_mutations: int = (
-            int(
-                config.configuration.local_search.max_other_type_mutation_factor
-                * config.configuration.local_search.local_search_time
-            )
-            // total_statements
-        )
+        self._max_mutations: int = config.configuration.local_search.max_other_type_mutations
         self._suite = suite
         self._executor = executor
 
@@ -216,14 +208,9 @@ class TestSuiteLocalSearch:
 
         self.double_branch_coverage(chromosome)
 
-        total_statements = sum(
-            len(test_case_chrom.test_case.statements)
-            for test_case_chrom in chromosome.test_case_chromosomes
-        )
-
         indices = list(range(len(chromosome.test_case_chromosomes)))
         randomness.shuffle(indices)
-        test_case_local_search = TestCaseLocalSearch(total_statements, chromosome, executor)
+        test_case_local_search = TestCaseLocalSearch(chromosome, executor)
         for i in indices:
             if LocalSearchTimer.get_instance().limit_reached():
                 return
