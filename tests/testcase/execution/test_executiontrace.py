@@ -21,7 +21,7 @@ def test_merge():
 def test_merge_full():
     instr0 = ExecutedInstruction("foo", 0, 1, 2, 3, 4, 5)
     stmt0 = MagicMock()
-    assert0 = ExecutedAssertion(0, 1, 2, stmt0)
+    assert0 = ExecutedAssertion(2, stmt0)
 
     trace0 = ExecutionTrace()
     trace0.executed_code_objects.add(0)
@@ -38,7 +38,7 @@ def test_merge_full():
 
     instr1 = ExecutedInstruction("bar", 1, 2, 3, 4, 5, 6)
     stmt1 = MagicMock()
-    assert1 = ExecutedAssertion(1, 2, 3, stmt1)
+    assert1 = ExecutedAssertion(3, stmt1)
     trace1 = ExecutionTrace()
     trace1.executed_code_objects.add(1)
     trace1.executed_code_objects.add(2)
@@ -53,7 +53,7 @@ def test_merge_full():
     trace1.executed_assertions = [assert1]
 
     # Shifted by one
-    assert2 = ExecutedAssertion(1, 2, 4, stmt1)
+    assert2 = ExecutedAssertion(4, stmt1)
 
     result = ExecutionTrace()
     result.executed_code_objects.add(0)

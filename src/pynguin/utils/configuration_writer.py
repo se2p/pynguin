@@ -7,6 +7,7 @@
 """Utility to write the current configuration to a TOML file."""
 
 import dataclasses
+import enum
 import json
 import logging
 import pprint
@@ -79,9 +80,9 @@ def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
 
     def format_parameter(k: str, v: Any) -> str:
         if isinstance(v, list):
-            values = "\n".join(v)
+            values = "\n".join(e.name if isinstance(e, enum.Enum) else e for e in v)
             return f"--{k}\n{values}"
-        return f"--{k}\n{v}"
+        return f"--{k}\n{v.name if isinstance(v, enum.Enum) else v}"
 
     parameter_list: list[str] = []
     cfg_dict = dataclasses.asdict(config.configuration)

@@ -278,3 +278,33 @@ When adding logging to your code:
        _logger.critical("Critical error that may prevent execution")
 
 The logging configuration can be controlled via command-line options when running Pynguin.
+
+Add support for new Python versions
+-----------------------------------
+
+Pynguin uses bytecode instrumentation to collect data about SUT execution. This makes Pynguin
+very susceptible to the changes of the CPython bytecode. Therefore, it is recommended to follow
+these guidelines when adding support for new Python versions:
+
+1. Learn about the changes of the CPython bytecode in the documentation:
+
+  - `The dis module <https://docs.python.org/3/library/dis.html>`_
+  - `The Python changelog <https://docs.python.org/3/whatsnew/>`_
+
+2. Add support for the new version of Python in the ``pyproject.toml`` file and update the ``bytecode`` library.
+
+3. Add a new module with the name of the new Python version in the ``pynguin.instrumentation.version`` package, temporarily include all symbols
+   from the previous version and add a new case to use this module in the ``pynguin.instrumentation.version.__init__`` module.
+
+4. Run the tests of package ``pynguin.instrumentation`` using the command below and fix the issues by adding version-specific code in
+   the module created in the previous step and removing the temporary imports of the previous version:
+
+   .. code-block:: bash
+
+       pytest tests/instrumentation
+
+5. Run all the tests and linters of Pynguin to ensure that everything works as expected and fix any remaining bugs:
+
+   .. code-block:: bash
+
+       make check

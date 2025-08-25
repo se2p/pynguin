@@ -104,8 +104,14 @@ class InitialPopulationProvider:
                 logger.debug("No suitable test module found.")
                 stat.track_output_variable(RuntimeVariable.SuitableTestModule, value=False)
                 return None
-        except BaseException as exception:
-            logger.exception("Cannot read module: %s", exception)
+        except BaseException as exception:  # noqa: BLE001
+            try:
+                logger.exception("Cannot read module: %s", exception)
+            except BaseException:  # noqa: BLE001
+                # Starting with Python 3.11, the exception method tries to parse the file
+                # using the ast.parse function which can fail.
+                logger.error("Cannot read module: %s", exception)
+
             stat.track_output_variable(RuntimeVariable.SuitableTestModule, value=False)
             return None
 

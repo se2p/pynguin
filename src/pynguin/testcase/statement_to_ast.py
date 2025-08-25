@@ -277,13 +277,13 @@ class StatementToAstVisitor(StatementVisitor):  # noqa: PLR0904
     def visit_ast_assign_statement(  # noqa: D102
         self, stmt: ASTAssignStatement
     ) -> None:
-        self._ast_node = ast.Assign(
+        self._ast_node = ast.Assign(  # type: ignore[call-overload,unused-ignore]
             targets=[
                 au.create_full_name(
                     self._variable_names, self._module_aliases, stmt.ret_val, load=False
                 )
             ],
-            value=stmt.get_rhs_as_normal_ast(  # type: ignore[arg-type]
+            value=stmt.get_rhs_as_normal_ast(  # type: ignore[arg-type,unused-ignore]
                 lambda x: au.create_full_name(
                     self._variable_names, self._module_aliases, x, load=True
                 )

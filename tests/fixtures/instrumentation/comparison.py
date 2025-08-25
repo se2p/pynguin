@@ -62,3 +62,13 @@ def _is_not(x, y):
     if x is not y:
         return True
     return False
+
+def _is_none(x):
+    if x is None:
+        return True
+    return False
+
+def _is_not_none(x):
+    if x is not None:
+        return True
+    return False
