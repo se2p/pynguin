@@ -575,7 +575,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     """
 
     @abstractmethod
-    def __enter__(self) -> AbstractExecutionTracer:
+    def __enter__(self) -> Self:
         """Activate the tracer for the current thread.
 
         Returns:
