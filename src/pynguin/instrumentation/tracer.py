@@ -61,6 +61,8 @@ if TYPE_CHECKING:
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 
+VariableName = str | CellVar | FreeVar
+
 
 @dataclass
 class ExecutedAssertion:
@@ -772,7 +774,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
+        var_name: VariableName | tuple[VariableName, VariableName],
         var_value: object,
     ) -> None:
         """Track a memory access instruction in the trace.
@@ -1360,7 +1362,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         )
 
     def _extract_arguments(
-        self, var_name: str | CellVar | FreeVar, var_value: object
+        self, var_name: VariableName, var_value: object
     ) -> tuple[str, int, bool, bool]:
         var_address = id(var_value)
         var_type = type(var_value)
@@ -1391,7 +1393,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
+        var_name: VariableName | tuple[VariableName, VariableName],
         var_value: object,
     ) -> None:
         # IMPORT_NAMEs may not have arguments
@@ -1726,7 +1728,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        var_name: str | CellVar | FreeVar | tuple[str | CellVar | FreeVar, str | CellVar | FreeVar],
+        var_name: VariableName | tuple[VariableName, VariableName],
         var_value: object,
     ) -> None:
         self._tracer.track_memory_access(
