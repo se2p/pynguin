@@ -841,7 +841,10 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         node: cf.BasicBlockNode,
     ) -> None:
         maybe_jump_index = JUMP_OP_POS
-        maybe_jump = node.get_instruction(maybe_jump_index)
+        maybe_jump = node.try_get_instruction(maybe_jump_index)
+        assert maybe_jump is not None, (
+            f"Instruction should exist at index {maybe_jump_index} in {node.basic_block}"
+        )
 
         if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(

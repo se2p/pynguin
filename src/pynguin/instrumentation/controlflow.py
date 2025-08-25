@@ -117,7 +117,7 @@ class BasicBlockNode:
             if isinstance(instr, Instr):
                 yield instr
 
-    def get_instruction(self, index: int) -> Instr:
+    def _get_instruction(self, index: int) -> Instr:
         """Get the instruction at the given index.
 
         Args:
@@ -138,7 +138,7 @@ class BasicBlockNode:
             The instruction at the given index or None if no such instruction exists
         """
         try:
-            return self.get_instruction(index)
+            return self._get_instruction(index)
         except IndexError:
             return None
 
@@ -178,7 +178,7 @@ class BasicBlockNode:
 
             # Update the instr_index to retarget at the original instruction
             while (
-                isinstance(new_instr := self.get_instruction(instr_index), ArtificialInstr)
+                isinstance(new_instr := self._get_instruction(instr_index), ArtificialInstr)
                 or new_instr != instr
             ):
                 instr_index += 1

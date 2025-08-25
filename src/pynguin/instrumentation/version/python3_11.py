@@ -561,10 +561,18 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
 
         # We want to place the instrumentation instructions before the PRECALL and KW_NAMES
         # instructions, if they are present, otherwise it may cause issues.
-        if node.get_instruction(instr_index - 1).name == "PRECALL":
+        precall_instr = node.try_get_instruction(instr_index - 1)
+        assert precall_instr is not None, (
+            f"A Instruction should exist at index {instr_index - 1} in {node.basic_block}"
+        )
+        if precall_instr.name == "PRECALL":
             instr_index -= 1
 
-        if node.get_instruction(instr_index - 1).name == "KW_NAMES":
+        kw_names_instr = node.try_get_instruction(instr_index - 1)
+        assert kw_names_instr is not None, (
+            f"Instruction should exist at index {instr_index - 1} in {node.basic_block}"
+        )
+        if kw_names_instr.name == "KW_NAMES":
             instr_index -= 1
 
         # Instrumentation before the original instruction
