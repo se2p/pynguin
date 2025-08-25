@@ -1572,13 +1572,14 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     @staticmethod
     def attribute_lookup(object_type, attribute: str) -> int:
-        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
+        """Check the dictionary of classes making up the MRO (method resolution order).
 
-        The attribute must be a data descriptor to be prioritized here
+        It is inspired by the `_PyType_Lookup` C function in CPython.
 
         Args:
             object_type: The type object to check
-            attribute: the attribute to check for in the class
+            attribute: the attribute to check for in the class. It must be a data descriptor
+                       to be prioritized here.
 
         Returns:
             The id of the object type or the class if it has the attribute, -1 otherwise
