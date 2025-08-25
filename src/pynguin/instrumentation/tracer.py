@@ -20,6 +20,7 @@ from collections.abc import Sized
 from dataclasses import dataclass
 from dataclasses import field
 from functools import wraps
+from itertools import count
 from math import inf
 from opcode import opname
 from types import BuiltinFunctionType
@@ -403,9 +404,6 @@ class PredicateMetaData:
     node: BasicBlockNode
 
 
-DEFAULT_CODE_OBJECT_ID = 0
-
-
 @dataclass
 class SubjectProperties:
     """Contains properties about the subject under test.
@@ -440,8 +438,8 @@ class SubjectProperties:
         default_factory=lambda: InstrumentationExecutionTracer(ExecutionTracer())
     )
 
-    # The next code object id to be created.
-    next_code_object_id: int = DEFAULT_CODE_OBJECT_ID
+    # The counter used to generate unique code object ids
+    code_object_counter: count[int] = field(default_factory=count)
 
     # Maps all known ids of Code Objects to meta information
     existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
@@ -474,7 +472,7 @@ class SubjectProperties:
 
     def reset(self) -> None:
         """Resets the subject properties."""
-        self.next_code_object_id = DEFAULT_CODE_OBJECT_ID
+        self.code_object_counter = count()
         self.existing_code_objects.clear()
         self.existing_predicates.clear()
         self.existing_lines.clear()
@@ -486,9 +484,7 @@ class SubjectProperties:
         Returns:
             A new code object ID.
         """
-        new_code_object_id = self.next_code_object_id
-        self.next_code_object_id += 1
-        return new_code_object_id
+        return next(self.code_object_counter)
 
     def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:
         """Declare that a code object exists.
