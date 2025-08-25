@@ -802,8 +802,6 @@ class ControlDependenceGraph(ProgramGraph):
 
             current = target
             while current != least_common_ancestor:
-                # TODO(fk) can the branching info be actually used here?
-                # Seems ok?
                 cdg.add_edge(source, current, **attr)
                 predecessors = post_dominator_tree.get_predecessors(current)
                 assert len(predecessors) == 1, (
