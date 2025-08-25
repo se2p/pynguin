@@ -408,7 +408,32 @@ DEFAULT_CODE_OBJECT_ID = 0
 
 @dataclass
 class SubjectProperties:
-    """Contains properties about the subject under test."""
+    """Contains properties about the subject under test.
+
+    The subject properties are `code objects`, `predicates` and `lines`:
+
+    - **Code Objects**:
+      Compiled chunks of code (functions, methods, modules).
+      Tracked in `CodeObjectMetaData` with references to the compiled code, parent,
+      control graphs, and a unique ID. Represent the program's structural units.
+    - **Predicates**:
+      Decision points within code objects (e.g., `if`, `while`).
+      Tracked in `PredicateMetaData` with line number, owning code object, and graph node.
+      Used for branch coverage and measuring branch distances.
+    - **Lines**:
+      Individual lines of code within code objects.
+      Tracked in `LineMetaData` with file name and line number.
+      Used for measuring line coverage.
+
+    Example:
+    ```
+    def example(x):
+        if x > 0:  # Predicate
+            return "pos"
+        return "non-pos"
+    # The function `example` is a Code Object and `x > 0` is a Predicate.
+    ```
+    """
 
     # The instrumentation tracer that is used to trace the execution
     instrumentation_tracer: InstrumentationExecutionTracer = field(
