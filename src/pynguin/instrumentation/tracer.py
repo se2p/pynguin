@@ -454,9 +454,7 @@ class SubjectProperties:
     def branch_less_code_objects(self) -> Iterable[int]:
         """Get the existing code objects that do not contain a branch.
 
-        Get the existing code objects do not contain a branch, i.e.,
-        they do not contain a predicate. Every code object is initially seen as
-        branch-less until a predicate is registered for it.
+        Every code object is initially seen as branch-less until a predicate is registered for it.
 
         Returns:
             The existing code objects that do not contain a branch.
