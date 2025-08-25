@@ -229,10 +229,7 @@ class _BranchFitnessGraph:
                 if meta_data.code_object_id == predicate_meta_data.code_object_id
             }
 
-            if code_object_meta_data.cdg.is_control_dependent_on_root(
-                predicate_meta_data.node,
-                nodes_predicates.keys(),
-            ):
+            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
                 self._root_branches.add(fitness)
 
             dependencies = code_object_meta_data.cdg.get_control_dependencies(

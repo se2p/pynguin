@@ -223,10 +223,7 @@ def test_is_control_dependent_on_root(
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     node = cdg.get_basic_block_node(node_index)
 
-    dependant = cdg.is_control_dependent_on_root(
-        node,
-        {metadata.node for metadata in subject_properties.existing_predicates.values()},
-    )
+    dependant = cdg.is_control_dependent_on_root(node)
 
     assert expected_dependant == dependant
 

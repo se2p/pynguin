@@ -33,7 +33,6 @@ from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
     from collections.abc import Iterable
 
     from bytecode import Bytecode
@@ -864,8 +863,6 @@ class ControlDependenceGraph(ProgramGraph):
                 )
                 is not None
             ):
-                # Why is it only based on the CFG whereas it is also based on the
-                # concrete predicates in function is_control_dependent_on_root
                 result.add(ControlDependency(pred, branch_value))
             else:
                 result.update(self._retrieve_control_dependencies(pred, handled))
@@ -874,23 +871,20 @@ class ControlDependenceGraph(ProgramGraph):
     def is_control_dependent_on_root(
         self,
         node: ProgramNode,
-        predicate_nodes: Collection[ProgramNode],
     ) -> bool:
         """Checks if a node is reachable from the entry node without passing through any predicate nodes.
 
         Args:
             node: The program-graph node for the check
-            predicate_nodes: The collection of nodes that are predicates in the graph
 
         Returns:
             Whether the given node is directly dependent on the entry of the code object
         """  # noqa: E501
-        return self._is_control_dependent_on_root(node, predicate_nodes, set())
+        return self._is_control_dependent_on_root(node, set())
 
     def _is_control_dependent_on_root(
         self,
         node: ProgramNode,
-        predicate_nodes: Collection[ProgramNode],
         visited: set[ProgramNode],
     ) -> bool:
         if (self.entry_node, node) in self.graph.edges:  # type: ignore[operator,unused-ignore]
@@ -899,11 +893,15 @@ class ControlDependenceGraph(ProgramGraph):
             if pred in visited:
                 continue
             visited.add(pred)
-            if pred in predicate_nodes:
+            if (
+                isinstance(pred, BasicBlockNode)
+                and self._graph.get_edge_data(pred, node).get(EDGE_DATA_BRANCH_VALUE, None)
+                is not None
+            ):
                 continue
             if pred == node:
                 continue
-            if self._is_control_dependent_on_root(pred, predicate_nodes, visited):
+            if self._is_control_dependent_on_root(pred, visited):
                 return True
         return False
 
