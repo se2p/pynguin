@@ -1382,7 +1382,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         if object_creation:
             self._thread_local_state.trace.object_addresses.add(var_address)
 
-        return (var_name, var_address, mutable_type, object_creation)
+        return var_name, var_address, mutable_type, object_creation
 
     @_early_return
     def track_memory_access(  # noqa: PLR0914, PLR0917, D102
