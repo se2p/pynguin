@@ -452,12 +452,13 @@ class SubjectProperties:
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
-    # Get the existing code objects do not contain a branch, i.e.,
-    # they do not contain a predicate. Every code object is initially seen as
-    # branch-less until a predicate is registered for it.
     @property
     def branch_less_code_objects(self) -> Iterable[int]:
         """Get the existing code objects that do not contain a branch.
+
+        Get the existing code objects do not contain a branch, i.e.,
+        they do not contain a predicate. Every code object is initially seen as
+        branch-less until a predicate is registered for it.
 
         Returns:
             The existing code objects that do not contain a branch.
