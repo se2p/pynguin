@@ -1385,7 +1385,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         return var_name, var_address, mutable_type, object_creation
 
     @_early_return
-    def track_memory_access(  # noqa: PLR0914, PLR0917, D102
+    def track_memory_access(  # noqa: PLR0917, D102
         self,
         module: str,
         code_object_id: int,
@@ -1405,24 +1405,28 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         arg_address: int | tuple[int, int]
         mutable_type: bool | tuple[bool, bool]
         object_creation: bool | tuple[bool, bool]
-        match (var_name, var_value):
-            case ((var_name0, var_name1), (var_value0, var_value1)):
-                arg_name0, arg_address0, mutable_type0, object_creation0 = self._extract_arguments(
-                    var_name0, var_value0
-                )
-                arg_name1, arg_address1, mutable_type1, object_creation1 = self._extract_arguments(
-                    var_name1, var_value1
-                )
-                arg_name = (arg_name0, arg_name1)
-                arg_address = (arg_address0, arg_address1)
-                mutable_type = (mutable_type0, mutable_type1)
-                object_creation = (object_creation0, object_creation1)
-            case (var_name, var_value) if isinstance(var_name, (str, CellVar, FreeVar)):
-                arg_name, arg_address, mutable_type, object_creation = self._extract_arguments(
-                    var_name, var_value
-                )
-            case _:
-                raise AssertionError(f"Unexpected argument types: {var_name}, {var_value}")
+        if (
+            isinstance(var_name, tuple)
+            and isinstance(var_value, tuple)
+            and len(var_name) == 2
+            and len(var_value) == 2
+        ):
+            arg_name0, arg_address0, mutable_type0, object_creation0 = self._extract_arguments(
+                var_name[0], var_value[0]
+            )
+            arg_name1, arg_address1, mutable_type1, object_creation1 = self._extract_arguments(
+                var_name[1], var_value[1]
+            )
+            arg_name = (arg_name0, arg_name1)
+            arg_address = (arg_address0, arg_address1)
+            mutable_type = (mutable_type0, mutable_type1)
+            object_creation = (object_creation0, object_creation1)
+        elif isinstance(var_name, (str, CellVar, FreeVar)):
+            arg_name, arg_address, mutable_type, object_creation = self._extract_arguments(
+                var_name, var_value
+            )
+        else:
+            raise AssertionError(f"Unexpected argument types: {var_name}, {var_value}")
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
