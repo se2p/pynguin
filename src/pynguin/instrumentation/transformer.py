@@ -69,7 +69,6 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     """Instruments code objects to enable tracking branch distances.
 
     This results in branch coverage.
-    Currently, we only instrument conditional jumps and for loops.
     """
 
     @abstractmethod
