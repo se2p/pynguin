@@ -37,27 +37,33 @@ def fix_lineno(node: ast.AST, fixing_node: ast.AST | None) -> None:
         node: The node to fix.
         fixing_node: The node to use for fixing the line number.
     """
-    match (getattr(node, "lineno", None), getattr(node, "end_lineno", None)):
-        case (None, None):
-            match (getattr(fixing_node, "lineno", None), getattr(fixing_node, "end_lineno", None)):
-                case (None, None):
-                    return
-                case (fixing_lineno, None):
-                    node.lineno = fixing_lineno  # type: ignore[attr-defined]
-                    node.end_lineno = fixing_lineno  # type: ignore[attr-defined]
-                case (None, fixing_end_lineno):
-                    node.lineno = fixing_end_lineno  # type: ignore[attr-defined]
-                    node.end_lineno = fixing_end_lineno  # type: ignore[attr-defined]
-                case (fixing_lineno, fixing_end_lineno):
-                    node.lineno = fixing_lineno  # type: ignore[attr-defined]
-                    node.end_lineno = fixing_end_lineno  # type: ignore[attr-defined]
-        case (lineno, None):
-            node.end_lineno = lineno  # type: ignore[attr-defined]
-        case (None, end_lineno):
-            node.lineno = end_lineno  # type: ignore[attr-defined]
-        case (lineno, end_lineno):
-            if end_lineno < lineno:  # type: ignore[operator]
-                node.end_lineno = lineno  # type: ignore[attr-defined]
+    node_lineno = getattr(node, "lineno", None)
+    node_end_lineno = getattr(node, "end_lineno", None)
+
+    # Both missing -> try fixing_node
+    if node_lineno is None and node_end_lineno is None:
+        fixing_lineno = getattr(fixing_node, "lineno", None)
+        fixing_end_lineno = getattr(fixing_node, "end_lineno", None)
+
+        if fixing_lineno is not None:
+            node.lineno = fixing_lineno  # type: ignore[attr-defined]
+        elif fixing_end_lineno is not None:
+            node.lineno = fixing_end_lineno  # type: ignore[attr-defined]
+
+        if fixing_end_lineno is not None:
+            node.end_lineno = fixing_end_lineno  # type: ignore[attr-defined]
+        elif fixing_lineno is not None:
+            node.end_lineno = fixing_lineno  # type: ignore[attr-defined]
+
+        return
+
+    # Only one missing -> sync values
+    if node_end_lineno is None and node_lineno is not None:
+        node.end_lineno = node_lineno  # type: ignore[attr-defined]
+    elif node_lineno is None and node_end_lineno is not None:
+        node.lineno = node_end_lineno  # type: ignore[attr-defined]
+    elif node_end_lineno is not None and node_lineno is not None and node_end_lineno < node_lineno:
+        node.end_lineno = node_lineno  # type: ignore[attr-defined]
 
 
 def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
