@@ -280,3 +280,18 @@ convention = "google"
   "S101", # Use of `assert` detected
   "SLF001", # Private member accessed
 ]
+
+[tool.tox]
+requires = ["tox>=4.19"]
+env_list = ["3.10", "3.11", "3.12", "3.13"]
+
+[tool.tox.env_run_base]
+skip_install = true
+allowlist_externals = ["make", "poetry"]
+commands_pre = [
+  ["poetry", "env", "use", "{env_name}"],
+  ["poetry", "install", "--with", "openai,numpy"],
+]
+commands = [
+  ["make", "check"],
+]
