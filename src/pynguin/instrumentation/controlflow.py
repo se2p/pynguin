@@ -876,7 +876,7 @@ class ControlDependenceGraph(ProgramGraph):
         node: ProgramNode,
         predicate_nodes: Collection[ProgramNode],
     ) -> bool:
-        """Does this node directly depend on entering the code object?
+        """Checks if a node is reachable from the entry node without passing through any predicate nodes.
 
         Args:
             node: The program-graph node for the check
@@ -884,7 +884,7 @@ class ControlDependenceGraph(ProgramGraph):
 
         Returns:
             Whether the given node is directly dependent on the entry of the code object
-        """
+        """  # noqa: E501
         return self._is_control_dependent_on_root(node, predicate_nodes, set())
 
     def _is_control_dependent_on_root(
