@@ -516,8 +516,8 @@ class DynamicSlicer:
             self._logger.debug("CONTROL DEPENDENCIES (DOMINATED): %s", instr)
             context.instr_ctrl_deps.add(instr)
 
+    @staticmethod
     def _extract_arguments(
-        self,
         traced_instr: ExecutedMemoryInstruction,
     ) -> tuple[tuple[str, int, bool, bool], ...]:
         match traced_instr:
@@ -706,8 +706,8 @@ class DynamicSlicer:
 
         return complete_cover
 
+    @staticmethod
     def _check_scope_for_def(
-        self,
         context_scope: set[T],
         argument: int | str | None,
         scope_id: int | str | tuple | None,
