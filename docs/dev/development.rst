@@ -279,8 +279,8 @@ When adding logging to your code:
 
 The logging configuration can be controlled via command-line options when running Pynguin.
 
-Add support for new Python versions
------------------------------------
+Adding support for new Python versions
+--------------------------------------
 
 Pynguin uses bytecode instrumentation to collect data about SUT execution. This makes Pynguin
 very susceptible to the changes of the CPython bytecode. Therefore, it is recommended to follow
@@ -302,6 +302,9 @@ these guidelines when adding support for new Python versions:
    .. code-block:: bash
 
        pytest tests/instrumentation
+
+   The part that takes a fair amount of time is the ``DynamicSlicer`` because for each new version of Python, the Python bytecode used in the
+   instrumentation has to be adapted and the stack effects of each opcode have to be modified manually by checking the documentation.
 
 5. Run all the tests and linters of Pynguin to ensure that everything works as expected and fix any remaining bugs:
 

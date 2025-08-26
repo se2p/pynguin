@@ -75,6 +75,9 @@ class StackEffectsFunction(Protocol):
         The effects are represented as a tuple of number of pops and number of pushes
         for an opcode.
 
+        Consult the Pynguin documentation in the section “Adding support for new Python
+        versions” for more information about how to implement this.
+
         Args:
             opcode: The opcode, to get the pops and pushes for.
             arg: numeric argument to operation (if any), otherwise None
