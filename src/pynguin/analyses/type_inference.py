@@ -109,7 +109,7 @@ class LLMInference(InferenceStrategy):
                 raise NotImplementedError(f"Unknown provider {provider}")
         super().__init__(test_cluster)
 
-    def infer_types(self) -> None:
+    def infer_types(self) -> TestCluster:
         """Enriches the testcluster with type information using an LLM."""
         start = time.time()
         prompts = self._build_prompt_map()
@@ -120,10 +120,13 @@ class LLMInference(InferenceStrategy):
         for call in inferences:
             self._feed_into_test_cluster(inferences, call)
         _LOGGER.debug("resulting cluster: %s", self._test_cluster)
+        return self._test_cluster
 
-    def _feed_into_test_cluster(self, inferences, call):
-        test_cluster_accessible = self._test_cluster.function_data_for_accessibles[call].accessible
-        test_cluster_callable: GenericCallableAccessibleObject = test_cluster_accessible
+    def _feed_into_test_cluster(
+        self, inferences, call: GenericMethod | GenericFunction | GenericConstructor
+    ):
+        _LOGGER.debug("feeding into test cluster: %s", call)
+
         method_inference = json.loads(inferences[call])
         parameters: dict[str, ProperType] = {}
         parameters_for_statistics: dict[str, ProperType] = {}
@@ -141,30 +144,42 @@ class LLMInference(InferenceStrategy):
                 method_inference[key], unsupported=UNSUPPORTED
             )
         inferred_signature: InferredSignature = InferredSignature(
-            signature=test_cluster_callable.inferred_signature.signature,
+            signature=call.inferred_signature.signature,
             original_parameters=parameters,
             original_return_type=return_type,
-            type_system=test_cluster_callable.inferred_signature.type_system,
+            type_system=call.inferred_signature.type_system,
             parameters_for_statistics=parameters_for_statistics,
             return_type_for_statistics=return_type_for_statistics,
         )
-        if test_cluster_accessible.is_constructor():
-            self._test_cluster.function_data_for_accessibles[call].accessible = GenericConstructor(
-                test_cluster_callable.owner, inferred_signature
-            )
 
-        if test_cluster_accessible.is_classmethod() | test_cluster_accessible.is_method():
-            test_cluster_method: GenericMethod = test_cluster_callable
-            self._test_cluster.function_data_for_accessibles[call].accessible = GenericMethod(
-                test_cluster_method.owner,
-                test_cluster_method.callable,
-                inferred_signature,
-            )
+        inferred_callable = self._create_new_callable_with_inferred_signature(
+            call, inferred_signature
+        )
+        ast = self._test_cluster.function_data_for_accessibles[call].tree
+        desc = self._test_cluster.function_data_for_accessibles[call].description
+        cyclo = self._test_cluster.function_data_for_accessibles[call].cyclomatic_complexity
 
-        if test_cluster_accessible.is_function():
-            self._test_cluster.function_data_for_accessibles[call].accessible = GenericFunction(
-                test_cluster_callable.callable, inferred_signature
-            )
+        data = CallableData(
+            accessible=inferred_callable, tree=ast, description=desc, cyclomatic_complexity=cyclo
+        )
+
+        self._test_cluster.add_accessible_object_under_test(inferred_callable, data)
+
+    def _create_new_callable_with_inferred_signature(
+        self,
+        call: GenericAccessibleObject,
+        inferred_signature: InferredSignature,
+    ) -> GenericMethod | GenericFunction | GenericConstructor:
+        if call.is_constructor():
+            call: GenericConstructor
+            return GenericConstructor(call.owner, inferred_signature)
+        if call.is_classmethod() | call.is_method():
+            call: GenericMethod
+            return GenericMethod(call.owner, call, inferred_signature)
+        if call.is_function():
+            call: GenericFunction
+            return GenericFunction(call, inferred_signature)
+        raise ValueError(f"Unknown callable type: {call}")
 
     InferenceMap: TypeAlias = OrderedDict[GenericCallableAccessibleObject, str]
 
@@ -278,6 +293,7 @@ class LLMInference(InferenceStrategy):
         params = {}
         for param in inf:
             if param == "return":
+                # TODO: handle return type
                 return_type = self._resolve_type(inf[param])
             params[param] = self._test_cluster.type_system.convert_type_hint(
                 self._resolve_type(inf[param])
@@ -293,28 +309,23 @@ class LLMInference(InferenceStrategy):
     def _resolve_type(self, type_str: str) -> Any:
         """Best-effort conversion from *string* → *type object*."""
         # TODO: rethink/refactor this logic
-        # 1. Explicit None
         if type_str == "None":
             return type(None)
 
-        # 2. Plain built-in (int, float, list, …)
         builtin = self._BUILTINS.get(type_str)
         if builtin is not None:
             return builtin
 
-        # 3. Parameterised typing expression, e.g. "list[int]"
         try:
             return eval(type_str, self._TYPING_GLOBALS)  # nosec B307 – controlled input
         except Exception:  # noqa: BLE001
             pass  # fall through to dotted-path import
 
-        # 4. Dotted path to a user-defined class or alias
         try:
             module_path, attr_name = type_str.rsplit(".", 1)
             module: ModuleType = importlib.import_module(module_path)
             return getattr(module, attr_name)
         except Exception:  # noqa: BLE001
-            # Last resort – unknown or ill-formed → Any
             return typing.Any
 
     def _convert_type_hint_str(self, hint_str: str, unsupported: ProperType = ANY) -> ProperType:
@@ -331,58 +342,39 @@ class LLMInference(InferenceStrategy):
         Returns:
             A ProperType, just like convert_type_hint would.
         """
-        # Make best-effort parsing of LLM-provided type strings. We try the
-        # following in order:
-        #  - sanitize the string (strip markdown, quotes)
-        #  - eval in a namespace that contains builtins, typing names and the
-        #    module-under-test globals (so local classes resolve)
-        #  - fallback to _resolve_type which handles dotted imports and typing eval
-        # On any unrecoverable error, return the provided `unsupported` marker.
-        # TODO: make custom types work (FibonacciHeapNode) more robustly.
-        # Sanitize common LLM output artifacts
+        # TODO: Rework using testcluster.type_system
         if not isinstance(hint_str, str):
             return unsupported
         s = hint_str.strip()
-        # remove markdown/code fences and backticks
         if s.startswith("```") and s.endswith("```"):
-            # strip triple fences and optional leading language id
             inner = s.lstrip("`").rstrip("`")
-            # remove leading language token like python
             inner = inner.split("\n", 1)[-1] if "\n" in inner else inner
             s = inner.strip()
         s = s.strip(' `"')
 
-        # Build eval namespace with builtins and typing names
         namespace: dict[str, Any] = {
             **{k: getattr(builtins, k) for k in dir(builtins)},
             **{k: getattr(typing, k) for k in dir(typing)},
         }
 
-        # Try to include the module-under-test globals so that local types
-        # (declared in the SUT) can be resolved by name.
         try:
             module_name = getattr(config.configuration, "module_name", None)
             if module_name:
                 try:
                     sut_mod = importlib.import_module(module_name)
-                    # Import module dict but avoid private names
                     namespace.update({
                         k: v for k, v in sut_mod.__dict__.items() if not k.startswith("__")
                     })
                 except Exception:
-                    # ignore failures to import the module; we'll fallback later
                     _LOGGER.debug(
                         "Could not import module %s for eval namespace", module_name, exc_info=True
                     )
         except Exception:
-            # If accessing configuration fails for any reason, continue without module globals
             _LOGGER.debug("Failed to enrich eval namespace with module globals", exc_info=True)
 
-        # Try eval first (useful for expressions like 'list[int]' or 'Optional[int]').
         try:
             hint = eval(s, namespace)  # nosec B307 – controlled-ish input
         except Exception:
-            # Fallback: try the resolver which handles dotted paths and other forms
             try:
                 hint = self._resolve_type(s)
             except Exception:

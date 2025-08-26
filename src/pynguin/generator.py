@@ -163,7 +163,7 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     if config.configuration.type_inference.type_inference_strategy == "LLM":
         _LOGGER.debug("start LLM type inference")
         inference = LLMInference(test_cluster, LLMProvider.OPENAI)
-        inference.infer_types()
+        return inference.infer_types()
     return test_cluster
 
 
