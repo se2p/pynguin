@@ -740,6 +740,26 @@ class ControlDependenceGraph(ProgramGraph):
 
     @staticmethod
     def _create_augmented_graph(cfg: CFG) -> ProgramGraph:
+        """Augments a CFG (control flow graph) with an additional entry node.
+
+        When constructing the CDG (control dependence graph) the entry and exit nodes of the CFG are
+        removed. If the first node of the resulting CDG graph (1) would be used as root node of the
+        CDG, nodes that are only dependent on method entry (7) would not be connected to the graph
+        at all. Thus, we instead need to add an artifical root node: the augmented entry node.
+
+        Reference:
+        Jeanne Ferrante, Karl J. Ottenstein, and Joe D. Warren. 1987.
+        The program dependence graph and its use in optimization. ACM Trans.
+        Program. Lang. Syst. 9, 3 (July 1987), 319-349. https://doi.org/10.1145/24039.24041
+
+        See Figure 1 for the referenced example.
+
+        Args:
+            cfg: The control flow graph
+
+        Returns:
+            A control flow graph with an augmented entry node
+        """
         augmented_graph = ProgramGraph(cfg.graph.copy())
 
         augmented_graph.add_node(ArtificialNode.AUGMENTED_ENTRY)
