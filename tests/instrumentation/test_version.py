@@ -23,7 +23,11 @@ from pynguin.instrumentation.version.common import InstrumentationStackValue
 from pynguin.instrumentation.version.common import before
 
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 13):
+    from pynguin.instrumentation.version.python3_13 import (
+        Python313InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
+    )
+elif sys.version_info >= (3, 12):
     from pynguin.instrumentation.version.python3_12 import (
         Python312InstrumentationInstructionsGenerator as InstrumentationInstructionsGenerator,
     )
