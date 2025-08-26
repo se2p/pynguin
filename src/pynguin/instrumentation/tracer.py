@@ -435,6 +435,8 @@ class SubjectProperties:
     ```
     """
 
+    # TODO(lk): SubjectProperties and ExecutionTracer should be separated
+
     # The instrumentation tracer that is used to trace the execution
     instrumentation_tracer: InstrumentationExecutionTracer = field(
         default_factory=lambda: InstrumentationExecutionTracer(ExecutionTracer())
