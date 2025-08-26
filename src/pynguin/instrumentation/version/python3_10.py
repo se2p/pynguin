@@ -285,6 +285,8 @@ MEMORY_DEF_NAMES = (
     + ACCESS_SUBSCR_NAMES
 )
 
+RETURN_NONE_SIZE: int = 2
+
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
     return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
@@ -335,9 +337,6 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
         case _:
             # Not a conditional jump or a for loop instruction
             return None
-
-
-RETURN_NONE_SIZE: int = 2
 
 
 def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noqa: D103
