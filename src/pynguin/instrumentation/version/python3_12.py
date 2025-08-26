@@ -191,6 +191,9 @@ if TYPE_CHECKING:
     from bytecode.cfg import BasicBlock
 
 
+RETURN_NONE_SIZE = 1
+
+
 def add_for_loop_no_yield_nodes(bytecode: Bytecode) -> Bytecode:  # noqa: D103
     # Starting with Python 3.12, a END_FOR instruction is already placed where we want.
     return bytecode.copy()
@@ -204,9 +207,6 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return False
         case _:
             return None
-
-
-RETURN_NONE_SIZE = 1
 
 
 def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noqa: D103
