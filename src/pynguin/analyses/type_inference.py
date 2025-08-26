@@ -18,7 +18,7 @@ import logging
 import os
 import textwrap
 import time
-from types import ModuleType
+from types import BuiltinFunctionType, ClassMethodDescriptorType, ModuleType
 from typing import Any, TypeAlias
 import typing
 
@@ -127,7 +127,8 @@ class LLMInference(InferenceStrategy):
     ):
         _LOGGER.debug("feeding into test cluster: %s", call)
 
-        method_inference = json.loads(inferences[call])
+        method_inference = self._parse_json_response(inferences[call])
+        # method_inference = json.loads(inferences[call])
         parameters: dict[str, ProperType] = {}
         parameters_for_statistics: dict[str, ProperType] = {}
         return_type: ProperType
@@ -175,10 +176,10 @@ class LLMInference(InferenceStrategy):
             return GenericConstructor(call.owner, inferred_signature)
         if call.is_classmethod() | call.is_method():
             call: GenericMethod
-            return GenericMethod(call.owner, call, inferred_signature)
+            return GenericMethod(call.owner, ClassMethodDescriptorType, inferred_signature)
         if call.is_function():
             call: GenericFunction
-            return GenericFunction(call, inferred_signature)
+            return GenericFunction(BuiltinFunctionType, inferred_signature)
         raise ValueError(f"Unknown callable type: {call}")
 
     InferenceMap: TypeAlias = OrderedDict[GenericCallableAccessibleObject, str]
@@ -299,6 +300,13 @@ class LLMInference(InferenceStrategy):
                 self._resolve_type(inf[param])
             )
         _LOGGER.debug("resolved types: %s", params)
+
+    def _parse_json_response(self, response: str) -> json:
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError as exc:
+            _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
+            return {}
 
     _BUILTINS: dict[str, Any] = {  # noqa: RUF012
         t.__name__: t for t in vars(builtins).values() if isinstance(t, type)
