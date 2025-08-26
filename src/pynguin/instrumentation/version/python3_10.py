@@ -393,7 +393,7 @@ def stack_effects(  # noqa: D103, C901, PLR0915
         case "STORE_SUBSCR" | "POP_EXCEPT" | "RERAISE":
             return StackEffects(3, 0)
         case "END_ASYNC_FOR":
-            return StackEffects(7, 0)  # TODO conditional 0 pops?
+            return StackEffects(7, 0)
         case (
             "LOAD_BUILD_CLASS"
             | "LOAD_CONST"
