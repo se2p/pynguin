@@ -38,15 +38,7 @@ LOGGER = logging.getLogger(__name__)
 # Max depth for proxies. Afterwards we don't wrap values anymore.
 _MAX_PROXY_NESTING = 5
 
-VALUE_TRACED_TYPES = {
-    int,
-    float,
-    str,
-    bytes,
-    bool,
-    type(None),
-    complex,
-}
+VALUE_TRACED_TYPES = {str}
 
 
 @dataclasses.dataclass
@@ -238,8 +230,8 @@ def proxify(*, log_arg_types=False, log_arg_values=False, no_wrap_return=False):
                     for pos, arg in enumerate(args[1:]):
                         nested_knowledge.arg_types[pos].add(type(arg))
                 if log_arg_values:
-                    # TODO: Unlimit this somehow?
-                    # Limited to builtin types for now (hashable problem)
+                    # TODO: Unlimit this?
+                    # Limited to str type for now
                     for pos, arg in enumerate(args[1:]):
                         if type(arg) in VALUE_TRACED_TYPES:
                             nested_knowledge.arg_values[pos].add(arg)

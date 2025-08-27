@@ -41,6 +41,7 @@ from typing_inspect import is_union_type
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
+from pynguin.analyses.string_subtypes import infer_regex_from_methods
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
@@ -198,6 +199,26 @@ class UnionType(ProperType):
         return isinstance(other, UnionType) and self.items == other.items
 
 
+class StringSubtype(ProperType):
+    """A subtype of str determined by its regex."""
+
+    def __init__(self, regex: re.Pattern):  # noqa: D107
+        self.regex = regex
+        self._hash: int | None = None
+
+    def __eq__(self, other):
+        return isinstance(other, StringSubtype) and other.regex == self.regex
+
+    def __hash__(self):
+        return hash(self.regex)
+
+    def __str__(self):
+        return f"StringSubtype({self.regex})"
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
+        return visitor.visit_string_subtype(self)
+
+
 class Unsupported(ProperType):
     """Marks an unsupported type in the type system.
 
@@ -292,6 +313,17 @@ class TypeVisitor(Generic[T]):
 
         Args:
             left: unsupported
+
+        Returns:
+            result of the visit
+        """
+
+    @abstractmethod
+    def visit_string_subtype(self, left: StringSubtype) -> T:
+        """Visit a string subtype.
+
+        Args:
+            left: string subtype
 
         Returns:
             result of the visit
@@ -705,6 +737,36 @@ _ARGUMENT_ATTRIBUTES = OrderedSet([
     "__rfloordiv__",
 ])
 
+# If we suspect the type to be a string and one of these methods was called on a proxy,
+# we can use the argument values to try and infer a string subtype.
+_STRING_SUBTYPE_ATTRIBUTES = OrderedSet([
+    "startswith",
+    "endswith",
+    "split",
+    "rsplit",
+    "splitlines",
+    "partition",
+    "rpartition",
+    "find",
+    "rfind",
+    "index",
+    "rindex",
+    "replace",
+    "format",
+    "join",
+    "strip",
+    "lstrip",
+    "rstrip",
+    "zfill",
+    "center",
+    "ljust",
+    "rjust",
+    "removeprefix",
+    "removesuffix",
+    "translate",
+    "count",
+])
+
 # We can guess the element type by looking at the knowledge from these
 _LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
 _DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
@@ -900,6 +962,20 @@ class InferredSignature:
 
     def _from_attr_table(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         random_attribute = randomness.choice(list(knowledge.children))
+        arg_types = knowledge.children[random_attribute].children["__call__"].arg_types[0]
+
+        # String subtype inference
+        if len(arg_types) > 0:
+            random_arg_type = randomness.choice(
+                knowledge.children[random_attribute].children["__call__"].arg_types[0]
+            )
+            if (
+                random_arg_type is str and random_attribute in _STRING_SUBTYPE_ATTRIBUTES
+                # TODO: Add randomness?
+            ):
+                return self._from_str_values(knowledge)
+
+        # Inference by argument type of the second parameter (e.g. for ==)
         if (
             random_attribute in _ARGUMENT_ATTRIBUTES
             and knowledge.children[random_attribute].arg_types[0]
@@ -909,7 +985,26 @@ class InferredSignature:
             return self._choose_type_or_negate(
                 OrderedSet([self.type_system.to_type_info(random_arg_type)])
             )
+
+        # Inference by attribute table
         return self._choose_type_or_negate(self.type_system.find_by_attribute(random_attribute))
+
+    @staticmethod
+    def _from_str_values(knowledge: tt.UsageTraceNode) -> StringSubtype | None:
+        """Try to infer a string subtype from the given knowledge."""
+        # Get all arg values from the knowledge (only str values for now)
+        called_str_methods: dict[str, OrderedSet[str]] = defaultdict(OrderedSet)
+        for child in knowledge.children:
+            if child in _STRING_SUBTYPE_ATTRIBUTES:
+                # TODO: Also consider other arguments than only first one?
+                for arg_values in knowledge.children[child].children["__call__"].arg_values[0]:
+                    if isinstance(arg_values, str):  # TODO: Always True atm
+                        called_str_methods[child].add(arg_values)
+
+        if not called_str_methods:
+            return None
+        regex = infer_regex_from_methods(called_str_methods)
+        return StringSubtype(regex)
 
     def _guess_parameter_type_from(
         self, knowledge: tt.UsageTraceNode, recursion_depth: int = 0

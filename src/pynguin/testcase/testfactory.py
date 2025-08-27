@@ -22,11 +22,13 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 
 from pynguin.analyses.constants import ConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.string_subtypes import generate_from_regex
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
+from pynguin.analyses.typesystem import StringSubtype
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
@@ -1118,6 +1120,13 @@ class TestFactory:
                 recursion_depth,
                 constant_provider=self._constant_provider,
             )[0]
+        if isinstance(parameter_type, StringSubtype):
+            return self._create_string_subtype(
+                test_case,
+                cast("StringSubtype", parameter_type),
+                position,
+                recursion_depth,
+            )
         if parameter_type.accept(is_collection_type):
             return self._create_collection(
                 test_case,
@@ -1206,6 +1215,16 @@ class TestFactory:
         ret.distance = recursion_depth
 
         return ret, statement.value
+
+    @staticmethod
+    def _create_string_subtype(
+        test_case: tc.TestCase, parameter_type: StringSubtype, position: int, recursion_depth: int
+    ) -> vr.VariableReference:
+        value = generate_from_regex(parameter_type.regex)
+        statement = stmt.StringPrimitiveStatement(test_case, value=value)
+        ret = test_case.add_variable_creating_statement(statement, position)
+        ret.distance = recursion_depth
+        return ret
 
     def _create_collection(
         self,
