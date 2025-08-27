@@ -38,6 +38,16 @@ LOGGER = logging.getLogger(__name__)
 # Max depth for proxies. Afterwards we don't wrap values anymore.
 _MAX_PROXY_NESTING = 5
 
+VALUE_TRACED_TYPES = {
+    int,
+    float,
+    str,
+    bytes,
+    bool,
+    type(None),
+    complex,
+}
+
 
 @dataclasses.dataclass
 class UsageTraceNode:
@@ -57,6 +67,11 @@ class UsageTraceNode:
 
     # Maps argument positions to their types.
     arg_types: dict[int, OrderedSet[type]] = dataclasses.field(
+        default_factory=lambda: defaultdict(OrderedSet)
+    )
+
+    # Maps argument positions to used values.
+    arg_values: dict[int, OrderedSet[object]] = dataclasses.field(
         default_factory=lambda: defaultdict(OrderedSet)
     )
 
@@ -119,6 +134,16 @@ class UsageTraceNode:
                 ])
                 + "}"
             )
+        if len(self.arg_values) > 0:
+            output += (
+                ", arg_values: {"
+                + ", ".join([
+                    str(idx) + ": {" + ", ".join([repr(val) for val in values]) + "}"
+                    for idx, values in self.arg_values.items()
+                ])
+                + "}"
+            )
+
         return output
 
     def _format_children(self):
@@ -152,6 +177,7 @@ class UsageTraceNode:
         assert self.depth == other.depth
         self.arg_types.update(other.arg_types)
         self.type_checks.update(other.type_checks)
+        self.arg_values.update(other.arg_values)
         for attr, knowledge in other.children.items():
             self.children[attr].merge(knowledge)
 
@@ -184,17 +210,19 @@ class DepthDefaultDict(dict[str, UsageTraceNode]):  # noqa: FURB189
         return res
 
 
-def proxify(*, log_arg_types=False, no_wrap_return=False):
+def proxify(*, log_arg_types=False, log_arg_values=False, no_wrap_return=False):  # noqa: C901
     """Decorator to wrap the result of a dunder method in a proxy.
 
     Args:
-        log_arg_types: Should we log the arguments?
+        log_arg_types: Should we store the argument types?
+        log_arg_values: Should we store the values of the arguments?
         no_wrap_return: Some cases, e.g., __int__ don't allow a return value that is
             not an int, so in some cases we have to disable wrapping.
 
     Returns:
         A decorated function
     """
+    log_arg_values = log_arg_types  # TODO: Update this
 
     def wrap(function):
         def wrapped(*args, **kwargs):
@@ -209,6 +237,12 @@ def proxify(*, log_arg_types=False, no_wrap_return=False):
                 if log_arg_types:
                     for pos, arg in enumerate(args[1:]):
                         nested_knowledge.arg_types[pos].add(type(arg))
+                if log_arg_values:
+                    # TODO: Unlimit this somehow?
+                    # Limited to builtin types for now (hashable problem)
+                    for pos, arg in enumerate(args[1:]):
+                        if type(arg) in VALUE_TRACED_TYPES:
+                            nested_knowledge.arg_values[pos].add(arg)
             if no_wrap_return or knowledge.depth >= _MAX_PROXY_NESTING:
                 return function(*args, **kwargs)
             return ObjectProxy(function(*args, **kwargs), usage_trace=nested_knowledge)

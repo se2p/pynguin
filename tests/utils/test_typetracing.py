@@ -89,6 +89,9 @@ def test_method_called():
     assert tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children[
         "__call__"
     ].arg_types[0] == OrderedSet([str])
+    assert tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children[
+        "__call__"
+    ].arg_values[0] == OrderedSet(["fo"])
 
 
 @pytest.mark.parametrize(
@@ -105,6 +108,9 @@ def test_method_called_builtin(to_add, expected):
     assert proxy + to_add == 2
     assert "__add__" in tt.UsageTraceNode.from_proxy(proxy).children
     assert tt.UsageTraceNode.from_proxy(proxy).children["__add__"].arg_types[0] == expected
+    assert tt.UsageTraceNode.from_proxy(proxy).children["__add__"].arg_values[0] == OrderedSet([
+        to_add
+    ])
 
 
 def test_method_called_object():
@@ -119,6 +125,9 @@ def test_method_called_object():
     assert tt.UsageTraceNode.from_proxy(proxy).children["add_42"].children["__call__"].arg_types[
         0
     ] == OrderedSet([int])
+    assert tt.UsageTraceNode.from_proxy(proxy).children["add_42"].children["__call__"].arg_values[
+        0
+    ] == OrderedSet([1])
 
 
 def test_loop_over_list():
