@@ -46,15 +46,13 @@ before_script:
   script:
     - >
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
-      --cov-report=xml:coverage.xml
       --cov-report=term-missing
       --junitxml=report.xml tests/
   artifacts:
     reports:
-      junit:
-        report.xml
+      junit: report.xml
     paths:
-      - coverage.xml
+      - .coverage
   needs: ["pre-commit", "reuse"]
 
 unit-tests:
@@ -74,7 +72,7 @@ combine-coverage:
       artifacts: true
   script:
     - pip install coverage
-    - coverage combine */coverage.xml || coverage combine coverage.xml
+    - coverage combine
     - coverage xml -o merged-coverage.xml
     - coverage html -d cov_html
   artifacts:
@@ -95,19 +93,19 @@ combine-coverage:
     - poetry config virtualenvs.in-project true
     - poetry install --with openai,numpy
     - poetry add --group dev pytest-random-order
-  script:
-    - for ((i=1; i<=10; i++)); do \
-      SECONDS=0; \
-      echo "test run ${i}\n"; \
+  script: |
+    for ((i=1; i<=10; i++)); do
+      SECONDS=0
+      echo "test run ${i}\n"
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
-      --random-order --random-order-bucket=global \
-      --cov-report xml:coverage.xml ; \
-      elapsed=$SECONDS; \
-      echo "=== required ${elapsed} seconds for run ${i} ===\n\n"; \
-      done
+        --random-order --random-order-bucket=global \
+        --cov-report=term-missing
+      elapsed=$SECONDS
+      echo "=== required ${elapsed} seconds for run ${i} ===\n\n"
+    done
   artifacts:
     paths:
-      - coverage.xml
+      - .coverage
   needs: ["unit-tests"]
 
 nightly-tests:
@@ -129,7 +127,7 @@ combine-nightly-coverage:
       artifacts: true
   script:
     - pip install coverage
-    - coverage combine */coverage.xml || coverage combine coverage.xml
+    - coverage combine
     - coverage xml -o merged-nightly-coverage.xml
     - coverage html -d cov_html_nightly
   artifacts:
