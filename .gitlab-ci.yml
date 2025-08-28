@@ -44,16 +44,16 @@ before_script:
   stage: test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
-    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report xml:coverage.xml --cov-report=term-missing --junitxml=report.xml tests/
+    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
+      --cov-report xml:coverage.xml \
+      --cov-report=term-missing \
+      --junitxml=report.xml tests/
   artifacts:
     reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
       junit:
         report.xml
     paths:
-      - cov_html
+      - coverage.xml
   needs: ["pre-commit", "reuse"]
 
 unit-tests:
@@ -65,7 +65,26 @@ unit-tests:
       - PYTHON_VERSION: "3.12-bookworm"
       - PYTHON_VERSION: "3.13-bookworm"
 
-.nightly-tests:
+combine-coverage:
+  stage: test
+  image: python:3.10-bookworm
+  needs:
+    - job: unit-tests
+      artifacts: true
+  script:
+    - pip install coverage
+    - coverage combine */coverage.xml || coverage combine coverage.xml
+    - coverage xml -o merged-coverage.xml
+    - coverage html -d cov_html
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: merged-coverage.xml
+    paths:
+      - cov_html
+
+.nightly-tests: &nightly-tests
   only:
     - schedules
   stage: test
@@ -76,17 +95,49 @@ unit-tests:
     - poetry install --with openai,numpy
     - poetry add --group dev pytest-random-order
   script:
-    - for ((i=1; i<=10; i++)); do SECONDS=0; echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; elapsed=$SECONDS; echo "=== required ${elapsed} seconds for run ${i} ===\n\n" ; done
+    - for ((i=1; i<=10; i++)); do \
+      SECONDS=0; \
+      echo "test run ${i}\n"; \
+      poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
+      --random-order --random-order-bucket=global \
+      --cov-report xml:coverage.xml ; \
+      elapsed=$SECONDS; \
+      echo "=== required ${elapsed} seconds for run ${i} ===\n\n"; \
+      done
+  artifacts:
+    paths:
+      - coverage.xml
   needs: ["unit-tests"]
 
 nightly-tests:
-  extends: .nightly-tests
+  <<: *nightly-tests
   parallel:
     matrix:
       - PYTHON_VERSION: "3.10-bookworm"
       - PYTHON_VERSION: "3.11-bookworm"
       - PYTHON_VERSION: "3.12-bookworm"
       - PYTHON_VERSION: "3.13-bookworm"
+
+combine-nightly-coverage:
+  only:
+    - schedules
+  stage: test
+  image: python:3.10-bookworm
+  needs:
+    - job: nightly-tests
+      artifacts: true
+  script:
+    - pip install coverage
+    - coverage combine */coverage.xml || coverage combine coverage.xml
+    - coverage xml -o merged-nightly-coverage.xml
+    - coverage html -d cov_html_nightly
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: merged-nightly-coverage.xml
+    paths:
+      - cov_html_nightly
 
 memory-profile:
   only:
