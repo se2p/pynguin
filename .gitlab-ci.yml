@@ -56,10 +56,14 @@ before_script:
       - cov_html
   needs: ["pre-commit", "reuse"]
 
-unit-tests:python-3.10:
+unit-tests:
   <<: *unit-tests
-  variables:
-    PYTHON_VERSION: '3.10-bookworm'
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.10-bookworm"
+      - PYTHON_VERSION: "3.11-bookworm"
+      - PYTHON_VERSION: "3.12-bookworm"
+      - PYTHON_VERSION: "3.13-bookworm"
 
 .nightly-tests:
   only:
@@ -73,12 +77,16 @@ unit-tests:python-3.10:
     - poetry add --group dev pytest-random-order
   script:
     - for ((i=1; i<=10; i++)); do SECONDS=0; echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; elapsed=$SECONDS; echo "=== required ${elapsed} seconds for run ${i} ===\n\n" ; done
-  needs: ["unit-tests:python-3.10"]
+  needs: ["unit-tests"]
 
-nightly-tests:python-3.10:
+nightly-tests:
   extends: .nightly-tests
-  variables:
-    PYTHON_VERSION: '3.10-bookworm'
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.10-bookworm"
+      - PYTHON_VERSION: "3.11-bookworm"
+      - PYTHON_VERSION: "3.12-bookworm"
+      - PYTHON_VERSION: "3.13-bookworm"
 
 memory-profile:
   only:
