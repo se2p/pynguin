@@ -44,9 +44,10 @@ before_script:
   stage: test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
-    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
-      --cov-report xml:coverage.xml \
-      --cov-report=term-missing \
+    - >
+      poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
+      --cov-report=xml:coverage.xml
+      --cov-report=term-missing
       --junitxml=report.xml tests/
   artifacts:
     reports:
