@@ -96,12 +96,15 @@ jobs:
       - name: Generate XML report
         run: poetry run coverage xml -o coverage.xml
 
+      - name: Rename coverage file
+        run: mv .coverage .coverage.${{ matrix.os }}-${{ matrix.python-version }}
+
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
-            .coverage
+            .coverage.${{ matrix.os }}-${{ matrix.python-version }}
             coverage.xml
 
   # -----------------------------
@@ -126,13 +129,19 @@ jobs:
       - name: Inspect coverage files
         run: |
           cd coverages
-          ls -R
+          ls -Ra
+
+      - name: Move coverage files into coverage folder
+        run: |
+          cd coverages
+          find . -type f -name ".coverage*" -exec mv {} . \;
 
       - name: Combine coverage reports
         run: |
           pip install coverage
           cd coverages
-          find . -type f -name ".coverage" -exec coverage combine {} +
+          coverage combine .coverage.*
+          coverage report
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
 
