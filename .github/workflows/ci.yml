@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.10']
-        poetry-version: [2.0.1]
+        poetry-version: [2.1.4]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
@@ -27,6 +27,11 @@ jobs:
         uses: abatilo/actions-poetry@v4
         with:
           poetry-version: ${{ matrix.poetry-version }}
+
+      # Required for act.
+      # On mac-os: act -j ci --container-architecture linux/amd64 -P macos-latest=catthehacker/ubuntu:act-latest
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: poetry install --with openai,numpy
