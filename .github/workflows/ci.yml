@@ -131,16 +131,16 @@ jobs:
           cd coverages
           ls -Ra
 
-      - name: Move coverage files into coverage folder
+      - name: Move Linux coverage files into coverage folder
         run: |
           cd coverages
-          find . -type f -name "raw-coverage*" -exec mv {} . \;
+          find . -type f -name "raw-coverage.ubuntu-*" -exec mv {} . \;
 
-      - name: Combine coverage reports
+      - name: Combine Linux coverage reports
         run: |
           pip install coverage
           cd coverages
-          coverage combine raw-coverage.*
+          coverage combine raw-coverage.ubuntu-*
           coverage report
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
