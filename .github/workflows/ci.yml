@@ -91,13 +91,18 @@ jobs:
         run: poetry install --with openai,numpy
 
       - name: Run tests with coverage
-        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=xml --cov-report=term-missing tests/
+        run: poetry run coverage run -m pytest --cov=src --cov=tests --cov-branch tests/
 
-      - name: Upload coverage report
+      - name: Generate XML report
+        run: poetry run coverage xml -o coverage.xml
+
+      - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
-          path: coverage.xml
+          path: |
+            .coverage
+            coverage.xml
 
   # -----------------------------
   # COMBINE COVERAGE JOB
@@ -122,7 +127,8 @@ jobs:
         run: |
           pip install coverage
           cd coverages
-          coverage combine */coverage.xml || coverage combine coverage.xml
+          find . -name ".coverage" -exec cp {} . \;
+          coverage combine
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
 
