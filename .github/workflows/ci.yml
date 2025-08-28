@@ -28,12 +28,14 @@ jobs:
         with:
           poetry-version: ${{ matrix.poetry-version }}
 
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Configure Poetry to use the correct Python version
         run: poetry env use ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
-          poetry env use ${{ matrix.python-version }}
           poetry install --with openai,numpy
 
       - name: Run the hooks from pre-commit
