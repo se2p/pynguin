@@ -5,16 +5,72 @@
 name: CI
 on: [push, pull_request]
 
+# -----------------------------
+# LINT JOBS: pre-commit & mypy
+# -----------------------------
 jobs:
-  ci:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10
+
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: 2.1.4
+
+      # Required for act.
+      # On mac-os: act -j tests --container-architecture linux/amd64 -P macos-latest=catthehacker/ubuntu:act-latest
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with openai,numpy
+
+      - name: Run pre-commit hooks
+        run: poetry run pre-commit run --all-files
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10
+
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: 2.1.4
+
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with openai,numpy
+
+      - name: Run mypy
+        run: poetry run mypy
+
+  # -----------------------------
+  # TESTS JOB
+  # -----------------------------
+  tests:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10']
-        poetry-version: [2.0.1]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+        poetry-version: [2.1.4]
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-
+    needs: [pre-commit, mypy]
     steps:
       - uses: actions/checkout@v4
 
@@ -28,14 +84,52 @@ jobs:
         with:
           poetry-version: ${{ matrix.poetry-version }}
 
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install dependencies
         run: poetry install --with openai,numpy
 
-      - name: Run the hooks from pre-commit
-        run: poetry run pre-commit run --all-files
+      - name: Run tests with coverage
+        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=xml --cov-report=term-missing tests/
 
-      - name: Check typing with mypy
-        run: poetry run mypy
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+          path: coverage.xml
 
-      - name: Run tests
-        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing tests/
+  # -----------------------------
+  # COMBINE COVERAGE JOB
+  # -----------------------------
+  combine-coverage:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverages
+
+      - name: Combine coverage reports
+        run: |
+          pip install coverage
+          cd coverages
+          coverage combine */coverage.xml || coverage combine coverage.xml
+          coverage xml -o merged-coverage.xml
+          coverage html -d cov_html
+
+      - name: Upload merged coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-coverage
+          path: |
+            coverages/merged-coverage.xml
+            coverages/cov_html
