@@ -48,11 +48,12 @@ before_script:
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
       --cov-report=term-missing
       --junitxml=report.xml tests/
+    - mv .coverage ".coverage.${PYTHON_VERSION}"
   artifacts:
     reports:
       junit: report.xml
     paths:
-      - .coverage
+      - .coverage.*
   needs: ["pre-commit", "reuse"]
 
 unit-tests:
@@ -72,7 +73,8 @@ combine-coverage:
       artifacts: true
   script:
     - pip install coverage
-    - coverage combine
+    - ls -la .coverage.*
+    - coverage combine .coverage.*
     - coverage xml -o merged-coverage.xml
     - coverage html -d cov_html
   artifacts:
@@ -100,12 +102,13 @@ combine-coverage:
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
         --random-order --random-order-bucket=global \
         --cov-report=term-missing
+      mv .coverage ".coverage.${PYTHON_VERSION}.${i}"
       elapsed=$SECONDS
       echo "=== required ${elapsed} seconds for run ${i} ===\n\n"
     done
   artifacts:
     paths:
-      - .coverage
+      - .coverage.*
   needs: ["unit-tests"]
 
 nightly-tests:
@@ -127,7 +130,8 @@ combine-nightly-coverage:
       artifacts: true
   script:
     - pip install coverage
-    - coverage combine
+    - ls -la .coverage.*
+    - coverage combine .coverage.*
     - coverage xml -o merged-nightly-coverage.xml
     - coverage html -d cov_html_nightly
   artifacts:
