@@ -11,6 +11,17 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.42.0
+
+- Add Test Case & Test Suite Minimization and Crashing Test Minimization
+- Add an error if module is not found (cf. GitHub Issue #95),
+  not imported (cf. GitHub Issue #104) or if a coroutine (`async`) was found
+- Set `crash_path` to `output_path` by default for subprocess-execution
+- Fix crash when creation of coverage report failed
+- Fix crash when `report_dir` does not exist (cf. GitHub Issue #105)
+- Add export of used requirements as `requirements.txt` to `output_path` for Docker
+- Add a heuristic for deciding if subprocess-execution should be used
+
 ## Pynguin 0.41.0
 
 - Fix `subject_properties` aren't registered when running Pynguin on an imported module
