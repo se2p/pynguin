@@ -28,6 +28,9 @@ jobs:
         with:
           poetry-version: ${{ matrix.poetry-version }}
 
+      - name: Configure Poetry to use the correct Python version
+        run: poetry env use ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: poetry install --with openai,numpy
 
