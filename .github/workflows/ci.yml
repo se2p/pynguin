@@ -93,6 +93,9 @@ jobs:
       - name: Run tests with coverage
         run: poetry run coverage run -m pytest --cov=src --cov=tests --cov-branch tests/
 
+      - name: Rename coverage file
+        run: mv .coverage .coverage.${{ matrix.os }}-${{ matrix.python-version }}
+
       - name: Generate XML report
         run: poetry run coverage xml -o coverage.xml
 
@@ -101,7 +104,7 @@ jobs:
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
-            .coverage
+            .coverage.${{ matrix.os }}-${{ matrix.python-version }}
             coverage.xml
 
   # -----------------------------
@@ -127,7 +130,7 @@ jobs:
         run: |
           pip install coverage
           cd coverages
-          find . -name ".coverage" -exec cp {} . \;
+          find . -name ".coverage.*" -exec cp {} . \;
           coverage combine
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
