@@ -42,7 +42,6 @@ before_script:
 
 .unit-tests: &unit-tests
   stage: test
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
     - >
       poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
@@ -71,10 +70,12 @@ combine-coverage:
   needs:
     - job: unit-tests
       artifacts: true
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
     - pip install coverage
     - ls -la .coverage.*
     - coverage combine .coverage.*
+    - coverage report
     - coverage xml -o merged-coverage.xml
     - coverage html -d cov_html
   artifacts:
@@ -128,10 +129,12 @@ combine-nightly-coverage:
   needs:
     - job: nightly-tests
       artifacts: true
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
     - pip install coverage
     - ls -la .coverage.*
     - coverage combine .coverage.*
+    - coverage report
     - coverage xml -o merged-nightly-coverage.xml
     - coverage html -d cov_html_nightly
   artifacts:
