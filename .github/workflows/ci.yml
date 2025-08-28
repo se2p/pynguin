@@ -31,6 +31,9 @@ jobs:
       - name: Ensure poetry is in PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
+      - name: Make Poetry use correct Python
+        run: poetry env use $(which python)
+
       - name: Install dependencies
         run: poetry install --with openai,numpy
 
