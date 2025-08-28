@@ -123,11 +123,16 @@ jobs:
         with:
           path: coverages
 
+      - name: Inspect coverage files
+        run: |
+          cd coverages
+          ls -R
+
       - name: Combine coverage reports
         run: |
           pip install coverage
           cd coverages
-          coverage combine */.coverage
+          find . -type f -name ".coverage" -exec coverage combine {} +
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
 
