@@ -91,13 +91,13 @@ jobs:
         run: poetry install --with openai,numpy
 
       - name: Run tests with coverage
-        run: poetry run coverage run -m pytest --cov=src --cov=tests --cov-branch tests/
-
-      - name: Rename coverage file
-        run: mv .coverage .coverage.${{ matrix.os }}-${{ matrix.python-version }}
+        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing --cov-report=xml tests/
 
       - name: Generate XML report
         run: poetry run coverage xml -o coverage.xml
+
+      - name: Rename coverage file
+        run: mv .coverage .coverage.${{ matrix.os }}-${{ matrix.python-version }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
