@@ -123,22 +123,11 @@ jobs:
         with:
           path: coverages
 
-      - name: Prepare coverage files
-        run: |
-          cd coverages
-          i=0
-          # Find all downloaded .coverage files in artifact subfolders
-          find . -type f -name ".coverage" | while read f; do
-            cp "$f" ".coverage.$i"
-            i=$((i+1))
-          done
-          ls -la
-
       - name: Combine coverage reports
         run: |
           pip install coverage
           cd coverages
-          coverage combine
+          coverage combine */.coverage
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
 
