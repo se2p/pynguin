@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          source $(poetry env info --path)/bin/activate
+          poetry env use ${{ matrix.python-version }}
           poetry install --with openai,numpy
 
       - name: Run the hooks from pre-commit
