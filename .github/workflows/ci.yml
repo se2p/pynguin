@@ -96,15 +96,16 @@ jobs:
       - name: Generate XML report
         run: poetry run coverage xml -o coverage.xml
 
+      # The upload for hidden files does not work
       - name: Rename coverage file
-        run: mv .coverage raw-coverage.${{ matrix.os }}-${{ matrix.python-version }}
+        run: mv .coverage raw-coverage
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
           path: |
-            raw-coverage.${{ matrix.os }}-${{ matrix.python-version }}
+            raw-coverage
             coverage.xml
 
   # -----------------------------
@@ -131,16 +132,10 @@ jobs:
           cd coverages
           ls -Ra
 
-      - name: Move Linux coverage files into coverage folder
-        run: |
-          cd coverages
-          find . -type f -name "raw-coverage.ubuntu-*" -exec mv {} . \;
-
       - name: Combine Linux coverage reports
         run: |
           pip install coverage
-          cd coverages
-          coverage combine raw-coverage.ubuntu-*
+          coverage combine coverages/coverage-ubuntu-*/raw-coverage
           coverage report
           coverage xml -o merged-coverage.xml
           coverage html -d cov_html
