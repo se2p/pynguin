@@ -875,15 +875,15 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 )
                 return
 
-            if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
-                self.visit_exception_based_conditional_jump(
-                    cfg,
-                    code_object_id,
-                    node,
-                    maybe_jump,
-                    maybe_jump_index,
-                )
-                return
+        if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
+            self.visit_exception_based_conditional_jump(
+                cfg,
+                code_object_id,
+                node,
+                maybe_jump,
+                maybe_jump_index,
+            )
+            return
 
         self.visit_bool_based_conditional_jump(
             cfg,
