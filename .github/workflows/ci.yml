@@ -134,7 +134,7 @@ jobs:
 
       - name: Combine Linux coverage reports
         run: |
-          pip install coverage
+          pip install coverage[toml]
           coverage combine coverages/coverage-ubuntu-*/raw-coverage
           coverage report
           coverage xml -o merged-coverage.xml
