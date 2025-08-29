@@ -858,29 +858,32 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         if not maybe_jump.is_cond_jump():
             return
 
-        maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
-            COMPARE_OP_POS,
-        )
-
-        if maybe_compare.name in COMPARE_NAMES:
-            self.visit_compare_based_conditional_jump(
-                cfg,
-                code_object_id,
-                node,
-                maybe_compare,
-                maybe_compare_index,
+        try:
+            maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
+                COMPARE_OP_POS,
             )
-            return
+        except IndexError:
+            pass
+        else:
+            if maybe_compare.name in COMPARE_NAMES:
+                self.visit_compare_based_conditional_jump(
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_compare,
+                    maybe_compare_index,
+                )
+                return
 
-        if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
-            self.visit_exception_based_conditional_jump(
-                cfg,
-                code_object_id,
-                node,
-                maybe_jump,
-                maybe_jump_index,
-            )
-            return
+            if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
+                self.visit_exception_based_conditional_jump(
+                    cfg,
+                    code_object_id,
+                    node,
+                    maybe_jump,
+                    maybe_jump_index,
+                )
+                return
 
         self.visit_bool_based_conditional_jump(
             cfg,
