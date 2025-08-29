@@ -2,9 +2,17 @@ coverage:
   status:
     project:
       default:
+        paths:
+          - "src/pynguin"
         target: auto
         threshold: 1%
         base: auto
+    patch:
+      default:
+        target: 90%
+        threshold: 1%
+        paths:
+          - "src/pynguin"
 
 comment:
   layout: "reach, diff, flags, files"
