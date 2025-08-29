@@ -66,11 +66,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-        poetry-version: ["2.1.4"]
-        os: [ubuntu-latest, macos-latest]
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        poetry-version: [ "2.1.4" ]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
-    needs: [pre-commit, mypy]
+    needs: [ pre-commit, mypy ]
     steps:
       - uses: actions/checkout@v4
 
@@ -137,7 +137,7 @@ jobs:
           pip install coverage[toml]
           coverage combine coverages/coverage-ubuntu-*/raw-coverage
           coverage report
-          coverage xml -o merged-coverage.xml
+          coverage xml -o coverage.xml
           coverage html -d cov_html
 
       - name: Upload merged coverage report
@@ -145,5 +145,10 @@ jobs:
         with:
           name: merged-coverage
           path: |
-            coverages/merged-coverage.xml
-            coverages/cov_html
+            coverage.xml
+            cov_html
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
