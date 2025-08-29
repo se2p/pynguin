@@ -42,7 +42,7 @@ EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 TRY_BEGIN_POSITION = -1
 
-ENTRY_NODE_INDEX = 0
+FIRST_BASIC_BLOCK_NODE_INDEX = 0
 
 
 class ArtificialInstr(Instr):
@@ -401,20 +401,6 @@ class ProgramGraph:
         return None
 
     @property
-    def first_basic_block_node(self) -> BasicBlockNode | None:
-        """Provides the first basic block node of the graph.
-
-        Returns:
-            The first basic block node of the graph or None if no such node exists
-        """
-        for node in self._graph.nodes:
-            if isinstance(node, BasicBlockNode) and all(
-                isinstance(n, ArtificialNode) for n in self._graph.predecessors(node)
-            ):
-                return node
-        return None
-
-    @property
     def exit_nodes(self) -> set[ProgramNode]:
         """Provides the exit nodes of the graph.
 
@@ -538,6 +524,18 @@ class CFG(ProgramGraph):
         """
         return self._bytecode_cfg
 
+    @property
+    def first_basic_block_node(self) -> BasicBlockNode | None:
+        """Provides the first basic block node of the graph.
+
+        Returns:
+            The first basic block node of the graph or None if no such node exists
+        """
+        try:
+            return self.get_basic_block_node(FIRST_BASIC_BLOCK_NODE_INDEX)
+        except ValueError:
+            return None
+
     @staticmethod
     def _split_try_begin_blocks(blocks: ControlFlowGraph) -> None:
         for block in blocks:
@@ -556,7 +554,7 @@ class CFG(ProgramGraph):
     ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramNode]]:
         nodes: dict[int, ProgramNode] = {}
         edges: dict[int, list[tuple[int, dict]]] = defaultdict(list)
-        for node_index, block in enumerate(blocks, start=ENTRY_NODE_INDEX):
+        for node_index, block in enumerate(blocks, start=FIRST_BASIC_BLOCK_NODE_INDEX):
             node = BasicBlockNode(index=node_index, basic_block=block)
 
             nodes[node_index] = node
@@ -651,12 +649,11 @@ class CFG(ProgramGraph):
 
     @staticmethod
     def _insert_dummy_nodes(cfg: CFG) -> None:
-        try:
-            entry_node = cfg.get_basic_block_node(ENTRY_NODE_INDEX)
-        except ValueError as e:
-            raise AssertionError(
-                f"Control flow must have an entry node. Offending CFG: {cfg.dot}"
-            ) from e
+        entry_node = cfg.first_basic_block_node
+
+        assert entry_node is not None, (
+            f"Control flow must have an entry node. Offending CFG: {cfg.dot}"
+        )
 
         distances_to_entry_point: dict[ProgramNode, int] = nx.single_source_shortest_path_length(
             cfg.graph,
