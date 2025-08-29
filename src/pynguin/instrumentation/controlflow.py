@@ -651,16 +651,6 @@ class CFG(ProgramGraph):
                 cfg.add_edge(predecessor_node, successor_node, **attrs)
 
     @staticmethod
-    def _infinite_loop_nodes(cfg: CFG) -> set[ProgramNode]:
-        nodes: set[ProgramNode] = set()
-        exit_nodes = cfg.exit_nodes
-        for node in cfg.nodes:
-            successors = cfg.get_successors(node)
-            if node in successors and successors.isdisjoint(exit_nodes):
-                nodes.add(node)
-        return nodes
-
-    @staticmethod
     def _insert_dummy_entry_node(cfg: CFG) -> None:
         assert cfg.entry_node is not None, (
             "Control flow must have an entry node. Offending CFG: " + cfg.dot
@@ -674,7 +664,23 @@ class CFG(ProgramGraph):
     def _insert_dummy_exit_node(cfg: CFG) -> None:
         exit_nodes = cfg.exit_nodes
         yield_nodes = cfg.yield_nodes
-        assert exit_nodes.union(yield_nodes), (
+
+        distances_to_entry_point: dict[ProgramNode, int] = nx.single_source_shortest_path_length(
+            cfg.graph,
+            ArtificialNode.ENTRY,
+        )
+
+        infinite_loop_nodes: set[ProgramNode] = set()
+        cycle: list[ProgramNode]
+        for cycle in nx.simple_cycles(cfg.graph):
+            loop_entry = min(cycle, key=lambda node: distances_to_entry_point[node])
+
+            loop_descendants = cfg.get_descendants(loop_entry)
+
+            if loop_descendants.isdisjoint(exit_nodes) and loop_descendants.isdisjoint(yield_nodes):
+                infinite_loop_nodes.add(loop_entry)
+
+        assert exit_nodes.union(yield_nodes, infinite_loop_nodes) is not None, (
             "Control flow must have at least one exit or yield node. Offending CFG: " + cfg.dot
         )
 
@@ -690,7 +696,7 @@ class CFG(ProgramGraph):
             cfg.add_edge(exit_node, ArtificialNode.EXIT)
 
         # Connect the dummy exit node to all infinite loop nodes
-        for infinite_loop_node in CFG._infinite_loop_nodes(cfg):
+        for infinite_loop_node in infinite_loop_nodes:
             cfg.add_edge(infinite_loop_node, ArtificialNode.EXIT)
 
     @property
