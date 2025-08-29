@@ -19,7 +19,7 @@ import pytest
 from hypothesis import given
 
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.controlflowdistance import ControlFlowDistance
 from pynguin.utils.controlflowdistance import get_root_control_flow_distance
@@ -117,14 +117,15 @@ def test_get_resulting_branch_fitness(level, distance, control_flow_distance):
     "executed_code_objects, approach_level",
     [pytest.param([0, 1], 0), pytest.param([1], 1)],
 )
-def test_calculate_control_flow_distance_for_root(executed_code_objects, approach_level):
+def test_calculate_control_flow_distance_for_root(
+    executed_code_objects, approach_level, subject_properties: SubjectProperties
+):
     execution_result = MagicMock(ExecutionResult)
     execution_trace = MagicMock(ExecutionTrace)
     execution_trace.executed_code_objects = executed_code_objects
     execution_result.execution_trace = execution_trace
-    tracer = ExecutionTracer()
-    tracer.register_code_object(MagicMock())
-    tracer.register_code_object(MagicMock())
+    subject_properties.register_code_object(0, MagicMock())
+    subject_properties.register_code_object(1, MagicMock())
 
-    distance = get_root_control_flow_distance(execution_result, 0, tracer)
+    distance = get_root_control_flow_distance(execution_result, 0, subject_properties)
     assert distance == ControlFlowDistance(approach_level=approach_level, branch_distance=0.0)

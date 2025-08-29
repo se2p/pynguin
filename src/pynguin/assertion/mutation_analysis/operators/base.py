@@ -30,16 +30,40 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
-def fix_lineno(node: ast.AST) -> None:
-    """Fix the line number of a node if it is not set.
+def fix_lineno(node: ast.AST, fixing_node: ast.AST | None) -> None:
+    """Fix the line number of a node using a fixing node.
 
     Args:
         node: The node to fix.
+        fixing_node: The node to use for fixing the line number.
     """
-    parent = node.parent  # type: ignore[attr-defined]
-    if not hasattr(node, "lineno") and parent is not None and hasattr(parent, "lineno"):
-        parent_lineno = parent.lineno
-        node.lineno = parent_lineno  # type: ignore[attr-defined]
+    node_lineno = getattr(node, "lineno", None)
+    node_end_lineno = getattr(node, "end_lineno", None)
+
+    # Both missing -> try fixing_node
+    if node_lineno is None and node_end_lineno is None:
+        fixing_lineno = getattr(fixing_node, "lineno", None)
+        fixing_end_lineno = getattr(fixing_node, "end_lineno", None)
+
+        if fixing_lineno is not None:
+            node.lineno = fixing_lineno  # type: ignore[attr-defined]
+        elif fixing_end_lineno is not None:
+            node.lineno = fixing_end_lineno  # type: ignore[attr-defined]
+
+        if fixing_end_lineno is not None:
+            node.end_lineno = fixing_end_lineno  # type: ignore[attr-defined]
+        elif fixing_lineno is not None:
+            node.end_lineno = fixing_lineno  # type: ignore[attr-defined]
+
+        return
+
+    # Only one missing -> sync values
+    if node_end_lineno is None and node_lineno is not None:
+        node.end_lineno = node_lineno  # type: ignore[attr-defined]
+    elif node_lineno is None and node_end_lineno is not None:
+        node.lineno = node_end_lineno  # type: ignore[attr-defined]
+    elif node_end_lineno is not None and node_lineno is not None and node_end_lineno < node_lineno:
+        node.end_lineno = node_lineno  # type: ignore[attr-defined]
 
 
 def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
@@ -50,18 +74,13 @@ def fix_node_internals(old_node: ast.AST, new_node: ast.AST) -> None:
         new_node: The new node.
     """
     if not hasattr(new_node, "parent"):
-        old_node_children = old_node.children  # type: ignore[attr-defined]
-        old_node_parent = old_node.parent  # type: ignore[attr-defined]
-        new_node.children = old_node_children  # type: ignore[attr-defined]
-        new_node.parent = old_node_parent  # type: ignore[attr-defined]
+        new_node.children = old_node.children  # type: ignore[attr-defined]
+        new_node.parent = old_node.parent  # type: ignore[attr-defined]
 
-    if not hasattr(new_node, "lineno") and hasattr(old_node, "lineno"):
-        old_node_lineno = old_node.lineno
-        new_node.lineno = old_node_lineno  # type: ignore[attr-defined]
+    fix_lineno(new_node, old_node)
 
     if hasattr(old_node, "marker"):
-        old_node_marker = old_node.marker
-        new_node.marker = old_node_marker  # type: ignore[attr-defined]
+        new_node.marker = old_node.marker  # type: ignore[attr-defined]
 
 
 def set_lineno(node: ast.AST, lineno: int) -> None:
@@ -133,7 +152,7 @@ class MutationOperator:
     @classmethod
     def mutate(
         cls,
-        node: T,
+        node: ast.AST,
         module: types.ModuleType,
         only_mutation: Mutation | None = None,
     ) -> Generator[tuple[Mutation, ast.AST]]:
@@ -178,7 +197,7 @@ class MutationOperator:
         self.module = module
         self.only_mutation = only_mutation
 
-    def visit(self, node: T) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
+    def visit(self, node: ast.AST) -> Generator[tuple[ast.AST, ast.AST, ast.AST, str]]:
         """Visit a node.
 
         This method will temporarily modify the node provided and yield itself modified
@@ -200,7 +219,7 @@ class MutationOperator:
         ):
             return
 
-        fix_lineno(node)
+        fix_lineno(node, getattr(node, "parent", None))
 
         for visitor in self._find_visitors(node):
             if (

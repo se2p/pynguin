@@ -6,16 +6,79 @@
 #
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
-# ruff: noqa: E501, ERA001
+# ruff: noqa: ERA001
 
-from bytecode import BasicBlock
-from bytecode import Compare
-from bytecode import Instr
+import sys
 
-from tests.slicer.util import compare
+from bytecode.instr import BinaryOp
+from bytecode.instr import Compare
+
+from tests.slicer.util import TracedInstr
+from tests.slicer.util import assert_slice_equal
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
+
+
+if sys.version_info >= (3, 13):
+    add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("PUSH_NULL"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("MAKE_FUNCTION"),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("CALL", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
+    eq_compare = Compare.EQ_CAST
+elif sys.version_info >= (3, 12):
+    add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        TracedInstr("PUSH_NULL"),
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("MAKE_FUNCTION", arg=0),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("CALL", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
+    eq_compare = Compare.EQ
+elif sys.version_info >= (3, 11):
+    add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        TracedInstr("PUSH_NULL"),
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("MAKE_FUNCTION", arg=0),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("PRECALL", arg=2),
+        TracedInstr("CALL", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_FORWARD_IF_FALSE"
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
+    eq_compare = Compare.EQ
+else:
+    add_instr = TracedInstr("BINARY_ADD")
+    create_foo_class = (
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("MAKE_FUNCTION", arg=0),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("CALL_FUNCTION", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
+    eq_compare = Compare.EQ
 
 
 def test_data_dependency_1():
@@ -26,16 +89,15 @@ def test_data_dependency_1():
 
     expected_instructions = [
         # result = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="result"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
     ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_2():
@@ -48,16 +110,15 @@ def test_data_dependency_2():
 
     expected_instructions = [
         # result = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="result"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
     ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_3():
@@ -69,115 +130,111 @@ def test_data_dependency_3():
 
     expected_instructions = [
         # foo = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="foo"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="foo"),
         # result = 1 + foo
-        Instr("LOAD_CONST", arg=1),
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("BINARY_ADD"),
-        Instr("STORE_FAST", arg="result"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("LOAD_FAST", arg="foo"),
+        add_instr,
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
     ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_4():
     # Explicit attribute dependencies (full cover)
-    module_block = BasicBlock([
-        # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
-        # ob.attr1 = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("STORE_ATTR", arg="attr1"),
-        # ob.attr2 = ob.attr2 + [ob.attr1]
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_ATTR", arg="attr2"),
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_ATTR", arg="attr1"),
-        Instr("BUILD_LIST", arg=1),
-        Instr("BINARY_ADD"),
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("STORE_ATTR", arg="attr2"),
-        # result = ob.attr2
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_ATTR", arg="attr2"),
-        Instr("STORE_FAST", arg="result"),
-        # return
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    class_attr_block = BasicBlock([
-        # attr2 = [1, 2, 3]
-        Instr("BUILD_LIST", arg=0),
-        Instr("LOAD_CONST", arg=(1, 2, 3)),
-        Instr("LIST_EXTEND", arg=1),
-        Instr("STORE_NAME", arg="attr2"),
-        # return
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
+    if sys.version_info >= (3, 12):
+        attr1 = (False, "attr1")
+        attr2 = (False, "attr2")
+    else:
+        attr1 = "attr1"
+        attr2 = "attr2"
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(class_attr_block)
+    expected_instructions = [
+        # class Foo:
+        *create_foo_class,
+        TracedInstr("BUILD_LIST", arg=0),
+        TracedInstr("LOAD_CONST", arg=(1, 2, 3)),
+        TracedInstr("LIST_EXTEND", arg=1),
+        TracedInstr("STORE_NAME", arg="attr2"),
+        *return_none,
+        TracedInstr("STORE_NAME", arg="Foo"),
+        # ob.attr1 = 1
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("STORE_ATTR", arg="attr1"),
+        # ob.attr2 = ob.attr2 + [ob.attr1]
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("LOAD_ATTR", arg=attr2),
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("LOAD_ATTR", arg=attr1),
+        TracedInstr("BUILD_LIST", arg=1),
+        add_instr,
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("STORE_ATTR", arg="attr2"),
+        # result = ob.attr2
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("LOAD_ATTR", arg=attr2),
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.attribute_dependencies"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_5():
     # Explicit attribute dependencies (partial and full cover)
-    module_block = BasicBlock([
-        # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
-        # ob = Foo()
-        Instr("LOAD_GLOBAL", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="ob"),
-        # ob.attr1 = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("STORE_ATTR", arg="attr1"),
-        # result = ob
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("STORE_FAST", arg="result"),
-        # return
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    class_attr_block = BasicBlock([
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
+    if sys.version_info >= (3, 12):
+        instantiate_foo_class = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "Foo")),
+            TracedInstr("CALL", arg=0),
+            TracedInstr("STORE_FAST", arg="ob"),
+        )
+    elif sys.version_info >= (3, 11):
+        instantiate_foo_class = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "Foo")),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+            TracedInstr("STORE_FAST", arg="ob"),
+        )
+    else:
+        instantiate_foo_class = (
+            TracedInstr("LOAD_GLOBAL", arg="Foo"),
+            TracedInstr("CALL_FUNCTION", arg=0),
+            TracedInstr("STORE_FAST", arg="ob"),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(class_attr_block)
+    expected_instructions = [
+        # class Foo:
+        *create_foo_class,
+        *return_none,
+        TracedInstr("STORE_NAME", arg="Foo"),
+        # ob = Foo()
+        *instantiate_foo_class,
+        # ob.attr1 = 1
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("STORE_ATTR", arg="attr1"),
+        # result = ob
+        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.partial_cover_dependency"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_1():
@@ -191,35 +248,29 @@ def test_simple_control_dependency_1():
 
         return result
 
-    return_basic_block = BasicBlock([
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    if_basic_block = BasicBlock([
-        # result = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="result"),
-    ])
-    init_basic_block = BasicBlock([
+    expected_instructions = [
         # foo = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="foo"),
-        # if foo == 1
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_CONST", arg=1),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=return_basic_block),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(init_basic_block)
-    expected_instructions.extend(if_basic_block)
-    expected_instructions.extend(return_basic_block)
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="foo"),
+        # if foo == 1:
+        TracedInstr("LOAD_FAST", arg="foo"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("COMPARE_OP", arg=eq_compare),
+        TracedInstr(
+            pop_jump_if_false,
+            # the first instruction of the return block
+            arg=TracedInstr("LOAD_FAST", arg="result"),
+        ),
+        # result = 1
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_2():
@@ -234,24 +285,17 @@ def test_simple_control_dependency_2():
 
         return result
 
-    init_basic_block = BasicBlock([
+    expected_instructions = [
         # result = 3
-        Instr("LOAD_CONST", arg=3),
-        Instr("STORE_FAST", arg="result"),
-    ])
-    return_basic_block = BasicBlock([
+        TracedInstr("LOAD_CONST", arg=3),
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(init_basic_block)
-    expected_instructions.extend(return_basic_block)
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_3():
@@ -269,49 +313,69 @@ def test_simple_control_dependency_3():
 
         return result
 
-    elif_block = BasicBlock([
-        # result = 2
-        Instr("LOAD_CONST", arg=2),
-        Instr("STORE_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    else_block = BasicBlock([
-        Instr("LOAD_CONST", arg=3),
-        Instr("STORE_FAST", arg="result"),
-    ])
-    elif_cond = BasicBlock([
-        # elif foo == 1:
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_CONST", arg=1),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=else_block),
-    ])
-    if_cond = BasicBlock([
-        # if foo == bar
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_FAST", arg="bar"),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
-    ])
-    init_block = BasicBlock([
-        # foo = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="foo"),
-        # bar = 2
-        Instr("LOAD_CONST", arg=2),
-        Instr("STORE_FAST", arg="bar"),
-    ])
+    if sys.version_info >= (3, 13):
+        jump_instruction = ()
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
+    elif sys.version_info >= (3, 12):
+        jump_instruction = ()
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
+    elif sys.version_info >= (3, 11):
+        jump_instruction = (
+            TracedInstr(
+                "JUMP_FORWARD",
+                # the first instruction of the return block
+                arg=TracedInstr("LOAD_FAST", arg="result"),
+            ),
+        )
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
+    else:
+        jump_instruction = ()
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(init_block)
-    expected_instructions.extend(if_cond)
-    expected_instructions.extend(elif_cond)
-    expected_instructions.extend(elif_block)
+    expected_instructions = [
+        # foo = 1
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="foo"),
+        # bar = 2
+        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr("STORE_FAST", arg="bar"),
+        # if foo == bar:
+        *load_foo_and_bar,
+        TracedInstr("COMPARE_OP", arg=eq_compare),
+        TracedInstr(
+            pop_jump_if_false,
+            # the first instruction of the elif block
+            arg=TracedInstr("LOAD_FAST", arg="foo"),
+        ),
+        # elif foo == 1:
+        TracedInstr("LOAD_FAST", arg="foo"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("COMPARE_OP", arg=eq_compare),
+        TracedInstr(
+            pop_jump_if_false,
+            # the first instruction of the else block
+            arg=TracedInstr("LOAD_CONST", arg=3),
+        ),
+        # result = 2
+        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr("STORE_FAST", arg="result"),
+        *jump_instruction,
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_simple_control_dependency_4():
@@ -329,46 +393,46 @@ def test_simple_control_dependency_4():
 
         return result
 
-    return_block = BasicBlock([
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    else_block = BasicBlock([
-        # result = 3
-        Instr("LOAD_CONST", arg=3),
-        Instr("STORE_FAST", arg="result"),
-    ])
-    elif_cond = BasicBlock([
-        # elif foo == 1:
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_FAST", arg="bar"),
-        Instr("COMPARE_OP", arg=Compare.GT),
-        Instr("POP_JUMP_IF_FALSE", arg=else_block),
-    ])
-    if_cond = BasicBlock([
-        # if foo == bar
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_FAST", arg="bar"),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=elif_cond),
-    ])
-    init_block = BasicBlock([
-        # foo = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="foo"),
-        # bar = 2
-        Instr("LOAD_CONST", arg=2),
-        Instr("STORE_FAST", arg="bar"),
-    ])
+    if sys.version_info >= (3, 13):
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
+        gt_compare = Compare.GT_CAST
+    else:
+        load_foo_and_bar = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+        )
+        gt_compare = Compare.GT
 
-    expected_instructions = []
-    expected_instructions.extend(init_block)
-    expected_instructions.extend(if_cond)
-    expected_instructions.extend(elif_cond)
-    expected_instructions.extend(else_block)
-    expected_instructions.extend(return_block)
+    expected_instructions = [
+        # foo = 1
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="foo"),
+        # bar = 2
+        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr("STORE_FAST", arg="bar"),
+        # if foo == bar:
+        *load_foo_and_bar,
+        TracedInstr("COMPARE_OP", arg=eq_compare),
+        TracedInstr(
+            pop_jump_if_false,
+            # the first instruction of the elif block
+            arg=load_foo_and_bar[0],
+        ),
+        # elif foo > bar:
+        *load_foo_and_bar,
+        TracedInstr("COMPARE_OP", arg=gt_compare),
+        TracedInstr(
+            pop_jump_if_false,
+            # the first instruction of the else block
+            arg=TracedInstr("LOAD_CONST", arg=3),
+        ),
+        # result = 3
+        TracedInstr("LOAD_CONST", arg=3),
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)

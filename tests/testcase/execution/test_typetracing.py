@@ -16,7 +16,7 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import UnionType
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ReturnTypeObserver
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.execution import TypeTracingObserver
@@ -40,9 +40,9 @@ if TYPE_CHECKING:
         ("return_none", type(None)),
     ],
 )
-def test_type_reconstruction(test_func, return_type):
+def test_type_reconstruction(test_func, return_type, subject_properties: SubjectProperties):
     test_cluster = generate_test_cluster("tests.fixtures.type_tracing.return_types")
-    executor = TestCaseExecutor(ExecutionTracer())
+    executor = TestCaseExecutor(subject_properties)
     visitor = AstToTestCaseTransformer(
         test_cluster,
         False,  # noqa: FBT003
@@ -73,9 +73,11 @@ def test_cluster_with_test_case():
     return test_cluster, test_case
 
 
-def test_type_tracing_observer_separate_proxies_for_args(test_cluster_with_test_case):
+def test_type_tracing_observer_separate_proxies_for_args(
+    test_cluster_with_test_case, subject_properties: SubjectProperties
+):
     test_cluster, test_case = test_cluster_with_test_case
-    executor = TestCaseExecutor(ExecutionTracer())
+    executor = TestCaseExecutor(subject_properties)
     observer = TypeTracingObserver(test_cluster)
     executor.add_observer(observer)
     result = executor.execute(test_case)
@@ -84,9 +86,11 @@ def test_type_tracing_observer_separate_proxies_for_args(test_cluster_with_test_
     assert {"__truediv__"} == set(result.proxy_knowledge[1, "c"].children.keys())
 
 
-def test_type_tracing_test_case_executor_integration(test_cluster_with_test_case):
+def test_type_tracing_test_case_executor_integration(
+    test_cluster_with_test_case, subject_properties: SubjectProperties
+):
     test_cluster, test_case = test_cluster_with_test_case
-    executor = TestCaseExecutor(ExecutionTracer())
+    executor = TestCaseExecutor(subject_properties)
     t_executor = TypeTracingTestCaseExecutor(executor, test_cluster)
     t_executor.execute(test_case)
     acc = cast(
@@ -98,9 +102,11 @@ def test_type_tracing_test_case_executor_integration(test_cluster_with_test_case
     assert acc.inferred_signature.return_type == UnionType((NoneType(),))
 
 
-def test_type_tracing_test_case_executor_probability_integration(test_cluster_with_test_case):
+def test_type_tracing_test_case_executor_probability_integration(
+    test_cluster_with_test_case, subject_properties: SubjectProperties
+):
     test_cluster, test_case = test_cluster_with_test_case
-    executor = TestCaseExecutor(ExecutionTracer())
+    executor = TestCaseExecutor(subject_properties)
     t_executor = TypeTracingTestCaseExecutor(executor, test_cluster, 0.0)
     t_executor.execute(test_case)
     acc = cast(

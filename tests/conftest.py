@@ -29,8 +29,6 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.controlflow import CFG
-from pynguin.analyses.controlflow import ProgramGraphNode
 from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
@@ -39,7 +37,12 @@ from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
+from pynguin.instrumentation.controlflow import CFG
+from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
@@ -271,140 +274,184 @@ def reset_statistics_tracker():
     stat.reset()
 
 
-@pytest.fixture(scope="module")
-def conditional_jump_example_bytecode() -> Bytecode:
-    label_else = Label()
-    label_print = Label()
-    return Bytecode([
-        Instr("LOAD_NAME", "print"),
-        Instr("LOAD_NAME", "test"),
-        Instr("POP_JUMP_IF_FALSE", label_else),
-        Instr("LOAD_CONST", "yes"),
-        Instr("JUMP_FORWARD", label_print),
-        label_else,
-        Instr("LOAD_CONST", "no"),
-        label_print,
-        Instr("CALL_FUNCTION", 1),
-        Instr("LOAD_CONST", None),
-        Instr("RETURN_VALUE"),
-    ])
+if sys.version_info >= (3, 12):
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL", 1),
+            Instr("RETURN_CONST", None),
+        ])
+
+elif sys.version_info >= (3, 11):
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_FORWARD_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("PRECALL", 1),
+            Instr("CALL", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ])
+
+else:
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL_FUNCTION", 1),
+            Instr("LOAD_CONST", None),
+            Instr("RETURN_VALUE"),
+        ])
 
 
 @pytest.fixture(scope="module")
 def small_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = ProgramGraphNode(index=0)
-    n2 = ProgramGraphNode(index=2)
-    n3 = ProgramGraphNode(index=3)
-    n4 = ProgramGraphNode(index=4)
-    n5 = ProgramGraphNode(index=5)
-    n6 = ProgramGraphNode(index=6)
-    exit_node = ProgramGraphNode(index=sys.maxsize)
-    cfg.add_node(entry)
+
+    n0 = BasicBlockNode(index=0, basic_block=MagicMock())
+    n1 = BasicBlockNode(index=1, basic_block=MagicMock())
+    n2 = BasicBlockNode(index=2, basic_block=MagicMock())
+    n3 = BasicBlockNode(index=3, basic_block=MagicMock())
+    n4 = BasicBlockNode(index=4, basic_block=MagicMock())
+    n5 = BasicBlockNode(index=5, basic_block=MagicMock())
+
+    cfg.add_node(n0)
+    cfg.add_node(n1)
     cfg.add_node(n2)
     cfg.add_node(n3)
     cfg.add_node(n4)
     cfg.add_node(n5)
-    cfg.add_node(n6)
-    cfg.add_node(exit_node)
-    cfg.add_edge(entry, n6)
-    cfg.add_edge(n6, n5)
+
+    cfg.add_edge(n0, n5)
     cfg.add_edge(n5, n4)
-    cfg.add_edge(n5, n3)
+    cfg.add_edge(n4, n3)
     cfg.add_edge(n4, n2)
-    cfg.add_edge(n3, n2)
-    cfg.add_edge(n2, exit_node)
+    cfg.add_edge(n3, n1)
+    cfg.add_edge(n2, n1)
+
+    CFG._insert_dummy_nodes(cfg)
+
     return cfg
 
 
 @pytest.fixture(scope="module")
 def yield_control_flow_graph() -> CFG:
     cfg = CFG(MagicMock())
-    entry = ProgramGraphNode(index=-1)
-    y_assign_0_node = ProgramGraphNode(index=0)
-    y_eq_0_node = ProgramGraphNode(index=1)
-    yield_y_node = ProgramGraphNode(index=2)  # yield_y_node, 2
-    jmp_node = ProgramGraphNode(index=3)
 
-    cfg.add_node(entry)
+    y_assign_0_node = BasicBlockNode(index=0, basic_block=MagicMock())
+    y_eq_0_node = BasicBlockNode(index=1, basic_block=MagicMock())
+    yield_y_node = BasicBlockNode(index=2, basic_block=MagicMock())  # yield_y_node, 2
+    jmp_node = BasicBlockNode(index=3, basic_block=MagicMock())
+
     cfg.add_node(y_assign_0_node)
     cfg.add_node(y_eq_0_node)
     cfg.add_node(yield_y_node)
     cfg.add_node(jmp_node)
 
-    cfg.add_edge(entry, y_assign_0_node)
     cfg.add_edge(y_assign_0_node, y_eq_0_node)
     cfg.add_edge(y_eq_0_node, yield_y_node, label="True")
     cfg.add_edge(y_eq_0_node, jmp_node, label="False")
     cfg.add_edge(yield_y_node, jmp_node)
-    # No outgoing edge - will be constructed from yield node
+
+    CFG._insert_dummy_nodes(cfg)
 
     return cfg
 
 
 @pytest.fixture(scope="module")
 def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
-    graph = CFG(MagicMock())
-    entry = ProgramGraphNode(index=-sys.maxsize)
-    n_1 = ProgramGraphNode(index=1)
-    n_2 = ProgramGraphNode(index=2)
-    n_3 = ProgramGraphNode(index=3)
-    n_5 = ProgramGraphNode(index=5)
-    n_100 = ProgramGraphNode(index=100)
-    n_110 = ProgramGraphNode(index=110)
-    n_120 = ProgramGraphNode(index=120)
-    n_130 = ProgramGraphNode(index=130)
-    n_140 = ProgramGraphNode(index=140)
-    n_150 = ProgramGraphNode(index=150)
-    n_160 = ProgramGraphNode(index=160)
-    n_170 = ProgramGraphNode(index=170)
-    n_180 = ProgramGraphNode(index=180)
-    n_190 = ProgramGraphNode(index=190)
-    n_200 = ProgramGraphNode(index=200)
-    n_210 = ProgramGraphNode(index=210)
-    n_300 = ProgramGraphNode(index=300)
-    n_exit = ProgramGraphNode(index=sys.maxsize)
-    graph.add_node(entry)
-    graph.add_node(n_1)
-    graph.add_node(n_2)
-    graph.add_node(n_3)
-    graph.add_node(n_5)
-    graph.add_node(n_100)
-    graph.add_node(n_110)
-    graph.add_node(n_120)
-    graph.add_node(n_130)
-    graph.add_node(n_140)
-    graph.add_node(n_150)
-    graph.add_node(n_160)
-    graph.add_node(n_170)
-    graph.add_node(n_180)
-    graph.add_node(n_190)
-    graph.add_node(n_200)
-    graph.add_node(n_210)
-    graph.add_node(n_300)
-    graph.add_node(n_exit)
-    graph.add_edge(entry, n_1)
-    graph.add_edge(n_1, n_2)
-    graph.add_edge(n_2, n_3)
-    graph.add_edge(n_3, n_5)
-    graph.add_edge(n_5, n_100)
-    graph.add_edge(n_100, n_110)
-    graph.add_edge(n_110, n_120, label="true")
-    graph.add_edge(n_120, n_130)
-    graph.add_edge(n_130, n_140)
-    graph.add_edge(n_140, n_150, label="true")
-    graph.add_edge(n_150, n_160)
-    graph.add_edge(n_160, n_170, label="false")
-    graph.add_edge(n_170, n_180)
-    graph.add_edge(n_180, n_190)
-    graph.add_edge(n_160, n_190, label="true")
-    graph.add_edge(n_190, n_140)
-    graph.add_edge(n_140, n_200, label="false")
-    graph.add_edge(n_200, n_210)
-    graph.add_edge(n_210, n_110)
-    graph.add_edge(n_110, n_300, label="false")
-    graph.add_edge(n_300, n_exit)
-    return graph
+    cfg = CFG(MagicMock())
+
+    n_1 = BasicBlockNode(index=1, basic_block=MagicMock())
+    n_2 = BasicBlockNode(index=2, basic_block=MagicMock())
+    n_3 = BasicBlockNode(index=3, basic_block=MagicMock())
+    n_5 = BasicBlockNode(index=5, basic_block=MagicMock())
+    n_100 = BasicBlockNode(index=100, basic_block=MagicMock())
+    n_110 = BasicBlockNode(index=110, basic_block=MagicMock())
+    n_120 = BasicBlockNode(index=120, basic_block=MagicMock())
+    n_130 = BasicBlockNode(index=130, basic_block=MagicMock())
+    n_140 = BasicBlockNode(index=140, basic_block=MagicMock())
+    n_150 = BasicBlockNode(index=150, basic_block=MagicMock())
+    n_160 = BasicBlockNode(index=160, basic_block=MagicMock())
+    n_170 = BasicBlockNode(index=170, basic_block=MagicMock())
+    n_180 = BasicBlockNode(index=180, basic_block=MagicMock())
+    n_190 = BasicBlockNode(index=190, basic_block=MagicMock())
+    n_200 = BasicBlockNode(index=200, basic_block=MagicMock())
+    n_210 = BasicBlockNode(index=210, basic_block=MagicMock())
+    n_300 = BasicBlockNode(index=300, basic_block=MagicMock())
+
+    cfg.add_node(n_1)
+    cfg.add_node(n_2)
+    cfg.add_node(n_3)
+    cfg.add_node(n_5)
+    cfg.add_node(n_100)
+    cfg.add_node(n_110)
+    cfg.add_node(n_120)
+    cfg.add_node(n_130)
+    cfg.add_node(n_140)
+    cfg.add_node(n_150)
+    cfg.add_node(n_160)
+    cfg.add_node(n_170)
+    cfg.add_node(n_180)
+    cfg.add_node(n_190)
+    cfg.add_node(n_200)
+    cfg.add_node(n_210)
+    cfg.add_node(n_300)
+
+    cfg.add_edge(n_1, n_2)
+    cfg.add_edge(n_2, n_3)
+    cfg.add_edge(n_3, n_5)
+    cfg.add_edge(n_5, n_100)
+    cfg.add_edge(n_100, n_110)
+    cfg.add_edge(n_110, n_120, label="true")
+    cfg.add_edge(n_120, n_130)
+    cfg.add_edge(n_130, n_140)
+    cfg.add_edge(n_140, n_150, label="true")
+    cfg.add_edge(n_150, n_160)
+    cfg.add_edge(n_160, n_170, label="false")
+    cfg.add_edge(n_170, n_180)
+    cfg.add_edge(n_180, n_190)
+    cfg.add_edge(n_160, n_190, label="true")
+    cfg.add_edge(n_190, n_140)
+    cfg.add_edge(n_140, n_200, label="false")
+    cfg.add_edge(n_200, n_210)
+    cfg.add_edge(n_210, n_110)
+    cfg.add_edge(n_110, n_300, label="false")
+
+    CFG._insert_dummy_nodes(cfg)
+
+    return cfg
 
 
 @pytest.fixture
@@ -608,10 +655,32 @@ def plus_test_with_multiple_assertions():
 
 
 @pytest.fixture
-def result():
+def result() -> ExecutionResult:
     result = ExecutionResult()
     result.num_executed_statements = 1
     return result
+
+
+@pytest.fixture
+def result_mock() -> MagicMock:
+    return MagicMock(ExecutionResult)
+
+
+@pytest.fixture
+def subject_properties() -> SubjectProperties:
+    return SubjectProperties()
+
+
+@pytest.fixture
+def executor_mock(subject_properties: SubjectProperties) -> MagicMock:
+    executor = MagicMock(TestCaseExecutor)
+    executor.subject_properties.return_value = subject_properties
+    return executor
+
+
+@pytest.fixture
+def execution_trace() -> ExecutionTrace:
+    return ExecutionTrace()
 
 
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------

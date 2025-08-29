@@ -12,7 +12,6 @@ import logging
 import multiprocessing.connection as mp_conn
 import os
 import signal
-import threading
 import unittest.mock
 
 from typing import Any
@@ -28,7 +27,7 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ModuleProvider
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
@@ -73,7 +72,7 @@ def cause_seg_fault_mock(type_system) -> GenericFunction:
     )
 
 
-def test_subprocess_exception_suppression():
+def test_subprocess_exception_suppression(subject_properties: SubjectProperties):
     """Test that exceptions in the subprocess are suppressed."""
     # Create a mock for the _replace_tracer method to raise an exception
     with unittest.mock.patch.object(
@@ -83,7 +82,6 @@ def test_subprocess_exception_suppression():
         mock_replace_tracer.side_effect = Exception("Test exception")
 
         # Create the necessary arguments for _execute_test_cases_in_subprocess
-        tracer = ExecutionTracer()
         module_provider = unittest.mock.MagicMock(spec=ModuleProvider)
         maximum_test_execution_timeout = 5
         test_execution_time_per_statement = 1
@@ -96,7 +94,7 @@ def test_subprocess_exception_suppression():
         # This should not raise an exception because the exception should be caught
         # and suppressed inside the method
         SubprocessTestCaseExecutor._execute_test_cases_in_subprocess(
-            tracer,
+            subject_properties,
             module_provider,
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
@@ -107,7 +105,9 @@ def test_subprocess_exception_suppression():
         )
 
         # Verify that the mock was called
-        mock_replace_tracer.assert_called_once_with(tracer)
+        mock_replace_tracer.assert_called_once_with(
+            subject_properties.instrumentation_tracer.tracer
+        )
 
         # Verify that sending_connection.send was not called
         # because an exception was raised before that point
@@ -121,7 +121,7 @@ def cause_seg_fault_test_case(cause_seg_fault_mock):
     return test_case
 
 
-def test_subprocess_exception_logging(caplog):
+def test_subprocess_exception_logging(caplog, subject_properties: SubjectProperties):
     """Test that exceptions in the subprocess are logged."""
     # Set up logging capture
     caplog.set_level(logging.WARNING)
@@ -135,7 +135,6 @@ def test_subprocess_exception_logging(caplog):
         mock_replace_tracer.side_effect = Exception(exception_message)
 
         # Create the necessary arguments for _execute_test_cases_in_subprocess
-        tracer = ExecutionTracer()
         module_provider = unittest.mock.MagicMock(spec=ModuleProvider)
         maximum_test_execution_timeout = 5
         test_execution_time_per_statement = 1
@@ -146,7 +145,7 @@ def test_subprocess_exception_logging(caplog):
 
         # Call the method directly
         SubprocessTestCaseExecutor._execute_test_cases_in_subprocess(
-            tracer,
+            subject_properties,
             module_provider,
             maximum_test_execution_timeout,
             test_execution_time_per_statement,
@@ -160,39 +159,40 @@ def test_subprocess_exception_logging(caplog):
         assert f"Suppressed exception in subprocess: {exception_message}" in caplog.text
 
 
-def test_crashing_execution(tmp_path, cause_seg_fault_test_case):
+def test_crashing_execution(
+    tmp_path, cause_seg_fault_test_case, subject_properties: SubjectProperties
+):
     # prevent test output into the tests directory
     config.configuration.test_case_output.crash_path = tmp_path
     config.configuration.module_name = "tests.fixtures.crash.seg_fault"
 
-    subprocess_tracer = ExecutionTracer()
-    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
+    with install_import_hook(config.configuration.module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
-    with install_import_hook(config.configuration.module_name, subprocess_tracer):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
-        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+        subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
         with SegFaultOutputSuppressionContext():
             exit_code = subprocess_executor.execute_with_exit_code(cause_seg_fault_test_case)
 
     assert exit_code != 0, "Expected a non-zero exit code due to segmentation fault"
 
 
-def test_eof_error_during_receiving_results(default_test_case):
+def test_eof_error_during_receiving_results(
+    default_test_case, subject_properties: SubjectProperties
+):
     """Test handling of EOFError during receiving results from subprocess."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subprocess_tracer = ExecutionTracer()
-    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
-
-    with install_import_hook(config.configuration.module_name, subprocess_tracer):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+    with install_import_hook(config.configuration.module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Add a statement to the test case
         default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
 
-        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+        subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
 
         # Mock the connection and process
         with (
@@ -206,21 +206,19 @@ def test_eof_error_during_receiving_results(default_test_case):
             assert exit_code is None
 
 
-def test_empty_test_case_no_results(default_test_case):
+def test_empty_test_case_no_results(default_test_case, subject_properties: SubjectProperties):
     """Test handling of empty test case with no results."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subprocess_tracer = ExecutionTracer()
-    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
-
-    with install_import_hook(config.configuration.module_name, subprocess_tracer):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+    with install_import_hook(config.configuration.module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Ensure the test case is empty
         assert default_test_case.size() == 0
 
-        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+        subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
 
         # Mock the connection to return no results
         with patch("multiprocess.connection.Connection.poll", return_value=False):
@@ -230,21 +228,19 @@ def test_empty_test_case_no_results(default_test_case):
             assert exit_code == 0
 
 
-def test_non_empty_test_case_no_results(short_test_case):
+def test_non_empty_test_case_no_results(short_test_case, subject_properties: SubjectProperties):
     """Test handling of non-empty test case with no results."""
     config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-    subprocess_tracer = ExecutionTracer()
-    subprocess_tracer.current_thread_identifier = threading.current_thread().ident
-
-    with install_import_hook(config.configuration.module_name, subprocess_tracer):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+    with install_import_hook(config.configuration.module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
 
         # Ensure the test case is not empty
         assert short_test_case.size() > 0
 
-        subprocess_executor = SubprocessTestCaseExecutor(subprocess_tracer)
+        subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
 
         # Mock the connection and process
         with (
