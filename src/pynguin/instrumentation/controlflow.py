@@ -42,6 +42,8 @@ EDGE_DATA_BRANCH_VALUE = "branch_value"
 
 TRY_BEGIN_POSITION = -1
 
+ENTRY_NODE_INDEX = 0
+
 
 class ArtificialInstr(Instr):
     """Marker subclass of an instruction.
@@ -426,28 +428,6 @@ class ProgramGraph:
         return exit_nodes
 
     @property
-    def yield_nodes(self) -> set[ProgramNode]:
-        """Provides the yield nodes of the graph.
-
-        Iterates over all nodes and checks if any of the instructions in the basic block
-        is a yield instruction. If so, the node is added to the set of yield nodes. Then
-        we ignore the rest of the instructions in this basic block and continue with the
-        next node.
-
-        Returns:
-            The set of yield nodes of the graph
-        """
-        yield_nodes: set[ProgramNode] = set()
-        for node in self.basic_block_nodes:
-            for instr in node.instructions:
-                if instr.name in version.YIELDING_NAMES:
-                    yield_nodes.add(node)
-                    # exist the inner loop (over instructions)
-                    # the node is already added thus continue with the next node
-                    break
-        return yield_nodes
-
-    @property
     def dot(self) -> str:
         """Provides the DOT representation of this graph.
 
@@ -542,8 +522,7 @@ class CFG(ProgramGraph):
         CFG._create_graph(cfg, edges, nodes)
 
         # Insert dummy entry and exit nodes
-        CFG._insert_dummy_entry_node(cfg)
-        CFG._insert_dummy_exit_node(cfg)
+        CFG._insert_dummy_nodes(cfg)
 
         # Filter all dead-code nodes and return
         return filter_dead_code_nodes(cfg, ArtificialNode.ENTRY)
@@ -577,7 +556,7 @@ class CFG(ProgramGraph):
     ) -> tuple[dict[int, list[tuple[int, dict]]], dict[int, ProgramNode]]:
         nodes: dict[int, ProgramNode] = {}
         edges: dict[int, list[tuple[int, dict]]] = defaultdict(list)
-        for node_index, block in enumerate(blocks):
+        for node_index, block in enumerate(blocks, start=ENTRY_NODE_INDEX):
             node = BasicBlockNode(index=node_index, basic_block=block)
 
             nodes[node_index] = node
@@ -651,53 +630,66 @@ class CFG(ProgramGraph):
                 cfg.add_edge(predecessor_node, successor_node, **attrs)
 
     @staticmethod
-    def _insert_dummy_entry_node(cfg: CFG) -> None:
-        assert cfg.entry_node is not None, (
-            "Control flow must have an entry node. Offending CFG: " + cfg.dot
-        )
+    def _get_yield_nodes(cfg: CFG) -> Iterable[ProgramNode]:
+        """Provides the yield nodes of the graph.
 
-        cfg.add_node(ArtificialNode.ENTRY)
+        Iterates over all nodes and checks if any of the instructions in the basic block
+        is a yield instruction. If so, the node is added to the set of yield nodes. Then
+        we ignore the rest of the instructions in this basic block and continue with the
+        next node.
 
-        cfg.add_edge(ArtificialNode.ENTRY, cfg.entry_node)
+        Returns:
+            The iterable of yield nodes of the graph
+        """
+        for node in cfg.basic_block_nodes:
+            for instr in node.instructions:
+                if instr.name in version.YIELDING_NAMES:
+                    yield node
+                    # exist the inner loop (over instructions)
+                    # the node is already added thus continue with the next node
+                    break
 
     @staticmethod
-    def _insert_dummy_exit_node(cfg: CFG) -> None:
-        exit_nodes = cfg.exit_nodes
-        yield_nodes = cfg.yield_nodes
+    def _insert_dummy_nodes(cfg: CFG) -> None:
+        try:
+            entry_node = cfg.get_basic_block_node(ENTRY_NODE_INDEX)
+        except ValueError as e:
+            raise AssertionError(
+                f"Control flow must have an entry node. Offending CFG: {cfg.dot}"
+            ) from e
 
         distances_to_entry_point: dict[ProgramNode, int] = nx.single_source_shortest_path_length(
             cfg.graph,
-            ArtificialNode.ENTRY,
+            entry_node,
         )
 
-        infinite_loop_nodes: set[ProgramNode] = set()
-        cycle: list[ProgramNode]
-        for cycle in nx.simple_cycles(cfg.graph):
-            loop_entry = min(cycle, key=lambda node: distances_to_entry_point[node])
+        # Collect all exit nodes
+        exit_nodes = cfg.exit_nodes
 
-            loop_descendants = cfg.get_descendants(loop_entry)
+        # Add yield nodes
+        exit_nodes.update(CFG._get_yield_nodes(cfg))
 
-            if loop_descendants.isdisjoint(exit_nodes) and loop_descendants.isdisjoint(yield_nodes):
-                infinite_loop_nodes.add(loop_entry)
-
-        assert exit_nodes.union(yield_nodes, infinite_loop_nodes) is not None, (
-            "Control flow must have at least one exit or yield node. Offending CFG: " + cfg.dot
+        # Add infinite loop nodes
+        exit_nodes.update(
+            loop_entry
+            for cycle in nx.simple_cycles(cfg.graph)
+            if cfg.get_descendants(
+                loop_entry := min(cycle, key=lambda node: distances_to_entry_point[node])
+            ).isdisjoint(exit_nodes)
         )
 
-        # Add the dummy exit node to the graph
+        assert exit_nodes is not None, (
+            f"Control flow must have at least one exit or yield node. Offending CFG: {cfg.dot}"
+        )
+
+        # Add the dummy nodes
+        cfg.add_node(ArtificialNode.ENTRY)
         cfg.add_node(ArtificialNode.EXIT)
 
-        # Connect the dummy exit node to all yield nodes
-        for yield_node in yield_nodes:
-            cfg.add_edge(yield_node, ArtificialNode.EXIT)
-
-        # Connect the dummy exit node to all exit nodes
+        # Connect the dummy nodes
+        cfg.add_edge(ArtificialNode.ENTRY, entry_node)
         for exit_node in exit_nodes:
             cfg.add_edge(exit_node, ArtificialNode.EXIT)
-
-        # Connect the dummy exit node to all infinite loop nodes
-        for infinite_loop_node in infinite_loop_nodes:
-            cfg.add_edge(infinite_loop_node, ArtificialNode.EXIT)
 
     @property
     def cyclomatic_complexity(self) -> int:

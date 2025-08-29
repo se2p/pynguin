@@ -6,12 +6,16 @@
 #
 import sys
 
-import pytest
+from opcode import opmap
+from unittest.mock import MagicMock
 
 from bytecode import Bytecode
+from bytecode.cfg import BasicBlock
+from bytecode.instr import Instr
 
 from pynguin.instrumentation.controlflow import CFG
 from pynguin.instrumentation.controlflow import ArtificialNode
+from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.version import add_for_loop_no_yield_nodes
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun
@@ -820,15 +824,58 @@ POP_JUMP_IF_FALSE BasicBlockNode";
 
 
 def test_integration_no_exit():
-    with pytest.raises(AssertionError):
-        CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
+    cfg = CFG.from_bytecode(Bytecode.from_code(Foo.receive.__code__))
+    assert cfg.entry_node is ArtificialNode.ENTRY
+    assert cfg.exit_nodes == {ArtificialNode.EXIT}
+
+    assert len(cfg.get_successors(ArtificialNode.ENTRY)) == 1
+    assert len(cfg.get_predecessors(ArtificialNode.EXIT)) == 1
 
 
 def test_cfg_from_yield():
     cfg = CFG.from_bytecode(Bytecode.from_code(yield_fun.__code__))
-    assert cfg.entry_node is not None
-    assert cfg.exit_nodes is not None
+    assert cfg.entry_node is ArtificialNode.ENTRY
+    assert cfg.exit_nodes == {ArtificialNode.EXIT}
 
     predecessors = list(map(cfg.get_predecessors, cfg.exit_nodes))
     empty_predecessors = list(filter(lambda x: len(x) == 0, predecessors))
     assert len(empty_predecessors) == 0
+
+
+if sys.version_info >= (3, 12):
+    yield_instr = Instr(name="YIELD_VALUE", arg=0)
+else:
+    yield_instr = Instr(name="YIELD_VALUE")
+
+
+def test_yield_nodes():
+    graph = CFG(MagicMock())
+
+    yield_instr.opcode = opmap["YIELD_VALUE"]
+    instructions = [yield_instr]
+    basic_block = BasicBlock(instructions=instructions)
+    node = BasicBlockNode(index=42, basic_block=basic_block)
+    graph.add_node(node)
+
+    yield_nodes = CFG._get_yield_nodes(graph)
+    assert len(tuple(yield_nodes)) == 1
+
+
+def test_yield_nodes_2():
+    graph = CFG(MagicMock())
+
+    yield_instr.opcode = opmap["YIELD_VALUE"]
+    instructions = [yield_instr]
+    basic_block = BasicBlock(instructions=instructions)
+    node = BasicBlockNode(index=42, basic_block=basic_block)
+    graph.add_node(node)
+
+    yield_instr_2 = yield_instr.copy()
+    yield_instr_2.opcode = opmap["YIELD_VALUE"]
+    instructions_2 = [yield_instr_2]
+    basic_block_2 = BasicBlock(instructions=instructions_2)
+    node_2 = BasicBlockNode(index=43, basic_block=basic_block_2)
+    graph.add_node(node_2)
+
+    yield_nodes = CFG._get_yield_nodes(graph)
+    assert len(tuple(yield_nodes)) == 2

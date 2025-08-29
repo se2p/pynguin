@@ -360,8 +360,7 @@ def small_control_flow_graph() -> CFG:
     cfg.add_edge(n3, n1)
     cfg.add_edge(n2, n1)
 
-    CFG._insert_dummy_entry_node(cfg)
-    CFG._insert_dummy_exit_node(cfg)
+    CFG._insert_dummy_nodes(cfg)
 
     return cfg
 
@@ -385,8 +384,7 @@ def yield_control_flow_graph() -> CFG:
     cfg.add_edge(y_eq_0_node, jmp_node, label="False")
     cfg.add_edge(yield_y_node, jmp_node)
 
-    CFG._insert_dummy_entry_node(cfg)
-    CFG._insert_dummy_exit_node(cfg)
+    CFG._insert_dummy_nodes(cfg)
 
     return cfg
 
@@ -451,8 +449,7 @@ def larger_control_flow_graph() -> CFG:  # noqa: PLR0914, PLR0915
     cfg.add_edge(n_210, n_110)
     cfg.add_edge(n_110, n_300, label="false")
 
-    CFG._insert_dummy_entry_node(cfg)
-    CFG._insert_dummy_exit_node(cfg)
+    CFG._insert_dummy_nodes(cfg)
 
     return cfg
 
