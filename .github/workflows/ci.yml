@@ -5,16 +5,72 @@
 name: CI
 on: [push, pull_request]
 
+# -----------------------------
+# LINT JOBS: pre-commit & mypy
+# -----------------------------
 jobs:
-  ci:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: "2.1.4"
+
+      # Required for act.
+      # On mac-os: act -j tests --container-architecture linux/amd64 -P macos-latest=catthehacker/ubuntu:act-latest
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with openai,numpy
+
+      - name: Run pre-commit hooks
+        run: poetry run pre-commit run --all-files
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Setup Poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: "2.1.4"
+
+      - name: Ensure poetry is in PATH
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: poetry install --with openai,numpy
+
+      - name: Run mypy
+        run: poetry run mypy
+
+  # -----------------------------
+  # TESTS JOB
+  # -----------------------------
+  tests:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.10']
-        poetry-version: [2.1.4]
-        os: [ubuntu-latest, macos-latest]
+        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        poetry-version: [ "2.1.4" ]
+        os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
-
+    needs: [ pre-commit, mypy ]
     steps:
       - uses: actions/checkout@v4
 
@@ -28,19 +84,72 @@ jobs:
         with:
           poetry-version: ${{ matrix.poetry-version }}
 
-      # Required for act.
-      # On mac-os: act -j ci --container-architecture linux/amd64 -P macos-latest=catthehacker/ubuntu:act-latest
       - name: Ensure poetry is in PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
         run: poetry install --with openai,numpy
 
-      - name: Run the hooks from pre-commit
-        run: poetry run pre-commit run --all-files
+      - name: Run tests with coverage
+        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing --cov-report=xml tests/
 
-      - name: Check typing with mypy
-        run: poetry run mypy
+      - name: Generate XML report
+        run: poetry run coverage xml -o coverage.xml
 
-      - name: Run tests
-        run: poetry run pytest --cov=src --cov=tests --cov-branch --cov-report=term-missing tests/
+      # The upload for hidden files does not work
+      - name: Rename coverage file
+        run: mv .coverage raw-coverage
+
+      - name: Upload coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-${{ matrix.python-version }}
+          path: |
+            raw-coverage
+            coverage.xml
+
+  # -----------------------------
+  # COMBINE COVERAGE JOB
+  # -----------------------------
+  combine-coverage:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverages
+
+      - name: Inspect coverage files
+        run: |
+          cd coverages
+          ls -Ra
+
+      # MacOS coverage cannot be combined due to a different path `/Users/...` instead of `/home/...`
+      - name: Combine Linux coverage reports
+        run: |
+          pip install coverage[toml]
+          coverage combine coverages/coverage-ubuntu-*/raw-coverage
+          coverage report
+          coverage xml -o coverage.xml
+          coverage html -d cov_html
+
+      - name: Upload merged coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-coverage
+          path: |
+            coverage.xml
+            cov_html
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
