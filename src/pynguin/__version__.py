@@ -6,4 +6,4 @@
 #
 """Specifies the version of Pynguin."""
 
-__version__ = "0.42.0.dev"
+__version__ = "0.43.0.dev"

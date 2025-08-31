@@ -22,7 +22,7 @@ jobs:
       - name: Install poetry
         uses: abatilo/actions-poetry@v4
         with:
-          poetry-version: "2.0.1"
+          poetry-version: "2.1.4"
 
       - name: Setup a local virtual environment (if no poetry.toml file)
         run: |
