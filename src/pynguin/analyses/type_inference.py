@@ -10,32 +10,34 @@ from abc import ABC, abstractmethod
 import asyncio
 import builtins
 from collections import OrderedDict
-from datetime import date
-import importlib
+import datetime
 import inspect
 import json
 import logging
 import os
 import textwrap
 import time
-from types import BuiltinFunctionType, ClassMethodDescriptorType, ModuleType
 from typing import Any, TypeAlias
-import typing
-
 from pydantic import SecretStr
-import pynguin.configuration as config
 
-from pynguin.analyses.module import CallableData, TestCluster
-from pynguin.analyses.typesystem import ANY, NONE_TYPE, UNSUPPORTED, InferredSignature, ProperType
+import pynguin.configuration as config
+from pynguin.analyses.typesystem import (
+    ANY,
+    InferredSignature,
+    Instance,
+    ProperType,
+)
+from pynguin.analyses.module import TestCluster
+from pynguin.utils.llm import LLMProvider, OpenAI
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericFunction,
     GenericMethod,
-    TypesOfCallables,
 )
-from pynguin.utils.llm import LLM, LLMProvider, OpenAI
+from pynguin.utils.typetracing import UsageTraceNode
+from types import BuiltinFunctionType, ClassMethodDescriptorType
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,7 +83,10 @@ MODEL = "gpt-4.1-nano-2025-04-14"
 
 
 class InferenceStrategy(ABC):
-    """Abstract base class for all inference strategies that modify the test cluster with inferred types."""
+    """Abstract base class for inference strategies.
+
+    modifying the test cluster with inferred types.
+    """
 
     def __init__(self, test_cluster: TestCluster) -> None:
         """Initialise the strategy with a reference to the test cluster."""
@@ -127,44 +132,30 @@ class LLMInference(InferenceStrategy):
     ):
         _LOGGER.debug("feeding into test cluster: %s", call)
 
-        method_inference = self._parse_json_response(inferences[call])
-        # method_inference = json.loads(inferences[call])
-        parameters: dict[str, ProperType] = {}
-        parameters_for_statistics: dict[str, ProperType] = {}
+        parameters: dict[str, ProperType]
         return_type: ProperType
-        return_type_for_statistics: ProperType
-        for key in method_inference:
-            if key == "return":
-                return_type = self._convert_type_hint_str(method_inference[key])
-                return_type_for_statistics = self._convert_type_hint_str(
-                    method_inference[key], unsupported=UNSUPPORTED
-                )
-                continue
-            parameters[key] = self._convert_type_hint_str(method_inference[key])
-            parameters_for_statistics[key] = self._convert_type_hint_str(
-                method_inference[key], unsupported=UNSUPPORTED
-            )
-        inferred_signature: InferredSignature = InferredSignature(
-            signature=call.inferred_signature.signature,
-            original_parameters=parameters,
-            original_return_type=return_type,
-            type_system=call.inferred_signature.type_system,
-            parameters_for_statistics=parameters_for_statistics,
-            return_type_for_statistics=return_type_for_statistics,
+        parameters, return_type = self._parse_json_response(
+            inferences[call], call.inferred_signature
         )
 
-        inferred_callable = self._create_new_callable_with_inferred_signature(
-            call, inferred_signature
-        )
-        ast = self._test_cluster.function_data_for_accessibles[call].tree
-        desc = self._test_cluster.function_data_for_accessibles[call].description
-        cyclo = self._test_cluster.function_data_for_accessibles[call].cyclomatic_complexity
+        # 1) Update return type (reuse cluster logic: unioning, generators, caches)
+        self._test_cluster.update_return_type(call, return_type)
 
-        data = CallableData(
-            accessible=inferred_callable, tree=ast, description=desc, cyclomatic_complexity=cyclo
-        )
+        # 2) Update parameter knowledge (evidence per param)
+        for pname, ptype in parameters.items():
+            evidence = self._evidence_from_proper_type(ptype, pname)
+            self._test_cluster.update_parameter_knowledge(call, pname, evidence)
+        _LOGGER.debug("updated callable in-place: %s", call)
 
-        self._test_cluster.add_accessible_object_under_test(inferred_callable, data)
+    def _evidence_from_proper_type(
+        self, proper_type: ProperType, param_name: str
+    ) -> UsageTraceNode:
+        """Creates a UsageTraceNode representing the given ProperType."""
+        node = UsageTraceNode(name=param_name)
+
+        node.type_checks.add(proper_type)
+
+        return node
 
     def _create_new_callable_with_inferred_signature(
         self,
@@ -200,7 +191,7 @@ class LLMInference(InferenceStrategy):
 
     def _build_system_prompt(self) -> str:
         """Return the system-level instructions for the LLM."""
-        today = date.today().isoformat()
+        today = datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()
         header = f"{_ROLE_SYSTEM}\n## Static-Analysis Instructions ({today})"
         return f"{header}\n{_SYS_GUIDELINES}"
 
@@ -233,7 +224,7 @@ class LLMInference(InferenceStrategy):
                     t.full_name for t in self._test_cluster.type_system.get_all_types()
                 ]
                 prompt = self._build_prompt(src_code, src_module, src_usable_types)
-            except Exception as exc:
+            except (TypeError, ValueError) as exc:
                 _LOGGER.warning("Skipping %s - unable to build prompt: %s", callable_obj, exc)
                 continue
             prompts[callable_obj] = prompt
@@ -287,109 +278,37 @@ class LLMInference(InferenceStrategy):
             _LOGGER.debug("Using existing event loop (%s) for parallel LLM calls", loop)
             return loop.run_until_complete(coro)
 
-    def _map_to_signature(
-        self, inference: str
-    ) -> dict[GenericCallableAccessibleObject, InferredSignature]:
-        inf = json.loads(inference)
-        params = {}
-        for param in inf:
-            if param == "return":
-                # TODO: handle return type
-                return_type = self._resolve_type(inf[param])
-            params[param] = self._test_cluster.type_system.convert_type_hint(
-                self._resolve_type(inf[param])
-            )
-        _LOGGER.debug("resolved types: %s", params)
+    def _parse_json_response(
+        self, response: str, previous_signature: InferredSignature
+    ) -> tuple[dict[str, ProperType], ProperType]:
+        """Parse the response from the LLM.
 
-    def _parse_json_response(self, response: str) -> json:
+        If parsing fails, returns a json with all parameters and their prior type hints or ANY.
+        """
+        parameters = list(previous_signature.original_parameters)
         try:
-            return json.loads(response)
+            inferences = json.loads(response)
+            combined: dict[str, ProperType] = {}
+            for key in parameters:
+                if key in inferences:
+                    combined[key] = self._convert_type_hint_str(inferences[key])
+                else:
+                    combined[key] = previous_signature.original_parameters[key]
+            if "return" in inferences:
+                return combined, self._convert_type_hint_str(inferences["return"])
+            return combined, previous_signature.original_return_type
         except json.JSONDecodeError as exc:
-            _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
-            return {}
-
-    _BUILTINS: dict[str, Any] = {  # noqa: RUF012
-        t.__name__: t for t in vars(builtins).values() if isinstance(t, type)
-    }
-
-    _TYPING_GLOBALS: dict[str, Any] = {**vars(typing), **_BUILTINS, "None": type(None)}
-
-    def _resolve_type(self, type_str: str) -> Any:
-        """Best-effort conversion from *string* → *type object*."""
-        # TODO: rethink/refactor this logic
-        if type_str == "None":
-            return type(None)
-
-        builtin = self._BUILTINS.get(type_str)
-        if builtin is not None:
-            return builtin
-
-        try:
-            return eval(type_str, self._TYPING_GLOBALS)  # nosec B307 – controlled input
-        except Exception:  # noqa: BLE001
-            pass  # fall through to dotted-path import
-
-        try:
-            module_path, attr_name = type_str.rsplit(".", 1)
-            module: ModuleType = importlib.import_module(module_path)
-            return getattr(module, attr_name)
-        except Exception:  # noqa: BLE001
-            return typing.Any
+            _LOGGER.debug("Failed to parse JSON response from LLM: %s", exc)
+            return (
+                previous_signature.original_parameters,
+                previous_signature.original_return_type,
+            )
 
     def _convert_type_hint_str(self, hint_str: str, unsupported: ProperType = ANY) -> ProperType:
-        """Like convert_type_hint, but takes the hint as a string.
-
-        The string is evaluated (e.g. "int", "tuple[int, str]", "None") in a
-        namespace containing builtins and typing symbols, and then passed
-        to convert_type_hint.
-
-        Args:
-            hint_str: A string encoding of a Python type hint.
-            unsupported: What to return if parsing or conversion fails.
-
-        Returns:
-            A ProperType, just like convert_type_hint would.
-        """
-        # TODO: Rework using testcluster.type_system
-        if not isinstance(hint_str, str):
-            return unsupported
-        s = hint_str.strip()
-        if s.startswith("```") and s.endswith("```"):
-            inner = s.lstrip("`").rstrip("`")
-            inner = inner.split("\n", 1)[-1] if "\n" in inner else inner
-            s = inner.strip()
-        s = s.strip(' `"')
-
-        namespace: dict[str, Any] = {
-            **{k: getattr(builtins, k) for k in dir(builtins)},
-            **{k: getattr(typing, k) for k in dir(typing)},
-        }
-
-        try:
-            module_name = getattr(config.configuration, "module_name", None)
-            if module_name:
-                try:
-                    sut_mod = importlib.import_module(module_name)
-                    namespace.update({
-                        k: v for k, v in sut_mod.__dict__.items() if not k.startswith("__")
-                    })
-                except Exception:
-                    _LOGGER.debug(
-                        "Could not import module %s for eval namespace", module_name, exc_info=True
-                    )
-        except Exception:
-            _LOGGER.debug("Failed to enrich eval namespace with module globals", exc_info=True)
-
-        try:
-            hint = eval(s, namespace)  # nosec B307 – controlled-ish input
-        except Exception:
-            try:
-                hint = self._resolve_type(s)
-            except Exception:
-                return unsupported
-
-        try:
-            return self._test_cluster.type_system.convert_type_hint(hint, unsupported=unsupported)
-        except Exception:
-            _LOGGER.debug("convert_type_hint failed for %s -> %s", s, hint, exc_info=True)
-            return unsupported
+        """Converts from a string of a type hint to a ProperType using the type_system."""
+        types = self._test_cluster.type_system.get_all_types()
+        h = (hint_str or "").strip().split("[", 1)[0].strip().strip('"').strip("'")
+        for t in types:
+            if t.full_name == h or t.full_name.endswith("." + h) or t.full_name.split(".")[-1] == h:
+                return Instance(t)
+        return unsupported
