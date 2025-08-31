@@ -14,6 +14,7 @@ from unittest import mock
 
 import pytest
 
+from pynguin.analyses.type_inference import HintInference, NoInference
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
@@ -106,14 +107,14 @@ def inferred_signature(signature, type_system):
     [
         pytest.param(
             __func_1,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {"x": Instance(TypeInfo(int))},
             Instance(TypeInfo(int)),
         ),
-        pytest.param(__func_1, TypeInferenceStrategy.NONE, {"x": AnyType()}, AnyType()),
+        pytest.param(__func_1, NoInference(), {"x": AnyType()}, AnyType()),
         pytest.param(
             __typed_dummy,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {
                 "a": Instance(TypeInfo(int)),
                 "b": Instance(TypeInfo(float)),
@@ -123,13 +124,13 @@ def inferred_signature(signature, type_system):
         ),
         pytest.param(
             __untyped_dummy,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {"a": AnyType(), "b": AnyType(), "c": AnyType()},
             AnyType(),
         ),
         pytest.param(
             __union_dummy,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {
                 "a": UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(int)))),
                 "b": UnionType((Instance(TypeInfo(float)), Instance(TypeInfo(int)))),
@@ -138,37 +139,37 @@ def inferred_signature(signature, type_system):
         ),
         pytest.param(
             __return_tuple,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {},
             TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(int)))),
         ),
         pytest.param(
             __return_tuple_no_annotation,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {},
             AnyType(),
         ),
         pytest.param(
             __TypedDummy.__init__,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {"a": AnyType()},
             NoneType(),
         ),
         pytest.param(
             __UntypedDummy.__init__,
-            TypeInferenceStrategy.TYPE_HINTS,
+            HintInference(),
             {"a": AnyType()},
             AnyType(),
         ),
         pytest.param(
             __TypedDummy.__init__,
-            TypeInferenceStrategy.NONE,
+            NoInference(),
             {"a": AnyType()},
             AnyType(),
         ),
         pytest.param(
             __UntypedDummy.__init__,
-            TypeInferenceStrategy.NONE,
+            NoInference(),
             {"a": AnyType()},
             AnyType(),
         ),
@@ -176,7 +177,7 @@ def inferred_signature(signature, type_system):
 )
 def test_infer_type_info(func, infer_types, expected_parameters, expected_return):
     type_system = TypeSystem()
-    result = type_system.infer_type_info(func, type_inference_strategy=infer_types)
+    result = type_system.infer_type_info(func, type_inference_provider=infer_types)
     assert result.original_parameters == expected_parameters
     assert result.return_type == expected_return
 

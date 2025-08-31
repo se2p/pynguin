@@ -34,7 +34,14 @@ from typing import Any
 
 import astroid
 
+from pynguin.analyses.type_inference import (
+    HintInference,
+    InferenceProvider,
+    LLMInference,
+    NoInference,
+)
 import pynguin.configuration as config
+from pynguin.utils.llm import LLMProvider
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
@@ -1294,7 +1301,7 @@ def __analyse_function(
     *,
     func_name: str,
     func: FunctionType,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1312,7 +1319,7 @@ def __analyse_function(
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         func,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
     )
     func_ast = get_function_node_from_ast(module_tree, func_name)
     description = get_function_description(func_ast)
@@ -1362,7 +1369,7 @@ def __analyse_function(
 def __analyse_class(
     *,
     type_info: TypeInfo,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     module_tree: astroid.Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1392,7 +1399,7 @@ def __analyse_class(
             type_info,
             test_cluster.type_system.infer_type_info(
                 type_info.raw_type.__init__,  # type: ignore[misc]
-                type_inference_strategy=type_inference_strategy,
+                type_inference_provider=type_inference_provider,
             ),
             raised_exceptions,
         )
@@ -1451,7 +1458,7 @@ def __analyse_class(
             type_info=type_info,
             method_name=method_name,
             method=method,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
@@ -1491,7 +1498,7 @@ def __analyse_method(
     type_info: TypeInfo,
     method_name: str,
     method: (FunctionType | BuiltinFunctionType | WrapperDescriptorType | MethodDescriptorType),
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     class_tree: astroid.ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1514,7 +1521,7 @@ def __analyse_method(
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         method,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
     )
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
@@ -1563,7 +1570,7 @@ class _ParseResults(dict):  # noqa: FURB189
 
 def __resolve_dependencies(
     root_module: _ModuleParseResult,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
 ) -> None:
     parse_results: dict[str, _ModuleParseResult] = _ParseResults()
@@ -1581,7 +1588,7 @@ def __resolve_dependencies(
     __analyse_included_classes(
         module=builtins,
         root_module_name=root_module.module_name,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
         test_cluster=test_cluster,
         seen_classes=seen_classes,
         parse_results=parse_results,
@@ -1612,7 +1619,7 @@ def __resolve_dependencies(
         __analyse_included_classes(
             module=current_module,
             root_module_name=root_module.module_name,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             test_cluster=test_cluster,
             seen_classes=seen_classes,
             parse_results=parse_results,
@@ -1622,7 +1629,7 @@ def __resolve_dependencies(
         __analyse_included_functions(
             module=current_module,
             root_module_name=root_module.module_name,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             test_cluster=test_cluster,
             seen_functions=seen_functions,
             parse_results=parse_results,
@@ -1649,7 +1656,7 @@ def __analyse_included_classes(
     *,
     module: ModuleType,
     root_module_name: str,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_classes: set[type],
@@ -1691,7 +1698,7 @@ def __analyse_included_classes(
 
         __analyse_class(
             type_info=type_info,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             module_tree=results.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
@@ -1716,7 +1723,7 @@ def __analyse_included_functions(
     *,
     module: ModuleType,
     root_module_name: str,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_functions: set,
@@ -1731,7 +1738,7 @@ def __analyse_included_functions(
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             module_tree=parse_results[current.__module__].syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
@@ -1787,9 +1794,12 @@ def analyse_module(
         A test cluster for the module
     """
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
+
+    type_provider = get_type_provider(type_inference_strategy, parsed_module.module)
+
     __resolve_dependencies(
         root_module=parsed_module,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_provider,
         test_cluster=test_cluster,
     )
     return test_cluster
@@ -1809,3 +1819,34 @@ def generate_test_cluster(
         A new test cluster for the given module
     """
     return analyse_module(parse_module(module_name), type_inference_strategy)
+
+
+def get_type_provider(
+    type_inference_strategy: TypeInferenceStrategy, module: ModuleType
+) -> InferenceProvider:
+    """Get the initialised inference provider for the given strategy.
+
+    Args:
+        type_inference_strategy: The type inference strategy to use
+        module: The module to analyse (only needed for LLM-based inference)
+
+    Returns:
+        The type inference provider for the given strategy
+    """
+    match type_inference_strategy:
+        case TypeInferenceStrategy.LLM:
+            callables = [obj for obj in vars(module).values() if inspect.isfunction(obj)]
+            for obj in vars(module).values():
+                if inspect.isclass(obj):
+                    for name, member in inspect.getmembers(obj, inspect.isfunction):
+                        callables.append(member)
+            return LLMInference(callables, LLMProvider.OPENAI)
+        case TypeInferenceStrategy.TYPE_HINTS:
+            return HintInference()
+        case TypeInferenceStrategy.NONE:
+            return NoInference()
+        case _:
+            LOGGER.error(
+                f"Unknown type inference strategy: {type_inference_strategy}. Falling back to NoInference."
+            )
+            return NoInference()

@@ -23,6 +23,7 @@ from pynguin.analyses.module import _ModuleParseResult
 from pynguin.analyses.module import analyse_module
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.module import parse_module
+from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import ProperType
@@ -589,13 +590,16 @@ def test_analyse_function_lambda_no_name():
     # Create a lambda function
     lambda_func = lambda x: x  # noqa: E731
 
+    # create a type inference provider
+    type_inference_provider = HintInference()
+
     # Mock the _get_lambda_assigned_name function to return None
     with patch("pynguin.analyses.module._get_lambda_assigned_name", return_value=None):
         # Call __analyse_function directly
         module.__analyse_function(
             func_name="<lambda>",
             func=lambda_func,
-            type_inference_strategy=TypeInferenceStrategy.TYPE_HINTS,
+            type_inference_provider=type_inference_provider,
             module_tree=None,
             test_cluster=test_cluster,
             add_to_test=True,

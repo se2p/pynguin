@@ -160,10 +160,6 @@ def _setup_test_cluster() -> ModuleTestCluster | None:
     if test_cluster.num_accessible_objects_under_test() == 0:
         _LOGGER.error("SUT contains nothing we can test.")
         return None
-    if config.configuration.type_inference.type_inference_strategy == "LLM":
-        _LOGGER.debug("start LLM type inference")
-        inference = LLMInference(test_cluster, LLMProvider.OPENAI)
-        return inference.infer_types()
     return test_cluster
 
 

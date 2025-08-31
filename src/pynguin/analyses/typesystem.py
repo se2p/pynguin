@@ -38,6 +38,7 @@ import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 from typing_inspect import is_union_type
 
+from pynguin.analyses.type_inference import HintInference, InferenceProvider, LLMInference
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
@@ -1452,44 +1453,18 @@ class TypeSystem:  # noqa: PLR0904
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+        type_inference_provider: InferenceProvider,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
-            type_inference_strategy: Whether to incorporate type annotations
+            type_inference_provider: The provider for type inference
 
         Returns:
             The inference result
-
-        Raises:
-            ConfigurationException: in case an unknown type-inference strategy was
-                selected
         """
-        match type_inference_strategy:
-            case config.TypeInferenceStrategy.TYPE_HINTS:
-                return self.infer_signature(method, self.type_hints_provider)
-            case config.TypeInferenceStrategy.LLM:
-                return self.infer_signature(method, self.type_hints_provider)
-            case config.TypeInferenceStrategy.NONE:
-                return self.infer_signature(method, self.no_type_hints_provider)
-            case _:
-                raise ConfigurationException(
-                    f"Unknown type-inference strategy {type_inference_strategy}"
-                )
-
-    @staticmethod
-    def no_type_hints_provider(_: Callable) -> dict[str, Any]:
-        """Provides no type hints.
-
-        Args:
-            _: Ignored.
-
-        Returns:
-            An empty dict.
-        """
-        return {}
+        return self.infer_signature(method, type_inference_provider.provide)
 
     @staticmethod
     def type_hints_provider(method: Callable) -> dict[str, Any]:
@@ -1552,7 +1527,8 @@ class TypeSystem:  # noqa: PLR0904
         parameters: dict[str, ProperType] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
-        hints_for_statistics: dict = self.type_hints_provider(method)
+        hints_provider_for_statistics = HintInference()
+        hints_for_statistics: dict = hints_provider_for_statistics.provide(method)
         parameters_for_statistics: dict[str, ProperType] = {}
         for param_name in method_signature.parameters:
             if param_name == "self":
