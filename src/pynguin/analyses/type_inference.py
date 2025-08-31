@@ -1,12 +1,6 @@
 # SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 # SPDX-License-Identifier: MIT
-"""Implements type inference strategies for a list of Python callables.
-
-Design:
-- An inference strategy is initialized with a list of `Callable` objects.
-- During initialization, the strategy infers parameter and return types for all callables.
-- `get_inference(callable)` returns a dict mapping parameter names to inferred types plus "return".
-"""
+"""Implements type inference strategies as providers."""
 
 from __future__ import annotations
 
@@ -20,7 +14,7 @@ import logging
 import os
 import time
 import types
-from typing import Any, Callable, Dict, Mapping, Sequence, get_type_hints
+from typing import Any, get_type_hints
 import typing
 
 from pydantic import SecretStr
@@ -29,6 +23,9 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
     get_inference_system_prompt,
 )
 from pynguin.utils.llm import LLMProvider, OpenAI
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +52,13 @@ class LLMInference(InferenceProvider):
         provider: LLMProvider,
         max_parallel_calls: int = 20,
     ) -> None:
+        """Initialises the LLM-based type inference strategy.
+
+        Args:
+            callables: The callables for which we want to infer types.
+            provider: The LLM provider to use.
+            max_parallel_calls: The maximum number of parallel calls to the LLM.
+        """
         self._max_parallel_calls = max_parallel_calls
         self._types = types
         match provider:
@@ -96,15 +100,13 @@ class LLMInference(InferenceProvider):
             try:
                 prompt = TypeInferencePrompt(func)
                 prompts[func] = prompt.build_user_prompt()
-            except Exception as exc:  # noqa: PERF203
-                _LOGGER.exception("Skipping callable %r due to prompt build failure: %s", func, exc)
+            except Exception as exc:  # noqa: BLE001, PERF203
+                _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
         return prompts
 
     # ---- LLM I/O (parallel) ----
     def _send_prompt(self, prompt: str) -> str:
-        res = self._model.chat(prompt)
-        _LOGGER.debug("LLM responded with: %s", res)
-        return res
+        return self._model.chat(prompt)
 
     def _send_prompts(
         self, prompts: Mapping[Callable[..., Any], str]
@@ -148,25 +150,24 @@ class LLMInference(InferenceProvider):
             return asyncio.run(coro)
         except RuntimeError:
             loop = asyncio.get_running_loop()
-            _LOGGER.debug("Using existing event loop (%s) for parallel LLM calls", loop)
             return loop.run_until_complete(coro)
 
     # ---- utilities ----
-    def _prior_types(self, func: Callable[..., Any]) -> Dict[str, str]:
+    def _prior_types(self, func: Callable[..., Any]) -> dict[str, str]:
         """Build a default type map from existing annotations/signature."""
         try:
             sig = inspect.signature(func)
         except (TypeError, ValueError):
             return {"*args": ANY_STR, "**kwargs": ANY_STR}
 
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         params = list(sig.parameters.values())
 
         for i, p in enumerate(params):
             if i == 0 and p.name in {"self", "cls"}:
                 continue
             ann = p.annotation
-            if ann is inspect._empty:
+            if ann is inspect._empty:  # noqa: SLF001
                 result[p.name] = ANY_STR
             else:
                 result[p.name] = self._annotation_to_str(ann)
@@ -177,10 +178,10 @@ class LLMInference(InferenceProvider):
             if getattr(ann, "__module__", "") and getattr(ann, "__qualname__", ""):
                 return f"{ann.__module__}.{ann.__qualname__}"
             return str(ann)
-        except Exception:
+        except Exception:  # noqa: BLE001
             return ANY_STR
 
-    def _parse_json_response(self, response: str, prior: Dict[str, str]) -> Dict[str, str]:
+    def _parse_json_response(self, response: str, prior: dict[str, str]) -> dict[str, str]:
         """Parse LLM JSON; on failure, return `prior` untouched."""
         if not response:
             return prior
@@ -189,7 +190,7 @@ class LLMInference(InferenceProvider):
             if not isinstance(data, dict):
                 return prior
 
-            merged: Dict[str, str] = dict(prior)
+            merged: dict[str, str] = dict(prior)
 
             for k in list(prior.keys()):
                 if k == "return":
@@ -199,7 +200,7 @@ class LLMInference(InferenceProvider):
 
             return merged
         except json.JSONDecodeError as exc:
-            _LOGGER.debug("Failed to parse JSON response from LLM: %s", exc)
+            _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
             return prior
 
     def _as_get_type_hints(
@@ -229,15 +230,15 @@ class LLMInference(InferenceProvider):
         ns["datetime"] = datetime
         ns["pathlib"] = pathlib
 
-        NONE_TYPE = getattr(types, "NoneType", type(None))
+        NONE_TYPE = getattr(types, "NoneType", type(None))  # noqa: N806
 
         def _eval_type(txt: str) -> Any:
             t = (txt or "").strip().strip('"').strip("'")
             if t in {"None", "types.NoneType", "NoneType"}:
                 return NONE_TYPE
             try:
-                return eval(t, {**ns, **(globalns or {})}, localns or {})
-            except Exception:
+                return eval(t, {**ns, **(globalns or {})}, localns or {})  # noqa: S307
+            except Exception:  # noqa: BLE001
                 return ns.get(t, typing.Any)
 
         out: dict[str, Any] = {}

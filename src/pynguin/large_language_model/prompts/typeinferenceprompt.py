@@ -113,12 +113,12 @@ class TypeInferencePrompt:
 
         signatures = []
         for name, member in inspect.getmembers(cls_obj, predicate=inspect.isfunction):
-            if member is func:  # skip the function we started from
+            if member is func:
                 continue
             try:
                 sig = str(inspect.signature(member))
             except (TypeError, ValueError):
-                sig = "(...)"  # fallback if signature inspection fails
+                sig = "(...)"
             signatures.append(f"{name}{sig}")
 
         return ", ".join(signatures)
