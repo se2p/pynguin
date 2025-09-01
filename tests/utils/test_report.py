@@ -4,10 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+# ruff: noqa: E501
 import datetime
 import importlib
 import sys
-import threading
 
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -20,7 +20,7 @@ import pynguin.configuration as config
 
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import CoverageReport
@@ -227,7 +227,9 @@ def sample_report() -> CoverageReport:
     )
 
 
-def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
+def test_get_coverage_report(
+    sample_report, tmp_path: Path, demo_module, subject_properties: SubjectProperties
+):
     target = tmp_path / "foo"
     target.mkdir()
     test_module = "cov_demo"
@@ -247,224 +249,226 @@ def test_get_coverage_report(sample_report, tmp_path: Path, demo_module):
     )
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
 
     config.configuration.statistics_output.coverage_metrics = [
         config.CoverageMetric.LINE,
         config.CoverageMetric.BRANCH,
     ]
-    with install_import_hook(test_module, tracer):
-        importlib.import_module(test_module)
-    executor = MagicMock(tracer=tracer)
-    config.configuration.module_name = test_module
-    assert (
-        get_coverage_report(
-            test_suite,
-            executor,
-            {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
+    with install_import_hook(test_module, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            importlib.import_module(test_module)
+
+        executor = MagicMock(subject_properties=subject_properties)
+        config.configuration.module_name = test_module
+        assert (
+            get_coverage_report(
+                test_suite,
+                executor,
+                {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
+            )
+            == sample_report
         )
-        == sample_report
-    )
 
 
 def test_render_coverage_report(sample_report, tmp_path: Path):
+    expected = [
+        "<!DOCTYPE html>\n",
+        '<html lang="en">\n',
+        "<head>\n",
+        '  <meta charset="UTF-8">\n',
+        "  <title>Pynguin coverage report</title>\n",
+        "  <style>\n",
+        "\n",
+        "pre { line-height: 125%; }\n",
+        "td.linenos .normal { color: #586e75; background-color: #073642; "
+        "padding-left: 5px; padding-right: 5px; }\n",
+        "span.linenos { color: #586e75; background-color: #073642; padding-left: "
+        "5px; padding-right: 5px; }\n",
+        "td.linenos .special { color: #000000; background-color: #ffffc0; "
+        "padding-left: 5px; padding-right: 5px; }\n",
+        "span.linenos.special { color: #000000; background-color: #ffffc0; "
+        "padding-left: 5px; padding-right: 5px; }\n",
+        ".highlight .hll { background-color: #073642 }\n",
+        ".highlight { background: #002b36; color: #839496 }\n",
+        ".highlight .c { color: #586E75; font-style: italic } /* Comment */\n",
+        ".highlight .err { color: #839496; background-color: #DC322F } /* Error */\n",
+        ".highlight .esc { color: #839496 } /* Escape */\n",
+        ".highlight .g { color: #839496 } /* Generic */\n",
+        ".highlight .k { color: #859900 } /* Keyword */\n",
+        ".highlight .l { color: #839496 } /* Literal */\n",
+        ".highlight .n { color: #839496 } /* Name */\n",
+        ".highlight .o { color: #586E75 } /* Operator */\n",
+        ".highlight .x { color: #839496 } /* Other */\n",
+        ".highlight .p { color: #839496 } /* Punctuation */\n",
+        ".highlight .ch { color: #586E75; font-style: italic } /* Comment.Hashbang */\n",
+        ".highlight .cm { color: #586E75; font-style: italic } /* Comment.Multiline */\n",
+        ".highlight .cp { color: #D33682 } /* Comment.Preproc */\n",
+        ".highlight .cpf { color: #586E75 } /* Comment.PreprocFile */\n",
+        ".highlight .c1 { color: #586E75; font-style: italic } /* Comment.Single */\n",
+        ".highlight .cs { color: #586E75; font-style: italic } /* Comment.Special */\n",
+        ".highlight .gd { color: #DC322F } /* Generic.Deleted */\n",
+        ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
+        ".highlight .ges { color: #839496; font-weight: bold; font-style: italic } "
+        "/* Generic.EmphStrong */\n",
+        ".highlight .gr { color: #DC322F } /* Generic.Error */\n",
+        ".highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */\n",
+        ".highlight .gi { color: #859900 } /* Generic.Inserted */\n",
+        ".highlight .go { color: #839496 } /* Generic.Output */\n",
+        ".highlight .gp { color: #268BD2; font-weight: bold } /* Generic.Prompt */\n",
+        ".highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */\n",
+        ".highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */\n",
+        ".highlight .gt { color: #268BD2 } /* Generic.Traceback */\n",
+        ".highlight .kc { color: #2AA198 } /* Keyword.Constant */\n",
+        ".highlight .kd { color: #2AA198 } /* Keyword.Declaration */\n",
+        ".highlight .kn { color: #CB4B16 } /* Keyword.Namespace */\n",
+        ".highlight .kp { color: #859900 } /* Keyword.Pseudo */\n",
+        ".highlight .kr { color: #859900 } /* Keyword.Reserved */\n",
+        ".highlight .kt { color: #B58900 } /* Keyword.Type */\n",
+        ".highlight .ld { color: #839496 } /* Literal.Date */\n",
+        ".highlight .m { color: #2AA198 } /* Literal.Number */\n",
+        ".highlight .s { color: #2AA198 } /* Literal.String */\n",
+        ".highlight .na { color: #839496 } /* Name.Attribute */\n",
+        ".highlight .nb { color: #268BD2 } /* Name.Builtin */\n",
+        ".highlight .nc { color: #268BD2 } /* Name.Class */\n",
+        ".highlight .no { color: #268BD2 } /* Name.Constant */\n",
+        ".highlight .nd { color: #268BD2 } /* Name.Decorator */\n",
+        ".highlight .ni { color: #268BD2 } /* Name.Entity */\n",
+        ".highlight .ne { color: #268BD2 } /* Name.Exception */\n",
+        ".highlight .nf { color: #268BD2 } /* Name.Function */\n",
+        ".highlight .nl { color: #268BD2 } /* Name.Label */\n",
+        ".highlight .nn { color: #268BD2 } /* Name.Namespace */\n",
+        ".highlight .nx { color: #839496 } /* Name.Other */\n",
+        ".highlight .py { color: #839496 } /* Name.Property */\n",
+        ".highlight .nt { color: #268BD2 } /* Name.Tag */\n",
+        ".highlight .nv { color: #268BD2 } /* Name.Variable */\n",
+        ".highlight .ow { color: #859900 } /* Operator.Word */\n",
+        ".highlight .pm { color: #839496 } /* Punctuation.Marker */\n",
+        ".highlight .w { color: #839496 } /* Text.Whitespace */\n",
+        ".highlight .mb { color: #2AA198 } /* Literal.Number.Bin */\n",
+        ".highlight .mf { color: #2AA198 } /* Literal.Number.Float */\n",
+        ".highlight .mh { color: #2AA198 } /* Literal.Number.Hex */\n",
+        ".highlight .mi { color: #2AA198 } /* Literal.Number.Integer */\n",
+        ".highlight .mo { color: #2AA198 } /* Literal.Number.Oct */\n",
+        ".highlight .sa { color: #2AA198 } /* Literal.String.Affix */\n",
+        ".highlight .sb { color: #2AA198 } /* Literal.String.Backtick */\n",
+        ".highlight .sc { color: #2AA198 } /* Literal.String.Char */\n",
+        ".highlight .dl { color: #2AA198 } /* Literal.String.Delimiter */\n",
+        ".highlight .sd { color: #586E75 } /* Literal.String.Doc */\n",
+        ".highlight .s2 { color: #2AA198 } /* Literal.String.Double */\n",
+        ".highlight .se { color: #2AA198 } /* Literal.String.Escape */\n",
+        ".highlight .sh { color: #2AA198 } /* Literal.String.Heredoc */\n",
+        ".highlight .si { color: #2AA198 } /* Literal.String.Interpol */\n",
+        ".highlight .sx { color: #2AA198 } /* Literal.String.Other */\n",
+        ".highlight .sr { color: #CB4B16 } /* Literal.String.Regex */\n",
+        ".highlight .s1 { color: #2AA198 } /* Literal.String.Single */\n",
+        ".highlight .ss { color: #2AA198 } /* Literal.String.Symbol */\n",
+        ".highlight .bp { color: #268BD2 } /* Name.Builtin.Pseudo */\n",
+        ".highlight .fm { color: #268BD2 } /* Name.Function.Magic */\n",
+        ".highlight .vc { color: #268BD2 } /* Name.Variable.Class */\n",
+        ".highlight .vg { color: #268BD2 } /* Name.Variable.Global */\n",
+        ".highlight .vi { color: #268BD2 } /* Name.Variable.Instance */\n",
+        ".highlight .vm { color: #268BD2 } /* Name.Variable.Magic */\n",
+        ".highlight .il { color: #2AA198 } /* Literal.Number.Integer.Long */\n",
+        "\n",
+        "body{\n",
+        "    color: #c9d1d9;\n",
+        "    background: #0d1117;\n",
+        "    font-family: monospace;\n",
+        "    font-size: 16px;\n",
+        "}\n",
+        "\n",
+        "td.lines span{\n",
+        "    display: block;\n",
+        "    padding-right: 8px;\n",
+        "    line-height: 125%;\n",
+        "}\n",
+        "\n",
+        ".notCovered{\n",
+        "    border-right: 5px solid darkred;\n",
+        "}\n",
+        ".partiallyCovered{\n",
+        "    border-right: 5px solid orangered;\n",
+        "}\n",
+        ".fullyCovered{\n",
+        "    border-right: 5px solid darkgreen;\n",
+        "}\n",
+        ".notRelevant{\n",
+        "    border-right: 5px solid transparent;\n",
+        "}\n",
+        "\n",
+        "</style>\n",
+        "</head>\n",
+        "<body>\n",
+        "<h1>Pynguin coverage report for module 'cov_demo'</h1>\n",
+        "<p>Achieved 37.50% branch coverage:\n",
+        "1/2 branchless code objects covered.\n",
+        "2/6 branches covered.</p>\n",
+        "<p>Achieved 25.00% line coverage:\n",
+        "2/8 lines covered. </p>\n",
+        "<table>\n",
+        "    <tbody>\n",
+        "        <tr>\n",
+        '            <td style="width: 40px; text-align: right;" class="lines">\n',
+        '                <span class="partiallyCovered" title="1/2 branchless code '
+        'objects covered; Line 1 covered">1</span>\n',
+        '                  <span class="notCovered" title="Line 2 not covered">2</span>\n',
+        '                  <span class="notRelevant">3</span>\n',
+        '                  <span class="notRelevant">4</span>\n',
+        '                  <span class="fullyCovered" title="Line 5 covered">5</span>\n',
+        '                  <span class="partiallyCovered" title="2/4 branches '
+        'covered; Line 6 not covered">6</span>\n',
+        '                  <span class="notRelevant">7</span>\n',
+        '                  <span class="notRelevant">8</span>\n',
+        '                  <span class="notCovered" title="Line 9 not covered">9</span>\n',
+        '                  <span class="notCovered" title="0/2 branches covered;'
+        ' Line 10 not covered">10</span>\n',
+        '                  <span class="notCovered" title="Line 11 not covered">11</span>\n',
+        '                  <span class="notRelevant">12</span>\n',
+        '                  <span class="notCovered" title="Line 13 not covered">13</span>\n',
+        "                  </td>\n",
+        '            <td style="width: 100%;"><div '
+        'class="highlight"><pre><span></span><span class="k">def</span><span '
+        'class="w"> </span><span class="nf">foo</span><span class="p">():</span>\n',
+        '    <span class="k">pass</span>\n',
+        "\n",
+        "\n",
+        '<span class="k">def</span><span class="w"> </span><span '
+        'class="nf">baz</span><span class="p">():</span>\n',
+        '    <span class="k">assert</span> <span class="mi">3</span> <span '
+        'class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> '
+        '<span class="mi">3</span> <span class="o">==</span> <span '
+        'class="o">-</span><span class="mi">3</span>\n',
+        "\n",
+        "\n",
+        '<span class="k">def</span><span class="w"> </span><span '
+        'class="nf">bar</span><span class="p">(</span><span class="n">x</span><span '
+        'class="p">:</span> <span class="nb">int</span><span class="p">):</span>\n',
+        '    <span class="k">if</span> <span class="n">x</span><span class="p">:</span>\n',
+        '        <span class="k">return</span> <span class="mi">5</span>\n',
+        '    <span class="k">else</span><span class="p">:</span>\n',
+        '        <span class="k">return</span> <span class="mi">6</span>\n',
+        "</pre></div>\n",
+        "</td>\n",
+        "        </tr>\n",
+        "    </tbody>\n",
+        "</table>\n",
+        "<footer>\n",
+        "  <p>Created at 1970-01-01 00:00:00</p>\n",
+        "</footer>\n",
+        "</body>\n",
+        "</html>",
+    ]
+
     report_path = tmp_path / "report.html"
     render_coverage_report(
         sample_report,
         report_path,
         datetime.datetime(1970, 1, 1),  # noqa: DTZ001
     )
+
     with report_path.open(encoding="utf-8", mode="r") as file:
         content = file.readlines()
-        assert content == [
-            "<!DOCTYPE html>\n",
-            '<html lang="en">\n',
-            "<head>\n",
-            '  <meta charset="UTF-8">\n',
-            "  <title>Pynguin coverage report</title>\n",
-            "  <style>\n",
-            "\n",
-            "pre { line-height: 125%; }\n",
-            "td.linenos .normal { color: #586e75; background-color: #073642; "
-            "padding-left: 5px; padding-right: 5px; }\n",
-            "span.linenos { color: #586e75; background-color: #073642; padding-left: "
-            "5px; padding-right: 5px; }\n",
-            "td.linenos .special { color: #000000; background-color: #ffffc0; "
-            "padding-left: 5px; padding-right: 5px; }\n",
-            "span.linenos.special { color: #000000; background-color: #ffffc0; "
-            "padding-left: 5px; padding-right: 5px; }\n",
-            ".highlight .hll { background-color: #073642 }\n",
-            ".highlight { background: #002b36; color: #839496 }\n",
-            ".highlight .c { color: #586E75; font-style: italic } /* Comment */\n",
-            ".highlight .err { color: #839496; background-color: #DC322F } /* Error */\n",
-            ".highlight .esc { color: #839496 } /* Escape */\n",
-            ".highlight .g { color: #839496 } /* Generic */\n",
-            ".highlight .k { color: #859900 } /* Keyword */\n",
-            ".highlight .l { color: #839496 } /* Literal */\n",
-            ".highlight .n { color: #839496 } /* Name */\n",
-            ".highlight .o { color: #586E75 } /* Operator */\n",
-            ".highlight .x { color: #839496 } /* Other */\n",
-            ".highlight .p { color: #839496 } /* Punctuation */\n",
-            ".highlight .ch { color: #586E75; font-style: italic } /* Comment.Hashbang */\n",
-            ".highlight .cm { color: #586E75; font-style: italic } /* Comment.Multiline */\n",
-            ".highlight .cp { color: #D33682 } /* Comment.Preproc */\n",
-            ".highlight .cpf { color: #586E75 } /* Comment.PreprocFile */\n",
-            ".highlight .c1 { color: #586E75; font-style: italic } /* Comment.Single */\n",
-            ".highlight .cs { color: #586E75; font-style: italic } /* Comment.Special */\n",
-            ".highlight .gd { color: #DC322F } /* Generic.Deleted */\n",
-            ".highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */\n",
-            ".highlight .ges { color: #839496; font-weight: bold; font-style: italic } "
-            "/* Generic.EmphStrong */\n",
-            ".highlight .gr { color: #DC322F } /* Generic.Error */\n",
-            ".highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */\n",
-            ".highlight .gi { color: #859900 } /* Generic.Inserted */\n",
-            ".highlight .go { color: #839496 } /* Generic.Output */\n",
-            ".highlight .gp { color: #268BD2; font-weight: bold } /* Generic.Prompt */\n",
-            ".highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */\n",
-            ".highlight .gu { color: #839496; text-decoration: underline } /* "
-            "Generic.Subheading */\n",
-            ".highlight .gt { color: #268BD2 } /* Generic.Traceback */\n",
-            ".highlight .kc { color: #2AA198 } /* Keyword.Constant */\n",
-            ".highlight .kd { color: #2AA198 } /* Keyword.Declaration */\n",
-            ".highlight .kn { color: #CB4B16 } /* Keyword.Namespace */\n",
-            ".highlight .kp { color: #859900 } /* Keyword.Pseudo */\n",
-            ".highlight .kr { color: #859900 } /* Keyword.Reserved */\n",
-            ".highlight .kt { color: #B58900 } /* Keyword.Type */\n",
-            ".highlight .ld { color: #839496 } /* Literal.Date */\n",
-            ".highlight .m { color: #2AA198 } /* Literal.Number */\n",
-            ".highlight .s { color: #2AA198 } /* Literal.String */\n",
-            ".highlight .na { color: #839496 } /* Name.Attribute */\n",
-            ".highlight .nb { color: #268BD2 } /* Name.Builtin */\n",
-            ".highlight .nc { color: #268BD2 } /* Name.Class */\n",
-            ".highlight .no { color: #268BD2 } /* Name.Constant */\n",
-            ".highlight .nd { color: #268BD2 } /* Name.Decorator */\n",
-            ".highlight .ni { color: #268BD2 } /* Name.Entity */\n",
-            ".highlight .ne { color: #268BD2 } /* Name.Exception */\n",
-            ".highlight .nf { color: #268BD2 } /* Name.Function */\n",
-            ".highlight .nl { color: #268BD2 } /* Name.Label */\n",
-            ".highlight .nn { color: #268BD2 } /* Name.Namespace */\n",
-            ".highlight .nx { color: #839496 } /* Name.Other */\n",
-            ".highlight .py { color: #839496 } /* Name.Property */\n",
-            ".highlight .nt { color: #268BD2 } /* Name.Tag */\n",
-            ".highlight .nv { color: #268BD2 } /* Name.Variable */\n",
-            ".highlight .ow { color: #859900 } /* Operator.Word */\n",
-            ".highlight .pm { color: #839496 } /* Punctuation.Marker */\n",
-            ".highlight .w { color: #839496 } /* Text.Whitespace */\n",
-            ".highlight .mb { color: #2AA198 } /* Literal.Number.Bin */\n",
-            ".highlight .mf { color: #2AA198 } /* Literal.Number.Float */\n",
-            ".highlight .mh { color: #2AA198 } /* Literal.Number.Hex */\n",
-            ".highlight .mi { color: #2AA198 } /* Literal.Number.Integer */\n",
-            ".highlight .mo { color: #2AA198 } /* Literal.Number.Oct */\n",
-            ".highlight .sa { color: #2AA198 } /* Literal.String.Affix */\n",
-            ".highlight .sb { color: #2AA198 } /* Literal.String.Backtick */\n",
-            ".highlight .sc { color: #2AA198 } /* Literal.String.Char */\n",
-            ".highlight .dl { color: #2AA198 } /* Literal.String.Delimiter */\n",
-            ".highlight .sd { color: #586E75 } /* Literal.String.Doc */\n",
-            ".highlight .s2 { color: #2AA198 } /* Literal.String.Double */\n",
-            ".highlight .se { color: #2AA198 } /* Literal.String.Escape */\n",
-            ".highlight .sh { color: #2AA198 } /* Literal.String.Heredoc */\n",
-            ".highlight .si { color: #2AA198 } /* Literal.String.Interpol */\n",
-            ".highlight .sx { color: #2AA198 } /* Literal.String.Other */\n",
-            ".highlight .sr { color: #CB4B16 } /* Literal.String.Regex */\n",
-            ".highlight .s1 { color: #2AA198 } /* Literal.String.Single */\n",
-            ".highlight .ss { color: #2AA198 } /* Literal.String.Symbol */\n",
-            ".highlight .bp { color: #268BD2 } /* Name.Builtin.Pseudo */\n",
-            ".highlight .fm { color: #268BD2 } /* Name.Function.Magic */\n",
-            ".highlight .vc { color: #268BD2 } /* Name.Variable.Class */\n",
-            ".highlight .vg { color: #268BD2 } /* Name.Variable.Global */\n",
-            ".highlight .vi { color: #268BD2 } /* Name.Variable.Instance */\n",
-            ".highlight .vm { color: #268BD2 } /* Name.Variable.Magic */\n",
-            ".highlight .il { color: #2AA198 } /* Literal.Number.Integer.Long */\n",
-            "\n",
-            "body{\n",
-            "    color: #c9d1d9;\n",
-            "    background: #0d1117;\n",
-            "    font-family: monospace;\n",
-            "    font-size: 16px;\n",
-            "}\n",
-            "\n",
-            "td.lines span{\n",
-            "    display: block;\n",
-            "    padding-right: 8px;\n",
-            "    line-height: 125%;\n",
-            "}\n",
-            "\n",
-            ".notCovered{\n",
-            "    border-right: 5px solid darkred;\n",
-            "}\n",
-            ".partiallyCovered{\n",
-            "    border-right: 5px solid orangered;\n",
-            "}\n",
-            ".fullyCovered{\n",
-            "    border-right: 5px solid darkgreen;\n",
-            "}\n",
-            ".notRelevant{\n",
-            "    border-right: 5px solid transparent;\n",
-            "}\n",
-            "\n",
-            "</style>\n",
-            "</head>\n",
-            "<body>\n",
-            "<h1>Pynguin coverage report for module 'cov_demo'</h1>\n",
-            "<p>Achieved 37.50% branch coverage:\n",
-            "1/2 branchless code objects covered.\n",
-            "2/6 branches covered.</p>\n",
-            "<p>Achieved 25.00% line coverage:\n",
-            "2/8 lines covered. </p>\n",
-            "<table>\n",
-            "    <tbody>\n",
-            "        <tr>\n",
-            '            <td style="width: 40px; text-align: right;" class="lines">\n',
-            '                <span class="partiallyCovered" title="1/2 branchless code '
-            'objects covered; Line 1 covered">1</span>\n',
-            '                  <span class="notCovered" title="Line 2 not covered">2</span>\n',
-            '                  <span class="notRelevant">3</span>\n',
-            '                  <span class="notRelevant">4</span>\n',
-            '                  <span class="fullyCovered" title="Line 5 covered">5</span>\n',
-            '                  <span class="partiallyCovered" title="2/4 branches '
-            'covered; Line 6 not covered">6</span>\n',
-            '                  <span class="notRelevant">7</span>\n',
-            '                  <span class="notRelevant">8</span>\n',
-            '                  <span class="notCovered" title="Line 9 not covered">9</span>\n',
-            '                  <span class="notCovered" title="0/2 branches covered;'
-            ' Line 10 not covered">10</span>\n',
-            '                  <span class="notCovered" title="Line 11 not covered">11</span>\n',
-            '                  <span class="notRelevant">12</span>\n',
-            '                  <span class="notCovered" title="Line 13 not covered">13</span>\n',
-            "                  </td>\n",
-            '            <td style="width: 100%;"><div '
-            'class="highlight"><pre><span></span><span class="k">def</span><span '
-            'class="w"> </span><span class="nf">foo</span><span class="p">():</span>\n',
-            '    <span class="k">pass</span>\n',
-            "\n",
-            "\n",
-            '<span class="k">def</span><span class="w"> </span><span '
-            'class="nf">baz</span><span class="p">():</span>\n',
-            '    <span class="k">assert</span> <span class="mi">3</span> <span '
-            'class="o">==</span> <span class="mi">5</span> <span class="ow">and</span> '
-            '<span class="mi">3</span> <span class="o">==</span> <span '
-            'class="o">-</span><span class="mi">3</span>\n',
-            "\n",
-            "\n",
-            '<span class="k">def</span><span class="w"> </span><span '
-            'class="nf">bar</span><span class="p">(</span><span class="n">x</span><span '
-            'class="p">:</span> <span class="nb">int</span><span class="p">):</span>\n',
-            '    <span class="k">if</span> <span class="n">x</span><span class="p">:</span>\n',
-            '        <span class="k">return</span> <span class="mi">5</span>\n',
-            '    <span class="k">else</span><span class="p">:</span>\n',
-            '        <span class="k">return</span> <span class="mi">6</span>\n',
-            "</pre></div>\n",
-            "</td>\n",
-            "        </tr>\n",
-            "    </tbody>\n",
-            "</table>\n",
-            "<footer>\n",
-            "  <p>Created at 1970-01-01 00:00:00</p>\n",
-            "</footer>\n",
-            "</body>\n",
-            "</html>",
-        ]
+        assert content == expected
 
 
 def test_get_coverage_report_with_inspect_valueerror():

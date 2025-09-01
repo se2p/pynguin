@@ -6,7 +6,6 @@
 #
 import ast
 import importlib
-import threading
 
 from unittest import mock
 from unittest.mock import MagicMock
@@ -27,7 +26,7 @@ from pynguin.ga.computations import TestSuiteBranchCoverageFunction
 from pynguin.ga.computations import TestSuiteLineCoverageFunction
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
 from pynguin.testcase.execution import SubprocessTestCaseExecutor
 from pynguin.testcase.execution import TestCaseExecutor
@@ -601,16 +600,18 @@ def _setup_integration_test(coverage_metric):
     config.configuration.module_name = "tests.fixtures.branchcoverage.singlebranches"
 
     # Create a real tracer and executor
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
+    subject_properties = SubjectProperties()
 
-    with install_import_hook(config.configuration.module_name, tracer, {coverage_metric}):
-        module = importlib.import_module(config.configuration.module_name)
-        importlib.reload(module)
+    with install_import_hook(
+        config.configuration.module_name, subject_properties, {coverage_metric}
+    ):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(config.configuration.module_name)
+            importlib.reload(module)
         first_function = module.first
 
         # Create a real executor
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
 
         # Create a test case with multiple statements
         cluster = generate_test_cluster(config.configuration.module_name)

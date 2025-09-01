@@ -32,6 +32,9 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Topic :: Education :: Testing",
   "Topic :: Software Development :: Testing",
@@ -46,7 +49,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.11"
+python = ">=3.10, <3.14"
 astroid = "^3.3.9"
 black = "^25.1.0"
 bytecode = "^0.16.1"
@@ -55,7 +58,7 @@ Jinja2 = "^3.1.6"
 networkx = "^3.4"
 multiprocess = "^0.70.16"
 rich = "^14.0.0"
-Pygments = "^2.19.1"
+Pygments = "^2.19.2"
 pytest = "^8.3.5"
 simple-parsing = "^0.1.7"
 typing_inspect = "^0.9.0"
@@ -72,6 +75,7 @@ pre-commit = "^4.2.0"
 ruff = "^0.11"
 types-toml = "^0.10.8.20240310"
 types-pyyaml = "^6.0.12.20250516"
+types-networkx = "^3.4"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = "^8.1.3"
@@ -275,4 +279,19 @@ convention = "google"
   "PT006", # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
   "S101", # Use of `assert` detected
   "SLF001", # Private member accessed
+]
+
+[tool.tox]
+requires = ["tox~=4.28"]
+env_list = ["3.10", "3.11", "3.12", "3.13"]
+
+[tool.tox.env_run_base]
+skip_install = true
+allowlist_externals = ["make", "poetry"]
+commands_pre = [
+  ["poetry", "env", "use", "{env_name}"],
+  ["poetry", "install", "--with", "openai,numpy"],
+]
+commands = [
+  ["make", "check"],
 ]

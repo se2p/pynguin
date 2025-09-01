@@ -12,11 +12,9 @@ import threading
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
-import pynguin.utils.opcodes as op
 
 from pynguin.ga.computations import compute_statement_checked_lines
 from pynguin.slicer.dynamicslicer import SlicingCriterion
-from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
 class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
@@ -26,7 +24,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
     slices of its statements.
     """
 
-    _STORE_INSTRUCTION_OFFSET = 3
+    _STORE_INSTRUCTION_OFFSET = 2
 
     class RemoteSlicingLocalState(threading.local):
         """Stores thread-local slicing data."""
@@ -61,28 +59,10 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
     ) -> None:
         if exception is None:
             assert isinstance(statement, st.VariableCreatingStatement)
-            trace = executor.tracer.get_trace()
-            last_traced_instr = trace.executed_instructions[-2]
-            assert last_traced_instr.opcode == op.STORE_NAME
-
-            code_object = executor.tracer.get_subject_properties().existing_code_objects[
-                last_traced_instr.code_object_id
-            ]
-            slicing_instruction = UniqueInstruction(
-                file=last_traced_instr.file,
-                name=last_traced_instr.name,
-                code_object_id=last_traced_instr.code_object_id,
-                node_id=last_traced_instr.node_id,
-                code_meta=code_object,
-                offset=last_traced_instr.offset,
-                arg=last_traced_instr.argument,
-                lineno=last_traced_instr.lineno,
+            trace = executor.subject_properties.instrumentation_tracer.get_trace()
+            self._slicing_local_state.slicing_criteria[statement.get_position()] = SlicingCriterion(
+                len(trace.executed_instructions) - self._STORE_INSTRUCTION_OFFSET
             )
-            slicing_criterion = SlicingCriterion(
-                slicing_instruction,
-                len(trace.executed_instructions) - self._STORE_INSTRUCTION_OFFSET,
-            )
-            self._slicing_local_state.slicing_criteria[statement.get_position()] = slicing_criterion
 
     def after_test_case_execution(  # noqa: D102
         self,
@@ -93,7 +73,7 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
         checked_lines = compute_statement_checked_lines(
             test_case.statements,
             result.execution_trace,
-            executor.tracer.get_subject_properties(),
+            executor.subject_properties,
             self._slicing_local_state.slicing_criteria,
         )
         result.execution_trace.checked_lines.update(checked_lines)
