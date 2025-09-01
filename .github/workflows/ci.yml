@@ -132,10 +132,10 @@ jobs:
           cd coverages
           ls -Ra
 
-      - name: Combine Linux coverage reports
+      - name: Combine coverage reports
         run: |
           pip install coverage[toml]
-          coverage combine coverages/coverage-ubuntu-*/raw-coverage
+          coverage combine coverages/coverage-*/raw-coverage
           coverage report
           coverage xml -o coverage.xml
           coverage html -d cov_html
