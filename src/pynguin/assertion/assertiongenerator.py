@@ -40,7 +40,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
     from pynguin.instrumentation.tracer import SubjectProperties
-    from pynguin.instrumentation.transformer import InstrumentationTransformer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -267,15 +266,6 @@ class InstrumentedMutationController(ct.MutationController):
             The subject properties.
         """
         return self._transformer.subject_properties
-
-    @property
-    def transformer(self) -> InstrumentationTransformer:
-        """Provides the instrumentation transformer.
-
-        Returns:
-            The instrumentation transformer.
-        """
-        return self._transformer
 
     def create_mutant(self, mutant_ast: ast.Module) -> types.ModuleType:  # noqa: D102
         self.subject_properties.reset()
