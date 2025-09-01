@@ -641,6 +641,9 @@ class ReturnTypeObserver(ExecutionObserver):
         return proper
 
 
+T = TypeVar("T")
+
+
 @dataclasses.dataclass
 class ExecutionResult:
     """Result of an execution."""
@@ -718,8 +721,6 @@ class ExecutionResult:
             self.proper_return_type_trace, deleted_statements
         )
         self.exceptions = ExecutionResult.shift_dict(self.exceptions, deleted_statements)
-
-    T = TypeVar("T")  # noqa: RUF045
 
     @staticmethod
     def shift_dict(to_shift: dict[int, T], deleted_indexes: set[int]) -> dict[int, T]:

@@ -616,14 +616,14 @@ class TypeInfo:
         return name, qualname, module
 
     @staticmethod
-    def to_full_name(typ: type | types.UnionType) -> str:
+    def to_full_name(typ: type | types.UnionType) -> str:  # noqa: D417
         """Get the full name of the given type.
 
-        While type has a __name__, __qualname__ and __module__ attribute, UnionType
-        does not. This caused a crash which is resolved by special handling of UnionType.
+        While `type` has a `__name__`, `__qualname__` and `__module__` attribute, `UnionType`
+        does not. This caused a crash which is resolved by special handling of `UnionType`.
 
         Args:
-            typ: The type for which we want a full name.
+            `typ`: The `type` for which we want a full name.
 
         Returns:
             The fully qualified name
@@ -1341,14 +1341,14 @@ class TypeSystem:  # noqa: PLR0904
         dot = to_pydot(self._graph)
         return dot.to_string()
 
-    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:
-        """Find or create type info for the given type.
+    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:  # noqa: D417
+        """Find or create `TypeInfo` for the given `type`.
 
         Args:
-            typ: The raw type we want to convert.
+            `typ`: The raw `type` we want to convert.
 
         Returns:
-            A type info object.
+            A `TypeInfo` object.
         """
         # TODO(fk) what to do when we encounter a new type?
         found = self._types.get(TypeInfo.to_full_name(typ))

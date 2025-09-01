@@ -417,7 +417,7 @@ class SubjectProperties:
       Tracked in `CodeObjectMetaData` with references to the compiled code, parent,
       control graphs, and a unique ID. Represent the program's structural units.
     - **Predicates**:
-      Decision points within code objects (e.g., `if`, `while`).
+      Decision points within code objects (e.g., ``if``, ``while``).
       Tracked in `PredicateMetaData` with line number, owning code object, and graph node.
       Used for branch coverage and measuring branch distances.
     - **Lines**:
@@ -425,14 +425,14 @@ class SubjectProperties:
       Tracked in `LineMetaData` with file name and line number.
       Used for measuring line coverage.
 
-    Example:
-    ```
-    def example(x):
-        if x > 0:  # Predicate
-            return "pos"
-        return "non-pos"
-    # The function `example` is a Code Object and `x > 0` is a Predicate.
-    ```
+    **Example**::
+
+        def example(x):
+            if x > 0:  # Predicate
+                return "pos"
+            return "non-pos"
+
+        # The function ``example`` is a Code Object and ``x > 0`` is a Predicate.
     """
 
     # TODO(lk): SubjectProperties and ExecutionTracer should be separated
