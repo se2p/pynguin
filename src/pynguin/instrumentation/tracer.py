@@ -42,6 +42,7 @@ import pynguin.utils.typetracing as tt
 
 from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import version
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
@@ -1147,7 +1148,9 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
     def check(self) -> None:  # noqa: D102
         if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+            raise TracingAbortedException(
+                "The current thread shall not be executed anymore, thus I kill it."
+            )
 
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102

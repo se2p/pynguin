@@ -58,3 +58,7 @@ class MinimizationFailureError(Exception):
 
 class CoroutineFoundException(BaseException):
     """Raised when a coroutine is found in the SUT, which Pynguin cannot handle."""
+
+
+class TracingAbortedException(BaseException):
+    """Raised to abort tracing."""

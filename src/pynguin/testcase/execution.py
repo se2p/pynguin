@@ -68,6 +68,7 @@ from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
 from pynguin.utils.exceptions import ModuleNotImportedError
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.mirror import Mirror
 
 
@@ -1120,6 +1121,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 exc_info=True,
             )
             result = ExecutionResult(timeout=True)
+        except TracingAbortedException:
+            return
 
         result_queue.put(result)
 
