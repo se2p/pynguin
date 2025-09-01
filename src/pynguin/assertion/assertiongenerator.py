@@ -25,9 +25,6 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.stats as stat
 
-from pynguin.analyses.constants import ConstantPool
-from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
@@ -256,11 +253,7 @@ class InstrumentedMutationController(ct.MutationController):
         """
         super().__init__(mutant_generator, module_ast, module)
 
-        self._transformer = build_transformer(
-            subject_properties,
-            {config.CoverageMetric.BRANCH},
-            DynamicConstantProvider(ConstantPool(), EmptyConstantProvider(), 0, 1),
-        )
+        self._transformer = build_transformer(subject_properties, set())
 
         # Some debug information
         self._testing = testing
@@ -398,14 +391,9 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
 
         mutant_count = self._mutation_controller.mutant_count()
 
-        with self._mutation_executor.temporarily_add_remote_observer(
-            ato.RemoteAssertionVerificationObserver()
-        ):
-            for tests_mutant_results in self._execute_test_case_on_mutants(
-                test_cases, mutant_count
-            ):
-                for i, test_mutant_results in enumerate(tests_mutant_results):
-                    tests_mutants_results[i].append(test_mutant_results)
+        for tests_mutant_results in self._execute_test_case_on_mutants(test_cases, mutant_count):
+            for i, test_mutant_results in enumerate(tests_mutant_results):
+                tests_mutants_results[i].append(test_mutant_results)
 
         summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
         self.__report_mutation_summary(summary)
