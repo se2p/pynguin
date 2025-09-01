@@ -49,7 +49,7 @@ If you want to contribute to the project, this part of the documentation is for 
    :maxdepth: 3
 
    dev/contributing
-   dev/test_generation_overview
+   dev/overview
    dev/development
 
 The API Documentation

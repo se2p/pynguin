@@ -102,7 +102,7 @@ Dynamic Seeding
 
 Dynamic seeding helps Pynguin generate effective test inputs by collecting values from the code under test.
 
-**Instrumentation**: The :class:`pynguin.instrumentation.instrumentation.DynamicSeedingInstrumentation` class:
+**Instrumentation**: The :class:`pynguin.instrumentation.version.DynamicSeedingInstrumentation` class:
 
 - Instruments comparison operations
 - Adds values from both sides of equality comparisons
