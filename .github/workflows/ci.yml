@@ -127,11 +127,6 @@ jobs:
         with:
           path: coverages
 
-      - name: Inspect coverage files
-        run: |
-          cd coverages
-          ls -Ra
-
       - name: Combine coverage reports
         run: |
           pip install coverage[toml]
