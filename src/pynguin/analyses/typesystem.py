@@ -38,7 +38,7 @@ import networkx as nx
 from networkx.drawing.nx_pydot import to_pydot
 from typing_inspect import is_union_type
 
-from pynguin.analyses.type_inference import HintInference, InferenceProvider, LLMInference
+from pynguin.analyses.type_inference import HintInference, InferenceProvider
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 

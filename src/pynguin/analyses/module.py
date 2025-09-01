@@ -1795,7 +1795,9 @@ def analyse_module(
     """
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
 
-    type_provider = get_type_provider(type_inference_strategy, parsed_module.module)
+    type_provider = get_type_provider(
+        type_inference_strategy, parsed_module.module, test_cluster.type_system
+    )
 
     __resolve_dependencies(
         root_module=parsed_module,
@@ -1822,7 +1824,7 @@ def generate_test_cluster(
 
 
 def get_type_provider(
-    type_inference_strategy: TypeInferenceStrategy, module: ModuleType
+    type_inference_strategy: TypeInferenceStrategy, module: ModuleType, testcluster: TestCluster
 ) -> InferenceProvider:
     """Get the initialised inference provider for the given strategy.
 
@@ -1840,7 +1842,7 @@ def get_type_provider(
                 if inspect.isclass(obj):
                     for name, member in inspect.getmembers(obj, inspect.isfunction):
                         callables.append(member)
-            return LLMInference(callables, LLMProvider.OPENAI)
+            return LLMInference(callables, LLMProvider.OPENAI, testcluster)
         case TypeInferenceStrategy.TYPE_HINTS:
             return HintInference()
         case TypeInferenceStrategy.NONE:

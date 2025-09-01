@@ -159,13 +159,13 @@ def get_inference_system_prompt() -> str:
             Your task is to analyze given Python functions and infer the most accurate parameter types.
             Use your knowledge of programming, common libraries, and best practices to deduce types.
             Use the provided context to make an informed decision about the types of parameters.
-            - Always return results in valid Python type annotation syntax (PEP 484).
-            - Any type should be avoided as inference unless absolutely necessary.
+            - Always return results in full qualified names, e.g., typing.List[int].
+            - *NEVER* use Any or object as a type.
             - only infer types for parameters, exclude self and return types.
             - For string parameters, also infer subtypes if applicable:
-              - NumericString
-              - DelimitedString
-              - XMLString
+              - substring.NumericString
+              - substring.DelimitedString
+              - substring.XMLString
             Return your output in JSON format only.
 
             """

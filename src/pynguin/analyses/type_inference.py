@@ -25,6 +25,7 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
 from pynguin.utils.llm import LLMProvider, OpenAI
 
 if typing.TYPE_CHECKING:
+    from pynguin.analyses.typesystem import TypeSystem
     from collections.abc import Callable, Mapping, Sequence
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,9 +51,10 @@ class LLMInference(InferenceProvider):
         self,
         callables: Sequence[Callable[..., Any]],
         provider: LLMProvider,
+        type_system: TypeSystem,
         max_parallel_calls: int = 20,
     ) -> None:
-        """Initialises the LLM-based type inference strategy.
+        """Initializes the LLM-based type inference strategy.
 
         Args:
             callables: The callables for which we want to infer types.
@@ -71,11 +73,28 @@ class LLMInference(InferenceProvider):
 
         self._callables: list[Callable[..., Any]] = list(callables)
         self._inference_by_callable: OrderedDict[Callable, dict[str, str]] = OrderedDict()
+        self._type_system = type_system
         self._infer_all()
 
     def provide(self, method: Callable) -> dict[str, Any]:
         """Return the provider of the type inference for the given method."""
-        return self._as_get_type_hints(self._inference_by_callable.get(method, {}))
+        string_hints: dict[str, str] = self._inference_by_callable.get(method, {})
+        result: dict[str, Any] = {}
+        for param, type_str in string_hints.items():
+            if param in {"*args", "**kwargs"}:
+                result[param] = Any
+            else:
+                resolved = self._string_to_type(type_str)
+                if resolved is None:
+                    # TODO: add statistics
+                    _LOGGER.debug(
+                        "Could not resolve type string '%s' for parameter '%s'",
+                        type_str,
+                        param,
+                    )
+                    resolved = Any
+                result[param] = resolved
+        return result
 
     def _infer_all(self) -> None:
         """Infer types for all callables in parallel at initialization time."""
@@ -203,49 +222,31 @@ class LLMInference(InferenceProvider):
             _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
             return prior
 
-    def _as_get_type_hints(
-        self,
-        mapping: dict[str, str],
-        *,
-        globalns: dict[str, Any] | None = None,
-        localns: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Convert {'param': 'TypeExpr', ...} -> {'param': <type>, ...}.
+    def _string_to_type(self, type_str: str) -> type | None:
+        """Converts a string to a type object, if possible.
 
-        Behaves like typing.get_type_hints regarding evaluation and None handling.
+        Uses the typeSystem to resolve types.
+
+        Args:
+            type_str: The string representation of the type.
+
+        Returns:
+            The corresponding type object, or None if it cannot be resolved.
         """
-        ns: dict[str, Any] = {}
-
-        ns.update(vars(builtins))
-        ns["builtins"] = builtins
-
-        ns["typing"] = typing
-        for name in getattr(typing, "__all__", ()):
-            ns[name] = getattr(typing, name)
-
-        import collections, collections.abc, datetime, pathlib  # noqa: E401, PLC0415
-
-        ns["collections"] = collections
-        ns["collections.abc"] = collections.abc
-        ns["datetime"] = datetime
-        ns["pathlib"] = pathlib
-
-        NONE_TYPE = getattr(types, "NoneType", type(None))  # noqa: N806
-
-        def _eval_type(txt: str) -> Any:
-            t = (txt or "").strip().strip('"').strip("'")
-            if t in {"None", "types.NoneType", "NoneType"}:
-                return NONE_TYPE
-            try:
-                return eval(t, {**ns, **(globalns or {})}, localns or {})  # noqa: S307
-            except Exception:  # noqa: BLE001
-                return ns.get(t, typing.Any)
-
-        out: dict[str, Any] = {}
-        for name, type_str in mapping.items():
-            out[name] = _eval_type(type_str)
-
-        return out
+        # TODO: deal with e.g.: 'typing.Union[Box, Circle, Counter, Person, Rectangle, RunningTotal, Shape, None]'
+        simple_types = self._type_system.get_all_types()
+        for t in simple_types:
+            if type_str in {t.qualname, t.name}:
+                return t.raw_type
+        types_to_check = [self._type_system.to_type_info(builtins.object)]
+        while types_to_check:
+            current_type = types_to_check.pop(0)
+            if type_str in {current_type.qualname, current_type.name}:
+                return current_type.raw_type
+            for child in self._type_system.get_subclasses(current_type):
+                if child not in types_to_check:
+                    types_to_check.append(child)  # noqa: PERF402
+        return None
 
 
 class NoInference(InferenceProvider):
