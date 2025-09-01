@@ -110,6 +110,7 @@ pynguin = "pynguin.cli:main"
 branch = true
 source = ["src/pynguin", "tests"]
 omit = ["tests/fixtures/*"]
+relative_files = true
 
 [tool.coverage.report]
 exclude_lines = [
