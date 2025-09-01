@@ -23,14 +23,6 @@ class ConstructionFailedException(BaseException):
     """An exception used when error occurs during construction of a test case."""
 
 
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class."""
-
-
-class TestTimeoutException(BaseException):
-    """Raised, if the execution took longer than the configured maximum duration."""
-
-
 class SlicingTimeoutException(BaseException):
     """Raised, if slicing took longer than the configured maximum duration."""
 
