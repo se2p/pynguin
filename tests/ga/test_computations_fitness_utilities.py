@@ -20,10 +20,10 @@ from hypothesis import given
 
 import pynguin.ga.computations as ff
 
-from pynguin.instrumentation.instrumentation import PredicateMetaData
 from pynguin.instrumentation.tracer import ExecutedAssertion
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.instrumentation.tracer import LineMetaData
+from pynguin.instrumentation.tracer import PredicateMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
@@ -60,7 +60,7 @@ def test_default_fitness(trace_mock, subject_properties_mock):
 
 
 def test_fitness_function_diff(trace_mock, subject_properties_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1, 2}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock(), 2: MagicMock()}
     trace_mock.executed_code_objects.add(0)
     assert ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 2.0
 
@@ -118,13 +118,13 @@ def test_branch_coverage_no_branch(subject_properties_mock, trace_mock):
 
 
 def test_branch_coverage_half_code_objects(subject_properties_mock, trace_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock()}
     trace_mock.executed_code_objects.add(0)
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
 def test_branch_coverage_no_code_objects(subject_properties_mock, trace_mock):
-    subject_properties_mock.branch_less_code_objects = {0, 1}
+    subject_properties_mock.existing_code_objects = {0: MagicMock(), 1: MagicMock()}
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
@@ -193,7 +193,7 @@ def test_assertion_checked_coverage_half_covered(subject_properties_mock, trace_
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0
@@ -209,7 +209,7 @@ def test_assertion_checked_coverage_fully_covered(subject_properties_mock, trace
         0: LineMetaData(0, "foo", 0),
         1: LineMetaData(0, "foo", 1),
     }
-    executed_assertion = ExecutedAssertion(0, 1, 2, MagicMock())
+    executed_assertion = ExecutedAssertion(2, MagicMock())
     trace_mock.executed_assertions = [executed_assertion]
     mock_instr_1 = MagicMock()
     mock_instr_1.lineno = 0

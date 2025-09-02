@@ -68,7 +68,6 @@ from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
-from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -1113,8 +1112,14 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         self.__delegate = delegate
         self.__subject_properties = subject_properties
-        self.__code_object_id_to_accessible_objects: dict[int, GenericCallableAccessibleObject] = {
-            json.loads(acc.callable.__code__.co_consts[0])[CODE_OBJECT_ID_KEY]: acc
+
+        existing_code_objects = {
+            metadata.code_object: code_object_id
+            for code_object_id, metadata in subject_properties.existing_code_objects.items()
+        }
+
+        self.__code_object_id_to_accessible_objects = {
+            existing_code_objects[acc.callable.__code__]: acc
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")

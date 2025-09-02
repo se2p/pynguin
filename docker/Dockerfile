@@ -10,8 +10,11 @@
 # Pynguin as parameters to Docker's `run` command.                            #
 ###############################################################################
 
+# The Python version to use
+ARG PYTHON_VERSION=3.10.16
+
 # Build stage for Pynguin
-FROM python:3.10.16-slim-bullseye AS build
+FROM python:${PYTHON_VERSION}-slim-bullseye AS build
 LABEL org.opencontainers.image.authors="Stephan Lukasczyk <stephan@pynguin.eu>"
 ENV POETRY_VERSION "1.8.4"
 
@@ -32,11 +35,11 @@ RUN pip install poetry==$POETRY_VERSION \
 
 
 # Execution stage for Pynguin
-FROM python:3.10.16-slim-bullseye AS execute
+FROM python:${PYTHON_VERSION}-slim-bullseye AS execute
 
 # Set environment variables
 # Set the Pynguin version
-ENV PYNGUIN_VERSION "0.43.0.dev0"
+ENV PYNGUIN_VERSION "0.44.0.dev0"
 # Pynguin requires to set the variable to show it that the user is aware that running
 # Pynguin executes third-party code, which could cause arbitrary harm to the system.
 # By setting the variable, the user acknowledges that they are aware of this.  In the

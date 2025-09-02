@@ -11,6 +11,15 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.43.0
+
+- Add experimental support for Python 3.11, 3.12, and 3.13 (cf. GitHub PR #110, Issue #84)
+- Improve `subprocess` performance (cf. GitHub PR #110)
+- Refactor instrumentation, control-flow graph, tracing, and `DynamicSlicer` (cf. GitHub PR #110)
+- Fix `object_addersses` not reset after each test execution (cf. GitHub PR #110)
+- Fix use of `CODE_OBJECT_ID_KEY` for modules operating on their docstring (cf. GitHub PR #110)
+- Fix edge cases in dynamic slicer (cf. GitHub PR #110)
+
 ## Pynguin 0.42.0
 
 - Add Test Case & Test Suite Minimization and Crashing Test Minimization

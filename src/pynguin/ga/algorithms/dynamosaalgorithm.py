@@ -49,7 +49,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self._goals_manager = _GoalsManager(
             self._test_case_fitness_functions,  # type: ignore[arg-type]
             self._archive,
-            self.executor.tracer.get_subject_properties(),
+            self.executor.subject_properties,
         )
         self._number_of_goals = len(self._test_case_fitness_functions)
         stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
@@ -197,7 +197,7 @@ class _BranchFitnessGraph:
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
         subject_properties: SubjectProperties,
     ):
-        self._graph = nx.DiGraph()
+        self._graph: nx.DiGraph[bg.BranchCoverageTestFitness] = nx.DiGraph()
         # Branch less code objects and branches that are not control dependent on other
         # branches.
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
@@ -222,16 +222,24 @@ class _BranchFitnessGraph:
             code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id
             ]
+
+            nodes_predicates = {
+                meta_data.node: predicate_id
+                for predicate_id, meta_data in subject_properties.existing_predicates.items()
+                if meta_data.code_object_id == predicate_meta_data.code_object_id
+            }
+
             if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
                 self._root_branches.add(fitness)
 
             dependencies = code_object_meta_data.cdg.get_control_dependencies(
-                predicate_meta_data.node
+                predicate_meta_data.node,
             )
+
             for dependency in dependencies:
                 goal = bg.BranchGoal(
                     predicate_meta_data.code_object_id,
-                    dependency.predicate_id,
+                    nodes_predicates[dependency.node],
                     value=dependency.branch_value,
                 )
                 dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)

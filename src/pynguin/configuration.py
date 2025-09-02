@@ -313,9 +313,11 @@ class TestCaseOutputConfiguration:
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""
 
-    minimization: Minimization = Minimization(
-        test_case_minimization_strategy=MinimizationStrategy.CASE,
-        test_case_minimization_direction=MinimizationDirection.BACKWARD,
+    minimization: Minimization = dataclasses.field(
+        default_factory=lambda: Minimization(
+            test_case_minimization_strategy=MinimizationStrategy.CASE,
+            test_case_minimization_direction=MinimizationDirection.BACKWARD,
+        )
     )
     """Strategy to apply for minimizing test cases."""
 

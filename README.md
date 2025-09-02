@@ -66,9 +66,7 @@ please report your experiences in using Pynguin to us.
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.10 (we have not yet tested with Python
-  3.11, there might be some problems due to changed internals regarding the byte-code
-  instrumentation).
+- You have installed Python 3.10 (the support for 3.11, 3.12 and 3.13 is experimental).
 
   **Attention:** Pynguin now requires Python 3.10!  Older versions are no longer
   supported!
