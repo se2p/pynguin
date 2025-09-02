@@ -42,6 +42,7 @@ class InferenceProvider(ABC):
     """Abstract base class for type inference strategies working on callables."""
 
     def __init__(self) -> None:
+        """Initializes the inference provider and its metrics."""
         self._metrics = {
             "failed_inferences": 0,
             "successful_inferences": 0,
@@ -73,6 +74,7 @@ class LLMInference(InferenceProvider):
         Args:
             callables: The callables for which we want to infer types.
             provider: The LLM provider to use.
+            type_system: The type system to use for resolving types.
             max_parallel_calls: The maximum number of parallel calls to the LLM.
         """
         self._max_parallel_calls = max_parallel_calls
@@ -122,7 +124,6 @@ class LLMInference(InferenceProvider):
 
     def _infer_all(self) -> None:
         """Infer types for all callables in parallel at initialization time."""
-
         prompts = self._build_prompt_map(self._callables)
         _LOGGER.debug("Sending %d prompts to LLM", len(prompts))
         raw = self._send_prompts(prompts)

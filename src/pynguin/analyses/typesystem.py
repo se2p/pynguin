@@ -43,7 +43,6 @@ import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES

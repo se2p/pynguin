@@ -1832,7 +1832,7 @@ def get_type_provider(
     Args:
         type_inference_strategy: The type inference strategy to use
         module: The module to analyse (only needed for LLM-based inference)
-        testcluster: The test cluster for which the inference provider is used
+        type_system: The type system to use
 
     Returns:
         The type inference provider for the given strategy
@@ -1842,7 +1842,7 @@ def get_type_provider(
             callables = [obj for obj in vars(module).values() if inspect.isfunction(obj)]
             for obj in vars(module).values():
                 if inspect.isclass(obj):
-                    for name, member in inspect.getmembers(obj, inspect.isfunction):
+                    for _name, member in inspect.getmembers(obj, inspect.isfunction):
                         callables.append(member)
             return LLMInference(callables, LLMProvider.OPENAI, type_system)
         case TypeInferenceStrategy.TYPE_HINTS:
@@ -1851,7 +1851,8 @@ def get_type_provider(
             return NoInference()
         case _:
             LOGGER.error(
-                f"Unknown type inference strategy: {type_inference_strategy}. Falling back to NoInference."
+                "Unknown type inference strategy: '%s'. Falling back to NoInference.",
+                type_inference_strategy,
             )
             return NoInference()
 
