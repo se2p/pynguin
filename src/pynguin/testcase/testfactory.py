@@ -1123,7 +1123,7 @@ class TestFactory:
         if isinstance(parameter_type, StringSubtype):
             return self._create_string_subtype(
                 test_case,
-                cast("StringSubtype", parameter_type),
+                parameter_type,
                 position,
                 recursion_depth,
             )

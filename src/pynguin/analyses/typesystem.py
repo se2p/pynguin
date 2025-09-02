@@ -318,7 +318,6 @@ class TypeVisitor(Generic[T]):
             result of the visit
         """
 
-    @abstractmethod
     def visit_string_subtype(self, left: StringSubtype) -> T:
         """Visit a string subtype.
 
@@ -328,6 +327,7 @@ class TypeVisitor(Generic[T]):
         Returns:
             result of the visit
         """
+        return left.accept(self)
 
 
 class _PartialTypeMatch(TypeVisitor[ProperType | None]):
