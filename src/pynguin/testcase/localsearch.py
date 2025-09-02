@@ -216,7 +216,7 @@ class TestSuiteLocalSearch:
         test_case_local_search = TestCaseLocalSearch(chromosome, executor)
         for i in indices:
             if LocalSearchTimer.get_instance().limit_reached():
-                return
+                break
             objective = LocalSearchObjective(chromosome, i)
             test_case_local_search.local_search(
                 chromosome.get_test_case_chromosome(i),
@@ -224,11 +224,7 @@ class TestSuiteLocalSearch:
                 objective,
             )
         time_dif = int(time.perf_counter()) * 1000 - start_time
-        old_time = stat.output_variables.get(RuntimeVariable.TotalLocalSearchTime.name)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.TotalLocalSearchTime,
-            old_time.value + time_dif if old_time is not None else time_dif,
-        )
+        stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchTime, time_dif)
 
     def double_branch_coverage(self, suite: TestSuiteChromosome) -> None:
         """Expand the test cases that each branch is at least covered twice.

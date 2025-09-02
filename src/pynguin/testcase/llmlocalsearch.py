@@ -56,10 +56,14 @@ class LLMLocalSearch:
         Args:
             position (int): The position of the statement in the test case.
         """
+        failing_test = self.chromosome.is_failing()
         self._logger.debug("Starting local search with LLMs at position %d", position)
         metrics = {config.CoverageMetric.BRANCH, config.CoverageMetric.LINE}
         report = get_coverage_report(self.suite, self.executor, metrics)
         agent = LLMAgent()
+        stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
+        if failing_test:
+            stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCallsFailingTests, 1)
         output = agent.local_search_call(
             position=position,
             test_case_source_code=unparse_test_case(self.chromosome.test_case),
@@ -84,13 +88,13 @@ class LLMLocalSearch:
         if self.objective.has_improved(test_case):
             self._logger.debug("The llm request has improved the fitness of the test case")
             self.chromosome = test_case
-            old_success = stat.output_variables.get(
-                RuntimeVariable.TotalLocalSearchLLMSuccessCalls.name
-            )
-            stat.set_output_variable_for_runtime_variable(
-                RuntimeVariable.TotalLocalSearchLLMSuccessCalls,
-                old_success.value + 1 if old_success is not None else 1,
-            )
+            if not failing_test:
+                stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
+            else:
+                stat.add_to_runtime_variable(
+                    RuntimeVariable.TotalLocalSearchLLMSuccessCallsDespiteFailing, 1
+                )
+
         else:
             self._logger.debug(
                 "The llm request hasn't improved the fitness of the test case, "

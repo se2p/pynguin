@@ -242,6 +242,12 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of LLM local search calls which were successful
     TotalLocalSearchLLMSuccessCalls = "TotalLocalSearchLLMSuccessCalls"
 
+    # Total number of LLM local search calls which were made despite failing test cases
+    TotalLocalSearchLLMCallsFailingTests = "TotalLocalSearchLLMCallsFailingTests"
+
+    # Total number of LLM local search calls which were successful despite failing test cases
+    TotalLocalSearchLLMSuccessCallsDespiteFailing = "TotalLocalSearchLLMSuccessCallsDespiteFailing"
+
     # Total time spent in local search
     TotalLocalSearchTime = "TotalLocalSearchTime"
 
