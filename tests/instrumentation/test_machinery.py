@@ -7,7 +7,6 @@
 import asyncio
 import importlib
 
-from pynguin.instrumentation.machinery import InstrumentationLoader
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 
@@ -117,27 +116,3 @@ def test_pynguin_no_cover_class(subject_properties: SubjectProperties):
             2,
             3,
         }
-
-
-def test_get_excluded_lines_of_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
-        "tests/fixtures/instrumentation/covered.py"
-    )
-
-    assert excluded_lines == {8, 14, 20}
-
-
-def test_get_excluded_lines_of_non_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
-        "tests/fixtures/instrumentation/code.c"
-    )
-
-    assert excluded_lines is None
-
-
-def test_get_excluded_lines_of_non_readable_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
-        "tests/fixtures/instrumentation/non_existent.py"
-    )
-
-    assert excluded_lines is None

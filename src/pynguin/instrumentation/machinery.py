@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import re
 import sys
 
 from importlib.abc import FileLoader
@@ -21,7 +20,6 @@ from importlib.abc import MetaPathFinder
 from importlib.machinery import ModuleSpec
 from importlib.machinery import SourceFileLoader
 from inspect import isclass
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -30,6 +28,8 @@ import pynguin.configuration as config
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import get_no_cover_lines
+from pynguin.analyses.module import parse_module_ast
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
@@ -42,9 +42,6 @@ if TYPE_CHECKING:
 
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.instrumentation.transformer import InstrumentationAdapter
-
-
-PYNGUIN_NO_COVER_PATTERN = re.compile(r"# +?pynguin: +?no +?cover")
 
 
 class InstrumentationLoader(SourceFileLoader):
@@ -77,34 +74,15 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast("CodeType", super().get_code(fullname))
         assert to_instrument is not None, "Failed to get code object of module."
-        return self._transformer.instrument_module(
-            to_instrument,
-            self._get_excluded_code_object_lines(to_instrument.co_filename),
-        )
-
-    @staticmethod
-    def _get_excluded_code_object_lines(module_path: str) -> set[int] | None:
-        """Get the code object lines that should be excluded from instrumentation.
-
-        Args:
-            module_path: The path to the module
-
-        Returns:
-            A set of code object lines that should be excluded from instrumentation,
-            or None if the module is not a readable Python file.
-        """
-        if not module_path.endswith(".py"):
-            return None
 
         try:
-            with Path(module_path).open(encoding="utf-8") as file:
-                return {
-                    lineno
-                    for lineno, line in enumerate(file, start=1)
-                    if PYNGUIN_NO_COVER_PATTERN.search(line) is not None
-                }
-        except FileNotFoundError:
-            return None
+            _, source_code = parse_module_ast(fullname, to_instrument.co_filename)
+        except BaseException:  # noqa: BLE001
+            no_cover_lines = None
+        else:
+            no_cover_lines = get_no_cover_lines(source_code)
+
+        return self._transformer.instrument_module(to_instrument, no_cover_lines)
 
 
 def build_transformer(

@@ -677,13 +677,13 @@ class InstrumentationTransformer:
     def instrument_module(
         self,
         module_code: CodeType,
-        excluded_code_object_lines: set[int] | None = None,
+        no_cover_lines: set[int] | None = None,
     ) -> CodeType:
         """Instrument the given code object of a module.
 
         Args:
             module_code: The code object of the module.
-            excluded_code_object_lines: The code object lines to exclude from instrumentation.
+            no_cover_lines: The set of lines that are marked with a "no cover" comment.
 
         Returns:
             The instrumented code object of the module.
@@ -694,18 +694,18 @@ class InstrumentationTransformer:
                 # instrumented this code object.
                 raise AssertionError("Tried to instrument already instrumented module.")
 
-        return self._instrument_code_recursive(module_code, excluded_code_object_lines)
+        return self._instrument_code_recursive(module_code, no_cover_lines)
 
     def _instrument_code_recursive(
         self,
         code: CodeType,
-        excluded_code_object_lines: set[int] | None,
+        no_cover_lines: set[int] | None,
         parent_code_object_id: int | None = None,
     ) -> CodeType:
         if (
-            excluded_code_object_lines is not None
+            no_cover_lines is not None
             and code.co_name != "<module>"  # modules must be instrumented
-            and code.co_firstlineno in excluded_code_object_lines
+            and code.co_firstlineno in no_cover_lines
         ):
             self._logger.debug("Skipping instrumentation of %s", code.co_name)
             return code
@@ -727,7 +727,7 @@ class InstrumentationTransformer:
 
         code_object = instrumented_code.replace(
             co_consts=tuple(
-                self._instrument_code_recursive(const, excluded_code_object_lines, code_object_id)
+                self._instrument_code_recursive(const, no_cover_lines, code_object_id)
                 if isinstance(const, CodeType)
                 else const
                 for const in instrumented_code.co_consts

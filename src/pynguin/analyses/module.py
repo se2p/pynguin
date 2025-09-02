@@ -42,6 +42,8 @@ import pynguin.utils.typetracing as tt
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
+import re
+
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import FunctionDescription
 from pynguin.analyses.syntaxtree import astroid_to_ast
@@ -93,6 +95,8 @@ if typing.TYPE_CHECKING:
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
 LOGGER = logging.getLogger(__name__)
+
+NO_COVER_PATTERN = re.compile(r"# +?(pynguin|pragma): +?no +?cover")
 
 # A set of modules that shall be blacklisted from analysis (keep them sorted to ease
 # future manipulations or looking up module names of this set!!!):
@@ -438,6 +442,34 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
+def get_no_cover_lines(source_code: str) -> set[int]:
+    """Get the lines that are marked with a "no cover" comment.
+
+    Returns:
+        The set of lines that are marked with a "no cover" comment.
+    """
+    return {
+        lineno
+        for lineno, line in enumerate(source_code.splitlines(), start=1)
+        if NO_COVER_PATTERN.search(line) is not None
+    }
+
+
+def parse_module_ast(module_name: str, module_path: str) -> tuple[astroid.Module, str]:
+    """Parses the AST of a module and returns it along with the source code.
+
+    Args:
+        module_name: The fully-qualified name of the module
+        module_path: The path to the module
+
+    Returns:
+        A tuple containing the AST and the source code
+    """
+    source_code = Path(module_path).read_text(encoding="utf-8")
+    syntax_tree = astroid.parse(code=source_code, module_name=module_name, path=module_path)
+    return syntax_tree, source_code
+
+
 def parse_module(module_name: str) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
@@ -456,21 +488,17 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     syntax_tree: astroid.Module | None = None
     linenos: int = -1
     try:
-        source_file = inspect.getsourcefile(module)
-        source_code = inspect.getsource(module)
-        syntax_tree = astroid.parse(
-            code=source_code,
-            module_name=module_name,
-            path=source_file if source_file is not None else "",
-        )
-        linenos = len(source_code.splitlines())
-
-    except (TypeError, OSError, RuntimeError) as error:
+        module_path = inspect.getsourcefile(module)
+        assert module_path is not None, f"Could not determine the path of module {module_name}"
+        syntax_tree, source_code = parse_module_ast(module_name, module_path)
+    except BaseException as error:  # noqa: BLE001
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
+    else:
+        linenos = len(source_code.splitlines())
 
     return _ModuleParseResult(
         linenos=linenos,
