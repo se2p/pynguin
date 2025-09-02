@@ -33,38 +33,46 @@ class TypeInferencePrompt:
         """Build the complete prompt for type inference."""
         template = textwrap.dedent(
             """
-            Use this context to infer parameter types for the given function.
+            You are tasked with inferring parameter types for a given Python function.
 
-            This is the name of the parent class:
+            ## Module Context
+            - Imports in the module:
+            {imports}
+
+            - Parent class name:
             {parent_class}
 
-            This is a list of all classes in the same module:
+            - All classes in the same module:
             {all_classes}
 
-            Function signature:
+            ## Target Function
+            - Function signature:
             {signature}
 
-            Infer the parameter types for the following Python function.
-
-            Docstring:
+            - Docstring:
             {docstring}
 
-            Function body:
+            - Function body:
             {body}
 
-            These are all function signatures in the same class:
+            ## Additional Context
+            - Other function signatures in the same class:
             {other_functions}
 
-            Return your answer as JSON in the following format:
+            ## Task
+            Infer the parameter types for the target function above.
+
+            Return your answer **only** as JSON in the following format:
             {{
-                    "param1": "Type",
-                    "param2": "Type"
+                "param1": <qualname of type>,
+                "param2": <qualname of type>
             }}
             """
         ).lstrip()
 
         formatted_template = template.format(
             parent_class=self._get_parent_class_name(self.callable_obj),
+            imports=self._get_imports(self.callable_obj),
             all_classes=self._get_all_classes_in_module(),
             other_functions=self._get_all_function_signatures_in_class(self.callable_obj),
             signature=self._get_signature_str(self.callable_obj),
@@ -149,6 +157,19 @@ class TypeInferencePrompt:
 
         return ", ".join(all_classes) if all_classes else "No classes found."
 
+    def _get_imports(self, func: Callable[..., Any]) -> str:
+        module = inspect.getmodule(func)
+        if module is None:
+            return "no imports found"
+        try:
+            source = inspect.getsource(module)
+        except (OSError, TypeError):
+            return "there was an error retrieving the imports"
+        import_lines = [
+            line for line in source.splitlines() if line.startswith(("import ", "from "))
+        ]
+        return "\n".join(import_lines)
+
 
 @staticmethod
 def get_inference_system_prompt() -> str:
@@ -156,16 +177,15 @@ def get_inference_system_prompt() -> str:
     guidelines = textwrap.dedent(
         """
             You are a Python type inference engine.
-            Your task is to analyze given Python functions and infer the most accurate parameter types.
-            Use your knowledge of programming, common libraries, and best practices to deduce types.
+            Your task is to analyze given Python functions and infer the parameter types.
+            Think step by step. Before inferring types, analyze the given context.
+            Reason about each parameter's type based on usage and context.
+            Keep this reasoning to yourself and do not include it in the final output.
+            Use your knowledge of programming, common libraries, and best practices to infer types.
             Use the provided context to make an informed decision about the types of parameters.
             - Always return results in full qualified names, e.g., typing.List[int].
             - *NEVER* use Any or object as a type.
             - only infer types for parameters, exclude self and return types.
-            - For string parameters, also infer subtypes if applicable:
-              - substring.NumericString
-              - substring.DelimitedString
-              - substring.XMLString
             Return your output in JSON format only.
 
             """

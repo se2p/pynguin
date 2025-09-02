@@ -114,6 +114,20 @@ class RuntimeVariable(str, enum.Enum):
     # Number of constructors
     NumberOfConstructors = "NumberOfConstructors"
 
+    # ========= Values collected during analyses =========
+
+    # Time spent sending LLM requests for type inference
+    TypeInferenceLLMTime = "TypeInferenceLLMTime"
+
+    # Number of LLM requests for type inference
+    TypeInferenceLLMCalls = "TypeInferenceLLMCalls"
+
+    # Number of failed parameter LLM type inferences
+    TypeInferenceFailedParameters = "TypeInferenceFailedParameters"
+
+    # Number of parameters for which a type could be inferred
+    TypeInferenceInferredParameters = "TypeInferenceInferredParameters"
+
     # ========= Values collected during search =========
 
     # Obtained coverage (of the chosen testing criterion(s)) at different points in time

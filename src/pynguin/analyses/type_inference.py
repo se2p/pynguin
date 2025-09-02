@@ -13,6 +13,8 @@ import inspect
 import json
 import logging
 import os
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+import pynguin.utils.statistics.stats as stat
 import time
 import types
 from typing import Any, get_type_hints
@@ -35,6 +37,7 @@ OPENAI_API_KEY = SecretStr(os.environ.get("OPENAI_API_KEY", ""))
 TEMPERATURE = 0.2
 MODEL = "gpt-4.1-nano-2025-04-14"
 ANY_STR = "typing.Any"
+DEFAULT_MAX_PARALLEL_CALLS = 20
 
 
 class InferenceProvider(ABC):
@@ -53,7 +56,7 @@ class LLMInference(InferenceProvider):
         callables: Sequence[Callable[..., Any]],
         provider: LLMProvider,
         type_system: TypeSystem,
-        max_parallel_calls: int = 20,
+        max_parallel_calls: int = DEFAULT_MAX_PARALLEL_CALLS,
     ) -> None:
         """Initializes the LLM-based type inference strategy.
 
@@ -64,6 +67,10 @@ class LLMInference(InferenceProvider):
         """
         self._max_parallel_calls = max_parallel_calls
         self._types = types
+        self._metrics = {
+            "failed_inferences": 0,
+            "successful_inferences": 0,
+        }
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
@@ -87,20 +94,29 @@ class LLMInference(InferenceProvider):
             else:
                 resolved = self._string_to_type(type_str)
                 if resolved is None:
-                    # TODO: add statistics
                     _LOGGER.debug(
                         "Could not resolve type string '%s' for parameter '%s'",
                         type_str,
                         param,
                     )
-                    resolved = Any
+                    self._metrics["failed_inferences"] += 1
+                    resolved = builtins.object
+                else:
+                    self._metrics["successful_inferences"] += 1
                 result[param] = resolved
+        stat.track_output_variable(
+            RuntimeVariable.TypeInferenceInferredParameters, self._metrics["successful_inferences"]
+        )
+        stat.track_output_variable(
+            RuntimeVariable.TypeInferenceFailedParameters, self._metrics["failed_inferences"]
+        )
         return result
 
     def _infer_all(self) -> None:
         """Infer types for all callables in parallel at initialization time."""
         start = time.time()
         prompts = self._build_prompt_map(self._callables)
+        stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, len(prompts))
         raw = self._send_prompts(prompts)
         _LOGGER.debug("LLM raw responses collected for %d callables", len(raw))
 
@@ -109,6 +125,7 @@ class LLMInference(InferenceProvider):
             parsed = self._parse_json_response(response, prior)
             self._inference_by_callable[func] = parsed
 
+        stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, time.time() - start)
         _LOGGER.debug("Inference completed in %.3fs", time.time() - start)
 
     # ---- prompt building ----
@@ -289,6 +306,7 @@ class LLMInference(InferenceProvider):
         for t in simple_types:
             if type_str in {t.qualname, t.name}:
                 return t.raw_type
+        # Could not resolve the type
         return None
 
     # ---- type string parsing helpers ----
