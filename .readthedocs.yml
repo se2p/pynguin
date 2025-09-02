@@ -17,3 +17,9 @@ build:
 
 sphinx:
   configuration: docs/conf.py
+
+python:
+  install:
+    - method: poetry
+      with:
+        - docs
