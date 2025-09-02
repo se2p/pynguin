@@ -13,8 +13,6 @@ import inspect
 import json
 import logging
 import os
-from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-import pynguin.utils.statistics.stats as stat
 import time
 import types
 from typing import Any, get_type_hints
@@ -43,9 +41,21 @@ DEFAULT_MAX_PARALLEL_CALLS = 20
 class InferenceProvider(ABC):
     """Abstract base class for type inference strategies working on callables."""
 
+    def __init__(self) -> None:
+        self._metrics = {
+            "failed_inferences": 0,
+            "successful_inferences": 0,
+            "sent_requests": 0,
+            "total_setup_time": 0,
+        }
+
     @abstractmethod
     def provide(self, method: Callable) -> dict[str, Any]:
         """Return the provider of the type inference for the given method."""
+
+    def get_metrics(self) -> dict[str, Any]:
+        """Return metrics about the inference process."""
+        return self._metrics
 
 
 class LLMInference(InferenceProvider):
@@ -67,10 +77,7 @@ class LLMInference(InferenceProvider):
         """
         self._max_parallel_calls = max_parallel_calls
         self._types = types
-        self._metrics = {
-            "failed_inferences": 0,
-            "successful_inferences": 0,
-        }
+
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
@@ -82,7 +89,14 @@ class LLMInference(InferenceProvider):
         self._callables: list[Callable[..., Any]] = list(callables)
         self._inference_by_callable: OrderedDict[Callable, dict[str, str]] = OrderedDict()
         self._type_system = type_system
+        super().__init__()
+        start = time.time()
         self._infer_all()
+        self._metrics["total_setup_time"] = time.time() - start
+        _LOGGER.debug(
+            "Inference completed in %.3fs",
+            self._metrics["total_setup_time"],
+        )
 
     def provide(self, method: Callable) -> dict[str, Any]:
         """Return the provider of the type inference for the given method."""
@@ -104,29 +118,20 @@ class LLMInference(InferenceProvider):
                 else:
                     self._metrics["successful_inferences"] += 1
                 result[param] = resolved
-        stat.track_output_variable(
-            RuntimeVariable.TypeInferenceInferredParameters, self._metrics["successful_inferences"]
-        )
-        stat.track_output_variable(
-            RuntimeVariable.TypeInferenceFailedParameters, self._metrics["failed_inferences"]
-        )
         return result
 
     def _infer_all(self) -> None:
         """Infer types for all callables in parallel at initialization time."""
-        start = time.time()
-        prompts = self._build_prompt_map(self._callables)
-        stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, len(prompts))
-        raw = self._send_prompts(prompts)
-        _LOGGER.debug("LLM raw responses collected for %d callables", len(raw))
 
+        prompts = self._build_prompt_map(self._callables)
+        _LOGGER.debug("Sending %d prompts to LLM", len(prompts))
+        raw = self._send_prompts(prompts)
+        _LOGGER.debug("Received %d responses from LLM", len(raw))
+        self._metrics["sent_requests"] = len(raw)
         for func, response in raw.items():
             prior = self._prior_types(func)
             parsed = self._parse_json_response(response, prior)
             self._inference_by_callable[func] = parsed
-
-        stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, time.time() - start)
-        _LOGGER.debug("Inference completed in %.3fs", time.time() - start)
 
     # ---- prompt building ----
     def _build_prompt_map(
@@ -269,8 +274,7 @@ class LLMInference(InferenceProvider):
                 key_type = self._string_to_type(inner_types[0]) or builtins.object
                 value_type = self._string_to_type(inner_types[1]) or builtins.object
                 return dict[key_type, value_type]
-            else:
-                return dict[builtins.object, builtins.object]
+            return dict[builtins.object, builtins.object]
         if self._is_set(type_str):
             # type_str could be e.g. "Set[int]", "set[int]", "typing.Set[int]"
             inner_type = self._get_list_inner_type(type_str)

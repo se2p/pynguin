@@ -1804,6 +1804,7 @@ def analyse_module(
         type_inference_provider=type_provider,
         test_cluster=test_cluster,
     )
+    collect_provider_metrics(type_provider)
     return test_cluster
 
 
@@ -1824,7 +1825,7 @@ def generate_test_cluster(
 
 
 def get_type_provider(
-    type_inference_strategy: TypeInferenceStrategy, module: ModuleType, testcluster: TestCluster
+    type_inference_strategy: TypeInferenceStrategy, module: ModuleType, type_system: TypeSystem
 ) -> InferenceProvider:
     """Get the initialised inference provider for the given strategy.
 
@@ -1843,7 +1844,7 @@ def get_type_provider(
                 if inspect.isclass(obj):
                     for name, member in inspect.getmembers(obj, inspect.isfunction):
                         callables.append(member)
-            return LLMInference(callables, LLMProvider.OPENAI, testcluster)
+            return LLMInference(callables, LLMProvider.OPENAI, type_system)
         case TypeInferenceStrategy.TYPE_HINTS:
             return HintInference()
         case TypeInferenceStrategy.NONE:
@@ -1853,3 +1854,21 @@ def get_type_provider(
                 f"Unknown type inference strategy: {type_inference_strategy}. Falling back to NoInference."
             )
             return NoInference()
+
+
+def collect_provider_metrics(typ_provider: InferenceProvider):
+    """Collects metrics from the given type inference provider.
+
+    currently, this only works for LLM-based providers.
+    """
+    metrics = typ_provider.get_metrics()
+    successful_inferences = metrics.get("successful_inferences", 0)
+    failed_inferences = metrics.get("failed_inferences", 0)
+    sent_requests = metrics.get("sent_requests", 0)
+    total_setup_time = metrics.get("total_setup_time", 0.0)
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceInferredParameters, successful_inferences
+    )
+    stat.track_output_variable(RuntimeVariable.TypeInferenceFailedParameters, failed_inferences)
+    stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, sent_requests)
+    stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, total_setup_time)
