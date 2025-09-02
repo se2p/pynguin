@@ -79,30 +79,32 @@ class InstrumentationLoader(SourceFileLoader):
         assert to_instrument is not None, "Failed to get code object of module."
         return self._transformer.instrument_module(
             to_instrument,
-            self._get_excluded_lines(to_instrument),
+            self._get_excluded_lines(to_instrument.co_filename),
         )
 
-    def _get_excluded_lines(self, code: CodeType) -> set[int]:
+    @staticmethod
+    def _get_excluded_lines(module_path: str) -> set[int] | None:
         """Get the lines that should be excluded from instrumentation.
 
         Args:
-            code: The code object of the module
+            module_path: The path to the module
 
         Returns:
-            A set of line numbers that should be excluded from instrumentation.
+            A set of line numbers that should be excluded from instrumentation,
+            or None if the module is not a readable Python file.
         """
-        if not code.co_filename.endswith(".py"):
-            return set()
+        if not module_path.endswith(".py"):
+            return None
 
         try:
-            with Path(code.co_filename).open(encoding="utf-8") as file:
+            with Path(module_path).open(encoding="utf-8") as file:
                 return {
                     lineno
                     for lineno, line in enumerate(file, start=1)
                     if PYNGUIN_NO_COVER_PATTERN.search(line) is not None
                 }
         except FileNotFoundError:
-            return set()
+            return None
 
 
 def build_transformer(

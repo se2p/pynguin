@@ -7,6 +7,9 @@
 import asyncio
 import importlib
 
+from unittest.mock import MagicMock
+
+from pynguin.instrumentation.machinery import InstrumentationLoader
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 
@@ -44,6 +47,14 @@ def test_module_instrumentation_integration(subject_properties: SubjectPropertie
         )
 
 
+async def run_async_generator(gen):
+    """Small helper to execute async generator."""
+    the_sum = 0
+    async for i in gen:
+        the_sum += i
+    return the_sum
+
+
 def test_pynguin_no_cover(subject_properties: SubjectProperties):
     with install_import_hook("tests.fixtures.instrumentation.covered", subject_properties):
         with subject_properties.instrumentation_tracer:
@@ -66,9 +77,25 @@ def test_pynguin_no_cover(subject_properties: SubjectProperties):
         assert not subject_properties.existing_predicates
 
 
-async def run_async_generator(gen):
-    """Small helper to execute async generator."""
-    the_sum = 0
-    async for i in gen:
-        the_sum += i
-    return the_sum
+def test_get_excluded_lines_of_python_file():
+    loader = InstrumentationLoader(MagicMock(), MagicMock(), MagicMock())
+
+    excluded_lines = loader._get_excluded_lines("tests/fixtures/instrumentation/covered.py")
+
+    assert excluded_lines == {8, 14, 20}
+
+
+def test_get_excluded_lines_of_non_python_file():
+    loader = InstrumentationLoader(MagicMock(), MagicMock(), MagicMock())
+
+    excluded_lines = loader._get_excluded_lines("code.c")
+
+    assert excluded_lines is None
+
+
+def test_get_excluded_lines_of_non_readable_python_file():
+    loader = InstrumentationLoader(MagicMock(), MagicMock(), MagicMock())
+
+    excluded_lines = loader._get_excluded_lines("tests/fixtures/instrumentation/non_existent.py")
+
+    assert excluded_lines is None
