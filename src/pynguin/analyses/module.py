@@ -1831,6 +1831,7 @@ def get_type_provider(
     Args:
         type_inference_strategy: The type inference strategy to use
         module: The module to analyse (only needed for LLM-based inference)
+        testcluster: The test cluster for which the inference provider is used
 
     Returns:
         The type inference provider for the given strategy

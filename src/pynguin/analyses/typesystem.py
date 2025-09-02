@@ -1381,7 +1381,6 @@ class TypeSystem:  # noqa: PLR0904
         """
         return self._attribute_map[attr]
 
-    @functools.lru_cache(maxsize=1)
     def get_all_types(self) -> list[TypeInfo]:
         """Provides a list of all known types.
 
