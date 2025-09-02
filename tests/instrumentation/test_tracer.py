@@ -21,6 +21,7 @@ from pynguin.instrumentation.tracer import LineMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.tracer import _le  # noqa: PLC2701
 from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 
 
@@ -529,7 +530,7 @@ def test_code_object_executed_other_thread(subject_properties: SubjectProperties
     subject_properties.register_code_object(0, MagicMock())
 
     def wrapper(*args):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TracingAbortedException):
             subject_properties.instrumentation_tracer.executed_code_object(*args)
 
     thread = threading.Thread(target=wrapper, args=(0,))
@@ -548,7 +549,7 @@ def test_bool_predicate_executed_other_thread(subject_properties: SubjectPropert
     subject_properties.register_code_object(1, MagicMock(code_object_id=0))
 
     def wrapper(*args):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TracingAbortedException):
             subject_properties.instrumentation_tracer.executed_bool_predicate(*args)
 
     thread = threading.Thread(target=wrapper, args=(True, 0))
@@ -565,7 +566,7 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
     subject_properties.register_code_object(1, MagicMock(code_object_id=0))
 
     def wrapper(*args):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(TracingAbortedException):
             subject_properties.instrumentation_tracer.executed_compare_predicate(*args)
 
     thread = threading.Thread(target=wrapper, args=(True, False, PynguinCompare.EQ, 0))
@@ -588,5 +589,5 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
     ],
 )
 def test_killed_by_thread_guard(method, inputs, subject_properties: SubjectProperties):
-    with pytest.raises(RuntimeError):
+    with pytest.raises(TracingAbortedException):
         getattr(subject_properties.instrumentation_tracer, method)(*inputs)
