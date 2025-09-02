@@ -18,13 +18,13 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.assertion.assertiongenerator import InstrumentedMutationController
 from pynguin.assertion.llmassertiongenerator import LLMAssertionGenerator
 from pynguin.assertion.llmassertiongenerator import (
     MutationAnalysisLLMAssertionGenerator,
 )
 from pynguin.assertion.llmassertiongenerator import extract_assertions
 from pynguin.assertion.llmassertiongenerator import indent_assertions
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.testcase.execution import TestCaseExecutor
@@ -195,7 +195,7 @@ def test_copy_test_case_references():
 def test_mutation_analysis_llm_assertion_generator():
     # Create mock objects for the required arguments
     plain_executor = MagicMock(spec=TestCaseExecutor)
-    mutation_controller = MagicMock(spec=InstrumentedMutationController)
+    mutation_controller = MagicMock(spec=MutationController)
 
     # Create a mock for the parent class's _handle_add_assertions method
     with patch(

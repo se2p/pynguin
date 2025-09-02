@@ -553,10 +553,6 @@ class TestCreationConfiguration:
     """Weight to use the type guessed from type tracing as parameter type during
     test generation. Expects values > 0."""
 
-    type4py_weight: float = 10
-    """Weight to use types inferred from type4py as parameter type during
-    test generation. Expects values > 0."""
-
     type_tracing_kept_guesses: int = 2
     """Amount of kept recently guessed types per parameter, when type tracing
     is used."""

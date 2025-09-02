@@ -88,7 +88,7 @@ The generated tests are executed against generated mutants as well as the origin
 
 Important classes for Mutation are:
 
-- :class:`pynguin.assertion.assertiongenerator.InstrumentedMutationController` which coordinates the mutation process
+- :class:`pynguin.assertion.assertiongenerator.MutationAnalysisAssertionGenerator` which coordinates the mutation process
 - :class:`pynguin.assertion.mutation_analysis.controller.MutationController` that creates mutants
 - :class:`pynguin.assertion.mutation_analysis.mutators.FirstOrderMutator` that applies mutations to the code
 

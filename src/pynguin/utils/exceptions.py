@@ -23,14 +23,6 @@ class ConstructionFailedException(BaseException):
     """An exception used when error occurs during construction of a test case."""
 
 
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class."""
-
-
-class TestTimeoutException(BaseException):
-    """Raised, if the execution took longer than the configured maximum duration."""
-
-
 class SlicingTimeoutException(BaseException):
     """Raised, if slicing took longer than the configured maximum duration."""
 
@@ -58,3 +50,7 @@ class MinimizationFailureError(Exception):
 
 class CoroutineFoundException(BaseException):
     """Raised when a coroutine is found in the SUT, which Pynguin cannot handle."""
+
+
+class TracingAbortedException(BaseException):
+    """Raised to abort tracing."""

@@ -68,6 +68,7 @@ from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
 from pynguin.utils.exceptions import ModuleNotImportedError
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.mirror import Mirror
 
 
@@ -991,22 +992,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             [checked_instrumentation],
         )
 
-        def log_thread_exception(arg: threading.ExceptHookArgs) -> None:
-            _LOGGER.warning(
-                "Exception in Thread: %s",
-                arg.thread,
-                exc_info=(  # noqa: LOG014
-                    arg.exc_type,
-                    arg.exc_value,  # type: ignore[arg-type]
-                    arg.exc_traceback,
-                ),
-            )
-
-        # Set our own exception hook, so timeout related errors in executing threads
-        # are not spilled out to stderr and clutter our formatted output but are send
-        # to the logger
-        threading.excepthook = log_thread_exception
-
     @property
     def module_provider(self) -> ModuleProvider:  # noqa: D102
         return self._module_provider
@@ -1136,6 +1121,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
                 exc_info=True,
             )
             result = ExecutionResult(timeout=True)
+        except TracingAbortedException:
+            return
 
         result_queue.put(result)
 

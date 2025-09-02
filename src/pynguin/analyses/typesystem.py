@@ -816,7 +816,6 @@ class InferredSignature:
             # Choose from:
             # - Reusing developer annotated types
             # - Guessed types from proxies
-            # - Type4Py types
             # - NoneType
             # - AnyType, i.e., disregard type
             choices: list[ProperType] = [NONE_TYPE, ANY]

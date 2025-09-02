@@ -57,6 +57,7 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
@@ -837,13 +838,7 @@ def _setup_mutation_analysis_assertion_generator(
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
 
     _LOGGER.info("Mutate module %s", module.__name__)
-    mutation_subject_properties = SubjectProperties()
-    mutation_controller = ag.InstrumentedMutationController(
-        mutant_generator,
-        module_ast,
-        module,
-        mutation_subject_properties,
-    )
+    mutation_controller = MutationController(mutant_generator, module_ast, module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
