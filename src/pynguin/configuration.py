@@ -764,6 +764,15 @@ class LocalSearchConfiguration:
     local_search_llm: bool = False
     """Defines if local search with llm is enabled or not"""
 
+    local_search_primitives: bool = True
+    """Toggles if local search for primitive types is enabled or not"""
+
+    local_search_collections: bool = True
+    """Toggles if local search for collection types is enabled or not"""
+
+    local_search_complex_objects: bool = True
+    """Toggles if local search for complex object types is enabled or not"""
+
     local_search_probability: float = 1
     """Probability of starting local search on the specific candidate"""
 
@@ -796,9 +805,6 @@ class LocalSearchConfiguration:
 
     dict_max_insertions: int = 10
     """Max number of unsuccessful insertions of entries."""
-
-    enable_complex_objects_local_search: bool = True
-    """Enable local search for complex objects (objects which are no primitives or collections)."""
 
 
 @dataclasses.dataclass

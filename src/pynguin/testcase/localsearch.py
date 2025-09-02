@@ -16,22 +16,19 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.testcasechromosome import TestCaseChromosome
-from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import choose_local_search_statement
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import ConstructorStatement
-from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import FunctionStatement
-from pynguin.testcase.statement import MethodStatement
+from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import PrimitiveStatement
+from pynguin.testcase.statement import Statement
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
-    from pynguin.ga.chromosome import Chromosome
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.testcase.execution import TestCaseExecutor
     from pynguin.testcase.testfactory import TestFactory
 
@@ -41,9 +38,7 @@ class TestCaseLocalSearch:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(
-        self, suite: TestSuiteChromosome, executor: TestCaseExecutor
-    ) -> None:
+    def __init__(self, suite: TestSuiteChromosome, executor: TestCaseExecutor) -> None:
         """Initializes the local search for a test case.
 
         Args:
@@ -75,13 +70,7 @@ class TestCaseLocalSearch:
             if (
                 randomness.next_float()
                 <= config.configuration.local_search.local_search_probability
-                and (
-                    config.configuration.local_search.enable_complex_objects_local_search
-                    or not isinstance(
-                        chromosome.test_case.statements[i],
-                        FieldStatement | MethodStatement | FunctionStatement | ConstructorStatement,
-                    )
-                )
+                and self._check_statement_type_enabled(chromosome.test_case.statements[i])
             ):
                 methods: list = []
                 old_stat = stat.output_variables.get(
@@ -117,6 +106,20 @@ class TestCaseLocalSearch:
                         "activated!"
                     )
                     return
+
+    @staticmethod
+    def _check_statement_type_enabled(statement: Statement) -> bool:
+        return (
+            (
+                isinstance(statement, PrimitiveStatement)
+                and config.configuration.local_search.local_search_primitives
+            )
+            or (
+                isinstance(statement, CollectionStatement)
+                and config.configuration.local_search.local_search_collections
+            )
+            or config.configuration.local_search.local_search_complex_objects
+        )
 
     def _search_same_datatype(
         self,
@@ -221,9 +224,7 @@ class TestSuiteLocalSearch:
                 objective,
             )
         time_dif = int(time.perf_counter()) * 1000 - start_time
-        old_time = stat.output_variables.get(
-            RuntimeVariable.TotalLocalSearchTime.name
-        )
+        old_time = stat.output_variables.get(RuntimeVariable.TotalLocalSearchTime.name)
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalLocalSearchTime,
             old_time.value + time_dif if old_time is not None else time_dif,

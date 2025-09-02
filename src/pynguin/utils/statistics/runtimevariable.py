@@ -248,6 +248,5 @@ class RuntimeVariable(str, enum.Enum):
     # Total time spent in local search fitness evaluation
     TotalLocalSearchFitnessEvaluationTime = "TotalLocalSearchFitnessEvaluationTime"
 
-
     def __repr__(self):
         return f"{self.name}"
