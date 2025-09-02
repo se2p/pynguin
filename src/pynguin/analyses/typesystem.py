@@ -326,9 +326,9 @@ class TypeVisitor(Generic[T]):
             left: string subtype
 
         Returns:
-            result of the visit
+            Result of the visit
         """
-        return left.accept(self)
+        return None  # type: ignore[return-value]
 
 
 class _PartialTypeMatch(TypeVisitor[ProperType | None]):
