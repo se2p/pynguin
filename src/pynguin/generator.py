@@ -838,21 +838,14 @@ def _setup_mutation_analysis_assertion_generator(
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
 
     _LOGGER.info("Mutate module %s", module.__name__)
-    mutation_subject_properties = SubjectProperties()
     mutation_controller = MutationController(mutant_generator, module_ast, module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
-            executor,
-            mutation_controller,
-            mutation_subject_properties,
+            executor, mutation_controller
         )
     else:
-        assertion_generator = ag.MutationAnalysisAssertionGenerator(
-            executor,
-            mutation_controller,
-            mutation_subject_properties,
-        )
+        assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator

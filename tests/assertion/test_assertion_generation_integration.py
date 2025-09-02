@@ -92,13 +92,8 @@ def test_generate_mutation_assertions(
             ])
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
-            mutation_subject_properties = SubjectProperties()
             mutation_controller = MutationController(mutant_generator, module_ast, module)
-            gen = generator(
-                TestCaseExecutor(subject_properties),
-                mutation_controller,
-                mutation_subject_properties,
-            )
+            gen = generator(TestCaseExecutor(subject_properties), mutation_controller)
         else:
             gen = generator(TestCaseExecutor(subject_properties))
         suite.accept(gen)
@@ -312,15 +307,11 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
-        mutation_subject_properties = SubjectProperties()
         mutation_controller = MutationController(
             mutant_generator, module_ast, module_type, testing=True
         )
         gen = ag.MutationAnalysisAssertionGenerator(
-            TestCaseExecutor(subject_properties),
-            mutation_controller,
-            mutation_subject_properties,
-            testing=True,
+            TestCaseExecutor(subject_properties), mutation_controller, testing=True
         )
         suite.accept(gen)
 

@@ -22,6 +22,7 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.stats as stat
 
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -37,7 +38,6 @@ if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
 
-    from pynguin.instrumentation.tracer import SubjectProperties
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -234,7 +234,6 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         self,
         plain_executor: ex.TestCaseExecutor,
         mutation_controller: ct.MutationController,
-        subject_properties: SubjectProperties,
         *,
         testing: bool = False,
     ):
@@ -243,12 +242,13 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         Args:
             plain_executor: Executor used for plain execution
             mutation_controller: Controller for mutation analysis
-            subject_properties: The subject properties.
             testing: Enable test mode, currently required for integration testing.
         """
         super().__init__(plain_executor)
 
-        # We use a separate tracer and executor to execute tests on the mutants.
+        # We use a executor to execute tests on the mutants.
+        subject_properties = SubjectProperties()
+
         self._mutation_executor: ex.TestCaseExecutor
         if config.configuration.subprocess:
             self._mutation_executor = ex.SubprocessTestCaseExecutor(subject_properties)

@@ -192,7 +192,7 @@ def test_copy_test_case_references():
     assert next(iter(target_statement.assertions)).source == original_var_ref
 
 
-def test_mutation_analysis_llm_assertion_generator(subject_properties):
+def test_mutation_analysis_llm_assertion_generator():
     # Create mock objects for the required arguments
     plain_executor = MagicMock(spec=TestCaseExecutor)
     mutation_controller = MagicMock(spec=MutationController)
@@ -203,9 +203,7 @@ def test_mutation_analysis_llm_assertion_generator(subject_properties):
     ) as mock_handle_add_assertions:
         # Create an instance of MutationAnalysisLLMAssertionGenerator with the required arguments
         generator = MutationAnalysisLLMAssertionGenerator(
-            plain_executor=plain_executor,
-            mutation_controller=mutation_controller,
-            subject_properties=subject_properties,
+            plain_executor=plain_executor, mutation_controller=mutation_controller
         )
 
         # Create a mock test case
