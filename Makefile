@@ -97,9 +97,6 @@ isort:
 ruff-format:
 	poetry run ruff format .
 
-update-docs-requirements:
-	poetry export -o docs/requirements.txt --with docs --without-hashes
-
 .PHONY: check
 check: isort mypy ruff ruff-format test
 
