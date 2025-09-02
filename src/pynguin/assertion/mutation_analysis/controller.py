@@ -45,7 +45,6 @@ class MutationController:
             mutant_generator: The mutant generator to use.
             module_ast: The AST of the module to mutate.
             module: The module to mutate.
-            testing: Enable test mode, currently required for integration testing.
         """
         self._mutant_generator = mutant_generator
         self._module_ast = module_ast
