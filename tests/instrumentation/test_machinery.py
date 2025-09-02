@@ -120,7 +120,7 @@ def test_pynguin_no_cover_class(subject_properties: SubjectProperties):
 
 
 def test_get_excluded_lines_of_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_lines(
+    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
         "tests/fixtures/instrumentation/covered.py"
     )
 
@@ -128,7 +128,7 @@ def test_get_excluded_lines_of_python_file():
 
 
 def test_get_excluded_lines_of_non_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_lines(
+    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
         "tests/fixtures/instrumentation/code.c"
     )
 
@@ -136,7 +136,7 @@ def test_get_excluded_lines_of_non_python_file():
 
 
 def test_get_excluded_lines_of_non_readable_python_file():
-    excluded_lines = InstrumentationLoader._get_excluded_lines(
+    excluded_lines = InstrumentationLoader._get_excluded_code_object_lines(
         "tests/fixtures/instrumentation/non_existent.py"
     )
 
