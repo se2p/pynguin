@@ -128,7 +128,6 @@ none_weight = 0
 any_weight = 0
 original_type_weight = 5
 type_tracing_weight = 10
-type4py_weight = 10
 type_tracing_kept_guesses = 2
 wrap_var_param_type_probability = 0.7
 negate_type = 0.1
@@ -239,9 +238,8 @@ def expected_txt(tmp_path):
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
  'none_weight=0, any_weight=0, original_type_weight=5, type_tracing_weight=10, '
- 'type4py_weight=10, type_tracing_kept_guesses=2, '
- 'wrap_var_param_type_probability=0.7, negate_type=0.1, '
- 'skip_optional_parameter_probability=0.7, max_attempts=1000, '
+ 'type_tracing_kept_guesses=2, wrap_var_param_type_probability=0.7, '
+ 'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=50, chromosome_length=40, '
@@ -335,7 +333,6 @@ def expected_parameter_list() -> list[str]:
         "--any_weight 0",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
-        "--type4py_weight 10",
         "--type_tracing_kept_guesses 2",
         "--wrap_var_param_type_probability 0.7",
         "--negate_type 0.1",
