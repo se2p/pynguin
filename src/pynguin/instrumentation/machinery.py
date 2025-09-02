@@ -28,6 +28,8 @@ import pynguin.configuration as config
 from pynguin.analyses.constants import ConstantPool
 from pynguin.analyses.constants import DynamicConstantProvider
 from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.module import get_no_cover_lines
+from pynguin.analyses.module import parse_module_ast
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
@@ -59,7 +61,7 @@ class InstrumentationLoader(SourceFileLoader):
         super().exec_module(module)
         self._transformer.subject_properties.instrumentation_tracer.store_import_trace()
 
-    def get_code(self, fullname) -> CodeType:
+    def get_code(self, fullname: str) -> CodeType:
         """Add instrumentation instructions to the code of the module.
 
         This happens before the module is executed.
@@ -72,7 +74,15 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast("CodeType", super().get_code(fullname))
         assert to_instrument is not None, "Failed to get code object of module."
-        return self._transformer.instrument_module(to_instrument)
+
+        try:
+            _, source_code = parse_module_ast(fullname, to_instrument.co_filename)
+        except BaseException:  # noqa: BLE001
+            no_cover_lines = None
+        else:
+            no_cover_lines = get_no_cover_lines(source_code)
+
+        return self._transformer.instrument_module(to_instrument, no_cover_lines)
 
 
 def build_transformer(
