@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import re
 import sys
 
 from importlib.abc import FileLoader
@@ -20,6 +21,7 @@ from importlib.abc import MetaPathFinder
 from importlib.machinery import ModuleSpec
 from importlib.machinery import SourceFileLoader
 from inspect import isclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -42,6 +44,9 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.transformer import InstrumentationAdapter
 
 
+PYNGUIN_NO_COVER_PATTERN = re.compile(r"# +?pynguin: +?no +?cover")
+
+
 class InstrumentationLoader(SourceFileLoader):
     """A loader that instruments the module after execution."""
 
@@ -59,7 +64,7 @@ class InstrumentationLoader(SourceFileLoader):
         super().exec_module(module)
         self._transformer.subject_properties.instrumentation_tracer.store_import_trace()
 
-    def get_code(self, fullname) -> CodeType:
+    def get_code(self, fullname: str) -> CodeType:
         """Add instrumentation instructions to the code of the module.
 
         This happens before the module is executed.
@@ -72,7 +77,32 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast("CodeType", super().get_code(fullname))
         assert to_instrument is not None, "Failed to get code object of module."
-        return self._transformer.instrument_module(to_instrument)
+        return self._transformer.instrument_module(
+            to_instrument,
+            self._get_excluded_lines(to_instrument),
+        )
+
+    def _get_excluded_lines(self, code: CodeType) -> set[int]:
+        """Get the lines that should be excluded from instrumentation.
+
+        Args:
+            code: The code object of the module
+
+        Returns:
+            A set of line numbers that should be excluded from instrumentation.
+        """
+        if not code.co_filename.endswith(".py"):
+            return set()
+
+        try:
+            with Path(code.co_filename).open(encoding="utf-8") as file:
+                return {
+                    lineno
+                    for lineno, line in enumerate(file, start=1)
+                    if PYNGUIN_NO_COVER_PATTERN.search(line) is not None
+                }
+        except FileNotFoundError:
+            return set()
 
 
 def build_transformer(

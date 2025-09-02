@@ -44,6 +44,28 @@ def test_module_instrumentation_integration(subject_properties: SubjectPropertie
         )
 
 
+def test_pynguin_no_cover(subject_properties: SubjectProperties):
+    with install_import_hook("tests.fixtures.instrumentation.covered", subject_properties):
+        with subject_properties.instrumentation_tracer:
+            covered = importlib.import_module("tests.fixtures.instrumentation.covered")
+            covered = importlib.reload(covered)
+
+        with subject_properties.instrumentation_tracer:
+            covered.not_covered1(1, 2)
+            covered.not_covered2(1, 2)
+            covered.not_covered3(1, 2, 3)
+            covered.covered(4)
+
+        trace = subject_properties.instrumentation_tracer.get_trace()
+
+        assert set(subject_properties.existing_code_objects) == {
+            0,  # module code object
+            1,  # `covered` function
+        }
+        assert set(trace.executed_code_objects) == {0, 1}
+        assert not subject_properties.existing_predicates
+
+
 async def run_async_generator(gen):
     """Small helper to execute async generator."""
     the_sum = 0
