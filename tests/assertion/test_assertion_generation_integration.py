@@ -307,9 +307,7 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
-        mutation_controller = MutationController(
-            mutant_generator, module_ast, module_type, testing=True
-        )
+        mutation_controller = MutationController(mutant_generator, module_ast, module_type)
         gen = ag.MutationAnalysisAssertionGenerator(
             TestCaseExecutor(subject_properties), mutation_controller, testing=True
         )
@@ -325,7 +323,10 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         assert len(kills | survived | timeouts) == len(kills) + len(timeouts) + len(survived)
 
         assert summary.get_metrics() == metrics
-        assert mutation_controller._testing_created_mutants == mutants
+        assert [
+            ast.unparse(mutant_ast)
+            for _, mutant_ast in mutant_generator.mutate(module_ast, module_type)
+        ] == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(

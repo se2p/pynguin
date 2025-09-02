@@ -53,10 +53,6 @@ class MutationController:
         self._module_ast = module_ast
         self._module = module
 
-        # Some debug information
-        self._testing = testing
-        self._testing_created_mutants: list[str] = []
-
     def create_mutant(self, mutant_ast: ast.Module) -> ModuleType:
         """Creates a mutant of the module.
 
@@ -66,12 +62,7 @@ class MutationController:
         Returns:
             The created mutant module.
         """
-        mutant = create_module(mutant_ast, self._module.__name__)
-
-        if self._testing:
-            self._testing_created_mutants.append(ast.unparse(mutant_ast))
-
-        return mutant
+        return create_module(mutant_ast, self._module.__name__)
 
     def create_mutants(
         self,
