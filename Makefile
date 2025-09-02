@@ -98,6 +98,7 @@ ruff-format:
 	poetry run ruff format .
 
 update-docs-requirements:
+	poetry self add poetry-plugin-export
 	poetry export -o docs/requirements.txt --with docs --without-hashes
 
 .PHONY: check

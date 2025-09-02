@@ -190,7 +190,7 @@ pages:
   image: python:3.10-bookworm
   script:
     - poetry install
-    - poetry run sphinx-build docs public
+    - poetry run sphinx-build -W docs public
   artifacts:
     paths:
       - public
