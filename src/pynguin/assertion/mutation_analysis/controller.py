@@ -38,8 +38,6 @@ class MutationController:
         mutant_generator: mu.Mutator,
         module_ast: ast.Module,
         module: types.ModuleType,
-        *,
-        testing: bool = False,
     ) -> None:
         """Initialize the controller.
 
