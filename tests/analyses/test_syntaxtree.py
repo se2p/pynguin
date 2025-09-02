@@ -376,6 +376,105 @@ def test_visit_assert(function_analysis):
     assert function_analysis.exceptions.pop() == "AssertionError"
 
 
+def _parse_and_visit(code: str) -> syntaxtree._RaiseVisitor:
+    """Helper: parse a function and run _RaiseVisitor on it."""
+    tree = ast.parse(code).body[0]  # always a FunctionDef
+    visitor = syntaxtree._RaiseVisitor()
+    visitor.visit(tree)
+    return visitor
+
+
+def test_visit_try_with_handled_exception():
+    code = """def f():
+    try:
+        raise ValueError("bad")
+    except ValueError:
+        pass
+"""
+    visitor = _parse_and_visit(code)
+    # handled exception should not leak out
+    assert visitor.exceptions == set()
+
+
+def test_visit_try_with_unhandled_exception():
+    code = """def f():
+    try:
+        raise KeyError("bad")
+    except ValueError:
+        pass
+"""
+    visitor = _parse_and_visit(code)
+    # KeyError is not caught by ValueError handler
+    assert "KeyError" in visitor.exceptions
+
+
+def test_visit_try_with_bare_except_and_reraise():
+    code = """def f():
+    try:
+        raise RuntimeError("bad")
+    except:
+        raise
+"""
+    visitor = _parse_and_visit(code)
+    # bare except catches RuntimeError, but re-raises
+    assert "RuntimeError" in visitor.exceptions
+
+
+def test_visit_try_with_multiple_except_and_else():
+    code = """def f():
+    try:
+        risky()
+    except ValueError:
+        pass
+    except KeyError:
+        pass
+    else:
+        raise OSError("boom")
+"""
+    visitor = _parse_and_visit(code)
+    # exception from else block should be captured
+    assert "OSError" in visitor.exceptions
+
+
+def test_visit_try_with_finally():
+    code = """def f():
+    try:
+        safe()
+    finally:
+        raise LookupError("fail")
+"""
+    visitor = _parse_and_visit(code)
+    # exceptions from finally always leak
+    assert "LookupError" in visitor.exceptions
+
+
+def test_visit_try_nested_try_blocks():
+    code = """def f():
+    try:
+        try:
+            raise IndexError("inner")
+        except KeyError:
+            pass
+    except IndexError:
+        raise OSError("outer")
+"""
+    visitor = _parse_and_visit(code)
+    # inner IndexError handled by outer, which raises OSError
+    assert "OSError" in visitor.exceptions
+    assert "IndexError" not in visitor.exceptions
+
+
+def test_visit_try_with_unexpected_handler_type():
+    code = """def f():
+    try:
+        raise ValueError("bad")
+    except ValueError[0]:
+        pass
+"""
+    visitor = _parse_and_visit(code)
+    assert visitor.exceptions == set()
+
+
 def test_add_exception_with_named_exception():
     ctx = syntaxtree._Context()
     node = ast.parse("raise ValueError('bad')").body[0]
