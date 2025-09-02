@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from typing import TYPE_CHECKING
 
@@ -77,6 +78,7 @@ class LocalSearchObjective:
             Gives back 1 if the fitness has increased, -1 if the fitness has decreased and 0 if the
             fitness has not changed at all.
         """
+        start_time = int(time.perf_counter()) * 1000
         test_case_chromosome.changed = True
         self._old_fitness = self._test_suite.get_fitness()
         self._test_suite.set_test_case_chromosome(self._position, test_case_chromosome)
@@ -116,6 +118,14 @@ class LocalSearchObjective:
             self._test_suite.set_fitness_values(self._latest_fitness_map)
             return -1
         self._logger.debug("Local search hasn't changed the fitness of %f", self._old_fitness)
+        time_dif = int(time.perf_counter()) * 1000 - start_time
+        old_time = stat.output_variables.get(
+            RuntimeVariable.TotalLocalSearchFitnessEvaluationTime.name
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.TotalLocalSearchFitnessEvaluationTime,
+            old_time.value + time_dif if old_time is not None else time_dif,
+        )
         return 0
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:

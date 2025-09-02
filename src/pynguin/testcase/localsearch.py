@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from typing import TYPE_CHECKING
 
@@ -88,7 +89,7 @@ class TestCaseLocalSearch:
                 )
                 stat.set_output_variable_for_runtime_variable(
                     RuntimeVariable.LocalSearchTotalStatements,
-                    old_stat.value + 1 if old_stat is not None else 0,
+                    old_stat.value + 1 if old_stat is not None else 1,
                 )
                 if config.configuration.local_search.local_search_same_datatype is True:
                     methods.append(
@@ -193,7 +194,7 @@ class TestSuiteLocalSearch:
 
     def local_search(
         self,
-        chromosome: Chromosome,
+        chromosome: TestSuiteChromosome,
         factory: TestFactory,
         executor: TestCaseExecutor,
     ) -> None:
@@ -204,8 +205,7 @@ class TestSuiteLocalSearch:
             factory (TestFactory): The factory to modify the test cases.
             executor (TestCaseExecutor): The executor to run the test cases.
         """
-        assert isinstance(chromosome, TestSuiteChromosome)
-
+        start_time = int(time.perf_counter()) * 1000
         self.double_branch_coverage(chromosome)
 
         indices = list(range(len(chromosome.test_case_chromosomes)))
@@ -220,6 +220,14 @@ class TestSuiteLocalSearch:
                 factory,
                 objective,
             )
+        time_dif = int(time.perf_counter()) * 1000 - start_time
+        old_time = stat.output_variables.get(
+            RuntimeVariable.TotalLocalSearchTime.name
+        )
+        stat.set_output_variable_for_runtime_variable(
+            RuntimeVariable.TotalLocalSearchTime,
+            old_time.value + time_dif if old_time is not None else time_dif,
+        )
 
     def double_branch_coverage(self, suite: TestSuiteChromosome) -> None:
         """Expand the test cases that each branch is at least covered twice.

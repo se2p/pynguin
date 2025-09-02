@@ -242,5 +242,12 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of LLM local search calls which were successful
     TotalLocalSearchLLMSuccessCalls = "TotalLocalSearchLLMSuccessCalls"
 
+    # Total time spent in local search
+    TotalLocalSearchTime = "TotalLocalSearchTime"
+
+    # Total time spent in local search fitness evaluation
+    TotalLocalSearchFitnessEvaluationTime = "TotalLocalSearchFitnessEvaluationTime"
+
+
     def __repr__(self):
         return f"{self.name}"
