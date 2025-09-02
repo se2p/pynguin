@@ -51,6 +51,7 @@ from pynguin.utils.type_utils import PRIMITIVES
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Mapping
     from collections.abc import Sequence
     from typing import ClassVar
 
@@ -993,7 +994,7 @@ class InferredSignature:
     def _from_str_values(knowledge: tt.UsageTraceNode) -> StringSubtype | None:
         """Try to infer a string subtype from the given knowledge."""
         # Get all arg values from the knowledge (only str values for now)
-        called_str_methods: dict[str, OrderedSet[str]] = defaultdict(OrderedSet)
+        called_str_methods: Mapping[str, OrderedSet[str]] = defaultdict(OrderedSet)
         for child in knowledge.children:
             if child in _STRING_SUBTYPE_ATTRIBUTES:
                 # TODO: Also consider other arguments than only first one?

@@ -8,88 +8,140 @@
 
 import re
 
-import rstr
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
 
-from pynguin.utils.orderedset import OrderedSet
+import rstr
 
 
 _LOGGER = __import__("logging").getLogger(__name__)
 
 
-def infer_regex_from_methods(called_str_methods: dict[str, OrderedSet[str]]) -> re.Pattern:  # noqa: C901
-    """Infer a regex from the methods called on strings.
+class RegexBuilder:
+    """Helper for constructing regex patterns based on string method calls."""
 
-    TODO: Get rid of C901
+    def __init__(self) -> None:
+        """Initialize the builder."""
+        self.prefix: list[str] = []
+        self.body: list[str] = []
+        self.suffix: list[str] = []
+
+    def handle_startswith(self, args: Iterable[str]) -> None:
+        """Handle the startswith method."""
+        self.prefix.extend([f"^(?:{re.escape(a)})" for a in args])
+
+    def handle_endswith(self, args: Iterable[str]) -> None:
+        """Handle the endswith method."""
+        self.suffix.extend([f"(?:{re.escape(a)})$" for a in args])
+
+    def handle_splitlike(self, args: Iterable[str]) -> None:
+        """Handle split, rsplit, and join."""
+        sep = re.escape(next(iter(args), "_"))
+        self.body.append(f"(?:[A-Za-z0-9]+(?:{sep}[A-Za-z0-9]+)*)")
+
+    def handle_partition(self, args: Iterable[str]) -> None:
+        """Handle partition and rpartition."""
+        sep = re.escape(next(iter(args)))
+        self.body.append(f"(?:.*?{sep}.*?)")
+
+    def handle_findlike(self, args: Iterable[str]) -> None:
+        """Handle find, rfind, index, and rindex."""
+        self.body.extend([f".*{re.escape(a)}.*" for a in args])
+
+    def handle_replace(self, args: Iterable[str]) -> None:
+        """Handle replace."""
+        old, new = args
+        self.body.append(f"(?:.*{re.escape(old)}.*|.*{re.escape(new)}.*)")
+
+    def handle_strip(self, args: Iterable[str]) -> None:
+        """Handle strip, lstrip, and rstrip."""
+        self.body.append(r"\s*(.*?)\s*")
+
+    def handle_zfill(self, args: Iterable[str]) -> None:
+        """Handle zfill."""
+        width = int(next(iter(args)))
+        self.body.append(rf"0*\d{{1,{width}}}")
+
+    def handle_justify(self, args: Iterable[str]) -> None:
+        """Handle center, ljust, and rjust."""
+        width = int(next(iter(args)))
+        self.body.append(rf".{{1,{width}}}")
+
+    def handle_removeprefix(self, args: Iterable[str]) -> None:
+        """Handle removeprefix."""
+        self.prefix.extend([f"(?:{re.escape(a)})?" for a in args])
+
+    def handle_removesuffix(self, args: Iterable[str]) -> None:
+        """Handle removesuffix."""
+        self.suffix.extend([f"(?:{re.escape(a)})?" for a in args])
+
+    def handle_translate(self, args: Iterable[str]) -> None:
+        """Handle translate."""
+        self.body.append("[A-Za-z0-9]+")
+
+    def handle_count(self, args: Iterable[str]) -> None:
+        """Handle count."""
+        self.body.append(".*")
+
+    def handle_splitlines(self, args: Iterable[str]) -> None:
+        """Handle splitlines."""
+        self.body.append(r"(?:.*(?:\r?\n.*)*)")
+
+    def handle_format(self, args: Iterable[str]) -> None:
+        """Handle format."""
+        self.body.append(".*")
+
+    def build(self) -> str:
+        """Combine collected fragments into a regex string."""
+        return "".join(self.prefix + self.body + self.suffix) or ".*"
+
+
+DISPATCH: dict[str, Callable] = {
+    "startswith": RegexBuilder.handle_startswith,
+    "endswith": RegexBuilder.handle_endswith,
+    "split": RegexBuilder.handle_splitlike,
+    "rsplit": RegexBuilder.handle_splitlike,
+    "join": RegexBuilder.handle_splitlike,
+    "partition": RegexBuilder.handle_partition,
+    "rpartition": RegexBuilder.handle_partition,
+    "find": RegexBuilder.handle_findlike,
+    "rfind": RegexBuilder.handle_findlike,
+    "index": RegexBuilder.handle_findlike,
+    "rindex": RegexBuilder.handle_findlike,
+    "replace": RegexBuilder.handle_replace,
+    "strip": RegexBuilder.handle_strip,
+    "lstrip": RegexBuilder.handle_strip,
+    "rstrip": RegexBuilder.handle_strip,
+    "zfill": RegexBuilder.handle_zfill,
+    "center": RegexBuilder.handle_justify,
+    "ljust": RegexBuilder.handle_justify,
+    "rjust": RegexBuilder.handle_justify,
+    "removeprefix": RegexBuilder.handle_removeprefix,
+    "removesuffix": RegexBuilder.handle_removesuffix,
+    "translate": RegexBuilder.handle_translate,
+    "count": RegexBuilder.handle_count,
+    "splitlines": RegexBuilder.handle_splitlines,
+    "format": RegexBuilder.handle_format,
+}
+
+
+def infer_regex_from_methods(called_str_methods: Mapping[str, Iterable[str]]) -> re.Pattern:
+    """Infer a regex from the methods called on strings.
 
     Args:
         called_str_methods: A mapping of method names to arguments.
 
     Returns:
-        A regex pattern.
+        A compiled regex pattern.
     """
-    prefix: list[str] = []
-    body: list[str] = []
-    suffix: list[str] = []
-
+    builder = RegexBuilder()
     for method, args in called_str_methods.items():
-        if method == "startswith":
-            prefix.extend([f"^(?:{re.escape(a)})" for a in args])
+        handler = DISPATCH.get(method)
+        if handler:
+            handler(builder, args)
 
-        elif method == "endswith":
-            suffix.extend([f"(?:{re.escape(a)})$" for a in args])
-
-        elif method in {"split", "rsplit", "join"}:
-            sep = re.escape(args[0]) if args else "_"
-            body.append(f"(?:[A-Za-z0-9]+(?:{sep}[A-Za-z0-9]+)*)")
-
-        elif method in {"partition", "rpartition"}:
-            sep = re.escape(args[0])
-            body.append(f"(?:.*?{sep}.*?)")
-
-        elif method in {"find", "rfind", "index", "rindex"}:
-            body.extend([f".*{re.escape(a)}.*" for a in args])
-
-        elif method == "replace":
-            old, new = args
-            body.append(f"(?:.*{re.escape(old)}.*|.*{re.escape(new)}.*)")
-
-        elif method in {"strip", "lstrip", "rstrip"}:
-            body.append(r"\s*(.*?)\s*")
-
-        elif method == "zfill":
-            width = int(args[0])
-            body.append(rf"0*\d{{1,{width}}}")
-
-        elif method in {"center", "ljust", "rjust"}:
-            width = int(args[0])
-            body.append(rf".{{1,{width}}}")
-
-        elif method == "removeprefix":
-            prefix.extend([f"(?:{re.escape(a)})?" for a in args])
-
-        elif method == "removesuffix":
-            suffix.extend([f"(?:{re.escape(a)})?" for a in args])
-
-        elif method == "translate":
-            body.append("[A-Za-z0-9]+")
-
-        elif method == "count":
-            body.append(".*")
-
-        elif method == "splitlines":
-            body.append(r"(?:.*(?:\r?\n.*)*)")
-
-        elif method == "format":
-            body.append(".*")
-
-    # Combine into a regex
-    regex = "".join(prefix + body + suffix)
-
-    # If absolutely nothing was produced, fall back to ".*" (matches anything)
-    if not regex:
-        regex = ".*"
-
-    return re.compile(regex)
+    return re.compile(builder.build())
 
 
 def generate_from_regex(regex: re.Pattern) -> str:
