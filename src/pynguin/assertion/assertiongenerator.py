@@ -246,7 +246,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         """
         super().__init__(plain_executor)
 
-        # We use a executor to execute tests on the mutants.
+        # We use a separate executor to execute tests on the mutants.
         subject_properties = SubjectProperties()
 
         self._mutation_executor: ex.TestCaseExecutor
