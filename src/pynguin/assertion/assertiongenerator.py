@@ -8,10 +8,8 @@
 
 from __future__ import annotations
 
-import ast
 import dataclasses
 import logging
-import types
 
 from typing import TYPE_CHECKING
 
@@ -19,19 +17,19 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
 import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.assertion.mutation_analysis.controller as ct
-import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.stats as stat
 
-from pynguin.instrumentation.machinery import build_transformer
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
+    import types
+
     from collections.abc import Generator
     from collections.abc import Iterable
 
@@ -229,77 +227,14 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
-class InstrumentedMutationController(ct.MutationController):
-    """A controller that creates instrumented mutants."""
-
-    def __init__(
-        self,
-        mutant_generator: mu.Mutator,
-        module_ast: ast.Module,
-        module: types.ModuleType,
-        subject_properties: SubjectProperties,
-        *,
-        testing: bool = False,
-    ) -> None:
-        """Create new controller.
-
-        Args:
-            mutant_generator: The mutant generator.
-            module_ast: The module AST.
-            module: The module.
-            subject_properties: The subject properties.
-            testing: Enable test mode, currently required for integration testing.
-        """
-        super().__init__(mutant_generator, module_ast, module)
-
-        self._transformer = build_transformer(subject_properties, set())
-
-        # Some debug information
-        self._testing = testing
-        self._testing_created_mutants: list[str] = []
-
-    @property
-    def subject_properties(self) -> SubjectProperties:
-        """Provides the subject properties.
-
-        Returns:
-            The subject properties.
-        """
-        return self._transformer.subject_properties
-
-    def create_mutant(self, mutant_ast: ast.Module) -> types.ModuleType:  # noqa: D102
-        self.subject_properties.reset()
-
-        module_name = self._module.__name__
-
-        code = self._transformer.instrument_module(
-            compile(
-                mutant_ast,
-                module_name,
-                "exec",
-            )
-        )
-
-        if self._testing:
-            self._testing_created_mutants.append(ast.unparse(mutant_ast))
-
-        module = types.ModuleType(module_name)
-
-        with self.subject_properties.instrumentation_tracer:
-            exec(code, module.__dict__)  # noqa: S102
-
-        self.subject_properties.instrumentation_tracer.store_import_trace()
-
-        return module
-
-
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
     """Uses mutation analysis to filter out less relevant assertions."""
 
     def __init__(
         self,
         plain_executor: ex.TestCaseExecutor,
-        mutation_controller: InstrumentedMutationController,
+        mutation_controller: ct.MutationController,
+        subject_properties: SubjectProperties,
         *,
         testing: bool = False,
     ):
@@ -308,19 +243,17 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         Args:
             plain_executor: Executor used for plain execution
             mutation_controller: Controller for mutation analysis
+            subject_properties: The subject properties.
             testing: Enable test mode, currently required for integration testing.
         """
         super().__init__(plain_executor)
 
         # We use a separate tracer and executor to execute tests on the mutants.
+        self._mutation_executor: ex.TestCaseExecutor
         if config.configuration.subprocess:
-            self._mutation_executor: ex.TestCaseExecutor = ex.SubprocessTestCaseExecutor(
-                mutation_controller.subject_properties
-            )
+            self._mutation_executor = ex.SubprocessTestCaseExecutor(subject_properties)
         else:
-            self._mutation_executor = ex.TestCaseExecutor(
-                mutation_controller.subject_properties,
-            )
+            self._mutation_executor = ex.TestCaseExecutor(subject_properties)
 
         self._mutation_executor.add_remote_observer(ato.RemoteAssertionVerificationObserver())
 

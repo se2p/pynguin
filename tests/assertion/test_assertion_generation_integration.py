@@ -24,6 +24,7 @@ import pynguin.utils.namingscope as ns
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -92,13 +93,12 @@ def test_generate_mutation_assertions(
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
             mutation_subject_properties = SubjectProperties()
-            mutation_controller = ag.InstrumentedMutationController(
-                mutant_generator,
-                module_ast,
-                module,
+            mutation_controller = MutationController(mutant_generator, module_ast, module)
+            gen = generator(
+                TestCaseExecutor(subject_properties),
+                mutation_controller,
                 mutation_subject_properties,
             )
-            gen = generator(TestCaseExecutor(subject_properties), mutation_controller)
         else:
             gen = generator(TestCaseExecutor(subject_properties))
         suite.accept(gen)
@@ -313,15 +313,14 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
         mutation_subject_properties = SubjectProperties()
-        mutation_controller = ag.InstrumentedMutationController(
-            mutant_generator,
-            module_ast,
-            module_type,
-            mutation_subject_properties,
-            testing=True,
+        mutation_controller = MutationController(
+            mutant_generator, module_ast, module_type, testing=True
         )
         gen = ag.MutationAnalysisAssertionGenerator(
-            TestCaseExecutor(subject_properties), mutation_controller, testing=True
+            TestCaseExecutor(subject_properties),
+            mutation_controller,
+            mutation_subject_properties,
+            testing=True,
         )
         suite.accept(gen)
 

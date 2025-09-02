@@ -38,6 +38,8 @@ class MutationController:
         mutant_generator: mu.Mutator,
         module_ast: ast.Module,
         module: types.ModuleType,
+        *,
+        testing: bool = False,
     ) -> None:
         """Initialize the controller.
 
@@ -45,10 +47,15 @@ class MutationController:
             mutant_generator: The mutant generator to use.
             module_ast: The AST of the module to mutate.
             module: The module to mutate.
+            testing: Enable test mode, currently required for integration testing.
         """
         self._mutant_generator = mutant_generator
         self._module_ast = module_ast
         self._module = module
+
+        # Some debug information
+        self._testing = testing
+        self._testing_created_mutants: list[str] = []
 
     def create_mutant(self, mutant_ast: ast.Module) -> ModuleType:
         """Creates a mutant of the module.
@@ -59,7 +66,12 @@ class MutationController:
         Returns:
             The created mutant module.
         """
-        return create_module(mutant_ast, self._module.__name__)
+        mutant = create_module(mutant_ast, self._module.__name__)
+
+        if self._testing:
+            self._testing_created_mutants.append(ast.unparse(mutant_ast))
+
+        return mutant
 
     def create_mutants(
         self,
