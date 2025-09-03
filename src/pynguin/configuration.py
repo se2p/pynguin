@@ -464,6 +464,18 @@ class TypeInferenceConfiguration:
     subtype_inference: SubtypeInferenceStrategy = SubtypeInferenceStrategy.STRING
     """The strategy for subtype-inference that shall be used."""
 
+    type_tracing_subtype_weight: float = 0.3
+    """Weight for selecting the subtype inference strategy for type selection during type
+    tracing."""
+
+    type_tracing_argument_type_weight: float = 0.5
+    """Weight for selecting the argument type inference strategy for type selection
+    during type tracing."""
+
+    type_tracing_attribute_weight: float = 0.2
+    """Weight for selecting the attribute table inference strategy for type selection
+    during type tracing."""
+
 
 @dataclasses.dataclass
 class PynguinMLConfiguration:

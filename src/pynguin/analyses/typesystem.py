@@ -45,6 +45,7 @@ from pynguin.analyses.string_subtypes import infer_regex_from_methods
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.randomness import weighted_choice
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
 
@@ -965,45 +966,58 @@ class InferredSignature:
         random_attribute = randomness.choice(list(knowledge.children))
         arg_types = knowledge.children[random_attribute].children["__call__"].arg_types[0]
 
-        # String subtype inference
+        def _string_subtype() -> ProperType | None:
+            return self._from_str_values(knowledge)
+
+        def _argument_type() -> ProperType | None:
+            selected_arg_type = randomness.choice(knowledge.children[random_attribute].arg_types[0])
+            return self._choose_type_or_negate(
+                OrderedSet([self.type_system.to_type_info(selected_arg_type)])
+            )
+
+        def _attribute_table() -> ProperType | None:
+            return self._choose_type_or_negate(self.type_system.find_by_attribute(random_attribute))
+
+        weights = {
+            _string_subtype: config.configuration.type_inference.type_tracing_subtype_weight,
+            _argument_type: config.configuration.type_inference.type_tracing_argument_type_weight,
+            _attribute_table: config.configuration.type_inference.type_tracing_attribute_weight,
+        }
+        available_strategies = {}
+
+        # Check if string subtype inference is applicable
         if (
             config.configuration.type_inference.subtype_inference
             == config.SubtypeInferenceStrategy.STRING
             and len(arg_types) > 0
         ):
-            random_arg_type = randomness.choice(
-                knowledge.children[random_attribute].children["__call__"].arg_types[0]
-            )
-            if (
-                random_arg_type is str and random_attribute in _STRING_SUBTYPE_ATTRIBUTES
-                # TODO: Add randomness?
-            ):
-                return self._from_str_values(knowledge)
+            candidate_arg_type = randomness.choice(arg_types)
+            if candidate_arg_type is str and random_attribute in _STRING_SUBTYPE_ATTRIBUTES:
+                available_strategies[_string_subtype] = weights[_string_subtype]
 
-        # Inference by argument type of the second parameter (e.g. for ==)
+        # Check if argument-type inference is applicable
         if (
             random_attribute in _ARGUMENT_ATTRIBUTES
             and knowledge.children[random_attribute].arg_types[0]
-            and randomness.next_float() < 0.5
         ):
-            random_arg_type = randomness.choice(knowledge.children[random_attribute].arg_types[0])
-            return self._choose_type_or_negate(
-                OrderedSet([self.type_system.to_type_info(random_arg_type)])
-            )
+            available_strategies[_argument_type] = weights[_argument_type]
 
-        # Inference by attribute table
-        return self._choose_type_or_negate(self.type_system.find_by_attribute(random_attribute))
+        # Attribute-table inference is always available
+        available_strategies[_attribute_table] = weights[_attribute_table]
+
+        # Chose and execute strategy
+        chosen_strategy = weighted_choice(available_strategies)
+        return chosen_strategy()
 
     @staticmethod
     def _from_str_values(knowledge: tt.UsageTraceNode) -> StringSubtype | None:
         """Try to infer a string subtype from the given knowledge."""
-        # Get all arg values from the knowledge (only str values for now)
+        # Get all arg values from the knowledge
         called_str_methods: Mapping[str, OrderedSet[str]] = defaultdict(OrderedSet)
         for child in knowledge.children:
             if child in _STRING_SUBTYPE_ATTRIBUTES:
-                # TODO: Also consider other arguments than only first one?
                 for arg_values in knowledge.children[child].children["__call__"].arg_values[0]:
-                    if isinstance(arg_values, str):  # TODO: Always True atm
+                    if isinstance(arg_values, str):
                         called_str_methods[child].add(arg_values)
 
         if not called_str_methods:

@@ -105,6 +105,9 @@ max_dynamic_pool_size = 50
 type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
 subtype_inference = "NONE"
+type_tracing_subtype_weight = 0.3
+type_tracing_argument_type_weight = 0.5
+type_tracing_attribute_weight = 0.2
 
 [pynguinml]
 ml_testing_enabled = false
@@ -231,7 +234,9 @@ def expected_txt(tmp_path):
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
  "'TYPE_HINTS'>, type_tracing=0.0, "
- "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>), "
+ "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>, "
+ 'type_tracing_subtype_weight=0.3, type_tracing_argument_type_weight=0.5, '
+ 'type_tracing_attribute_weight=0.2), '
  'pynguinml=PynguinMLConfiguration(ml_testing_enabled=False, '
  "constraints_path='', dtype_mapping_path='', constructor_function='', "
  "constructor_function_parameter='', max_ndim=4, max_shape_dim=4, "
@@ -336,7 +341,11 @@ def expected_parameter_list() -> list[str]:
         "--any_weight 0",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
+        "--type4py_weight 10",
+        "--type_tracing_argument_type_weight 0.5",
+        "--type_tracing_attribute_weight 0.2",
         "--type_tracing_kept_guesses 2",
+        "--type_tracing_subtype_weight 0.3",
         "--wrap_var_param_type_probability 0.7",
         "--negate_type 0.1",
         "--skip_optional_parameter_probability 0.7",
