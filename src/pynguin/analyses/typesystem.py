@@ -202,7 +202,10 @@ class UnionType(ProperType):
 
 
 class StringSubtype(ProperType):
-    """A subtype of str determined by its regex."""
+    """A subtype of str determined by its regex.
+
+    TODO(lk): Add support to all visitors.
+    """
 
     def __init__(self, regex: re.Pattern):  # noqa: D107
         self.regex = regex
