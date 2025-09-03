@@ -453,15 +453,13 @@ class TypeInferenceConfiguration:
     type_inference_strategy: TypeInferenceStrategy = TypeInferenceStrategy.TYPE_HINTS
     """The strategy for type-inference that shall be used"""
 
-    # TODO: Set to default when merging into main
-    type_tracing: bool | float = 1.0
+    type_tracing: bool | float = 0.0
     """Probability to trace usage of parameters with unknown types to improve type
     guesses during test execution. Type tracing requires a separate second.
     The value should be a float in [0,1]. Boolean is kept for backwards compatibility
     as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
-    # TODO: Set to none when merging into main
-    subtype_inference: SubtypeInferenceStrategy = SubtypeInferenceStrategy.STRING
+    subtype_inference: SubtypeInferenceStrategy = SubtypeInferenceStrategy.NONE
     """The strategy for subtype-inference that shall be used."""
 
     type_tracing_subtype_weight: float = 0.3
