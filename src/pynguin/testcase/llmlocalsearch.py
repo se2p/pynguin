@@ -89,7 +89,7 @@ class LLMLocalSearch:
             self._logger.debug("The llm request has improved the fitness of the test case")
             self.chromosome = test_case
             if not failing_test:
-                stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
+                stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMSuccessCalls, 1)
             else:
                 stat.add_to_runtime_variable(
                     RuntimeVariable.TotalLocalSearchLLMSuccessCallsDespiteFailing, 1

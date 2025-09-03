@@ -404,10 +404,4 @@ class LLMAgent:
             branch_coverage=branch_coverage,
         )
 
-        old_calls = stat.output_variables.get(RuntimeVariable.TotalLocalSearchLLMCalls.name)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.TotalLocalSearchLLMCalls,
-            old_calls.value + 1 if old_calls is not None else 1,
-        )
-
         return self.query(prompt)

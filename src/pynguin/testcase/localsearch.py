@@ -73,13 +73,7 @@ class TestCaseLocalSearch:
                 and self._check_statement_type_enabled(chromosome.test_case.statements[i])
             ):
                 methods: list = []
-                old_stat = stat.output_variables.get(
-                    RuntimeVariable.LocalSearchTotalStatements.name
-                )
-                stat.set_output_variable_for_runtime_variable(
-                    RuntimeVariable.LocalSearchTotalStatements,
-                    old_stat.value + 1 if old_stat is not None else 1,
-                )
+                stat.add_to_runtime_variable(RuntimeVariable.LocalSearchTotalStatements, 1)
                 if config.configuration.local_search.local_search_same_datatype is True:
                     methods.append(
                         lambda pos=i: self._search_same_datatype(
