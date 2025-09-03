@@ -341,7 +341,6 @@ def expected_parameter_list() -> list[str]:
         "--any_weight 0",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
-        "--type4py_weight 10",
         "--type_tracing_argument_type_weight 0.5",
         "--type_tracing_attribute_weight 0.2",
         "--type_tracing_kept_guesses 2",
