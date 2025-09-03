@@ -203,7 +203,7 @@ def weighted_choice(options: dict[Callable[[], T], float]) -> Callable[[], T]:
         options: A dictionary of callables and their respective weights.
     """
     if not options:
-        raise ValueError("weighted_random_choice() called with empty options")
+        raise ValueError("Options must not be empty.")
 
     total = sum(options.values())
     random_number = next_float(0, total)
