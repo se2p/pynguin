@@ -104,6 +104,7 @@ max_dynamic_pool_size = 50
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
+subtype_inference = "NONE"
 
 [pynguinml]
 ml_testing_enabled = false
@@ -229,7 +230,8 @@ def expected_txt(tmp_path):
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
- "'TYPE_HINTS'>, type_tracing=0.0), "
+ "'TYPE_HINTS'>, type_tracing=0.0, "
+ "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>), "
  'pynguinml=PynguinMLConfiguration(ml_testing_enabled=False, '
  "constraints_path='', dtype_mapping_path='', constructor_function='', "
  "constructor_function_parameter='', max_ndim=4, max_shape_dim=4, "
@@ -325,6 +327,7 @@ def expected_parameter_list() -> list[str]:
         "--string_length 20",
         "--subprocess False",
         "--subprocess_if_recommended True",
+        "--subtype_inference NONE",
         "--bytes_length 20",
         "--collection_size 5",
         "--primitive_reuse_probability 0.5",

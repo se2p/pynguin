@@ -966,7 +966,11 @@ class InferredSignature:
         arg_types = knowledge.children[random_attribute].children["__call__"].arg_types[0]
 
         # String subtype inference
-        if len(arg_types) > 0:
+        if (
+            config.configuration.type_inference.subtype_inference
+            == config.SubtypeInferenceStrategy.STRING
+            and len(arg_types) > 0
+        ):
             random_arg_type = randomness.choice(
                 knowledge.children[random_attribute].children["__call__"].arg_types[0]
             )
