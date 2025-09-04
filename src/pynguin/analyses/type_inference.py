@@ -11,13 +11,11 @@ from collections import OrderedDict
 import inspect
 import json
 import logging
-import os
 import time
 import types
 from typing import Any, get_type_hints
 import typing
-
-from pydantic import SecretStr
+from pynguin.configuration import Configuration
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
 from pynguin.large_language_model.prompts.typeinferenceprompt import (
     TypeInferencePrompt,
@@ -31,7 +29,7 @@ if typing.TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-OPENAI_API_KEY = SecretStr(os.environ.get("OPENAI_API_KEY", ""))
+OPENAI_API_KEY = Configuration.large_language_model.api_key
 TEMPERATURE = 0.2
 MODEL = "gpt-4.1-nano-2025-04-14"
 ANY_STR = "typing.Any"

@@ -8,6 +8,7 @@
 
 import dataclasses
 import enum
+import os
 import time
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -712,7 +713,7 @@ class StoppingConfiguration:
 class LLMConfiguration:
     """Configuration for the LLM."""
 
-    api_key: str = ""
+    api_key: str = os.environ.get("OPENAI_API_KEY", "")
     """The api key to call OpenAI LLM with."""
 
     model_name: str = "gpt-4o-mini"
