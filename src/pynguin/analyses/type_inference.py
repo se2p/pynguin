@@ -31,7 +31,7 @@ if typing.TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-OPENAI_API_KEY = SecretStr(config.configuration.large_language_model.api_key)
+
 TEMPERATURE = 0.2
 MODEL = "gpt-4.1-nano-2025-04-14"
 ANY_STR = "typing.Any"
@@ -83,7 +83,10 @@ class LLMInference(InferenceProvider):
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
-                    OPENAI_API_KEY, TEMPERATURE, get_inference_system_prompt(), MODEL
+                    SecretStr(config.configuration.large_language_model.api_key),
+                    TEMPERATURE,
+                    get_inference_system_prompt(),
+                    MODEL,
                 )
             case _:
                 raise NotImplementedError(f"Unknown provider {provider}")
