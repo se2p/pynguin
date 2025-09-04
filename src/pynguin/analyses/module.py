@@ -1844,11 +1844,7 @@ def get_type_provider(
     """
     match type_inference_strategy:
         case TypeInferenceStrategy.LLM:
-            callables = [obj for obj in vars(module).values() if inspect.isfunction(obj)]
-            for obj in vars(module).values():
-                if inspect.isclass(obj):
-                    for _name, member in inspect.getmembers(obj, inspect.isfunction):
-                        callables.append(member)
+            callables = _collect_public_callables(module)
             return LLMInference(callables, LLMProvider.OPENAI, type_system)
         case TypeInferenceStrategy.TYPE_HINTS:
             return HintInference()
@@ -1860,6 +1856,36 @@ def get_type_provider(
                 type_inference_strategy,
             )
             return NoInference()
+
+
+def _collect_public_callables(module: ModuleType):
+    """Collects a list of all public accessibles in a module."""
+    callables = []
+    seen = set()
+
+    def add(obj):
+        if id(obj) not in seen:
+            callables.append(obj)
+            seen.add(id(obj))
+
+    for name, obj in vars(module).items():
+        if name.startswith("_"):
+            continue
+        if inspect.isfunction(obj) and obj.__module__ == module.__name__:
+            add(obj)
+
+    for cls_name, cls in vars(module).items():
+        if (
+            cls_name.startswith("_")
+            or not inspect.isclass(cls)
+            or cls.__module__ != module.__name__
+        ):
+            continue
+        for meth_name, member in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if not meth_name.startswith("_"):
+                add(member)
+
+    return callables
 
 
 def collect_provider_metrics(typ_provider: InferenceProvider):
