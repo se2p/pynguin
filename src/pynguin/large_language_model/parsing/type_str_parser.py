@@ -36,7 +36,7 @@ class TypeStrParser:
         """
         if self._is_any(type_str):
             # type_str could be "Any", "typing.Any", or "builtins.object"
-            return None
+            return builtins.object
         if self._is_none(type_str):
             # type_str could be "None", "NoneType", or "type(None)"
             return type(None)
