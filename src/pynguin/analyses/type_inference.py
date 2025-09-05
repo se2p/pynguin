@@ -31,11 +31,7 @@ if typing.TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-
-TEMPERATURE = 0.2
-MODEL = "gpt-4.1-nano-2025-04-14"
 ANY_STR = "typing.Any"
-DEFAULT_MAX_PARALLEL_CALLS = 20
 
 
 class InferenceProvider(ABC):
@@ -62,6 +58,8 @@ class InferenceProvider(ABC):
 class LLMInference(InferenceProvider):
     """LLM-based type inference strategy for plain Python callables."""
 
+    DEFAULT_MAX_PARALLEL_CALLS = 20
+
     def __init__(
         self,
         callables: Sequence[Callable[..., Any]],
@@ -83,10 +81,9 @@ class LLMInference(InferenceProvider):
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
-                    SecretStr(config.configuration.large_language_model.api_key),
-                    TEMPERATURE,
-                    get_inference_system_prompt(),
-                    MODEL,
+                    api_key=SecretStr(config.configuration.large_language_model.api_key),
+                    system_prompt=get_inference_system_prompt(),
+                    model=config.configuration.large_language_model.model_name,
                 )
             case _:
                 raise NotImplementedError(f"Unknown provider {provider}")
