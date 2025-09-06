@@ -128,6 +128,9 @@ class RuntimeVariable(str, enum.Enum):
     # Number of parameters for which a type could be inferred
     TypeInferenceInferredParameters = "TypeInferenceInferredParameters"
 
+    # Json representation for the inferred signature´s
+    InferredSignatures = "InferredSignatures"
+
     # ========= Values collected during search =========
 
     # Obtained coverage (of the chosen testing criterion(s)) at different points in time

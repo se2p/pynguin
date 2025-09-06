@@ -1898,9 +1898,12 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
     failed_inferences = metrics.get("failed_inferences", 0)
     sent_requests = metrics.get("sent_requests", 0)
     total_setup_time = metrics.get("total_setup_time", 0.0)
+    inferred_signatures = metrics.get("inferred_signature_params", {})
+
     stat.track_output_variable(
         RuntimeVariable.TypeInferenceInferredParameters, successful_inferences
     )
     stat.track_output_variable(RuntimeVariable.TypeInferenceFailedParameters, failed_inferences)
     stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, sent_requests)
     stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, total_setup_time)
+    stat.track_output_variable(RuntimeVariable.InferredSignatures, inferred_signatures)

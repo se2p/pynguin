@@ -57,6 +57,7 @@ class InferenceProvider(ABC):
             "successful_inferences": 0,
             "sent_requests": 0,
             "total_setup_time": 0,
+            "inferred_signature_params": {},
         }
 
     @abstractmethod
@@ -139,6 +140,13 @@ class LLMInference(InferenceProvider):
                 else:
                     self._metrics["successful_inferences"] += 1
                 result[param] = resolved
+        self._metrics["inferred_signature_params"][method.__qualname__][
+            "guessed_parameter_types"
+        ] = result
+        annotations_provider = HintInference()
+        self._metrics["inferred_signature_params"][method.__qualname__][
+            "annotated_parameter_types"
+        ] = annotations_provider.provide(method)
         return result
 
     def _infer_all(self) -> None:
