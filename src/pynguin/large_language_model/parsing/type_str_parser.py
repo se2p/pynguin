@@ -23,7 +23,7 @@ class TypeStrParser:
         """
         self._type_system = type_system
 
-    def parse(self, type_str: str) -> type | None:
+    def parse(self, type_str: str) -> type | str | None:
         """Converts a string to a type object, if possible.
 
         Uses the typeSystem to resolve types.
@@ -40,6 +40,8 @@ class TypeStrParser:
         if self._is_none(type_str):
             # type_str could be "None", "NoneType", or "type(None)"
             return type(None)
+        if self._is_str_subtype(type_str):
+            return str
         if self._is_tuple(type_str):
             # type_str could be e.g. "Tuple[int, str]", "tuple[int, str]", "typing.Tuple[int, str]"
             inner_types = self._get_inner_types(type_str)
@@ -139,6 +141,19 @@ class TypeStrParser:
             "typing.Deque",
             "collections.deque",
             "collections.abc.Deque",
+        ))
+
+    def _is_str_subtype(self, hint: str) -> bool:
+        """Checks if the hint refers to a string subtype."""
+        return hint.startswith((
+            "substring",
+            "Substring",
+            "subString",
+            "SubString",
+            "substr",
+            "Substr",
+            "subStr",
+            "subStr",
         ))
 
     def _get_inner_types(self, hint: str) -> list[str]:

@@ -32,6 +32,19 @@ if typing.TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 ANY_STR = "typing.Any"
+STR_SUBTYPES: list[str] = [
+    "numerical",
+    "email",
+    "hexadecimal",
+    "uuid",
+    "iso_date",
+    "iso_time",
+    "csv_delimited",
+    "url",
+    "ipv4",
+    "ipv6",
+    "sha256",
+]
 
 
 class InferenceProvider(ABC):
@@ -117,6 +130,12 @@ class LLMInference(InferenceProvider):
                     )
                     self._metrics["failed_inferences"] += 1
                     resolved = builtins.object
+                elif isinstance(resolved, str):
+                    self._metrics["successful_inferences"] += 1
+                    # Subtype handling
+                    for subtype in STR_SUBTYPES:
+                        if resolved.find(subtype) > 0:
+                            resolved = str(subtype)
                 else:
                     self._metrics["successful_inferences"] += 1
                 result[param] = resolved
