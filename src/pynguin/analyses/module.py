@@ -1898,12 +1898,68 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
     failed_inferences = metrics.get("failed_inferences", 0)
     sent_requests = metrics.get("sent_requests", 0)
     total_setup_time = metrics.get("total_setup_time", 0.0)
-    inferred_signatures = metrics.get("inferred_signature_params", {})
-
     stat.track_output_variable(
         RuntimeVariable.TypeInferenceInferredParameters, successful_inferences
     )
     stat.track_output_variable(RuntimeVariable.TypeInferenceFailedParameters, failed_inferences)
     stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, sent_requests)
     stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, total_setup_time)
-    stat.track_output_variable(RuntimeVariable.InferredSignatures, inferred_signatures)
+    # Additionally, when using an LLM-based provider, collect the raw inferred
+    # parameter strings per callable and the annotated parameter strings. The
+    # structure mirrors the evaluation format used elsewhere and is serialized
+    # as JSON and stored in the LLMInferredSignatures runtime variable.
+    if isinstance(typ_provider, LLMInference):
+        try:
+            inferred_signatures: dict[str, dict] = {}
+
+            inference_map = typ_provider.get_inference_map()
+            callables = typ_provider.get_callables()
+
+            for func in callables:
+                # Build a stable key: module.qualname when possible
+                module_part = getattr(func, "__module__", "")
+                qualname_part = getattr(func, "__qualname__", None)
+                if qualname_part is None:
+                    key = str(func)
+                else:
+                    key = f"{module_part}.{qualname_part}"
+
+                # Annotated parameter strings (prior), fallback to typing.Any
+                try:
+                    prior = typ_provider.prior_types_for(func)
+                except Exception as exc:  # narrow catch for unexpected provider failures
+                    LOGGER.debug("Could not obtain prior types for %s: %s", func, exc)
+                    prior = {}
+
+                guessed_raw = inference_map.get(func, {})
+
+                params = set(prior.keys()) | set(guessed_raw.keys())
+
+                annotated_parameter_types: dict[str, str] = {}
+                guessed_parameter_types: dict[str, list[str]] = {}
+
+                for p in params:
+                    if p in {"*args", "**kwargs"}:
+                        annotated_parameter_types[p] = "typing.Any"
+                    else:
+                        annotated_parameter_types[p] = prior.get(p, "typing.Any")
+
+                    guess = guessed_raw.get(p, "")
+                    if isinstance(guess, str) and guess.strip():
+                        guessed_parameter_types[p] = [guess.strip()]
+                    else:
+                        guessed_parameter_types[p] = []
+
+                inferred_signatures[key] = {
+                    "annotated_parameter_types": annotated_parameter_types,
+                    "guessed_parameter_types": guessed_parameter_types,
+                    "partial_type_matches": {},
+                    "annotated_return_type": None,
+                    "recorded_return_type": None,
+                }
+
+            stat.track_output_variable(
+                RuntimeVariable.LLMInferredSignatures, json.dumps(inferred_signatures)
+            )
+        except Exception as exc:  # Catch at top-level to ensure metrics don't break analysis
+            LOGGER.exception("Could not collect LLM inferred signatures: %s", exc)

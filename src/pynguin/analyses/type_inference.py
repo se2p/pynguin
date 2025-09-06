@@ -57,7 +57,6 @@ class InferenceProvider(ABC):
             "successful_inferences": 0,
             "sent_requests": 0,
             "total_setup_time": 0,
-            "inferred_signature_params": {},
         }
 
     @abstractmethod
@@ -140,13 +139,6 @@ class LLMInference(InferenceProvider):
                 else:
                     self._metrics["successful_inferences"] += 1
                 result[param] = resolved
-        self._metrics["inferred_signature_params"][method.__qualname__][
-            "guessed_parameter_types"
-        ] = result
-        annotations_provider = HintInference()
-        self._metrics["inferred_signature_params"][method.__qualname__][
-            "annotated_parameter_types"
-        ] = annotations_provider.provide(method)
         return result
 
     def _infer_all(self) -> None:
@@ -272,6 +264,26 @@ class LLMInference(InferenceProvider):
         except json.JSONDecodeError as exc:
             _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
             return prior
+
+    # Public accessors for external metrics/collection
+    def get_inference_map(self) -> OrderedDict[Callable[..., Any], dict[str, str]]:
+        """Return the mapping from callables to parsed inference strings.
+
+        This is exposed for metrics collection and should be treated as read-only.
+        """
+        return OrderedDict(self._inference_by_callable)
+
+    def get_callables(self) -> list[Callable[..., Any]]:
+        """Return the list of callables that were provided to this inference provider."""
+        return list(self._callables)
+
+    def prior_types_for(self, func: Callable[..., Any]) -> dict[str, str]:
+        """Return the prior/annotated type strings for the given callable.
+
+        This wraps the internal _prior_types helper so external code does not
+        access private members.
+        """
+        return self._prior_types(func)
 
 
 class NoInference(InferenceProvider):

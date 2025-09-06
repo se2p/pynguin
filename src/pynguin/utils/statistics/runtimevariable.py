@@ -129,7 +129,7 @@ class RuntimeVariable(str, enum.Enum):
     TypeInferenceInferredParameters = "TypeInferenceInferredParameters"
 
     # Json representation for the inferred signature´s
-    InferredSignatures = "InferredSignatures"
+    LLMInferredSignatures = "LLMInferredSignatures"
 
     # ========= Values collected during search =========
 
