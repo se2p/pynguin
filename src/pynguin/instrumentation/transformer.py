@@ -1038,7 +1038,8 @@ class InstrumentationTransformer:
 
         annotated_ast = (
             module_annotated_ast.get_scope(
-                # Special case as line numbers of modules are 1 in code objects but are 0 in ASTs
+                # Special case as the line number of a module is 1
+                # in its code object but is 0 in its AST
                 0 if code.co_name == "<module>" else code.co_firstlineno
             )
             if module_annotated_ast is not None
