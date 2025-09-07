@@ -1763,9 +1763,9 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
     ) -> None:
         if (
             annotated_ast is not None
-            and (last_instr := node.try_get_instruction(-1)) is not None
-            and isinstance(last_instr.lineno, int)
-            and not annotated_ast.should_cover_line(last_instr.lineno)
+            and (jump_instr := node.try_get_instruction(JUMP_OP_POS)) is not None
+            and isinstance(jump_instr.lineno, int)
+            and not annotated_ast.should_cover_line(jump_instr.lineno)
         ):
             return
 
