@@ -25,6 +25,7 @@ from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
+from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version.common import COMPARE_OP_POS
 from pynguin.instrumentation.version.common import JUMP_OP_POS
@@ -433,6 +434,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
 
     def visit_node(  # noqa: D102
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -443,8 +445,16 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         if maybe_jump is None:
             return
 
+        if (
+            annotated_ast is not None
+            and isinstance(maybe_jump.lineno, int)
+            and not annotated_ast.should_cover_line(maybe_jump.lineno)
+        ):
+            return
+
         if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(
+                annotated_ast,
                 cfg,
                 code_object_id,
                 node,
@@ -455,6 +465,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
 
         if maybe_jump.name in self.NONE_BASED_JUMPS_MAPPING:
             self.visit_none_based_conditional_jump(
+                annotated_ast,
                 cfg,
                 code_object_id,
                 node,
@@ -475,6 +486,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         else:
             if maybe_compare.name in python3_10.COMPARE_NAMES:
                 self.visit_compare_based_conditional_jump(
+                    annotated_ast,
                     cfg,
                     code_object_id,
                     node,
@@ -485,6 +497,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
 
             if maybe_compare.name == "CHECK_EXC_MATCH":
                 self.visit_exception_based_conditional_jump(
+                    annotated_ast,
                     cfg,
                     code_object_id,
                     node,
@@ -494,6 +507,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
                 return
 
         self.visit_bool_based_conditional_jump(
+            annotated_ast,
             cfg,
             code_object_id,
             node,
@@ -501,8 +515,9 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             maybe_jump_index,
         )
 
-    def visit_none_based_conditional_jump(  # noqa: D102
+    def visit_none_based_conditional_jump(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -548,10 +563,11 @@ class CheckedCoverageInstrumentation(python3_10.CheckedCoverageInstrumentation):
     instructions_generator = Python311InstrumentationInstructionsGenerator
 
     def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return instr.lineno != lineno and instr.name != "RESUME"
+        return super().should_instrument_line(instr, lineno) and instr.name != "RESUME"
 
     def visit_call(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,

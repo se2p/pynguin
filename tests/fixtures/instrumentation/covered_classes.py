@@ -10,7 +10,7 @@ class Foo:  # pynguin: no cover
         return 42
 
 class Bar:
-    def bar(self):  # pynguin: no cover
+    def bar(self):  # pragma: no cover
         return 84
 
 class Baz:

@@ -747,6 +747,24 @@ class LLMConfiguration:
 
 
 @dataclasses.dataclass
+class CoverageConfiguration:
+    """Configuration of the coverage instrumentation."""
+
+    only_cover: list[str] = dataclasses.field(default_factory=list)
+    """The list of functions, methods or classes to only cover."""
+
+    no_cover: list[str] = dataclasses.field(default_factory=list)
+    """The list of functions, methods or classes to not cover.
+    Automatically include the methods of the `ignore_methods` argument."""
+
+    enable_inline_pynguin_no_cover: bool = True
+    """Enable inline `pynguin: no cover`."""
+
+    enable_inline_pragma_no_cover: bool = True
+    """Enable inline `pragma: no cover`."""
+
+
+@dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""
 
@@ -799,6 +817,9 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    coverage: CoverageConfiguration = dataclasses.field(default_factory=CoverageConfiguration)
+    """Configuration used for the coverage instrumentation."""
 
     ignore_modules: list[str] = dataclasses.field(default_factory=list)
     """Ignore the modules specified here from the module analysis."""

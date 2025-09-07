@@ -180,7 +180,6 @@ def _setup_path() -> bool:
 
 
 def _setup_import_hook(
-    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
 ) -> SubjectProperties:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
@@ -189,7 +188,6 @@ def _setup_import_hook(
     install_import_hook(
         config.configuration.module_name,
         subject_properties,
-        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     return subject_properties
@@ -288,10 +286,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
-    subject_properties = _setup_import_hook(
-        set(config.configuration.statistics_output.coverage_metrics),
-        dynamic_constant_provider,
-    )
+    subject_properties = _setup_import_hook(dynamic_constant_provider)
     if not _load_sut(subject_properties):
         return None
     if not _setup_report_dir():

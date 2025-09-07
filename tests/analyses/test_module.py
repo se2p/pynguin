@@ -8,12 +8,12 @@ import importlib
 import itertools
 
 from logging import Logger
-from pathlib import Path
 from typing import Union
 from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import astroid
 import pytest
 
 from pynguin.analyses import module
@@ -23,7 +23,6 @@ from pynguin.analyses.module import TypeInferenceStrategy
 from pynguin.analyses.module import _ModuleParseResult
 from pynguin.analyses.module import analyse_module
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.module import get_no_cover_lines
 from pynguin.analyses.module import parse_module
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import AnyType
@@ -96,7 +95,7 @@ def test_parse_native_module():
     module.LOGGER.debug.assert_called_once()
 
 
-@pytest.mark.parametrize("exception_type", [TypeError, OSError, RuntimeError])
+@pytest.mark.parametrize("exception_type", [TypeError, OSError, astroid.AstroidError])
 @patch("astroid.parse")
 def test_parse_module_exceptions(mock_parse, exception_type):
     mock_parse.side_effect = exception_type("Mocked Exception")
@@ -674,9 +673,3 @@ def test_analyse_module_sets_c_extension_and_subprocess(
         f"Expected subprocess mode to be {expected_subprocess_value}, "
         f"but got {tracked[RuntimeVariable.SubprocessMode]}"
     )
-
-
-def test_get_no_cover_lines():
-    source_code = Path("tests/fixtures/instrumentation/covered.py").read_text(encoding="utf-8")
-
-    assert get_no_cover_lines(source_code) == {8, 14, 20}

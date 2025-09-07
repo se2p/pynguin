@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import importlib
 import sys
 
 from contextlib import contextmanager
@@ -15,7 +16,7 @@ from pynguin.instrumentation.controlflow import ControlDependenceGraph
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
-from tests.fixtures.programgraph.yield_fun import yield_fun
+from tests.testutils import instrument_function
 
 
 def test_integration(small_control_flow_graph):
@@ -54,13 +55,17 @@ def test_integration(small_control_flow_graph):
     assert isinstance(control_dependence_graph.entry_node, ArtificialNode)
 
 
-def small_fixture(x, y):  # pragma: no cover
-    if x <= y:  # predicate 0
-        if x == y:  # predicate 1
-            pass
-        if x > 0 and y == 17:  # predicate 2 and 3
-            return True
-    return False
+@pytest.fixture
+def small_fixture():
+    def func(x, y):  # pragma: no cover
+        if x <= y:  # predicate 0
+            if x == y:  # predicate 1
+                pass
+            if x > 0 and y == 17:  # predicate 2 and 3
+                return True
+        return False
+
+    return func
 
 
 @pytest.mark.parametrize(
@@ -119,10 +124,16 @@ def small_fixture(x, y):  # pragma: no cover
         ),
     ],
 )
-def test_get_control_dependencies(node_index, expected_deps, subject_properties: SubjectProperties):
+def test_get_control_dependencies(
+    node_index, expected_deps, subject_properties: SubjectProperties, small_fixture
+):
     adapter = BranchCoverageInstrumentation(subject_properties)
-    transformer = InstrumentationTransformer(subject_properties, [adapter])
-    transformer.instrument_module(small_fixture.__code__)
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        [adapter],
+        enable_inline_pragma_no_cover=False,
+    )
+    instrument_function(transformer, small_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     node = cdg.get_basic_block_node(node_index)
 
@@ -137,10 +148,16 @@ def test_get_control_dependencies(node_index, expected_deps, subject_properties:
 
 
 @pytest.mark.parametrize("node", ["foobar", None])
-def test_get_control_dependencies_asserts(node, subject_properties: SubjectProperties):
+def test_get_control_dependencies_asserts(
+    node, subject_properties: SubjectProperties, small_fixture
+):
     adapter = BranchCoverageInstrumentation(subject_properties)
-    transformer = InstrumentationTransformer(subject_properties, [adapter])
-    transformer.instrument_module(small_fixture.__code__)
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        [adapter],
+        enable_inline_pragma_no_cover=False,
+    )
+    instrument_function(transformer, small_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     with pytest.raises(AssertionError):
         cdg.get_control_dependencies(node)
@@ -151,17 +168,21 @@ def dummy_context():  # pragma: no cover
     yield
 
 
-def long_fixture(x, y):  # pragma: no cover
-    if x < y:
-        z = x + y
+@pytest.fixture
+def long_fixture():
+    def func(x, y):  # pragma: no cover
+        if x < y:
+            z = x + y
 
-    with dummy_context():
-        z = x
+        with dummy_context():
+            z = x
 
-    if z > 0:
-        return 4
+        if z > 0:
+            return 4
 
-    return 9
+        return 9
+
+    return func
 
 
 if sys.version_info >= (3, 12):
@@ -215,11 +236,15 @@ else:
     test_is_control_dependent_on_root_params,
 )
 def test_is_control_dependent_on_root(
-    node_index, expected_dependant, subject_properties: SubjectProperties
+    node_index, expected_dependant, subject_properties: SubjectProperties, long_fixture
 ):
     adapter = BranchCoverageInstrumentation(subject_properties)
-    transformer = InstrumentationTransformer(subject_properties, [adapter])
-    transformer.instrument_module(long_fixture.__code__)
+    transformer = InstrumentationTransformer(
+        subject_properties,
+        [adapter],
+        enable_inline_pragma_no_cover=False,
+    )
+    instrument_function(transformer, long_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     node = cdg.get_basic_block_node(node_index)
 
@@ -228,10 +253,16 @@ def test_is_control_dependent_on_root(
     assert expected_dependant == dependant
 
 
-def test_yield_instrumented(subject_properties: SubjectProperties):
+@pytest.fixture
+def yield_fun_module():
+    yield_fun_module = importlib.import_module("tests.fixtures.programgraph.yield_fun")
+    return importlib.reload(yield_fun_module)
+
+
+def test_yield_instrumented(subject_properties: SubjectProperties, yield_fun_module):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    transformer.instrument_module(yield_fun.__code__)
+    instrument_function(transformer, yield_fun_module.yield_fun)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
     assert cdg
 

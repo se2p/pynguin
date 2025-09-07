@@ -166,6 +166,12 @@ exploitation_starts_at_percent = 0.5
 max_sequence_length = 10
 max_sequences_combined = 10
 
+[coverage]
+only_cover = []
+no_cover = []
+enable_inline_pynguin_no_cover = true
+enable_inline_pragma_no_cover = true
+
 [test_case_output.minimization]
 test_case_minimization_strategy = "CASE"
 test_case_minimization_direction = "BACKWARD"
@@ -258,7 +264,9 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[], '
+ 'max_sequences_combined=10), coverage=CoverageConfiguration(only_cover=[], '
+ 'no_cover=[], enable_inline_pynguin_no_cover=True, '
+ 'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
  'subprocess=False, subprocess_if_recommended=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
@@ -347,6 +355,8 @@ def expected_parameter_list() -> list[str]:
         "--chromosome_length 40",
         "--chop_max_length True",
         "--elite 1",
+        "--enable_inline_pragma_no_cover True",
+        "--enable_inline_pynguin_no_cover True",
         "--crossover_rate 0.75",
         "--test_insertion_probability 0.1",
         "--test_delete_probability 0.3333333333333333",

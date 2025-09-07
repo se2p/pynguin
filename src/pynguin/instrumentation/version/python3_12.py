@@ -24,6 +24,7 @@ from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
+from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version import python3_11
 from pynguin.instrumentation.version.common import (
@@ -394,6 +395,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -431,6 +433,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_attr_access(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -479,6 +482,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_slice_access(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -525,6 +529,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_deref_access(  # noqa: D102, PLR0917
         self,
+        annotated_ast: transformer.AnnotatedAst | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,

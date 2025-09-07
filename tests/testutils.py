@@ -9,6 +9,7 @@
 import ast
 import importlib
 import inspect
+import types
 
 from pathlib import Path
 
@@ -25,6 +26,7 @@ from pynguin.assertion.mutation_analysis.operators.base import Mutation
 from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.assertion.mutation_analysis.transformer import create_module
+from pynguin.instrumentation.transformer import InstrumentationTransformer
 
 
 def feed_typesystem(system: TypeSystem, generic: gao.GenericAccessibleObject):
@@ -185,3 +187,7 @@ def import_module_safe(module_name):
         return import_using_spec(module_name)
 
     return module, module_source_code
+
+
+def instrument_function(transformer: InstrumentationTransformer, function: types.FunctionType):
+    function.__code__ = transformer.instrument_code(function.__code__, function.__module__)

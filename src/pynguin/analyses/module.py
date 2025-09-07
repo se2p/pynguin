@@ -42,8 +42,6 @@ import pynguin.utils.typetracing as tt
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
-import re
-
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 from pynguin.analyses.syntaxtree import FunctionDescription
 from pynguin.analyses.syntaxtree import astroid_to_ast
@@ -96,7 +94,6 @@ AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.Functi
 
 LOGGER = logging.getLogger(__name__)
 
-NO_COVER_PATTERN = re.compile(r"# +?(pynguin|pragma): +?no +?cover")
 
 # A set of modules that shall be blacklisted from analysis (keep them sorted to ease
 # future manipulations or looking up module names of this set!!!):
@@ -442,28 +439,19 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
-def get_no_cover_lines(source_code: str) -> set[int]:
-    """Get the lines that are marked with a "no cover" comment.
-
-    Returns:
-        The set of lines that are marked with a "no cover" comment.
-    """
-    return {
-        lineno
-        for lineno, line in enumerate(source_code.splitlines(), start=1)
-        if NO_COVER_PATTERN.search(line) is not None
-    }
-
-
-def parse_module_ast(module_name: str, module_path: str) -> tuple[astroid.Module, str]:
-    """Parses the AST of a module and returns it along with the source code.
+def read_module_ast(module_path: str, module_name: str) -> tuple[astroid.Module, str]:
+    """Reads the AST of the module and returns it along with its source code.
 
     Args:
-        module_name: The fully-qualified name of the module
-        module_path: The path to the module
+        module_path: The path of the module.
+        module_name: The name of the module.
+
+    Raises:
+        OSError: if the module file cannot be read.
+        AstroidError: if an error occurs during the creation of the AST.
 
     Returns:
-        A tuple containing the AST and the source code
+        A tuple containing the AST and the source code.
     """
     source_code = Path(module_path).read_text(encoding="utf-8")
     syntax_tree = astroid.parse(code=source_code, module_name=module_name, path=module_path)
@@ -489,9 +477,14 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     linenos: int = -1
     try:
         module_path = inspect.getsourcefile(module)
-        assert module_path is not None, f"Could not determine the path of module {module_name}"
-        syntax_tree, source_code = parse_module_ast(module_name, module_path)
-    except BaseException as error:  # noqa: BLE001
+        assert module_path is not None, f"Could not determine the path of module {module}"
+        syntax_tree, source_code = read_module_ast(module_path, module_name)
+    except (
+        TypeError,  # from `inspect.getsourcefile`
+        AssertionError,  # from `assert`
+        OSError,
+        astroid.AstroidError,
+    ) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "

@@ -52,10 +52,13 @@ async def run_async_generator(gen):
     return the_sum
 
 
-def test_pynguin_no_cover(subject_properties: SubjectProperties):
-    with install_import_hook("tests.fixtures.instrumentation.covered", subject_properties):
+def test_pynguin_no_cover_functions(subject_properties: SubjectProperties):
+    with install_import_hook(
+        "tests.fixtures.instrumentation.covered_functions",
+        subject_properties,
+    ):
         with subject_properties.instrumentation_tracer:
-            covered = importlib.import_module("tests.fixtures.instrumentation.covered")
+            covered = importlib.import_module("tests.fixtures.instrumentation.covered_functions")
             covered = importlib.reload(covered)
 
         assert set(subject_properties.existing_code_objects) == {
@@ -82,10 +85,13 @@ def test_pynguin_no_cover(subject_properties: SubjectProperties):
         }
 
 
-def test_pynguin_no_cover_class(subject_properties: SubjectProperties):
-    with install_import_hook("tests.fixtures.instrumentation.covered_class", subject_properties):
+def test_pynguin_no_cover_classes(subject_properties: SubjectProperties):
+    with install_import_hook(
+        "tests.fixtures.instrumentation.covered_classes",
+        subject_properties,
+    ):
         with subject_properties.instrumentation_tracer:
-            covered = importlib.import_module("tests.fixtures.instrumentation.covered_class")
+            covered = importlib.import_module("tests.fixtures.instrumentation.covered_classes")
             covered = importlib.reload(covered)
 
         assert set(subject_properties.existing_code_objects) == {

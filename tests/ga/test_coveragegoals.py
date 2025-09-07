@@ -310,7 +310,7 @@ def test_fitness_simple_nesting(
 """,
         ),
         (
-            "tests.fixtures.instrumentation.covered",
+            "tests.fixtures.instrumentation.covered_functions",
             1.0,  # module executed but not the `covered` function
             """def test_case_0():
     int_0 = -50
@@ -322,7 +322,7 @@ def test_fitness_simple_nesting(
 """,
         ),
         (
-            "tests.fixtures.instrumentation.covered",
+            "tests.fixtures.instrumentation.covered_functions",
             0.0,  # module and `covered` function executed
             """def test_case_0():
     int_0 = 1
