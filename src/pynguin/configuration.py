@@ -758,10 +758,10 @@ class CoverageConfiguration:
     Automatically include the methods of the `ignore_methods` argument."""
 
     enable_inline_pynguin_no_cover: bool = True
-    """Enable inline `pynguin: no cover`."""
+    """Enable inline ``pynguin: no cover``."""
 
     enable_inline_pragma_no_cover: bool = True
-    """Enable inline `pragma: no cover`."""
+    """Enable inline ``pragma: no cover``."""
 
 
 @dataclasses.dataclass
