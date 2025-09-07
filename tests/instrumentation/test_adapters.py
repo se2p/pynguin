@@ -803,6 +803,7 @@ def test_tracking_covered_statements_while_loop(
         ("pass_on_both", False, OrderedSet([31, 34])),
         ("for_return", [], OrderedSet([38])),
         ("for_return", [1], OrderedSet([38, 39])),
+        ("no_cover", None, OrderedSet([44])),
     ],
 )
 def test_expected_covered_lines(
