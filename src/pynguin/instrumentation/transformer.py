@@ -217,8 +217,17 @@ class AnnotatedAst:
         Returns:
             True if it is in cover, False otherwise.
         """
-        return lineno not in self.module.no_cover_lines and (
-            not self.module.only_cover_lines or lineno in self.module.only_cover_lines
+        if lineno in self.module.no_cover_lines:
+            return False
+
+        return (
+            not self.module.only_cover_lines
+            or lineno in self.module.only_cover_lines
+            or any(
+                child_lineno in self.module.only_cover_lines
+                for child_lineno in range(self.ast.fromlineno, self.ast.tolineno + 1)
+                if child_lineno not in self.module.no_cover_lines
+            )
         )
 
     @staticmethod
