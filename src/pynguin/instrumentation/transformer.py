@@ -1045,6 +1045,14 @@ class InstrumentationTransformer:
             self._enable_inline_pragma_no_cover,
         )
 
+        return self._instrument_code_recursive(code, module_annotated_ast)
+
+    def _instrument_code_recursive(
+        self,
+        code: CodeType,
+        module_annotated_ast: ModuleAnnotatedAst | None,
+        parent_code_object_id: int | None = None,
+    ) -> CodeType:
         annotated_ast = (
             module_annotated_ast.get_scope(
                 # Special case as the line number of a module is 1
@@ -1055,15 +1063,6 @@ class InstrumentationTransformer:
             else None
         )
 
-        return self._instrument_code_recursive(code, module_name, annotated_ast)
-
-    def _instrument_code_recursive(
-        self,
-        code: CodeType,
-        module_name: str,
-        annotated_ast: AnnotatedAst | None,
-        parent_code_object_id: int | None = None,
-    ) -> CodeType:
         if annotated_ast is not None and not annotated_ast.should_be_covered():
             self._logger.debug("Skipping instrumentation of %s", code.co_name)
             return code
@@ -1085,12 +1084,7 @@ class InstrumentationTransformer:
 
         code_object = instrumented_code.replace(
             co_consts=tuple(
-                self._instrument_code_recursive(
-                    const,
-                    module_name,
-                    annotated_ast.module.get_scope(const.co_firstlineno) if annotated_ast else None,
-                    code_object_id,
-                )
+                self._instrument_code_recursive(const, module_annotated_ast, code_object_id)
                 if isinstance(const, CodeType)
                 else const
                 for const in instrumented_code.co_consts
