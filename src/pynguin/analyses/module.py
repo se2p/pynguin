@@ -1467,6 +1467,7 @@ def __analyse_class(
 IGNORED_SYMBOLS: set[str] = {
     "__new__",
     "__init__",
+    "__del__",
     "__repr__",
     "__str__",
     "__sizeof__",
