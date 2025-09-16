@@ -6,6 +6,7 @@
 #
 """Performs string grammar inference based on observed calls on strings."""
 
+import logging
 import re
 
 from collections.abc import Callable
@@ -14,8 +15,12 @@ from collections.abc import Mapping
 
 import rstr
 
+from pynguin.utils.randomness import RNG
 
-_LOGGER = __import__("logging").getLogger(__name__)
+
+_LOGGER = logging.getLogger(__name__)
+
+STRING_GENERATOR: rstr.Rstr = rstr.Xeger(RNG)
 
 
 class RegexBuilder:
@@ -155,7 +160,7 @@ def generate_from_regex(regex: re.Pattern) -> str:
     """
     pattern = regex.pattern if isinstance(regex, re.Pattern) else regex
     try:
-        return rstr.xeger(pattern)
+        return STRING_GENERATOR.xeger(pattern)
     except Exception as ex:  # noqa: BLE001
         _LOGGER.warning("Could not generate string from regex: %s", ex)
         return ""

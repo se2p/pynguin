@@ -8,8 +8,8 @@
 import re
 
 import pytest
-import rstr
 
+from pynguin.analyses import string_subtypes
 from pynguin.analyses.string_subtypes import generate_from_regex
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
 from pynguin.utils.orderedset import OrderedSet
@@ -119,7 +119,7 @@ def test_generate_from_invalid_regex(monkeypatch):
     def boom(_):
         raise ValueError("bad regex")
 
-    monkeypatch.setattr(rstr, "xeger", boom)
+    monkeypatch.setattr(string_subtypes.STRING_GENERATOR, "xeger", boom)
 
     regex = re.compile(r".*")
     s = generate_from_regex(regex)
