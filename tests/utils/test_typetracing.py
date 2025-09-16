@@ -83,9 +83,45 @@ def test_non_existing_attribute():
 
 def test_method_called():
     proxy = tt.ObjectProxy("foo")
-    assert proxy.startswith("fo")
+    assert proxy.startswith("fo")  # performs actual assert and tracks call
     assert "startswith" in tt.UsageTraceNode.from_proxy(proxy).children
     assert "__call__" in tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children
+    assert tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children[
+        "__call__"
+    ].arg_types[0] == OrderedSet([str])
+    assert tt.UsageTraceNode.from_proxy(proxy).children["startswith"].children[
+        "__call__"
+    ].arg_values[0] == OrderedSet(["fo"])
+
+
+@pytest.mark.parametrize(
+    "to_add, expected",
+    [
+        (1, OrderedSet([int])),
+        (1.0, OrderedSet([float])),
+        (1 + 0j, OrderedSet([complex])),
+        (True, OrderedSet([bool])),
+    ],
+)
+def test_method_called_builtin(to_add, expected):
+    proxy = tt.ObjectProxy(1)
+    assert proxy + to_add == 2
+    assert "__add__" in tt.UsageTraceNode.from_proxy(proxy).children
+    assert tt.UsageTraceNode.from_proxy(proxy).children["__add__"].arg_types[0] == expected
+
+
+def test_method_called_object():
+    class Foo:
+        def add_42(self, x):
+            return x + 42
+
+    proxy = tt.ObjectProxy(Foo())
+    assert proxy.add_42(1) == 43
+    assert "add_42" in tt.UsageTraceNode.from_proxy(proxy).children
+    assert "__call__" in tt.UsageTraceNode.from_proxy(proxy).children["add_42"].children
+    assert tt.UsageTraceNode.from_proxy(proxy).children["add_42"].children["__call__"].arg_types[
+        0
+    ] == OrderedSet([int])
 
 
 def test_loop_over_list():

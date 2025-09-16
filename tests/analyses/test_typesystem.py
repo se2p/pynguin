@@ -8,6 +8,7 @@
 
 import inspect
 import operator
+import re
 
 from typing import Any
 from typing import TypeVar
@@ -33,6 +34,7 @@ from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import StringSubtype
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
@@ -941,3 +943,34 @@ def test__guess_parameter_type_with_type_knowledge(inferred_signature, pick, exp
         choice_mock.side_effect = lambda x: x[next(pick)]  # noqa: FURB118
         actual = inferred_signature._guess_parameter_type(knowledge, kind)
         assert actual == expected_type
+
+
+def test_string_subtype():
+    string_subtype = StringSubtype(re.compile(r"^bar"))
+    assert str(string_subtype) == "StringSubtype(re.compile('^bar'))"
+
+
+@pytest.mark.xfail(reason="Not implemented yet")
+def test_is_subtype_string_subtype(subtyping_cluster):
+    type_system = subtyping_cluster.type_system
+    left = StringSubtype(re.compile(r"^bar"))
+    right = StringSubtype(re.compile(r"^bar"))
+    assert type_system.is_subtype(left, right) is True
+    assert type_system.is_maybe_subtype(left, right) is True
+
+
+def test__from_str_values_empty():
+    knowledge = UsageTraceNode("ROOT")
+    assert InferredSignature._from_str_values(knowledge) is None
+
+
+def _make_usage_trace_with_strings(strings_by_attr):
+    root = UsageTraceNode("ROOT")
+    for attr, strings in strings_by_attr.items():
+        root.children[attr].children["__call__"].arg_values[0].update(strings)
+    return root
+
+
+def test__from_str_values():
+    knowledge = _make_usage_trace_with_strings({"startswith": {"bar"}})
+    assert InferredSignature._from_str_values(knowledge) == StringSubtype(re.compile(r"^(?:bar)"))
