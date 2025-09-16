@@ -7,6 +7,7 @@
 import enum
 import importlib
 import inspect
+import re
 
 from inspect import Parameter
 from inspect import Signature
@@ -28,6 +29,7 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import StringSubtype
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
@@ -299,6 +301,18 @@ def test_attempt_generation_for_int_with_no_probability(default_test_case):
         allow_none=True,
     )
     assert result is None
+
+
+def test_attempt_generation_for_string_subtype(default_test_case):
+    factory = tf.TestFactory(default_test_case.test_cluster)
+    result = factory._attempt_generation(
+        test_case=default_test_case,
+        parameter_type=StringSubtype(re.compile(r"^bar")),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
+    )
+    assert result.distance == 0
 
 
 def test_attempt_generation_for_type_from_cluster(default_test_case):

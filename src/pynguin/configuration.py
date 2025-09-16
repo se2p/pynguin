@@ -168,6 +168,16 @@ class TypeInferenceStrategy(str, enum.Enum):
     """Use type information from type hints in the module under test."""
 
 
+class SubtypeInferenceStrategy(str, enum.Enum):
+    """The different available type-inference strategies."""
+
+    NONE = "NONE"
+    """Do not infer subtypes."""
+
+    STRING = "STRING"
+    """Infer subtypes for strings."""
+
+
 class StatisticsBackend(str, enum.Enum):
     """The different available statistics backends to write statistics."""
 
@@ -448,6 +458,21 @@ class TypeInferenceConfiguration:
     guesses during test execution. Type tracing requires a separate second.
     The value should be a float in [0,1]. Boolean is kept for backwards compatibility
     as Python internally converts True to 1.0 and False to 0.0 anyways."""
+
+    subtype_inference: SubtypeInferenceStrategy = SubtypeInferenceStrategy.NONE
+    """The strategy for subtype-inference that shall be used."""
+
+    type_tracing_subtype_weight: float = 0.3
+    """Weight for selecting the subtype inference strategy for type selection during type
+    tracing."""
+
+    type_tracing_argument_type_weight: float = 0.5
+    """Weight for selecting the argument type inference strategy for type selection
+    during type tracing."""
+
+    type_tracing_attribute_weight: float = 0.2
+    """Weight for selecting the attribute table inference strategy for type selection
+    during type tracing."""
 
 
 @dataclasses.dataclass
