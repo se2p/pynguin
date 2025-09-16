@@ -32,68 +32,72 @@ class RegexBuilder:
         self.body: list[str] = []
         self.suffix: list[str] = []
 
-    def handle_startswith(self, args: Iterable[str]) -> None:
+    def handle_startswith(self, *args: str) -> None:
         """Handle the startswith method."""
         self.prefix.extend([f"^(?:{re.escape(a)})" for a in args])
 
-    def handle_endswith(self, args: Iterable[str]) -> None:
+    def handle_endswith(self, *args: str) -> None:
         """Handle the endswith method."""
         self.suffix.extend([f"(?:{re.escape(a)})$" for a in args])
 
-    def handle_splitlike(self, args: Iterable[str]) -> None:
+    def handle_splitlike(self, *args: str) -> None:
         """Handle split, rsplit, and join."""
-        sep = re.escape(next(iter(args), "_"))
+        sep = re.escape(args[0]) if args else "_"
         self.body.append(f"(?:[A-Za-z0-9]+(?:{sep}[A-Za-z0-9]+)*)")
 
-    def handle_partition(self, args: Iterable[str]) -> None:
+    def handle_partition(self, *args: str) -> None:
         """Handle partition and rpartition."""
-        sep = re.escape(next(iter(args)))
-        self.body.append(f"(?:.*?{sep}.*?)")
+        if args:
+            sep = re.escape(args[0])
+            self.body.append(f"(?:.*?{sep}.*?)")
 
-    def handle_findlike(self, args: Iterable[str]) -> None:
+    def handle_findlike(self, *args: str) -> None:
         """Handle find, rfind, index, and rindex."""
         self.body.extend([f".*{re.escape(a)}.*" for a in args])
 
-    def handle_replace(self, args: Iterable[str]) -> None:
+    def handle_replace(self, *args: str) -> None:
         """Handle replace."""
-        old, new = args
-        self.body.append(f"(?:.*{re.escape(old)}.*|.*{re.escape(new)}.*)")
+        if len(args) >= 2:
+            old, new = args[:2]
+            self.body.append(f"(?:.*{re.escape(old)}.*|.*{re.escape(new)}.*)")
 
-    def handle_strip(self, args: Iterable[str]) -> None:
+    def handle_strip(self, *args: str) -> None:
         """Handle strip, lstrip, and rstrip."""
         self.body.append(r"\s*(.*?)\s*")
 
-    def handle_zfill(self, args: Iterable[str]) -> None:
+    def handle_zfill(self, *args: str) -> None:
         """Handle zfill."""
-        width = int(next(iter(args)))
-        self.body.append(rf"0*\d{{1,{width}}}")
+        if args:
+            width = int(args[0])
+            self.body.append(rf"0*\d{{1,{width}}}")
 
-    def handle_justify(self, args: Iterable[str]) -> None:
+    def handle_justify(self, *args: str) -> None:
         """Handle center, ljust, and rjust."""
-        width = int(next(iter(args)))
-        self.body.append(rf".{{1,{width}}}")
+        if args:
+            width = int(args[0])
+            self.body.append(rf".{{1,{width}}}")
 
-    def handle_removeprefix(self, args: Iterable[str]) -> None:
+    def handle_removeprefix(self, *args: str) -> None:
         """Handle removeprefix."""
         self.prefix.extend([f"(?:{re.escape(a)})?" for a in args])
 
-    def handle_removesuffix(self, args: Iterable[str]) -> None:
+    def handle_removesuffix(self, *args: str) -> None:
         """Handle removesuffix."""
         self.suffix.extend([f"(?:{re.escape(a)})?" for a in args])
 
-    def handle_translate(self, args: Iterable[str]) -> None:
+    def handle_translate(self, *args: str) -> None:
         """Handle translate."""
         self.body.append("[A-Za-z0-9]+")
 
-    def handle_count(self, args: Iterable[str]) -> None:
+    def handle_count(self, *args: str) -> None:
         """Handle count."""
         self.body.append(".*")
 
-    def handle_splitlines(self, args: Iterable[str]) -> None:
+    def handle_splitlines(self, *args: str) -> None:
         """Handle splitlines."""
         self.body.append(r"(?:.*(?:\r?\n.*)*)")
 
-    def handle_format(self, args: Iterable[str]) -> None:
+    def handle_format(self, *args: str) -> None:
         """Handle format."""
         self.body.append(".*")
 
@@ -144,7 +148,7 @@ def infer_regex_from_methods(called_str_methods: Mapping[str, Iterable[str]]) ->
     for method, args in called_str_methods.items():
         handler = DISPATCH.get(method)
         if handler:
-            handler(builder, args)
+            handler(builder, *args)
 
     return re.compile(builder.build())
 
