@@ -224,6 +224,166 @@ class StringSubtype(ProperType):
         return visitor.visit_string_subtype(self)
 
 
+class NumericString(StringSubtype):
+    """A string that only contains numerical characters and an optional decimal point.
+
+    Examples: "123", "123.45", "0.001"
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d+(\.\d+)?$"))
+
+
+class EmailString(StringSubtype):
+    """A string that follows the general pattern of an email address.
+
+    Example: "name@domain.edu".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^[^@]+@[^@]+\.[^@]+$"))
+
+
+class HexadecimalString(StringSubtype):
+    """A string that represents a hexadecimal number.
+
+    Examples: "0x1A3F", "1a3f", "0XABCDEF".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^(0x|0X)?[0-9a-fA-F]+$"))
+
+
+class ISOColorString(StringSubtype):
+    """A string that represents a hexadecimal color code.
+
+    Examples: "#FFFFFF", "#000000", "#FF5733".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$"))
+
+
+class UUIDString(StringSubtype):
+    """A string that represents a UUID.
+
+    Examples: "123e4567-e89b-12d3-a456-426614174000".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(
+            re.compile(
+                r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            )
+        )
+
+
+class ISODateString(StringSubtype):
+    """A string that represents a date in ISO 8601 format.
+
+    Examples: "2023-10-05", "1999-12-31".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d{4}-\d{2}-\d{2}$"))
+
+
+class ISOTimeString(StringSubtype):
+    """A string that represents a time in ISO 8601 format.
+
+    Examples: "14:30:00", "23:59:59".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d{2}:\d{2}:\d{2}$"))
+
+
+class CSVString(StringSubtype):
+    """A string that represents comma-separated values.
+
+    Examples: "value1,value2,value3", "itemA,itemB,itemC".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^([^,]+,)*[^,]+$"))
+
+
+class URLString(StringSubtype):
+    """A string that represents a URL.
+
+    Examples: "http://example.com", "https://www.domain.org/path?query=param".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^(https?|ftp)://[^\s/$.?#].[^\s]*$"))
+
+
+class IPv4String(StringSubtype):
+    """A string that represents an IPv4 address.
+
+    Examples: "192.168.0.0", "74.5.123.31".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(
+            re.compile(
+                r"^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            )
+        )
+
+
+class IPv6String(StringSubtype):
+    """A string that represents an IPv6 address.
+
+    Examples: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "fe80::1ff:fe23:4567:890a".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(
+            re.compile(
+                r"^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:)|"
+                r"([0-9a-fA-F]{1,4}:){1,7}:|"
+                r"([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|"
+                r"([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|"
+                r"([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|"
+                r"([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|"
+                r"([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|"
+                r"[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|"
+                r":((:[0-9a-fA-F]{1,4}){1,7}|:)|"
+                r"fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|"
+                r"::(ffff(:0{1,4}){0,1}:){0,1}"
+                r"((25[0-5]|(2[0-4]|1{0,1}[0-9]{0,2}|[1-9]{0,1}[0-9])\.){3,3}"
+                r"(25[0-5]|(2[0-4]|1{0,1}[0-9]{0,2}|[1-9]{0,1}[0-9]))|"
+                r"([0-9a-fA-F]{1,4}:){1,4}:"
+                r"((25[0-5]|(2[0-4]|1{0,1}[0-9]{0,2}|[1-9]{0,1}[0-9])\.){3,3}"
+                r"(25[0-5]|(2[0-4]|1{0,1}[0-9]{0,2}|[1-9]{0,1}[0-9])))$"
+            )
+        )
+
+
+class PhoneNumberString(StringSubtype):
+    """A string that represents a phone number.
+
+    Examples: "+1-800-555-1234", "(123) 456-7890".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\+?[\d\s\-\(\)]+$"))
+
+
+class SHA256String(StringSubtype):
+    """A string that represents a SHA-256 hash.
+
+    Examples: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^[a-fA-F0-9]{64}$"))
+
+
 class Unsupported(ProperType):
     """Marks an unsupported type in the type system.
 
@@ -772,6 +932,21 @@ _STRING_SUBTYPE_ATTRIBUTES = OrderedSet([
     "count",
 ])
 
+STRING_SUBTYPES = OrderedSet([
+    NumericString,
+    EmailString,
+    HexadecimalString,
+    ISOColorString,
+    UUIDString,
+    ISODateString,
+    ISOTimeString,
+    CSVString,
+    URLString,
+    IPv4String,
+    IPv6String,
+    PhoneNumberString,
+    SHA256String,
+])
 # We can guess the element type by looking at the knowledge from these
 _LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
 _DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
@@ -1313,6 +1488,9 @@ class TypeSystem:  # noqa: PLR0904
                 for idx, typ in enumerate(numeric)
             },
         )
+        for subtype in STRING_SUBTYPES:
+            type_info = TypeInfo(subtype)
+            self.add_subclass_edge(super_class=self.to_type_info(str), sub_class=type_info)
 
     def enable_numeric_tower(self):
         """Enable the numeric tower on this type system."""

@@ -12,6 +12,8 @@ import textwrap
 from collections.abc import Callable
 from typing import Any
 
+from pynguin.utils.orderedset import OrderedSet
+
 
 _ROLE_USER = "<|user|>"
 
@@ -19,15 +21,17 @@ _ROLE_USER = "<|user|>"
 class TypeInferencePrompt:
     """Implementation prompt for type inference using LLMs."""
 
-    def __init__(self, callable_obj: Callable[..., Any]):
+    def __init__(
+        self, callable_obj: Callable[..., Any], subtypes: OrderedSet[str] | None = None
+    ) -> None:
         """Creates a new TypeInferencePrompt.
 
         Args:
-            module_code: the module code to be passed to the prompt
-            module_path: the module file path
             callable_obj: the callable object for which types should be inferred
+            subtypes: list of known string subtypes (e.g., "email", "url", etc.)
         """
         self.callable_obj = callable_obj
+        self.subtypes = subtypes or []
 
     def build_user_prompt(self) -> str:
         """Build the complete prompt for type inference."""
@@ -44,6 +48,9 @@ class TypeInferencePrompt:
 
             - All classes in the same module:
             {all_classes}
+
+            - Known string subtypes:
+            {subtype_list}
 
             ## Target Function
             - Function signature:
@@ -78,6 +85,7 @@ class TypeInferencePrompt:
             signature=self._get_signature_str(self.callable_obj),
             docstring=self._get_docstring(self.callable_obj),
             body=self._get_src_code(self.callable_obj),
+            subtype_list=self._get_str_subtypes(),
         )
         return f"{formatted_template}"
 
@@ -170,10 +178,16 @@ class TypeInferencePrompt:
         ]
         return "\n".join(import_lines)
 
+    def _get_str_subtypes(self) -> str:
+        return ", ".join(list(self.subtypes)) if self.subtypes else "(none)"
 
-@staticmethod
+
 def get_inference_system_prompt() -> str:
-    """Build the system prompt for type inference."""
+    """Build the system prompt for type inference.
+
+    Args:
+        subtypes: optional list of known string subtypes (e.g. "email", "hexcolor").
+    """
     guidelines = textwrap.dedent(
         """
             You are a Python type inference engine.
@@ -183,11 +197,13 @@ def get_inference_system_prompt() -> str:
             Keep this reasoning to yourself and do not include it in the final output.
             Use your knowledge of programming, common libraries, and best practices to infer types.
             Use the provided context to make an informed decision about the types of parameters.
-            - Always return results in full qualified names, e.g., typing.List[int].
-            - *NEVER* use Any or object as a type.
-            - only infer types for parameters, exclude self and return types.
+            Always return results in full qualified names, e.g., typing.List[int].
+            *NEVER* use Any or object as a type.
+            Only infer types for parameters, exclude self and return types.
             Return your output in JSON format only.
 
+            When a parameter is a string, consider if it matches one of the known
+            string subtypes and prefer returning that subtype when appropriate.
             """
     ).strip()
     today = datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()

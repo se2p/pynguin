@@ -88,7 +88,7 @@ class TypeStrParser:
         # Try to resolve the type directly
         simple_types = self._type_system.get_all_types()
         for t in simple_types:
-            if type_str in {t.qualname, t.name}:
+            if type_str.lower() in {t.qualname.lower(), t.name.lower()}:
                 return t.raw_type
         # Could not resolve the type
         return None

@@ -24,6 +24,7 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
     get_inference_system_prompt,
 )
 from pynguin.utils.llm import LLMProvider, OpenAI
+from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import TypeSystem
@@ -32,19 +33,6 @@ if typing.TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 ANY_STR = "typing.Any"
-STR_SUBTYPES: list[str] = [
-    "numerical",
-    "email",
-    "hexadecimal",
-    "uuid",
-    "iso_date",
-    "iso_time",
-    "csv_delimited",
-    "url",
-    "ipv4",
-    "ipv6",
-    "sha256",
-]
 
 
 class InferenceProvider(ABC):
@@ -91,6 +79,9 @@ class LLMInference(InferenceProvider):
         self._max_parallel_calls = max_parallel_calls
         self._types = types
 
+        self._subtypes: OrderedSet[str] = OrderedSet([
+            t.name for t in type_system.get_subclasses(type_system.to_type_info(str))
+        ])
         match provider:
             case LLMProvider.OPENAI:
                 self._model = OpenAI(
@@ -130,12 +121,6 @@ class LLMInference(InferenceProvider):
                     )
                     self._metrics["failed_inferences"] += 1
                     resolved = builtins.object
-                elif isinstance(resolved, str):
-                    self._metrics["successful_inferences"] += 1
-                    # Subtype handling
-                    for subtype in STR_SUBTYPES:
-                        if resolved.find(subtype) > 0:
-                            resolved = str(subtype)
                 else:
                     self._metrics["successful_inferences"] += 1
                 result[param] = resolved
@@ -160,7 +145,7 @@ class LLMInference(InferenceProvider):
         prompts: OrderedDict[Callable[..., Any], str] = OrderedDict()
         for func in funcs:
             try:
-                prompt = TypeInferencePrompt(func)
+                prompt = TypeInferencePrompt(func, subtypes=self._subtypes)
                 prompts[func] = prompt.build_user_prompt()
             except Exception as exc:  # noqa: BLE001, PERF203
                 _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
