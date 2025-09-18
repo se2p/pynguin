@@ -59,7 +59,7 @@ class InstrumentationLoader(SourceFileLoader):
         super().exec_module(module)
         self._transformer.subject_properties.instrumentation_tracer.store_import_trace()
 
-    def get_code(self, fullname) -> CodeType:
+    def get_code(self, fullname: str) -> CodeType:
         """Add instrumentation instructions to the code of the module.
 
         This happens before the module is executed.
