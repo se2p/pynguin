@@ -248,6 +248,10 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of LLM local search calls which were successful despite failing test cases
     TotalLocalSearchLLMSuccessCallsDespiteFailing = "TotalLocalSearchLLMSuccessCallsDespiteFailing"
 
+    # Total number of LLM local search calls which were skipped due to no relevant code or all
+    # branches covered
+    TotalLocalSearchSkippedLLMCalls = "TotalLocalSearchSkippedLLMCalls"
+
     # Total time spent in local search
     TotalLocalSearchTime = "TotalLocalSearchTime"
 

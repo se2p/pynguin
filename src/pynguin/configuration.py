@@ -806,6 +806,10 @@ class LocalSearchConfiguration:
     dict_max_insertions: int = 10
     """Max number of unsuccessful insertions of entries."""
 
+    llm_whole_module: bool = False
+    """Whether to provide the whole module or selected functions/methods to the LLM for context
+    when performing llm local search."""
+
 
 @dataclasses.dataclass
 class Configuration:

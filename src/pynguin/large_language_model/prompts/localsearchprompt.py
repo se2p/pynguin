@@ -29,7 +29,7 @@ class LocalSearchPrompt(Prompt):
 
         Line numbers for the module code and the test code are added additionally.
         """
-        super().__init__(add_line_numbers(module_code), "")
+        super().__init__(module_code, "")
         self.test_case_code = add_line_numbers(test_case_code)
         self.position = position
         self.branch_coverage = branch_coverage

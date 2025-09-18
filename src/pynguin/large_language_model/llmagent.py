@@ -105,6 +105,71 @@ def get_module_source_code() -> str:
     return inspect.getsource(module)
 
 
+def get_part_of_source_code(name: str) -> str:
+    """Gets the source code of a specific part of the module.
+
+    The extraction can be for a function, method or a constructor.
+    Additionally, line numbers are added.
+
+    Args:
+        name (str): The name of the part to extract.
+
+    Returns:
+        The source code of the specified part with line numbers.
+    """
+    module = import_module(config.configuration.module_name)
+    parts = name.split(".")
+    obj = module
+    for part in parts:
+        obj = getattr(obj, part, None)
+        if obj is None:
+            _logger.debug("%s not found in %s", part, ".".join(parts))
+            return ""
+
+    try:
+        source_lines, start_line = inspect.getsourcelines(obj)
+    except (OSError, TypeError, AttributeError) as e:
+        _logger.debug("Could not get source for %s: %s", name, e)
+        return ""
+
+    return "\n".join(f"{start_line + i:4d}: {line.rstrip()}" for i, line in enumerate(source_lines))
+
+
+def shorten_line_annotations(
+    line_annotations: list[LineAnnotation], name: str
+) -> list[LineAnnotation]:
+    """Shortens the line annotations to only include those relevant to the specified part.
+
+    Args:
+        line_annotations (list): The list of line annotations to shorten.
+        name (str): The name of the part to filter by.
+
+    Returns:
+        The shortened list of line annotations.
+    """
+    module = import_module(config.configuration.module_name)
+    parts = name.split(".")
+    obj = module
+    for part in parts:
+        obj = getattr(obj, part, None)
+        if obj is None:
+            _logger.debug("%s not found in %s", part, ".".join(parts))
+            return []
+
+    try:
+        source_lines, start_line = inspect.getsourcelines(obj)
+    except (OSError, TypeError, AttributeError) as e:
+        _logger.debug("Could not get source for %s: %s", name, e)
+        return []
+
+    end_line = start_line + len(source_lines)
+    return [
+        line_annotation
+        for line_annotation in line_annotations
+        if start_line <= line_annotation.line_no < end_line and line_annotation.branches.covered > 0
+    ]
+
+
 def is_api_key_present() -> bool:
     """Checks if the OpenAI API key is present and not an empty string.
 
@@ -385,7 +450,11 @@ class LLMAgent:
         return self.extract_python_code_from_llm_output(prompt_result)
 
     def local_search_call(
-        self, position, test_case_source_code: str, branch_coverage: list[LineAnnotation]
+        self,
+        position,
+        test_case_source_code: str,
+        branch_coverage: list[LineAnnotation],
+        module_source_code: str,
     ) -> str | None:
         """Changes the statement at the given position to increase branch coverage.
 
@@ -393,6 +462,7 @@ class LLMAgent:
             position (int): The position of the statement in the testcase.
             test_case_source_code (str): The source code of the test case.
             branch_coverage: The branch coverage of the test case of each branch.
+            module_source_code (str): The source code of the module under test.
 
         Returns:
             Gives back the new line containing the changed statement as string.
@@ -400,8 +470,7 @@ class LLMAgent:
         prompt = LocalSearchPrompt(
             test_case_code=test_case_source_code,
             position=position,
-            module_code=get_module_source_code(),
+            module_code=module_source_code,
             branch_coverage=branch_coverage,
         )
-
         return self.query(prompt)
