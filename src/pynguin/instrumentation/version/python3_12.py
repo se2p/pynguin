@@ -395,7 +395,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -433,7 +433,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_attr_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -482,7 +482,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_slice_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -529,7 +529,7 @@ class CheckedCoverageInstrumentation(python3_11.CheckedCoverageInstrumentation):
 
     def visit_deref_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,

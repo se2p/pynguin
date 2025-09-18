@@ -835,7 +835,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_node(  # noqa: D102
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -847,15 +847,15 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             return
 
         if (
-            annotated_ast is not None
+            ast_info is not None
             and isinstance(maybe_jump.lineno, int)
-            and not annotated_ast.should_cover_line(maybe_jump.lineno)
+            and not ast_info.should_cover_line(maybe_jump.lineno)
         ):
             return
 
         if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(
-                annotated_ast,
+                ast_info,
                 cfg,
                 code_object_id,
                 node,
@@ -876,7 +876,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         else:
             if maybe_compare.name in COMPARE_NAMES:
                 self.visit_compare_based_conditional_jump(
-                    annotated_ast,
+                    ast_info,
                     cfg,
                     code_object_id,
                     node,
@@ -887,7 +887,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
         if maybe_jump.name == "JUMP_IF_NOT_EXC_MATCH":
             self.visit_exception_based_conditional_jump(
-                annotated_ast,
+                ast_info,
                 cfg,
                 code_object_id,
                 node,
@@ -897,7 +897,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             return
 
         self.visit_bool_based_conditional_jump(
-            annotated_ast,
+            ast_info,
             cfg,
             code_object_id,
             node,
@@ -907,7 +907,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_for_loop(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -989,7 +989,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_compare_based_conditional_jump(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1026,7 +1026,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_exception_based_conditional_jump(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1060,7 +1060,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_bool_based_conditional_jump(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1093,7 +1093,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
     def visit_cfg(  # noqa: D102
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
     ) -> None:
@@ -1145,7 +1145,7 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
 
     def visit_node(  # noqa: D102
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1158,20 +1158,20 @@ class LineCoverageInstrumentation(transformer.LineCoverageInstrumentationAdapter
 
         for instr_index, instr in node.instrumentation_original_instructions:
             if (
-                annotated_ast is not None
+                ast_info is not None
                 and isinstance(instr.lineno, int)
-                and not annotated_ast.should_cover_line(instr.lineno)
+                and not ast_info.should_cover_line(instr.lineno)
             ):
                 continue
 
             if self.should_instrument_line(instr, lineno):
                 lineno = instr.lineno
 
-                self.visit_line(annotated_ast, cfg, code_object_id, node, instr, instr_index)
+                self.visit_line(ast_info, cfg, code_object_id, node, instr, instr_index)
 
     def visit_line(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1224,7 +1224,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_node(  # noqa: D102
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1235,9 +1235,9 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             node.instrumentation_original_instructions
         ):
             if (
-                annotated_ast is not None
+                ast_info is not None
                 and isinstance(instr.lineno, int)
-                and not annotated_ast.should_cover_line(instr.lineno)
+                and not ast_info.should_cover_line(instr.lineno)
             ):
                 continue
 
@@ -1247,7 +1247,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
             ):
                 lineno = instr.lineno
                 self.visit_line(
-                    annotated_ast,
+                    ast_info,
                     cfg,
                     code_object_id,
                     node,
@@ -1261,7 +1261,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
                 if instr.name in operations:
                     method(
                         self,
-                        annotated_ast,
+                        ast_info,
                         cfg,
                         code_object_id,
                         node,
@@ -1273,7 +1273,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_line(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1291,7 +1291,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_generic(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1319,7 +1319,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1357,7 +1357,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_attr_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1403,7 +1403,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_subscr_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1459,7 +1459,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_name_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1497,7 +1497,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_import_name_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1526,7 +1526,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_global_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1567,7 +1567,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_deref_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1611,7 +1611,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_jump(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1640,7 +1640,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_call(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1672,7 +1672,7 @@ class CheckedCoverageInstrumentation(transformer.CheckedCoverageInstrumentationA
 
     def visit_return(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1756,16 +1756,16 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     def visit_node(  # noqa: D102
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
     ) -> None:
         if (
-            annotated_ast is not None
+            ast_info is not None
             and (jump_instr := node.try_get_instruction(JUMP_OP_POS)) is not None
             and isinstance(jump_instr.lineno, int)
-            and not annotated_ast.should_cover_line(jump_instr.lineno)
+            and not ast_info.should_cover_line(jump_instr.lineno)
         ):
             return
 
@@ -1778,7 +1778,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             and maybe_compare.name == "COMPARE_OP"
         ):
             self.visit_compare_op(
-                annotated_ast,
+                ast_info,
                 cfg,
                 code_object_id,
                 node,
@@ -1796,7 +1796,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             and method_name in DynamicConstantProvider.STRING_FUNCTION_LOOKUP
         ):
             self.visit_string_function_without_arg(
-                annotated_ast,
+                ast_info,
                 cfg,
                 code_object_id,
                 node,
@@ -1815,7 +1815,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
             match method_name:
                 case "startswith":
                     self.visit_startswith_function(
-                        annotated_ast,
+                        ast_info,
                         cfg,
                         code_object_id,
                         node,
@@ -1824,7 +1824,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
                     )
                 case "endswith":
                     self.visit_endswith_function(
-                        annotated_ast,
+                        ast_info,
                         cfg,
                         code_object_id,
                         node,
@@ -1834,7 +1834,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     def visit_compare_op(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1866,7 +1866,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     def visit_string_function_without_arg(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1892,7 +1892,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     def visit_startswith_function(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -1915,7 +1915,7 @@ class DynamicSeedingInstrumentation(transformer.DynamicSeedingInstrumentationAda
 
     def visit_endswith_function(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,

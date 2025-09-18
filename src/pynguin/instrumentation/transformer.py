@@ -53,8 +53,8 @@ ScopeNode: TypeAlias = Module | ClassDef | FunctionDef | Lambda | ComprehensionS
 
 
 @dataclass(frozen=True)
-class ModuleAnnotatedAst:
-    """A class responsible for storing a module AST along with its metadata."""
+class ModuleAstInfo:
+    """Encapsulates the AST of a Python module with metadata about lines in-/excluded for coverage."""  # noqa: E501
 
     module_ast: Module
 
@@ -62,14 +62,14 @@ class ModuleAnnotatedAst:
     only_cover_lines: frozenset[int]
     no_cover_lines: frozenset[int]
 
-    def get_scope(self, lineno: int) -> AnnotatedAst | None:
-        """Get the annotated AST of the scope.
+    def get_scope(self, lineno: int) -> AstInfo | None:
+        """Get the AST info of the scope.
 
         Args:
             lineno: The line number of the scope.
 
         Returns:
-            The annotated AST of the scope, or None if there are no scope at lineno
+            The AST info of the scope, or None if there are no scope at lineno
         """
         ast: ScopeNode | None = next(
             iter(
@@ -83,7 +83,7 @@ class ModuleAnnotatedAst:
         if ast is None:
             return None
 
-        return AnnotatedAst(ast=ast, module=self)
+        return AstInfo(ast=ast, module=self)
 
     @classmethod
     def _find_lines_in_source_code(
@@ -160,7 +160,7 @@ class ModuleAnnotatedAst:
         enable_inline_pynguin_no_cover: bool,  # noqa: FBT001
         enable_inline_pragma_no_cover: bool,  # noqa: FBT001
     ) -> Self | None:
-        """Create an AnnotatedAst from a module path.
+        """Create an AstInfo from a module path.
 
         Args:
             module_path: The path of the module.
@@ -171,7 +171,7 @@ class ModuleAnnotatedAst:
             enable_inline_pragma_no_cover: Enable inline `pragma: no cover`.
 
         Returns:
-            The AnnotatedAst of the module path, or None.
+            The AstInfo of the module path, or None.
         """
         try:
             module_ast, source_code = read_module_ast(module_path, module_name)
@@ -202,11 +202,15 @@ class ModuleAnnotatedAst:
 
 
 @dataclass(frozen=True)
-class AnnotatedAst:
-    """A class representing a scope of a module annotated AST."""
+class AstInfo:
+    """Specific scope of a module AST with metadata about in-/excluded lines.
+
+    Wraps a scope node (e.g. function or class) within a `ModuleAstInfo`
+    and provides methods to determine whether the scope or its lines should be included in coverage.
+    """
 
     ast: ScopeNode
-    module: ModuleAnnotatedAst
+    module: ModuleAstInfo
 
     def _in_cover(self, lineno: int) -> bool:
         """Check if the lineno is in cover.
@@ -322,14 +326,14 @@ class InstrumentationAdapter(Protocol):
 
     def visit_cfg(
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
     ) -> None:
         """Called when the CFG is visited.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
         """
@@ -337,7 +341,7 @@ class InstrumentationAdapter(Protocol):
 
     def visit_node(
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -345,7 +349,7 @@ class InstrumentationAdapter(Protocol):
         """Called for each basic block node in the CFG.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -370,7 +374,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_for_loop(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -390,7 +394,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         the original loop header, so they don't need to be modified.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -400,7 +404,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
 
     def visit_none_based_conditional_jump(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -412,7 +416,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         It is only used in Python 3.11 and later versions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -423,7 +427,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_compare_based_conditional_jump(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -436,7 +440,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         in the following comparison operation on which the conditional jump is based.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -447,7 +451,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_exception_based_conditional_jump(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -460,7 +464,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         in the following exception matching case.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -471,7 +475,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_bool_based_conditional_jump(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -484,7 +488,7 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
         jump will be based.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -510,7 +514,7 @@ class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_line(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -522,7 +526,7 @@ class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
         We add a call to the tracer which reports a line was executed.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -558,7 +562,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_line(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -569,7 +573,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument a line.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -581,7 +585,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_generic(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -592,7 +596,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument generic instructions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -604,7 +608,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_local_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -615,7 +619,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument local variable accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -627,7 +631,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_attr_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -638,7 +642,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument attribute accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -650,7 +654,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_subscr_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -661,7 +665,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument subscription accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -672,7 +676,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
 
     def visit_slice_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -685,7 +689,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         It is only used in Python 3.12 and later versions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -697,7 +701,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_name_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -708,7 +712,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument name accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -720,7 +724,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_import_name_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -731,7 +735,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument import name accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -743,7 +747,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_global_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -754,7 +758,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument global variable accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -766,7 +770,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_deref_access(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -777,7 +781,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument dereferenced variable accesses.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -789,7 +793,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_jump(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -800,7 +804,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument jump instructions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -812,7 +816,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_call(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -823,7 +827,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument call instructions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -835,7 +839,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_return(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -846,7 +850,7 @@ class CheckedCoverageInstrumentationAdapter(InstrumentationAdapter):
         """Instrument return instructions.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -883,7 +887,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_compare_op(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -895,7 +899,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         Stores the values extracted at runtime.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -906,7 +910,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_string_function_without_arg(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -916,7 +920,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         """Instruments the isalnum function.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -927,7 +931,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_startswith_function(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -940,7 +944,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         'string2 + string1' in the _dynamic_pool.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -951,7 +955,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
     @abstractmethod
     def visit_endswith_function(  # noqa: PLR0917
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -964,7 +968,7 @@ class DynamicSeedingInstrumentationAdapter(InstrumentationAdapter):
         'string1 + string2' in the _dynamic_pool.
 
         Args:
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.
@@ -1036,7 +1040,7 @@ class InstrumentationTransformer:
                 # instrumented this code object.
                 raise AssertionError("Tried to instrument already code object.")
 
-        module_annotated_ast = ModuleAnnotatedAst.from_path(
+        module_ast_info = ModuleAstInfo.from_path(
             code.co_filename,
             module_name,
             self._only_cover,
@@ -1045,25 +1049,25 @@ class InstrumentationTransformer:
             self._enable_inline_pragma_no_cover,
         )
 
-        return self._instrument_code_recursive(code, module_annotated_ast)
+        return self._instrument_code_recursive(code, module_ast_info)
 
     def _instrument_code_recursive(
         self,
         code: CodeType,
-        module_annotated_ast: ModuleAnnotatedAst | None,
+        module_ast_info: ModuleAstInfo | None,
         parent_code_object_id: int | None = None,
     ) -> CodeType:
-        annotated_ast = (
-            module_annotated_ast.get_scope(
+        ast_info = (
+            module_ast_info.get_scope(
                 # Special case as the line number of a module is 1
                 # in its code object but is 0 in its AST
                 0 if code.co_name == "<module>" else code.co_firstlineno
             )
-            if module_annotated_ast is not None
+            if module_ast_info is not None
             else None
         )
 
-        if annotated_ast is not None and not annotated_ast.should_be_covered():
+        if ast_info is not None and not ast_info.should_be_covered():
             self._logger.debug("Skipping instrumentation of %s", code.co_name)
             return code
 
@@ -1074,17 +1078,17 @@ class InstrumentationTransformer:
         cfg = cf.CFG.from_bytecode(version.add_for_loop_no_yield_nodes(Bytecode.from_code(code)))
 
         for adapter in self._instrumentation_adapters:
-            adapter.visit_cfg(annotated_ast, cfg, code_object_id)
+            adapter.visit_cfg(ast_info, cfg, code_object_id)
 
         for node in cfg.basic_block_nodes:
             for adapter in self._instrumentation_adapters:
-                adapter.visit_node(annotated_ast, cfg, code_object_id, node)
+                adapter.visit_node(ast_info, cfg, code_object_id, node)
 
         instrumented_code = cfg.bytecode_cfg.to_code()
 
         code_object = instrumented_code.replace(
             co_consts=tuple(
-                self._instrument_code_recursive(const, module_annotated_ast, code_object_id)
+                self._instrument_code_recursive(const, module_ast_info, code_object_id)
                 if isinstance(const, CodeType)
                 else const
                 for const in instrumented_code.co_consts

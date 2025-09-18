@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
     from pynguin.instrumentation import PynguinCompare
     from pynguin.instrumentation import controlflow as cf
-    from pynguin.instrumentation.transformer import AnnotatedAst
+    from pynguin.instrumentation.transformer import AstInfo
 
 
 # Jump operations are the last operation within a basic block
@@ -289,7 +289,7 @@ class CheckedCoverageInstrumentationVisitorMethod(Protocol):
     def __call__(  # noqa: PLR0917
         _self,  # noqa: N805
         self,
-        annotated_ast: AnnotatedAst | None,
+        ast_info: AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -301,7 +301,7 @@ class CheckedCoverageInstrumentationVisitorMethod(Protocol):
 
         Args:
             self: The instance of the checked coverage instrumentation.
-            annotated_ast: The annotated AST, if it exists.
+            ast_info: The AST info, if it exists.
             cfg: The control flow graph.
             code_object_id: The code object id of the containing code object.
             node: The node in the control flow graph.

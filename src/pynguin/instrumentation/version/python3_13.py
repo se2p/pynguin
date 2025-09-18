@@ -321,7 +321,7 @@ class CheckedCoverageInstrumentation(python3_12.CheckedCoverageInstrumentation):
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
@@ -331,7 +331,7 @@ class CheckedCoverageInstrumentation(python3_12.CheckedCoverageInstrumentation):
     ) -> None:
         if instr.name in python3_12.ACCESS_FAST_NAMES:
             super().visit_local_access(
-                annotated_ast,
+                ast_info,
                 cfg,
                 code_object_id,
                 node,
@@ -362,7 +362,7 @@ class CheckedCoverageInstrumentation(python3_12.CheckedCoverageInstrumentation):
 
     def visit_call(  # noqa: D102, PLR0917
         self,
-        annotated_ast: transformer.AnnotatedAst | None,
+        ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
         code_object_id: int,
         node: cf.BasicBlockNode,
