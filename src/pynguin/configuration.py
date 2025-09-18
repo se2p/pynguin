@@ -747,8 +747,13 @@ class LLMConfiguration:
 
 
 @dataclasses.dataclass
-class CoverageConfiguration:
-    """Configuration of the coverage instrumentation."""
+class ToCoverConfiguration:
+    """Configuration of which code elements are included or excluded as coverage goals.
+
+    Pynguin instruments only the respective parts of the SUT module for coverage measurement.
+    All configuration options are resolved as SUT line numbers which must not overlap
+    ('only' and 'no' at the same time).
+    """
 
     only_cover: list[str] = dataclasses.field(default_factory=list)
     """The list of functions, methods or classes to only cover."""
@@ -818,7 +823,7 @@ class Configuration:
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
 
-    coverage: CoverageConfiguration = dataclasses.field(default_factory=CoverageConfiguration)
+    coverage: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
     """Configuration used for the coverage instrumentation."""
 
     ignore_modules: list[str] = dataclasses.field(default_factory=list)

@@ -264,7 +264,7 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), coverage=CoverageConfiguration(only_cover=[], '
+ 'max_sequences_combined=10), coverage=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
  'subprocess=False, subprocess_if_recommended=True)')"""  # noqa:E501

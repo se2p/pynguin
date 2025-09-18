@@ -183,7 +183,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     with install_import_hook(
         module_name,
         subject_properties,
-        coverage_config=config.CoverageConfiguration(enable_inline_pragma_no_cover=False),
+        coverage_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     ):
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)

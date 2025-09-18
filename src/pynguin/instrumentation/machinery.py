@@ -78,7 +78,7 @@ class InstrumentationLoader(SourceFileLoader):
 def build_transformer(
     subject_properties: SubjectProperties,
     coverage_metrics: set[config.CoverageMetric],
-    coverage_config: config.CoverageConfiguration,
+    coverage_config: config.ToCoverConfiguration,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
     """Build a transformer that applies the configured instrumentation.
@@ -131,7 +131,7 @@ class InstrumentationFinder(MetaPathFinder):
         module_to_instrument: str,
         subject_properties: SubjectProperties,
         coverage_metrics: set[config.CoverageMetric],
-        coverage_config: config.CoverageConfiguration,
+        coverage_config: config.ToCoverConfiguration,
         dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
         """Wraps the given pathfinder.
@@ -240,7 +240,7 @@ def install_import_hook(
     module_to_instrument: str,
     subject_properties: SubjectProperties,
     coverage_metrics: set[config.CoverageMetric] | None = None,
-    coverage_config: config.CoverageConfiguration | None = None,
+    coverage_config: config.ToCoverConfiguration | None = None,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
