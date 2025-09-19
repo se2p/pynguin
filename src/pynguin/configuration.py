@@ -756,10 +756,10 @@ class ToCoverConfiguration:
     """
 
     only_cover: list[str] = dataclasses.field(default_factory=list)
-    """The list of space-separated fully-qualified functions, methods or classes to only cover."""
+    """The list of space-separated qualified function, method or class names to only cover."""
 
     no_cover: list[str] = dataclasses.field(default_factory=list)
-    """The list of space-separated fully-qualified functions, methods or classes to not cover.
+    """The list of space-separated qualified function, method or class names to not cover.
     Automatically include the methods of the `ignore_methods` argument."""
 
     enable_inline_pynguin_no_cover: bool = True

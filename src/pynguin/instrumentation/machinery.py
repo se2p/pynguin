@@ -272,7 +272,12 @@ def install_import_hook(
         to_cover_config = config.configuration.to_cover
 
     if config.configuration.ignore_methods:
-        to_cover_config.no_cover.extend(config.configuration.ignore_methods)
+        module_prefix = f"{module_to_instrument}."
+        to_cover_config.no_cover.extend(
+            method.removeprefix(module_prefix)
+            for method in config.configuration.ignore_methods
+            if method.startswith(module_prefix)
+        )
 
     to_wrap = None
     for finder in sys.meta_path:

@@ -136,9 +136,11 @@ class ModuleAstInfo:
             if isinstance(scope_node, ComprehensionScope)
             else scope_node.name
         )
-        full_scope_name = f"{parent_scope}.{scope_name}" if parent_scope else scope_name
 
-        if not isinstance(scope_node, Module):
+        if isinstance(scope_node, Module):
+            full_scope_name = ""
+        else:
+            full_scope_name = f"{parent_scope}.{scope_name}" if parent_scope else scope_name
             yield (full_scope_name, scope_node.lineno)
 
         for child in scope_node.get_children():
@@ -156,11 +158,15 @@ class ModuleAstInfo:
         Returns:
             The iterable of lines that contain the target identifiers.
         """
-        return (
-            lineno
-            for scope_name, lineno in cls._get_scope_names(ast)
-            if scope_name in target_scope_names
-        )
+        scope_names = dict(cls._get_scope_names(ast))
+        for scope_name in target_scope_names:
+            if (lineno := scope_names.get(scope_name)) is not None:
+                yield lineno
+            else:
+                _LOGGER.warning(
+                    "Target scope name '%s' not found in AST. Did you specify the right name?",
+                    scope_name,
+                )
 
     @classmethod
     def from_path(

@@ -74,7 +74,7 @@ def test_ast_info_from_covered_function_no_cover(scope_line, expected_should_be_
         get_module_path(module_name),
         module_name,
         to_cover_config=ToCoverConfiguration(
-            no_cover=[f"{module_name}.covered"],
+            no_cover=["covered"],
             enable_inline_pragma_no_cover=False,
             enable_inline_pynguin_no_cover=False,
         ),
@@ -104,7 +104,7 @@ def test_ast_info_from_covered_function_only_cover(scope_line, expected_should_b
         get_module_path(module_name),
         module_name,
         to_cover_config=ToCoverConfiguration(
-            only_cover=[f"{module_name}.not_covered1"],
+            only_cover=["not_covered1"],
             enable_inline_pragma_no_cover=False,
             enable_inline_pynguin_no_cover=False,
         ),
