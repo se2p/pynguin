@@ -84,7 +84,7 @@ def test_setup_hook():
     module_name = "test_module"
     gen.set_configuration(configuration=MagicMock(log_file=None, module_name=module_name))
     with mock.patch.object(gen, "install_import_hook") as hook_mock:
-        assert gen._setup_import_hook(None, None)
+        assert gen._setup_import_hook(None)
         hook_mock.assert_called_once()
 
 

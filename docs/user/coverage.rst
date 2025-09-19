@@ -63,3 +63,9 @@ Such a branch which jumps within the same line is recognized by Pynguin but not 
 For line coverage the markers are placed at the respective lines.
 However, only lines that actually contain something that is compiled to bytecode instructions are seen as relevant,
 for example, the ``else:`` label in line 14 does not contain anything executable and is thus ignored.
+
+By default, Pynguin will take into account the code annotations ``# pragma: no cover`` supported by Coverage.py
+and its own annotations ``# pynguin: no cover`` which only disable coverage for Pynguin. These annotations
+can be enabled/disabled using the arguments ``--enable-inline-pynguin-no-cover`` and ``--enable-inline-pragma-no-cover``.
+You can also disable some functions, methods or classes by specifying their qualified name in the ``--no-cover`` argument.
+It is also possible to do the opposite and cover only some functions, methods or classes with the ``--only-cover`` argument.

@@ -50,3 +50,75 @@ async def run_async_generator(gen):
     async for i in gen:
         the_sum += i
     return the_sum
+
+
+def test_pynguin_no_cover_functions(subject_properties: SubjectProperties):
+    with install_import_hook(
+        "tests.fixtures.instrumentation.covered_functions",
+        subject_properties,
+    ):
+        with subject_properties.instrumentation_tracer:
+            covered = importlib.import_module("tests.fixtures.instrumentation.covered_functions")
+            covered = importlib.reload(covered)
+
+        assert set(subject_properties.existing_code_objects) == {
+            0,  # module code object
+            1,  # `covered` function
+        }
+        assert not subject_properties.existing_predicates
+
+        with subject_properties.instrumentation_tracer:
+            covered.not_covered1(1, 2)
+            covered.not_covered2(1, 2)
+            covered.not_covered3(1, 2, 3)
+
+        assert set(subject_properties.instrumentation_tracer.get_trace().executed_code_objects) == {
+            0,
+        }
+
+        with subject_properties.instrumentation_tracer:
+            covered.covered(4)
+
+        assert set(subject_properties.instrumentation_tracer.get_trace().executed_code_objects) == {
+            0,
+            1,
+        }
+
+
+def test_pynguin_no_cover_classes(subject_properties: SubjectProperties):
+    with install_import_hook(
+        "tests.fixtures.instrumentation.covered_classes",
+        subject_properties,
+    ):
+        with subject_properties.instrumentation_tracer:
+            covered = importlib.import_module("tests.fixtures.instrumentation.covered_classes")
+            covered = importlib.reload(covered)
+
+        assert set(subject_properties.existing_code_objects) == {
+            0,  # module code object
+            1,  # `Bar` class
+            2,  # `Baz` class
+            3,  # `baz` method
+        }
+        assert not subject_properties.existing_predicates
+
+        with subject_properties.instrumentation_tracer:
+            covered.Foo().foo()
+            covered.Bar().bar()
+
+        assert set(subject_properties.instrumentation_tracer.get_trace().executed_code_objects) == {
+            0,
+            1,
+            2,
+        }
+
+        with subject_properties.instrumentation_tracer:
+            covered.Bar().bar()
+            covered.Baz().baz()
+
+        assert set(subject_properties.instrumentation_tracer.get_trace().executed_code_objects) == {
+            0,
+            1,
+            2,
+            3,
+        }
