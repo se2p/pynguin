@@ -756,10 +756,10 @@ class ToCoverConfiguration:
     """
 
     only_cover: list[str] = dataclasses.field(default_factory=list)
-    """The list of functions, methods or classes to only cover."""
+    """The list of space-separated fully-qualified functions, methods or classes to only cover."""
 
     no_cover: list[str] = dataclasses.field(default_factory=list)
-    """The list of functions, methods or classes to not cover.
+    """The list of space-separated fully-qualified functions, methods or classes to not cover.
     Automatically include the methods of the `ignore_methods` argument."""
 
     enable_inline_pynguin_no_cover: bool = True
@@ -823,8 +823,8 @@ class Configuration:
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
 
-    coverage: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
-    """Configuration used for the coverage instrumentation."""
+    to_cover: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
+    """Configuration of which code elements are included or excluded as coverage goals."""
 
     ignore_modules: list[str] = dataclasses.field(default_factory=list)
     """Ignore the modules specified here from the module analysis."""

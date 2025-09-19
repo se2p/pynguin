@@ -31,6 +31,7 @@ from astroid.nodes import While
 from bytecode import Bytecode
 
 from pynguin.analyses.module import read_module_ast
+from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import version
@@ -44,6 +45,8 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from pynguin.analyses.constants import DynamicConstantProvider
+
+_LOGGER = logging.getLogger(__name__)
 
 PYNGUIN_NO_COVER_PATTERN = re.compile(r"# +?pynguin: +?no +?cover")
 PRAGMA_NO_COVER_PATTERN = re.compile(r"# +?pragma: +?no +?cover")
@@ -61,6 +64,15 @@ class ModuleAstInfo:
     # Metadata
     only_cover_lines: frozenset[int]
     no_cover_lines: frozenset[int]
+
+    def __post_init__(self) -> None:
+        overlap = self.only_cover_lines & self.no_cover_lines
+
+        if overlap:
+            raise ValueError(
+                f"Conflicting cover lines {sorted(overlap)} "
+                f"are present in both only_cover and no_cover sets"
+            )
 
     def get_scope(self, lineno: int) -> AstInfo | None:
         """Get the AST info of the scope.
@@ -151,24 +163,21 @@ class ModuleAstInfo:
         )
 
     @classmethod
-    def from_path(  # noqa: PLR0917
+    def from_path(
         cls,
         module_path: str,
         module_name: str,
-        only_cover: Collection[str],
-        no_cover: Collection[str],
-        enable_inline_pynguin_no_cover: bool,  # noqa: FBT001
-        enable_inline_pragma_no_cover: bool,  # noqa: FBT001
+        to_cover_config: ToCoverConfiguration,
     ) -> Self | None:
         """Create an AstInfo from a module path.
 
         Args:
             module_path: The path of the module.
             module_name: The name of the module.
-            only_cover: The collection of functions, methods or classes to only cover.
-            no_cover: The collection of functions, methods or classes to not cover.
-            enable_inline_pynguin_no_cover: Enable inline `pynguin: no cover`.
-            enable_inline_pragma_no_cover: Enable inline `pragma: no cover`.
+            to_cover_config: the configuration of which code elements are used as coverage goals.
+
+        Raises:
+            ValueError: if a line is in both only_cover and no_cover sets.
 
         Returns:
             The AstInfo of the module path, or None.
@@ -178,18 +187,18 @@ class ModuleAstInfo:
         except (OSError, AstroidError):
             return None
 
-        only_cover_lines = frozenset(cls._find_lines_in_ast(module_ast, only_cover))
+        only_cover_lines = frozenset(cls._find_lines_in_ast(module_ast, to_cover_config.only_cover))
 
         no_cover_lines = frozenset((
-            *cls._find_lines_in_ast(module_ast, no_cover),
+            *cls._find_lines_in_ast(module_ast, to_cover_config.no_cover),
             *(
                 cls._find_lines_in_source_code(source_code, PYNGUIN_NO_COVER_PATTERN)
-                if enable_inline_pynguin_no_cover
+                if to_cover_config.enable_inline_pynguin_no_cover
                 else ()
             ),
             *(
                 cls._find_lines_in_source_code(source_code, PRAGMA_NO_COVER_PATTERN)
-                if enable_inline_pragma_no_cover
+                if to_cover_config.enable_inline_pragma_no_cover
                 else ()
             ),
         ))
@@ -214,6 +223,13 @@ class AstInfo:
 
     def _in_cover(self, lineno: int) -> bool:
         """Check if the lineno is in cover.
+
+        The priority for being covered is:
+
+        1. Not in `no_cover_lines`
+        2. In `only_cover_lines`, `only_cover_lines` is empty or a parent is in `only_cover_lines`
+
+        If a line is in both `no_cover_lines` and `only_cover_lines`, it is not being covered.
 
         Args:
             lineno: The line number.
@@ -989,31 +1005,23 @@ class InstrumentationTransformer:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         subject_properties: tracer.SubjectProperties,
         instrumentation_adapters: list[InstrumentationAdapter],
-        only_cover: list[str] | None = None,
-        no_cover: list[str] | None = None,
-        enable_inline_pynguin_no_cover: bool = True,  # noqa: FBT001, FBT002
-        enable_inline_pragma_no_cover: bool = True,  # noqa: FBT001, FBT002
+        to_cover_config: ToCoverConfiguration | None = None,
     ) -> None:
         """Initialize the instrumentation transformer.
 
         Args:
             subject_properties: The properties of the subject that is being instrumented.
             instrumentation_adapters: The list of instrumentation adapters that should be used.
-            only_cover: The list of functions, methods or classes to only cover.
-            no_cover: The list of functions, methods or classes to not cover.
-            enable_inline_pynguin_no_cover: Enable inline `pynguin: no cover`.
-            enable_inline_pragma_no_cover: Enable inline `pragma: no cover`.
+            to_cover_config: the configuration of which code elements are used as coverage goals,
+                defaults to a new ToCoverConfiguration.
         """
         self._subject_properties = subject_properties
         self._instrumentation_adapters = instrumentation_adapters
-        self._only_cover = only_cover if only_cover is not None else []
-        self._no_cover = no_cover if no_cover is not None else []
-        self._enable_inline_pynguin_no_cover = enable_inline_pynguin_no_cover
-        self._enable_inline_pragma_no_cover = enable_inline_pragma_no_cover
+        self._to_cover_config = to_cover_config or ToCoverConfiguration()
 
     @property
     def subject_properties(self) -> tracer.SubjectProperties:
@@ -1043,10 +1051,7 @@ class InstrumentationTransformer:
         module_ast_info = ModuleAstInfo.from_path(
             code.co_filename,
             module_name,
-            self._only_cover,
-            self._no_cover,
-            self._enable_inline_pynguin_no_cover,
-            self._enable_inline_pragma_no_cover,
+            to_cover_config=self._to_cover_config,
         )
 
         return self._instrument_code_recursive(code, module_ast_info)

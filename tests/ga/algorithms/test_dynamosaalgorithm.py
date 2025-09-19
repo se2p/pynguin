@@ -12,6 +12,7 @@ import pytest
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
 
+from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation
@@ -26,7 +27,7 @@ def dynamosa_subject_properties(subject_properties: SubjectProperties):
     transformer = InstrumentationTransformer(
         subject_properties,
         [adapter],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
     instrument_function(transformer, nested_module.test_me)
     return subject_properties
@@ -42,7 +43,7 @@ def dynamosa_subject_properties_nested(subject_properties: SubjectProperties):
     transformer = InstrumentationTransformer(
         subject_properties,
         [adapter],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
     instrument_function(transformer, testMe)
     return subject_properties

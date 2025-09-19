@@ -11,6 +11,7 @@ from contextlib import contextmanager
 
 import pytest
 
+from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation.controlflow import ArtificialNode
 from pynguin.instrumentation.controlflow import ControlDependenceGraph
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -131,7 +132,7 @@ def test_get_control_dependencies(
     transformer = InstrumentationTransformer(
         subject_properties,
         [adapter],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
     instrument_function(transformer, small_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
@@ -155,7 +156,7 @@ def test_get_control_dependencies_asserts(
     transformer = InstrumentationTransformer(
         subject_properties,
         [adapter],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
     instrument_function(transformer, small_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
@@ -242,7 +243,7 @@ def test_is_control_dependent_on_root(
     transformer = InstrumentationTransformer(
         subject_properties,
         [adapter],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
     instrument_function(transformer, long_fixture)
     cdg = next(iter(subject_properties.existing_code_objects.values())).cdg

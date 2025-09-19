@@ -149,7 +149,7 @@ def slice_function_at_return_with_result(
     instrumentation_transformer = InstrumentationTransformer(
         subject_properties,
         [instrumentation],
-        enable_inline_pragma_no_cover=False,
+        to_cover_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     )
 
     instrument_function(instrumentation_transformer, function)
@@ -183,7 +183,7 @@ def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     with install_import_hook(
         module_name,
         subject_properties,
-        coverage_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
+        to_cover_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
     ):
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)

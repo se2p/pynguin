@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation.transformer import ModuleAstInfo
 
 
@@ -46,10 +47,7 @@ def test_ast_info_from_covered_function(scope_line, expected_should_be_covered):
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is not None
@@ -75,10 +73,11 @@ def test_ast_info_from_covered_function_no_cover(scope_line, expected_should_be_
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(f"{module_name}.covered",),
-        enable_inline_pragma_no_cover=False,
-        enable_inline_pynguin_no_cover=False,
+        to_cover_config=ToCoverConfiguration(
+            no_cover=[f"{module_name}.covered"],
+            enable_inline_pragma_no_cover=False,
+            enable_inline_pynguin_no_cover=False,
+        ),
     )
 
     assert module_ast_info is not None
@@ -104,10 +103,11 @@ def test_ast_info_from_covered_function_only_cover(scope_line, expected_should_b
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(f"{module_name}.not_covered1",),
-        no_cover=(),
-        enable_inline_pragma_no_cover=False,
-        enable_inline_pynguin_no_cover=False,
+        to_cover_config=ToCoverConfiguration(
+            only_cover=[f"{module_name}.not_covered1"],
+            enable_inline_pragma_no_cover=False,
+            enable_inline_pynguin_no_cover=False,
+        ),
     )
 
     assert module_ast_info is not None
@@ -132,10 +132,7 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is not None
@@ -165,10 +162,7 @@ def test_ast_info_from_covered_branches(scope_line, expected_lines):
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is not None
@@ -195,10 +189,7 @@ def test_ast_info_from_covered_lines(scope_line, expected_lines):
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is not None
@@ -218,10 +209,7 @@ def test_ast_info_from_invalid():
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name, ".conf"),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is None
@@ -232,10 +220,7 @@ def test_ast_info_from_nonexistent():
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
-        only_cover=(),
-        no_cover=(),
-        enable_inline_pragma_no_cover=True,
-        enable_inline_pynguin_no_cover=True,
+        to_cover_config=ToCoverConfiguration(),
     )
 
     assert module_ast_info is None
