@@ -112,7 +112,7 @@ class NoneType(ProperType):
     def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_none_type(self)
 
-    def __hash__(self):
+g    def __hash__(self):
         return hash(NoneType)
 
     def __eq__(self, other):
