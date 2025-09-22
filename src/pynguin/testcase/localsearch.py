@@ -203,6 +203,7 @@ class TestSuiteLocalSearch:
             executor (TestCaseExecutor): The executor to run the test cases.
         """
         start_time = int(time.perf_counter()) * 1000
+        stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchIterations, 1)
         self.double_branch_coverage(chromosome)
 
         indices = list(range(len(chromosome.test_case_chromosomes)))

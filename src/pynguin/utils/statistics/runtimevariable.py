@@ -258,5 +258,14 @@ class RuntimeVariable(str, enum.Enum):
     # Total time spent in local search fitness evaluation
     TotalLocalSearchFitnessEvaluationTime = "TotalLocalSearchFitnessEvaluationTime"
 
+    # Total local search iterations
+    TotalLocalSearchIterations = "TotalLocalSearchIterations"
+
+    # Total number of exploratory moves that were not successful
+    LocalSearchUnsuccessfulExploratoryMoves = "LocalSearchUnsuccessfullyExploratoryMoves"
+
+    # Total number of exploratory moves that were successful (i.e., changed fitness)
+    LocalSearchSuccessfulExploratoryMoves = "LocalSearchSuccessfulExploratoryMoves"
+
     def __repr__(self):
         return f"{self.name}"

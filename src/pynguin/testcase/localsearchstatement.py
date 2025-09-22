@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import pynguin.configuration as config
+import pynguin.utils.statistics.stats as stat
 
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import ProperType
@@ -43,6 +44,7 @@ from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.testcase.statement import create_statement
 from pynguin.utils import randomness
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
@@ -467,8 +469,12 @@ class StringLocalSearch(StatementLocalSearch, ABC):
                     "The random mutations have changed the fitness of %r, applying local search",
                     self._chromosome.test_case.statements[self._position],
                 )
+                stat.add_to_runtime_variable(
+                    RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1
+                )
                 return True
             random_mutations_count -= 1
+        stat.add_to_runtime_variable(RuntimeVariable.LocalSearchUnsuccessfulExploratoryMoves, 1)
         self._logger.debug(
             "The random mutations have no impact on the fitness, aborting local search"
         )
@@ -658,11 +664,13 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             RANDOM_CALL = 1
             PARAMETER = 2
 
+        total_iterations = 0
         while (
             not LocalSearchTimer.get_instance().limit_reached()
             and mutations
             < config.configuration.local_search.random_parametrized_statement_call_count
         ):
+            total_iterations += 1
             operations: list[Operations] = [Operations.REPLACE]
             if isinstance(statement, ParametrizedStatement):
                 operations.append(Operations.RANDOM_CALL)
@@ -689,6 +697,10 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 ) if last_execution_result is not None else None
                 statement = self._chromosome.test_case.statements[self._position]
                 mutations += 1
+        if total_iterations == config.configuration.local_search.random_parametrized_statement_call_count:
+            stat.add_to_runtime_variable(RuntimeVariable.LocalSearchUnsuccessfulExploratoryMoves, 1)
+        else:
+            stat.add_to_runtime_variable(RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1)
 
     def replace(self) -> bool:
         """Replaces a call with another possible call.
@@ -870,9 +882,11 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
                 self._restore(statement)
             if changed != 0:
                 self._logger.debug("Random mutations have an impact on the fitness")
+                stat.add_to_runtime_variable(RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1)
                 return True
             random_mutations_count -= 1
         self._logger.debug("Random mutations have no impact on the fitness, aborting local search")
+        stat.add_to_runtime_variable(RuntimeVariable.LocalSearchUnsuccessfulExploratoryMoves, 1)
         return False
 
     def add_values(self) -> None:

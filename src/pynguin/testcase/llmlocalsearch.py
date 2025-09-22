@@ -169,7 +169,7 @@ class LLMLocalSearch:
                 self._logger.debug("Unknown accessible object type")
             if len(name) > 0:
                 module_source = get_part_of_source_code(name)
-                if type(module_source) == str:
+                if type(module_source) is str:
                     out += module_source + "\n\n"
                     shortened.extend(shorten_line_annotations(line_annotations, name))
                 else:
