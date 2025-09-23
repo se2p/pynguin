@@ -50,8 +50,17 @@ def test_llm_inference_basic():
     def example_func(x: int, y: str) -> None:
         pass
 
+    mock_type_info_str = Mock()
+    mock_type_info_str.name.return_value = "str"
+    mock_type_info_str.qualname.return_value = "builtins.str"
+
+    mock_type_info_int = Mock()
+    mock_type_info_int.name.return_value = "int"
+    mock_type_info_int.qualname.return_value = "builtins.int"
+
     mock_type_system = Mock()
-    mock_type_system.get_all_types.return_value = []
+    mock_type_system.get_all_types.return_value = [mock_type_info_str, mock_type_info_int]
+    mock_type_system.get_subclasses.return_value = []
 
     with patch("pynguin.analyses.type_inference.OpenAI") as mock_openai:
         mock_openai.return_value.chat.return_value = """{"x": "int", "y": "str"}"""
@@ -75,6 +84,7 @@ def test_llm_inference_invalid_json():
 
     mock_type_system = Mock()
     mock_type_system.get_all_types.return_value = []
+    mock_type_system.get_subclasses.return_value = []
 
     with patch("pynguin.analyses.type_inference.OpenAI") as mock_openai:
         mock_openai.return_value.chat.return_value = "invalid json"
@@ -99,6 +109,7 @@ def test_llm_inference_empty_response():
 
     mock_type_system = Mock()
     mock_type_system.get_all_types.return_value = []
+    mock_type_system.get_subclasses.return_value = []
 
     with patch("pynguin.analyses.type_inference.OpenAI") as mock_openai:
         mock_openai.return_value.chat.return_value = ""
