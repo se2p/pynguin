@@ -188,7 +188,7 @@ def get_inference_system_prompt() -> str:
     Args:
         subtypes: optional list of known string subtypes (e.g. "email", "hexcolor").
     """
-    guidelines = textwrap.dedent(
+    return textwrap.dedent(
         """
             You are a Python type inference engine.
             Your task is to analyze given Python functions and infer the parameter types.
@@ -197,7 +197,7 @@ def get_inference_system_prompt() -> str:
             Keep this reasoning to yourself and do not include it in the final output.
             Use your knowledge of programming, common libraries, and best practices to infer types.
             Use the provided context to make an informed decision about the types of parameters.
-            Always return results in full qualified names, e.g., typing.List[int].
+            Always return results in full qualified names, e.g., typing.List[builtins.int].
             *NEVER* use Any or object as a type.
             Only infer types for parameters, exclude self and return types.
             Return your output in JSON format only.
@@ -206,6 +206,3 @@ def get_inference_system_prompt() -> str:
             string subtypes and prefer returning that subtype when appropriate.
             """
     ).strip()
-    today = datetime.datetime.now(tz=datetime.timezone.utc).date().isoformat()
-    header = f"<|system|>\n## Analysis Instructions ({today})"
-    return f"{header}\n{guidelines}"

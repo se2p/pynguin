@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import abc
 import builtins
+from collections.abc import Sequence
 import dataclasses
 import enum
 import functools
@@ -1859,7 +1860,7 @@ def get_type_provider(
             return NoInference()
 
 
-def _collect_public_callables(module: ModuleType):
+def _collect_public_callables(module: ModuleType) -> Sequence[Callable[..., Any]]:
     """Collects a list of all public accessibles in a module."""
     callables = []
     seen = set()
@@ -1870,7 +1871,7 @@ def _collect_public_callables(module: ModuleType):
             seen.add(id(obj))
 
     for name, obj in vars(module).items():
-        if name.startswith("_"):
+        if name.startswith("_") and name != "__init__":
             continue
         if inspect.isfunction(obj) and obj.__module__ == module.__name__:
             add(obj)
@@ -1895,16 +1896,18 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
     currently, this only works for LLM-based providers.
     """
     metrics = typ_provider.get_metrics()
-    successful_inferences = metrics.get("successful_inferences", 0)
-    failed_inferences = metrics.get("failed_inferences", 0)
-    sent_requests = metrics.get("sent_requests", 0)
-    total_setup_time = metrics.get("total_setup_time", 0.0)
     stat.track_output_variable(
-        RuntimeVariable.TypeInferenceInferredParameters, successful_inferences
+        RuntimeVariable.TypeInferenceInferredParameters, metrics.get("successful_inferences", 0)
     )
-    stat.track_output_variable(RuntimeVariable.TypeInferenceFailedParameters, failed_inferences)
-    stat.track_output_variable(RuntimeVariable.TypeInferenceLLMCalls, sent_requests)
-    stat.track_output_variable(RuntimeVariable.TypeInferenceLLMTime, total_setup_time)
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceFailedParameters, metrics.get("failed_inferences", 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceLLMCalls, metrics.get("sent_requests", 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceLLMTime, metrics.get("total_setup_time", 0.0)
+    )
     # Additionally, when using an LLM-based provider, collect the raw inferred
     # parameter strings per callable and the annotated parameter strings. The
     # structure mirrors the evaluation format used elsewhere and is serialized
@@ -1920,15 +1923,14 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
                 # Build a stable key: module.qualname when possible
                 module_part = getattr(func, "__module__", "")
                 qualname_part = getattr(func, "__qualname__", None)
-                if qualname_part is None:
-                    key = str(func)
-                else:
-                    key = f"{module_part}.{qualname_part}"
+                key = str(func) if qualname_part is None else f"{module_part}.{qualname_part}"
 
                 # Annotated parameter strings (prior), fallback to typing.Any
                 try:
                     prior = typ_provider.prior_types_for(func)
-                except Exception as exc:  # narrow catch for unexpected provider failures
+                except (
+                    Exception  # noqa: BLE001
+                ) as exc:  # narrow catch for unexpected provider failures
                     LOGGER.debug("Could not obtain prior types for %s: %s", func, exc)
                     prior = {}
 
