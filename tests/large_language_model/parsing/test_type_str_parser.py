@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Tests for type string parser module."""
 
+import builtins
 from unittest.mock import Mock
 
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
@@ -19,9 +20,9 @@ def test_parse_none():
 def test_parse_any():
     """Test parsing Any types."""
     parser = TypeStrParser(create_mock_type_system())
-    assert parser.parse("Any") is None
-    assert parser.parse("typing.Any") is None
-    assert parser.parse("builtins.object") is None
+    assert parser.parse("Any") is builtins.object
+    assert parser.parse("typing.Any") is builtins.object
+    assert parser.parse("builtins.object") is builtins.object
 
 
 def test_parse_tuple():

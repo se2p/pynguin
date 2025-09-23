@@ -38,7 +38,7 @@ from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.type_utils import COLLECTIONS
+from pynguin.utils.type_utils import COLLECTIONS, STRING_SUBTYPES
 from pynguin.utils.type_utils import PRIMITIVES
 
 
@@ -519,7 +519,10 @@ def test_inheritance_graph():
     cluster = generate_test_cluster("tests.fixtures.cluster.inheritance")
     assert (
         len(cluster.type_system.get_subclasses(TypeInfo(object)))
-        == len(COLLECTIONS) + len(PRIMITIVES) + 3  # Foo, Bar, object.
+        == len(COLLECTIONS)
+        + len(PRIMITIVES)
+        + len(cluster.type_system.get_subclasses(TypeInfo(str)))
+        + 3  # Foo, Bar, object.
     )
 
 

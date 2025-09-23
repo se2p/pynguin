@@ -19,6 +19,7 @@ from typing import Any
 
 from typing_inspect import get_origin
 
+
 from pynguin.utils.orderedset import OrderedSet
 
 
