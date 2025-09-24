@@ -758,8 +758,8 @@ class LocalSearchConfiguration:
     local_search_same_datatype: bool = True
     """Defines if local search within same datatype is enabled or not"""
 
-    local_search_other_datatype: bool = False
-    """Defines if local search within same datatype is enabled or not"""
+    local_search_different_datatype: bool = False
+    """Defines if local search with different datatypes is enabled or not"""
 
     local_search_llm: bool = False
     """Defines if local search with llm is enabled or not"""
@@ -791,17 +791,14 @@ class LocalSearchConfiguration:
     """The number of mutations made to a parametrized statement call to determine if it's worth to
     further do local search"""
 
-    max_other_type_mutations: int = 20
-    """The max number of searches for other datatypes"""
+    max_different_type_mutations: int = 20
+    """The max number of searches for different datatypes"""
 
-    other_type_primitive_probability: float = 0.3
+    different_type_primitive_probability: float = 0.3
     """Weight of generating primitive statements when changing the statement type."""
 
-    other_type_collection_probability: float = 0.3
+    different_type_collection_probability: float = 0.3
     """Weight of generating collection statements when changing the statement type."""
-
-    other_type_call_probability: float = 0.4
-    """Weight of generating calling statements when changing the statement type."""
 
     dict_max_insertions: int = 10
     """Max number of unsuccessful insertions of entries."""

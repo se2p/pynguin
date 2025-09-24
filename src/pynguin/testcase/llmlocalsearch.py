@@ -165,7 +165,6 @@ class LLMLocalSearch:
                 # Collections do not have an accessible object in cases like this: var_1 = [var2]
                 continue
             else:
-                # TODO: handle fields / enums
                 self._logger.debug("Unknown accessible object type")
             if len(name) > 0:
                 module_source = get_part_of_source_code(name)

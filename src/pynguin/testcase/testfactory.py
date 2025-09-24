@@ -890,15 +890,18 @@ class TestFactory:  # noqa: PLR0904
         probability = randomness.next_float()
         old_size = len(chromosome.test_case.statements)
         try:
-            if probability <= config.configuration.local_search.other_type_primitive_probability:
+            if (
+                probability
+                <= config.configuration.local_search.different_type_primitive_probability
+            ):
                 self._attempt_generation(
                     chromosome.test_case, primitives, position, 0, allow_none=False
                 )
                 self._logger.debug("Changed statement from %s to primitive", statement.__class__)
             elif (
                 probability
-                <= config.configuration.local_search.other_type_collection_probability
-                + config.configuration.local_search.other_type_primitive_probability
+                <= config.configuration.local_search.different_type_collection_probability
+                + config.configuration.local_search.different_type_primitive_probability
             ):
                 self._attempt_generation(
                     chromosome.test_case, collection, position, 0, allow_none=False

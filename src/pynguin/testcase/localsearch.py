@@ -20,7 +20,9 @@ from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import choose_local_search_statement
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import CollectionStatement
+from pynguin.testcase.statement import EnumPrimitiveStatement
 from pynguin.testcase.statement import PrimitiveStatement
 from pynguin.testcase.statement import Statement
 from pynguin.utils import randomness
@@ -45,7 +47,7 @@ class TestCaseLocalSearch:
             suite (TestSuiteChromosome): The test suite containing the test case.
             executor (TestCaseExecutor): The executor to run the test cases.
         """
-        self._max_mutations: int = config.configuration.local_search.max_other_type_mutations
+        self._max_mutations: int = config.configuration.local_search.max_different_type_mutations
         self._suite = suite
         self._executor = executor
 
@@ -80,17 +82,15 @@ class TestCaseLocalSearch:
                             chromosome, factory, objective, pos
                         )
                     )
-                if config.configuration.local_search.local_search_other_datatype:
+                if config.configuration.local_search.local_search_different_datatype:
                     methods.append(
-                        lambda pos=i: self._search_other_datatype(
+                        lambda pos=i: self._search_different_datatype(
                             chromosome, factory, objective, pos
                         )
                     )
                 if config.configuration.local_search.local_search_llm:
                     methods.append(
-                        lambda pos=i: LLMLocalSearch(
-                            chromosome, objective, factory, self._suite, self._executor
-                        ).llm_local_search(pos)
+                        lambda pos=i: self._search_llm(chromosome, factory, objective, pos)
                     )
                 if methods:
                     randomness.choice(methods)()
@@ -143,7 +143,7 @@ class TestCaseLocalSearch:
             if isinstance(statement, PrimitiveStatement):
                 statement.local_search_applied = True
 
-    def _search_other_datatype(
+    def _search_different_datatype(
         self,
         chromosome: TestCaseChromosome,
         factory: TestFactory,
@@ -152,7 +152,7 @@ class TestCaseLocalSearch:
     ) -> None:
         statement = chromosome.test_case.statements[position]
         self._logger.debug(
-            "Local search on other datatype for statement %s at position %d",
+            "Local search on different datatype for statement %s at position %d",
             statement.__class__,
             position,
         )
@@ -182,6 +182,27 @@ class TestCaseLocalSearch:
             self._logger.debug("Local search did not find another possible datatype.")
         else:
             self._search_same_datatype(chromosome, factory, objective, position)
+
+    def _search_llm(
+        self,
+        chromosome: TestCaseChromosome,
+        factory: TestFactory,
+        objective: LocalSearchObjective,
+        position: int,
+    ) -> None:
+        statement = chromosome.test_case.statements[position]
+        if isinstance(statement, BooleanPrimitiveStatement | EnumPrimitiveStatement):
+            self._logger.debug(
+                "Skipping LLM local search for statement %s at position %d since it's a "
+                "boolean or enum primitive. Instead use same datatype local search.",
+                statement,
+                position,
+            )
+            self._search_same_datatype(chromosome, factory, objective, position)
+        else:
+            LLMLocalSearch(
+                chromosome, objective, factory, self._suite, self._executor
+            ).llm_local_search(position)
 
 
 class TestSuiteLocalSearch:

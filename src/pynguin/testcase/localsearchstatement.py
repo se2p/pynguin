@@ -697,7 +697,10 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 ) if last_execution_result is not None else None
                 statement = self._chromosome.test_case.statements[self._position]
                 mutations += 1
-        if total_iterations == config.configuration.local_search.random_parametrized_statement_call_count:
+        if (
+            total_iterations
+            == config.configuration.local_search.random_parametrized_statement_call_count
+        ):
             stat.add_to_runtime_variable(RuntimeVariable.LocalSearchUnsuccessfulExploratoryMoves, 1)
         else:
             stat.add_to_runtime_variable(RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1)
@@ -882,7 +885,9 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
                 self._restore(statement)
             if changed != 0:
                 self._logger.debug("Random mutations have an impact on the fitness")
-                stat.add_to_runtime_variable(RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1)
+                stat.add_to_runtime_variable(
+                    RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1
+                )
                 return True
             random_mutations_count -= 1
         self._logger.debug("Random mutations have no impact on the fitness, aborting local search")
