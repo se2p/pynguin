@@ -62,11 +62,14 @@ class LLMLocalSearch:
         self.suite = suite
         self.executor = executor
 
-    def llm_local_search(self, position):
+    def llm_local_search(self, position) -> bool:
         """Starts local search using LLMs for the statement at the position.
 
         Args:
             position (int): The position of the statement in the test case.
+
+        Returns:
+            True if the local search improved the test case, False otherwise.
         """
         failing_test = self.chromosome.is_failing()
         self._logger.debug("Starting local search with LLMs at position %d", position)
@@ -89,7 +92,7 @@ class LLMLocalSearch:
                 "or all branches are covered, skipping LLM request."
             )
             stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchSkippedLLMCalls, 1)
-            return
+            return None
         output = agent.local_search_call(
             position=position,
             test_case_source_code=unparse_test_case(self.chromosome.test_case),
@@ -110,7 +113,7 @@ class LLMLocalSearch:
             test_case = test_cases[0]
         else:
             self._logger.debug("Wrong number of testcases parsed, only needed one")
-            return
+            return None
 
         if self.objective.has_improved(test_case):
             self._logger.debug("The llm request has improved the fitness of the test case")
@@ -121,12 +124,13 @@ class LLMLocalSearch:
                 stat.add_to_runtime_variable(
                     RuntimeVariable.TotalLocalSearchLLMSuccessCallsDespiteFailing, 1
                 )
+            return True
 
-        else:
-            self._logger.debug(
-                "The llm request hasn't improved the fitness of the test case, "
-                "reverting to the old test case"
-            )
+        self._logger.debug(
+            "The llm request hasn't improved the fitness of the test case, "
+            "reverting to the old test case"
+        )
+        return False
 
     def get_shortened_source_code(
         self, position: int, line_annotations: list[LineAnnotation]

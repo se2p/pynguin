@@ -93,7 +93,11 @@ class TestCaseLocalSearch:
                         lambda pos=i: self._search_llm(chromosome, factory, objective, pos)
                     )
                 if methods:
-                    randomness.choice(methods)()
+                    result = randomness.choice(methods)()
+                    if result:
+                        stat.add_to_runtime_variable(
+                            RuntimeVariable.LocalSearchNumberOfSuccessfulStatements, 1
+                        )
                 else:
                     self._logger.debug(
                         "No local search method is activated, despite general local search being "
@@ -121,7 +125,7 @@ class TestCaseLocalSearch:
         factory: TestFactory,
         objective: LocalSearchObjective,
         position,
-    ):
+    ) -> bool:
         statement = chromosome.test_case.statements[position]
         # Randomize value because it's likely to be at a local optima
         if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
@@ -138,10 +142,17 @@ class TestCaseLocalSearch:
         )
         if local_search_statement is not None:
             self._logger.debug("Local search statement found for the statement %s", statement)
-            local_search_statement.search()
+            impoved = local_search_statement.search()
             statement = chromosome.test_case.statements[position]
             if isinstance(statement, PrimitiveStatement):
                 statement.local_search_applied = True
+            return impoved
+        self._logger.debug(
+            "No local search statement found for the statement %s at position %d",
+            statement,
+            position,
+        )
+        return False
 
     def _search_different_datatype(
         self,
@@ -149,7 +160,7 @@ class TestCaseLocalSearch:
         factory: TestFactory,
         objective: LocalSearchObjective,
         position,
-    ) -> None:
+    ) -> bool:
         statement = chromosome.test_case.statements[position]
         self._logger.debug(
             "Local search on different datatype for statement %s at position %d",
@@ -182,6 +193,7 @@ class TestCaseLocalSearch:
             self._logger.debug("Local search did not find another possible datatype.")
         else:
             self._search_same_datatype(chromosome, factory, objective, position)
+        return found
 
     def _search_llm(
         self,
@@ -189,8 +201,10 @@ class TestCaseLocalSearch:
         factory: TestFactory,
         objective: LocalSearchObjective,
         position: int,
-    ) -> None:
+    ) -> bool:
         statement = chromosome.test_case.statements[position]
+        # Not querying LLM for boolean or enum primitives since this is too expensive to querry
+        # for llm requests
         if isinstance(statement, BooleanPrimitiveStatement | EnumPrimitiveStatement):
             self._logger.debug(
                 "Skipping LLM local search for statement %s at position %d since it's a "
@@ -198,11 +212,10 @@ class TestCaseLocalSearch:
                 statement,
                 position,
             )
-            self._search_same_datatype(chromosome, factory, objective, position)
-        else:
-            LLMLocalSearch(
-                chromosome, objective, factory, self._suite, self._executor
-            ).llm_local_search(position)
+            return self._search_same_datatype(chromosome, factory, objective, position)
+        return LLMLocalSearch(
+            chromosome, objective, factory, self._suite, self._executor
+        ).llm_local_search(position)
 
 
 class TestSuiteLocalSearch:

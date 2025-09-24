@@ -233,6 +233,10 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of statements searched with local search
     LocalSearchTotalStatements = "LocalSearchTotalStatements"
 
+    # Total number of statements searched with local search that were successful (i.e., improved
+    # fitness)
+    LocalSearchNumberOfSuccessfulStatements = "LocalSearchNumberOfSuccessfulStatements"
+
     # Total number of mutations made with local search of all statements mutated.
     LocalSearchTotalMutations = "LocalSearchTotalMutations"
 
