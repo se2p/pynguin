@@ -15,6 +15,7 @@ import pynguin.ga.computations as ff
 import pynguin.ga.postprocess as pp
 import pynguin.generator as gen
 
+from pynguin.configuration import CoverageMetric
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -362,3 +363,21 @@ def test_setup_mutant_generator_invalid_order():
     # Call the function and expect a ConfigurationException
     with pytest.raises(gen.ConfigurationException, match=r"Mutation order should be > 0."):
         gen._setup_mutant_generator()
+
+
+def test_verify_config(tmp_path):
+    configuration = config.Configuration(
+        algorithm=config.Algorithm.DYNAMOSA,
+        module_name="example",
+        test_case_output=config.TestCaseOutputConfiguration(output_path=str(tmp_path)),
+        project_path=str(tmp_path),
+        statistics_output=config.StatisticsOutputConfiguration(
+            coverage_metrics=[CoverageMetric.LINE, CoverageMetric.BRANCH]
+        ),
+    )
+    gen.set_configuration(configuration)
+    with pytest.raises(
+        gen.ConfigurationException,
+        match=r"DynaMosa currently only supports branch coverage as coverage criterion",
+    ):
+        gen._verify_config()

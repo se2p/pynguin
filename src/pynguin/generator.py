@@ -275,6 +275,17 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
     tr.get_constructor_function(test_cluster)
 
 
+def _verify_config() -> None:
+    """Verify the configuration and raise an exception if something is invalid/not supported."""
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.configuration.algorithm is config.configuration.algorithm.DYNAMOSA and any(
+        m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH
+    ):
+        raise ConfigurationException(
+            "DynaMosa currently only supports branch coverage as coverage criterion."
+        )
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -560,6 +571,7 @@ def add_additional_metrics(  # noqa: D103
 
 
 def _run() -> ReturnCode:  # noqa: C901
+    _verify_config()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
