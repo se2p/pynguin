@@ -1079,3 +1079,93 @@ def test_combined_minimization_visitor_integration(coverage_metric, expected_rem
     # Verify that the expected number of statements and test cases are removed
     assert visitor.removed_statements == expected_removed_statements
     assert test_suite.size() == 2
+
+
+@pytest.mark.parametrize(
+    "visitor_class,coverage_metrics,expected_removed_attr",
+    [
+        (pp.CombinedMinimizationVisitor, [config.CoverageMetric.LINE], "removed_statements"),
+        (
+            pp.CombinedMinimizationVisitor,
+            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+            "removed_statements",
+        ),
+        (pp.TestSuiteMinimizationVisitor, [config.CoverageMetric.LINE], "removed_test_cases"),
+        (
+            pp.TestSuiteMinimizationVisitor,
+            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+            "removed_test_cases",
+        ),
+    ],
+)
+def test_suite_level_minimization_visitors(visitor_class, coverage_metrics, expected_removed_attr):
+    """Integration test for suite-level minimization visitors with multiple fitness functions."""
+    # Use the same integration setup
+    executor, test_case, first_function_generic = _setup_integration_test(coverage_metrics[0])
+
+    # Map metrics to their corresponding coverage function classes
+    metric_to_func = {
+        config.CoverageMetric.BRANCH: TestSuiteBranchCoverageFunction,
+        config.CoverageMetric.LINE: TestSuiteLineCoverageFunction,
+    }
+
+    # Create fitness functions for all given metrics
+    fitness_functions = [metric_to_func[m](executor) for m in coverage_metrics]
+
+    # Create a test suite with two identical test cases
+    test_suite = TestSuiteChromosome()
+    values = [0, 1, 2]
+    test_case1 = _create_test_case_with_calls(test_case, first_function_generic, values)
+    test_case2 = _create_test_case_with_calls(test_case, first_function_generic, values)
+
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case1))
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case2))
+
+    # Execute all test cases so they get coverage
+    for test_case_chrom in test_suite.test_case_chromosomes:
+        executor.execute(test_case_chrom.test_case)
+
+    # Apply the chosen minimization visitor
+    visitor = visitor_class(fitness_functions)
+    test_suite.accept(visitor)
+
+    # Verify that minimization actually removed something
+    removed_value = getattr(visitor, expected_removed_attr)
+    assert removed_value > 0
+    assert test_suite.size() > 0
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+)
+def test_test_case_level_minimization_visitors(visitor_class):
+    """Integration test for test-case level minimization visitors with many 2 fitness functions."""
+    # Use integration setup (we only need one coverage metric for the executor)
+    executor, test_case, first_function_generic = _setup_integration_test(
+        config.CoverageMetric.LINE
+    )
+
+    # Create fitness functions
+    fitness_functions = [
+        TestSuiteBranchCoverageFunction(executor),
+        TestSuiteLineCoverageFunction(executor),
+    ]
+
+    # Build a test case with redundant statements
+    values = [0, 1, 2]
+    test_case_full = _create_test_case_with_calls(test_case, first_function_generic, values)
+
+    # Execute the test case so it gathers coverage
+    executor.execute(test_case_full)
+
+    # Apply the visitor on the single test case
+    visitor = visitor_class(fitness_functions)
+    test_case_full.accept(visitor)
+
+    # Verify minimization happened
+    assert visitor.removed_statements > 0
+    assert len(test_case_full.statements) > 0
