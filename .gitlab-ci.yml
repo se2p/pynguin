@@ -38,7 +38,7 @@ before_script:
   - python --version
   - pip install poetry
   - poetry config virtualenvs.in-project true
-  - poetry install[openai,numpy]
+  - poetry install --extras openai,numpy
 
 .unit-tests: &unit-tests
   stage: test
@@ -95,7 +95,7 @@ combine-coverage:
     - python --version
     - pip install poetry
     - poetry config virtualenvs.in-project true
-    - poetry install[openai,numpy]
+    - poetry install --extras openai,numpy
     - poetry add --group dev pytest-random-order
   script: |
     for ((i=1; i<=10; i++)); do
@@ -155,7 +155,7 @@ memory-profile:
   before_script:
     - pip install poetry
     - poetry config virtualenvs.in-project true
-    - poetry install[openai,numpy]
+    - poetry install --extras openai,numpy
     - poetry add --group dev memray pytest-memray
   script:
     - poetry run pytest --memray tests/

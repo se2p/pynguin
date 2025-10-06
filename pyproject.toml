@@ -286,7 +286,7 @@ skip_install = true
 allowlist_externals = ["make", "poetry"]
 commands_pre = [
   ["poetry", "env", "use", "{env_name}"],
-  ["poetry", "install[openai,numpy]"],
+  ["poetry", "install", "--extras", "openai,numpy"]
 ]
 commands = [
   ["make", "check"],
