@@ -36,7 +36,7 @@ jobs:
           key: venv-${{ hashFiles('poetry.lock') }}
 
       - name: Install the project dependencies
-        run: poetry install --with openai,numpy
+        run: poetry install[openai,numpy]
 
       - name: Build a binary wheel and a source tarball
         run: poetry build
