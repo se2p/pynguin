@@ -274,33 +274,33 @@ def tc_with_statements(basic_test_case):
 
 
 @pytest.fixture
-def mock_fitness_function():
+def mock_fitness_functions():
     """Fixture for a mock fitness function."""
-    return MagicMock()
+    return [MagicMock()]
 
 
 @pytest.fixture
-def forward_minimization_visitor(mock_fitness_function):
+def forward_minimization_visitor(mock_fitness_functions):
     """Fixture for a ForwardIterativeMinimizationVisitor with a mock fitness function."""
-    return pp.ForwardIterativeMinimizationVisitor(mock_fitness_function)
+    return pp.ForwardIterativeMinimizationVisitor(mock_fitness_functions)
 
 
 @pytest.fixture
-def backward_minimization_visitor(mock_fitness_function):
+def backward_minimization_visitor(mock_fitness_functions):
     """Fixture for a BackwardIterativeMinimizationVisitor with a mock fitness function."""
-    return pp.BackwardIterativeMinimizationVisitor(mock_fitness_function)
+    return pp.BackwardIterativeMinimizationVisitor(mock_fitness_functions)
 
 
 @pytest.fixture
-def test_suite_minimization_visitor(mock_fitness_function):
+def test_suite_minimization_visitor(mock_fitness_functions):
     """Fixture for a TestSuiteMinimizationVisitor."""
-    return pp.TestSuiteMinimizationVisitor(mock_fitness_function)
+    return pp.TestSuiteMinimizationVisitor(mock_fitness_functions)
 
 
 @pytest.fixture
-def combined_minimization_visitor(mock_fitness_function):
+def combined_minimization_visitor(mock_fitness_functions):
     """Fixture for a CombinedMinimizationVisitor."""
-    return pp.CombinedMinimizationVisitor(mock_fitness_function)
+    return pp.CombinedMinimizationVisitor(mock_fitness_functions)
 
 
 @pytest.fixture
@@ -324,10 +324,10 @@ def create_test_suite():
     ],
     ids=["forward", "backward"],
 )
-def test_iterative_minimization_visitor_init(mock_fitness_function, request, visitor_fixture):
+def test_iterative_minimization_visitor_init(mock_fitness_functions, request, visitor_fixture):
     """Test that the iterative minimization visitors initialize correctly."""
     visitor = request.getfixturevalue(visitor_fixture)
-    assert visitor._fitness_function == mock_fitness_function
+    assert visitor._fitness_functions == mock_fitness_functions
     assert visitor._removed_statements == 0
     assert visitor.removed_statements == 0
 
@@ -360,7 +360,7 @@ def test_iterative_minimization_visitor_init(mock_fitness_function, request, vis
 )
 def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
     tc_with_statements,
-    mock_fitness_function,
+    mock_fitness_functions,
     request,
     visitor_fixture,
     fitness_behavior,
@@ -372,9 +372,9 @@ def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
 
     # Set up the mock fitness function behavior
     if callable(fitness_behavior):
-        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+        mock_fitness_functions[0].compute_coverage.side_effect = fitness_behavior
     else:
-        mock_fitness_function.compute_coverage.return_value = fitness_behavior
+        mock_fitness_functions[0].compute_coverage.return_value = fitness_behavior
 
     # Get the visitor from the fixture
     visitor = request.getfixturevalue(visitor_fixture)
@@ -396,11 +396,11 @@ def test_iterative_minimization_visitor_statement_removal(  # noqa: PLR0917
     ids=["forward", "backward"],
 )
 def test_iterative_minimization_visitor_with_empty_test_case(
-    basic_test_case, mock_fitness_function, request, visitor_fixture
+    basic_test_case, mock_fitness_functions, request, visitor_fixture
 ):
     """Test that the visitor handles empty test cases correctly."""
     # Set up the mock fitness function
-    mock_fitness_function.compute_coverage.return_value = 0.0
+    mock_fitness_functions[0].compute_coverage.return_value = 0.0
 
     # Get the visitor from the fixture
     visitor = request.getfixturevalue(visitor_fixture)
@@ -444,7 +444,7 @@ def tc_with_dependencies(basic_test_cluster, basic_test_case):
     ids=["forward", "backward"],
 )
 def test_iterative_minimization_visitor_with_dependencies(
-    tc_with_dependencies, mock_fitness_function, visitor_class
+    tc_with_dependencies, mock_fitness_functions, visitor_class
 ):
     """Test that the visitor correctly handles dependencies between statements."""
     test_case, _, _, _ = tc_with_dependencies
@@ -463,10 +463,10 @@ def test_iterative_minimization_visitor_with_dependencies(
         # Any other modification reduces coverage
         return 0.5
 
-    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+    mock_fitness_functions[0].compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = visitor_class(mock_fitness_function)
+    visitor = visitor_class(mock_fitness_functions)
     test_case.accept(visitor)
 
     # Verify that only the string statement was removed
@@ -532,7 +532,7 @@ def tc_with_complex_dependencies(basic_test_cluster):
     ids=["forward", "backward"],
 )
 def test_iterative_minimization_visitor_dependencies_preserved(
-    tc_with_complex_dependencies, mock_fitness_function, visitor_class
+    tc_with_complex_dependencies, mock_fitness_functions, visitor_class
 ):
     """Test that the IterativeMinimizationVisitor preserves dependencies between statements."""
     test_case = tc_with_complex_dependencies
@@ -558,10 +558,10 @@ def test_iterative_minimization_visitor_dependencies_preserved(
         # List statement missing, return reduced coverage
         return 0.5
 
-    mock_fitness_function.compute_coverage.side_effect = compute_coverage_side_effect
+    mock_fitness_functions[0].compute_coverage.side_effect = compute_coverage_side_effect
 
     # Create the visitor and apply it to the test case
-    visitor = visitor_class(mock_fitness_function)
+    visitor = visitor_class(mock_fitness_functions)
     original_size = test_case.size()
     test_case.accept(visitor)
 
@@ -670,8 +670,8 @@ def test_iterative_minimization_visitor_integration(
     executor.execute(test_case)
 
     # Create a coverage function and visitor based on the parameters
-    fitness_function = coverage_function_class(executor)
-    visitor = visitor_class(fitness_function)
+    fitness_functions = [coverage_function_class(executor)]
+    visitor = visitor_class(fitness_functions)
 
     # Apply the visitor to the test case
     test_case.accept(visitor)
@@ -805,9 +805,9 @@ def test_crash_preserving_minimization_visitor_with_dependencies(
     assert mock_executor.execute_with_exit_code.call_count > 0
 
 
-def test_suite_minimization_visitor_init(mock_fitness_function, test_suite_minimization_visitor):
+def test_suite_minimization_visitor_init(mock_fitness_functions, test_suite_minimization_visitor):
     """Test that the TestSuiteMinimizationVisitor initializes correctly."""
-    assert test_suite_minimization_visitor._fitness_function == mock_fitness_function
+    assert test_suite_minimization_visitor._fitness_functions == mock_fitness_functions
     assert test_suite_minimization_visitor.removed_test_cases == 0
 
 
@@ -828,7 +828,7 @@ def test_suite_minimization_visitor_init(mock_fitness_function, test_suite_minim
     ids=["fitness_preserved", "fitness_reduced"],
 )
 def test_suite_minimization_visitor_test_case_removal(
-    mock_fitness_function,
+    mock_fitness_functions,
     test_suite_minimization_visitor,
     fitness_behavior,
     expected_results,
@@ -844,9 +844,9 @@ def test_suite_minimization_visitor_test_case_removal(
 
     # Set up the mock fitness function behavior
     if callable(fitness_behavior):
-        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+        mock_fitness_functions[0].compute_coverage.side_effect = fitness_behavior
     else:
-        mock_fitness_function.compute_coverage.return_value = fitness_behavior
+        mock_fitness_functions[0].compute_coverage.return_value = fitness_behavior
 
     # Apply the visitor to the test suite
     test_suite.accept(test_suite_minimization_visitor)
@@ -857,7 +857,7 @@ def test_suite_minimization_visitor_test_case_removal(
 
 
 def test_test_suite_minimization_visitor_with_single_test_case(
-    mock_fitness_function,
+    mock_fitness_functions,
     test_suite_minimization_visitor,
     basic_test_case,
 ):
@@ -868,7 +868,7 @@ def test_test_suite_minimization_visitor_with_single_test_case(
     test_suite.add_test_case_chromosome(test_case)
 
     # Set up the mock fitness function
-    mock_fitness_function.compute_coverage.return_value = 1.0
+    mock_fitness_functions[0].compute_coverage.return_value = 1.0
 
     # Apply the visitor to the test suite
     test_suite.accept(test_suite_minimization_visitor)
@@ -934,8 +934,8 @@ def test_suite_minimization_visitor_integration(coverage_metric, expected_remove
         executor.execute(test_case_chrom.test_case)
 
     # Create a coverage function and visitor based on the parameter
-    fitness_function = coverage_function_class(executor)
-    visitor = pp.TestSuiteMinimizationVisitor(fitness_function)
+    fitness_functions = [coverage_function_class(executor)]
+    visitor = pp.TestSuiteMinimizationVisitor(fitness_functions)
 
     # Apply the visitor to the test suite
     test_suite.accept(visitor)
@@ -945,9 +945,9 @@ def test_suite_minimization_visitor_integration(coverage_metric, expected_remove
     assert test_suite.size() == 1  # Only one test case should remain
 
 
-def test_combined_minimization_visitor_init(mock_fitness_function, combined_minimization_visitor):
+def test_combined_minimization_visitor_init(mock_fitness_functions, combined_minimization_visitor):
     """Test that the CombinedMinimizationVisitor initializes correctly."""
-    assert combined_minimization_visitor._fitness_function == mock_fitness_function
+    assert combined_minimization_visitor._fitness_functions == mock_fitness_functions
     assert combined_minimization_visitor._removed_statements == 0
     assert combined_minimization_visitor.removed_statements == 0
 
@@ -969,7 +969,7 @@ def test_combined_minimization_visitor_init(mock_fitness_function, combined_mini
     ids=["fitness_preserved", "fitness_changed"],
 )
 def test_combined_minimization_visitor_minimization(
-    mock_fitness_function,
+    mock_fitness_functions,
     combined_minimization_visitor,
     fitness_behavior,
     expected_results,
@@ -994,9 +994,9 @@ def test_combined_minimization_visitor_minimization(
             call_count[0] += 1
             return 1.0 if call_count[0] == 1 else 0.0  # First call returns 1.0, others return 0.0
 
-        mock_fitness_function.compute_coverage.side_effect = side_effect
+        mock_fitness_functions[0].compute_coverage.side_effect = side_effect
     else:
-        mock_fitness_function.compute_coverage.side_effect = fitness_behavior
+        mock_fitness_functions[0].compute_coverage.side_effect = fitness_behavior
 
     # Apply the visitor to the test suite
     test_suite.accept(combined_minimization_visitor)
@@ -1008,7 +1008,7 @@ def test_combined_minimization_visitor_minimization(
 
 
 def test_combined_minimization_visitor_with_single_test_case(
-    mock_fitness_function,
+    mock_fitness_functions,
     combined_minimization_visitor,
     tc_with_statements,
 ):
@@ -1027,7 +1027,7 @@ def test_combined_minimization_visitor_with_single_test_case(
         call_count[0] += 1
         return 1.0 if call_count[0] == 1 else 0.5
 
-    mock_fitness_function.compute_coverage.side_effect = side_effect
+    mock_fitness_functions[0].compute_coverage.side_effect = side_effect
 
     # Apply the visitor to the test suite
     test_suite.accept(combined_minimization_visitor)
@@ -1070,7 +1070,7 @@ def test_combined_minimization_visitor_integration(coverage_metric, expected_rem
         executor.execute(test_case_chrom.test_case)
 
     # Create a coverage function and visitor based on the parameter
-    fitness_function = coverage_function_class(executor)
+    fitness_function = [coverage_function_class(executor)]
     visitor = pp.CombinedMinimizationVisitor(fitness_function)
 
     # Apply the visitor to the test suite
@@ -1079,3 +1079,93 @@ def test_combined_minimization_visitor_integration(coverage_metric, expected_rem
     # Verify that the expected number of statements and test cases are removed
     assert visitor.removed_statements == expected_removed_statements
     assert test_suite.size() == 2
+
+
+@pytest.mark.parametrize(
+    "visitor_class,coverage_metrics,expected_removed_attr",
+    [
+        (pp.CombinedMinimizationVisitor, [config.CoverageMetric.LINE], "removed_statements"),
+        (
+            pp.CombinedMinimizationVisitor,
+            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+            "removed_statements",
+        ),
+        (pp.TestSuiteMinimizationVisitor, [config.CoverageMetric.LINE], "removed_test_cases"),
+        (
+            pp.TestSuiteMinimizationVisitor,
+            [config.CoverageMetric.BRANCH, config.CoverageMetric.LINE],
+            "removed_test_cases",
+        ),
+    ],
+)
+def test_suite_level_minimization_visitors(visitor_class, coverage_metrics, expected_removed_attr):
+    """Integration test for suite-level minimization visitors with multiple fitness functions."""
+    # Use the same integration setup
+    executor, test_case, first_function_generic = _setup_integration_test(coverage_metrics[0])
+
+    # Map metrics to their corresponding coverage function classes
+    metric_to_func = {
+        config.CoverageMetric.BRANCH: TestSuiteBranchCoverageFunction,
+        config.CoverageMetric.LINE: TestSuiteLineCoverageFunction,
+    }
+
+    # Create fitness functions for all given metrics
+    fitness_functions = [metric_to_func[m](executor) for m in coverage_metrics]
+
+    # Create a test suite with two identical test cases
+    test_suite = TestSuiteChromosome()
+    values = [0, 1, 2]
+    test_case1 = _create_test_case_with_calls(test_case, first_function_generic, values)
+    test_case2 = _create_test_case_with_calls(test_case, first_function_generic, values)
+
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case1))
+    test_suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case2))
+
+    # Execute all test cases so they get coverage
+    for test_case_chrom in test_suite.test_case_chromosomes:
+        executor.execute(test_case_chrom.test_case)
+
+    # Apply the chosen minimization visitor
+    visitor = visitor_class(fitness_functions)
+    test_suite.accept(visitor)
+
+    # Verify that minimization actually removed something
+    removed_value = getattr(visitor, expected_removed_attr)
+    assert removed_value > 0
+    assert test_suite.size() > 0
+
+
+@pytest.mark.parametrize(
+    "visitor_class",
+    [
+        pp.ForwardIterativeMinimizationVisitor,
+        pp.BackwardIterativeMinimizationVisitor,
+    ],
+)
+def test_test_case_level_minimization_visitors(visitor_class):
+    """Integration test for test-case level minimization visitors with many 2 fitness functions."""
+    # Use integration setup (we only need one coverage metric for the executor)
+    executor, test_case, first_function_generic = _setup_integration_test(
+        config.CoverageMetric.LINE
+    )
+
+    # Create fitness functions
+    fitness_functions = [
+        TestSuiteBranchCoverageFunction(executor),
+        TestSuiteLineCoverageFunction(executor),
+    ]
+
+    # Build a test case with redundant statements
+    values = [0, 1, 2]
+    test_case_full = _create_test_case_with_calls(test_case, first_function_generic, values)
+
+    # Execute the test case so it gathers coverage
+    executor.execute(test_case_full)
+
+    # Apply the visitor on the single test case
+    visitor = visitor_class(fitness_functions)
+    test_case_full.accept(visitor)
+
+    # Verify minimization happened
+    assert visitor.removed_statements > 0
+    assert len(test_case_full.statements) > 0

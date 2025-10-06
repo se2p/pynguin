@@ -171,9 +171,9 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
 
-    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
+    def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
         super().__init__()
-        self._fitness_function = fitness_function
+        self._fitness_functions = fitness_functions
         self._removed_statements = 0
 
     @property
@@ -210,7 +210,11 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
         original_test_suite = tsc.TestSuiteChromosome()
         original_test_suite.add_test_case_chromosome(original_test_case)
-        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+
+        original_coverages: list[float] = [
+            fitness_function.compute_coverage(original_test_suite)
+            for fitness_function in self._fitness_functions
+        ]
 
         original_size = test_case.size()
         statements_changed = True
@@ -231,8 +235,11 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
-                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
-                if math.isclose(original_coverage, minimized_coverage):
+                minimized_coverages = [
+                    fitness_function.compute_coverage(minimized_test_suite)
+                    for fitness_function in self._fitness_functions
+                ]
+                if all(map(math.isclose, original_coverages, minimized_coverages)):
                     removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
 
@@ -268,7 +275,10 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
         original_test_suite = tsc.TestSuiteChromosome()
         original_test_suite.add_test_case_chromosome(original_test_case)
-        original_coverage = self._fitness_function.compute_coverage(original_test_suite)
+        original_coverages = [
+            fitness_function.compute_coverage(original_test_suite)
+            for fitness_function in self._fitness_functions
+        ]
 
         original_size = test_case.size()
         statements_changed = True
@@ -285,8 +295,11 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                 minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
                 minimized_test_suite = tsc.TestSuiteChromosome()
                 minimized_test_suite.add_test_case_chromosome(minimized_test_case)
-                minimized_coverage = self._fitness_function.compute_coverage(minimized_test_suite)
-                if math.isclose(original_coverage, minimized_coverage):
+                minimized_coverages = [
+                    fitness_function.compute_coverage(minimized_test_suite)
+                    for fitness_function in self._fitness_functions
+                ]
+                if all(map(math.isclose, original_coverages, minimized_coverages)):
                     removed = test_case.remove_statement_with_forward_dependencies(stmt)
                     self._removed_statements += len(removed)
                     statements_changed = True
@@ -421,8 +434,8 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
     4. If fitness remains the same, remove the test case from the original test suite
     """
 
-    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
-        self._fitness_function = fitness_function
+    def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
+        self._fitness_functions = fitness_functions
         self._removed_test_cases = 0
 
     @property
@@ -441,7 +454,10 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
             # Nothing to minimize if there's only one or zero test cases
             return
 
-        original_coverage = self._fitness_function.compute_coverage(chromosome)
+        original_coverage = [
+            fitness_function.compute_coverage(chromosome)
+            for fitness_function in self._fitness_functions
+        ]
 
         test_cases = list(chromosome.test_case_chromosomes)
         i = 0
@@ -455,10 +471,13 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
             test_to_remove = test_suite_clone.get_test_case_chromosome(i)
             test_suite_clone.delete_test_case_chromosome(test_to_remove)
 
-            minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
+            minimized_coverage = [
+                fitness_function.compute_coverage(test_suite_clone)
+                for fitness_function in self._fitness_functions
+            ]
 
             # If coverage is not affected, remove the test case from the original test suite
-            if math.isclose(original_coverage, minimized_coverage):
+            if all(map(math.isclose, original_coverage, minimized_coverage)):
                 chromosome.delete_test_case_chromosome(test_cases[i])
                 # Update our working list
                 test_cases.pop(i)
@@ -561,8 +580,8 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
        d. If the coverage doesn't decrease, remove the statement from the original test case
     """
 
-    def __init__(self, fitness_function: ff.TestSuiteCoverageFunction):  # noqa: D107
-        self._fitness_function = fitness_function
+    def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
+        self._fitness_functions = fitness_functions
         self._removed_statements = 0
 
     @property
@@ -577,7 +596,10 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
     def visit_test_suite_chromosome(  # noqa: D102
         self, chromosome: tsc.TestSuiteChromosome
     ) -> None:
-        original_coverage = self._fitness_function.compute_coverage(chromosome)
+        original_coverage = [
+            fitness_function.compute_coverage(chromosome)
+            for fitness_function in self._fitness_functions
+        ]
         self._minimize_statements_across_test_suite(chromosome, original_coverage)
         if self._removed_statements > 0:
             chromosome.changed = True
@@ -589,7 +611,7 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
         pass
 
     def _minimize_statements_across_test_suite(
-        self, chromosome: tsc.TestSuiteChromosome, original_coverage: float
+        self, chromosome: tsc.TestSuiteChromosome, original_coverage: list[float]
     ) -> None:
         """Minimize statements across the entire test suite.
 
@@ -629,10 +651,13 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
                     )
 
                     # Compute the coverage of the modified test suite
-                    minimized_coverage = self._fitness_function.compute_coverage(test_suite_clone)
+                    minimized_coverages = [
+                        fitness_function.compute_coverage(test_suite_clone)
+                        for fitness_function in self._fitness_functions
+                    ]
 
                     # If coverage is not affected, remove the statement from the original test case
-                    if math.isclose(original_coverage, minimized_coverage):
+                    if all(map(math.isclose, original_coverage, minimized_coverages)):
                         removed = test_case.remove_statement_with_forward_dependencies(stmt)
                         self._removed_statements += len(removed)
 
