@@ -65,10 +65,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-tk \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl[openai,numpy] \
-    mypy==1.13.0 \
-    typing-extensions==4.12.2
-
-
+RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl[openai,numpy,typing]
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []
