@@ -65,7 +65,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
     mypy==1.13.0 \
     typing-extensions==4.12.2 \
-    openai
 
 
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]

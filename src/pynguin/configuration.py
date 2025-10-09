@@ -767,13 +767,13 @@ class LocalSearchConfiguration:
     local_search_primitives: bool = True
     """Toggles if local search for primitive types is enabled or not"""
 
-    local_search_collections: bool = True
+    local_search_collections: bool = False
     """Toggles if local search for collection types is enabled or not"""
 
-    local_search_complex_objects: bool = True
+    local_search_complex_objects: bool = False
     """Toggles if local search for complex object types is enabled or not"""
 
-    local_search_probability: float = 1
+    local_search_probability: float = 0.02
     """Probability of starting local search on the specific candidate"""
 
     local_search_time: int = 5000
@@ -791,7 +791,7 @@ class LocalSearchConfiguration:
     """The number of mutations made to a parametrized statement call to determine if it's worth to
     further do local search"""
 
-    max_different_type_mutations: int = 20
+    max_different_type_mutations: int = 10
     """The max number of searches for different datatypes"""
 
     different_type_primitive_probability: float = 0.3

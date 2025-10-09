@@ -92,7 +92,7 @@ class LLMLocalSearch:
                 "or all branches are covered, skipping LLM request."
             )
             stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchSkippedLLMCalls, 1)
-            return None
+            return False
         output = agent.local_search_call(
             position=position,
             test_case_source_code=unparse_test_case(self.chromosome.test_case),
@@ -100,7 +100,6 @@ class LLMLocalSearch:
             module_source_code=module_source_code,
         )
         self._logger.debug(output)
-
         test_cases = agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results(
             output,
             self.chromosome.test_case.test_cluster,
@@ -113,7 +112,7 @@ class LLMLocalSearch:
             test_case = test_cases[0]
         else:
             self._logger.debug("Wrong number of testcases parsed, only needed one")
-            return None
+            return False
 
         if self.objective.has_improved(test_case):
             self._logger.debug("The llm request has improved the fitness of the test case")

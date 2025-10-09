@@ -240,6 +240,7 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
 class FloatLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for floats."""
 
+    #TODO: Maybe shift into integer and apply local search for integers, shift back and evaluate?
     def search(  # noqa: D102
         self,
     ) -> None:
