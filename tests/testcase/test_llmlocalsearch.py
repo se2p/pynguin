@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from pynguin.large_language_model.parsing.helpers import add_line_numbers
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import LineAnnotation
@@ -23,15 +22,24 @@ def test_prompt() -> None:
     local_search_prompt = LocalSearchPrompt(test_case_code, position, source_code, line_annotations)
     result = local_search_prompt.build_prompt()
     prompt = (
-        f"Change the input value at position 2"
-        f" of the test case to achieve higher branch coverage\n"
-        f"Give back only the whole test and not the variable itself as Python code for better "
-        f"parsing\n"
-        f"Also add a class where the test is in to the test_code.\n"
-        f"Line of branches we failed to cover:\n"
-        f"Line 2: Covered 1 of 2\n"
-        f"Test case source code:\n `{test_case_code}` \n"
-        f"Module source code:\n `{add_line_numbers(source_code)}`"
+        "Mutate the statement at position 4 of the test case to achieve higher branch "
+        "coverage\n"
+        "Give back only the whole test and not the variable itself as Python code for "
+        "better parsing\n"
+        "Also add a class where the test is in to the test_code.\n"
+        "Pick a branch where mutating the provided statement can actually increase "
+        "the branch coverage.\n"
+        " Line of branches we failed to cover:\n"
+        "Line 2: Covered 1 of 2\n"
+        "Test case source code:\n"
+        " `1: def test_module:\n"
+        "2:     number = 3\n"
+        "3:     object = TestClass(number)` \n"
+        "Module source code:\n"
+        " `class TestClass\n"
+        "    def __init__(self, number:int):\n"
+        "       self.number = number\n"
+        "`"
     )
     assert result == str(prompt)
 
