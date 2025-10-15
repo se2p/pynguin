@@ -278,7 +278,7 @@ class _ObjectProxyMethods:
     # explicit to ensure that vars() works as expected.
 
     @property
-    def __dict__(self):
+    def __dict__(self):  # type: ignore[override]
         return self.__wrapped__.__dict__  # type: ignore[attr-defined]
 
     # Need to also propagate the special __weakref__ attribute for case

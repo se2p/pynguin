@@ -911,7 +911,7 @@ def _track_search_metrics(
     ]:
         if metric in coverage_metrics:
             coverage_function: ff.TestSuiteCoverageFunction = _get_coverage_ff_from_algorithm(
-                algorithm, cast("type[ff.TestSuiteCoverageFunction]", fitness_type)
+                algorithm, cast("type", fitness_type)
             )
             stat.track_output_variable(
                 runtime, generation_result.get_coverage_for(coverage_function)

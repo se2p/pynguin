@@ -500,7 +500,7 @@ class StatementDeserializer:  # noqa: PLR0904
             logger.debug("Strange function call: %s", ast.unparse(call))
             return None
         try:
-            call_id = call.func.value.id  # type: ignore[attr-defined]
+            call_id = call.func.value.id  # type: ignore[union-attr]
         except AttributeError:
             logger.debug("Can't get called for %s", ast.unparse(call))
             call_id = ""

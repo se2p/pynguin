@@ -42,7 +42,7 @@ def stack_effects(opcode: int, arg: int | None, *, jump: bool = False) -> _Stack
     explicitly recognize.
     """
     try:
-        prev = _prev.stack_effects(opcode, arg, jump=jump)  # type: ignore[attr-defined]
+        prev = _prev.stack_effects(opcode, arg, jump=jump)
     except AssertionError:
         # Unknown to previous version; compute net effect and map to a simple pair.
         net = dis.stack_effect(opcode, arg if arg is not None else 0, jump=jump)

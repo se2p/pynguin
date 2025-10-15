@@ -386,12 +386,12 @@ def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
     int_or_uint = re.search(r"^(?:int|uint)", dtype)
     if int_or_uint:
         low, high = _get_range(parameter_obj, dtype)
-        ndarray = _generate_int(dtype, shape, low, high)  # type: ignore[arg-type]
+        ndarray = _generate_int(dtype, shape, low, high)
 
     float_ = re.search(r"^float", dtype)
     if float_:
         low, high = _get_range(parameter_obj, dtype)
-        ndarray = _generate_float(dtype, shape, low, high)  # type: ignore[arg-type]
+        ndarray = _generate_float(dtype, shape, low, high)
 
     complex_ = re.search(r"^complex(?P<num>[0-9]*)", dtype)
     if complex_:
@@ -404,7 +404,7 @@ def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
         float_dtype = "float" + half_n_bit
         low, high = _get_range(parameter_obj, float_dtype)
 
-        ndarray = _generate_complex(float_dtype, dtype, shape, low, high)  # type: ignore[arg-type]
+        ndarray = _generate_complex(float_dtype, dtype, shape, low, high)
 
     if dtype == "bool":
         low = 0
