@@ -275,7 +275,7 @@ class GenericConstructor(GenericCallableAccessibleObject):
         """
         super().__init__(
             owner,
-            owner.raw_type.__init__,  # type: ignore[misc]
+            owner.raw_type.__init__,  # type: ignore[arg-type, misc]
             inferred_signature,
             raised_exceptions,
         )
