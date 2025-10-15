@@ -274,7 +274,26 @@ def reset_statistics_tracker():
     stat.reset()
 
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 14):
+
+    @pytest.fixture(scope="module")
+    def conditional_jump_example_bytecode() -> Bytecode:
+        label_else = Label()
+        label_print = Label()
+        return Bytecode([
+            Instr("LOAD_NAME", "print"),
+            Instr("LOAD_NAME", "test"),
+            Instr("POP_JUMP_IF_FALSE", label_else),
+            Instr("LOAD_CONST", "yes"),
+            Instr("JUMP_FORWARD", label_print),
+            label_else,
+            Instr("LOAD_CONST", "no"),
+            label_print,
+            Instr("CALL", 1),
+            Instr("RETURN_CONST"),
+        ])
+
+elif sys.version_info >= (3, 12):
 
     @pytest.fixture(scope="module")
     def conditional_jump_example_bytecode() -> Bytecode:

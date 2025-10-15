@@ -49,10 +49,10 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.14"
+python = ">=3.10, <3.15"
 astroid = "^3.3.9"
 black = "^25.1.0"
-bytecode = "^0.16.1"
+bytecode = "0.17.0"
 dill = "^0.3.9"
 Jinja2 = "^3.1.6"
 networkx = "^3.4"
