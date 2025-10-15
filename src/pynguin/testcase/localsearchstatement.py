@@ -26,6 +26,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
+from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import DictStatement
@@ -64,7 +65,7 @@ class StatementLocalSearch(abc.ABC):
         chromosome: TestCaseChromosome,
         position: int,
         objective: LocalSearchObjective,
-        factory: TestFactory | None = None,
+        factory: TestFactory,
     ):
         """Initializes the local search strategy for a specific statement.
 
@@ -72,7 +73,7 @@ class StatementLocalSearch(abc.ABC):
             chromosome (TestCaseChromosome): The test case chromosome containing the statement.
             position (int): The position of the statement in the test case.
             objective (LocalSearchObjective): The objective to check for improvements.
-            factory (TestFactory | None): The factory to create new statements, if needed.
+            factory (TestFactory): The factory to create new statements.
         """
         self._chromosome = chromosome
         self._objective = objective
@@ -88,29 +89,38 @@ class StatementLocalSearch(abc.ABC):
         """
 
 
-class BooleanLocalSearch(StatementLocalSearch, ABC):
+class PrimitiveLocalSearch(StatementLocalSearch, ABC):
+    """Abstract local search strategy for primitive statements."""
+
+    def _backup(self, statement: PrimitiveStatement):
+        self._last_execution_result = cast(
+            "ExecutionResult", self._chromosome.get_last_execution_result()
+        )
+        self._old_value = statement.value
+        self._old_changed = self._chromosome.changed
+
+    def _restore(self, statement: PrimitiveStatement):
+        self._chromosome.set_last_execution_result(self._last_execution_result)
+        self._chromosome.changed = self._old_changed
+        statement.value = self._old_value
+
+
+class BooleanLocalSearch(PrimitiveLocalSearch, ABC):
     """A local search strategy for booleans."""
 
     def search(self) -> bool:  # noqa: D102
         statement = cast(
             "BooleanPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
-        execution_result = self._chromosome.get_last_execution_result()
-        old_value = statement.value
-
-        statement.value = not old_value
-
+        self._backup(statement)
+        statement.value = not statement.value
         if not self._objective.has_improved(self._chromosome):
-            statement.value = old_value
-            self._chromosome.set_last_execution_result(
-                execution_result
-            ) if execution_result is not None else None
-            self._chromosome.changed = False
+            self._restore(statement)
             return False
         return True
 
 
-class NumericalLocalSearch(StatementLocalSearch, ABC):
+class NumericalLocalSearch(PrimitiveLocalSearch, ABC):
     """An abstract local search strategy for iterable variables."""
 
     def iterate(self, statement: PrimitiveStatement, delta, increasing_factor) -> bool:
@@ -129,21 +139,18 @@ class NumericalLocalSearch(StatementLocalSearch, ABC):
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
         improved = False
-        current_value = statement.value
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         statement.value += delta
         while (
             self._objective.has_improved(self._chromosome)
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
-            current_value = statement.value
-            last_execution_result = self._chromosome.get_last_execution_result()
+            self._backup(statement)
             improved = True
             delta *= increasing_factor
             statement.value += delta
-        statement.value = current_value
-        self._chromosome.set_last_execution_result(last_execution_result)
+        self._restore(statement)
         return improved
 
     def iterate_directions(
@@ -208,7 +215,7 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
         return False
 
 
-class EnumLocalSearch(StatementLocalSearch, ABC):
+class EnumLocalSearch(PrimitiveLocalSearch, ABC):
     """A local search strategy for enumerations."""
 
     def search(  # noqa: D102
@@ -218,19 +225,13 @@ class EnumLocalSearch(StatementLocalSearch, ABC):
             "EnumPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
         initial_value = statement.value
-
+        self._backup(statement)
         for value in range(len(statement.accessible_object().names)):
             if LocalSearchTimer.get_instance().limit_reached():
                 return False
-            last_execution_result = self._chromosome.get_last_execution_result()
-            old_value = statement.value
-            statement.value = value
             if value != initial_value:
                 if not self._objective.has_improved(self._chromosome):
-                    statement.value = old_value
-                    self._chromosome.set_last_execution_result(
-                        last_execution_result
-                    ) if last_execution_result is not None else None
+                    self._restore(statement)
                 else:
                     self._logger.debug("Local search successfully found better enum value")
                     return True
@@ -243,7 +244,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
     # TODO: Maybe shift into integer and apply local search for integers, shift back and evaluate?
     def search(  # noqa: D102
         self,
-    ) -> None:
+    ) -> bool:
         statement = cast(
             "FloatPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
@@ -255,14 +256,14 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
 
         precision = 1
         while (
-            precision <= sys.float_info.dig and not LocalSearchTimer.get_instance().limit_reached()
+            precision <= sys.float_info.dig
+            and not LocalSearchTimer.get_instance().limit_reached()
+            and statement.value is not None
         ):
-            last_execution_result = self._chromosome.get_last_execution_result()
-            old_value = statement.value
+            self._backup(statement)
             statement.value = round(statement.value, precision)
             if self._objective.has_changed(self._chromosome) < 0:
-                self._chromosome.set_last_execution_result(last_execution_result)
-                statement.value = old_value
+                self._restore(statement)
             self._logger.debug("Starting local search with precision %s", precision)
             if self.iterate_directions(statement, 10.0 ** (-precision), increasing_factor):
                 improved = True
@@ -281,7 +282,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
         return improved
 
 
-class ComplexLocalSearch(StatementLocalSearch, ABC):
+class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
     """A local search strategy for complex numbers."""
 
     def search(self) -> bool:  # noqa: D102
@@ -328,8 +329,9 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
             self._logger.debug("Starting local search with precision %d", precision)
             if self.iterate_directions(statement, 10.0 ** (-precision), imaginary):
                 improved = True
-                last_execution_result = self._chromosome.get_last_execution_result()
-                old_value = statement.value
+                self._backup(statement)
+                if statement.value is None:
+                    return improved
                 if imaginary:
                     statement.value = complex(
                         statement.value.real, round(statement.value.imag, precision)
@@ -339,8 +341,7 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
                         round(statement.value.real, precision), statement.value.imag
                     )
                 if self._objective.has_changed(self._chromosome) < 0:
-                    self._chromosome.set_last_execution_result(last_execution_result)
-                    statement.value = old_value
+                    self._restore(statement)
             precision += 1
         return improved
 
@@ -412,10 +413,11 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
         factor = config.configuration.local_search.int_delta_increasing_factor
+        if statement.value is None:
+            return False
 
         improved = False
-        current_value = statement.value
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         if imaginary:
             statement.value = complex(statement.value.real, statement.value.imag + delta)
         else:
@@ -425,25 +427,19 @@ class ComplexLocalSearch(StatementLocalSearch, ABC):
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
-            current_value = statement.value
-            last_execution_result = self._chromosome.get_last_execution_result()
+            self._backup(statement)
             improved = True
             delta *= factor
             if imaginary:
                 statement.value = complex(statement.value.real, statement.value.imag + delta)
             else:
                 statement.value = complex(statement.value.real + delta, statement.value.imag)
-        statement.value = current_value
-        self._chromosome.set_last_execution_result(last_execution_result)
+        self._restore(statement)
         return improved
 
 
-class StringLocalSearch(StatementLocalSearch, ABC):
+class StringLocalSearch(PrimitiveLocalSearch, ABC):
     """A local search strategy for strings."""
-
-    _changed: bool = False
-    _last_execution_result: ExecutionResult = None
-    _old_value = None
 
     def search(self) -> bool:  # noqa: D102
         improved = False
@@ -525,7 +521,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         statement = cast(
             "StringPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
-
+        if statement.value is None:
+            return False
         old_changed = self._chromosome.changed
         improved = False
         self._backup(statement)
@@ -562,7 +559,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         self._backup(statement)
         i = 0
         improved = False
-        while i <= len(statement.value):
+        while statement.value is not None and i <= len(statement.value):
             statement.value = statement.value[:i] + chr(97) + statement.value[i:]
             # TODO: Which is best char to start with (maybe the one in the middle?)
             self._logger.debug(
@@ -595,16 +592,6 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             i += 1
         return improved
 
-    def _backup(self, statement: StringPrimitiveStatement):
-        self._last_execution_result = self._chromosome.get_last_execution_result()
-        self._old_value = statement.value
-        self._old_changed = self._chromosome.changed
-
-    def _restore(self, statement: StringPrimitiveStatement):
-        self._chromosome.set_last_execution_result(self._last_execution_result)
-        self._chromosome.changed = self._old_changed
-        statement.value = self._old_value
-
     def iterate_string(
         self,
         statement: StringPrimitiveStatement,
@@ -624,7 +611,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
         """  # noqa: D205
         self._backup(statement)
         if (
-            ord(statement.value[char_position]) + delta > sys.maxunicode
+            statement.value is None
+            or ord(statement.value[char_position]) + delta > sys.maxunicode
             or ord(statement.value[char_position]) + delta < 0
         ):
             return False
@@ -634,7 +622,7 @@ class StringLocalSearch(StatementLocalSearch, ABC):
             improved = True
             self._chromosome.changed = True
             self._backup(statement)
-            if LocalSearchTimer.get_instance().limit_reached():
+            if LocalSearchTimer.get_instance().limit_reached() or statement.value is None:
                 break
             delta *= config.configuration.local_search.int_delta_increasing_factor
             if (
@@ -649,6 +637,8 @@ class StringLocalSearch(StatementLocalSearch, ABC):
     def _replace_single_char(
         self, statement: StringPrimitiveStatement, char_position: int, delta: int
     ) -> None:
+        if statement.value is None:
+            return
         new_char = chr(ord(statement.value[char_position]) + delta)
         statement.value = (
             statement.value[:char_position] + new_char + statement.value[char_position + 1 :]
@@ -695,7 +685,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             operations: list[Operations] = [Operations.REPLACE]
             if isinstance(statement, ParametrizedStatement):
                 operations.append(Operations.RANDOM_CALL)
-                if len(statement.args) > 0:  # type: ignore[attr-defined]
+                if len(statement.args) > 0:
                     operations.append(Operations.PARAMETER)
             old_size = len(self._chromosome.test_case.statements)
             random = randomness.choice(operations)
@@ -779,7 +769,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         statement = self._chromosome.test_case.statements[self._position]
 
         if isinstance(statement, FunctionStatement) | isinstance(statement, ConstructorStatement):
-            return self._replace_parameter(statement)
+            return self._replace_parameter(statement)  # type: ignore[arg-type]
         if isinstance(statement, MethodStatement):
             return self._replace_params_or_callee(statement)
         return False
@@ -848,7 +838,9 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
 
     def search(self) -> bool:  # noqa: D102
         assert self._factory is not None
-        last_execution_result = self._chromosome.get_last_execution_result()
+        last_execution_result = cast(
+            "ExecutionResult", self._chromosome.get_last_execution_result()
+        )
         old_test_case = self._chromosome.test_case.clone()
 
         changed = True
@@ -870,12 +862,14 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
                     self._chromosome.set_last_execution_result(last_execution_result)
                 else:
                     old_test_case = self._chromosome.test_case.clone()
-                    last_execution_result = self._chromosome.get_last_execution_result()
+                    last_execution_result = cast(
+                        "ExecutionResult", self._chromosome.get_last_execution_result()
+                    )
             mutations += 1
         return improved
 
 
-class BytesLocalSearch(StatementLocalSearch, ABC):
+class BytesLocalSearch(PrimitiveLocalSearch, ABC):
     """A local search strategy for bytes."""
 
     def search(self) -> bool:  # noqa: D102
@@ -891,16 +885,6 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
             if self.add_values():
                 improved = True
         return improved
-
-    def _backup(self, statement: PrimitiveStatement):
-        self._last_execution_result = self._chromosome.get_last_execution_result()
-        self._old_value = statement.value
-        self._old_changed = self._chromosome.changed
-
-    def _restore(self, statement: PrimitiveStatement):
-        self._chromosome.set_last_execution_result(self._last_execution_result)
-        self._chromosome.changed = self._old_changed
-        statement.value = self._old_value
 
     def _apply_random_mutations(self) -> bool:
         statement = cast(
@@ -935,6 +919,8 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         self._backup(statement)
         i = 0
         improved = False
+        if statement.value is None:
+            return False
         while i <= len(statement.value) and not LocalSearchTimer.get_instance().limit_reached():
             statement.value = statement.value[:i] + bytes([97]) + statement.value[i:]
             self._logger.debug(
@@ -967,7 +953,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
             i += 1
         return improved
 
-    def replace_values(self) -> None:
+    def replace_values(self) -> bool:
         """Replaces each value with every other possible value until successful
         replacement.
         """  # noqa: D205
@@ -978,6 +964,8 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         old_changed = self._chromosome.changed
         improved = False
         self._backup(statement)
+        if statement.value is None:
+            return False
         for i in range(len(statement.value) - 1, -1, -1):
             finished = False
 
@@ -1001,7 +989,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
             self._chromosome.changed = old_changed
         return improved
 
-    def remove_values(self) -> None:
+    def remove_values(self) -> bool:
         """Removes each value from bytes.
 
         If an improvement to the bytes is found, the value is removed., otherwise the old
@@ -1012,7 +1000,8 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         )
         self._backup(statement)
         improved = False
-
+        if statement.value is None:
+            return improved
         for i in range(len(statement.value) - 1, -1, -1):
             if LocalSearchTimer.get_instance().limit_reached():
                 break
@@ -1033,7 +1022,7 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         delta: int,
     ) -> bool:
         self._backup(statement)
-        if statement.value[pos] + delta not in range(256):
+        if statement.value is None or statement.value[pos] + delta not in range(256):
             return False
         statement.value = (
             statement.value[:pos]
@@ -1061,7 +1050,21 @@ class BytesLocalSearch(StatementLocalSearch, ABC):
         return improved
 
 
-class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
+class CollectionLocalSearch(StatementLocalSearch, ABC):
+    """Abstract base class for local search strategies for collection types."""
+
+    def _backup(self, statement: CollectionStatement) -> None:
+        self._old_elements = statement.elements.copy()
+        self._last_execution_result = cast(
+            "ExecutionResult", self._chromosome.get_last_execution_result()
+        )
+
+    def _restore(self, statement: CollectionStatement) -> None:
+        statement.elements = self._old_elements.copy()
+        self._chromosome.set_last_execution_result(self._last_execution_result)
+
+
+class NonDictCollectionLocalSearch(CollectionLocalSearch, ABC):
     """Local search strategies for non-dict collection types."""
 
     def search(self) -> bool:  # noqa: D102
@@ -1087,8 +1090,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         improved = False
         self._logger.debug("Starting to remove entries from %s", statement)
         for i in range(len(statement.elements) - 1, -1, -1):
@@ -1097,11 +1099,9 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             statement.elements = statement.elements[:i] + statement.elements[i + 1 :]
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
             else:
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
         return improved
 
     def replace_entries(self, statement: NonDictCollection) -> bool:
@@ -1113,8 +1113,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         improved = False
         self._logger.debug("Starting to replace entries from %s", statement)
         for i in range(len(statement.elements)):
@@ -1138,12 +1137,10 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             statement.elements[i] = randomness.choice(objects)
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
                 self._position += size_change
             else:
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
                 for _ in range(size_change):
                     self._chromosome.test_case.remove(self._position)
         return improved
@@ -1157,8 +1154,7 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         pos = 0
         improved = False
         self._logger.debug("Starting to add entries from %s", statement)
@@ -1186,18 +1182,16 @@ class NonDictCollectionLocalSearch(StatementLocalSearch, ABC):
             pos += 1
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
                 self._position += size_change
             else:
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
                 for _ in range(size_change):
                     self._chromosome.test_case.remove(self._position)
         return improved
 
 
-class DictStatementLocalSearch(StatementLocalSearch, ABC):
+class DictStatementLocalSearch(CollectionLocalSearch, ABC):
     """Local search strategies for dictionaries."""
 
     def search(self) -> bool:  # noqa: D102
@@ -1223,8 +1217,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         improved = False
         for key, value in statement.elements.copy():
             if LocalSearchTimer.get_instance().limit_reached():
@@ -1232,11 +1225,9 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
             statement.elements.remove((key, value))
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
             else:
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
         return improved
 
     def replace_entries(self, statement: DictStatement) -> bool:  # noqa: C901, PLR0915
@@ -1248,8 +1239,7 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         improved = False
         for i in range(len(statement.elements)):
             key, value = statement.elements[i]
@@ -1269,13 +1259,11 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
                     statement.elements[i] = (new_key, value)
                     size_change = self._chromosome.test_case.size() - old_size
                     if self._objective.has_improved(self._chromosome):
-                        old_elements = statement.elements.copy()
-                        last_execution_result = self._chromosome.get_last_execution_result()
+                        self._backup(statement)
                         self._position += size_change
                         improved = True
                     else:
-                        statement.elements = old_elements.copy()
-                        self._chromosome.set_last_execution_result(last_execution_result)
+                        self._restore(statement)
                         for _ in range(size_change):
                             self._chromosome.test_case.remove(self._position)
             else:
@@ -1285,11 +1273,9 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
                     statement.elements[i] = (available_key, value)
                     if self._objective.has_improved(self._chromosome):
                         improved = True
-                        old_elements = statement.elements.copy()
-                        last_execution_result = self._chromosome.get_last_execution_result()
+                        self._backup(statement)
                         break
-                    statement.elements = old_elements.copy()
-                    self._chromosome.set_last_execution_result(last_execution_result)
+                    self._restore(statement)
 
             key, value = statement.elements[i]
             # Replace value
@@ -1302,13 +1288,11 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
                     statement.elements[i] = (key, new_value)
                     size_change = self._chromosome.test_case.size() - old_size
                     if self._objective.has_improved(self._chromosome):
-                        last_execution_result = self._chromosome.get_last_execution_result()
                         improved = True
-                        old_elements = statement.elements.copy()
+                        self._backup(statement)
                         self._position += size_change
                     else:
-                        statement.elements = old_elements.copy()
-                        self._chromosome.set_last_execution_result(last_execution_result)
+                        self._restore(statement)
                         for _ in range(size_change):
                             self._chromosome.test_case.remove(self._position)
             else:
@@ -1317,12 +1301,10 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
                 ):
                     statement.elements[i] = (key, available_value)
                     if not self._objective.has_improved(self._chromosome):
-                        statement.elements = old_elements.copy()
-                        self._chromosome.set_last_execution_result(last_execution_result)
+                        self._restore(statement)
                     else:
                         improved = True
-                        old_elements = statement.elements.copy()
-                        last_execution_result = self._chromosome.get_last_execution_result()
+                        self._backup(statement)
                     break
         return improved
 
@@ -1337,20 +1319,17 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
         Returns:
             Gives back True if the mutations have improved the fitness.
         """
-        old_elements = statement.elements.copy()
-        last_execution_result = self._chromosome.get_last_execution_result()
+        self._backup(statement)
         has_key_errors = True
         improved = False
         while has_key_errors and not LocalSearchTimer.get_instance().limit_reached():
             has_key_errors = self._fix_possible_key_error(statement)
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
             else:
                 has_key_errors = False
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
         insertions = 0
         while (
             insertions < config.configuration.local_search.dict_max_insertions
@@ -1375,14 +1354,12 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
 
             if self._objective.has_improved(self._chromosome):
                 improved = True
-                old_elements = statement.elements.copy()
-                last_execution_result = self._chromosome.get_last_execution_result()
+                self._backup(statement)
                 if len(keys) == 0:
                     self._position += size_change
             else:
                 insertions += 1
-                statement.elements = old_elements.copy()
-                self._chromosome.set_last_execution_result(last_execution_result)
+                self._restore(statement)
                 for _ in range(size_change):
                     self._chromosome.test_case.remove(self._position)
         return improved
@@ -1390,6 +1367,8 @@ class DictStatementLocalSearch(StatementLocalSearch, ABC):
     def _fix_possible_key_error(self, statement: DictStatement) -> bool:
         self._logger.debug("Checking for possible key errors")
         execution_result = self._chromosome.get_last_execution_result()
+        if execution_result is None:
+            return False
         key_errors: dict[int, BaseException] = {
             key: value
             for key, value in (execution_result.exceptions.items())
@@ -1435,27 +1414,27 @@ def choose_local_search_statement(  # noqa: C901
         return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
     if isinstance(statement, EnumPrimitiveStatement):
         logger.debug("Statement is enum %r", statement.value)
-        return EnumLocalSearch(chromosome, position, objective)
+        return EnumLocalSearch(chromosome, position, objective, factory)
     if isinstance(statement, PrimitiveStatement):
         primitive_type = statement.value
         if isinstance(primitive_type, bool):
             logger.debug("Primitive type is bool %s", primitive_type)
-            return BooleanLocalSearch(chromosome, position, objective)
+            return BooleanLocalSearch(chromosome, position, objective, factory)
         if isinstance(primitive_type, int):
             logger.debug("Primitive type is int %d", primitive_type)
-            return IntegerLocalSearch(chromosome, position, objective)
+            return IntegerLocalSearch(chromosome, position, objective, factory)
         if isinstance(primitive_type, str):
             logger.debug("Primitive type is string %s", primitive_type)
-            return StringLocalSearch(chromosome, position, objective)
+            return StringLocalSearch(chromosome, position, objective, factory)
         if isinstance(primitive_type, float):
             logger.debug("Primitive type is float %f", primitive_type)
-            return FloatLocalSearch(chromosome, position, objective)
+            return FloatLocalSearch(chromosome, position, objective, factory)
         if isinstance(primitive_type, complex):
             logger.debug("Primitive type is complex %s", primitive_type)
-            return ComplexLocalSearch(chromosome, position, objective)
+            return ComplexLocalSearch(chromosome, position, objective, factory)
         if isinstance(primitive_type, bytes):
             logger.debug("Primitive type is bytes %s", primitive_type)
-            return BytesLocalSearch(chromosome, position, objective)
+            return BytesLocalSearch(chromosome, position, objective, factory)
         logger.debug("Unknown primitive type: %s", primitive_type)
     elif isinstance(statement, NonDictCollection):
         logger.debug("%s non-dict collection found", statement.__class__.__name__)

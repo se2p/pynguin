@@ -93,9 +93,13 @@ class LLMLocalSearch:
             )
             stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchSkippedLLMCalls, 1)
             return False
+        unparsed_test_case = unparse_test_case(self.chromosome.test_case)
+        if unparsed_test_case is None:
+            self._logger.debug("Failed to unparse test case, skipping LLM request.")
+            return False
         output = agent.local_search_call(
             position=position,
-            test_case_source_code=unparse_test_case(self.chromosome.test_case),
+            test_case_source_code=unparsed_test_case,
             branch_coverage=line_annotations,
             module_source_code=module_source_code,
         )
@@ -131,9 +135,9 @@ class LLMLocalSearch:
         )
         return False
 
-    def get_shortened_source_code(
+    def get_shortened_source_code(  # noqa: C901
         self, position: int, line_annotations: list[LineAnnotation]
-    ) -> (str, list[LineAnnotation]):
+    ) -> tuple[str, list[LineAnnotation]]:
         """Returns the shortened source code of the module under test and shortens line annotations.
 
         Only the methods where this statement is used are kept.
@@ -161,8 +165,12 @@ class LLMLocalSearch:
             if isinstance(accessible, GenericMethod):
                 name = f"{accessible.owner.full_name.split('.', 1)[1]}.{accessible.method_name}"
             elif isinstance(accessible, GenericFunction):
+                if accessible.function_name is None:
+                    continue
                 name = accessible.function_name
             elif isinstance(accessible, GenericConstructor):
+                if accessible.owner is None:
+                    continue
                 name = accessible.owner.full_name.split(".", 1)[1] + ".__init__"
             elif accessible is None and isinstance(stmt, CollectionStatement):
                 # Collections do not have an accessible object in cases like this: var_1 = [var2]

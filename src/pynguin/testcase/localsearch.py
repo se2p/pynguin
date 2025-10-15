@@ -169,6 +169,7 @@ class TestCaseLocalSearch:
         )
         old_test_case = chromosome.test_case.clone()
         last_execution_result = chromosome.get_last_execution_result()
+        assert last_execution_result is not None
 
         counter = 0
         found = False
@@ -271,10 +272,12 @@ class TestSuiteLocalSearch:
         test_map: dict[int, TestCaseChromosome] = {}
 
         for test_case in suite.test_case_chromosomes:
+            execution_result = test_case.get_last_execution_result()
+            assert execution_result is not None
             for (
                 key,
                 value,
-            ) in test_case.get_last_execution_result().execution_trace.executed_predicates.items():
+            ) in execution_result.execution_trace.executed_predicates.items():
                 covered_map[key] = covered_map.get(key, 0) + value
                 test_map[key] = test_case
 

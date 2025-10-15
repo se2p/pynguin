@@ -866,7 +866,10 @@ class TestFactory:  # noqa: PLR0904
         objects = test_case.get_all_objects(statement.get_position())
         signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
         calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
-        calls.remove(statement.accessible_object())
+        accessible_object = statement.accessible_object()
+        if accessible_object is None:
+            return False
+        calls.remove(accessible_object)
         possible_fields = [cast("gao.GenericField", call) for call in calls if call.is_field()]
         if len(possible_fields) == 0:
             self._logger.debug("No other possible field calls available")
@@ -881,8 +884,8 @@ class TestFactory:  # noqa: PLR0904
         """Replaces the statement at the given position with another statement of a different
         type.
         """  # noqa: D205
-        primitives = UnionType(self._test_cluster.type_system.primitive_proper_types)
-        collection = UnionType(self._test_cluster.type_system.collection_proper_types)
+        primitives = UnionType(tuple(self._test_cluster.type_system.primitive_proper_types))
+        collection = UnionType(tuple(self._test_cluster.type_system.collection_proper_types))
 
         statement = chromosome.test_case.statements[position]
         if not isinstance(statement, VariableCreatingStatement):

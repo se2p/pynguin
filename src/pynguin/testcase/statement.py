@@ -283,7 +283,7 @@ def create_statement(test_case: TestCase, value) -> VariableCreatingStatement | 
     """
     logger = logging.getLogger(__name__)
     logger.debug("Trying of creating new statement of type %r", value)
-    primitive_map = {
+    primitive_map: Any = {
         bool: BooleanPrimitiveStatement,
         int: IntPrimitiveStatement,
         str: StringPrimitiveStatement,
@@ -292,7 +292,7 @@ def create_statement(test_case: TestCase, value) -> VariableCreatingStatement | 
         bytes: BytesPrimitiveStatement,
     }
 
-    collection_map = {
+    collection_map: Any = {
         list: ListStatement,
         tuple: TupleStatement,
         set: SetStatement,
@@ -890,7 +890,7 @@ class NonDictCollection(CollectionStatement[vr.VariableReference], abc.ABC):
     def _insertion_supplier(self) -> vr.VariableReference | None:
         # TODO(fk) what if the current type is not correct?
         if isinstance(self.ret_val.type, AnyType | NoneType | UnionType):
-            arg_type = self.ret_val.type
+            arg_type: ProperType = self.ret_val.type
         else:
             instance = cast("Instance", self.ret_val.type)
             arg_type = instance.args[0] if instance.args else ANY
@@ -1073,8 +1073,8 @@ class DictStatement(CollectionStatement[tuple[vr.VariableReference, vr.VariableR
     ) -> tuple[vr.VariableReference, vr.VariableReference] | None:
         # TODO(fk) what if the current type is not correct?
         if isinstance(self.ret_val.type, AnyType | NoneType | UnionType):
-            key_type = self.ret_val.type
-            val_type = self.ret_val.type
+            key_type: ProperType = self.ret_val.type
+            val_type: ProperType = self.ret_val.type
         else:
             instance = cast("Instance", self.ret_val.type)
             key_type = instance.args[0] if instance.args else ANY

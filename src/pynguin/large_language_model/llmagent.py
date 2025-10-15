@@ -14,6 +14,8 @@ import re
 import time
 
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import cast
 
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
 from pynguin.utils.report import LineAnnotation
@@ -52,6 +54,9 @@ from pynguin.utils.generic.genericaccessibleobject import (
 )
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 _logger = logging.getLogger(__name__)
 
@@ -121,7 +126,7 @@ def get_part_of_source_code(name: str) -> str:
     parts = name.split(".")
     obj = module
     for part in parts:
-        obj = getattr(obj, part, None)
+        obj = cast("ModuleType", getattr(obj, part, None))
         if obj is None:
             _logger.debug("%s not found in %s", part, ".".join(parts))
             return ""
@@ -151,7 +156,7 @@ def shorten_line_annotations(
     parts = name.split(".")
     obj = module
     for part in parts:
-        obj = getattr(obj, part, None)
+        obj = cast("ModuleType", getattr(obj, part, None))
         if obj is None:
             _logger.debug("%s not found in %s", part, ".".join(parts))
             return []

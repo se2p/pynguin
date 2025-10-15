@@ -8,6 +8,7 @@
 
 from pathlib import Path
 from unittest.mock import MagicMock
+from unittest.mock import Mock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
@@ -17,9 +18,13 @@ import pynguin.configuration as config
 
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmagent import get_module_source_code
+from pynguin.large_language_model.llmagent import get_part_of_source_code
 from pynguin.large_language_model.llmagent import save_prompt_info_to_file
 from pynguin.large_language_model.llmagent import set_api_key
+from pynguin.large_language_model.llmagent import shorten_line_annotations
 from pynguin.large_language_model.prompts.prompt import Prompt
+from pynguin.utils.report import CoverageEntry
+from pynguin.utils.report import LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
@@ -415,3 +420,93 @@ def test_generate_assertions_for_test_case(monkeypatch):
 
     # Check the result
     assert result == "assert True"
+
+
+def test_get_part_of_source_code(monkeypatch):
+    """Test getting the filtered source code of a module."""
+    mock_module = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.import_module", lambda _: mock_module
+    )
+
+    # Mock the getsource function
+    source_lines = [
+        "def test_function(x):",
+        "    if x==3:",
+        "        return True",
+        "    return False",
+    ]
+    expected_code = (
+        "   1: def test_function(x):\n   2:     if x==3:\n   3:         return "
+        "True\n   4:     return False"
+    )
+    monkeypatch.setattr("inspect.getsourcelines", lambda _: (source_lines, 1))
+
+    result = get_part_of_source_code("test_function")
+
+    assert result == expected_code
+
+
+def test_get_part_of_source_code_fail(monkeypatch):
+    """Test getting the source code of a module."""
+
+    class NoneReturningMock(Mock):
+        def __getattr__(self, name):
+            return None
+
+    mock_module = NoneReturningMock()
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.import_module", lambda _: mock_module
+    )
+    result = get_part_of_source_code("foo")
+
+    assert not result
+
+
+def test_shorten_line_annotations(monkeypatch):
+    """Test shortening the line annotations."""
+    mock_module = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.import_module", lambda _: mock_module
+    )
+
+    source_lines = [
+        "def test_function(x):",
+        "    if x==3:",
+        "        return True",
+        "    return False",
+    ]
+
+    monkeypatch.setattr("inspect.getsourcelines", lambda _: (source_lines, 1))
+    entry1 = CoverageEntry(1, 1)
+    entry2 = CoverageEntry(1, 2)
+    annotation: LineAnnotation = LineAnnotation(1, entry1, entry1, entry1, entry1)
+    annotation2: LineAnnotation = LineAnnotation(2, entry1, entry2, entry1, entry1)
+    annotation3: LineAnnotation = LineAnnotation(3, entry1, entry1, entry1, entry1)
+    annotation4: LineAnnotation = LineAnnotation(4, entry1, entry1, entry1, entry1)
+    annotation5: LineAnnotation = LineAnnotation(5, entry1, entry1, entry1, entry1)
+    annotations = [annotation, annotation2, annotation3, annotation4, annotation5]
+
+    result = shorten_line_annotations(annotations, "test_function")
+    expected_annotations = [annotation, annotation2, annotation3, annotation4]
+    assert result == expected_annotations
+
+
+def test_shorten_line_annotations_fail(monkeypatch):
+    """Test shortening the line annotations."""
+
+    class NoneReturningMock(Mock):
+        def __getattr__(self, name):
+            return None
+
+    mock_module = NoneReturningMock()
+    monkeypatch.setattr(
+        "pynguin.large_language_model.llmagent.import_module", lambda _: mock_module
+    )
+    entry1 = CoverageEntry(1, 1)
+    annotation: LineAnnotation = LineAnnotation(1, entry1, entry1, entry1, entry1)
+    annotations = [annotation, annotation, annotation]
+
+    result = shorten_line_annotations(annotations, "foo")
+
+    assert result == []
