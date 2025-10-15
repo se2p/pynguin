@@ -40,9 +40,6 @@ from pynguin.instrumentation.version.python3_13 import end_with_explicit_return_
 from pynguin.instrumentation.version.python3_13 import get_branch_type
 from pynguin.instrumentation.version.python3_13 import is_conditional_jump
 
-from . import python3_12 as _prev12
-from . import python3_13 as _prev
-
 
 __all__ = [
     "ACCESS_NAMES",
@@ -216,10 +213,7 @@ def stack_effects(  # noqa: D103 C901
             return python3_13.stack_effects(opcode, arg, jump=jump)
 
 
-# For Python 3.14, some for-loop end handling matches Python 3.12 (END_FOR)
-# rather than the POP_TOP pattern used by our 3.13 adapter. Prefer the 3.12
-# adapters to keep semantics correct for loops and line instrumentation.
-class BranchCoverageInstrumentation(_prev12.BranchCoverageInstrumentation):
+class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
     """Branch coverage adapter for Python 3.14.
 
     Uses Python 3.12's for-loop handling (END_FOR) but adopts the 3.13
@@ -227,19 +221,17 @@ class BranchCoverageInstrumentation(_prev12.BranchCoverageInstrumentation):
     newer Python versions.
     """
 
-    extract_comparison = staticmethod(_prev.extract_comparison)
+    extract_comparison = staticmethod(python3_13.extract_comparison)
 
 
-LineCoverageInstrumentation = _prev.LineCoverageInstrumentation
-CheckedCoverageInstrumentation = _prev.CheckedCoverageInstrumentation
-Python314InstrumentationInstructionsGenerator = _prev.Python313InstrumentationInstructionsGenerator
+LineCoverageInstrumentation = python3_13.LineCoverageInstrumentation
+CheckedCoverageInstrumentation = python3_13.CheckedCoverageInstrumentation
+Python314InstrumentationInstructionsGenerator = (
+    python3_13.Python313InstrumentationInstructionsGenerator
+)
 
 
 class DynamicSeedingInstrumentation(python3_13.DynamicSeedingInstrumentation):
-    """Specialized instrumentation adapter for dynamic constant seeding in Python 3.13."""
+    """Specialized instrumentation adapter for dynamic constant seeding in Python 3.14."""
 
     instructions_generator = Python314InstrumentationInstructionsGenerator
-
-    STRING_FUNC_POS = -4
-
-    STRING_FUNC_POS_WITH_ARG = -5
