@@ -68,7 +68,7 @@ def test_bool_local_search(value, result, return_value, tc_mock) -> None:
     objective.has_improved.return_value = return_value
     statement = BooleanPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BooleanLocalSearch(tc_mock, 1, objective)
+    local_search = BooleanLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.search()
     assert statement.value == result
 
@@ -96,7 +96,7 @@ def test_enum_local_search(value, side_effect, tc_mock) -> None:
     statement = EnumPrimitiveStatement(tc_mock, generic)
     tc_mock.test_case.statements[1] = statement
 
-    local_search = EnumLocalSearch(tc_mock, 1, objective)
+    local_search = EnumLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.search()
     assert statement.value != value
 
@@ -108,7 +108,7 @@ def test_iterate_success() -> None:
 
     objective.has_improved.side_effect = [True] * 3 + [False]
 
-    local_search = IntegerLocalSearch(chromosome, 1, objective)
+    local_search = IntegerLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert local_search.iterate(statement, 1, 2)
 
 
@@ -118,7 +118,7 @@ def test_iterate_fail() -> None:
     objective = MagicMock()
     objective.has_improved.side_effect = [False]
 
-    local_search = IntegerLocalSearch(chromosome, 1, objective)
+    local_search = IntegerLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert local_search.iterate(statement, 1, 2) is False
 
 
@@ -131,7 +131,7 @@ def test_iterate_int_value(value, delta, increasing_factor, iterations, final_re
     objective = MagicMock()
     objective.has_improved.side_effect = [True] * iterations + [False]
     statement = IntPrimitiveStatement(chromosome, value)
-    local_search = IntegerLocalSearch(chromosome, 1, objective)
+    local_search = IntegerLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert local_search.iterate(statement, delta, increasing_factor)
     assert statement.value == final_result
 
@@ -141,7 +141,7 @@ def test_iterate_float_value() -> None:
     objective = MagicMock()
     objective.has_improved.side_effect = [True] * 3 + [False]
     statement = FloatPrimitiveStatement(chromosome, 2.56)
-    local_search = IntegerLocalSearch(chromosome, 1, objective)
+    local_search = IntegerLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert local_search.iterate(statement, 1.5, 1.5)
     assert statement.value == 9.685
 
@@ -163,7 +163,7 @@ def test_int_search(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = IntPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[2] = statement
-    local_search = IntegerLocalSearch(tc_mock, 2, objective)
+    local_search = IntegerLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     local_search.search()
     assert statement.value == result
 
@@ -205,7 +205,7 @@ def test_float_search(value, result, objective_effect, tc_mock) -> None:
     objective.has_changed.return_value = 0
     statement = FloatPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = FloatLocalSearch(tc_mock, 1, objective)
+    local_search = FloatLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.search()
     assert statement.value == result
 
@@ -235,7 +235,7 @@ def test_complex_search(value, result, objective_effect, tc_mock) -> None:
     objective.has_changed.return_value = 0
     statement = ComplexPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = ComplexLocalSearch(tc_mock, 1, objective)
+    local_search = ComplexLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.search()
     assert statement.value.real == result.real
     assert statement.value.imag == result.imag
@@ -246,7 +246,7 @@ def test_apply_random_mutations_fail() -> None:
     objective = MagicMock()
     objective.has_changed.return_value = 0
 
-    local_search = StringLocalSearch(chromosome, 4, objective)
+    local_search = StringLocalSearch(chromosome, 4, objective, TestFactory(MagicMock()))
     assert local_search.apply_random_mutations() is False
 
 
@@ -255,7 +255,7 @@ def test_apply_random_mutations_success() -> None:
     objective = MagicMock()
     objective.has_changed.side_effect = [0] * 3 + [1]
 
-    local_search = StringLocalSearch(chromosome, 4, objective)
+    local_search = StringLocalSearch(chromosome, 4, objective, TestFactory(MagicMock()))
     assert local_search.apply_random_mutations()
 
 
@@ -264,7 +264,7 @@ def test_apply_random_mutations_negative_success() -> None:
     objective = MagicMock()
     objective.has_changed.return_value = -1
 
-    local_search = StringLocalSearch(chromosome, 4, objective)
+    local_search = StringLocalSearch(chromosome, 4, objective, TestFactory(MagicMock()))
     assert local_search.apply_random_mutations()
 
 
@@ -281,7 +281,7 @@ def test_apply_random_mutations_improves(tc_mock) -> None:
     tc_mock.test_case.statements[1] = statement
     statement.value = "testString"
 
-    local_search = StringLocalSearch(tc_mock, 1, objective)
+    local_search = StringLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search.apply_random_mutations()
     assert statement.value == "String1"
 
@@ -298,7 +298,7 @@ def test_apply_random_mutations_worsens(tc_mock) -> None:
     tc_mock.test_case.statements[0] = statement
     statement.value = "testString"
 
-    local_search = StringLocalSearch(tc_mock, 0, objective)
+    local_search = StringLocalSearch(tc_mock, 0, objective, TestFactory(MagicMock()))
     assert local_search.apply_random_mutations()
     assert statement.value == "testString"
 
@@ -310,7 +310,7 @@ def test_remove_chars(tc_mock) -> None:
     statement = StringPrimitiveStatement(tc_mock, "testString")
     tc_mock.test_case.statements[2] = statement
 
-    local_search = StringLocalSearch(tc_mock, 2, objective)
+    local_search = StringLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     local_search.remove_chars()
     assert statement.value == "testStrig"
 
@@ -322,7 +322,7 @@ def test_remove_chars2(tc_mock) -> None:
     statement = StringPrimitiveStatement(tc_mock, "testing")
     tc_mock.test_case.statements[2] = statement
 
-    local_search = StringLocalSearch(tc_mock, 2, objective)
+    local_search = StringLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     local_search.remove_chars()
     assert statement.value == "testg"
 
@@ -334,7 +334,7 @@ def test_remove_chars_all(tc_mock) -> None:
     statement = StringPrimitiveStatement(tc_mock, "test")
     tc_mock.test_case.statements[2] = statement
 
-    local_search = StringLocalSearch(tc_mock, 2, objective)
+    local_search = StringLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     local_search.remove_chars()
     assert statement.value == ""  # noqa: PLC1901
 
@@ -346,7 +346,7 @@ def test_remove_chars_none(tc_mock) -> None:
     statement = StringPrimitiveStatement(tc_mock, "This should stay")
     tc_mock.test_case.statements[2] = statement
 
-    local_search = StringLocalSearch(tc_mock, 2, objective)
+    local_search = StringLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     local_search.remove_chars()
     assert statement.value == "This should stay"
 
@@ -379,7 +379,7 @@ def test_string_add(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = StringPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = StringLocalSearch(tc_mock, 1, objective)
+    local_search = StringLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.add_chars()
     assert statement.value == result
 
@@ -397,7 +397,7 @@ def test_replace_chars(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = StringPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = StringLocalSearch(tc_mock, 1, objective)
+    local_search = StringLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.replace_chars()
     assert statement.value == result
 
@@ -408,7 +408,7 @@ def test_iterate_string_fail() -> None:
     objective.has_improved.side_effect = [False]
     statement = StringPrimitiveStatement(chromosome, "test")
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert not string_local_search.iterate_string(statement, 3, 2)
 
 
@@ -428,7 +428,7 @@ def test_iterate_string(value, result, delta, char_position) -> None:
     statement = StringPrimitiveStatement(chromosome, value)
     objective.has_improved.side_effect = [True, False]
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert string_local_search.iterate_string(statement, char_position, delta)
     assert statement.value == result
 
@@ -443,7 +443,7 @@ def test_iterate_string_multiple_iterations(value, result, side_effect) -> None:
     statement = StringPrimitiveStatement(chromosome, value)
     objective.has_improved.side_effect = side_effect
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert string_local_search.iterate_string(statement, 0, 1)
     assert statement.value == result
 
@@ -458,7 +458,7 @@ def test_iterate_string_bounds(delta) -> None:
     statement = StringPrimitiveStatement(chromosome, "test")
     objective.has_improved.side_effect = [True, False]
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert not string_local_search.iterate_string(statement, 0, delta)
     assert statement.value == "test"
 
@@ -469,7 +469,7 @@ def test_iterate_string_lower_bound_second_iteration() -> None:
     statement = StringPrimitiveStatement(chromosome, chr(1))
     objective.has_improved.side_effect = [True] * 10 + [False]
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert string_local_search.iterate_string(statement, 0, -1)
     assert statement.value == chr(0)
 
@@ -480,7 +480,7 @@ def test_iterate_string_upper_bound_second_iteration() -> None:
     statement = StringPrimitiveStatement(chromosome, chr(sys.maxunicode - 1))
     objective.has_improved.side_effect = [True] * 10 + [False]
 
-    string_local_search = StringLocalSearch(chromosome, 1, objective)
+    string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
     assert string_local_search.iterate_string(statement, 0, 1)
     assert statement.value == chr(sys.maxunicode)
 
@@ -495,7 +495,7 @@ def test_iterate_string_timer(monkeypatch) -> None:
         timer = LocalSearchTimer.get_instance()
         timer.start_local_search()
 
-        string_local_search = StringLocalSearch(chromosome, 1, objective)
+        string_local_search = StringLocalSearch(chromosome, 1, objective, TestFactory(MagicMock()))
         assert string_local_search.iterate_string(statement, 2, 1)
         assert statement.value == "tett"
 
@@ -515,7 +515,7 @@ def test_remove_bytes(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BytesLocalSearch(tc_mock, 1, objective)
+    local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.remove_values()
     assert statement.value == result
 
@@ -548,7 +548,7 @@ def test_add_bytes(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BytesLocalSearch(tc_mock, 1, objective)
+    local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.add_values()
     assert statement.value == result
 
@@ -566,7 +566,7 @@ def test_replace_bytes(value, result, side_effect, tc_mock) -> None:
     objective.has_improved.side_effect = side_effect
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BytesLocalSearch(tc_mock, 1, objective)
+    local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     local_search.replace_values()
     assert statement.value == result
 
@@ -577,7 +577,7 @@ def test_bytes_random_mutation_fail(tc_mock) -> None:
     objective.has_changed.return_value = 0
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[2] = statement
-    local_search = BytesLocalSearch(tc_mock, 2, objective)
+    local_search = BytesLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert not local_search._apply_random_mutations()
     assert statement.value == value
 
@@ -588,7 +588,7 @@ def test_bytes_random_mutation(tc_mock) -> None:
     objective.has_changed.side_effect = [0] * 3 + [-1]
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BytesLocalSearch(tc_mock, 1, objective)
+    local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search._apply_random_mutations()
     assert statement.value == value
 
@@ -599,7 +599,7 @@ def test_bytes_random_mutation_better_value(tc_mock) -> None:
     objective.has_changed.side_effect = [0] * 3 + [1]
     statement = BytesPrimitiveStatement(tc_mock, value)
     tc_mock.test_case.statements[1] = statement
-    local_search = BytesLocalSearch(tc_mock, 1, objective)
+    local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search._apply_random_mutations()
 
 
@@ -621,7 +621,7 @@ def test_non_dict_remove_list(result1, result2, side_effect, tc_mock) -> None:
         int_statement.ret_val.type,
         [int_statement.ret_val, int_statement_2.ret_val],
     )
-    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search.remove_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -644,7 +644,7 @@ def test_non_dict_remove_tuple(result1, result2, side_effect, tc_mock) -> None:
         int_statement.ret_val.type,
         [int_statement.ret_val, int_statement_2.ret_val],
     )
-    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search.remove_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -671,7 +671,7 @@ def test_non_dict_remove_set(result1, result2, side_effect, tc_mock) -> None:
         [int_statement.ret_val, int_statement_2.ret_val, int_statement_3.ret_val],
     )
     tc_mock.test_case.statements[2] = statement
-    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.remove_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -691,7 +691,7 @@ def test_non_dict_add_list(result1, result2, side_effect, tc_mock):
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     statement = ListStatement(tc_mock, int_statement.ret_val.type, [int_statement.ret_val])
     tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
-    local_search = NonDictCollectionLocalSearch(tc_mock, 3, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 3, objective, TestFactory(MagicMock()))
     assert local_search.add_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -711,7 +711,7 @@ def test_non_dict_add_tuple(result1, result2, side_effect, tc_mock):
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     statement = TupleStatement(tc_mock, int_statement.ret_val.type, [int_statement.ret_val])
     tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement]
-    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search.add_entries(statement) == result1
     assert len(statement.elements) == result2
 
@@ -782,7 +782,7 @@ def test_non_dict_replace_list(result1, pos_element, pos_list, side_effect, tc_m
         [int_statement.ret_val, int_statement_2.ret_val],
     )
     tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
-    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.replace_entries(statement) == result1
     assert len(statement.elements) == 2
     assert statement.elements[pos_element] == list_statement[pos_list].ret_val
@@ -809,7 +809,7 @@ def test_non_dict_replace_tuple(result1, pos_element, pos_list, side_effect, tc_
     )
     tc_mock.test_case.get_objects.return_value = [int_statement_2.ret_val, int_statement.ret_val]
     tc_mock.test_case.statements[0] = statement
-    local_search = NonDictCollectionLocalSearch(tc_mock, 0, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 0, objective, TestFactory(MagicMock()))
     assert local_search.replace_entries(statement) == result1
     assert len(statement.elements) == 2
     assert statement.elements[pos_element] == list_statement[pos_list].ret_val
@@ -831,7 +831,7 @@ def test_non_dict_replace_set(tc_mock):
         int_statement.ret_val,
         int_statement_3.ret_val,
     ]
-    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective)
+    local_search = NonDictCollectionLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.replace_entries(statement)
     assert len(statement.elements) == 2
     assert statement.elements[0] == int_statement_3.ret_val
@@ -862,7 +862,7 @@ def test_dict_remove(tc_mock, result, size, side_effect):
             (int_statement_2.ret_val, int_statement_3),
         ],
     )
-    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.remove_entries(statement) == result
     assert len(statement.elements) == size
 
@@ -889,7 +889,7 @@ def test_dict_add(tc_mock, result, size, side_effect):
         ],
     )
     tc_mock.test_case.get_objects.return_value = [int_statement_2, int_statement, int_statement_3]
-    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.add_entries(statement) == result
     assert len(statement.elements) == size
 
@@ -901,7 +901,7 @@ def test_dict_add_missing_key(tc_mock):
     int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
     statement = DictStatement(tc_mock, ANY, [(int_statement.ret_val, int_statement_2.ret_val)])
     tc_mock.test_case.get_objects.return_value = [int_statement]
-    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert not local_search.add_entries(statement)
     assert len(statement.elements) == 1
 
@@ -922,7 +922,7 @@ def test_dict_replace(tc_mock):
         [*[int_statement.ret_val]],
         *[[int_statement_2.ret_val, int_statement.ret_val]],
     )
-    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert local_search.replace_entries(statement)
     assert statement.elements[0] == (int_statement_2.ret_val, int_statement.ret_val)
     assert len(statement.elements) == 1
@@ -945,7 +945,7 @@ def test_dict_replace_max_insertions(tc_mock, monkeypatch):
         *[[int_statement.ret_val] * 11],
         *[[int_statement_2, int_statement.ret_val] * 11],
     ]
-    local_search = DictStatementLocalSearch(tc_mock, 2, objective)
+    local_search = DictStatementLocalSearch(tc_mock, 2, objective, TestFactory(MagicMock()))
     assert statement.elements[0] == (int_statement.ret_val, int_statement_2.ret_val)
 
     assert not local_search.replace_entries(statement)

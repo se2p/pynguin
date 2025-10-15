@@ -170,6 +170,12 @@ exploitation_starts_at_percent = 0.5
 max_sequence_length = 10
 max_sequences_combined = 10
 
+[to_cover]
+only_cover = []
+no_cover = []
+enable_inline_pynguin_no_cover = true
+enable_inline_pragma_no_cover = true
+
 [local_search]
 local_search = true
 local_search_same_datatype = true
@@ -188,12 +194,6 @@ different_type_primitive_probability = 0.3
 different_type_collection_probability = 0.3
 dict_max_insertions = 10
 llm_whole_module = false
-
-[to_cover]
-only_cover = []
-no_cover = []
-enable_inline_pynguin_no_cover = true
-enable_inline_pragma_no_cover = true
 
 [test_case_output.minimization]
 test_case_minimization_strategy = "CASE"
