@@ -290,7 +290,7 @@ if sys.version_info >= (3, 14):
             Instr("LOAD_CONST", "no"),
             label_print,
             Instr("CALL", 1),
-            Instr("RETURN_CONST"),
+            Instr("RETURN_VALUE"),
         ])
 
 elif sys.version_info >= (3, 12):

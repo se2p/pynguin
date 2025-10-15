@@ -25,7 +25,52 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(add_for_loop_no_yield_nodes(conditional_jump_example_bytecode))
     dot_representation = cfg.dot
 
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 14):
+        graph = """strict digraph  {
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_CONST 'no'";
+"BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"ArtificialNode(ENTRY)";
+"ArtificialNode(EXIT)";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
+LOAD_CONST 'no'"  [branch_value=False, label=False];
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"BasicBlockNode(3)
+CALL 1
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode";
+}"""
+
+    elif sys.version_info >= (3, 12):
         graph = """strict digraph  {
 "BasicBlockNode(0)
 LOAD_NAME 'print'
