@@ -42,12 +42,19 @@ def test_extract_python_code_multiple_blocks():
 
 
 def test_set_api_key_missing(monkeypatch):
+    # Ensure no env vars leak into this test
+    monkeypatch.delenv("PYNGUIN_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
     with pytest.raises(ValueError, match="OpenAI API key is missing"):
         set_api_key()
 
 
 def test_is_api_key_present(monkeypatch):
+    # Ensure env is cleared for initial checks
+    monkeypatch.delenv("PYNGUIN_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
     assert is_api_key_present() is False
 
@@ -60,12 +67,18 @@ def test_is_api_key_present(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "valid_api_key")
     assert is_api_key_present() is True
 
+    # When config key is empty but env provides it, it should be present
+    monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
+    monkeypatch.setenv("PYNGUIN_OPENAI_API_KEY", "env_key")
+    assert is_api_key_present() is True
+
 
 @pytest.mark.skipif(
     not is_api_key_present() or not is_api_key_valid(),
     reason="OpenAI API key is not provided in the configuration.",
 )
 def test_openai_model_query_success():
+    config.configuration.large_language_model.enable_response_caching = True
     module_code = "def example_function():\n    return 'Hello, World!'"
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
@@ -79,12 +92,11 @@ def test_openai_model_query_success():
 
 
 @pytest.mark.skipif(
-    not is_api_key_present()
-    or not is_api_key_valid()
-    or not config.configuration.large_language_model.enable_response_caching,
-    reason="Cache is not enabled or the API key is invalid.",
+    not is_api_key_present() or not is_api_key_valid(),
+    reason="OpenAI API key is not provided in the configuration.",
 )
 def test_openai_model_query_cache(mocker):
+    config.configuration.large_language_model.enable_response_caching = True
     module_code = "def example_function():\n    return 'Hello, World!'"
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)

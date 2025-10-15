@@ -9,6 +9,7 @@
 import datetime
 import inspect
 import logging
+import os
 import pathlib
 import re
 import time
@@ -167,18 +168,46 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
         return None
 
 
+def _get_api_key_from_env() -> str:
+    """Resolve OpenAI API key from environment variables.
+
+    Preference order:
+    1) PYNGUIN_OPENAI_API_KEY
+    2) OPENAI_API_KEY
+    """
+    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
+        value = os.environ.get(var, "")
+        if value and value.strip():
+            return value.strip()
+    return ""
+
+
+def _get_resolved_api_key() -> str:
+    """Return the effective OpenAI API key from config or environment.
+
+    Preference order:
+    1) configuration.large_language_model.api_key (if non-empty)
+    2) PYNGUIN_OPENAI_API_KEY
+    3) OPENAI_API_KEY
+    """
+    cfg_key = getattr(config.configuration.large_language_model, "api_key", "") or ""
+    cfg_key = cfg_key.strip()
+    if cfg_key:
+        return cfg_key
+    return _get_api_key_from_env()
+
+
 def is_api_key_present() -> bool:
     """Checks if the OpenAI API key is present and not an empty string.
 
     Returns:
         bool: True if the API key is present and not empty, False otherwise.
     """
-    api_key = config.configuration.large_language_model.api_key
-    return bool(api_key and api_key.strip())
+    return bool(_get_resolved_api_key())
 
 
 def set_api_key():
-    """Sets the OpenAI API key from the configuration if it is valid.
+    """Sets the OpenAI API key from config or environment if it is valid.
 
     Raises:
         ValueError: If the OpenAI API key is missing or invalid.
@@ -191,7 +220,7 @@ def set_api_key():
     if not is_api_key_present():
         raise ValueError("OpenAI API key is missing.")
 
-    api_key = config.configuration.large_language_model.api_key
+    api_key = _get_resolved_api_key()
     if is_api_key_valid():
         openai.api_key = api_key
     else:
@@ -208,7 +237,7 @@ def is_api_key_valid() -> bool:
         openai.OpenAIError: If the API key is invalid or another error occurs.
     """
     try:
-        openai.api_key = config.configuration.large_language_model.api_key
+        openai.api_key = _get_resolved_api_key()
         openai.models.list()  # This would raise an error if the API key is invalid
         return True
     except openai.OpenAIError:

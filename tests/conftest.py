@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from bytecode import Bytecode, Instr, Label
+from dotenv import load_dotenv
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -41,6 +42,9 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 # -- FIXTURES --------------------------------------------------------------------------
 from tests.fixtures.linecoverage.list import ListTest
 from tests.fixtures.linecoverage.plus import Plus
+
+
+load_dotenv()
 
 
 @pytest.fixture(autouse=True)
