@@ -19,10 +19,6 @@ from pynguin.large_language_model.prompts.testcasegenerationprompt import (
 )
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
 def test_extract_python_code_valid():
     llm_output = "Some text\n```python\nprint('Hello, world!')\n```"
     expected_code = "\nprint('Hello, world!')\n"
@@ -30,10 +26,6 @@ def test_extract_python_code_valid():
     assert model.extract_python_code_from_llm_output(llm_output) == expected_code
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
 def test_extract_python_code_multiple_blocks():
     llm_output = "Text\n```python\nprint('Hello')\n```\nMore text\n```python\nprint('World')\n```"
     expected_code = "\nprint('Hello')\n\n\nprint('World')\n"
@@ -42,7 +34,6 @@ def test_extract_python_code_multiple_blocks():
 
 
 def test_set_api_key_missing(monkeypatch):
-    # Ensure no env vars leak into this test
     monkeypatch.delenv("PYNGUIN_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
@@ -91,10 +82,6 @@ def test_openai_model_query_success():
     assert model.llm_calls_timer > 0
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
 def test_openai_model_query_cache(mocker):
     config.configuration.large_language_model.enable_response_caching = True
     module_code = "def example_function():\n    return 'Hello, World!'"
@@ -105,6 +92,8 @@ def test_openai_model_query_cache(mocker):
 
     mock_response = mocker.Mock()
     mock_response.choices = [mocker.Mock(message=mocker.Mock(content="Test response"))]
+    mock_response.usage.prompt_tokens = 1
+    mock_response.usage.completion_tokens = 1
     mocker.patch("openai.chat.completions.create", return_value=mock_response)
 
     response = model.query(prompt)
