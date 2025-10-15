@@ -1068,6 +1068,13 @@ class InstrumentationTransformer:
         module_ast_info: ModuleAstInfo | None,
         parent_code_object_id: int | None = None,
     ) -> CodeType:
+        # Ignore CPython's internal annotation helper introduced with PEP 649.
+        # It appears as a synthetic function named "__annotate__" and should not
+        # influence instrumentation or coverage goals.
+        if code.co_name == "__annotate__":
+            self._logger.debug("Skipping instrumentation of internal helper %s", code.co_name)
+            return code
+
         ast_info = (
             module_ast_info.get_scope(
                 # Special case as the line number of a module is 1
