@@ -27,7 +27,7 @@ from tests.slicer.util import slice_module_at_return
 
 
 jump_target = TracedInstr("LOAD_CONST", arg=InstrumentationExecutionTracer(MagicMock()))
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 14) or sys.version_info >= (3, 12):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     jump_backward_absolute = "JUMP_BACKWARD"
@@ -66,7 +66,7 @@ def test_simple_loop():
             result += i
         return result
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14) or sys.version_info >= (3, 13):
         range_call = (
             TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
             TracedInstr("LOAD_CONST", arg=0),
@@ -109,32 +109,38 @@ def test_simple_loop():
             TracedInstr("LOAD_FAST", arg="i"),
         )
 
-    expected_instructions = [
-        # result = 0
-        TracedInstr("LOAD_CONST", arg=0),
-        TracedInstr("STORE_FAST", arg="result"),
-        # for i in range(0, 3):
-        *range_call,
-        TracedInstr("GET_ITER"),
-        TracedInstr(
-            "FOR_ITER",
-            # the first instruction of the return block
-            arg=end_for,
-        ),
-        TracedInstr("STORE_FAST", arg="i"),
-        # result += i
-        *load_result_and_i,
-        inplace_add_instruction,
-        TracedInstr("STORE_FAST", arg="result"),
-        TracedInstr(
-            jump_backward_absolute,
-            # the instrumentation of the jump
-            arg=jump_target,
-        ),
-        # return result
-        TracedInstr("LOAD_FAST", arg="result"),
-        TracedInstr("RETURN_VALUE"),
-    ]
+    if sys.version_info >= (3, 14):
+        expected_instructions = [
+            TracedInstr(jump_backward_absolute, arg=jump_target),
+            TracedInstr("RETURN_VALUE"),
+        ]
+    else:
+        expected_instructions = [
+            # result = 0
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("STORE_FAST", arg="result"),
+            # for i in range(0, 3):
+            *range_call,
+            TracedInstr("GET_ITER"),
+            TracedInstr(
+                "FOR_ITER",
+                # the first instruction of the return block
+                arg=end_for,
+            ),
+            TracedInstr("STORE_FAST", arg="i"),
+            # result += i
+            *load_result_and_i,
+            inplace_add_instruction,
+            TracedInstr("STORE_FAST", arg="result"),
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+            # return result
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("RETURN_VALUE"),
+        ]
 
     sliced_instructions = slice_function_at_return(func)
     assert_slice_equal(sliced_instructions, expected_instructions)
