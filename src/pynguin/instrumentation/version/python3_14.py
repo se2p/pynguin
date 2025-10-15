@@ -156,14 +156,21 @@ MEMORY_DEF_NAMES = (
 )
 
 
-def stack_effects(  # noqa: D103
+def stack_effects(  # noqa: D103 C901
     opcode: int,
     arg: int | None,
     *,
     jump: bool = False,
 ) -> StackEffects:
     match opname[opcode]:
-        case "JUMP_IF_FALSE" | "JUMP_IF_TRUE":
+        case (
+            "JUMP_IF_FALSE"
+            | "JUMP_IF_TRUE"
+            | "NOT_TAKEN"
+            | "RETURN_VALUE"
+            | "INSTRUMENTED_NOT_TAKEN"
+            | "INSTRUMENTED_RETURN_VALUE"
+        ):
             return StackEffects(0, 0)
         case (
             "INSTRUMENTED_POP_JUMP_IF_TRUE"
@@ -171,6 +178,9 @@ def stack_effects(  # noqa: D103
             | "INSTRUMENTED_POP_JUMP_IF_NONE"
             | "INSTRUMENTED_POP_JUMP_IF_NOT_NONE"
             | "INSTRUMENTED_RETURN_VALUE"
+            | "BUILD_TEMPLATE"
+            | "POP_ITER"
+            | "INSTRUMENTED_POP_ITER"
         ):
             return StackEffects(1, 0)
         case (
@@ -181,15 +191,20 @@ def stack_effects(  # noqa: D103
             | "INSTRUMENTED_FOR_ITER"
         ):
             return StackEffects(0, 1)
+        case "ANNOTATIONS_PLACEHOLDER":
+            return StackEffects(1, 1)
         case "INSTRUMENTED_END_ASYNC_FOR":
             return StackEffects(2, 0)
+        case "CALL_FUNCTION_EX" | "INSTRUMENTED_CALL_FUNCTION_EX":
+            return StackEffects(3, 0)
         case "LOAD_FAST_BORROW_LOAD_FAST_BORROW":
             return StackEffects(0, 2)
         case "BUILD_INTERPOLATION":
-            pops = 3 if (arg & 1) else 2
+            pops = 3 if (arg is not None and (arg & 1)) else 2
             return StackEffects(pops, 1)
         case "BUILD_SLICE":
-            return StackEffects(arg, 1)
+            pops = arg if arg is not None else 0
+            return StackEffects(pops, 1)
         case "INSTRUMENTED_CALL":
             pops = (arg + 1) if arg is not None else 1
             return StackEffects(pops, 0)
