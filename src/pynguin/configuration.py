@@ -168,6 +168,16 @@ class TypeInferenceStrategy(str, enum.Enum):
     """Use type information from type hints in the module under test."""
 
 
+class SubtypeInferenceStrategy(str, enum.Enum):
+    """The different available type-inference strategies."""
+
+    NONE = "NONE"
+    """Do not infer subtypes."""
+
+    STRING = "STRING"
+    """Infer subtypes for strings."""
+
+
 class StatisticsBackend(str, enum.Enum):
     """The different available statistics backends to write statistics."""
 
@@ -310,9 +320,11 @@ class TestCaseOutputConfiguration:
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""
 
-    minimization: Minimization = Minimization(
-        test_case_minimization_strategy=MinimizationStrategy.CASE,
-        test_case_minimization_direction=MinimizationDirection.BACKWARD,
+    minimization: Minimization = dataclasses.field(
+        default_factory=lambda: Minimization(
+            test_case_minimization_strategy=MinimizationStrategy.CASE,
+            test_case_minimization_direction=MinimizationDirection.BACKWARD,
+        )
     )
     """Strategy to apply for minimizing test cases."""
 
@@ -447,6 +459,21 @@ class TypeInferenceConfiguration:
     The value should be a float in [0,1]. Boolean is kept for backwards compatibility
     as Python internally converts True to 1.0 and False to 0.0 anyways."""
 
+    subtype_inference: SubtypeInferenceStrategy = SubtypeInferenceStrategy.NONE
+    """The strategy for subtype-inference that shall be used."""
+
+    type_tracing_subtype_weight: float = 0.3
+    """Weight for selecting the subtype inference strategy for type selection during type
+    tracing."""
+
+    type_tracing_argument_type_weight: float = 0.5
+    """Weight for selecting the argument type inference strategy for type selection
+    during type tracing."""
+
+    type_tracing_attribute_weight: float = 0.2
+    """Weight for selecting the attribute table inference strategy for type selection
+    during type tracing."""
+
 
 @dataclasses.dataclass
 class PynguinMLConfiguration:
@@ -549,10 +576,6 @@ class TestCreationConfiguration:
 
     type_tracing_weight: float = 10
     """Weight to use the type guessed from type tracing as parameter type during
-    test generation. Expects values > 0."""
-
-    type4py_weight: float = 10
-    """Weight to use types inferred from type4py as parameter type during
     test generation. Expects values > 0."""
 
     type_tracing_kept_guesses: int = 2
@@ -809,6 +832,29 @@ class LocalSearchConfiguration:
 
 
 @dataclasses.dataclass
+class ToCoverConfiguration:
+    """Configuration of which code elements are included or excluded as coverage goals.
+
+    Pynguin instruments only the respective parts of the SUT module for coverage measurement.
+    All configuration options are resolved as SUT line numbers which must not overlap
+    ('only' and 'no' at the same time).
+    """
+
+    only_cover: list[str] = dataclasses.field(default_factory=list)
+    """The list of space-separated qualified function, method or class names to only cover."""
+
+    no_cover: list[str] = dataclasses.field(default_factory=list)
+    """The list of space-separated qualified function, method or class names to not cover.
+    Automatically include the methods of the `ignore_methods` argument."""
+
+    enable_inline_pynguin_no_cover: bool = True
+    """Enable inline ``pynguin: no cover``."""
+
+    enable_inline_pragma_no_cover: bool = True
+    """Enable inline ``pragma: no cover``."""
+
+
+@dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""
 
@@ -861,6 +907,9 @@ class Configuration:
 
     random: RandomConfiguration = dataclasses.field(default_factory=RandomConfiguration)
     """Configuration used for the RANDOM algorithm."""
+
+    to_cover: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
+    """Configuration of which code elements are included or excluded as coverage goals."""
 
     ignore_modules: list[str] = dataclasses.field(default_factory=list)
     """Ignore the modules specified here from the module analysis."""

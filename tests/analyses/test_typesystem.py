@@ -4,8 +4,11 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+# ruff: noqa: PLC2701
+
 import inspect
 import operator
+import re
 
 from typing import Any
 from typing import TypeVar
@@ -17,16 +20,25 @@ import pytest
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES
+from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES
+from pynguin.analyses.typesystem import _DICT_VALUE_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _LIST_ELEMENT_ATTRIBUTES
+from pynguin.analyses.typesystem import _LIST_ELEMENT_FROM_ARGUMENT_TYPES
+from pynguin.analyses.typesystem import _SET_ELEMENT_ATTRIBUTES
+from pynguin.analyses.typesystem import _SET_ELEMENT_FROM_ARGUMENT_TYPES
 from pynguin.analyses.typesystem import UNSUPPORTED
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import Instance
 from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import StringSubtype
 from pynguin.analyses.typesystem import TupleType
 from pynguin.analyses.typesystem import TypeInfo
 from pynguin.analyses.typesystem import TypeSystem
 from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import _is_partial_type_match  # noqa: PLC2701
+from pynguin.analyses.typesystem import _is_partial_type_match
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
@@ -598,8 +610,8 @@ def test_union_single_element():
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_ATTRIBUTES]
-    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_ATTRIBUTES],
+    [(sym, list, list[int]) for sym in _LIST_ELEMENT_ATTRIBUTES]
+    + [(sym, set, set[int]) for sym in _SET_ELEMENT_ATTRIBUTES],
 )
 def test_guess_generic_types_list_set_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -614,7 +626,7 @@ def test_guess_generic_types_list_set_from_elements(inferred_signature, symbol, 
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_ATTRIBUTES],
+    [(sym, dict, dict[int, Any]) for sym in _DICT_KEY_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_key_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -629,7 +641,7 @@ def test_guess_generic_types_dict_key_from_elements(inferred_signature, symbol, 
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[int, Any]) for sym in InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES],
+    [(sym, dict, dict[int, Any]) for sym in _DICT_KEY_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_dict_key_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -644,7 +656,7 @@ def test_guess_generic_types_dict_key_from_arguments(inferred_signature, symbol,
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_ATTRIBUTES],
+    [(sym, dict, dict[Any, int]) for sym in _DICT_VALUE_ATTRIBUTES],
 )
 def test_guess_generic_types_dict_value_from_elements(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -659,7 +671,7 @@ def test_guess_generic_types_dict_value_from_elements(inferred_signature, symbol
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, dict, dict[Any, int]) for sym in InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES],
+    [(sym, dict, dict[Any, int]) for sym in _DICT_VALUE_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_dict_value_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -674,8 +686,8 @@ def test_guess_generic_types_dict_value_from_arguments(inferred_signature, symbo
 
 @pytest.mark.parametrize(
     "symbol, typ, result",
-    [(sym, list, list[int]) for sym in InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES]
-    + [(sym, set, set[int]) for sym in InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES],
+    [(sym, list, list[int]) for sym in _LIST_ELEMENT_FROM_ARGUMENT_TYPES]
+    + [(sym, set, set[int]) for sym in _SET_ELEMENT_FROM_ARGUMENT_TYPES],
 )
 def test_guess_generic_types_list_set_from_arguments(inferred_signature, symbol, typ, result):
     config.configuration.test_creation.negate_type = 0.0
@@ -930,3 +942,34 @@ def test__guess_parameter_type_with_type_knowledge(inferred_signature, pick, exp
         choice_mock.side_effect = lambda x: x[next(pick)]  # noqa: FURB118
         actual = inferred_signature._guess_parameter_type(knowledge, kind)
         assert actual == expected_type
+
+
+def test_string_subtype():
+    string_subtype = StringSubtype(re.compile(r"^bar"))
+    assert str(string_subtype) == "StringSubtype(re.compile('^bar'))"
+
+
+@pytest.mark.xfail(reason="Not implemented yet")
+def test_is_subtype_string_subtype(subtyping_cluster):
+    type_system = subtyping_cluster.type_system
+    left = StringSubtype(re.compile(r"^bar"))
+    right = StringSubtype(re.compile(r"^bar"))
+    assert type_system.is_subtype(left, right) is True
+    assert type_system.is_maybe_subtype(left, right) is True
+
+
+def test__from_str_values_empty():
+    knowledge = UsageTraceNode("ROOT")
+    assert InferredSignature._from_str_values(knowledge) is None
+
+
+def _make_usage_trace_with_strings(strings_by_attr):
+    root = UsageTraceNode("ROOT")
+    for attr, strings in strings_by_attr.items():
+        root.children[attr].children["__call__"].arg_values[0].update(strings)
+    return root
+
+
+def test__from_str_values():
+    knowledge = _make_usage_trace_with_strings({"startswith": {"bar"}})
+    assert InferredSignature._from_str_values(knowledge) == StringSubtype(re.compile(r"^(?:bar)"))

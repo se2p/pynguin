@@ -1,9 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
-
-SPDX-License-Identifier: CC-BY-4.0
--->
-
 # Pynguin Developer Guidelines
 
 ## Project Overview

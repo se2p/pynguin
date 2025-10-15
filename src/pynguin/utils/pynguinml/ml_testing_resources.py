@@ -262,7 +262,7 @@ def load_and_process_constraints(
 
 
 def _determine_generation_order(parameters: dict[str, MLParameter | None]) -> list[str]:
-    g = nx.DiGraph()
+    g: nx.DiGraph[str] = nx.DiGraph()
     g.add_nodes_from(parameters.keys())
 
     # Add the edges.

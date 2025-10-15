@@ -9,9 +9,10 @@ build:
   tools:
     python: "3.10"
 
+  jobs:
+    post_install:
+      - pip install poetry
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH poetry install --with docs
+
 sphinx:
   configuration: docs/conf.py
-
-python:
-  install:
-    - requirements: docs/requirements.txt

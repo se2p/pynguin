@@ -27,7 +27,6 @@ import json
 import logging
 import math
 import sys
-import threading
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -58,10 +57,11 @@ from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.constants import RestrictedConstantPool
 from pynguin.analyses.constants import collect_static_constants
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import RemoteAssertionExecutionObserver
@@ -180,32 +180,30 @@ def _setup_path() -> bool:
 
 
 def _setup_import_hook(
-    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
-) -> ExecutionTracer:
+) -> SubjectProperties:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
-    tracer = ExecutionTracer()
+    subject_properties = SubjectProperties()
 
     install_import_hook(
         config.configuration.module_name,
-        tracer,
-        coverage_metrics=coverage_metrics,
+        subject_properties,
         dynamic_constant_provider=dynamic_constant_provider,
     )
-    return tracer
+    return subject_properties
 
 
-def _load_sut(tracer: ExecutionTracer) -> bool:
+def _load_sut(subject_properties: SubjectProperties) -> bool:
+    module_name = config.configuration.module_name
     try:
-        # We need to set the current thread ident so the import trace is recorded.
-        tracer.current_thread_identifier = threading.current_thread().ident
-        module_name = config.configuration.module_name
-        # If the module is already imported, we need to reload it for the
-        # ExecutionTracer to successfully register the subject_properties
-        if module_name in sys.modules:
-            importlib.reload(sys.modules[module_name])
-        else:
-            importlib.import_module(module_name)
+        # We need to activate the tracer so the import trace is recorded.
+        with subject_properties.instrumentation_tracer:
+            # If the module is already imported, we need to reload it for the
+            # ExecutionTracer to successfully register the subject_properties
+            if module_name in sys.modules:
+                importlib.reload(sys.modules[module_name])
+            else:
+                importlib.import_module(module_name)
     except Exception as ex:
         # A module could not be imported because some dependencies
         # are missing or it is malformed or any error is raised during the import
@@ -277,6 +275,17 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
     tr.get_constructor_function(test_cluster)
 
 
+def _verify_config() -> None:
+    """Verify the configuration and raise an exception if something is invalid/not supported."""
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.configuration.algorithm is config.configuration.algorithm.DYNAMOSA and any(
+        m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH
+    ):
+        raise ConfigurationException(
+            "DynaMosa currently only supports branch coverage as coverage criterion."
+        )
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -288,36 +297,33 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
-    tracer = _setup_import_hook(
-        set(config.configuration.statistics_output.coverage_metrics),
-        dynamic_constant_provider,
-    )
-    if not _load_sut(tracer):
+    subject_properties = _setup_import_hook(dynamic_constant_provider)
+    if not _load_sut(subject_properties):
         return None
     if not _setup_report_dir():
         return None
 
     # Analyzing the SUT should not cause any coverage.
-    tracer.disable()
+    subject_properties.instrumentation_tracer.disable()
     if (test_cluster := _setup_test_cluster()) is None:
         return None
-    tracer.enable()
+    subject_properties.instrumentation_tracer.enable()
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
     if config.configuration.subprocess:
         executor: TestCaseExecutor = SubprocessTestCaseExecutor(
-            tracer,
+            subject_properties=subject_properties,
             maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
             test_execution_time_per_statement=stop.test_execution_time_per_statement,
         )
     else:
         executor = TestCaseExecutor(
-            tracer,
+            subject_properties=subject_properties,
             maximum_test_execution_timeout=stop.maximum_test_execution_timeout,
             test_execution_time_per_statement=stop.test_execution_time_per_statement,
         )
-    _track_sut_data(tracer, test_cluster)
+    _track_sut_data(subject_properties, test_cluster)
     _setup_random_number_generator()
 
     if config.configuration.pynguinml.ml_testing_enabled:
@@ -343,28 +349,27 @@ def _detect_llm_strategy() -> str:
     return ""
 
 
-def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) -> None:
+def _track_sut_data(subject_properties: SubjectProperties, test_cluster: ModuleTestCluster) -> None:
     """Track data from the SUT.
 
     Args:
-        tracer: the execution tracer
+        subject_properties: The properties of the subject under test.
         test_cluster: the test cluster
     """
     stat.track_output_variable(
         RuntimeVariable.CodeObjects,
-        len(tracer.get_subject_properties().existing_code_objects),
+        len(subject_properties.existing_code_objects),
     )
     stat.track_output_variable(
         RuntimeVariable.Predicates,
-        len(tracer.get_subject_properties().existing_predicates),
+        len(subject_properties.existing_predicates),
     )
     stat.track_output_variable(
         RuntimeVariable.Lines,
-        len(tracer.get_subject_properties().existing_lines),
+        len(subject_properties.existing_lines),
     )
     cyclomatic_complexities: list[int] = [
-        code.original_cfg.cyclomatic_complexity
-        for code in tracer.get_subject_properties().existing_code_objects.values()
+        code.cfg.cyclomatic_complexity for code in subject_properties.existing_code_objects.values()
     ]
     stat.track_output_variable(
         RuntimeVariable.McCabeCodeObject, json.dumps(cyclomatic_complexities)
@@ -373,12 +378,18 @@ def _track_sut_data(tracer: ExecutionTracer, test_cluster: ModuleTestCluster) ->
     if config.CoverageMetric.BRANCH in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportBranchCoverage,
-            ff.compute_branch_coverage(tracer.import_trace, tracer.get_subject_properties()),
+            ff.compute_branch_coverage(
+                subject_properties.instrumentation_tracer.import_trace,
+                subject_properties,
+            ),
         )
     if config.CoverageMetric.LINE in config.configuration.statistics_output.coverage_metrics:
         stat.track_output_variable(
             RuntimeVariable.ImportLineCoverage,
-            ff.compute_line_coverage(tracer.import_trace, tracer.get_subject_properties()),
+            ff.compute_line_coverage(
+                subject_properties.instrumentation_tracer.import_trace,
+                subject_properties,
+            ),
         )
 
 
@@ -405,11 +416,10 @@ def _get_coverage_ff_from_algorithm(
 def _reload_instrumentation_loader(
     coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
-    tracer: ExecutionTracer,
+    subject_properties: SubjectProperties,
 ):
     module_name = config.configuration.module_name
     module = importlib.import_module(module_name)
-    tracer.current_thread_identifier = threading.current_thread().ident
     first_finder: InstrumentationFinder | None = None
     for finder in sys.meta_path:
         if isinstance(finder, InstrumentationFinder):
@@ -417,12 +427,13 @@ def _reload_instrumentation_loader(
             break
     assert first_finder is not None
     first_finder.update_instrumentation_metrics(
-        tracer=tracer,
+        subject_properties=subject_properties,
         coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     try:
-        importlib.reload(module)
+        with subject_properties.instrumentation_tracer:
+            importlib.reload(module)
     except Exception as e:  # noqa: BLE001
         _LOGGER.warning("Reload of module %s failed: %s", module_name, e)
 
@@ -489,7 +500,9 @@ def _track_final_metrics(
     if isinstance(constant_provider, DynamicConstantProvider):
         dynamic_constant_provider = constant_provider
     _reload_instrumentation_loader(
-        metrics_for_reinstrumenation, dynamic_constant_provider, executor.tracer
+        metrics_for_reinstrumenation,
+        dynamic_constant_provider,
+        executor.subject_properties,
     )
 
     # force new execution of the test cases after new instrumentation
@@ -558,6 +571,7 @@ def add_additional_metrics(  # noqa: D103
 
 
 def _run() -> ReturnCode:  # noqa: C901
+    _verify_config()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
@@ -658,24 +672,24 @@ def _run_llm() -> ReturnCode:
     return ReturnCode.OK
 
 
-def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool:
+def _check_coverage(original_coverages: list[float], minimized_coverages: list[float]) -> bool:
     """Check if the coverage after minimization is the same as before.
 
     Args:
-        original_coverage: The coverage before minimization
-        minimized_coverage: The coverage after minimization
+        original_coverages: The coverages before minimization
+        minimized_coverages: The coverages after minimization
 
     Returns:
         If the coverage is still the same
     """
-    is_same = math.isclose(original_coverage, minimized_coverage)
+    is_same = all(map(math.isclose, original_coverages, minimized_coverages))
     if is_same:
-        _LOGGER.info("Coverage after minimization is the same as before: %.4f", minimized_coverage)
+        _LOGGER.info("Coverage after minimization is the same as before: %s", minimized_coverages)
     else:
         _LOGGER.warning(
-            "Coverage changed after minimization: before=%.4f, after=%.4f",
-            original_coverage,
-            minimized_coverage,
+            "Coverage after minimization changed from %s to %s",
+            original_coverages,
+            minimized_coverages,
         )
     return is_same
 
@@ -690,10 +704,12 @@ def _minimize(generation_result, algorithm=None):
         )
 
         if minimization_strategy != config.MinimizationStrategy.NONE and algorithm is not None:
-            fitness_function = _get_coverage_ff_from_algorithm(
-                algorithm, ff.TestSuiteBranchCoverageFunction
-            )
-            original_coverage = generation_result.get_coverage_for(fitness_function)
+            fitness_functions = algorithm.test_suite_coverage_functions
+            assert len(fitness_functions) > 0, "No test suite coverage functions available"
+            original_coverages = [
+                generation_result.get_coverage_for(fitness_function)
+                for fitness_function in fitness_functions
+            ]
 
             # Save a copy of the original test suite before minimization
             original_test_suite = generation_result.clone()
@@ -704,17 +720,17 @@ def _minimize(generation_result, algorithm=None):
                 == config.MinimizationDirection.FORWARD
             ):
                 iterative_minimizer: pp.IterativeMinimizationVisitor = (
-                    pp.ForwardIterativeMinimizationVisitor(fitness_function)
+                    pp.ForwardIterativeMinimizationVisitor(fitness_functions)
                 )
             else:
-                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_function)
+                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_functions)
 
             # Check if we should use the combined minimization approach
             if (
                 config.configuration.test_case_output.minimization.test_case_minimization_strategy
                 == config.MinimizationStrategy.COMBINED
             ):
-                combined_minimizer = pp.CombinedMinimizationVisitor(fitness_function)
+                combined_minimizer = pp.CombinedMinimizationVisitor(fitness_functions)
                 generation_result.accept(combined_minimizer)
 
                 _LOGGER.info(
@@ -740,7 +756,7 @@ def _minimize(generation_result, algorithm=None):
                     config.configuration.test_case_output.minimization.test_case_minimization_strategy
                     == config.MinimizationStrategy.SUITE
                 ):
-                    test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_function)
+                    test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_functions)
                     generation_result.accept(test_suite_minimizer)
 
                     if test_suite_minimizer.removed_test_cases > 0:
@@ -749,8 +765,11 @@ def _minimize(generation_result, algorithm=None):
                             test_suite_minimizer.removed_test_cases,
                         )
 
-            minimized_coverage = generation_result.get_coverage_for(fitness_function)
-            is_same = _check_coverage(original_coverage, minimized_coverage)
+            minimized_coverages = [
+                generation_result.get_coverage_for(fitness_function)
+                for fitness_function in fitness_functions
+            ]
+            is_same = _check_coverage(original_coverages, minimized_coverages)
             if not is_same:
                 # Restore unminimized test suite
                 _LOGGER.info("Restoring unminimized test suite due to coverage loss")
@@ -761,7 +780,7 @@ def _minimize(generation_result, algorithm=None):
                 # Mark the test suite as changed
                 generation_result.changed = True
                 # Verify that coverage is restored
-                restored_coverage = generation_result.get_coverage_for(fitness_function)
+                restored_coverage = generation_result.get_coverage_for(fitness_functions)
                 _LOGGER.info("Coverage after restoration: %.4f", restored_coverage)
 
         else:
@@ -827,15 +846,11 @@ def _setup_mutation_analysis_assertion_generator(
     module = importlib.import_module(config.configuration.module_name)
 
     _LOGGER.info("Build AST for %s", module.__name__)
-    executor.tracer.current_thread_identifier = threading.current_thread().ident
     module_source_code = inspect.getsource(module)
     module_ast = ParentNodeTransformer.create_ast(module_source_code)
 
     _LOGGER.info("Mutate module %s", module.__name__)
-    mutation_tracer = ExecutionTracer()
-    mutation_controller = ag.InstrumentedMutationController(
-        mutant_generator, module_ast, module, mutation_tracer
-    )
+    mutation_controller = MutationController(mutant_generator, module_ast, module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(

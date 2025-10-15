@@ -104,6 +104,10 @@ max_dynamic_pool_size = 50
 [type_inference]
 type_inference_strategy = "TYPE_HINTS"
 type_tracing = 0.0
+subtype_inference = "NONE"
+type_tracing_subtype_weight = 0.3
+type_tracing_argument_type_weight = 0.5
+type_tracing_attribute_weight = 0.2
 
 [pynguinml]
 ml_testing_enabled = false
@@ -128,7 +132,6 @@ none_weight = 0
 any_weight = 0
 original_type_weight = 5
 type_tracing_weight = 10
-type4py_weight = 10
 type_tracing_kept_guesses = 2
 wrap_var_param_type_probability = 0.7
 negate_type = 0.1
@@ -185,6 +188,12 @@ different_type_primitive_probability = 0.3
 different_type_collection_probability = 0.3
 dict_max_insertions = 10
 llm_whole_module = false
+
+[to_cover]
+only_cover = []
+no_cover = []
+enable_inline_pynguin_no_cover = true
+enable_inline_pragma_no_cover = true
 
 [test_case_output.minimization]
 test_case_minimization_strategy = "CASE"
@@ -249,7 +258,10 @@ def expected_txt(tmp_path):
  'seed_from_archive_probability=0.2, seed_from_archive_mutations=3, '
  'max_dynamic_length=1000, max_dynamic_pool_size=50), '
  'type_inference=TypeInferenceConfiguration(type_inference_strategy=<TypeInferenceStrategy.TYPE_HINTS: '
- "'TYPE_HINTS'>, type_tracing=0.0), "
+ "'TYPE_HINTS'>, type_tracing=0.0, "
+ "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>, "
+ 'type_tracing_subtype_weight=0.3, type_tracing_argument_type_weight=0.5, '
+ 'type_tracing_attribute_weight=0.2), '
  'pynguinml=PynguinMLConfiguration(ml_testing_enabled=False, '
  "constraints_path='', dtype_mapping_path='', constructor_function='', "
  "constructor_function_parameter='', max_ndim=4, max_shape_dim=4, "
@@ -258,9 +270,8 @@ def expected_txt(tmp_path):
  'max_int=2048, string_length=20, bytes_length=20, collection_size=5, '
  'primitive_reuse_probability=0.5, object_reuse_probability=0.9, '
  'none_weight=0, any_weight=0, original_type_weight=5, type_tracing_weight=10, '
- 'type4py_weight=10, type_tracing_kept_guesses=2, '
- 'wrap_var_param_type_probability=0.7, negate_type=0.1, '
- 'skip_optional_parameter_probability=0.7, max_attempts=1000, '
+ 'type_tracing_kept_guesses=2, wrap_var_param_type_probability=0.7, '
+ 'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
  'max_initial_tests=10, population=50, chromosome_length=40, '
@@ -279,7 +290,9 @@ def expected_txt(tmp_path):
  'random_test_or_from_archive_probability=0.0, number_of_mutations=10), '
  'exploitation_starts_at_percent=0.5), '
  'random=RandomConfiguration(max_sequence_length=10, '
- 'max_sequences_combined=10), ignore_modules=[], ignore_methods=[], '
+ 'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
+ 'no_cover=[], enable_inline_pynguin_no_cover=True, '
+ 'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
  'subprocess=False, subprocess_if_recommended=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
@@ -346,6 +359,7 @@ def expected_parameter_list() -> list[str]:
         "--string_length 20",
         "--subprocess False",
         "--subprocess_if_recommended True",
+        "--subtype_inference NONE",
         "--bytes_length 20",
         "--collection_size 5",
         "--primitive_reuse_probability 0.5",
@@ -354,8 +368,10 @@ def expected_parameter_list() -> list[str]:
         "--any_weight 0",
         "--original_type_weight 5",
         "--type_tracing_weight 10",
-        "--type4py_weight 10",
+        "--type_tracing_argument_type_weight 0.5",
+        "--type_tracing_attribute_weight 0.2",
         "--type_tracing_kept_guesses 2",
+        "--type_tracing_subtype_weight 0.3",
         "--wrap_var_param_type_probability 0.7",
         "--negate_type 0.1",
         "--skip_optional_parameter_probability 0.7",
@@ -369,6 +385,8 @@ def expected_parameter_list() -> list[str]:
         "--chromosome_length 40",
         "--chop_max_length True",
         "--elite 1",
+        "--enable_inline_pragma_no_cover True",
+        "--enable_inline_pynguin_no_cover True",
         "--crossover_rate 0.75",
         "--test_insertion_probability 0.1",
         "--test_delete_probability 0.3333333333333333",

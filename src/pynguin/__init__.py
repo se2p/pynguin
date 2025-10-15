@@ -7,6 +7,8 @@
 """Pynguin is an automated unit test generation framework for Python."""
 
 import copyreg
+import logging
+import threading
 
 from collections.abc import Callable
 
@@ -62,3 +64,24 @@ def _pickle_unset(unset: _UNSET) -> tuple[Callable[[], _UNSET], tuple]:  # noqa:
 
 
 copyreg.pickle(_UNSET, _pickle_unset)
+
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _log_thread_exception(arg: threading.ExceptHookArgs) -> None:
+    _LOGGER.warning(
+        "Exception in Thread: %s",
+        arg.thread,
+        exc_info=(  # noqa: LOG014
+            arg.exc_type,
+            arg.exc_value,  # type: ignore[arg-type]
+            arg.exc_traceback,
+        ),
+    )
+
+
+# Set our own exception hook, so timeout related errors in executing threads
+# are not spilled out to stderr and clutter our formatted output but are send
+# to the logger
+threading.excepthook = _log_thread_exception

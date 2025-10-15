@@ -24,9 +24,10 @@ import pynguin.utils.namingscope as ns
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 
 
@@ -53,14 +54,15 @@ human_0.get_name()""",
         ),
     ],
 )
-def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0914
+def test_generate_mutation_assertions(
+    generator, expected_result, subject_properties: SubjectProperties
+):
     config.configuration.module_name = "tests.fixtures.examples.assertions"
     module_name = config.configuration.module_name
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
             cluster,
@@ -90,13 +92,10 @@ def test_generate_mutation_assertions(generator, expected_result):  # noqa: PLR0
             ])
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
-            mutation_tracer = ExecutionTracer()
-            mutation_controller = ag.InstrumentedMutationController(
-                mutant_generator, module_ast, module, mutation_tracer
-            )
-            gen = generator(TestCaseExecutor(tracer), mutation_controller)
+            mutation_controller = MutationController(mutant_generator, module_ast, module)
+            gen = generator(TestCaseExecutor(subject_properties), mutation_controller)
         else:
-            gen = generator(TestCaseExecutor(tracer))
+            gen = generator(TestCaseExecutor(subject_properties))
         suite.accept(gen)
 
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
@@ -281,14 +280,14 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
     metrics,
     killed,
     timeout,
+    subject_properties: SubjectProperties,
 ):
     config.configuration.module_name = module
     module_name = config.configuration.module_name
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module_type = importlib.import_module(module_name)
-        importlib.reload(module_type)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module_name)
+            importlib.reload(module_type)
         cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
             cluster,
@@ -308,12 +307,9 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)
-        mutation_tracer = ExecutionTracer()
-        mutation_controller = ag.InstrumentedMutationController(
-            mutant_generator, module_ast, module_type, mutation_tracer, testing=True
-        )
+        mutation_controller = MutationController(mutant_generator, module_ast, module_type)
         gen = ag.MutationAnalysisAssertionGenerator(
-            TestCaseExecutor(tracer), mutation_controller, testing=True
+            TestCaseExecutor(subject_properties), mutation_controller, testing=True
         )
         suite.accept(gen)
 
@@ -327,7 +323,10 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         assert len(kills | survived | timeouts) == len(kills) + len(timeouts) + len(survived)
 
         assert summary.get_metrics() == metrics
-        assert mutation_controller._testing_created_mutants == mutants
+        assert [
+            ast.unparse(mutant_ast)
+            for _, mutant_ast in mutant_generator.mutate(module_ast, module_type)
+        ] == mutants
         visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
         test_case.accept(visitor)
         source = ast.unparse(

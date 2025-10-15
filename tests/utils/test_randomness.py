@@ -7,6 +7,7 @@
 import string
 
 import hypothesis.strategies as st
+import pytest
 
 from hypothesis import given
 
@@ -96,6 +97,28 @@ def test_set_get_seed(seed):
     rng = randomness.Random()
     rng.seed(seed)
     assert rng.get_seed() == seed
+
+
+def test_weighted_choice_returns_callable():
+    def a():
+        return "a"
+
+    def b():
+        return "b"
+
+    def c():
+        return "c"
+
+    options = {a: 0.5, b: 0.3, c: 0.2}
+
+    chosen = randomness.weighted_choice(options)
+    assert callable(chosen)
+    assert chosen() in {"a", "b", "c"}
+
+
+def test_weighted_choice_empty_raises():
+    with pytest.raises(ValueError, match="Options must not be empty"):
+        randomness.weighted_choice({})
 
 
 def test_shuffle():

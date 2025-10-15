@@ -17,6 +17,7 @@ from typing import TypeVar
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import MutableSequence
     from collections.abc import Sequence
     from collections.abc import Set as AbstractSet
@@ -192,6 +193,31 @@ def next_bytes(length: int) -> bytes:
         Random bytes of given length.
     """
     return bytes(next_byte() for _ in range(length))
+
+
+T = TypeVar("T")
+
+
+def weighted_choice(options: dict[Callable[[], T], float]) -> Callable[[], T]:
+    """Picks a callable based on weighted probabilities and returns it.
+
+    Args:
+        options: A dictionary of callables and their respective weights.
+    """
+    if not options:
+        raise ValueError("Options must not be empty.")
+
+    total = sum(options.values())
+    random_number = next_float(0, total)
+    cumulative = 0.0
+
+    for fn, weight in options.items():
+        cumulative += weight
+        if random_number < cumulative:
+            return fn
+
+    # Fallback in rare floating-point edge cases
+    return next(iter(options))
 
 
 def shuffle(sequence: MutableSequence[_T]) -> None:

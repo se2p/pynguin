@@ -41,15 +41,18 @@ from typing_inspect import is_union_type
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
+from pynguin.analyses.string_subtypes import infer_regex_from_methods
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.randomness import weighted_choice
 from pynguin.utils.type_utils import COLLECTIONS
 from pynguin.utils.type_utils import PRIMITIVES
 
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Mapping
     from collections.abc import Sequence
     from typing import ClassVar
 
@@ -198,6 +201,29 @@ class UnionType(ProperType):
         return isinstance(other, UnionType) and self.items == other.items
 
 
+class StringSubtype(ProperType):
+    """A subtype of str determined by its regex.
+
+    TODO(lk): Add support to all visitors.
+    """
+
+    def __init__(self, regex: re.Pattern):  # noqa: D107
+        self.regex = regex
+        self._hash: int | None = None
+
+    def __eq__(self, other):
+        return isinstance(other, StringSubtype) and other.regex == self.regex
+
+    def __hash__(self):
+        return hash(self.regex)
+
+    def __str__(self):
+        return f"StringSubtype({self.regex})"
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
+        return visitor.visit_string_subtype(self)
+
+
 class Unsupported(ProperType):
     """Marks an unsupported type in the type system.
 
@@ -296,6 +322,17 @@ class TypeVisitor(Generic[T]):
         Returns:
             result of the visit
         """
+
+    def visit_string_subtype(self, left: StringSubtype) -> T:
+        """Visit a string subtype.
+
+        Args:
+            left: string subtype
+
+        Returns:
+            Result of the visit
+        """
+        return None  # type: ignore[return-value]
 
 
 class _PartialTypeMatch(TypeVisitor[ProperType | None]):
@@ -616,14 +653,14 @@ class TypeInfo:
         return name, qualname, module
 
     @staticmethod
-    def to_full_name(typ: type | types.UnionType) -> str:
+    def to_full_name(typ: type | types.UnionType) -> str:  # noqa: D417
         """Get the full name of the given type.
 
-        While type has a __name__, __qualname__ and __module__ attribute, UnionType
-        does not. This caused a crash which is resolved by special handling of UnionType.
+        While `type` has a `__name__`, `__qualname__` and `__module__` attribute, `UnionType`
+        does not. This caused a crash which is resolved by special handling of `UnionType`.
 
         Args:
-            typ: The type for which we want a full name.
+            `typ`: The `type` for which we want a full name.
 
         Returns:
             The fully qualified name
@@ -682,6 +719,91 @@ class NamedDefaultDict(dict[str, tt.UsageTraceNode]):  # noqa: FURB189
         # Create node for missing attribute
         res = self[key] = tt.UsageTraceNode(key)
         return res
+
+
+# If one of these methods was called on a proxy, we can use the argument type
+# to make guesses.
+# __mul__ and __rmul__ are not reliable, as they don't necessarily have to indicate
+# the type, for example, [1,2] * 3 is well-defined between a list and an int.
+_ARGUMENT_ATTRIBUTES = OrderedSet([
+    "__eq__",
+    "__ne__",
+    "__lt__",
+    "__le__",
+    "__gt__",
+    "__ge__",
+    "__add__",
+    "__radd__",
+    "__sub__",
+    "__rsub__",
+    "__truediv__",
+    "__rtruediv__",
+    "__floordiv__",
+    "__rfloordiv__",
+])
+
+# If we suspect the type to be a string and one of these methods was called on a proxy,
+# we can use the argument values to try and infer a string subtype.
+_STRING_SUBTYPE_ATTRIBUTES = OrderedSet([
+    "startswith",
+    "endswith",
+    "split",
+    "rsplit",
+    "splitlines",
+    "partition",
+    "rpartition",
+    "find",
+    "rfind",
+    "index",
+    "rindex",
+    "replace",
+    "format",
+    "join",
+    "strip",
+    "lstrip",
+    "rstrip",
+    "zfill",
+    "center",
+    "ljust",
+    "rjust",
+    "removeprefix",
+    "removesuffix",
+    "translate",
+    "count",
+])
+
+# We can guess the element type by looking at the knowledge from these
+_LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
+_DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
+_DICT_VALUE_ATTRIBUTES = OrderedSet(("__getitem__",))
+_SET_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__",))
+_TUPLE_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
+
+# We can guess generic type(s) from the argument type(s) of these methods:
+_LIST_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
+_SET_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
+_DICT_KEY_FROM_ARGUMENT_TYPES = OrderedSet((
+    "__contains__",
+    "__delitem__",
+    "__getitem__",
+    "__setitem__",
+))
+_DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
+_TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
+
+# Similar to above, but these are not dunder methods but are called,
+# e.g., for 'append', we need to search for 'append.__call__(...)'
+_LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
+    ("append", "__call__"),
+    ("remove", "__call__"),
+])
+_SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
+    ("add", "__call__"),
+    ("remove", "__call__"),
+    ("discard", "__call__"),
+])
+# Nothing for tuple and dict.
+_EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
 
 
 @dataclass(eq=False, repr=False)
@@ -761,7 +883,6 @@ class InferredSignature:
             # Choose from:
             # - Reusing developer annotated types
             # - Guessed types from proxies
-            # - Type4Py types
             # - NoneType
             # - AnyType, i.e., disregard type
             choices: list[ProperType] = [NONE_TYPE, ANY]
@@ -838,60 +959,6 @@ class InferredSignature:
                 return self._guess_parameter_type_from(knowledge)
         return None
 
-    # If one of these methods was called on a proxy, we can use the argument type
-    # to make guesses.
-    # __mul__ and __rmul__ are not reliable, as they don't necessarily have to indicate
-    # the type, for example, [1,2] * 3 is well-defined between a list and an int.
-    _ARGUMENT_ATTRIBUTES = OrderedSet([
-        "__eq__",
-        "__ne__",
-        "__lt__",
-        "__le__",
-        "__gt__",
-        "__ge__",
-        "__add__",
-        "__radd__",
-        "__sub__",
-        "__rsub__",
-        "__truediv__",
-        "__rtruediv__",
-        "__floordiv__",
-        "__rfloordiv__",
-    ])
-
-    # We can guess the element type by looking at the knowledge from these
-    _LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
-    _DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
-    _DICT_VALUE_ATTRIBUTES = OrderedSet(("__getitem__",))
-    _SET_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__",))
-    _TUPLE_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
-
-    # We can guess generic type(s) from the argument type(s) of these methods:
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__", "__delitem__"))
-    _DICT_KEY_FROM_ARGUMENT_TYPES = OrderedSet((
-        "__contains__",
-        "__delitem__",
-        "__getitem__",
-        "__setitem__",
-    ))
-    _DICT_VALUE_FROM_ARGUMENT_TYPES = OrderedSet(("__setitem__",))
-    _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES = OrderedSet(("__contains__",))
-
-    # Similar to above, but these are not dunder methods but are called,
-    # e.g., for 'append', we need to search for 'append.__call__(...)'
-    _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
-        ("append", "__call__"),
-        ("remove", "__call__"),
-    ])
-    _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH: OrderedSet[tuple[str, ...]] = OrderedSet([
-        ("add", "__call__"),
-        ("remove", "__call__"),
-        ("discard", "__call__"),
-    ])
-    # Nothing for tuple and dict.
-    _EMPTY_SET: OrderedSet[tuple[str, ...]] = OrderedSet()
-
     def _from_type_check(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         # Type checks is not empty here.
         return self._choose_type_or_negate(
@@ -900,16 +967,66 @@ class InferredSignature:
 
     def _from_attr_table(self, knowledge: tt.UsageTraceNode) -> ProperType | None:
         random_attribute = randomness.choice(list(knowledge.children))
-        if (
-            random_attribute in InferredSignature._ARGUMENT_ATTRIBUTES
-            and knowledge.children[random_attribute].arg_types[0]
-            and randomness.next_float() < 0.5
-        ):
-            random_arg_type = randomness.choice(knowledge.children[random_attribute].arg_types[0])
+        arg_types = knowledge.children[random_attribute].children["__call__"].arg_types[0]
+
+        def _string_subtype() -> ProperType | None:
+            return self._from_str_values(knowledge)
+
+        def _argument_type() -> ProperType | None:
+            selected_arg_type = randomness.choice(knowledge.children[random_attribute].arg_types[0])
             return self._choose_type_or_negate(
-                OrderedSet([self.type_system.to_type_info(random_arg_type)])
+                OrderedSet([self.type_system.to_type_info(selected_arg_type)])
             )
-        return self._choose_type_or_negate(self.type_system.find_by_attribute(random_attribute))
+
+        def _attribute_table() -> ProperType | None:
+            return self._choose_type_or_negate(self.type_system.find_by_attribute(random_attribute))
+
+        weights = {
+            _string_subtype: config.configuration.type_inference.type_tracing_subtype_weight,
+            _argument_type: config.configuration.type_inference.type_tracing_argument_type_weight,
+            _attribute_table: config.configuration.type_inference.type_tracing_attribute_weight,
+        }
+        available_strategies = {}
+
+        # Check if string subtype inference is applicable
+        if (
+            config.configuration.type_inference.subtype_inference
+            == config.SubtypeInferenceStrategy.STRING
+            and len(arg_types) > 0
+        ):
+            candidate_arg_type = randomness.choice(arg_types)
+            if candidate_arg_type is str and random_attribute in _STRING_SUBTYPE_ATTRIBUTES:
+                available_strategies[_string_subtype] = weights[_string_subtype]
+
+        # Check if argument-type inference is applicable
+        if (
+            random_attribute in _ARGUMENT_ATTRIBUTES
+            and knowledge.children[random_attribute].arg_types[0]
+        ):
+            available_strategies[_argument_type] = weights[_argument_type]
+
+        # Attribute-table inference is always available
+        available_strategies[_attribute_table] = weights[_attribute_table]
+
+        # Chose and execute strategy
+        chosen_strategy = weighted_choice(available_strategies)
+        return chosen_strategy()
+
+    @staticmethod
+    def _from_str_values(knowledge: tt.UsageTraceNode) -> StringSubtype | None:
+        """Try to infer a string subtype from the given knowledge."""
+        # Get all arg values from the knowledge
+        called_str_methods: Mapping[str, OrderedSet[str]] = defaultdict(OrderedSet)
+        for child in knowledge.children:
+            if child in _STRING_SUBTYPE_ATTRIBUTES:
+                for arg_values in knowledge.children[child].children["__call__"].arg_values[0]:
+                    if isinstance(arg_values, str):
+                        called_str_methods[child].add(arg_values)
+
+        if not called_str_methods:
+            return None
+        regex = infer_regex_from_methods(called_str_methods)
+        return StringSubtype(regex)
 
     def _guess_parameter_type_from(
         self, knowledge: tt.UsageTraceNode, recursion_depth: int = 0
@@ -946,9 +1063,9 @@ class InferredSignature:
                     guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._LIST_ELEMENT_ATTRIBUTES,
-                        InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES,
-                        InferredSignature._LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
+                        _LIST_ELEMENT_ATTRIBUTES,
+                        _LIST_ELEMENT_FROM_ARGUMENT_TYPES,
+                        _LIST_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
                     args = (guessed_element_type or guessed_type.args[0],)
@@ -956,9 +1073,9 @@ class InferredSignature:
                     guessed_element_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._SET_ELEMENT_ATTRIBUTES,
-                        InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES,
-                        InferredSignature._SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
+                        _SET_ELEMENT_ATTRIBUTES,
+                        _SET_ELEMENT_FROM_ARGUMENT_TYPES,
+                        _SET_ELEMENT_FROM_ARGUMENT_TYPES_PATH,
                         argument_idx=0,
                     )
                     args = (guessed_element_type or guessed_type.args[0],)
@@ -966,17 +1083,17 @@ class InferredSignature:
                     guessed_key_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._DICT_KEY_ATTRIBUTES,
-                        InferredSignature._DICT_KEY_FROM_ARGUMENT_TYPES,
-                        InferredSignature._EMPTY_SET,
+                        _DICT_KEY_ATTRIBUTES,
+                        _DICT_KEY_FROM_ARGUMENT_TYPES,
+                        _EMPTY_SET,
                         argument_idx=0,
                     )
                     guessed_value_type = self._guess_generic_arguments(
                         knowledge,
                         recursion_depth,
-                        InferredSignature._DICT_VALUE_ATTRIBUTES,
-                        InferredSignature._DICT_VALUE_FROM_ARGUMENT_TYPES,
-                        InferredSignature._EMPTY_SET,
+                        _DICT_VALUE_ATTRIBUTES,
+                        _DICT_VALUE_FROM_ARGUMENT_TYPES,
+                        _EMPTY_SET,
                         argument_idx=1,
                     )
                     args = (
@@ -994,9 +1111,9 @@ class InferredSignature:
                 guessed_element_type = self._guess_generic_arguments(
                     knowledge,
                     recursion_depth,
-                    InferredSignature._TUPLE_ELEMENT_ATTRIBUTES,
-                    InferredSignature._TUPLE_ELEMENT_FROM_ARGUMENT_TYPES,
-                    InferredSignature._EMPTY_SET,
+                    _TUPLE_ELEMENT_ATTRIBUTES,
+                    _TUPLE_ELEMENT_FROM_ARGUMENT_TYPES,
+                    _EMPTY_SET,
                     argument_idx=0,
                 )
                 if guessed_element_type:
@@ -1177,7 +1294,7 @@ class TypeSystem:  # noqa: PLR0904
     """
 
     def __init__(self):  # noqa: D107
-        self._graph = nx.DiGraph()
+        self._graph: nx.DiGraph[TypeInfo] = nx.DiGraph()
         # Maps all known types from their full name to their type info.
         self._types: dict[str, TypeInfo] = {}
         # Maps attributes to type which have that attribute
@@ -1340,14 +1457,14 @@ class TypeSystem:  # noqa: PLR0904
         dot = to_pydot(self._graph)
         return dot.to_string()
 
-    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:
-        """Find or create type info for the given type.
+    def to_type_info(self, typ: type | types.UnionType) -> TypeInfo:  # noqa: D417
+        """Find or create `TypeInfo` for the given `type`.
 
         Args:
-            typ: The raw type we want to convert.
+            `typ`: The raw `type` we want to convert.
 
         Returns:
-            A type info object.
+            A `TypeInfo` object.
         """
         # TODO(fk) what to do when we encounter a new type?
         found = self._types.get(TypeInfo.to_full_name(typ))

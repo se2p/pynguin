@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
 
-import pynguin.utils.opcodes as op
-
+from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.slicer.dynamicslicer import AssertionSlicer
 from pynguin.slicer.dynamicslicer import DynamicSlicer
@@ -32,6 +31,7 @@ if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion
+    from pynguin.slicer.dynamicslicer import UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor
     from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.statement import Statement
@@ -180,17 +180,15 @@ class BranchDistanceTestCaseFitnessFunction(TestCaseFitnessFunction):
     def compute_fitness(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
 
-        return compute_branch_distance_fitness(merged_trace, tracer.get_subject_properties())
+        return compute_branch_distance_fitness(merged_trace, self._executor.subject_properties)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
 
         return compute_branch_distance_fitness_is_covered(
-            merged_trace, tracer.get_subject_properties()
+            merged_trace, self._executor.subject_properties
         )
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
@@ -231,11 +229,10 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
         return compute_branch_distance_fitness(
             merged_trace,
-            tracer.get_subject_properties(),
+            self._executor.subject_properties,
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -244,11 +241,10 @@ class BranchDistanceTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
         return compute_branch_distance_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            self._executor.subject_properties,
             self._excluded_code_objects,
             self._excluded_true_predicates,
             self._excluded_false_predicates,
@@ -264,18 +260,17 @@ class LineTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-        existing_lines = tracer.get_subject_properties().existing_lines
+
+        existing_lines = self._executor.subject_properties.existing_lines
         return len(existing_lines) - len(merged_trace.covered_line_ids)
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
         return compute_line_coverage_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            self._executor.subject_properties,
         )
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
@@ -292,18 +287,18 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
     def compute_fitness(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
-        return len(tracer.get_subject_properties().existing_lines) - len(merged_trace.checked_lines)
+        return len(self._executor.subject_properties.existing_lines) - len(
+            merged_trace.checked_lines
+        )
 
     def compute_is_covered(self, individual) -> bool:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
         return compute_checked_coverage_statement_fitness_is_covered(
             merged_trace,
-            tracer.get_subject_properties(),
+            self._executor.subject_properties,
         )
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
@@ -339,8 +334,8 @@ class TestSuiteBranchCoverageFunction(TestSuiteCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_branch_coverage(merged_trace, self._executor.subject_properties)
 
 
 class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
@@ -349,8 +344,8 @@ class TestCaseBranchCoverageFunction(TestCaseCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
-        return compute_branch_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_branch_coverage(merged_trace, self._executor.subject_properties)
 
 
 class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
@@ -359,8 +354,8 @@ class TestSuiteLineCoverageFunction(TestSuiteCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_line_coverage(merged_trace, self._executor.subject_properties)
 
 
 class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
@@ -369,8 +364,8 @@ class TestCaseLineCoverageFunction(TestCaseCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
-        return compute_line_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_line_coverage(merged_trace, self._executor.subject_properties)
 
 
 class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
@@ -379,9 +374,8 @@ class TestSuiteStatementCheckedCoverageFunction(TestSuiteCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
 
-        existing = len(tracer.get_subject_properties().existing_lines)
+        existing = len(self._executor.subject_properties.existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -399,8 +393,8 @@ class TestCaseStatementCheckedCoverageFunction(TestCaseCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
-        existing = len(tracer.get_subject_properties().existing_lines)
+
+        existing = len(self._executor.subject_properties.existing_lines)
 
         if existing == 0:
             # Nothing to cover => everything is covered.
@@ -418,8 +412,8 @@ class TestSuiteAssertionCheckedCoverageFunction(TestSuiteCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         results = self._run_test_suite_chromosome(individual)
         merged_trace = analyze_results(results)
-        tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_assertion_checked_coverage(merged_trace, self._executor.subject_properties)
 
 
 class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
@@ -428,8 +422,8 @@ class TestCaseAssertionCheckedCoverageFunction(TestCaseCoverageFunction):
     def compute_coverage(self, individual) -> float:  # noqa: D102
         result = self._run_test_case_chromosome(individual)
         merged_trace = analyze_results([result])
-        tracer = self._executor.tracer
-        return compute_assertion_checked_coverage(merged_trace, tracer.get_subject_properties())
+
+        return compute_assertion_checked_coverage(merged_trace, self._executor.subject_properties)
 
 
 class ComputationCache:
@@ -731,10 +725,10 @@ def compute_branch_distance_fitness(
     exclude_code = set() if exclude_code is None else exclude_code
 
     # Check if all branch-less code objects were executed.
-    code_objects_missing: float = len(
-        subject_properties.branch_less_code_objects.difference(
-            trace.executed_code_objects, exclude_code
-        )
+    code_objects_missing: float = sum(
+        1.0
+        for code_object_id in subject_properties.branch_less_code_objects
+        if code_object_id not in trace.executed_code_objects and code_object_id not in exclude_code
     )
     assert code_objects_missing >= 0.0, "Amount of non covered code objects cannot be negative"
 
@@ -787,13 +781,9 @@ def compute_branch_distance_fitness_is_covered(
     exclude_code = set() if exclude_code is None else exclude_code
 
     # Check if all branch-less code objects were executed.
-    if (
-        len(
-            subject_properties.branch_less_code_objects.difference(
-                trace.executed_code_objects, exclude_code
-            )
-        )
-        > 0
+    if any(
+        code_object_id not in trace.executed_code_objects and code_object_id not in exclude_code
+        for code_object_id in subject_properties.branch_less_code_objects
     ):
         return False
 
@@ -855,7 +845,7 @@ def compute_branch_coverage(trace: ExecutionTrace, subject_properties: SubjectPr
     covered = len(
         trace.executed_code_objects.intersection(subject_properties.branch_less_code_objects)
     )
-    existing = len(subject_properties.branch_less_code_objects)
+    existing = sum(1 for _ in subject_properties.branch_less_code_objects)
 
     # Every predicate creates two branches
     existing += len(subject_properties.existing_predicates) * 2
@@ -893,23 +883,19 @@ def compute_line_coverage(trace: ExecutionTrace, subject_properties: SubjectProp
 
 
 def _cleanse_included_implicit_return_none(
-    subject_properties, statement_checked_lines, statement_slice
+    subject_properties: SubjectProperties,
+    statement_checked_lines: set[int],
+    statement_slice: list[UniqueInstruction],
 ):
-    if (  # noqa: SIM102
-        # check if the last included instructions before the store
-        # are a "return None"
-        len(statement_slice) >= 3
-        and statement_slice[-3].opcode == op.LOAD_CONST
-        and statement_slice[-3].arg is None
-        and statement_slice[-2].opcode == op.RETURN_VALUE
-    ):
-        if (
-            # check if the "return None" is implicit or explicit
-            len(statement_slice) != 3 and statement_slice[-4].lineno != statement_slice[-3].lineno
-        ):
-            statement_checked_lines.remove(
-                DynamicSlicer.get_line_id_by_instruction(statement_slice[-3], subject_properties)
+    # check if the last included instructions before the store
+    # are a explicit "return None"
+    if version.end_with_explicit_return_none(statement_slice[:-1]):
+        statement_checked_lines.remove(
+            DynamicSlicer.get_line_id_by_instruction(
+                statement_slice[-version.RETURN_NONE_SIZE - 1],
+                subject_properties,
             )
+        )
 
 
 def compute_statement_checked_lines(
@@ -956,7 +942,9 @@ def compute_statement_checked_lines(
         )
 
         _cleanse_included_implicit_return_none(
-            subject_properties, statement_checked_lines, statement_slice
+            subject_properties,
+            statement_checked_lines,
+            statement_slice,
         )
 
         checked_lines_ids.update(statement_checked_lines)

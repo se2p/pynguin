@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import importlib
-import threading
 
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -28,11 +27,11 @@ from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import ExecutionTracer
 from pynguin.instrumentation.tracer import LineMetaData
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.utils.orderedset import OrderedSet
 
 
 if TYPE_CHECKING:
@@ -144,67 +143,48 @@ def empty_function():
     return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
 
 
-@pytest.fixture
-def executor_mock():
-    return MagicMock(TestCaseExecutor)
-
-
-@pytest.fixture
-def trace_mock():
-    return ExecutionTrace()
-
-
-@pytest.fixture
-def subject_properties_mock():
-    return SubjectProperties()
-
-
 def test_is_maximisation_function(empty_function):
     assert not empty_function.is_maximisation_function()
 
 
-def test_goal(executor_mock):
+def test_goal(executor_mock: MagicMock):
     goal = MagicMock(bg.AbstractBranchCoverageGoal)
     func = bg.BranchCoverageTestFitness(executor_mock, goal)
     assert func.goal == goal
 
 
-def test_compute_fitness_values_mocked(subject_properties_mock, executor_mock, trace_mock):
-    tracer = MagicMock()
-    tracer.get_subject_properties.return_value = subject_properties_mock
-    executor_mock.tracer.return_value = tracer
+def test_compute_fitness_values_mocked(executor_mock: MagicMock, execution_trace: ExecutionTrace):
     goal = MagicMock(bg.AbstractBranchCoverageGoal)
     goal.get_distance.return_value = cfd.ControlFlowDistance(1, 2)
     ff = bg.BranchCoverageTestFitness(executor_mock, goal)
     indiv = MagicMock()
     with mock.patch.object(ff, "_run_test_case_chromosome") as run_suite_mock:
         result = ExecutionResult()
-        result.execution_trace = trace_mock
+        result.execution_trace = execution_trace
         run_suite_mock.return_value = result
         fitness = ff.compute_fitness(indiv)
         assert fitness == pytest.approx(1.666666)
         run_suite_mock.assert_called_with(indiv)
 
 
-def test_compute_fitness_values_no_branches():
+def test_compute_fitness_values_no_branches(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.branchcoverage.nobranches"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         chromosome = _get_test_for_no_branches_fixture(module_name)
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
             goals_dict[
-                tracer.get_subject_properties()
-                .existing_code_objects[goal._goal.code_object_id]
-                .code_object.co_name
+                subject_properties.existing_code_objects[
+                    goal._goal.code_object_id
+                ].code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == 1
@@ -268,26 +248,27 @@ def _get_test_for_simple_nesting_outer_branch_covered(
     ],
 )
 def test_fitness_simple_nesting(
-    chrom_factory: Callable[[str], tcc.TestCaseChromosome], expected_fitness: float
+    chrom_factory: Callable[[str], tcc.TestCaseChromosome],
+    expected_fitness: float,
+    subject_properties: SubjectProperties,
 ):
     module_name = "tests.fixtures.branchcoverage.simplenesting"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         chromosome = chrom_factory(module_name)
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         goals_dict = {}
         for goal in goals:
             chromosome.add_fitness_function(goal)
             goals_dict[
-                tracer.get_subject_properties()
-                .existing_code_objects[goal._goal.code_object_id]
-                .code_object.co_name
+                subject_properties.existing_code_objects[
+                    goal._goal.code_object_id
+                ].code_object.co_name
             ] = goal
         fitness = chromosome.get_fitness()
         assert fitness == pytest.approx(expected_fitness)
@@ -328,16 +309,37 @@ def test_fitness_simple_nesting(
     var_0 = module_0.nested_branches(int_0)
 """,
         ),
+        (
+            "tests.fixtures.instrumentation.covered_functions",
+            1.0,  # module executed but not the `covered` function
+            """def test_case_0():
+    int_0 = -50
+    int_1 = 10
+    int_2 = 5
+    var_0 = module_0.not_covered1(int_0, int_1)
+    var_1 = module_0.not_covered2(int_0, int_1)
+    var_2 = module_0.not_covered3(int_0, int_1, int_2)
+""",
+        ),
+        (
+            "tests.fixtures.instrumentation.covered_functions",
+            0.0,  # module and `covered` function executed
+            """def test_case_0():
+    int_0 = 1
+    var_0 = covered.covered(int_0)
+""",
+        ),
     ],
 )
-def test_compute_fitness_values_branches(test_case, expected_fitness, module_name):
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+def test_compute_fitness_values_branches(
+    test_case, expected_fitness, module_name, subject_properties: SubjectProperties
+):
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
 
         cluster = generate_test_cluster(module_name)
 
@@ -350,7 +352,7 @@ def test_compute_fitness_values_branches(test_case, expected_fitness, module_nam
         test_case = transformer.testcases[0]
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
 
-        pool = bg.BranchGoalPool(tracer.get_subject_properties())
+        pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
             chromosome.add_fitness_function(goal)
@@ -380,15 +382,14 @@ def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
     return tcc.TestCaseChromosome(test_case=test_case)
 
 
-def test_compute_fitness_values_statement_coverage_empty():
+def test_compute_fitness_values_statement_coverage_empty(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.emptyfile"
-    tracer = ExecutionTracer()
-    tracer.current_thread_identifier = threading.current_thread().ident
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
-        executor = TestCaseExecutor(tracer)
+        executor = TestCaseExecutor(subject_properties)
         chromosome = _get_empty_test()
         goals = bg.create_line_coverage_fitness_functions(executor)
         assert not goals
@@ -396,27 +397,28 @@ def test_compute_fitness_values_statement_coverage_empty():
         assert fitness == 0
 
 
-def test_statement_coverage_goal_creation(executor_mock):
-    tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
-    executor_mock.tracer = tracer
+def test_statement_coverage_goal_creation(
+    executor_mock: MagicMock,
+    subject_properties: SubjectProperties,
+):
+    subject_properties.existing_lines = _get_lines_data_for_plus_module()
+    executor_mock.subject_properties = subject_properties
     goals = bg.create_line_coverage_fitness_functions(executor_mock)
 
     assert len(goals) == 8
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
-    executor_mock, trace_mock
+    executor_mock: MagicMock,
+    subject_properties: SubjectProperties,
 ):
     """Create an empty test for a non-empty file.
 
     Results a fitness of 8, for every missing goal.
     """
-    tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
+    subject_properties.existing_lines = _get_lines_data_for_plus_module()
 
-    executor_mock.tracer = tracer
-    trace_mock.covered_line_ids = {}
+    executor_mock.subject_properties = subject_properties
 
     chromosome = _get_empty_test()
     _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock)
@@ -426,7 +428,10 @@ def test_compute_fitness_values_statement_coverage_non_empty_file_empty_test(
 
 
 def test_compute_fitness_values_statement_coverage_non_empty_file(
-    executor_mock, trace_mock, plus_test_with_object_assertion
+    executor_mock: MagicMock,
+    subject_properties: SubjectProperties,
+    execution_trace: ExecutionTrace,
+    plus_test_with_object_assertion,
 ):
     """Test for a testcase for the plus module.
 
@@ -439,15 +444,14 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
     """
     module_name = "tests.fixtures.linecoverage.plus"
 
-    tracer = ExecutionTracer()
-    tracer.get_subject_properties().existing_lines = _get_lines_data_for_plus_module()
+    subject_properties.existing_lines = _get_lines_data_for_plus_module()
 
-    tracer.current_thread_identifier = threading.current_thread().ident
-    executor_mock.tracer = tracer
+    executor_mock.subject_properties = subject_properties
 
-    with install_import_hook(module_name, tracer):
-        module = importlib.import_module(module_name)
-        importlib.reload(module)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
 
         test_case = plus_test_with_object_assertion
         chromosome = tcc.TestCaseChromosome(test_case=test_case)
@@ -457,15 +461,15 @@ def test_compute_fitness_values_statement_coverage_non_empty_file(
             bg.LineCoverageTestFitness, "_run_test_case_chromosome"
         ) as run_suite_mock:
             result = ExecutionResult()
-            trace_mock.covered_line_ids = {0, 1, 5, 6, 7}
-            result.execution_trace = trace_mock
+            execution_trace.covered_line_ids = OrderedSet((0, 1, 5, 6, 7))
+            result.execution_trace = execution_trace
             run_suite_mock.return_value = result
 
             fitness = chromosome.get_fitness()
             assert fitness == 3
 
 
-def _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock):
+def _add_plus_line_fitness_functions_to_chromosome(chromosome, executor_mock: MagicMock):
     lines = [8, 9, 11, 12, 13, 15, 16, 17]
     for line_id in range(len(lines)):
         line_goal = bg.LineCoverageGoal(0, line_id)

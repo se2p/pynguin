@@ -14,6 +14,7 @@ https://github.com/microsoft/codamosa
 import ast
 import logging
 import re
+import sys
 
 from typing import Any
 
@@ -458,6 +459,17 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
                     new_body.append(rewrite_test(stmt))
                 else:
                     new_body.append(stmt)
+
+            if sys.version_info >= (3, 12):
+                return ast.ClassDef(
+                    name=node.name,
+                    bases=node.bases,
+                    keywords=node.keywords,
+                    body=new_body,
+                    decorator_list=node.decorator_list,
+                    type_params=[],
+                )
+
             return ast.ClassDef(
                 name=node.name,
                 bases=node.bases,

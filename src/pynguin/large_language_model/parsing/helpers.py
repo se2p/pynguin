@@ -8,6 +8,7 @@
 
 import ast
 import logging
+import sys
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcase_to_ast as tta
@@ -137,20 +138,39 @@ def unparse_test_case(test_case: tc.TestCase) -> str | None:
         test_case.accept(visitor)
         test_case_ast = visitor.test_case_ast
 
-        func_def = ast.FunctionDef(
-            name="test_generated_function",
-            args=ast.arguments(
-                posonlyargs=[],
-                args=[],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[],
-            ),
-            body=test_case_ast,
-            decorator_list=[],
+        name = "test_generated_function"
+        args = ast.arguments(
+            posonlyargs=[],
+            args=[],
+            vararg=None,
+            kwonlyargs=[],
+            kw_defaults=[],
+            kwarg=None,
+            defaults=[],
         )
+        decorator_list: list[ast.expr] = []
+        returns = None
+        type_comment = None
+
+        if sys.version_info >= (3, 12):
+            func_def = ast.FunctionDef(
+                name=name,
+                args=args,
+                body=test_case_ast,
+                decorator_list=decorator_list,
+                returns=returns,
+                type_comment=type_comment,
+                type_params=[],
+            )
+        else:
+            func_def = ast.FunctionDef(
+                name=name,
+                args=args,
+                body=test_case_ast,
+                decorator_list=decorator_list,
+                returns=returns,
+                type_comment=type_comment,
+            )
 
         # Wrap the function definition in an ast.Module
         module_node = ast.Module(body=[func_def], type_ignores=[])

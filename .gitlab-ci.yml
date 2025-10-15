@@ -42,26 +42,51 @@ before_script:
 
 .unit-tests: &unit-tests
   stage: test
+  script:
+    - >
+      poetry run pytest -q --cov=pynguin --cov=tests --cov-branch
+      --cov-report=term-missing
+      --junitxml=report.xml tests/
+    - mv .coverage ".coverage.${PYTHON_VERSION}"
+  artifacts:
+    reports:
+      junit: report.xml
+    paths:
+      - .coverage.*
+  needs: ["pre-commit", "reuse"]
+
+unit-tests:
+  <<: *unit-tests
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.10-bookworm"
+      - PYTHON_VERSION: "3.11-bookworm"
+      - PYTHON_VERSION: "3.12-bookworm"
+      - PYTHON_VERSION: "3.13-bookworm"
+
+combine-coverage:
+  stage: test
+  image: python:3.10-bookworm
+  needs:
+    - job: unit-tests
+      artifacts: true
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   script:
-    - poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --cov-report html:cov_html --cov-report xml:coverage.xml --cov-report=term-missing --junitxml=report.xml tests/
+    - pip install coverage
+    - ls -la .coverage.*
+    - coverage combine .coverage.*
+    - coverage report
+    - coverage xml -o merged-coverage.xml
+    - coverage html -d cov_html
   artifacts:
     reports:
       coverage_report:
         coverage_format: cobertura
-        path: coverage.xml
-      junit:
-        report.xml
+        path: merged-coverage.xml
     paths:
       - cov_html
-  needs: ["pre-commit", "reuse"]
 
-unit-tests:python-3.10:
-  <<: *unit-tests
-  variables:
-    PYTHON_VERSION: '3.10-bookworm'
-
-.nightly-tests:
+.nightly-tests: &nightly-tests
   only:
     - schedules
   stage: test
@@ -71,14 +96,54 @@ unit-tests:python-3.10:
     - poetry config virtualenvs.in-project true
     - poetry install --with openai,numpy
     - poetry add --group dev pytest-random-order
-  script:
-    - for ((i=1; i<=10; i++)); do SECONDS=0; echo "test run ${i}\n"; poetry run pytest -q --cov=pynguin --cov=tests --cov-branch --random-order --random-order-bucket=global ; elapsed=$SECONDS; echo "=== required ${elapsed} seconds for run ${i} ===\n\n" ; done
-  needs: ["unit-tests:python-3.10"]
+  script: |
+    for ((i=1; i<=10; i++)); do
+      SECONDS=0
+      echo "test run ${i}\n"
+      poetry run pytest -q --cov=pynguin --cov=tests --cov-branch \
+        --random-order --random-order-bucket=global \
+        --cov-report=term-missing
+      mv .coverage ".coverage.${PYTHON_VERSION}.${i}"
+      elapsed=$SECONDS
+      echo "=== required ${elapsed} seconds for run ${i} ===\n\n"
+    done
+  artifacts:
+    paths:
+      - .coverage.*
+  needs: ["unit-tests"]
 
-nightly-tests:python-3.10:
-  extends: .nightly-tests
-  variables:
-    PYTHON_VERSION: '3.10-bookworm'
+nightly-tests:
+  <<: *nightly-tests
+  parallel:
+    matrix:
+      - PYTHON_VERSION: "3.10-bookworm"
+      - PYTHON_VERSION: "3.11-bookworm"
+      - PYTHON_VERSION: "3.12-bookworm"
+      - PYTHON_VERSION: "3.13-bookworm"
+
+combine-nightly-coverage:
+  only:
+    - schedules
+  stage: test
+  image: python:3.10-bookworm
+  needs:
+    - job: nightly-tests
+      artifacts: true
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  script:
+    - pip install coverage
+    - ls -la .coverage.*
+    - coverage combine .coverage.*
+    - coverage report
+    - coverage xml -o merged-nightly-coverage.xml
+    - coverage html -d cov_html_nightly
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: merged-nightly-coverage.xml
+    paths:
+      - cov_html_nightly
 
 memory-profile:
   only:
@@ -113,7 +178,7 @@ sphinx:
   stage: build
   image: python:3.10-bookworm
   script:
-    - poetry run sphinx-build docs docs/_build
+    - poetry run sphinx-build -W docs docs/_build
   artifacts:
     expire_in: 1 week
     paths:
@@ -143,3 +208,84 @@ reuse:
   script:
     - reuse lint
   needs: []
+
+cluster-experiment:
+  stage: deploy
+  when: manual
+  image: python:3.10-bookworm
+  variables:
+    USER: "pynguin-tool"
+    HOST: "defender.fim.uni-passau.de"
+    SCRATCH: "/scratch/${USER}"
+  before_script:
+    - apt-get update && apt-get install -y sshpass openssh-client
+    - mkdir -p ~/.ssh
+    - ssh-keyscan $HOST >> ~/.ssh/known_hosts
+  script:
+    - export GIT_TAG=$(git rev-parse --short HEAD)
+    - |
+      sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
+        echo '✅ Logged into $HOST';
+        bash $SCRATCH/pynguin-experiments/src/pynguin_experiments/execution/run-remote-experiment.sh \"$GIT_TAG\"
+      " | tee experiment.log
+      echo "✅ Experiment executed on $HOST."
+
+      export EXPERIMENT_DIR=$(grep '=== Parsed experiment folder:' experiment.log | awk -F': ' '{gsub(/ ===$/, "", $2); print $2}')
+      echo "Parsed experiment directory: $EXPERIMENT_DIR"
+
+      sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" scp -o StrictHostKeyChecking=no ${USER}@${HOST}:"$EXPERIMENT_DIR/results.csv" ./results.csv
+      sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" scp -o StrictHostKeyChecking=no ${USER}@${HOST}:"$EXPERIMENT_DIR/analyze-errors.csv" ./analyze-errors.csv
+      sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" scp -o StrictHostKeyChecking=no ${USER}@${HOST}:"$EXPERIMENT_DIR/ci-summary.md" ./ci-summary.md
+      sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" scp -o StrictHostKeyChecking=no ${USER}@${HOST}:"$EXPERIMENT_DIR/ci-summary.env" ./ci-summary.env
+      echo "✅ Results and logs copied to local directory."
+
+      if [ "${CLEANUP:-true}" = "true" ]; then
+        IMAGE_TAR="$SCRATCH/images/pynguin-$GIT_TAG.tar"
+        sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
+          if [ -d '$EXPERIMENT_DIR' ]; then
+            rm -rf '$EXPERIMENT_DIR'
+            echo '✅ Experiment directory removed from remote (cleanup).'
+          else
+            echo '⚠️ Experiment directory not found, skipping cleanup.'
+          fi
+
+          if [ -f \"$IMAGE_TAR\" ]; then
+            rm \"$IMAGE_TAR\"
+            echo '✅ pynguin-image-tar file removed: $IMAGE_TAR'
+          else
+            echo '⚠️ Image not found: $IMAGE_TAR'
+          fi
+        "
+      else
+        echo "⚠️ Skipping remote cleanup."
+      fi
+
+      echo -e "\nSummary:\n"
+      cat ci-summary.md
+
+      # Load env vars and generate metrics.txt for GitLab Metrics Report
+      set -a
+      source ci-summary.env
+      set +a
+
+      echo "pynguin_project_count $PYNGUIN_PROJECT_COUNT" > metrics.txt
+      echo "pynguin_module_count $PYNGUIN_MODULE_COUNT" >> metrics.txt
+      echo "pynguin_total_errors $PYNGUIN_TOTAL_ERRORS" >> metrics.txt
+      echo "pynguin_mean_coverage $PYNGUIN_MEAN_COVERAGE" >> metrics.txt
+      echo "pynguin_mean_algorithm_iterations $PYNGUIN_MEAN_ALGORITHM_ITERATIONS" >> metrics.txt
+      echo "pynguin_mean_total_time_s $PYNGUIN_MEAN_TOTAL_TIME_S" >> metrics.txt
+
+      echo "✅ metrics.txt generated for GitLab Metrics Report."
+  artifacts:
+    when: always
+    reports:
+      dotenv: ci-summary.env
+      metrics: metrics.txt
+    paths:
+      - experiment.log
+      - results.csv
+      - analyze-errors.csv
+      - ci-summary.md
+      - ci-summary.env
+      - metrics.txt
+    expire_in: 1 year

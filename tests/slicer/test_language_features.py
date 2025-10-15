@@ -8,16 +8,55 @@
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: E501, ERA001
 
-from bytecode import BasicBlock
-from bytecode import CellVar
-from bytecode import Compare
-from bytecode import FreeVar
-from bytecode import Instr
+import sys
 
-from tests.slicer.util import compare
+from unittest.mock import MagicMock
+
+from bytecode.instr import BinaryOp
+from bytecode.instr import CellVar
+from bytecode.instr import Compare
+from bytecode.instr import FreeVar
+
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
+from tests.slicer.util import TracedInstr
+from tests.slicer.util import assert_slice_equal
 from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
+from tests.slicer.util import slice_function_at_return_with_result
 from tests.slicer.util import slice_module_at_return
+
+
+jump_target = TracedInstr("LOAD_CONST", arg=InstrumentationExecutionTracer(MagicMock()))
+if sys.version_info >= (3, 12):
+    inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
+    binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    jump_backward_absolute = "JUMP_BACKWARD"
+    pop_jump_forward_if_true = "POP_JUMP_IF_TRUE"
+    pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
+    end_for = TracedInstr("END_FOR")
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
+elif sys.version_info >= (3, 11):
+    inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
+    binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    jump_backward_absolute = "JUMP_BACKWARD"
+    pop_jump_forward_if_true = "POP_JUMP_FORWARD_IF_TRUE"
+    pop_jump_forward_if_false = "POP_JUMP_FORWARD_IF_FALSE"
+    end_for = TracedInstr("NOP")
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
+else:
+    inplace_add_instruction = TracedInstr("INPLACE_ADD")
+    binary_add_instruction = TracedInstr("BINARY_ADD")
+    jump_backward_absolute = "JUMP_ABSOLUTE"
+    pop_jump_forward_if_true = "POP_JUMP_IF_TRUE"
+    pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
+    end_for = TracedInstr("NOP")
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 
 
 def test_simple_loop():
@@ -27,215 +66,485 @@ def test_simple_loop():
             result += i
         return result
 
-    return_block = BasicBlock([
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    loop_header = BasicBlock([
-        Instr("FOR_ITER", arg=return_block),
-    ])
-    loop_block = BasicBlock([
-        # result += i
-        Instr("STORE_FAST", arg="i"),
-        Instr("LOAD_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="i"),
-        Instr("INPLACE_ADD"),
-        Instr("STORE_FAST", arg="result"),
-        Instr("JUMP_ABSOLUTE", arg=loop_header),
-    ])
-    loop_setup = BasicBlock([
-        # for i in range(0, 3):
-        Instr("LOAD_GLOBAL", arg="range"),
-        Instr("LOAD_CONST", arg=0),
-        Instr("LOAD_CONST", arg=3),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("GET_ITER"),
-    ])
-    init_block = BasicBlock([
-        Instr("LOAD_CONST", arg=0),
-        Instr("STORE_FAST", arg="result"),
-    ])
+    if sys.version_info >= (3, 13):
+        range_call = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("LOAD_CONST", arg=3),
+            TracedInstr("CALL", arg=2),
+        )
+        load_result_and_i = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("result", "i")),)
+    elif sys.version_info >= (3, 12):
+        range_call = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("LOAD_CONST", arg=3),
+            TracedInstr("CALL", arg=2),
+        )
+        load_result_and_i = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="i"),
+        )
+    elif sys.version_info >= (3, 11):
+        range_call = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "range")),
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("LOAD_CONST", arg=3),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+        )
+        load_result_and_i = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="i"),
+        )
+    else:
+        range_call = (
+            TracedInstr("LOAD_GLOBAL", arg="range"),
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("LOAD_CONST", arg=3),
+            TracedInstr("CALL_FUNCTION", arg=2),
+        )
+        load_result_and_i = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="i"),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(init_block)
-    expected_instructions.extend(loop_setup)
-    expected_instructions.extend(loop_header)
-    expected_instructions.extend(loop_block)
-    expected_instructions.extend(return_block)
+    expected_instructions = [
+        # result = 0
+        TracedInstr("LOAD_CONST", arg=0),
+        TracedInstr("STORE_FAST", arg="result"),
+        # for i in range(0, 3):
+        *range_call,
+        TracedInstr("GET_ITER"),
+        TracedInstr(
+            "FOR_ITER",
+            # the first instruction of the return block
+            arg=end_for,
+        ),
+        TracedInstr("STORE_FAST", arg="i"),
+        # result += i
+        *load_result_and_i,
+        inplace_add_instruction,
+        TracedInstr("STORE_FAST", arg="result"),
+        TracedInstr(
+            jump_backward_absolute,
+            # the instrumentation of the jump
+            arg=jump_target,
+        ),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_call_without_arguments():
-    module_block = BasicBlock([
-        # def callee():
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="callee"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="callee"),
-        # result = callee()
-        Instr("LOAD_GLOBAL", arg="callee"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="result"),
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    callee_block = BasicBlock([Instr("LOAD_CONST", arg=0), Instr("RETURN_VALUE")])
+    if sys.version_info >= (3, 13):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("CALL", arg=0),
+        )
+        return_zero = (TracedInstr("RETURN_CONST", arg=0),)
+    elif sys.version_info >= (3, 12):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("CALL", arg=0),
+        )
+        return_zero = (TracedInstr("RETURN_CONST", arg=0),)
+    elif sys.version_info >= (3, 11):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+        )
+        return_zero = (
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("RETURN_VALUE"),
+        )
+    else:
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="callee"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg="callee"),
+            TracedInstr("CALL_FUNCTION", arg=0),
+        )
+        return_zero = (
+            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr("RETURN_VALUE"),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(callee_block)
+    expected_instructions = [
+        # def callee():
+        *create_callee,
+        TracedInstr("STORE_NAME", arg="callee"),
+        # ... = callee()
+        *call_callee,
+        # return 0
+        *return_zero,
+        # result = ...
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.simple_call"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_call_with_arguments():
     # Call with two arguments, one of which is used in the callee
+    if sys.version_info >= (3, 13):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),
+            TracedInstr("CALL", arg=2),
+        )
+    elif sys.version_info >= (3, 12):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+            TracedInstr("CALL", arg=2),
+        )
+    elif sys.version_info >= (3, 11):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+        )
+    else:
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="callee"),
+            TracedInstr("MAKE_FUNCTION", arg=4),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg="callee"),
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("LOAD_FAST", arg="bar"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+        )
 
-    module_block = BasicBlock([
-        # def callee():
-        Instr("LOAD_CONST", arg="a"),
-        Instr("LOAD_NAME", arg="int"),
-        Instr("LOAD_CONST", arg="b"),
-        Instr("LOAD_NAME", arg="int"),
-        Instr("BUILD_TUPLE", arg=4),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="callee"),
-        Instr("MAKE_FUNCTION", arg=4),
-        Instr("STORE_NAME", arg="callee"),
+    expected_instructions = [
+        # def callee(a: int, b: int):
+        TracedInstr("LOAD_CONST", arg="a"),
+        TracedInstr("LOAD_NAME", arg="int"),
+        TracedInstr("LOAD_CONST", arg="b"),
+        TracedInstr("LOAD_NAME", arg="int"),
+        TracedInstr("BUILD_TUPLE", arg=4),
+        *create_callee,
+        TracedInstr("STORE_NAME", arg="callee"),
         # foo = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_FAST", arg="foo"),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("STORE_FAST", arg="foo"),
         # bar = 2
-        Instr("LOAD_CONST", arg=2),
-        Instr("STORE_FAST", arg="bar"),
-        # result = callee()
-        Instr("LOAD_GLOBAL", arg="callee"),
-        Instr("LOAD_FAST", arg="foo"),
-        Instr("LOAD_FAST", arg="bar"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_FAST", arg="result"),
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    callee_block = BasicBlock([
+        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr("STORE_FAST", arg="bar"),
+        # ... = callee(foo, bar)
+        *call_callee,
         # return a
-        Instr("LOAD_FAST", arg="a"),
-        Instr("RETURN_VALUE"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(callee_block)
+        TracedInstr("LOAD_FAST", arg="a"),
+        TracedInstr("RETURN_VALUE"),
+        # result = ...
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.simple_call_arg"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
-def test_generators():
+def test_generators():  # noqa: PLR0915
     # YIELD_VALUE and YIELD_FROM
-    abc_generator = BasicBlock([
-        # a = "a"
-        Instr("LOAD_CONST", arg="a"),
-        Instr("STORE_FAST", arg="a"),
-        # yield a
-        Instr("LOAD_FAST", arg="a"),
-        Instr("YIELD_VALUE"),
-    ])
+    if sys.version_info >= (3, 13):
+        create_abc_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+        )
+        create_abc_xyz_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+        )
+        call_abc_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        call_abc_xyz_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_xyz_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        yield_from = ()
+        send = (
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr(
+                "SEND",
+                # the first instruction of the send target block
+                arg=TracedInstr("TRY_END"),
+            ),
+            TracedInstr("YIELD_VALUE", arg=1),
+        )
+        yield_gen = TracedInstr("YIELD_VALUE", arg=0)
+        load_result_and_letter = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("result", "letter")),)
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_true,
+            # the jump which leads back to the loop header
+            arg=load_result_and_letter[0],
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+        )
+        compare_eq = Compare.EQ_CAST
+    elif sys.version_info >= (3, 12):
+        create_abc_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        create_abc_xyz_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_abc_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        call_abc_xyz_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_xyz_generator")),
+            TracedInstr("CALL", arg=0),
+        )
+        yield_from = ()
+        send = (
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr(
+                "SEND",
+                # the first instruction of the send target block
+                arg=TracedInstr("TRY_END"),
+            ),
+            TracedInstr("YIELD_VALUE", arg=2),
+        )
+        yield_gen = TracedInstr("YIELD_VALUE", arg=1)
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_true,
+            # the jump which leads back to the loop header
+            arg=TracedInstr("LOAD_FAST", arg="result"),
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+        )
+        compare_eq = Compare.EQ
+        load_result_and_letter = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="letter"),
+        )
+    elif sys.version_info >= (3, 11):
+        create_abc_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        create_abc_xyz_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_abc_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_generator")),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+        )
+        call_abc_xyz_generator = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "abc_xyz_generator")),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+        )
+        yield_from = ()
+        send = (
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr(
+                "SEND",
+                # the first instruction of the send target block
+                arg=TracedInstr("POP_TOP"),
+            ),
+            TracedInstr("YIELD_VALUE"),
+        )
+        yield_gen = TracedInstr("YIELD_VALUE")
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_false,
+            # the instrumented jump which leads back to the loop header
+            arg=jump_target,
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+        )
+        compare_eq = Compare.EQ
+        load_result_and_letter = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="letter"),
+        )
+    else:
+        create_abc_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="abc_generator"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        create_abc_xyz_generator = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="abc_xyz_generator"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_abc_generator = (
+            TracedInstr("LOAD_GLOBAL", arg="abc_generator"),
+            TracedInstr("CALL_FUNCTION", arg=0),
+        )
+        call_abc_xyz_generator = (
+            TracedInstr("LOAD_GLOBAL", arg="abc_xyz_generator"),
+            TracedInstr("CALL_FUNCTION", arg=0),
+        )
+        yield_from = (
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr("YIELD_FROM"),
+        )
+        send = ()
+        yield_gen = TracedInstr("YIELD_VALUE")
+        second_comparison_jump = TracedInstr(
+            pop_jump_forward_if_false,
+            # the instrumented jump which leads back to the loop header
+            arg=jump_target,
+        )
+        last_jumps = (
+            TracedInstr(
+                jump_backward_absolute,
+                # the instrumentation of the jump
+                arg=jump_target,
+            ),
+        )
+        compare_eq = Compare.EQ
+        load_result_and_letter = (
+            TracedInstr("LOAD_FAST", arg="result"),
+            TracedInstr("LOAD_FAST", arg="letter"),
+        )
 
-    abc_xyz_generator = BasicBlock([
-        # x = "x"
-        Instr("LOAD_CONST", arg="x"),
-        Instr("STORE_FAST", arg="x"),
-        # yield from abc_generator()
-        Instr("LOAD_GLOBAL", arg="abc_generator"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("GET_YIELD_FROM_ITER"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("YIELD_FROM"),
-        # yield x
-        Instr("LOAD_FAST", arg="x"),
-        Instr("YIELD_VALUE"),
-    ])
-
-    end_block = BasicBlock([
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    loop_block = BasicBlock([
-        Instr("STORE_FAST", arg="letter"),
-    ])
-    loop_header = BasicBlock([
-        Instr("FOR_ITER", arg=end_block),
-    ])
-    loop_if_true_block = BasicBlock([
-        Instr("LOAD_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="letter"),
-        Instr("INPLACE_ADD"),
-        Instr("STORE_FAST", arg="result"),
-        Instr("JUMP_ABSOLUTE", arg=loop_header),
-    ])
-    loop_if_x_block = BasicBlock([
-        Instr("LOAD_FAST", arg="letter"),
-        Instr("LOAD_CONST", arg="x"),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_TRUE", arg=loop_if_true_block),
-    ])
-    loop_if_a_block = BasicBlock([
-        Instr("LOAD_FAST", arg="letter"),
-        Instr("LOAD_CONST", arg="a"),
-        Instr("COMPARE_OP", arg=Compare.EQ),
-        Instr("POP_JUMP_IF_FALSE", arg=loop_header),
-    ])
-    module_block = BasicBlock([
+    expected_instructions = [
         # def abc_generator():
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="abc_generator"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="abc_generator"),
+        *create_abc_generator,
+        TracedInstr("STORE_NAME", arg="abc_generator"),
         # def abc_xyz_generator():
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="abc_xyz_generator"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="abc_xyz_generator"),
+        *create_abc_xyz_generator,
+        TracedInstr("STORE_NAME", arg="abc_xyz_generator"),
         # generator = abc_xyz_generator()
-        Instr("LOAD_GLOBAL", arg="abc_xyz_generator"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="generator"),
+        *call_abc_xyz_generator,
+        TracedInstr("STORE_FAST", arg="generator"),
         # result = ""
-        Instr("LOAD_CONST", arg=""),
-        Instr("STORE_FAST", arg="result"),
-        # for letter in generator:
-        Instr("LOAD_FAST", arg="generator"),
-        Instr("GET_ITER"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(loop_header)
-    expected_instructions.extend(loop_block)
-    expected_instructions.extend(loop_if_x_block)
-    expected_instructions.extend(loop_if_a_block)
-    expected_instructions.extend(loop_if_true_block)
-    expected_instructions.extend(end_block)
-    expected_instructions.extend(abc_xyz_generator)
-    expected_instructions.extend(abc_generator)
-
+        TracedInstr("LOAD_CONST", arg=""),
+        TracedInstr("STORE_FAST", arg="result"),
+        # for ... in generator:
+        TracedInstr("LOAD_FAST", arg="generator"),
+        TracedInstr("GET_ITER"),
+        TracedInstr(
+            "FOR_ITER",
+            # the first instruction of the return block
+            arg=end_for,
+        ),
+        # x = "x"
+        TracedInstr("LOAD_CONST", arg="x"),
+        TracedInstr("STORE_FAST", arg="x"),
+        # yield from abc_generator()
+        *call_abc_generator,
+        TracedInstr("GET_YIELD_FROM_ITER"),
+        *yield_from,
+        # a = "a"
+        TracedInstr("LOAD_CONST", arg="a"),
+        TracedInstr("STORE_FAST", arg="a"),
+        # yield a
+        TracedInstr("LOAD_FAST", arg="a"),
+        yield_gen,
+        *send,
+        # for letter in ...:
+        TracedInstr("STORE_FAST", arg="letter"),
+        # letter == "x" or letter == "a":
+        TracedInstr("LOAD_FAST", arg="letter"),
+        TracedInstr("LOAD_CONST", arg="x"),
+        TracedInstr("COMPARE_OP", arg=compare_eq),
+        TracedInstr(
+            pop_jump_forward_if_true,
+            # the first instruction of the if block
+            arg=load_result_and_letter[0],
+        ),
+        TracedInstr("LOAD_FAST", arg="letter"),
+        TracedInstr("LOAD_CONST", arg="a"),
+        TracedInstr("COMPARE_OP", arg=compare_eq),
+        second_comparison_jump,
+        # result += letter
+        *load_result_and_letter,
+        inplace_add_instruction,
+        TracedInstr("STORE_FAST", arg="result"),
+        *last_jumps,
+        # yield x
+        TracedInstr("LOAD_FAST", arg="x"),
+        yield_gen,
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
     module = "tests.fixtures.slicer.generator"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_with_extended_arg():
@@ -247,33 +556,41 @@ def test_with_extended_arg():
         result = q, r
         return result  # noqa: RET504
 
-    module_block = BasicBlock([
-        # p = [1, 2, 3, 4, 5, 6]
-        Instr("BUILD_LIST", arg=0),
-        Instr("LOAD_CONST", arg=(1, 2, 3, 4, 5, 6)),
-        Instr("LIST_EXTEND", arg=1),
-        Instr("STORE_FAST", arg="p"),
-        # q, r, *s, t = p
-        Instr("LOAD_FAST", arg="p"),
-        # Instr("EXTENDED_ARG", arg=1),  # EXTENDED_ARG can not be in a slice
-        Instr("UNPACK_EX", arg=258),
-        Instr("STORE_FAST", arg="q"),
-        Instr("STORE_FAST", arg="r"),
-        # result = q
-        Instr("LOAD_FAST", arg="q"),
-        Instr("LOAD_FAST", arg="r"),
-        Instr("BUILD_TUPLE", arg=2),
-        Instr("STORE_FAST", arg="result"),
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+    if sys.version_info >= (3, 13):
+        store_q_and_r = (TracedInstr("STORE_FAST_STORE_FAST", arg=("q", "r")),)
+        load_q_and_r = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("q", "r")),)
+    else:
+        store_q_and_r = (
+            TracedInstr("STORE_FAST", arg="q"),
+            TracedInstr("STORE_FAST", arg="r"),
+        )
+        load_q_and_r = (
+            TracedInstr("LOAD_FAST", arg="q"),
+            TracedInstr("LOAD_FAST", arg="r"),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
+    expected_instructions = [
+        # p = [1, 2, 3, 4, 5, 6]
+        TracedInstr("BUILD_LIST", arg=0),
+        TracedInstr("LOAD_CONST", arg=(1, 2, 3, 4, 5, 6)),
+        TracedInstr("LIST_EXTEND", arg=1),
+        TracedInstr("STORE_FAST", arg="p"),
+        # q, r, *s, t = p
+        TracedInstr("LOAD_FAST", arg="p"),
+        # TracedInstr("EXTENDED_ARG", arg=1),  # EXTENDED_ARG can not be in a slice
+        TracedInstr("UNPACK_EX", arg=258),
+        *store_q_and_r,
+        # result = q
+        *load_q_and_r,
+        TracedInstr("BUILD_TUPLE", arg=2),
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
+
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_nested_class():
@@ -289,48 +606,94 @@ def test_nested_class():
         result = class_attr
         return result  # noqa: RET504
 
-    freevar_x = FreeVar("x")
     cellvar_x = CellVar("x")
-    function_block = BasicBlock([
+    freevar_x = FreeVar("x")
+
+    if sys.version_info >= (3, 13):
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg=cellvar_x),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=8),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+        )
+        load_class_deref = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x),
+        )
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+    elif sys.version_info >= (3, 12):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+        )
+        load_class_deref = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x),
+        )
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+    elif sys.version_info >= (3, 11):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+        )
+        load_class_deref = (TracedInstr("LOAD_CLASSDEREF", arg=freevar_x),)
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
+    else:
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+        )
+        load_class_deref = (TracedInstr("LOAD_CLASSDEREF", arg=freevar_x),)
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
+
+    expected_instructions = [
         # x = []
-        Instr("BUILD_LIST", arg=0),
-        Instr("STORE_DEREF", arg=cellvar_x),
+        TracedInstr("BUILD_LIST", arg=0),
+        TracedInstr("STORE_DEREF", arg=cellvar_x),
         # class NestedClass:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CLOSURE", arg=cellvar_x),
-        Instr("BUILD_TUPLE", arg=1),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="NestedClass"),
-        Instr("MAKE_FUNCTION", arg=8),
-        Instr("LOAD_CONST", arg="NestedClass"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_FAST", arg="NestedClass"),
+        *create_nested_class,
+        *load_class_deref,
+        TracedInstr("STORE_NAME", arg="y"),
+        *return_none,
+        TracedInstr("STORE_FAST", arg="NestedClass"),
         # class_attr = NestedClass.y
-        Instr("LOAD_FAST", arg="NestedClass"),
-        Instr("LOAD_ATTR", arg="y"),
-        Instr("STORE_FAST", arg="class_attr"),
+        TracedInstr("LOAD_FAST", arg="NestedClass"),
+        load_y,
+        TracedInstr("STORE_FAST", arg="class_attr"),
         # result = class_attr
-        Instr("LOAD_FAST", arg="class_attr"),
-        Instr("STORE_FAST", arg="result"),
+        TracedInstr("LOAD_FAST", arg="class_attr"),
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
-    nested_class_block = BasicBlock([
-        # y = x
-        Instr("LOAD_CLASSDEREF", arg=freevar_x),
-        Instr("STORE_NAME", arg="y"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(function_block)
-    expected_instructions.extend(nested_class_block)
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_nested_class_2():
@@ -358,82 +721,196 @@ def test_nested_class_2():
         return result  # noqa: RET504
 
     freevar_x1 = FreeVar("x1")
-    cellvar_x1 = CellVar("x1")
     freevar_x2 = FreeVar("x2")
+    cellvar_x1 = CellVar("x1")
     cellvar_x2 = CellVar("x2")
-    function_block = BasicBlock([
+
+    if sys.version_info >= (3, 13):
+        create_foo_class = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x1),
+            TracedInstr("STORE_NAME", arg="foo"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg=freevar_x2),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=8),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x2),
+            TracedInstr("STORE_NAME", arg="y"),
+        )
+        create_bar_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg=cellvar_x1),
+            TracedInstr("LOAD_FAST", arg=cellvar_x2),
+            TracedInstr("BUILD_TUPLE", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=8),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("CALL", arg=2),
+            *create_foo_class,
+            *return_none,
+            TracedInstr("STORE_NAME", arg="Foo"),
+        )
+        load_foo = TracedInstr("LOAD_ATTR", arg=(False, "foo"))
+        load_foo_class = TracedInstr("LOAD_ATTR", arg=(False, "Foo"))
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+        load_class_attr_and_class_attr2 = (
+            TracedInstr("LOAD_FAST_LOAD_FAST", arg=("class_attr", "class_attr2")),
+        )
+    elif sys.version_info >= (3, 12):
+        create_foo_class = (
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x1),
+            TracedInstr("STORE_NAME", arg="foo"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=freevar_x2),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_LOCALS"),
+            TracedInstr("LOAD_FROM_DICT_OR_DEREF", arg=freevar_x2),
+            TracedInstr("STORE_NAME", arg="y"),
+        )
+        create_bar_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x1),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x2),
+            TracedInstr("BUILD_TUPLE", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("CALL", arg=2),
+            *create_foo_class,
+            *return_none,
+            TracedInstr("STORE_NAME", arg="Foo"),
+        )
+        load_foo = TracedInstr("LOAD_ATTR", arg=(False, "foo"))
+        load_foo_class = TracedInstr("LOAD_ATTR", arg=(False, "Foo"))
+        load_y = TracedInstr("LOAD_ATTR", arg=(False, "y"))
+        load_class_attr_and_class_attr2 = (
+            TracedInstr("LOAD_FAST", arg="class_attr"),
+            TracedInstr("LOAD_FAST", arg="class_attr2"),
+        )
+    elif sys.version_info >= (3, 11):
+        create_foo_class = (
+            TracedInstr("LOAD_CLASSDEREF", arg=freevar_x1),
+            TracedInstr("STORE_NAME", arg="foo"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=freevar_x2),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CLASSDEREF", arg=freevar_x2),
+            TracedInstr("STORE_NAME", arg="y"),
+        )
+        create_bar_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x1),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x2),
+            TracedInstr("BUILD_TUPLE", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+            *create_foo_class,
+            *return_none,
+            TracedInstr("STORE_NAME", arg="Foo"),
+        )
+        load_foo = TracedInstr("LOAD_ATTR", arg="foo")
+        load_foo_class = TracedInstr("LOAD_ATTR", arg="Foo")
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
+        load_class_attr_and_class_attr2 = (
+            TracedInstr("LOAD_FAST", arg="class_attr"),
+            TracedInstr("LOAD_FAST", arg="class_attr2"),
+        )
+    else:
+        create_foo_class = (
+            TracedInstr("LOAD_CLASSDEREF", arg=freevar_x1),
+            TracedInstr("STORE_NAME", arg="foo"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=freevar_x2),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+            TracedInstr("LOAD_CLASSDEREF", arg=freevar_x2),
+            TracedInstr("STORE_NAME", arg="y"),
+        )
+        create_bar_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x1),
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_x2),
+            TracedInstr("BUILD_TUPLE", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+            TracedInstr("LOAD_CONST", arg="Bar"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+            *create_foo_class,
+            *return_none,
+            TracedInstr("STORE_NAME", arg="Foo"),
+        )
+        load_foo = TracedInstr("LOAD_ATTR", arg="foo")
+        load_foo_class = TracedInstr("LOAD_ATTR", arg="Foo")
+        load_y = TracedInstr("LOAD_ATTR", arg="y")
+        load_class_attr_and_class_attr2 = (
+            TracedInstr("LOAD_FAST", arg="class_attr"),
+            TracedInstr("LOAD_FAST", arg="class_attr2"),
+        )
+
+    expected_instructions = [
         # x1 = [1]
-        Instr("LOAD_CONST", arg=1),
-        Instr("BUILD_LIST", arg=1),
-        Instr("STORE_DEREF", arg=cellvar_x1),
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("BUILD_LIST", arg=1),
+        TracedInstr("STORE_DEREF", arg=cellvar_x1),
         # x2 = [2]
-        Instr("LOAD_CONST", arg=2),
-        Instr("BUILD_LIST", arg=1),
-        Instr("STORE_DEREF", arg=cellvar_x2),
+        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr("BUILD_LIST", arg=1),
+        TracedInstr("STORE_DEREF", arg=cellvar_x2),
         # class Bar:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CLOSURE", arg=cellvar_x1),
-        Instr("LOAD_CLOSURE", arg=freevar_x2),
-        Instr("BUILD_TUPLE", arg=2),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Bar"),
-        Instr("MAKE_FUNCTION", arg=8),
-        Instr("LOAD_CONST", arg="Bar"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_FAST", arg="Bar"),
+        *create_bar_class,
+        *return_none,
+        TracedInstr("STORE_FAST", arg="Bar"),
         # class_attr = Bar.y
-        Instr("LOAD_FAST", arg="Bar"),
-        Instr("LOAD_ATTR", arg="foo"),
-        Instr("STORE_FAST", arg="class_attr"),
+        TracedInstr("LOAD_FAST", arg="Bar"),
+        load_foo,
+        TracedInstr("STORE_FAST", arg="class_attr"),
         # class_attr2 = Bar.Foo.y
-        Instr("LOAD_FAST", arg="Bar"),
-        Instr("LOAD_ATTR", arg="Foo"),
-        Instr("LOAD_ATTR", arg="y"),
-        Instr("STORE_FAST", arg="class_attr2"),
+        TracedInstr("LOAD_FAST", arg="Bar"),
+        load_foo_class,
+        load_y,
+        TracedInstr("STORE_FAST", arg="class_attr2"),
         # result = class_attr + class_attr2
-        Instr("LOAD_FAST", arg="class_attr"),
-        Instr("LOAD_FAST", arg="class_attr2"),
-        Instr("BINARY_ADD"),
-        Instr("STORE_FAST", arg="result"),
+        *load_class_attr_and_class_attr2,
+        binary_add_instruction,
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
-    bar_block = BasicBlock([
-        # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CLOSURE", arg=cellvar_x2),
-        Instr("BUILD_TUPLE", arg=1),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=8),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
-        # foo = x1
-        Instr("LOAD_CLASSDEREF", arg=freevar_x1),
-        Instr("STORE_NAME", arg="foo"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
-
-    foo_block = BasicBlock([
-        # y = x2
-        Instr("LOAD_CLASSDEREF", arg=freevar_x2),
-        Instr("STORE_NAME", arg="y"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(function_block)
-    expected_instructions.extend(foo_block)
-    expected_instructions.extend(bar_block)
-    sliced_instructions = slice_function_at_return(func)
-    assert func() == [1, 2]
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    sliced_instructions, result = slice_function_at_return_with_result(func)
+    assert result == [1, 2]
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_lambda():
@@ -443,36 +920,70 @@ def test_lambda():
         result = x(1)
         return result  # noqa: RET504
 
-    function_block = BasicBlock([
+    if sys.version_info >= (3, 13):
+        create_lambda = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+        )
+        call_lambda = (
+            TracedInstr("LOAD_FAST", arg="x"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 12):
+        create_lambda = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_lambda = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="x"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
+        create_lambda = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_lambda = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="x"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("PRECALL", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    else:
+        create_lambda = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="test_lambda.<locals>.func.<locals>.<lambda>"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_lambda = (
+            TracedInstr("LOAD_FAST", arg="x"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL_FUNCTION", arg=1),
+        )
+
+    expected_instructions = [
         # x = lambda a: a + 10
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="test_lambda.<locals>.func.<locals>.<lambda>"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="x"),
+        *create_lambda,
+        TracedInstr("STORE_FAST", arg="x"),
         # result = x(1)
-        Instr("LOAD_FAST", arg="x"),
-        Instr("LOAD_CONST", arg=1),
-        Instr("CALL_FUNCTION", arg=1),
-        Instr("STORE_FAST", arg="result"),
+        *call_lambda,
+        TracedInstr("LOAD_FAST", arg="a"),
+        TracedInstr("LOAD_CONST", arg=10),
+        binary_add_instruction,
+        TracedInstr("RETURN_VALUE"),
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
-    lambda_block = BasicBlock([
-        # lambda a: a + 10
-        Instr("LOAD_FAST", arg="a"),
-        Instr("LOAD_CONST", arg=10),
-        Instr("BINARY_ADD"),
-        Instr("RETURN_VALUE"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(function_block)
-    expected_instructions.extend(lambda_block)
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_builtin_addresses():
@@ -486,65 +997,117 @@ def test_builtin_addresses():
         result = test_dict.get(1)
         return result  # noqa: RET504
 
-    function_block = BasicBlock([
-        # test_dict = {1: "one", 2: "two"}
-        Instr("LOAD_CONST", arg="one"),
-        Instr("LOAD_CONST", arg="two"),
-        Instr("LOAD_CONST", arg=(1, 2)),
-        Instr("BUILD_CONST_KEY_MAP", arg=2),
-        Instr("STORE_FAST", arg="test_dict"),
-        # result = test_dict.get(1)
-        Instr("LOAD_FAST", arg="test_dict"),
-        Instr("LOAD_METHOD", arg="get"),
-        Instr("LOAD_CONST", arg=1),
-        Instr("CALL_METHOD", arg=1),
-        Instr("STORE_FAST", arg="result"),
-        # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+    if sys.version_info >= (3, 12):
+        call_get = (
+            TracedInstr("LOAD_FAST", arg="test_dict"),
+            TracedInstr("LOAD_ATTR", arg=(True, "get")),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
+        call_get = (
+            TracedInstr("LOAD_FAST", arg="test_dict"),
+            TracedInstr("LOAD_METHOD", arg="get"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("PRECALL", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    else:
+        call_get = (
+            TracedInstr("LOAD_FAST", arg="test_dict"),
+            TracedInstr("LOAD_METHOD", arg="get"),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("CALL_METHOD", arg=1),
+        )
 
-    expected_instructions = []
-    expected_instructions.extend(function_block)
+    expected_instructions = [
+        # test_dict = {1: "one", 2: "two"}
+        TracedInstr("LOAD_CONST", arg="one"),
+        TracedInstr("LOAD_CONST", arg="two"),
+        TracedInstr("LOAD_CONST", arg=(1, 2)),
+        TracedInstr("BUILD_CONST_KEY_MAP", arg=2),
+        TracedInstr("STORE_FAST", arg="test_dict"),
+        # result = test_dict.get(1)
+        *call_get,
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
+
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_data_dependency_immutable_attribute():
     # Explicit attribute dependency of immutable type
-    module_block = BasicBlock([
-        # class Foo:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="Foo"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_NAME", arg="Foo"),
-        # result = ob.attr
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_ATTR", arg="attr"),
-        Instr("STORE_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    class_attr_block = BasicBlock([
-        # attr = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("STORE_NAME", arg="attr"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
+    if sys.version_info >= (3, 13):
+        create_foo_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("STORE_NAME", arg="attr"),
+        )
+        load_attr = TracedInstr("LOAD_ATTR", arg=(False, "attr"))
+    elif sys.version_info >= (3, 12):
+        create_foo_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("STORE_NAME", arg="attr"),
+        )
+        load_attr = TracedInstr("LOAD_ATTR", arg=(False, "attr"))
+    elif sys.version_info >= (3, 11):
+        create_foo_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("STORE_NAME", arg="attr"),
+        )
+        load_attr = TracedInstr("LOAD_ATTR", arg="attr")
+    else:
+        create_foo_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="Foo"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr("STORE_NAME", arg="attr"),
+        )
+        load_attr = TracedInstr("LOAD_ATTR", arg="attr")
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(class_attr_block)
+    expected_instructions = [
+        # class Foo:
+        *create_foo_class,
+        *return_none,
+        TracedInstr("STORE_NAME", arg="Foo"),
+        # result = ob.attr
+        TracedInstr("LOAD_FAST", arg="ob"),
+        load_attr,
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.immutable_attribute_dependency"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_object_modification_call():
@@ -562,79 +1125,144 @@ def test_object_modification_call():
         result = ob.x
         return result  # noqa: RET504
 
-    function_block = BasicBlock([
+    if sys.version_info >= (3, 13):
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("STORE_NAME", arg="inc_x"),
+        )
+        call_nested_class = (
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("CALL", arg=0),
+        )
+        call_inc_x_method = (
+            TracedInstr("LOAD_FAST", arg="ob"),
+            TracedInstr("LOAD_ATTR", arg=(True, "inc_x")),
+            TracedInstr("CALL", arg=0),
+        )
+        load_x = TracedInstr("LOAD_ATTR", arg=(False, "x"))
+    elif sys.version_info >= (3, 12):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("STORE_NAME", arg="inc_x"),
+        )
+        call_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("CALL", arg=0),
+        )
+        call_inc_x_method = (
+            TracedInstr("LOAD_FAST", arg="ob"),
+            TracedInstr("LOAD_ATTR", arg=(True, "inc_x")),
+            TracedInstr("CALL", arg=0),
+        )
+        load_x = TracedInstr("LOAD_ATTR", arg=(False, "x"))
+    elif sys.version_info >= (3, 11):
+        create_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("PRECALL", arg=2),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("STORE_NAME", arg="inc_x"),
+        )
+        call_nested_class = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+        )
+        call_inc_x_method = (
+            TracedInstr("LOAD_FAST", arg="ob"),
+            TracedInstr("LOAD_METHOD", arg="inc_x"),
+            TracedInstr("PRECALL", arg=0),
+            TracedInstr("CALL", arg=0),
+        )
+        load_x = TracedInstr("LOAD_ATTR", arg="x")
+    else:
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL_FUNCTION", arg=2),
+            # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
+            # def __init__(self):
+            # TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            # TracedInstr("LOAD_CONST", arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
+            #                         "func.<locals>.NestedClass.__init__"),
+            # TracedInstr("MAKE_FUNCTION", arg=0),
+            # TracedInstr("STORE_NAME", arg="__init__"),
+            # def inc_x(self):
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr(
+                "LOAD_CONST",
+                arg="test_object_modification_call.<locals>.func.<locals>.NestedClass.inc_x",
+            ),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+            TracedInstr("STORE_NAME", arg="inc_x"),
+        )
+        call_nested_class = (
+            TracedInstr("LOAD_FAST", arg="NestedClass"),
+            TracedInstr("CALL_FUNCTION", arg=0),
+        )
+        call_inc_x_method = (
+            TracedInstr("LOAD_FAST", arg="ob"),
+            TracedInstr("LOAD_METHOD", arg="inc_x"),
+            TracedInstr("CALL_METHOD", arg=0),
+        )
+        load_x = TracedInstr("LOAD_ATTR", arg="x")
+
+    expected_instructions = [
         # class NestedClass:
-        Instr("LOAD_BUILD_CLASS"),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="NestedClass"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("LOAD_CONST", arg="NestedClass"),
-        Instr("CALL_FUNCTION", arg=2),
-        Instr("STORE_FAST", arg="NestedClass"),
+        *create_nested_class,
+        *return_none,
+        TracedInstr("STORE_FAST", arg="NestedClass"),
         # ob = NestedClass()
-        Instr("LOAD_FAST", arg="NestedClass"),
-        Instr("CALL_FUNCTION", arg=0),
-        Instr("STORE_FAST", arg="ob"),
+        *call_nested_class,
+        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr("LOAD_FAST", arg="self"),
+        TracedInstr("STORE_ATTR", arg="x"),
+        *return_none,
+        TracedInstr("STORE_FAST", arg="ob"),
         # ob.inc_x()
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_METHOD", arg="inc_x"),
-        Instr("CALL_METHOD", arg=0),
+        *call_inc_x_method,
+        TracedInstr("LOAD_FAST", arg="self"),
+        load_x,
+        TracedInstr("LOAD_CONST", arg=1),
+        binary_add_instruction,
+        TracedInstr("LOAD_FAST", arg="self"),
+        TracedInstr("STORE_ATTR", arg="x"),
         # result = ob.x
-        Instr("LOAD_FAST", arg="ob"),
-        Instr("LOAD_ATTR", arg="x"),
-        Instr("STORE_FAST", arg="result"),
+        TracedInstr("LOAD_FAST", arg="ob"),
+        load_x,
+        TracedInstr("STORE_FAST", arg="result"),
         # return result
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
-    nested_class_block = BasicBlock([
-        # Definition of dunder methods are wrongly excluded, since these are not explicitly loaded
-        # def __init__(self):
-        # Instr("LOAD_CONST", arg=dummy_code_object),
-        # Instr("LOAD_CONST", arg="IntegrationTestLanguageFeatures.test_object_modification_call.<locals>."
-        #                         "func.<locals>.NestedClass.__init__"),
-        # Instr("MAKE_FUNCTION", arg=0),
-        # Instr("STORE_NAME", arg="__init__"),
-        # def inc_x(self):
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr(
-            "LOAD_CONST",
-            arg="test_object_modification_call.<locals>.func.<locals>.NestedClass.inc_x",
-        ),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="inc_x"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
-
-    init_block = BasicBlock([
-        # self.x = 1
-        Instr("LOAD_CONST", arg=1),
-        Instr("LOAD_FAST", arg="self"),
-        Instr("STORE_ATTR", arg="x"),
-        Instr("LOAD_CONST", arg=None),
-        Instr("RETURN_VALUE"),
-    ])
-
-    inc_x_block = BasicBlock([
-        # self.x = self.x + 1
-        Instr("LOAD_FAST", arg="self"),
-        Instr("LOAD_ATTR", arg="x"),
-        Instr("LOAD_CONST", arg=1),
-        Instr("BINARY_ADD"),
-        Instr("LOAD_FAST", arg="self"),
-        Instr("STORE_ATTR", arg="x"),
-    ])
-
-    expected_instructions = []
-    expected_instructions.extend(function_block)
-    expected_instructions.extend(nested_class_block)
-    expected_instructions.extend(init_block)
-    expected_instructions.extend(inc_x_block)
     sliced_instructions = slice_function_at_return(func)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)
 
 
 def test_closures():
@@ -642,51 +1270,128 @@ def test_closures():
 
     freevar_foo = FreeVar("foo")
     cellvar_foo = CellVar("foo")
-    module_block = BasicBlock([
-        # def outer_function(foo):
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="outer_function"),
-        Instr("MAKE_FUNCTION", arg=0),
-        Instr("STORE_NAME", arg="outer_function"),
-        # inner = outer_function('a')
-        Instr("LOAD_GLOBAL", arg="outer_function"),
-        Instr("LOAD_CONST", arg="a"),
-        Instr("CALL_FUNCTION", arg=1),
-        Instr("STORE_FAST", arg="inner"),
-        # result = inner("abc")
-        Instr("LOAD_FAST", arg="inner"),
-        Instr("LOAD_CONST", arg="abc"),
-        Instr("CALL_FUNCTION", arg=1),
-        Instr("STORE_FAST", arg="result"),
-        Instr("LOAD_FAST", arg="result"),
-        Instr("RETURN_VALUE"),
-    ])
-    outer_function_block = BasicBlock([
-        # def inner_function(bar):
-        Instr("LOAD_CLOSURE", arg=cellvar_foo),
-        Instr("BUILD_TUPLE", arg=1),
-        Instr("LOAD_CONST", arg=dummy_code_object),
-        Instr("LOAD_CONST", arg="outer_function.<locals>.inner_function"),
-        Instr("MAKE_FUNCTION", arg=8),
-        Instr("STORE_FAST", arg="inner_function"),
-        # return inner
-        Instr("LOAD_FAST", arg="inner_function"),
-        Instr("RETURN_VALUE"),
-    ])
-    inner_function_block = BasicBlock([
-        # return foo in bar
-        Instr("LOAD_DEREF", arg=freevar_foo),
-        Instr("LOAD_FAST", arg="bar"),
-        Instr("CONTAINS_OP", arg=0),
-        Instr("RETURN_VALUE"),
-    ])
 
-    expected_instructions = []
-    expected_instructions.extend(module_block)
-    expected_instructions.extend(outer_function_block)
-    expected_instructions.extend(inner_function_block)
+    if sys.version_info >= (3, 13):
+        create_outer_function = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+        )
+        call_outer_function = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "outer_function")),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("CALL", arg=1),
+        )
+        create_inner_function = (
+            TracedInstr("LOAD_FAST", arg="foo"),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=8),
+        )
+        call_inner_function = (
+            TracedInstr("LOAD_FAST", arg="inner"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg="abc"),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 12):
+        create_outer_function = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_outer_function = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "outer_function")),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("CALL", arg=1),
+        )
+        create_inner_function = (
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_foo),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+        )
+        call_inner_function = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="inner"),
+            TracedInstr("LOAD_CONST", arg="abc"),
+            TracedInstr("CALL", arg=1),
+        )
+    elif sys.version_info >= (3, 11):
+        create_outer_function = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_outer_function = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "outer_function")),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("PRECALL", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+        create_inner_function = (
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_foo),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+        )
+        call_inner_function = (
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_FAST", arg="inner"),
+            TracedInstr("LOAD_CONST", arg="abc"),
+            TracedInstr("PRECALL", arg=1),
+            TracedInstr("CALL", arg=1),
+        )
+    else:
+        create_outer_function = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="outer_function"),
+            TracedInstr("MAKE_FUNCTION", arg=0),
+        )
+        call_outer_function = (
+            TracedInstr("LOAD_GLOBAL", arg="outer_function"),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("CALL_FUNCTION", arg=1),
+        )
+        create_inner_function = (
+            TracedInstr("LOAD_CLOSURE", arg=cellvar_foo),
+            TracedInstr("BUILD_TUPLE", arg=1),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("LOAD_CONST", arg="outer_function.<locals>.inner_function"),
+            TracedInstr("MAKE_FUNCTION", arg=8),
+        )
+        call_inner_function = (
+            TracedInstr("LOAD_FAST", arg="inner"),
+            TracedInstr("LOAD_CONST", arg="abc"),
+            TracedInstr("CALL_FUNCTION", arg=1),
+        )
+
+    expected_instructions = [
+        # def outer_function(foo):
+        *create_outer_function,
+        TracedInstr("STORE_NAME", arg="outer_function"),
+        # ... = outer_function("a")
+        *call_outer_function,
+        # def inner_function(bar):
+        *create_inner_function,
+        TracedInstr("STORE_FAST", arg="inner_function"),
+        # return inner_function
+        TracedInstr("LOAD_FAST", arg="inner_function"),
+        TracedInstr("RETURN_VALUE"),
+        # inner = ...
+        TracedInstr("STORE_FAST", arg="inner"),
+        # ... = inner("abc")
+        *call_inner_function,
+        # return foo in bar
+        TracedInstr("LOAD_DEREF", arg=freevar_foo),
+        TracedInstr("LOAD_FAST", arg="bar"),
+        TracedInstr("CONTAINS_OP", arg=0),
+        TracedInstr("RETURN_VALUE"),
+        # result = ...
+        TracedInstr("STORE_FAST", arg="result"),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     module = "tests.fixtures.slicer.closure"
     sliced_instructions = slice_module_at_return(module)
-    assert len(sliced_instructions) == len(expected_instructions)
-    assert compare(sliced_instructions, expected_instructions)
+    assert_slice_equal(sliced_instructions, expected_instructions)

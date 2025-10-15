@@ -104,11 +104,11 @@ pynguin.assertion.mutation_analysis.mutators
     :members:
 
 
-pynguin.instrumentation.instrumentation
------------------------------------------
+pynguin.instrumentation.version.DynamicSeedingInstrumentation
+-------------------------------------------------------------
 
-.. automodule:: pynguin.instrumentation.instrumentation
-    :members:
+.. automodule:: pynguin.instrumentation.version.DynamicSeedingInstrumentation
+   :members:
 
 
 pynguin.utils.typetracing

@@ -7,6 +7,7 @@
 import enum
 import importlib
 import inspect
+import re
 
 from inspect import Parameter
 from inspect import Signature
@@ -31,6 +32,7 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import StringSubtype
 from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -308,6 +310,18 @@ def test_attempt_generation_for_int_with_no_probability(default_test_case):
         allow_none=True,
     )
     assert result is None
+
+
+def test_attempt_generation_for_string_subtype(default_test_case):
+    factory = tf.TestFactory(default_test_case.test_cluster)
+    result = factory._attempt_generation(
+        test_case=default_test_case,
+        parameter_type=StringSubtype(re.compile(r"^bar")),
+        position=0,
+        recursion_depth=0,
+        allow_none=True,
+    )
+    assert result.distance == 0
 
 
 def test_attempt_generation_for_type_from_cluster(default_test_case):
@@ -1026,6 +1040,7 @@ def test_add_method_type_tracing_union_type(default_test_case):
     )
 
     usage_trace = MagicMock(tt.UsageTraceNode)
+    usage_trace.find_path = lambda _: None
     usage_trace.__len__.return_value = 1
     usage_trace.children = {}
     ordered_set = OrderedSet()

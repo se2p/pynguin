@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+# SPDX-License-Identifier: MIT
+
+coverage:
+  status:
+    project:
+      default:
+        paths:
+          - "src/pynguin"
+        target: auto
+        threshold: 1%
+        base: auto
+    patch:
+      default:
+        target: 90%
+        threshold: 1%
+        paths:
+          - "src/pynguin"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: true
+  require_base: yes

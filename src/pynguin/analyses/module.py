@@ -61,7 +61,6 @@ from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import Unsupported
 from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.configuration import TypeInferenceStrategy
-from pynguin.instrumentation.instrumentation import CODE_OBJECT_ID_KEY
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.exceptions import ConstructionFailedException
@@ -94,6 +93,7 @@ if typing.TYPE_CHECKING:
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
 LOGGER = logging.getLogger(__name__)
+
 
 # A set of modules that shall be blacklisted from analysis (keep them sorted to ease
 # future manipulations or looking up module names of this set!!!):
@@ -439,6 +439,25 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
+def read_module_ast(module_path: str, module_name: str) -> tuple[astroid.Module, str]:
+    """Reads the AST of the module and returns it along with its source code.
+
+    Args:
+        module_path: The path of the module.
+        module_name: The name of the module.
+
+    Raises:
+        OSError: if the module file cannot be read.
+        AstroidError: if an error occurs during the creation of the AST.
+
+    Returns:
+        A tuple containing the AST and the source code.
+    """
+    source_code = Path(module_path).read_text(encoding="utf-8")
+    syntax_tree = astroid.parse(code=source_code, module_name=module_name, path=module_path)
+    return syntax_tree, source_code
+
+
 def parse_module(module_name: str) -> _ModuleParseResult:
     """Parses a module and extracts its module-type and AST.
 
@@ -457,21 +476,22 @@ def parse_module(module_name: str) -> _ModuleParseResult:
     syntax_tree: astroid.Module | None = None
     linenos: int = -1
     try:
-        source_file = inspect.getsourcefile(module)
-        source_code = inspect.getsource(module)
-        syntax_tree = astroid.parse(
-            code=source_code,
-            module_name=module_name,
-            path=source_file if source_file is not None else "",
-        )
-        linenos = len(source_code.splitlines())
-
-    except (TypeError, OSError, RuntimeError) as error:
+        module_path = inspect.getsourcefile(module)
+        assert module_path is not None, f"Could not determine the path of module {module}"
+        syntax_tree, source_code = read_module_ast(module_path, module_name)
+    except (
+        TypeError,  # from `inspect.getsourcefile`
+        AssertionError,  # from `assert`
+        OSError,
+        astroid.AstroidError,
+    ) as error:
         LOGGER.debug(
             f"Could not retrieve source code for module {module_name} "  # noqa: G004
             f"({error}). "
             f"Cannot derive syntax tree to allow Pynguin using more precise analysis."
         )
+    else:
+        linenos = len(source_code.splitlines())
 
     return _ModuleParseResult(
         linenos=linenos,
@@ -1106,8 +1126,14 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
     ) -> None:
         self.__delegate = delegate
         self.__subject_properties = subject_properties
-        self.__code_object_id_to_accessible_objects: dict[int, GenericCallableAccessibleObject] = {
-            json.loads(acc.callable.__code__.co_consts[0])[CODE_OBJECT_ID_KEY]: acc
+
+        existing_code_objects = {
+            metadata.code_object: code_object_id
+            for code_object_id, metadata in subject_properties.existing_code_objects.items()
+        }
+
+        self.__code_object_id_to_accessible_objects = {
+            existing_code_objects[acc.callable.__code__]: acc
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")
@@ -1462,6 +1488,7 @@ def __analyse_class(
 IGNORED_SYMBOLS: set[str] = {
     "__new__",
     "__init__",
+    "__del__",
     "__repr__",
     "__str__",
     "__sizeof__",

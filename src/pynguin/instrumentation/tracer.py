@@ -14,23 +14,35 @@ import threading
 
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
+from collections.abc import Iterable
 from collections.abc import Sized
 from dataclasses import dataclass
 from dataclasses import field
+from functools import wraps
+from itertools import count
 from math import inf
+from opcode import opname
 from types import BuiltinFunctionType
 from types import BuiltinMethodType
+from types import CodeType
+from types import MethodType
+from types import TracebackType
+from typing import TYPE_CHECKING
+from typing import Concatenate
+from typing import ParamSpec
 
-from bytecode import CellVar
-from bytecode import FreeVar
+from bytecode.instr import CellVar
+from bytecode.instr import FreeVar
 
 import pynguin.assertion.assertion as ass
-import pynguin.instrumentation.instrumentation as instr
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
-import pynguin.utils.opcodes as op
 import pynguin.utils.typetracing as tt
 
+from pynguin.instrumentation import PynguinCompare
+from pynguin.instrumentation import version
+from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import given_exception_matches
 from pynguin.utils.type_utils import is_bytes
@@ -41,17 +53,22 @@ from pynguin.utils.type_utils import string_le_distance
 from pynguin.utils.type_utils import string_lt_distance
 
 
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
+    from pynguin.instrumentation.controlflow import CFG
+    from pynguin.instrumentation.controlflow import BasicBlockNode
+    from pynguin.instrumentation.controlflow import ControlDependenceGraph
+
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
+
+VariableName = str | CellVar | FreeVar
 
 
 @dataclass
 class ExecutedAssertion:
     """Data class for assertions of a testcase traced during execution for slicing."""
 
-    # the code object containing the executed assertion
-    code_object_id: int
-    # the node containing the executed assertion
-    node_id: int
     # the position inside the exection trace of the executed assertion
     trace_position: int
     # the assertion object of a statement that was executed
@@ -70,6 +87,7 @@ class ExecutionTrace:
     false_distances: dict[int, float] = field(default_factory=dict)
     covered_line_ids: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_instructions: list[ei.ExecutedInstruction] = field(default_factory=list)
+    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
     checked_lines: OrderedSet[int] = field(default_factory=OrderedSet)
 
@@ -88,10 +106,9 @@ class ExecutionTrace:
         self.checked_lines.update(other.checked_lines)
         shift: int = len(self.executed_instructions)
         self.executed_instructions.extend(other.executed_instructions)
+        self.object_addresses.update(other.object_addresses)
         self.executed_assertions.extend(
             ExecutedAssertion(
-                executed_assertion.code_object_id,
-                executed_assertion.node_id,
                 executed_assertion.trace_position + shift,
                 executed_assertion.assertion,
             )
@@ -147,6 +164,7 @@ class ExecutionTrace:
         executed_instr = ei.ExecutedInstruction(
             module, code_object_id, node_id, opcode, None, lineno, offset
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_memory_instruction(  # noqa: PLR0917
@@ -157,10 +175,10 @@ class ExecutionTrace:
         opcode: int,
         lineno: int,
         offset: int,
-        arg_name: str,
-        arg_address: int,
-        is_mutable_type: bool,  # noqa: FBT001
-        object_creation: bool,  # noqa: FBT001
+        arg_name: str | tuple[str, str],
+        arg_address: int | tuple[int, int],
+        is_mutable_type: bool | tuple[bool, bool],  # noqa: FBT001
+        object_creation: bool | tuple[bool, bool],  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedMemoryInstruction object and adds it to the trace.
 
@@ -188,6 +206,7 @@ class ExecutionTrace:
             is_mutable_type,
             object_creation,
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_attribute_instruction(  # noqa: PLR0917
@@ -202,6 +221,7 @@ class ExecutionTrace:
         src_address: int,
         arg_address: int,
         is_mutable_type: bool,  # noqa: FBT001
+        is_method: bool,  # noqa: FBT001
     ) -> None:
         """Creates a new ExecutedAttributeInstruction object and adds it to the trace.
 
@@ -216,6 +236,7 @@ class ExecutionTrace:
             src_address: the memory address of the attribute
             arg_address: the memory address of the argument
             is_mutable_type: if the attribute is mutable
+            is_method: if the attribute is a method
         """
         executed_instr = ei.ExecutedAttributeInstruction(
             module,
@@ -228,7 +249,9 @@ class ExecutionTrace:
             src_address,
             arg_address,
             is_mutable_type,
+            is_method,
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_jump_instruction(  # noqa: PLR0917
@@ -255,6 +278,7 @@ class ExecutionTrace:
         executed_instr = ei.ExecutedControlInstruction(
             module, code_object_id, node_id, opcode, target_id, lineno, offset
         )
+
         self.executed_instructions.append(executed_instr)
 
     def add_call_instruction(  # noqa: PLR0917
@@ -339,25 +363,212 @@ class LineMetaData:
 
 
 @dataclass
+class CodeObjectMetaData:
+    """Stores meta data of a code object."""
+
+    # The instrumented code object.
+    code_object: CodeType
+
+    # Id of the parent code object, if any
+    parent_code_object_id: int | None
+
+    # CFG of this code object
+    cfg: CFG
+
+    # CDG of this code object
+    cdg: ControlDependenceGraph
+
+    def __getstate__(self) -> dict:
+        return {
+            "code_object": self.code_object,
+            "parent_code_object_id": self.parent_code_object_id,
+            "cfg": self.cfg,
+            "cdg": self.cdg,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self.code_object = state["code_object"]
+        self.parent_code_object_id = state["parent_code_object_id"]
+        self.cfg = state["cfg"]
+        self.cdg = state["cdg"]
+
+
+@dataclass
+class PredicateMetaData:
+    """Stores meta data of a predicate."""
+
+    # Line number where the predicate is defined.
+    line_no: int
+
+    # Id of the code object where the predicate was defined.
+    code_object_id: int
+
+    # The node in the program graph, that defines this predicate.
+    node: BasicBlockNode
+
+
+@dataclass
 class SubjectProperties:
-    """Contains properties about the subject under test."""
+    """Contains properties about the subject under test.
+
+    The subject properties are `code objects`, `predicates` and `lines`:
+
+    - **Code Objects**:
+      Compiled chunks of code (functions, methods, modules).
+      Tracked in `CodeObjectMetaData` with references to the compiled code, parent,
+      control graphs, and a unique ID. Represent the program's structural units.
+    - **Predicates**:
+      Decision points within code objects (e.g., ``if``, ``while``).
+      Tracked in `PredicateMetaData` with line number, owning code object, and graph node.
+      Used for branch coverage and measuring branch distances.
+    - **Lines**:
+      Individual lines of code within code objects.
+      Tracked in `LineMetaData` with file name and line number.
+      Used for measuring line coverage.
+
+    **Example**::
+
+        def example(x):
+            if x > 0:  # Predicate
+                return "pos"
+            return "non-pos"
+
+        # The function ``example`` is a Code Object and ``x > 0`` is a Predicate.
+    """
+
+    # TODO(lk): SubjectProperties and ExecutionTracer should be separated
+
+    # The instrumentation tracer that is used to trace the execution
+    instrumentation_tracer: InstrumentationExecutionTracer = field(
+        default_factory=lambda: InstrumentationExecutionTracer(ExecutionTracer())
+    )
+
+    # The counter used to generate unique code object ids
+    code_object_counter: count[int] = field(default_factory=count)
 
     # Maps all known ids of Code Objects to meta information
-    existing_code_objects: dict[int, instr.CodeObjectMetaData] = field(default_factory=dict)
-
-    # Stores which of the existing code objects do not contain a branch, i.e.,
-    # they do not contain a predicate. Every code object is initially seen as
-    # branch-less until a predicate is registered for it.
-    branch_less_code_objects: OrderedSet[int] = field(default_factory=OrderedSet)
+    existing_code_objects: dict[int, CodeObjectMetaData] = field(default_factory=dict)
 
     # Maps all known ids of predicates to meta information
-    existing_predicates: dict[int, instr.PredicateMetaData] = field(default_factory=dict)
+    existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
-    # stores which line id represents which line in which file
+    # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
-    # stores known memory attribute object addresses
-    object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
+    @property
+    def branch_less_code_objects(self) -> Iterable[int]:
+        """Get the existing code objects that do not contain a branch.
+
+        Every code object is initially seen as branch-less until a predicate is registered for it.
+
+        Returns:
+            The existing code objects that do not contain a branch.
+        """
+        return (
+            code_object_id
+            for code_object_id in self.existing_code_objects
+            if all(
+                code_object_id != metadata.code_object_id
+                for metadata in self.existing_predicates.values()
+            )
+        )
+
+    def reset(self) -> None:
+        """Resets the subject properties."""
+        self.code_object_counter = count()
+        self.existing_code_objects.clear()
+        self.existing_predicates.clear()
+        self.existing_lines.clear()
+        self.instrumentation_tracer.reset()
+
+    def create_code_object_id(self) -> int:
+        """Create a new code object ID.
+
+        Returns:
+            A new code object ID.
+        """
+        return next(self.code_object_counter)
+
+    def register_code_object(self, code_object_id: int, meta: CodeObjectMetaData) -> None:
+        """Declare that a code object exists.
+
+        Args:
+            code_object_id: the id of the code object, which should be used to identify the object
+            during instrumentation.
+            meta: the code objects existing
+        """
+        assert code_object_id not in self.existing_code_objects, (
+            "Code object already registered in existing code objects"
+        )
+
+        self.existing_code_objects[code_object_id] = meta
+
+    def register_predicate(self, meta: PredicateMetaData) -> int:
+        """Declare that a predicate exists.
+
+        Args:
+            meta: Metadata about the predicates
+
+        Returns:
+            the id of the predicate, which can be used to identify the predicate
+            during instrumentation.
+        """
+        assert (meta.node, meta.code_object_id) not in {
+            (p.node, p.code_object_id) for p in self.existing_predicates.values()
+        }, "Predicate with the same node already registered"
+        predicate_id = len(self.existing_predicates)
+        self.existing_predicates[predicate_id] = meta
+        return predicate_id
+
+    def register_line(self, meta: LineMetaData) -> int:
+        """Tracks the existence of a line.
+
+        Args:
+            meta: Metadata about the line
+
+        Returns:
+            the id of the registered line
+        """
+        if meta not in self.existing_lines.values():
+            line_id = len(self.existing_lines)
+            self.existing_lines[line_id] = meta
+        else:
+            index = list(self.existing_lines.values()).index(meta)
+            line_id = list(self.existing_lines.keys())[index]
+        return line_id
+
+    def validate_execution_trace(self, execution_trace: ExecutionTrace) -> None:
+        """Validate the execution trace.
+
+        Args:
+            execution_trace: The execution trace to validate
+
+        Raises:
+            AssertionError: if the execution trace is invalid
+        """
+        for code_object_id in execution_trace.executed_code_objects:
+            assert code_object_id in self.existing_code_objects, (
+                f"Code object id {code_object_id} not registered in subject properties"
+            )
+        for predicate_id in execution_trace.executed_predicates:
+            assert predicate_id in self.existing_predicates, (
+                f"Predicate id {predicate_id} not registered in subject properties"
+            )
+        for line_id in execution_trace.covered_line_ids:
+            assert line_id in self.existing_lines, (
+                f"Line id {line_id} not registered in subject properties"
+            )
+
+    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
+        """Convenience method to translate line ids to line numbers.
+
+        Args:
+            line_ids: The ids that should be translated.
+
+        Returns:
+            The line numbers.
+        """
+        return OrderedSet([self.existing_lines[line_id].line_number for line_id in line_ids])
 
 
 class AbstractExecutionTracer(ABC):  # noqa: PLR0904
@@ -366,24 +577,35 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     The results are stored in an execution trace.
     """
 
-    @property
     @abstractmethod
-    def current_thread_identifier(self) -> int | None:
-        """Get the current thread identifier.
+    def __enter__(self) -> Self:
+        """Activate the tracer for the current thread.
 
         Returns:
-            The current thread identifier
+            The tracer itself, so it can be used as a context manager.
         """
 
-    @current_thread_identifier.setter
     @abstractmethod
-    def current_thread_identifier(self, current: int) -> None:
-        """Set the current thread identifier.
-
-        Tracing calls from any other thread are ignored.
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Deactivate the tracer for the current thread.
 
         Args:
-            current: the current thread
+            exc_type: The type of the exception, if any.
+            exc_value: The value of the exception, if any.
+            traceback: The traceback of the exception, if any.
+        """
+
+    @abstractmethod
+    def check(self) -> None:
+        """Check if the thread that called this method should still be running.
+
+        Raises:
+            RuntimeError: if the thread is not running anymore.
         """
 
     @property
@@ -393,14 +615,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
 
         Returns:
             The execution trace after executing the import statements
-        """
-
-    @abstractmethod
-    def get_subject_properties(self) -> SubjectProperties:
-        """Provide known data.
-
-        Returns:
-            The known data about the execution
         """
 
     @abstractmethod
@@ -443,23 +657,19 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """Disable tracing."""
 
     @abstractmethod
+    def stop(self) -> None:
+        """Stop the tracer.
+
+        This should be called when the tracer is no longer needed, e.g., when the test
+        case execution is finished.
+        """
+
+    @abstractmethod
     def get_trace(self) -> ExecutionTrace:
         """Get the trace with the current information.
 
         Returns:
             The current execution trace
-        """
-
-    @abstractmethod
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:
-        """Declare that a code object exists.
-
-        Args:
-            meta: the code objects existing
-
-        Returns:
-            the id of the code object, which can be used to identify the object
-            during instrumentation.
         """
 
     @abstractmethod
@@ -477,20 +687,8 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:
-        """Declare that a predicate exists.
-
-        Args:
-            meta: Metadata about the predicates
-
-        Returns:
-            the id of the predicate, which can be used to identify the predicate
-            during instrumentation.
-        """
-
-    @abstractmethod
     def executed_compare_predicate(
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         """A predicate that is based on a comparison was executed.
 
@@ -518,7 +716,12 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def executed_exception_match(self, err, exc, predicate: int):
+    def executed_exception_match(
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         """A predicate that is based on exception matching was executed.
 
         Args:
@@ -542,19 +745,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_line(self, code_object_id: int, file_name: str, line_number: int) -> int:
-        """Tracks the existence of a line.
-
-        Args:
-            code_object_id: The id of the code object that contains the line
-            file_name: The file in which the statement is
-            line_number: The line of the statement to track
-
-        Returns:
-            the id of the registered line
-        """
-
-    @abstractmethod
     def track_generic(  # noqa: PLR0917
         self,
         module: str,
@@ -565,11 +755,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         offset: int,
     ) -> None:
         """Track a generic instruction inside the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -592,16 +777,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: VariableName | tuple[VariableName, VariableName],
+        var_value: object,
     ) -> None:
         """Track a memory access instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -610,9 +789,8 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             opcode: the opcode of the instruction
             lineno: the line number of the instruction
             offset: the offset of the instruction
-            arg: the used variable
-            arg_address: the memory address of the variable
-            arg_type: the type of the variable
+            var_name: the used variable name
+            var_value: the value stored in the used variable
 
         Raises:
             ValueError: when no argument is given
@@ -628,17 +806,10 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
         """Track an attribute access instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -648,9 +819,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             lineno: the line number of the instruction
             offset: the offset of the instruction
             attr_name: the name of the accessed attribute
-            src_address: the memory address of the attribute
-            arg_address: the memory address of the argument
-            arg_type: the type of argument
+            obj: the object containing the accessed attribute
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -668,11 +837,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         target_id: int,
     ) -> None:
         """Track a jump instruction in the trace.
-
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
 
         Args:
             module: File name of the module containing the instruction
@@ -700,11 +864,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     ) -> None:
         """Track a method call instruction in the trace.
 
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
-
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -730,11 +889,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     ) -> None:
         """Track a return instruction in the trace.
 
-        Note: This method is referenced by name in the instrumentation
-        for checked coverage. To avoid circular imports, the name is simply written
-        as string, so if this method is renamed, please adjust the string in the
-        instrumentation. Otherwise, the checked coverage instrumentation breaks!
-
         Args:
             module: File name of the module containing the instruction
             code_object_id: code object containing the instruction
@@ -748,7 +902,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_exception_assertion(self, statement: stmt.Statement) -> None:
+    def track_exception_assertion(self, statement: stmt.Statement) -> None:
         """Track the position of an exception assertion in the trace.
 
         Normally, to track an assertion, we trace the POP_JUMP_IF_TRUE instruction
@@ -765,74 +919,14 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def register_assertion_position(
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:
         """Track the position of an assertion in the trace.
 
         Args:
-            code_object_id: code object containing the assertion to register
-            node_id: the id of the node containing the assertion to register
             assertion: the assertion of the statement
 
         Raises:
             RuntimeError: raised when called from another thread
-        """
-
-    @classmethod
-    def attribute_lookup(cls, object_type, attribute: str) -> int:
-        """Check the dictionary of classes making up the MRO (_PyType_Lookup).
-
-        The attribute must be a data descriptor to be prioritized here
-
-        Args:
-            object_type: The type object to check
-            attribute: the attribute to check for in the class
-
-        Returns:
-            The id of the object type or the class if it has the attribute, -1 otherwise
-        """
-        for clss in type(object_type).__mro__:
-            if attribute in clss.__dict__ and inspect.isdatadescriptor(
-                clss.__dict__.get(attribute)
-            ):
-                # Class in the MRO hierarchy has attribute
-                # Class has attribute and attribute is a data descriptor
-                return id(clss)
-
-        # This would lead to an infinite recursion and thus a crash of the program
-        if attribute in {"__getattr__", "__getitem__"}:
-            return -1
-        # Check if the dictionary of the object on which lookup is performed
-        if (
-            hasattr(object_type, "__dict__")
-            and object_type.__dict__
-            and attribute in object_type.__dict__
-        ):
-            return id(object_type)
-        if (
-            hasattr(object_type, "__slots__")
-            and object_type.__slots__
-            and attribute in object_type.__slots__
-        ):
-            return id(object_type)
-
-        # Check if attribute in MRO hierarchy (no need for data descriptor)
-        for clss in type(object_type).__mro__:
-            if attribute in clss.__dict__:
-                return id(clss)
-
-        return -1
-
-    @abstractmethod
-    def lineids_to_linenos(self, line_ids: OrderedSet[int]) -> OrderedSet[int]:
-        """Convenience method to translate line ids to line numbers.
-
-        Args:
-            line_ids: The ids that should be translated.
-
-        Returns:
-            The line numbers.
         """
 
     @abstractmethod
@@ -995,6 +1089,24 @@ def _isn(val1, val2) -> float:
     return 1.0
 
 
+_P = ParamSpec("_P")
+
+
+def _early_return(
+    func: Callable[Concatenate[ExecutionTracer, _P], None],
+) -> Callable[Concatenate[ExecutionTracer, _P], None]:
+    @wraps(func)
+    def wrapper(self: ExecutionTracer, *args: _P.args, **kwargs: _P.kwargs) -> None:
+        self.check()
+
+        if self.is_disabled():
+            return
+
+        func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     """Tracks branch distances and covered statements during execution.
 
@@ -1012,7 +1124,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self.trace = ExecutionTrace()
 
     def __init__(self) -> None:  # noqa: D107
-        self.subject_properties = SubjectProperties()
         # Contains the trace information that is generated when a module is imported
         self._import_trace = ExecutionTrace()
 
@@ -1021,23 +1132,31 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
 
         self.init_trace()
         self._current_thread_identifier: int | None = None
+        self._current_code_object_id = 0
 
-    @property
-    def current_thread_identifier(self) -> int | None:  # noqa: D102
-        return self._current_thread_identifier
+    def __enter__(self) -> Self:
+        self._current_thread_identifier = threading.current_thread().ident
+        return self
 
-    @current_thread_identifier.setter
-    def current_thread_identifier(self, current: int) -> None:
-        self._current_thread_identifier = current
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.stop()
+
+    def check(self) -> None:  # noqa: D102
+        if threading.current_thread().ident != self._current_thread_identifier:
+            raise TracingAbortedException(
+                "The current thread shall not be executed anymore, thus I kill it."
+            )
 
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
         copied = ExecutionTrace()
         copied.merge(self._import_trace)
         return copied
-
-    def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self.subject_properties
 
     @property
     def state(self) -> dict:
@@ -1047,7 +1166,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             The current state
         """
         return {
-            "subject_properties": self.subject_properties,
             "import_trace": self._import_trace,
             "current_thread_identifier": self._current_thread_identifier,
             "thread_local_state": {
@@ -1063,7 +1181,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         Args:
             state: The state to set
         """
-        self.subject_properties = state["subject_properties"]
         self._import_trace = state["import_trace"]
         self._current_thread_identifier = state["current_thread_identifier"]
         self._thread_local_state = ExecutionTracer.TracerLocalState()
@@ -1071,7 +1188,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._thread_local_state.trace = state["thread_local_state"]["trace"]
 
     def reset(self) -> None:  # noqa: D102
-        self.subject_properties = SubjectProperties()
         self._import_trace = ExecutionTrace()
         self.init_trace()
 
@@ -1093,88 +1209,66 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def disable(self) -> None:  # noqa: D102
         self._thread_local_state.enabled = False
 
+    def stop(self) -> None:  # noqa: D102
+        self._current_thread_identifier = None
+
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._thread_local_state.trace
 
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:  # noqa: D102
-        code_object_id = len(self.subject_properties.existing_code_objects)
-        self.subject_properties.existing_code_objects[code_object_id] = meta
-        self.subject_properties.branch_less_code_objects.add(code_object_id)
-        return code_object_id
-
+    @_early_return
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        assert code_object_id in self.subject_properties.existing_code_objects, (
-            "Cannot trace unknown code object"
-        )
         self._thread_local_state.trace.executed_code_objects.add(code_object_id)
 
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
-        predicate_id = len(self.subject_properties.existing_predicates)
-        self.subject_properties.existing_predicates[predicate_id] = meta
-        self.subject_properties.branch_less_code_objects.discard(meta.code_object_id)
-        return predicate_id
-
+    @_early_return
     def executed_compare_predicate(  # noqa: D102, C901
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
 
             match cmp_op:
-                case instr.PynguinCompare.EQ:
+                case PynguinCompare.EQ:
                     distance_true, distance_false = _eq(value1, value2), _neq(value1, value2)
-                case instr.PynguinCompare.NE:
+                case PynguinCompare.NE:
                     distance_true, distance_false = _neq(value1, value2), _eq(value1, value2)
-                case instr.PynguinCompare.LT:
+                case PynguinCompare.LT:
                     distance_true, distance_false = (
                         _lt(value1, value2),
                         _le(value2, value1),
                     )
-                case instr.PynguinCompare.LE:
+                case PynguinCompare.LE:
                     distance_true, distance_false = (
                         _le(value1, value2),
                         _lt(value2, value1),
                     )
-                case instr.PynguinCompare.GT:
+                case PynguinCompare.GT:
                     distance_true, distance_false = (
                         _lt(value2, value1),
                         _le(value1, value2),
                     )
-                case instr.PynguinCompare.GE:
+                case PynguinCompare.GE:
                     distance_true, distance_false = (
                         _le(value2, value1),
                         _lt(value1, value2),
                     )
-                case instr.PynguinCompare.IN:
+                case PynguinCompare.IN:
                     distance_true, distance_false = (
                         _in(value1, value2),
                         _nin(value1, value2),
                     )
-                case instr.PynguinCompare.NOT_IN:
+                case PynguinCompare.NOT_IN:
                     distance_true, distance_false = (
                         _nin(value1, value2),
                         _in(value1, value2),
                     )
-                case instr.PynguinCompare.IS:
+                case PynguinCompare.IS:
                     distance_true, distance_false = (
                         _is(value1, value2),
                         _isn(value1, value2),
                     )
-                case instr.PynguinCompare.IS_NOT:
+                case PynguinCompare.IS_NOT:
                     distance_true, distance_false = (
                         _isn(value1, value2),
                         _is(value1, value2),
@@ -1185,18 +1279,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
+    @_early_return
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1223,23 +1309,24 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
-    def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
+    @_early_return
+    def executed_exception_match(  # noqa: D102
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         try:
             self.disable()
-            assert predicate in self.subject_properties.existing_predicates, (
-                "Cannot trace unknown predicate"
-            )
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
             err = tt.unwrap(err)
             exc = tt.unwrap(exc)
+
+            if isinstance(err, BaseException):
+                err = type(err)
+
             if given_exception_matches(err, exc):
                 distance_false = 1.0
             else:
@@ -1249,31 +1336,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         finally:
             self.enable()
 
+    @_early_return
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.covered_line_ids.add(line_id)
 
-    def register_line(  # noqa: D102
-        self, code_object_id: int, file_name: str, line_number: int
-    ) -> int:
-        line_meta = LineMetaData(code_object_id, file_name, line_number)
-        if line_meta not in self.subject_properties.existing_lines.values():
-            line_id = len(self.subject_properties.existing_lines)
-            self.subject_properties.existing_lines[line_id] = line_meta
-        else:
-            index = list(self.subject_properties.existing_lines.values()).index(line_meta)
-            line_id = list(self.subject_properties.existing_lines.keys())[index]
-        return line_id
-
     def _update_metrics(self, distance_false: float, distance_true: float, predicate: int):
-        assert predicate in self.subject_properties.existing_predicates, (
-            "Cannot update unknown predicate"
-        )
         assert distance_true >= 0.0, "True distance cannot be negative"
         assert distance_false >= 0.0, "False distance cannot be negative"
         assert (distance_true == 0.0) ^ (distance_false == 0.0), (
@@ -1285,6 +1352,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             predicate=predicate,
         )
 
+    @_early_return
     def track_generic(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1294,16 +1362,34 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         lineno: int,
         offset: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
+    def _extract_arguments(
+        self, var_name: VariableName, var_value: object
+    ) -> tuple[str, int, bool, bool]:
+        var_address = id(var_value)
+        var_type = type(var_value)
+
+        if isinstance(var_name, CellVar | FreeVar):
+            var_name = var_name.name
+
+        # Determine if this is a mutable type
+        mutable_type = var_type not in immutable_types
+
+        # Determine if this is a definition of a completely new object
+        # (required later during slicing)
+        object_creation = (
+            bool(var_address) and var_address not in self._thread_local_state.trace.object_addresses
+        )
+
+        if object_creation:
+            self._thread_local_state.trace.object_addresses.add(var_address)
+
+        return var_name, var_address, mutable_type, object_creation
+
+    @_early_return
     def track_memory_access(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1312,32 +1398,40 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: VariableName | tuple[VariableName, VariableName],
+        var_value: object,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
+        # IMPORT_NAMEs may not have arguments
+        assert var_name or opname[opcode] in version.IMPORT_NAME_NAMES, (
+            "A memory access instruction must have an argument or be an import"
+        )
 
-        if self.is_disabled():
-            return
-
-        if not arg and opcode != op.IMPORT_NAME:  # IMPORT_NAMEs may not have arguments
-            raise ValueError("A memory access instruction must have an argument")
-        if isinstance(arg, CellVar | FreeVar):
-            arg = arg.name
-
-        # Determine if this is a mutable type
-        mutable_type = True
-        if arg_type in immutable_types:
-            mutable_type = False
-
-        # Determine if this is a definition of a completely new object
-        # (required later during slicing)
-        object_creation = False
-        if arg_address and arg_address not in self.subject_properties.object_addresses:
-            object_creation = True
-            self.subject_properties.object_addresses.add(arg_address)
+        arg_name: str | tuple[str, str]
+        arg_address: int | tuple[int, int]
+        mutable_type: bool | tuple[bool, bool]
+        object_creation: bool | tuple[bool, bool]
+        if (
+            isinstance(var_name, tuple)
+            and isinstance(var_value, tuple)
+            and len(var_name) == 2
+            and len(var_value) == 2
+        ):
+            arg_name0, arg_address0, mutable_type0, object_creation0 = self._extract_arguments(
+                var_name[0], var_value[0]
+            )
+            arg_name1, arg_address1, mutable_type1, object_creation1 = self._extract_arguments(
+                var_name[1], var_value[1]
+            )
+            arg_name = (arg_name0, arg_name1)
+            arg_address = (arg_address0, arg_address1)
+            mutable_type = (mutable_type0, mutable_type1)
+            object_creation = (object_creation0, object_creation1)
+        elif isinstance(var_name, (str, CellVar, FreeVar)):
+            arg_name, arg_address, mutable_type, object_creation = self._extract_arguments(
+                var_name, var_value
+            )
+        else:
+            raise AssertionError(f"Unexpected argument types: {var_name}, {var_value}")
 
         self._thread_local_state.trace.add_memory_instruction(
             module,
@@ -1346,12 +1440,13 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             opcode,
             lineno,
             offset,
-            arg,
+            arg_name,
             arg_address,
             mutable_type,
             object_creation,
         )
 
+    @_early_return
     def track_attribute_access(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1360,16 +1455,20 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
+        arg_type: type
+        if attr_name is None:
+            attr_name = "None"
+            src_address = id(obj)
+            arg_address = -1
+            arg_type = type(None)
+        else:
+            src_address = self.attribute_lookup(obj, attr_name)
+            attr_value = getattr(obj, attr_name)
+            arg_address = id(attr_value)
+            arg_type = type(attr_value)
 
         # Different built-in methods and functions often have the same address when
         # accessed sequentially.
@@ -1382,6 +1481,8 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         if arg_type in immutable_types:
             mutable_type = False
 
+        is_method = arg_type is MethodType or arg_type is BuiltinMethodType
+
         self._thread_local_state.trace.add_attribute_instruction(
             module,
             code_object_id,
@@ -1393,8 +1494,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             src_address,
             arg_address,
             mutable_type,
+            is_method,
         )
 
+    @_early_return
     def track_jump(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1405,16 +1508,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
         target_id: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_jump_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, target_id
         )
 
+    @_early_return
     def track_call(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1425,16 +1523,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         offset: int,
         arg: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_call_instruction(
             module, code_object_id, node_id, opcode, lineno, offset, arg
         )
 
+    @_early_return
     def track_return(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -1444,77 +1537,92 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         lineno: int,
         offset: int,
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
         self._thread_local_state.trace.add_return_instruction(
             module, code_object_id, node_id, opcode, lineno, offset
         )
 
-    def register_exception_assertion(  # noqa: D102
+    @_early_return
+    def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
-        if statement.has_only_exception_assertion():
-            trace = self._thread_local_state.trace
-            error_call_position = len(trace.executed_instructions) - 1
-            error_causing_instr = trace.executed_instructions[error_call_position]
-            code_object_id = error_causing_instr.code_object_id
-            node_id = error_causing_instr.node_id
-            trace.executed_assertions.append(
-                ExecutedAssertion(
-                    code_object_id,
-                    node_id,
-                    error_call_position,
-                    next(iter(statement.assertions)),
-                )
+        assert statement.has_only_exception_assertion()
+        trace = self._thread_local_state.trace
+        error_call_position = len(trace.executed_instructions) - 1
+        trace.executed_assertions.append(
+            ExecutedAssertion(
+                error_call_position,
+                next(iter(statement.assertions)),
             )
-
-    def register_assertion_position(  # noqa: D102
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
-        if threading.current_thread().ident != self._current_thread_identifier:
-            raise RuntimeError("The current thread shall not be executed any more, thus I kill it.")
-
-        if self.is_disabled():
-            return
-
-        exec_instr = self.get_trace().executed_instructions
-        pop_jump_if_true_position = len(exec_instr) - 1
-        for instruction in reversed(exec_instr):
-            if instruction.opcode == op.POP_JUMP_IF_TRUE:
-                break
-            pop_jump_if_true_position -= 1
-        assert pop_jump_if_true_position != -1, (
-            "Node in code object did not contain a POP_JUMP_IF_TRUE instruction"
         )
+
+    @_early_return
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:  # noqa: D102
+        exec_instr = self.get_trace().executed_instructions
+
+        boolean_jump = len(exec_instr) - 1
+        for instruction in reversed(exec_instr):
+            if (
+                is_true_branch := version.get_branch_type(instruction.opcode)
+            ) is not None and is_true_branch:
+                break
+            boolean_jump -= 1
+        assert boolean_jump != -1, "Node in code object did not contain a boolean jump instruction"
 
         self._thread_local_state.trace.executed_assertions.append(
             ExecutedAssertion(
-                code_object_id,
-                node_id,
-                pop_jump_if_true_position,
+                boolean_jump,
                 assertion,
             )
         )
 
+    @staticmethod
+    def attribute_lookup(object_type, attribute: str) -> int:
+        """Check the dictionary of classes making up the MRO (method resolution order).
+
+        It is inspired by the `_PyType_Lookup` C function in CPython.
+
+        Args:
+            object_type: The type object to check
+            attribute: the attribute to check for in the class. It must be a data descriptor
+                       to be prioritized here.
+
+        Returns:
+            The id of the object type or the class if it has the attribute, -1 otherwise
+        """
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__ and inspect.isdatadescriptor(
+                clss.__dict__.get(attribute)
+            ):
+                # Class in the MRO hierarchy has attribute
+                # Class has attribute and attribute is a data descriptor
+                return id(clss)
+
+        # This would lead to an infinite recursion and thus a crash of the program
+        if attribute in {"__getattr__", "__getitem__"}:
+            return -1
+        # Check if the dictionary of the object on which lookup is performed
+        if (
+            hasattr(object_type, "__dict__")
+            and object_type.__dict__
+            and attribute in object_type.__dict__
+        ):
+            return id(object_type)
+        if (
+            hasattr(object_type, "__slots__")
+            and object_type.__slots__
+            and attribute in object_type.__slots__
+        ):
+            return id(object_type)
+
+        # Check if attribute in MRO hierarchy (no need for data descriptor)
+        for clss in type(object_type).__mro__:
+            if attribute in clss.__dict__:
+                return id(clss)
+
+        return -1
+
     def __repr__(self) -> str:
         return "ExecutionTracer"
-
-    def lineids_to_linenos(  # noqa: D102
-        self, line_ids: OrderedSet[int]
-    ) -> OrderedSet[int]:
-        return OrderedSet([
-            self.subject_properties.existing_lines[line_id].line_number for line_id in line_ids
-        ])
 
     def __getstate__(self) -> dict:
         return self.state
@@ -1546,20 +1654,24 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def tracer(self, tracer: ExecutionTracer) -> None:
         self._tracer = tracer
 
-    @property
-    def current_thread_identifier(self) -> int | None:  # noqa: D102
-        return self._tracer.current_thread_identifier
+    def __enter__(self) -> Self:
+        self._tracer.__enter__()
+        return self
 
-    @current_thread_identifier.setter
-    def current_thread_identifier(self, current: int) -> None:
-        self._tracer.current_thread_identifier = current
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self._tracer.__exit__(exc_type, exc_value, traceback)
+
+    def check(self) -> None:  # noqa: D102
+        self._tracer.check()
 
     @property
     def import_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.import_trace
-
-    def get_subject_properties(self) -> SubjectProperties:  # noqa: D102
-        return self._tracer.get_subject_properties()
 
     def reset(self) -> None:  # noqa: D102
         self._tracer.reset()
@@ -1579,36 +1691,33 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def disable(self) -> None:  # noqa: D102
         self._tracer.disable()
 
+    def stop(self) -> None:  # noqa: D102
+        self._tracer.stop()
+
     def get_trace(self) -> ExecutionTrace:  # noqa: D102
         return self._tracer.get_trace()
-
-    def register_code_object(self, meta: instr.CodeObjectMetaData) -> int:  # noqa: D102
-        return self._tracer.register_code_object(meta)
 
     def executed_code_object(self, code_object_id: int) -> None:  # noqa: D102
         self._tracer.executed_code_object(code_object_id)
 
-    def register_predicate(self, meta: instr.PredicateMetaData) -> int:  # noqa: D102
-        return self._tracer.register_predicate(meta)
-
     def executed_compare_predicate(  # noqa: D102
-        self, value1, value2, predicate: int, cmp_op: instr.PynguinCompare
+        self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
         self._tracer.executed_compare_predicate(value1, value2, predicate, cmp_op)
 
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
         self._tracer.executed_bool_predicate(value, predicate)
 
-    def executed_exception_match(self, err, exc, predicate: int):  # noqa: D102
+    def executed_exception_match(  # noqa: D102
+        self,
+        err: BaseException | type[BaseException],
+        exc: type[BaseException],
+        predicate: int,
+    ) -> None:
         self._tracer.executed_exception_match(err, exc, predicate)
 
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
         self._tracer.track_line_visit(line_id)
-
-    def register_line(  # noqa: D102
-        self, code_object_id: int, file_name: str, line_number: int
-    ) -> int:
-        return self._tracer.register_line(code_object_id, file_name, line_number)
 
     def track_generic(  # noqa: PLR0917, D102
         self,
@@ -1629,9 +1738,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        arg: str | CellVar | FreeVar,
-        arg_address: int,
-        arg_type: type,
+        var_name: VariableName | tuple[VariableName, VariableName],
+        var_value: object,
     ) -> None:
         self._tracer.track_memory_access(
             module,
@@ -1640,9 +1748,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             opcode,
             lineno,
             offset,
-            arg,
-            arg_address,
-            arg_type,
+            var_name,
+            var_value,
         )
 
     def track_attribute_access(  # noqa: PLR0917, D102
@@ -1653,10 +1760,8 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         opcode: int,
         lineno: int,
         offset: int,
-        attr_name: str,
-        src_address: int,
-        arg_address: int,
-        arg_type: type,
+        attr_name: str | None,
+        obj: object,
     ) -> None:
         self._tracer.track_attribute_access(
             module,
@@ -1666,9 +1771,7 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             lineno,
             offset,
             attr_name,
-            src_address,
-            arg_address,
-            arg_type,
+            obj,
         )
 
     def track_jump(  # noqa: PLR0917, D102
@@ -1706,20 +1809,13 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     ) -> None:
         self._tracer.track_return(module, code_object_id, node_id, opcode, lineno, offset)
 
-    def register_exception_assertion(  # noqa: D102
+    def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        self._tracer.register_exception_assertion(statement)
+        self._tracer.track_exception_assertion(statement)
 
-    def register_assertion_position(  # noqa: D102
-        self, code_object_id: int, node_id: int, assertion: ass.Assertion
-    ) -> None:
-        self._tracer.register_assertion_position(code_object_id, node_id, assertion)
-
-    def lineids_to_linenos(  # noqa: D102
-        self, line_ids: OrderedSet[int]
-    ) -> OrderedSet[int]:
-        return self._tracer.lineids_to_linenos(line_ids)
+    def track_assertion_position(self, assertion: ass.Assertion) -> None:  # noqa: D102
+        self._tracer.track_assertion_position(assertion)
 
     def __repr__(self) -> str:
         return "InstrumentationExecutionTracer"
