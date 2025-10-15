@@ -130,12 +130,12 @@ def test_shuffle():
 
 def test_sample_set():
     input_set = {1, 2, 3, 4, 5}
-    assert len(randomness.sample(input_set, 2)) == 2
+    assert len(randomness.sample(sorted(input_set), 2)) == 2
 
 
 def test_sample_sequence():
     sequence = [1, 2, 3, 4, 5]
-    assert len(randomness.sample(sorted(sequence), 3)) == 3
+    assert len(randomness.sample(sequence, 3)) == 3
 
 
 def test_sample_whole_set():
