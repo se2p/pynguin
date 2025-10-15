@@ -224,7 +224,9 @@ TRACED_NAMES: tuple[str, ...]
 MEMORY_USE_NAMES: tuple[str, ...]
 MEMORY_DEF_NAMES: tuple[str, ...]
 
-if sys.version_info >= (3, 13):
+if sys.version_info >= (3, 14):
+    from .python3_14 import *  # noqa: F403
+elif sys.version_info >= (3, 13):
     from .python3_13 import *  # noqa: F403
 elif sys.version_info >= (3, 12):
     from .python3_12 import *  # noqa: F403

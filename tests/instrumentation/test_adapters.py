@@ -316,7 +316,37 @@ def test_calculation_checked_coverage_instrumentation(
     24     >>    8 LOAD_CONST               2 (0)
                 10 RETURN_VALUE
     """
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        expected_executed_instructions = OrderedSet([
+            ExecutedInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=39,
+                argument=None,
+                lineno=21,
+                instr_original_index=2,
+            ),
+            ExecutedControlInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["POP_JUMP_IF_FALSE"],
+                argument=3,
+                lineno=21,
+                instr_original_index=3,
+            ),
+            ExecutedReturnInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=2,
+                opcode=opmap["RETURN_VALUE"],
+                argument=None,
+                lineno=24,
+                instr_original_index=1,
+            ),
+        ])
+    elif sys.version_info >= (3, 13):
         expected_executed_instructions = OrderedSet([
             ExecutedMemoryInstruction(
                 file=simple_module.__file__,
