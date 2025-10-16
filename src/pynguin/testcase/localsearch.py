@@ -142,11 +142,11 @@ class TestCaseLocalSearch:
         )
         if local_search_statement is not None:
             self._logger.debug("Local search statement found for the statement %s", statement)
-            impoved = local_search_statement.search()
+            improved = local_search_statement.search()
             statement = chromosome.test_case.statements[position]
             if isinstance(statement, PrimitiveStatement):
                 statement.local_search_applied = True
-            return impoved
+            return improved
         self._logger.debug(
             "No local search statement found for the statement %s at position %d",
             statement,

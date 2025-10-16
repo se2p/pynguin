@@ -36,7 +36,7 @@ class LocalSearchTimer:
     def start_local_search(self) -> None:
         """Starts the local search timer."""
         start_time = int(time.perf_counter()) * 1000
-        self.end_time = start_time + config.LocalSearchConfiguration.local_search_time
+        self.end_time = start_time + config.configuration.local_search.local_search_time
         self._logger.debug("Local search started at %f ms", start_time)
 
     def limit_reached(self) -> bool:

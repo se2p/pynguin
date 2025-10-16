@@ -6,20 +6,22 @@
 #
 from unittest.mock import patch
 
+import pynguin.configuration as config
+
 from pynguin.testcase.localsearch import LocalSearchTimer
 
 
-def test_timer_limit_reached(monkeypatch) -> None:
+def test_timer_limit_reached() -> None:
     with patch.object(LocalSearchTimer, "_instance", None):
-        monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.local_search_time", -1)
+        config.configuration.local_search.local_search_time = -1000000
         timer = LocalSearchTimer.get_instance()
         timer.start_local_search()
         assert timer.limit_reached()
 
 
-def test_timer_limit_not_reached(monkeypatch) -> None:
+def test_timer_limit_not_reached() -> None:
     with patch.object(LocalSearchTimer, "_instance", None):
-        monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.local_search_time", 1000000000)
+        config.configuration.local_search.local_search_time = 1000000000
         timer = LocalSearchTimer.get_instance()
         timer.start_local_search()
         assert not timer.limit_reached()

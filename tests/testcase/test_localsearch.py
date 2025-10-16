@@ -12,8 +12,12 @@ from unittest.mock import patch
 
 import pytest
 
+import pynguin.configuration as config
+
 from pynguin.analyses.typesystem import ANY
 from pynguin.analyses.typesystem import TypeInfo
+from pynguin.testcase.llmlocalsearch import LLMLocalSearch
+from pynguin.testcase.localsearch import TestCaseLocalSearch
 from pynguin.testcase.localsearchstatement import BooleanLocalSearch
 from pynguin.testcase.localsearchstatement import BytesLocalSearch
 from pynguin.testcase.localsearchstatement import ComplexLocalSearch
@@ -36,6 +40,7 @@ from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import TupleStatement
 from pynguin.testcase.testfactory import TestFactory
+from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 
 
@@ -485,9 +490,9 @@ def test_iterate_string_upper_bound_second_iteration() -> None:
     assert statement.value == chr(sys.maxunicode)
 
 
-def test_iterate_string_timer(monkeypatch) -> None:
+def test_iterate_string_timer() -> None:
     with patch.object(LocalSearchTimer, "_instance", None):
-        monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.local_search_time", -1)
+        config.configuration.local_search.local_search_time = -1000000
         chromosome = MagicMock()
         objective = MagicMock()
         objective.has_improved.side_effect = [True] * 10 + [False]
@@ -996,3 +1001,118 @@ def test_fix_key_error_no_key_error(tc_mock, default_test_case):
     execution_result.exceptions = errors
     local_search = DictStatementLocalSearch(tc_mock, 0, MagicMock(), TestFactory(MagicMock()))
     assert not local_search._fix_possible_key_error(statement)
+
+
+def test_llm_local_search_bool(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_llm = True
+    config.configuration.local_search.local_search_same_datatype = False
+    config.configuration.local_search.local_search_different_datatype = False
+    values = iter([1.0, 0.0, 1.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    statement = BooleanPrimitiveStatement(tc_mock.test_case, False)  # noqa: FBT003
+    tc_mock.test_case.statements[1] = statement
+
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert statement.value
+
+
+def test_local_search_no_methods(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_llm = False
+    config.configuration.local_search.local_search_same_datatype = False
+    config.configuration.local_search.local_search_different_datatype = False
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    values = iter([0.0, 0.0, 0.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    statement = BooleanPrimitiveStatement(tc_mock.test_case, False)  # noqa: FBT003
+    tc_mock.test_case.statements[1] = statement
+
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert not statement.value
+
+
+def test_local_search_no_selected_statement(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_llm = True
+    config.configuration.local_search.local_search_primitives = False
+    config.configuration.local_search.local_search_collections = False
+    config.configuration.local_search.local_search_complex_objects = False
+
+    values = iter([0.0, 0.0, 0.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    statement = BooleanPrimitiveStatement(tc_mock.test_case, False)  # noqa: FBT003
+    tc_mock.test_case.statements[1] = statement
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert not statement.value
+
+
+def test_local_search_randomize_value(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_llm = False
+    config.configuration.local_search.local_search_same_datatype = True
+    config.configuration.local_search.local_search_different_datatype = False
+    values = iter([1.0, 0.0, 1.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+    config.configuration.test_creation.string_length = 5
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    input_string = randomness.next_string(config.configuration.test_creation.string_length + 10)
+    statement = StringPrimitiveStatement(tc_mock.test_case, input_string)
+    statement.local_search_applied = True
+    tc_mock.test_case.statements[1] = statement
+    objective = MagicMock()
+    objective.has_changed.return_value = 0
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert statement.value != input_string
+
+
+def test_llm_local_search_int(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_different_datatype = False
+    config.configuration.local_search.local_search_llm = True
+    config.configuration.local_search.local_search_same_datatype = False
+    values = iter([1.0, 0.0, 1.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.get_coverage_report",
+        lambda *args, **kwargs: MagicMock(),  # noqa: ARG005
+    )
+    mock_llm_agent = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.LLMAgent", MagicMock(return_value=mock_llm_agent)
+    )
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    statement = IntPrimitiveStatement(tc_mock.test_case, 30)
+    tc_mock.test_case.statements[1] = statement
+
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert statement.value == 30
+
+
+def test_llm_local_search_int2(monkeypatch, tc_mock):
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.get_coverage_report",
+        lambda *args, **kwargs: MagicMock(),  # noqa: ARG005
+    )
+    mock_llm_agent = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.LLMAgent", MagicMock(return_value=mock_llm_agent)
+    )
+    monkeypatch.setattr("pynguin.testcase.llmlocalsearch.get_module_source_code", lambda: "")
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    config.configuration.local_search.llm_whole_module = True
+
+    statement = IntPrimitiveStatement(tc_mock.test_case, 30)
+    tc_mock.test_case.statements[1] = statement
+
+    llm_local_search = LLMLocalSearch(tc_mock, objective, MagicMock(), MagicMock(), MagicMock())
+    assert not llm_local_search.llm_local_search(1)
