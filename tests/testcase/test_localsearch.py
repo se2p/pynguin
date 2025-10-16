@@ -5,8 +5,10 @@
 #  SPDX-License-Identifier: MIT
 #
 import enum
+import math
 import sys
 
+from types import NoneType
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -23,25 +25,36 @@ from pynguin.testcase.localsearchstatement import BytesLocalSearch
 from pynguin.testcase.localsearchstatement import ComplexLocalSearch
 from pynguin.testcase.localsearchstatement import DictStatementLocalSearch
 from pynguin.testcase.localsearchstatement import EnumLocalSearch
+from pynguin.testcase.localsearchstatement import FieldStatementLocalSearch
 from pynguin.testcase.localsearchstatement import FloatLocalSearch
 from pynguin.testcase.localsearchstatement import IntegerLocalSearch
 from pynguin.testcase.localsearchstatement import NonDictCollectionLocalSearch
+from pynguin.testcase.localsearchstatement import ParametrizedStatementLocalSearch
 from pynguin.testcase.localsearchstatement import StringLocalSearch
+from pynguin.testcase.localsearchstatement import choose_local_search_statement
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
+from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import DictStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
+from pynguin.testcase.statement import FieldStatement
 from pynguin.testcase.statement import FloatPrimitiveStatement
+from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import ListStatement
+from pynguin.testcase.statement import MethodStatement
+from pynguin.testcase.statement import NoneStatement
 from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import TupleStatement
+from pynguin.testcase.statement import UIntPrimitiveStatement
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
+from pynguin.utils.report import CoverageEntry
+from pynguin.utils.report import LineAnnotation
 
 
 @pytest.fixture(autouse=True)
@@ -57,6 +70,16 @@ def tc_mock(default_test_case):
     statements = [MagicMock() for _ in range(3)]
     test_case.test_case.statements = statements
     return test_case
+
+
+def ls_test_case():
+    test_case = MagicMock()
+    statements = [MagicMock() for _ in range(3)]
+    test_case.statements = statements
+    return test_case
+
+
+ls_tc = ls_test_case()
 
 
 @pytest.mark.parametrize(
@@ -1003,6 +1026,35 @@ def test_fix_key_error_no_key_error(tc_mock, default_test_case):
     assert not local_search._fix_possible_key_error(statement)
 
 
+@pytest.mark.parametrize(
+    "statement, correct_type",
+    [
+        (NoneStatement(ls_tc), ParametrizedStatementLocalSearch),
+        (BooleanPrimitiveStatement(ls_tc, False), BooleanLocalSearch),  # noqa: FBT003
+        (EnumPrimitiveStatement(ls_tc, GenericEnum(TypeInfo(Number))), EnumLocalSearch),
+        (IntPrimitiveStatement(ls_tc, 42), IntegerLocalSearch),
+        (UIntPrimitiveStatement(ls_tc, 24), IntegerLocalSearch),
+        (FloatPrimitiveStatement(ls_tc, math.pi), FloatLocalSearch),
+        (ComplexPrimitiveStatement(ls_tc, complex(43, 49.5)), ComplexLocalSearch),
+        (StringPrimitiveStatement(ls_tc, "test"), StringLocalSearch),
+        (BytesPrimitiveStatement(ls_tc, b"test"), BytesLocalSearch),
+        (ListStatement(ls_tc, ANY, []), NonDictCollectionLocalSearch),
+        (TupleStatement(ls_tc, ANY, []), NonDictCollectionLocalSearch),
+        (SetStatement(ls_tc, ANY, []), NonDictCollectionLocalSearch),
+        (DictStatement(ls_tc, ANY, []), DictStatementLocalSearch),
+        (FunctionStatement(ls_tc, MagicMock()), ParametrizedStatementLocalSearch),
+        (MethodStatement(ls_tc, MagicMock(), MagicMock()), ParametrizedStatementLocalSearch),
+        (ConstructorStatement(ls_tc, MagicMock()), ParametrizedStatementLocalSearch),
+        (FieldStatement(ls_tc, MagicMock(), MagicMock()), FieldStatementLocalSearch),
+        (None, NoneType),
+    ],
+)
+def test_choose_local_search_statement(statement, correct_type, tc_mock) -> None:
+    objective = MagicMock()
+    tc_mock.test_case.statements[1] = statement
+    assert type(choose_local_search_statement(tc_mock, 1, objective, MagicMock())) is correct_type
+
+
 def test_llm_local_search_bool(monkeypatch, tc_mock):
     config.configuration.local_search.local_search_llm = True
     config.configuration.local_search.local_search_same_datatype = False
@@ -1011,11 +1063,9 @@ def test_llm_local_search_bool(monkeypatch, tc_mock):
     monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
     objective = MagicMock()
     objective.has_improved.return_value = True
-
     local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
     statement = BooleanPrimitiveStatement(tc_mock.test_case, False)  # noqa: FBT003
     tc_mock.test_case.statements[1] = statement
-
     local_search.local_search(tc_mock, MagicMock(), objective)
     assert statement.value
 
@@ -1116,3 +1166,72 @@ def test_llm_local_search_int2(monkeypatch, tc_mock):
 
     llm_local_search = LLMLocalSearch(tc_mock, objective, MagicMock(), MagicMock(), MagicMock())
     assert not llm_local_search.llm_local_search(1)
+
+
+def test_local_search_different_fail(monkeypatch, tc_mock):
+    config.configuration.local_search.local_search_llm = False
+    config.configuration.local_search.local_search_same_datatype = False
+    config.configuration.local_search.local_search_different_datatype = True
+    values = iter([1.0, 0.0, 1.0])
+    monkeypatch.setattr("pynguin.utils.randomness.next_float", lambda: next(values))
+    local_search = TestCaseLocalSearch(MagicMock(), MagicMock())
+    statement = IntPrimitiveStatement(tc_mock.test_case, 30)
+    tc_mock.test_case.statements[1] = statement
+    tc_mock.test_case.clone.return_value = tc_mock.test_case
+    objective = MagicMock()
+    objective.has_improved.return_value = False
+    local_search.local_search(tc_mock, MagicMock(), objective)
+    assert type(tc_mock.test_case.statements[1]) is IntPrimitiveStatement
+    assert tc_mock.test_case.statements[1] == statement
+
+
+@pytest.mark.parametrize("improvement, result", [(True, True), (False, False)])
+def test_llm_local_search_complete(monkeypatch, tc_mock, improvement, result):  # noqa : PLR0914
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.get_coverage_report",
+        lambda *args, **kwargs: MagicMock(),  # noqa: ARG005
+    )
+    mock_llm_agent = MagicMock()
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.LLMAgent", MagicMock(return_value=mock_llm_agent)
+    )
+    objective = MagicMock()
+    objective.has_improved.return_value = improvement
+
+    statement = IntPrimitiveStatement(tc_mock.test_case, 30)
+    tc_mock.test_case.statements[1] = statement
+
+    source_lines = [
+        "def test_function(x):",
+        "    if x==3:",
+        "        return True",
+        "    return False",
+    ]
+
+    chromosome = MagicMock()
+    chromosome.test_case = MagicMock()
+    statements2 = [MagicMock() for _ in range(3)]
+    chromosome.test_case.statements = statements2
+    statement2 = IntPrimitiveStatement(chromosome.test_case, 40)
+    chromosome.test_case.statements[1] = statement2
+    chromosomes = [chromosome]
+
+    entry1 = CoverageEntry(1, 1)
+    entry2 = CoverageEntry(1, 2)
+    annotation: LineAnnotation = LineAnnotation(1, entry1, entry1, entry1, entry1)
+    annotation2: LineAnnotation = LineAnnotation(2, entry1, entry2, entry1, entry1)
+    annotation3: LineAnnotation = LineAnnotation(3, entry1, entry1, entry1, entry1)
+    annotation4: LineAnnotation = LineAnnotation(4, entry1, entry1, entry1, entry1)
+    annotation5: LineAnnotation = LineAnnotation(5, entry1, entry1, entry1, entry1)
+    annotations = [annotation, annotation2, annotation3, annotation4, annotation5]
+
+    monkeypatch.setattr(
+        "pynguin.testcase.llmlocalsearch.LLMLocalSearch.get_shortened_source_code",
+        lambda *args, **kwargs: (source_lines, annotations),  # noqa: ARG005
+    )
+    mock_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results.return_value = (
+        chromosomes
+    )
+
+    llm_local_search = LLMLocalSearch(tc_mock, objective, MagicMock(), MagicMock(), MagicMock())
+    assert llm_local_search.llm_local_search(1) == result

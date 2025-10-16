@@ -77,6 +77,7 @@ class LLMLocalSearch:
         report = get_coverage_report(self.suite, self.executor, metrics)
         agent = LLMAgent()
         stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
+        old_chromosomes = self.suite.test_case_chromosomes.copy()
         if failing_test:
             stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCallsFailingTests, 1)
         if config.configuration.local_search.llm_whole_module:
@@ -129,6 +130,7 @@ class LLMLocalSearch:
                 )
             return True
 
+        self.suite.test_case_chromosomes = old_chromosomes
         self._logger.debug(
             "The llm request hasn't improved the fitness of the test case, "
             "reverting to the old test case"

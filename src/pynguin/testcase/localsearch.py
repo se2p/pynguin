@@ -204,7 +204,7 @@ class TestCaseLocalSearch:
         position: int,
     ) -> bool:
         statement = chromosome.test_case.statements[position]
-        # Not querying LLM for boolean or enum primitives since this is too expensive to querry
+        # Not querying LLM for boolean or enum primitives since this is too expensive to query
         # for llm requests
         if isinstance(statement, BooleanPrimitiveStatement | EnumPrimitiveStatement):
             self._logger.debug(
