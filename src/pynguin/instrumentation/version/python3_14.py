@@ -13,12 +13,30 @@
 from __future__ import annotations
 
 from opcode import opname
+from typing import ClassVar
+
+from bytecode.instr import _UNSET
+from bytecode.instr import UNSET
+from bytecode.instr import Instr
 
 from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import controlflow as cf
+from pynguin.instrumentation import tracer
+from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version import python3_11
 from pynguin.instrumentation.version import python3_12
 from pynguin.instrumentation.version import python3_13
+from pynguin.instrumentation.version.common import (
+    CheckedCoverageInstrumentationVisitorMethod,
+)
+from pynguin.instrumentation.version.common import InstrumentationArgument
+from pynguin.instrumentation.version.common import InstrumentationConstantLoad
+from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
+from pynguin.instrumentation.version.common import InstrumentationMethodCall
+from pynguin.instrumentation.version.common import InstrumentationSetupAction
+from pynguin.instrumentation.version.common import after
+from pynguin.instrumentation.version.common import before
 from pynguin.instrumentation.version.python3_13 import ACCESS_NAMES
 from pynguin.instrumentation.version.python3_13 import CLOSURE_LOAD_NAMES
 from pynguin.instrumentation.version.python3_13 import COND_BRANCH_NAMES
@@ -80,6 +98,8 @@ LOAD_FAST_NAMES = (
     *python3_13.LOAD_FAST_NAMES,
     "LOAD_FAST_LOAD_FAST",
     "STORE_FAST_LOAD_FAST",
+    "LOAD_FAST_BORROW",
+    "LOAD_FAST_BORROW_LOAD_FAST_BORROW",
 )
 MODIFY_FAST_NAMES = (
     *python3_13.MODIFY_FAST_NAMES,
@@ -174,7 +194,6 @@ def stack_effects(  # noqa: D103 C901
             | "INSTRUMENTED_POP_JUMP_IF_FALSE"
             | "INSTRUMENTED_POP_JUMP_IF_NONE"
             | "INSTRUMENTED_POP_JUMP_IF_NOT_NONE"
-            | "INSTRUMENTED_RETURN_VALUE"
             | "BUILD_TEMPLATE"
             | "POP_ITER"
             | "INSTRUMENTED_POP_ITER"
@@ -225,10 +244,125 @@ class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
 
 
 LineCoverageInstrumentation = python3_13.LineCoverageInstrumentation
-CheckedCoverageInstrumentation = python3_13.CheckedCoverageInstrumentation
-Python314InstrumentationInstructionsGenerator = (
+
+
+class Python314InstrumentationInstructionsGenerator(
     python3_13.Python313InstrumentationInstructionsGenerator
-)
+):
+    """Generates instrumentation instructions for Python 3.14."""
+
+    @classmethod
+    def _generate_argument_instructions(
+        cls,
+        arg: InstrumentationArgument,
+        position: int,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        match arg:
+            case _:
+                return super()._generate_argument_instructions(arg, position, lineno)
+
+
+class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
+    """Specialized instrumentation adapter for checked coverage in Python 3.14."""
+
+    instructions_generator = Python314InstrumentationInstructionsGenerator
+
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
+        return super().should_instrument_line(instr, lineno)  # and instr.name != "POP_TOP"
+
+    def visit_local_access(  # noqa: D102, PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_original_index: int,
+    ) -> None:
+        if instr.name in python3_13.ACCESS_FAST_NAMES:
+            super().visit_local_access(
+                ast_info,
+                cfg,
+                code_object_id,
+                node,
+                instr,
+                instr_index,
+                instr_original_index,
+            )
+            return
+
+        node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_original_index),
+                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationFastLoadTuple(names=instr.arg),  # type: ignore[arg-type]
+                ),
+            ),
+            instr.lineno,
+        )
+
+    def visit_call(  # noqa: D102, PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_original_index: int,
+    ) -> None:
+        # Trace argument only for calls with integer arguments
+        argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
+
+        # Instrumentation before the original instruction
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.NO_ACTION,
+            InstrumentationMethodCall(
+                self._subject_properties.instrumentation_tracer,
+                tracer.InstrumentationExecutionTracer.track_call.__name__,
+                (
+                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
+                    InstrumentationConstantLoad(value=code_object_id),
+                    InstrumentationConstantLoad(value=node.index),
+                    InstrumentationConstantLoad(value=instr.opcode),
+                    InstrumentationConstantLoad(value=instr.lineno),
+                    InstrumentationConstantLoad(value=instr_original_index),
+                    InstrumentationConstantLoad(value=argument),
+                ),
+            ),
+            instr.lineno,
+        )
+
+    METHODS: ClassVar[
+        dict[
+            tuple[str, ...],
+            CheckedCoverageInstrumentationVisitorMethod,
+        ]
+    ] = {
+        OPERATION_NAMES: python3_13.CheckedCoverageInstrumentation.visit_generic,
+        ACCESS_FAST_NAMES: visit_local_access,
+        python3_12.ATTRIBUTES_NAMES: python3_13.CheckedCoverageInstrumentation.visit_attr_access,
+        python3_10.ACCESS_SUBSCR_NAMES: python3_13.CheckedCoverageInstrumentation.visit_subscr_access,  # noqa: E501
+        python3_12.ACCESS_SLICE_NAMES: python3_13.CheckedCoverageInstrumentation.visit_slice_access,
+        python3_10.ACCESS_NAME_NAMES: python3_13.CheckedCoverageInstrumentation.visit_name_access,
+        python3_12.IMPORT_NAME_NAMES: python3_13.CheckedCoverageInstrumentation.visit_import_name_access,  # noqa: E501
+        python3_10.ACCESS_GLOBAL_NAMES: python3_13.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
+        python3_12.ACCESS_DEREF_NAMES: python3_13.CheckedCoverageInstrumentation.visit_deref_access,
+        python3_12.JUMP_NAMES: python3_13.CheckedCoverageInstrumentation.visit_jump,
+        CALL_NAMES: visit_call,
+        python3_12.RETURNING_NAMES: python3_13.CheckedCoverageInstrumentation.visit_return,
+    }
 
 
 class DynamicSeedingInstrumentation(python3_13.DynamicSeedingInstrumentation):
