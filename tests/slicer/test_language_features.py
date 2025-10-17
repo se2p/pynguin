@@ -7,7 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: E501, ERA001
-
+import dis
 import sys
 
 from unittest.mock import MagicMock
@@ -109,41 +109,45 @@ def test_simple_loop():
             TracedInstr("LOAD_FAST", arg="i"),
         )
 
-    if sys.version_info >= (3, 14):
-        expected_instructions = [
-            TracedInstr(jump_backward_absolute, arg=jump_target),
-            TracedInstr("RETURN_VALUE"),
-        ]
-    else:
-        expected_instructions = [
-            # result = 0
-            TracedInstr("LOAD_CONST", arg=0),
-            TracedInstr("STORE_FAST", arg="result"),
-            # for i in range(0, 3):
-            *range_call,
-            TracedInstr("GET_ITER"),
-            TracedInstr(
-                "FOR_ITER",
-                # the first instruction of the return block
-                arg=end_for,
-            ),
-            TracedInstr("STORE_FAST", arg="i"),
-            # result += i
-            *load_result_and_i,
-            inplace_add_instruction,
-            TracedInstr("STORE_FAST", arg="result"),
-            TracedInstr(
-                jump_backward_absolute,
-                # the instrumentation of the jump
-                arg=jump_target,
-            ),
-            # return result
-            TracedInstr("LOAD_FAST", arg="result"),
-            TracedInstr("RETURN_VALUE"),
-        ]
+    expected_instructions = [
+        # result = 0
+        TracedInstr("LOAD_CONST", arg=0),
+        TracedInstr("STORE_FAST", arg="result"),
+        # for i in range(0, 3):
+        *range_call,
+        TracedInstr("GET_ITER"),
+        TracedInstr(
+            "FOR_ITER",
+            # the first instruction of the return block
+            arg=end_for,
+        ),
+        TracedInstr("STORE_FAST", arg="i"),
+        # result += i
+        *load_result_and_i,
+        inplace_add_instruction,
+        TracedInstr("STORE_FAST", arg="result"),
+        TracedInstr(
+            jump_backward_absolute,
+            # the instrumentation of the jump
+            arg=jump_target,
+        ),
+        # return result
+        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr("RETURN_VALUE"),
+    ]
 
     sliced_instructions = slice_function_at_return(func)
     assert_slice_equal(sliced_instructions, expected_instructions)
+
+
+def test_debug_simple_loop():
+    def func():
+        result = 0
+        for i in range(0, 3):  # noqa: PIE808
+            result += i
+        return result
+
+    dis.dis(func)
 
 
 def test_call_without_arguments():
