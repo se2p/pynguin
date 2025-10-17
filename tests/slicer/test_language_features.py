@@ -160,7 +160,7 @@ def test_call_without_arguments():
             TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
             TracedInstr("CALL", arg=0),
         )
-        return_zero = (TracedInstr("RETURN_CONST", arg=0),)
+        return_zero = (TracedInstr("RETURN_VALUE", arg=0),)
     elif sys.version_info >= (3, 12):
         create_callee = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
