@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+from itertools import chain
 from opcode import opname
 from typing import ClassVar
 
@@ -32,9 +33,11 @@ from pynguin.instrumentation.version.common import (
 )
 from pynguin.instrumentation.version.common import InstrumentationArgument
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
+from pynguin.instrumentation.version.common import InstrumentationFastLoad
 from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
+from pynguin.instrumentation.version.common import InstrumentedSmallIntLoad
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
 from pynguin.instrumentation.version.python3_13 import ACCESS_NAMES
@@ -259,8 +262,37 @@ class Python314InstrumentationInstructionsGenerator(
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
+            case InstrumentedSmallIntLoad(value):
+                return (cf.ArtificialInstr("LOAD_SMALL_INT", value, lineno=lineno),)
+            case InstrumentationFastLoad(name):
+                return (cf.ArtificialInstr("LOAD_FAST_BORROW", name, lineno=lineno),)
+            case InstrumentationFastLoadTuple(names):
+                return (
+                    cf.ArtificialInstr(
+                        "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
+                    ),
+                    cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+                )
             case _:
                 return super()._generate_argument_instructions(arg, position, lineno)
+
+    @classmethod
+    def generate_method_call_instructions(
+        cls,
+        method_call: InstrumentationMethodCall,
+        lineno: int | _UNSET | None,
+    ) -> tuple[cf.ArtificialInstr, ...]:
+        return (
+            cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
+            cf.ArtificialInstr("LOAD_ATTR", (True, method_call.method_name), lineno=lineno),
+            *chain(
+                *(
+                    cls._generate_argument_instructions(arg, position, lineno)
+                    for position, arg in enumerate(method_call.args)
+                )
+            ),
+            cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
+        )
 
 
 class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
@@ -281,8 +313,8 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
         instr_index: int,
         instr_original_index: int,
     ) -> None:
-        if instr.name in python3_13.ACCESS_FAST_NAMES:
-            super().visit_local_access(
+        if instr.name not in ACCESS_FAST_NAMES:
+            return super().visit_local_access(
                 ast_info,
                 cfg,
                 code_object_id,
@@ -291,9 +323,8 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 instr_index,
                 instr_original_index,
             )
-            return
 
-        node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
+        instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
@@ -306,11 +337,22 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    InstrumentationFastLoadTuple(names=instr.arg),  # type: ignore[arg-type]
+                    InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
             ),
             instr.lineno,
         )
+
+        match instr.name:
+            case "DELETE_FAST" | "LOAD_FAST_AND_CLEAR":
+                # Instrumentation before the original instruction
+                # (otherwise we can not read the data)
+                node.basic_block[before(instr_index)] = instructions
+            case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW":
+                # Instrumentation after the original instruction
+                node.basic_block[after(instr_index)] = instructions
+
+        return None
 
     def visit_call(  # noqa: D102, PLR0917
         self,
