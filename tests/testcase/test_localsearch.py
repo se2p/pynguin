@@ -46,6 +46,7 @@ from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.testcase.statement import ListStatement
 from pynguin.testcase.statement import MethodStatement
 from pynguin.testcase.statement import NoneStatement
+from pynguin.testcase.statement import ParametrizedStatement
 from pynguin.testcase.statement import SetStatement
 from pynguin.testcase.statement import StringPrimitiveStatement
 from pynguin.testcase.statement import TupleStatement
@@ -53,6 +54,7 @@ from pynguin.testcase.statement import UIntPrimitiveStatement
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
+from pynguin.utils.mirror import Mirror
 from pynguin.utils.report import CoverageEntry
 from pynguin.utils.report import LineAnnotation
 
@@ -528,6 +530,18 @@ def test_iterate_string_timer() -> None:
         assert statement.value == "tett"
 
 
+def test_string_local_search(monkeypatch):
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    string_local_search = StringLocalSearch(MagicMock(), 1, MagicMock(), TestFactory(MagicMock()))
+    monkeypatch.setattr(StringLocalSearch, "apply_random_mutations", lambda *_, **__: True)
+    monkeypatch.setattr(StringLocalSearch, "remove_chars", lambda *_, **__: True)
+    monkeypatch.setattr(StringLocalSearch, "replace_chars", lambda *_, **__: True)
+    monkeypatch.setattr(StringLocalSearch, "add_chars", lambda *_, **__: True)
+
+    assert string_local_search.search()
+
+
 @pytest.mark.parametrize(
     "value, result, side_effect",
     [
@@ -629,6 +643,18 @@ def test_bytes_random_mutation_better_value(tc_mock) -> None:
     tc_mock.test_case.statements[1] = statement
     local_search = BytesLocalSearch(tc_mock, 1, objective, TestFactory(MagicMock()))
     assert local_search._apply_random_mutations()
+
+
+def test_bytes_local_search(monkeypatch):
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    bytes_local_search = BytesLocalSearch(MagicMock(), 1, MagicMock(), TestFactory(MagicMock()))
+    monkeypatch.setattr(BytesLocalSearch, "_apply_random_mutations", lambda *_, **__: True)
+    monkeypatch.setattr(BytesLocalSearch, "remove_values", lambda *_, **__: True)
+    monkeypatch.setattr(BytesLocalSearch, "replace_values", lambda *_, **__: True)
+    monkeypatch.setattr(BytesLocalSearch, "add_values", lambda *_, **__: True)
+
+    assert bytes_local_search.search()
 
 
 @pytest.mark.parametrize(
@@ -864,6 +890,32 @@ def test_non_dict_replace_set(tc_mock):
     assert len(statement.elements) == 2
     assert statement.elements[0] == int_statement_3.ret_val
     assert statement.elements[1] == int_statement.ret_val
+
+
+def test_non_dict_local_search(monkeypatch):
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    non_dict_local_search = NonDictCollectionLocalSearch(
+        MagicMock(), 1, MagicMock(), TestFactory(MagicMock())
+    )
+    monkeypatch.setattr(NonDictCollectionLocalSearch, "remove_entries", lambda *_, **__: True)
+    monkeypatch.setattr(NonDictCollectionLocalSearch, "replace_entries", lambda *_, **__: True)
+    monkeypatch.setattr(NonDictCollectionLocalSearch, "add_entries", lambda *_, **__: True)
+
+    assert non_dict_local_search.search()
+
+
+def test_dict_local_search(monkeypatch):
+    objective = MagicMock()
+    objective.has_improved.return_value = True
+    dict_local_search = DictStatementLocalSearch(
+        MagicMock(), 1, MagicMock(), TestFactory(MagicMock())
+    )
+    monkeypatch.setattr(DictStatementLocalSearch, "remove_entries", lambda *_, **__: True)
+    monkeypatch.setattr(DictStatementLocalSearch, "replace_entries", lambda *_, **__: True)
+    monkeypatch.setattr(DictStatementLocalSearch, "add_entries", lambda *_, **__: True)
+
+    assert dict_local_search.search()
 
 
 @pytest.mark.parametrize(
@@ -1185,8 +1237,10 @@ def test_local_search_different_fail(monkeypatch, tc_mock):
     assert tc_mock.test_case.statements[1] == statement
 
 
-@pytest.mark.parametrize("improvement, result", [(True, True), (False, False)])
-def test_llm_local_search_complete(monkeypatch, tc_mock, improvement, result):  # noqa : PLR0914
+@pytest.mark.parametrize(
+    "improvement, result, num_tcs", [(True, True, 1), (False, False, 1), (True, False, 2)]
+)
+def test_llm_local_search_complete(monkeypatch, tc_mock, improvement, result, num_tcs):  # noqa : PLR0914
     monkeypatch.setattr(
         "pynguin.testcase.llmlocalsearch.get_coverage_report",
         lambda *args, **kwargs: MagicMock(),  # noqa: ARG005
@@ -1210,19 +1264,18 @@ def test_llm_local_search_complete(monkeypatch, tc_mock, improvement, result):  
 
     chromosome = MagicMock()
     chromosome.test_case = MagicMock()
-    statements2 = [MagicMock() for _ in range(3)]
-    chromosome.test_case.statements = statements2
+    statements2: list[any] = [MagicMock() for _ in range(3)]
     statement2 = IntPrimitiveStatement(chromosome.test_case, 40)
-    chromosome.test_case.statements[1] = statement2
-    chromosomes = [chromosome]
-
+    statements2[1] = statement2
+    chromosome.test_case.statements = statements2
+    chromosomes = [chromosome for _ in range(num_tcs)]
     entry1 = CoverageEntry(1, 1)
     entry2 = CoverageEntry(1, 2)
+    annotation5: LineAnnotation = LineAnnotation(5, entry1, entry1, entry1, entry1)
     annotation: LineAnnotation = LineAnnotation(1, entry1, entry1, entry1, entry1)
     annotation2: LineAnnotation = LineAnnotation(2, entry1, entry2, entry1, entry1)
     annotation3: LineAnnotation = LineAnnotation(3, entry1, entry1, entry1, entry1)
     annotation4: LineAnnotation = LineAnnotation(4, entry1, entry1, entry1, entry1)
-    annotation5: LineAnnotation = LineAnnotation(5, entry1, entry1, entry1, entry1)
     annotations = [annotation, annotation2, annotation3, annotation4, annotation5]
 
     monkeypatch.setattr(
@@ -1235,3 +1288,30 @@ def test_llm_local_search_complete(monkeypatch, tc_mock, improvement, result):  
 
     llm_local_search = LLMLocalSearch(tc_mock, objective, MagicMock(), MagicMock(), MagicMock())
     assert llm_local_search.llm_local_search(1) == result
+
+
+def test_complex_objects(tc_mock):
+    objective = MagicMock()
+    objective.has_improved.return_value = False
+    int_statement = IntPrimitiveStatement(tc_mock, 42)
+    int_statement_2 = IntPrimitiveStatement(tc_mock, 24)
+    statement = FunctionStatement(tc_mock, MagicMock(), {"value": int_statement.ret_val})
+    tc_mock.test_case.statements[0] = int_statement
+    tc_mock.test_case.statements[1] = int_statement_2
+    tc_mock.test_case.statements[2] = statement
+    test_case_clone = MagicMock()
+    test_case_clone.statements = [
+        int_statement.clone(tc_mock, Mirror()),
+        int_statement_2.clone(tc_mock, Mirror()),
+        statement.clone(tc_mock, Mirror()),
+    ]
+    test_case_clone.clone.return_value = test_case_clone
+    tc_mock.test_case.clone.side_effect = [tc_mock.test_case] * 10 + [test_case_clone]
+    factory_mock = MagicMock()
+    factory_mock.insert_random_call_on_object_at.return_value = False
+    factory_mock.change_random_call.return_value = False
+
+    local_search = ParametrizedStatementLocalSearch(tc_mock, 2, objective, factory_mock)
+    local_search.search()
+    result: ParametrizedStatement = tc_mock.test_case.statements[2]
+    assert int_statement.ret_val in result.get_variable_references()
