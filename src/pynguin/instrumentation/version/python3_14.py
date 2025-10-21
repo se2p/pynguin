@@ -99,42 +99,15 @@ __all__ = [
 # Fast opcodes
 LOAD_FAST_NAMES = (
     *python3_13.LOAD_FAST_NAMES,
-    "LOAD_FAST_LOAD_FAST",
-    "STORE_FAST_LOAD_FAST",
     "LOAD_FAST_BORROW",
     "LOAD_FAST_BORROW_LOAD_FAST_BORROW",
 )
-MODIFY_FAST_NAMES = (
-    *python3_13.MODIFY_FAST_NAMES,
-    "STORE_FAST_STORE_FAST",
-    "STORE_FAST_LOAD_FAST",
-)
-ACCESS_FAST_NAMES = (
-    *python3_13.LOAD_FAST_NAMES,
-    "LOAD_FAST_LOAD_FAST",
-    *python3_13.MODIFY_FAST_NAMES,
-    "STORE_FAST_STORE_FAST",
-    "STORE_FAST_LOAD_FAST",
-)
+MODIFY_FAST_NAMES = python3_13.MODIFY_FAST_NAMES
+ACCESS_FAST_NAMES = LOAD_FAST_NAMES + MODIFY_FAST_NAMES
 
 # Remaining opcodes
-CALL_NAMES = (
-    *python3_12.CALL_NAMES,
-    "CALL_KW",
-)
-
-OPERATION_NAMES = (
-    *python3_10.COMPARE_NAMES,
-    # Unary operations
-    "UNARY_NEGATIVE",
-    "UNARY_NOT",
-    "UNARY_INVERT",
-    "GET_ITER",
-    "GET_YIELD_FROM_ITER",
-    "TO_BOOL",
-    # Binary and in-place operations
-    "BINARY_OP",
-)
+CALL_NAMES = python3_13.CALL_NAMES
+OPERATION_NAMES = python3_13.OPERATION_NAMES
 
 # Regrouping opcodes
 TRACED_NAMES = (
@@ -146,34 +119,57 @@ TRACED_NAMES = (
     + python3_12.ATTRIBUTES_NAMES
     + python3_10.ACCESS_SUBSCR_NAMES
     + python3_12.ACCESS_SLICE_NAMES
-    + python3_13.IMPORT_NAME_NAMES
+    + python3_12.IMPORT_NAME_NAMES
     + python3_12.JUMP_NAMES
     + CALL_NAMES
-    + python3_13.RETURNING_NAMES
+    + python3_12.RETURNING_NAMES
 )
 
 MEMORY_USE_NAMES = (
     LOAD_FAST_NAMES
-    + python3_13.LOAD_NAME_NAMES
-    + python3_13.LOAD_GLOBAL_NAMES
-    + python3_13.LOAD_DEREF_NAMES
+    + python3_12.LOAD_NAME_NAMES
+    + python3_12.LOAD_GLOBAL_NAMES
+    + python3_12.LOAD_DEREF_NAMES
     + python3_12.LOAD_ATTR_NAMES
-    + python3_13.IMPORT_FROM_NAMES
+    + python3_12.IMPORT_FROM_NAMES
     + python3_10.LOAD_METHOD_NAMES
-    + python3_13.CLOSURE_LOAD_NAMES
+    + python3_12.CLOSURE_LOAD_NAMES
     + python3_10.BINARY_SUBSCR_NAMES
     + python3_12.BINARY_SLICE_NAMES
 )
+MODIFY_NAME_NAMES = python3_13.MODIFY_NAME_NAMES
+
 MEMORY_DEF_NAMES = (
-    MODIFY_FAST_NAMES
-    + python3_13.MODIFY_NAME_NAMES
-    + python3_13.MODIFY_GLOBAL_NAMES
-    + python3_13.MODIFY_DEREF_NAMES
-    + python3_10.MODIFY_ATTR_NAMES
-    + python3_13.IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
-    + python3_10.ACCESS_SUBSCR_NAMES
-    + python3_12.ACCESS_SLICE_NAMES
+        MODIFY_FAST_NAMES
+        + python3_12.MODIFY_NAME_NAMES
+        + python3_12.MODIFY_GLOBAL_NAMES
+        + python3_12.MODIFY_DEREF_NAMES
+        + python3_10.MODIFY_ATTR_NAMES
+        + python3_12.IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
+        + python3_10.ACCESS_SUBSCR_NAMES
+        + python3_12.ACCESS_SLICE_NAMES
 )
+
+
+def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
+    match opname[opcode]:
+        case (
+            "POP_JUMP_IF_TRUE"
+            | "POP_JUMP_IF_NOT_NONE"
+            | "INSTRUMENTED_POP_JUMP_IF_TRUE"
+            | "INSTRUMENTED_POP_JUMP_IF_NOT_NONE"
+        ):
+            return True
+        case (
+            "POP_JUMP_IF_FALSE"
+            | "POP_JUMP_IF_NONE"
+            | "FOR_ITER"
+            | "INSTRUMENTED_POP_JUMP_IF_FALSE"
+            | "INSTRUMENTED_POP_JUMP_IF_NONE"
+        ):
+            return False
+        case _:
+            return None
 
 
 def stack_effects(  # noqa: D103 C901
@@ -183,54 +179,49 @@ def stack_effects(  # noqa: D103 C901
     jump: bool = False,
 ) -> StackEffects:
     match opname[opcode]:
-        case (
-            "JUMP_IF_FALSE"
-            | "JUMP_IF_TRUE"
-            | "NOT_TAKEN"
-            | "RETURN_VALUE"
-            | "INSTRUMENTED_NOT_TAKEN"
-            | "INSTRUMENTED_RETURN_VALUE"
-        ):
+        case "JUMP_IF_FALSE" | "JUMP_IF_TRUE" | "NOT_TAKEN" | "INSTRUMENTED_NOT_TAKEN":
             return StackEffects(0, 0)
         case (
-            "INSTRUMENTED_POP_JUMP_IF_TRUE"
+            "POP_ITER"
+            | "INSTRUMENTED_POP_ITER"
+            # TODO(lk): I don't understand why this worked in python3_12, as it pops 1.
+            | "INSTRUMENTED_POP_JUMP_IF_TRUE"
             | "INSTRUMENTED_POP_JUMP_IF_FALSE"
             | "INSTRUMENTED_POP_JUMP_IF_NONE"
             | "INSTRUMENTED_POP_JUMP_IF_NOT_NONE"
-            | "BUILD_TEMPLATE"
-            | "POP_ITER"
-            | "INSTRUMENTED_POP_ITER"
         ):
             return StackEffects(1, 0)
-        case (
-            "LOAD_COMMON_CONSTANT"
-            | "LOAD_FAST_BORROW"
-            | "LOAD_SMALL_INT"
-            | "LOAD_SPECIAL"
-            | "INSTRUMENTED_FOR_ITER"
-        ):
+        case "LOAD_COMMON_CONSTANT" | "LOAD_FAST_BORROW" | "LOAD_SMALL_INT":
             return StackEffects(0, 1)
-        case "ANNOTATIONS_PLACEHOLDER":
-            return StackEffects(1, 1)
+        case "LOAD_SPECIAL" | "INSTRUMENTED_FOR_ITER":
+            return StackEffects(1, 2)
         case "INSTRUMENTED_END_ASYNC_FOR":
             return StackEffects(2, 0)
-        case "CALL_FUNCTION_EX" | "INSTRUMENTED_CALL_FUNCTION_EX":
-            return StackEffects(3, 0)
+        case "BUILD_TEMPLATE":
+            return StackEffects(2, 1)
         case "LOAD_FAST_BORROW_LOAD_FAST_BORROW":
             return StackEffects(0, 2)
         case "BUILD_INTERPOLATION":
             pops = 3 if (arg is not None and (arg & 1)) else 2
             return StackEffects(pops, 1)
         case "BUILD_SLICE":
-            pops = arg if arg is not None else 0
+            assert arg is not None
+            pops = 2 if arg == 2 else 3 if arg == 3 else arg  # else arg is not documented
             return StackEffects(pops, 1)
         case "INSTRUMENTED_CALL":
-            pops = (arg + 1) if arg is not None else 1
-            return StackEffects(pops, 0)
+            assert arg is not None
+            return StackEffects(2 + arg, 1)
         case "INSTRUMENTED_CALL_KW":
-            pops = (arg + 3) if arg is not None else 1
-            pushes = 1
-            return StackEffects(pops, pushes)
+            assert arg is not None
+            return StackEffects(3 + arg, 1)
+        # TODO(lk): Not documented
+        case "ANNOTATIONS_PLACEHOLDER":
+            return StackEffects(0, 0)
+        case "CALL_FUNCTION_EX" | "INSTRUMENTED_CALL_FUNCTION_EX":
+            return StackEffects(3, 0)
+        # TODO(lk): Not in line with documentation; doesn't make sense
+        case "RETURN_VALUE" | "INSTRUMENTED_RETURN_VALUE":
+            return StackEffects(1, 1) # if arg is None else StackEffects(1, 0)
         case _:
             return python3_13.stack_effects(opcode, arg, jump=jump)
 
@@ -262,37 +253,37 @@ class Python314InstrumentationInstructionsGenerator(
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
-            case InstrumentedSmallIntLoad(value):
-                return (cf.ArtificialInstr("LOAD_SMALL_INT", value, lineno=lineno),)
-            case InstrumentationFastLoad(name):
-                return (cf.ArtificialInstr("LOAD_FAST_BORROW", name, lineno=lineno),)
-            case InstrumentationFastLoadTuple(names):
-                return (
-                    cf.ArtificialInstr(
-                        "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
-                    ),
-                    cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
-                )
+            # case InstrumentedSmallIntLoad(value):
+            #     return (cf.ArtificialInstr("LOAD_SMALL_INT", value, lineno=lineno),)
+            # case InstrumentationFastLoad(name):
+            #     return (cf.ArtificialInstr("LOAD_FAST_BORROW", name, lineno=lineno),)
+            # case InstrumentationFastLoadTuple(names):
+            #     return (
+            #         cf.ArtificialInstr(
+            #             "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
+            #         ),
+            #         cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+            #     )
             case _:
                 return super()._generate_argument_instructions(arg, position, lineno)
 
-    @classmethod
-    def generate_method_call_instructions(
-        cls,
-        method_call: InstrumentationMethodCall,
-        lineno: int | _UNSET | None,
-    ) -> tuple[cf.ArtificialInstr, ...]:
-        return (
-            cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
-            cf.ArtificialInstr("LOAD_ATTR", (True, method_call.method_name), lineno=lineno),
-            *chain(
-                *(
-                    cls._generate_argument_instructions(arg, position, lineno)
-                    for position, arg in enumerate(method_call.args)
-                )
-            ),
-            cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
-        )
+    # @classmethod
+    # def generate_method_call_instructions(
+    #     cls,
+    #     method_call: InstrumentationMethodCall,
+    #     lineno: int | _UNSET | None,
+    # ) -> tuple[cf.ArtificialInstr, ...]:
+    #     return (
+    #         cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
+    #         cf.ArtificialInstr("LOAD_ATTR", (True, method_call.method_name), lineno=lineno),
+    #         *chain(
+    #             *(
+    #                 cls._generate_argument_instructions(arg, position, lineno)
+    #                 for position, arg in enumerate(method_call.args)
+    #             )
+    #         ),
+    #         cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
+    #     )
 
 
 class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
