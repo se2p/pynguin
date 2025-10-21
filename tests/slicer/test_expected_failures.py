@@ -19,11 +19,29 @@ from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_function_at_return_with_result
 from tests.slicer.util import slice_module_at_return
 
-
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 14):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     store_slice = (TracedInstr("STORE_SLICE"),)
+    load_const = "LOAD_SMALL_INT"
+    load_fast = "LOAD_FAST_BORROW"
+    binary_subscr = (TracedInstr("BINARY_OP", arg=BinaryOp.SUBSCR.value),)
+    load_slice = lambda arg1, arg2: (
+        TracedInstr("LOAD_CONST", arg=slice(arg1, arg2)),
+        TracedInstr("STORE_SUBSCR"),
+    )
+elif sys.version_info >= (3, 12):
+    inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
+    binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    store_slice = (TracedInstr("STORE_SLICE"),)
+    load_const = "LOAD_SMALL"
+    load_fast = "LOAD_FAST"
+    binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
+    load_slice = lambda arg1, arg2: (
+        TracedInstr("LOAD_CONST", arg=arg1),
+        TracedInstr("LOAD_CONST", arg=arg2),
+        TracedInstr(name='STORE_SLICE', arg=0)
+    )
 elif sys.version_info >= (3, 11):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
@@ -31,12 +49,28 @@ elif sys.version_info >= (3, 11):
         TracedInstr("BUILD_SLICE", arg=2),
         TracedInstr("STORE_SUBSCR"),
     )
+    binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
+    load_const = "LOAD_SMALL"
+    load_fast = "LOAD_FAST"
+    load_slice = lambda arg1, arg2: (
+        TracedInstr("LOAD_CONST", arg=arg1),
+        TracedInstr("LOAD_CONST", arg=arg2),
+        TracedInstr(name='STORE_SLICE', arg=0)
+    )
 else:
     inplace_add_instruction = TracedInstr("INPLACE_ADD")
     binary_add_instruction = TracedInstr("BINARY_ADD")
     store_slice = (
         TracedInstr("BUILD_SLICE", arg=2),
         TracedInstr("STORE_SUBSCR"),
+    )
+    binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
+    load_const = "LOAD_SMALL"
+    load_fast = "LOAD_FAST"
+    load_slice = lambda arg1, arg2: (
+        TracedInstr("LOAD_CONST", arg=arg1),
+        TracedInstr("LOAD_CONST", arg=arg2),
+        TracedInstr(name='STORE_SLICE', arg=0)
     )
 
 
@@ -60,23 +94,21 @@ def test_data_dependency_composite():
         TracedInstr("LIST_EXTEND", arg=1),
         TracedInstr("STORE_FAST", arg="foo_list"),
         # BAD: foo_list += [5]
-        TracedInstr("LOAD_FAST", arg="foo_list"),
-        TracedInstr("LOAD_CONST", arg=5),
+        TracedInstr(load_fast, arg="foo_list"),
+        TracedInstr(load_const, arg=5),
         TracedInstr("BUILD_LIST", arg=1),
         inplace_add_instruction,
         TracedInstr("STORE_FAST", arg="foo_list"),
         # BAD: foo_list[2:3] = [0, 0]
-        TracedInstr("LOAD_CONST", arg=0),
-        TracedInstr("LOAD_CONST", arg=0),
+        TracedInstr(load_const, arg=0),
+        TracedInstr(load_const, arg=0),
         TracedInstr("BUILD_LIST", arg=2),
-        TracedInstr("LOAD_FAST", arg="foo_list"),
-        TracedInstr("LOAD_CONST", arg=2),
-        TracedInstr("LOAD_CONST", arg=3),
-        *store_slice,
+        TracedInstr(load_fast, arg="foo_list"),
+        *load_slice(2, 3),
         # return foo_list[0]
-        TracedInstr("LOAD_FAST", arg="foo_list"),
-        TracedInstr("LOAD_CONST", arg=0),
-        TracedInstr("BINARY_SUBSCR"),
+        TracedInstr(load_fast, arg="foo_list"),
+        TracedInstr(load_const, arg=0),
+        *binary_subscr,
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -94,7 +126,26 @@ def test_dunder_definition():
 
         return NestedClass()
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        create_nested_class = (
+            TracedInstr("LOAD_BUILD_CLASS"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg="NestedClass"),
+            TracedInstr("CALL", arg=2),
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr("RETURN_VALUE"),
+        )
+        call_nested_class = (
+            TracedInstr(load_fast, arg="NestedClass"),
+            TracedInstr("PUSH_NULL"),
+            TracedInstr("CALL", arg=0),
+            # MISSING: __init__ method call
+            TracedInstr("LOAD_CONST", arg=None),
+            TracedInstr("RETURN_VALUE"),
+        )
+    elif sys.version_info >= (3, 13):
         create_nested_class = (
             TracedInstr("LOAD_BUILD_CLASS"),
             TracedInstr("PUSH_NULL"),
@@ -191,12 +242,12 @@ def test_mod_untraced_object():
     expected_instructions = [
         # lst = [('foo', '3'), ('bar', '1'), ('foobar', '2')]
         TracedInstr("BUILD_LIST", arg=0),
-        TracedInstr("LOAD_CONST", arg=(("foo", "3"), ("bar", "1"), ("foobar", "2"))),
+        TracedInstr(load_const, arg=(("foo", "3"), ("bar", "1"), ("foobar", "2"))),
         TracedInstr("LIST_EXTEND", arg=1),
         TracedInstr("STORE_FAST", arg="lst"),
         # MISSING: lst.sort()
         # return lst
-        TracedInstr("LOAD_FAST", arg="lst"),
+        TracedInstr(load_fast, arg="lst"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -208,12 +259,12 @@ def test_call_unused_argument():
     # Call with two arguments, one of which is used in the callee
     if sys.version_info >= (3, 13):
         create_callee = (
-            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr(load_const, arg="a"),
             TracedInstr("LOAD_NAME", arg="int"),
-            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr(load_const, arg="b"),
             TracedInstr("LOAD_NAME", arg="int"),
             TracedInstr("BUILD_TUPLE", arg=4),
-            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr(load_const, arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION"),
             TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=4),
         )
@@ -221,7 +272,7 @@ def test_call_unused_argument():
             TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
             TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),
             TracedInstr("CALL", arg=2),
-            TracedInstr("LOAD_FAST", arg="a"),
+            TracedInstr(load_fast, arg="a"),
             TracedInstr("RETURN_VALUE"),
         )
     elif sys.version_info >= (3, 12):
@@ -286,19 +337,19 @@ def test_call_unused_argument():
         *create_callee,
         TracedInstr("STORE_NAME", arg="callee"),
         # foo = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="foo"),
         # BAD: bar = 2
         # This argument is not used by the callee and should therefore be excluded.
         # But it is an implicit data dependency of the call and is incorrectly and imprecisely included.
         # result = callee()
-        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr(load_const, arg=2),
         TracedInstr("STORE_FAST", arg="bar"),
         # result = callee(foo, bar)
         *call_callee,
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -387,7 +438,7 @@ def test_exception():
         TracedInstr("STORE_FAST", arg="result"),
         *jump_instruction,
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -414,46 +465,46 @@ def test_data_dependency_6():
         create_plus = (
             TracedInstr("LOAD_BUILD_CLASS"),
             TracedInstr("PUSH_NULL"),
-            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr(load_const, arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION"),
-            TracedInstr("LOAD_CONST", arg="Plus"),
+            TracedInstr(load_const, arg="Plus"),
             TracedInstr("CALL", arg=2),
             # BAD: falsely included
-            TracedInstr("LOAD_CONST", arg=0),
+            TracedInstr(load_const, arg=0),
             TracedInstr("STORE_NAME", arg="calculations"),
-            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr(load_const, arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION"),
             TracedInstr("STORE_NAME", arg="plus_four"),
             TracedInstr("RETURN_CONST", arg=None),
         )
         call_plus = (
-            TracedInstr("LOAD_FAST", arg="Plus"),
+            TracedInstr(load_fast, arg="Plus"),
             TracedInstr("PUSH_NULL"),
             TracedInstr("CALL", arg=0),
         )
         call_plus_four_int = (
-            TracedInstr("LOAD_FAST", arg="plus_0"),
+            TracedInstr(load_fast, arg="plus_0"),
             TracedInstr("LOAD_ATTR", arg=(True, "plus_four")),
-            TracedInstr("LOAD_FAST", arg="int_0"),
+            TracedInstr(load_fast, arg="int_0"),
             TracedInstr("CALL", arg=1),
             # BAD: self.calculations += 1
-            TracedInstr("LOAD_FAST", arg="self"),
+            TracedInstr(load_fast, arg="self"),
             TracedInstr("COPY", arg=1),
             TracedInstr("LOAD_ATTR", arg=(False, "calculations")),
-            TracedInstr("LOAD_CONST", arg=1),
+            TracedInstr(load_const, arg=1),
             TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value),
             TracedInstr("SWAP", arg=2),
             TracedInstr("STORE_ATTR", arg="calculations"),
             # return number + 4
-            TracedInstr("LOAD_FAST", arg="number"),
-            TracedInstr("LOAD_CONST", arg=4),
+            TracedInstr(load_fast, arg="number"),
+            TracedInstr(load_const, arg=4),
             TracedInstr("BINARY_OP", arg=0),
             TracedInstr("RETURN_VALUE"),
         )
         call_plus_four_var = (
-            TracedInstr("LOAD_FAST", arg="plus_0"),
+            TracedInstr(load_fast, arg="plus_0"),
             TracedInstr("LOAD_ATTR", arg=(True, "plus_four")),
-            TracedInstr("LOAD_FAST", arg="var_1"),
+            TracedInstr(load_fast, arg="var_1"),
             TracedInstr("CALL", arg=1),
         )
     elif sys.version_info >= (3, 12):
@@ -611,7 +662,7 @@ def test_data_dependency_6():
         *call_plus,
         TracedInstr("STORE_FAST", arg="plus_0"),
         # int_0 = 42
-        TracedInstr("LOAD_CONST", arg=42),
+        TracedInstr(load_const, arg=42),
         TracedInstr("STORE_FAST", arg="int_0"),
         # ... = plus_0.plus_four(int_0)
         *call_plus_four_int,

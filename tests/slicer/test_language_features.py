@@ -149,6 +149,15 @@ def test_debug_simple_loop():
 
     dis.dis(func)
 
+def test_debug_call_without_arguments():
+    def callee():
+        return 0
+
+    def func():
+        result = callee()
+        return result
+
+    dis.dis(func)
 
 def test_call_without_arguments():
     if sys.version_info >= (3, 13):
