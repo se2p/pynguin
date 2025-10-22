@@ -65,7 +65,8 @@ elif sys.version_info >= (3, 11):
         return (
             TracedInstr("LOAD_CONST", arg=arg1),
             TracedInstr("LOAD_CONST", arg=arg2),
-            TracedInstr(name="STORE_SLICE", arg=0),
+            TracedInstr("BUILD_SLICE", arg=2),
+            TracedInstr(name="STORE_SUBSCR"),
         )
 
     return_none = (TracedInstr("RETURN_CONST", arg=None),)
@@ -81,7 +82,8 @@ else:
         return (
             TracedInstr("LOAD_CONST", arg=arg1),
             TracedInstr("LOAD_CONST", arg=arg2),
-            TracedInstr(name="STORE_SLICE", arg=0),
+            TracedInstr("BUILD_SLICE", arg=2),
+            TracedInstr(name="STORE_SUBSCR"),
         )
 
     return_none = (TracedInstr("RETURN_CONST", arg=None),)
