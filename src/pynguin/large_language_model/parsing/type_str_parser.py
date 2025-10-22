@@ -35,7 +35,7 @@ class TypeStrParser:
         """
         if self._is_any(type_str):
             # type_str could be "Any", "typing.Any", or "builtins.object"
-            return builtins.object
+            return type(builtins.object)
         if self._is_none(type_str):
             # type_str could be "None", "NoneType", or "type(None)"
             return type(None)
@@ -44,46 +44,46 @@ class TypeStrParser:
         if self._is_tuple(type_str):
             # type_str could be e.g. "Tuple[int, str]", "tuple[int, str]", "typing.Tuple[int, str]"
             inner_types = self._get_inner_types(type_str)
-            resolved_inner = [self.parse(t) or builtins.object for t in inner_types]
-            return tuple(resolved_inner)
+            resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
+            return type(tuple(resolved_inner))
         if self._is_dict(type_str):
             # type_str could be e.g. "Dict[str, int]", "dict[str, int]", "typing.Dict[str, int]"
             inner_types = self._get_inner_types(type_str)
             if len(inner_types) == 2:
-                key_type = self.parse(inner_types[0]) or builtins.object
-                value_type = self.parse(inner_types[1]) or builtins.object
-                return dict[key_type, value_type]
-            return dict[builtins.object, builtins.object]
+                key_type = self.parse(inner_types[0]) or type(builtins.object)
+                value_type = self.parse(inner_types[1]) or type(builtins.object)
+                return type(dict[key_type, value_type])
+            return type(dict[builtins.object, builtins.object])
         if self._is_set(type_str):
             # type_str could be e.g. "Set[int]", "set[int]", "typing.Set[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type) if inner_type else None
-            return set[resolved_inner or builtins.object]
+            return type(set[resolved_inner or type(builtins.object)])
         if self._is_list(type_str):
             # type_str could be e.g. "List[int]", "list[int]", "typing.List[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type) if inner_type else None
-            return list[resolved_inner or builtins.object]
+            return type(list[resolved_inner or type(builtins.object)])
         if self._is_union(type_str):
             # type_str could be e.g. "Union[int, str]", "typing.Union[int, str]", or "int | str"
             inner_types = self._get_inner_types(type_str)
-            resolved_inner = [self.parse(t) or builtins.object for t in inner_types]
-            return typing.Union[tuple(resolved_inner)]  # noqa: UP007
+            resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
+            return type(typing.Union[tuple(resolved_inner)])  # noqa: UP007
         if self._is_optional(type_str):
             # type_str could be e.g. "Optional[int]", "typing.Optional[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type)
-            return typing.Optional[resolved_inner]  # noqa: UP045
+            return type(typing.Optional[resolved_inner])  # noqa: UP045
         if self._is_deque(type_str):
             # type_str could be e.g. "Deque[int]", "deque[int]", "typing.Deque[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type) if inner_type else None
-            return collections.deque[resolved_inner or builtins.object]
+            return type(collections.deque[resolved_inner or type(builtins.object)])
         if self._is_iterable(type_str):
             # type_str could be e.g. "Iterable[int]", "iterable[int]", "typing.Iterable[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type) if inner_type else None
-            return typing.Iterable[resolved_inner or builtins.object]
+            return type(typing.Iterable[resolved_inner or type(builtins.object)])
         # Try to resolve the type directly
         return self._resolve_type_by_name(type_str)
 
