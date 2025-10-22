@@ -357,7 +357,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 # (otherwise we can not read the data)
                 node.basic_block[before(instr_index)] = instructions
             case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW" | \
-                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW":
+                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW" | "LOAD_FAST_LOAD_FAST" :
                 # Instrumentation after the original instruction
                 node.basic_block[after(instr_index)] = instructions
 
