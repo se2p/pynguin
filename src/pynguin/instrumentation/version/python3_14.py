@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from itertools import chain
 from opcode import opname
-from typing import ClassVar
+from typing import ClassVar, Sequence
 
 from bytecode.instr import _UNSET
 from bytecode.instr import UNSET
@@ -57,7 +57,7 @@ from pynguin.instrumentation.version.python3_13 import STORE_NAME_NAMES
 from pynguin.instrumentation.version.python3_13 import STORE_NAMES
 from pynguin.instrumentation.version.python3_13 import YIELDING_NAMES
 from pynguin.instrumentation.version.python3_13 import add_for_loop_no_yield_nodes
-from pynguin.instrumentation.version.python3_13 import end_with_explicit_return_none
+from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
 from pynguin.instrumentation.version.python3_13 import get_branch_type
 from pynguin.instrumentation.version.python3_13 import is_conditional_jump
 
@@ -172,6 +172,17 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return None
 
 
+def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noqa: D103
+    return (
+            len(instructions) >= 3
+            # check if the "return None" is implicit or explicit
+            and instructions[-3].lineno != instructions[-2].lineno
+            and instructions[-2].name == "LOAD_CONST"
+            and instructions[-2].arg is None
+            and instructions[-1].name == "RETURN_VALUE"
+    )
+
+
 def stack_effects(  # noqa: D103 C901
     opcode: int,
     arg: int | None,
@@ -237,7 +248,6 @@ class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
     extract_comparison = staticmethod(python3_13.extract_comparison)
 
 
-LineCoverageInstrumentation = python3_13.LineCoverageInstrumentation
 
 
 class Python314InstrumentationInstructionsGenerator(
@@ -276,8 +286,10 @@ class Python314InstrumentationInstructionsGenerator(
                     #     cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
                     # )
                     return (
-                        cf.ArtificialInstr("LOAD_FAST", name[0], lineno=lineno),
-                        cf.ArtificialInstr("LOAD_FAST", name[1], lineno=lineno),
+                        # cf.ArtificialInstr("LOAD_FAST", name[0], lineno=lineno),
+                        # cf.ArtificialInstr("LOAD_FAST", name[1], lineno=lineno),
+                        cf.ArtificialInstr("LOAD_FAST_LOAD_FAST", arg=name,
+                                           lineno=lineno),
                         cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
                     )
                 return (cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno),)
@@ -302,6 +314,14 @@ class Python314InstrumentationInstructionsGenerator(
     #         cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
     #     )
 
+class LineCoverageInstrumentation(python3_13.LineCoverageInstrumentation):
+    """Specialized instrumentation adapter for line coverage in Python 3.13."""
+
+    instructions_generator = Python314InstrumentationInstructionsGenerator
+
+    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
+        return super().should_instrument_line(instr, lineno)
+
 
 class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
     """Specialized instrumentation adapter for checked coverage in Python 3.14."""
@@ -321,8 +341,8 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
         instr_index: int,
         instr_original_index: int,
     ) -> None:
-        if instr.name not in ACCESS_FAST_NAMES:
-            return super().visit_local_access(
+        if instr.name in python3_13.ACCESS_FAST_NAMES:
+            super().visit_local_access(
                 ast_info,
                 cfg,
                 code_object_id,
@@ -331,6 +351,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 instr_index,
                 instr_original_index,
             )
+            return
 
         instructions = self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
@@ -345,6 +366,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
+                    # InstrumentationFastLoadTuple(names=instr.arg),  # type: ignore[arg-type]
                     InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
             ),
@@ -357,43 +379,12 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 # (otherwise we can not read the data)
                 node.basic_block[before(instr_index)] = instructions
             case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW" | \
-                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW" | "LOAD_FAST_LOAD_FAST" :
+                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW" | "LOAD_FAST_LOAD_FAST" | \
+                 "STORE_FAST_STORE_FAST":
                 # Instrumentation after the original instruction
                 node.basic_block[after(instr_index)] = instructions
 
         return None
-
-    def visit_call(  # noqa: D102, PLR0917
-        self,
-        ast_info: transformer.AstInfo | None,
-        cfg: cf.CFG,
-        code_object_id: int,
-        node: cf.BasicBlockNode,
-        instr: Instr,
-        instr_index: int,
-        instr_original_index: int,
-    ) -> None:
-        # Trace argument only for calls with integer arguments
-        argument = instr.arg if isinstance(instr.arg, int) and instr.arg != UNSET else None
-
-        # Instrumentation before the original instruction
-        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
-            InstrumentationSetupAction.NO_ACTION,
-            InstrumentationMethodCall(
-                self._subject_properties.instrumentation_tracer,
-                tracer.InstrumentationExecutionTracer.track_call.__name__,
-                (
-                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                    InstrumentationConstantLoad(value=code_object_id),
-                    InstrumentationConstantLoad(value=node.index),
-                    InstrumentationConstantLoad(value=instr.opcode),
-                    InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_original_index),
-                    InstrumentationConstantLoad(value=argument),
-                ),
-            ),
-            instr.lineno,
-        )
 
     METHODS: ClassVar[
         dict[
@@ -411,7 +402,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
         python3_10.ACCESS_GLOBAL_NAMES: python3_13.CheckedCoverageInstrumentation.visit_global_access,  # noqa: E501
         python3_12.ACCESS_DEREF_NAMES: python3_13.CheckedCoverageInstrumentation.visit_deref_access,
         python3_12.JUMP_NAMES: python3_13.CheckedCoverageInstrumentation.visit_jump,
-        CALL_NAMES: visit_call,
+        CALL_NAMES: python3_13.CheckedCoverageInstrumentation.visit_call,
         python3_12.RETURNING_NAMES: python3_13.CheckedCoverageInstrumentation.visit_return,
     }
 

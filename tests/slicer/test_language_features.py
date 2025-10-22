@@ -276,8 +276,26 @@ def test_call_without_arguments():
 
 def test_call_with_arguments():
     # Call with two arguments, one of which is used in the callee
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
         create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=16),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),
+            TracedInstr("CALL", arg=2),
+        )
+    elif sys.version_info >= (3, 13):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("BUILD_TUPLE", arg=4),
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION"),
             TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=4),
@@ -289,6 +307,11 @@ def test_call_with_arguments():
         )
     elif sys.version_info >= (3, 12):
         create_callee = (
+             TracedInstr("LOAD_CONST", arg="a"),
+             TracedInstr("LOAD_NAME", arg="int"),
+             TracedInstr("LOAD_CONST", arg="b"),
+             TracedInstr("LOAD_NAME", arg="int"),
+             TracedInstr("BUILD_TUPLE", arg=4),
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=4),
         )
@@ -300,6 +323,11 @@ def test_call_with_arguments():
         )
     elif sys.version_info >= (3, 11):
         create_callee = (
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("BUILD_TUPLE", arg=4),
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=4),
         )
@@ -312,6 +340,11 @@ def test_call_with_arguments():
         )
     else:
         create_callee = (
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("BUILD_TUPLE", arg=4),
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("LOAD_CONST", arg="callee"),
             TracedInstr("MAKE_FUNCTION", arg=4),
@@ -325,11 +358,6 @@ def test_call_with_arguments():
 
     expected_instructions = [
         # def callee(a: int, b: int):
-        TracedInstr("LOAD_CONST", arg="a"),
-        TracedInstr("LOAD_NAME", arg="int"),
-        TracedInstr("LOAD_CONST", arg="b"),
-        TracedInstr("LOAD_NAME", arg="int"),
-        TracedInstr("BUILD_TUPLE", arg=4),
         *create_callee,
         TracedInstr("STORE_NAME", arg="callee"),
         # foo = 1
@@ -341,12 +369,12 @@ def test_call_with_arguments():
         # ... = callee(foo, bar)
         *call_callee,
         # return a
-        TracedInstr("LOAD_FAST", arg="a"),
+        TracedInstr(load_fast, arg="a"),
         TracedInstr("RETURN_VALUE"),
         # result = ...
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
