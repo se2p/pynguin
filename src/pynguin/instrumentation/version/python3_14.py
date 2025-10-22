@@ -138,16 +138,7 @@ MEMORY_USE_NAMES = (
     + python3_12.BINARY_SLICE_NAMES
 )
 
-MEMORY_DEF_NAMES = (
-    MODIFY_FAST_NAMES
-    + python3_12.MODIFY_NAME_NAMES
-    + python3_12.MODIFY_GLOBAL_NAMES
-    + python3_12.MODIFY_DEREF_NAMES
-    + python3_10.MODIFY_ATTR_NAMES
-    + python3_12.IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
-    + python3_10.ACCESS_SUBSCR_NAMES
-    + python3_12.ACCESS_SLICE_NAMES
-)
+MEMORY_DEF_NAMES = python3_13.MEMORY_DEF_NAMES
 
 
 def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
