@@ -18,7 +18,6 @@ from typing import ClassVar
 
 from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version import python3_11
@@ -28,10 +27,7 @@ from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
 )
 from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationFastLoad
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
+from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
 
@@ -239,7 +235,7 @@ class Python314InstrumentationInstructionsGenerator(
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
-            case InstrumentationFastLoad(name):
+            case InstrumentationFastLoadTuple(name):
                 if isinstance(name, tuple):
                     return (
                         cf.ArtificialInstr("LOAD_FAST_LOAD_FAST", arg=name, lineno=lineno),
@@ -283,24 +279,8 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
             )
             return
 
-        instructions = self.instructions_generator.generate_instructions(
-            InstrumentationSetupAction.NO_ACTION,
-            InstrumentationMethodCall(
-                self._subject_properties.instrumentation_tracer,
-                tracer.InstrumentationExecutionTracer.track_memory_access.__name__,
-                (
-                    InstrumentationConstantLoad(value=cfg.bytecode_cfg.filename),
-                    InstrumentationConstantLoad(value=code_object_id),
-                    InstrumentationConstantLoad(value=node.index),
-                    InstrumentationConstantLoad(value=instr.opcode),
-                    InstrumentationConstantLoad(value=instr.lineno),
-                    InstrumentationConstantLoad(value=instr_original_index),
-                    InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    # Different from Python 3.13:
-                    InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
-                ),
-            ),
-            instr.lineno,
+        instructions = super().generate_instructions(
+            cfg, code_object_id, instr, instr_original_index, node
         )
 
         match instr.name:

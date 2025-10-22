@@ -24,6 +24,9 @@ from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
 from pynguin.instrumentation import tracer
 from pynguin.instrumentation import transformer
+from pynguin.instrumentation.controlflow import CFG
+from pynguin.instrumentation.controlflow import ArtificialInstr
+from pynguin.instrumentation.controlflow import BasicBlockNode
 from pynguin.instrumentation.version import python3_10
 from pynguin.instrumentation.version import python3_11
 from pynguin.instrumentation.version import python3_12
@@ -341,7 +344,28 @@ class CheckedCoverageInstrumentation(python3_12.CheckedCoverageInstrumentation):
             )
             return
 
-        node.basic_block[after(instr_index)] = self.instructions_generator.generate_instructions(
+        node.basic_block[after(instr_index)] = self.generate_instructions(
+            cfg, code_object_id, instr, instr_original_index, node
+        )
+
+    def generate_instructions(
+        self,
+        cfg: CFG,
+        code_object_id: int,
+        instr: Instr,
+        instr_original_index: int,
+        node: BasicBlockNode,
+    ) -> tuple[ArtificialInstr, ...]:
+        """Generate instrumentation instructions.
+
+        Args:
+            cfg: The CFG.
+            code_object_id: The ID of the code object.
+            instr: The instruction to instrument.
+            instr_original_index: The original index of the instruction.
+            node: The node that contains the instruction.
+        """
+        return self.instructions_generator.generate_instructions(
             InstrumentationSetupAction.NO_ACTION,
             InstrumentationMethodCall(
                 self._subject_properties.instrumentation_tracer,
