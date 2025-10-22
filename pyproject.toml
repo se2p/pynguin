@@ -50,7 +50,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.15"
-astroid = "^3.3.9"
+astroid = "^4.0.1"
 black = "^25.1.0"
 bytecode = "0.17.0"
 dill = "^0.3.9"

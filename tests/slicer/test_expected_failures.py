@@ -261,7 +261,22 @@ def test_mod_untraced_object():
 
 def test_call_unused_argument():
     # Call with two arguments, one of which is used in the callee
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        create_callee = (
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("LOAD_CONST", arg=dummy_code_object),
+            TracedInstr("MAKE_FUNCTION"),
+            TracedInstr("SET_FUNCTION_ATTRIBUTE", arg=16),
+        )
+        call_callee = (
+            TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
+            TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),
+            TracedInstr("CALL", arg=2),
+            TracedInstr(load_fast, arg="a"),
+            TracedInstr("RETURN_VALUE"),
+        )
+    elif sys.version_info >= (3, 13):
         create_callee = (
             TracedInstr("LOAD_CONST", arg="a"),
             TracedInstr("LOAD_NAME", arg="int"),
