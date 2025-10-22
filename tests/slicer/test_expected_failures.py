@@ -23,9 +23,13 @@ from tests.slicer.util import slice_module_at_return
 if sys.version_info >= (3, 14):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    binary_subscr = (TracedInstr("BINARY_OP", arg=BinaryOp.SUBSCR.value),)
     load_const = "LOAD_SMALL_INT"
     load_fast = "LOAD_FAST_BORROW"
-    binary_subscr = (TracedInstr("BINARY_OP", arg=BinaryOp.SUBSCR.value),)
+    return_none = (
+        TracedInstr("LOAD_CONST", arg=None),
+        TracedInstr("RETURN_VALUE"),
+    )
 
     def load_slice(arg1, arg2):
         return (
@@ -33,17 +37,13 @@ if sys.version_info >= (3, 14):
             TracedInstr("STORE_SUBSCR"),
         )
 
-    return_none = (
-        TracedInstr("LOAD_CONST", arg=None),
-        TracedInstr("RETURN_VALUE"),
-    )
-
 elif sys.version_info >= (3, 12):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
     load_const = "LOAD_CONST"
     load_fast = "LOAD_FAST"
-    binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
 
     def load_slice(arg1, arg2):
         return (
@@ -52,14 +52,13 @@ elif sys.version_info >= (3, 12):
             TracedInstr(name="STORE_SLICE"),
         )
 
-    return_none = (TracedInstr("RETURN_CONST", arg=None),)
-
 elif sys.version_info >= (3, 11):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
     load_const = "LOAD_CONST"
     load_fast = "LOAD_FAST"
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
 
     def load_slice(arg1, arg2):
         return (
@@ -68,8 +67,6 @@ elif sys.version_info >= (3, 11):
             TracedInstr("BUILD_SLICE", arg=2),
             TracedInstr(name="STORE_SUBSCR"),
         )
-
-    return_none = (TracedInstr("RETURN_CONST", arg=None),)
 
 else:
     inplace_add_instruction = TracedInstr("INPLACE_ADD")
@@ -77,6 +74,7 @@ else:
     binary_subscr = (TracedInstr("BINARY_SUBSCR"),)
     load_const = "LOAD_CONST"
     load_fast = "LOAD_FAST"
+    return_none = (TracedInstr("RETURN_CONST", arg=None),)
 
     def load_slice(arg1, arg2):
         return (
@@ -85,8 +83,6 @@ else:
             TracedInstr("BUILD_SLICE", arg=2),
             TracedInstr(name="STORE_SUBSCR"),
         )
-
-    return_none = (TracedInstr("RETURN_CONST", arg=None),)
 
 
 def test_data_dependency_composite():

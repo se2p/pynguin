@@ -92,13 +92,6 @@ class InstrumentationConstantLoad:
 
 
 @dataclass(frozen=True)
-class InstrumentedSmallIntLoad:
-    """Represents a small integer load used in instrumentation."""
-
-    value: int
-
-
-@dataclass(frozen=True)
 class InstrumentationFastLoad:
     """Represents a fast load used in instrumentation."""
 
