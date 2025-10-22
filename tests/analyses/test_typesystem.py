@@ -17,10 +17,11 @@ from unittest import mock
 
 import pytest
 
-from pynguin.analyses.type_inference import HintInference, NoInference
 import pynguin.configuration as config
 
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import NoInference
 from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES
 from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES
 from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES
@@ -42,7 +43,6 @@ from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import _is_partial_type_match
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
-from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typetracing import UsageTraceNode
 from tests.fixtures.types.subtyping import Sub

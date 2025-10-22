@@ -4,32 +4,41 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 import asyncio
 import builtins
-from collections import OrderedDict
 import inspect
 import json
 import logging
 import time
 import types
-from typing import Any, get_type_hints
 import typing
 
+from abc import ABC
+from abc import abstractmethod
+from collections import OrderedDict
+from typing import Any
+from typing import get_type_hints
+
 from pydantic import SecretStr
+
 import pynguin.configuration as config
+
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
+from pynguin.large_language_model.prompts.typeinferenceprompt import TypeInferencePrompt
 from pynguin.large_language_model.prompts.typeinferenceprompt import (
-    TypeInferencePrompt,
     get_inference_system_prompt,
 )
-from pynguin.utils.llm import LLMProvider, OpenAI
+from pynguin.utils.llm import LLMProvider
+from pynguin.utils.llm import OpenAI
 from pynguin.utils.orderedset import OrderedSet
+
 
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import TypeSystem
     from collections.abc import Callable, Mapping, Sequence
+
 from copy import deepcopy
+
 
 _LOGGER = logging.getLogger(__name__)
 

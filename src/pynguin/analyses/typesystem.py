@@ -31,18 +31,18 @@ from typing import _BaseGenericAlias  # type: ignore[attr-defined]  # noqa: PLC2
 from typing import _eval_type  # type: ignore[attr-defined]  # noqa: PLC2701
 from typing import cast
 from typing import get_origin
-from typing import get_type_hints
 
 import networkx as nx
 
 from networkx.drawing.nx_pydot import to_pydot
 from typing_inspect import is_union_type
 
-from pynguin.analyses.type_inference import HintInference, InferenceProvider
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import InferenceProvider
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice

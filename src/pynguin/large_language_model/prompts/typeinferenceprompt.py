@@ -6,9 +6,9 @@
 #
 """Provides class prompt for type inference using LLMs."""
 
-import datetime
 import inspect
 import textwrap
+
 from collections.abc import Callable
 from typing import Any
 

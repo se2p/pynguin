@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import abc
 import builtins
-
 import dataclasses
 import enum
 import functools
@@ -35,17 +34,16 @@ from typing import Any
 
 import astroid
 
-from pynguin.analyses.type_inference import (
-    HintInference,
-    InferenceProvider,
-    LLMInference,
-    NoInference,
-    ANY_STR,
-)
 import pynguin.configuration as config
-from pynguin.utils.llm import LLMProvider
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
+
+from pynguin.analyses.type_inference import ANY_STR
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import InferenceProvider
+from pynguin.analyses.type_inference import LLMInference
+from pynguin.analyses.type_inference import NoInference
+from pynguin.utils.llm import LLMProvider
 
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
@@ -92,13 +90,13 @@ from pynguin.utils.typeevalpy_json_schema import provide_json
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Sequence
 
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
 
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.utils.pynguinml.mlparameter import MLParameter
-    from collections.abc import Sequence
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
