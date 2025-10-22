@@ -7,7 +7,6 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: ERA001
-import dis
 import sys
 
 from bytecode.instr import BinaryOp
@@ -248,7 +247,7 @@ def test_data_dependency_5():
         TracedInstr(load_fast, arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr1"),
         # result = ob
-        TracedInstr("LOAD_FAST", arg="ob"),  # intentionally not LOAD_FAST_BORROW
+        TracedInstr("LOAD_FAST", arg="ob"),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
         TracedInstr(load_fast, arg="result"),
@@ -307,8 +306,6 @@ def test_simple_control_dependency_2():
             result = 1
 
         return result
-
-    dis.dis(func)
 
     expected_instructions = [
         # result = 3

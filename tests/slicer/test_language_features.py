@@ -7,6 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: E501, ERA001
+
 import sys
 
 from unittest.mock import MagicMock
@@ -34,15 +35,9 @@ if sys.version_info >= (3, 14):
     pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
     end_for = TracedInstr("END_FOR")
     return_none = (TracedInstr("LOAD_CONST", arg=None), TracedInstr("RETURN_VALUE"))
-    # store_slice = (TracedInstr("STORE_SLICE"),)
     load_const = "LOAD_SMALL_INT"
     load_fast = "LOAD_FAST_BORROW"
     load_fast_load_fast = "LOAD_FAST_BORROW_LOAD_FAST_BORROW"
-    # binary_subscr = (TracedInstr("BINARY_OP", arg=BinaryOp.SUBSCR.value),)
-    # load_slice = lambda arg1, arg2: (
-    #     TracedInstr("LOAD_CONST", arg=slice(arg1, arg2)),
-    #     TracedInstr("STORE_SUBSCR"),
-    # )
 elif sys.version_info >= (3, 12):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)

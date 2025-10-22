@@ -55,7 +55,6 @@ class TracedInstr:
         int
         | str
         | tuple
-        | slice
         | FreeVar
         | CellVar
         | CodeType
