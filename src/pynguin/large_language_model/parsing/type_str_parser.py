@@ -22,7 +22,7 @@ class TypeStrParser:
         """
         self._type_system = type_system
 
-    def parse(self, type_str: str) -> type | str | None:
+    def parse(self, type_str: str) -> type | str | None:  # noqa: C901
         """Converts a string to a type object, if possible.
 
         Uses the typeSystem to resolve types.
