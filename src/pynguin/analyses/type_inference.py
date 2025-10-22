@@ -204,10 +204,10 @@ class LLMInference(InferenceProvider):
     @staticmethod
     def _run_coro(coro: typing.Coroutine) -> Any:
         try:
-            return asyncio.run(coro)  # type: ignore
+            return asyncio.run(coro)  # type: ignore # noqa: PGH003
         except RuntimeError:
             loop = asyncio.get_running_loop()
-            return loop.run_until_complete(coro)  # type: ignore
+            return loop.run_until_complete(coro)  # type: ignore # noqa: PGH003
 
     # ---- utilities ----
     def _prior_types(self, func: Callable[..., Any]) -> dict[str, str]:
