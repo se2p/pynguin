@@ -51,6 +51,9 @@ elif sys.version_info >= (3, 12):
     pop_jump_forward_if_false = "POP_JUMP_IF_FALSE"
     end_for = TracedInstr("END_FOR")
     return_none = (TracedInstr("RETURN_CONST", arg=None),)
+    load_const = "LOAD_CONST"
+    load_fast = "LOAD_FAST"
+    load_fast_load_fast = "LOAD_FAST_LOAD_FAST"
 elif sys.version_info >= (3, 11):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)
     binary_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
@@ -193,7 +196,7 @@ def test_call_without_arguments():
             TracedInstr("LOAD_GLOBAL", arg=(True, "callee")),
             TracedInstr("CALL", arg=0),
         )
-        return_zero = (TracedInstr("RETURN_VALUE", arg=0),)
+        return_zero = (TracedInstr("RETURN_CONST", arg=0),)
     elif sys.version_info >= (3, 12):
         create_callee = (
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
