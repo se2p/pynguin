@@ -318,11 +318,23 @@ def test_calculation_checked_coverage_instrumentation(
     """
     if sys.version_info >= (3, 14):
         expected_executed_instructions = OrderedSet([
+            ExecutedMemoryInstruction(
+                file=simple_module.__file__,
+                code_object_id=0,
+                node_id=0,
+                opcode=opmap["LOAD_FAST_BORROW"],
+                argument="a",
+                lineno=21,
+                instr_original_index=1,
+                arg_address=4389457360,
+                is_mutable_type=True,
+                object_creation=True,
+            ),
             ExecutedInstruction(
                 file=simple_module.__file__,
                 code_object_id=0,
                 node_id=0,
-                opcode=39,
+                opcode=opmap["TO_BOOL"],
                 argument=None,
                 lineno=21,
                 instr_original_index=2,

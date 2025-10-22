@@ -442,7 +442,7 @@ def test_exception():
         TracedInstr("STORE_FAST", arg="result"),
         *jump_instruction,
         # return result
-        TracedInstr(load_fast, arg="result"),
+        TracedInstr("LOAD_FAST", arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
