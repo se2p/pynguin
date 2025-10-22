@@ -181,15 +181,6 @@ class TypeStrParser:
         inner = hint[start + 1 : end]
         return [t.strip() for t in inner.split(",")]
 
-    @staticmethod
-    def _get_list_inner_type(hint: str) -> str | None:
-        """Extract inner type from a list type hint."""
-        start = hint.find("[")
-        end = hint.rfind("]")
-        if start == -1 or end == -1 or start >= end:
-            return None
-        return hint[start + 1 : end].strip()
-
     def _get_union_inner_types(self, hint: str) -> list[str]:
         """Extract inner types from a union type hint."""
         if "|" in hint:
