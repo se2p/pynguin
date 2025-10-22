@@ -1249,6 +1249,7 @@ def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
 def __is_constructor(method_name: str) -> bool:
     return method_name == "__init__"
 
+
 def __is_annotate(method_name: str) -> bool:
     return method_name == "__annotate_func__"
 

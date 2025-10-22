@@ -19,6 +19,7 @@ from tests.slicer.util import dummy_code_object
 from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
 
+
 if sys.version_info >= (3, 14):
     add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     create_foo_class = (
@@ -247,7 +248,7 @@ def test_data_dependency_5():
         TracedInstr(load_fast, arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr1"),
         # result = ob
-        TracedInstr("LOAD_FAST", arg="ob"), # intentionally not LOAD_FAST_BORROW
+        TracedInstr("LOAD_FAST", arg="ob"),  # intentionally not LOAD_FAST_BORROW
         TracedInstr("STORE_FAST", arg="result"),
         # return result
         TracedInstr(load_fast, arg="result"),
