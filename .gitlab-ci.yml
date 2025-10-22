@@ -63,6 +63,7 @@ unit-tests:
       - PYTHON_VERSION: "3.11-bookworm"
       - PYTHON_VERSION: "3.12-bookworm"
       - PYTHON_VERSION: "3.13-bookworm"
+      - PYTHON_VERSION: "3.14-bookworm"
 
 combine-coverage:
   stage: test
