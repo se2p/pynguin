@@ -33,6 +33,8 @@ if not NUMPY_AVAILABLE:
         "NumPy is not available. You can install it with poetry install --with numpy."
     )
 
+from pynguin.analyses.type_inference import InferenceProvider
+from pynguin.analyses.type_inference import LLMInference
 import pynguin.configuration as config
 
 from pynguin.utils.exceptions import ConstraintValidationError
@@ -90,7 +92,7 @@ def get_nparray_function(test_cluster: "ModuleTestCluster") -> GenericFunction:
     Returns:
         A `GenericFunction` instance wrapping `numpy.array`.
     """
-    inferred_signature = test_cluster.type_system.infer_type_info(
+    inferred_signature = test_cluster.type_system.infer_type_info(  # type: ignore  # noqa: PGH003
         np.array,
         type_inference_provider=config.configuration.type_inference.type_inference_strategy,
     )
@@ -144,7 +146,7 @@ def get_constructor_function(test_cluster: "ModuleTestCluster") -> GenericFuncti
         for attr in function_path:
             func = getattr(func, attr)
 
-        inferred_signature = test_cluster.type_system.infer_type_info(
+        inferred_signature = test_cluster.type_system.infer_type_info(  # type: ignore  # noqa: PGH003
             cast("FunctionType", func),
             type_inference_provider=config.configuration.type_inference.type_inference_strategy,
         )

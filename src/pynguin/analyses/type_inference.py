@@ -106,9 +106,9 @@ class LLMInference(InferenceProvider):
         self._inference_by_callable: OrderedDict[Callable, dict[str, str]] = OrderedDict()
         self._type_string_parser = TypeStrParser(type_system)
         super().__init__()
-        start = time.time()
+        start = time.time_ns()
         self._infer_all()
-        self._metrics["total_setup_time"] = time.time() - start
+        self._metrics["total_setup_time"] = time.time_ns() - start
         _LOGGER.debug(
             "Inference completed in %.3fs",
             self._metrics["total_setup_time"],
@@ -163,7 +163,7 @@ class LLMInference(InferenceProvider):
 
     # ---- LLM I/O (parallel) ----
     def _send_prompt(self, prompt: str) -> str:
-        return self._model.chat(prompt)
+        return self._model.chat(prompt) or ""
 
     def _send_prompts(
         self, prompts: Mapping[Callable[..., Any], str]
@@ -202,12 +202,12 @@ class LLMInference(InferenceProvider):
             return func, resp
 
     @staticmethod
-    def _run_coro(coro: asyncio.coroutines.coroutine) -> Any:
+    def _run_coro(coro: typing.Coroutine) -> Any:
         try:
-            return asyncio.run(coro)
+            return asyncio.run(coro)  # type: ignore
         except RuntimeError:
             loop = asyncio.get_running_loop()
-            return loop.run_until_complete(coro)
+            return loop.run_until_complete(coro)  # type: ignore
 
     # ---- utilities ----
     def _prior_types(self, func: Callable[..., Any]) -> dict[str, str]:

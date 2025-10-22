@@ -32,7 +32,7 @@ class TypeInferencePrompt:
             subtypes: list of known string subtypes (e.g., "email", "url", etc.)
         """
         self.callable_obj = callable_obj
-        self.subtypes = subtypes or []
+        self.subtypes: OrderedSet[str] = subtypes or []
 
     def build_user_prompt(self) -> str:
         """Build the complete prompt for type inference."""
@@ -181,7 +181,6 @@ class TypeInferencePrompt:
         return ", ".join(list(self.subtypes)) if self.subtypes else "(none)"
 
 
-@staticmethod
 def get_inference_system_prompt() -> str:
     """Build the system prompt for type inference."""
     return textwrap.dedent(
