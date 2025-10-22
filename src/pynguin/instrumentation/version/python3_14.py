@@ -30,7 +30,6 @@ from pynguin.instrumentation.version.common import (
 from pynguin.instrumentation.version.common import InstrumentationArgument
 from pynguin.instrumentation.version.common import InstrumentationConstantLoad
 from pynguin.instrumentation.version.common import InstrumentationFastLoad
-from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
 from pynguin.instrumentation.version.common import after
@@ -221,7 +220,7 @@ def stack_effects(  # noqa: D103 C901
             return StackEffects(3, 0)
         # TODO(lk): Not in line with documentation; doesn't make sense
         case "RETURN_VALUE" | "INSTRUMENTED_RETURN_VALUE":
-            return StackEffects(1, 1)  # if arg is None else StackEffects(1, 0)
+            return StackEffects(1, 1)
         case _:
             return python3_13.stack_effects(opcode, arg, jump=jump)
 
@@ -229,9 +228,8 @@ def stack_effects(  # noqa: D103 C901
 class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
     """Branch coverage adapter for Python 3.14.
 
-    Uses Python 3.12's for-loop handling (END_FOR) but adopts the 3.13
-    comparison extraction to support *_CAST comparison ops introduced in
-    newer Python versions.
+    Uses Python 3.12's for-loop handling (END_FOR) but adopts the 3.13 comparison
+    extraction to support *_CAST comparison ops introduced in newer Python versions.
     """
 
     extract_comparison = staticmethod(python3_13.extract_comparison)
@@ -250,13 +248,6 @@ class Python314InstrumentationInstructionsGenerator(
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
-            case InstrumentationFastLoadTuple(names):
-                return (
-                    cf.ArtificialInstr(
-                        "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
-                    ),
-                    cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
-                )
             case InstrumentationFastLoad(name):
                 if isinstance(name, tuple):
                     return (
@@ -273,17 +264,11 @@ class LineCoverageInstrumentation(python3_13.LineCoverageInstrumentation):
 
     instructions_generator = Python314InstrumentationInstructionsGenerator
 
-    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return super().should_instrument_line(instr, lineno)
-
 
 class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
     """Specialized instrumentation adapter for checked coverage in Python 3.14."""
 
     instructions_generator = Python314InstrumentationInstructionsGenerator
-
-    def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return super().should_instrument_line(instr, lineno)
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
