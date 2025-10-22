@@ -12,13 +12,9 @@
 
 from __future__ import annotations
 
-from itertools import chain
 from opcode import opname
-from typing import ClassVar, Sequence
-
-from bytecode.instr import _UNSET
-from bytecode.instr import UNSET
-from bytecode.instr import Instr
+from typing import TYPE_CHECKING
+from typing import ClassVar
 
 from pynguin.instrumentation import StackEffects
 from pynguin.instrumentation import controlflow as cf
@@ -37,9 +33,11 @@ from pynguin.instrumentation.version.common import InstrumentationFastLoad
 from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import InstrumentationMethodCall
 from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import InstrumentedSmallIntLoad
 from pynguin.instrumentation.version.common import after
 from pynguin.instrumentation.version.common import before
+
+# In Python 3.14 "LOAD_CONST None; RETURN_VALUE" is used again instead of "RETURN_CONST None"
+from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
 from pynguin.instrumentation.version.python3_13 import ACCESS_NAMES
 from pynguin.instrumentation.version.python3_13 import CLOSURE_LOAD_NAMES
 from pynguin.instrumentation.version.python3_13 import COND_BRANCH_NAMES
@@ -57,9 +55,12 @@ from pynguin.instrumentation.version.python3_13 import STORE_NAME_NAMES
 from pynguin.instrumentation.version.python3_13 import STORE_NAMES
 from pynguin.instrumentation.version.python3_13 import YIELDING_NAMES
 from pynguin.instrumentation.version.python3_13 import add_for_loop_no_yield_nodes
-from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
-from pynguin.instrumentation.version.python3_13 import get_branch_type
 from pynguin.instrumentation.version.python3_13 import is_conditional_jump
+
+
+if TYPE_CHECKING:
+    from bytecode.instr import _UNSET
+    from bytecode.instr import Instr
 
 
 __all__ = [
@@ -137,17 +138,16 @@ MEMORY_USE_NAMES = (
     + python3_10.BINARY_SUBSCR_NAMES
     + python3_12.BINARY_SLICE_NAMES
 )
-MODIFY_NAME_NAMES = python3_13.MODIFY_NAME_NAMES
 
 MEMORY_DEF_NAMES = (
-        MODIFY_FAST_NAMES
-        + python3_12.MODIFY_NAME_NAMES
-        + python3_12.MODIFY_GLOBAL_NAMES
-        + python3_12.MODIFY_DEREF_NAMES
-        + python3_10.MODIFY_ATTR_NAMES
-        + python3_12.IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
-        + python3_10.ACCESS_SUBSCR_NAMES
-        + python3_12.ACCESS_SLICE_NAMES
+    MODIFY_FAST_NAMES
+    + python3_12.MODIFY_NAME_NAMES
+    + python3_12.MODIFY_GLOBAL_NAMES
+    + python3_12.MODIFY_DEREF_NAMES
+    + python3_10.MODIFY_ATTR_NAMES
+    + python3_12.IMPORT_NAME_NAMES  # compensate incorrect stack effect for IMPORT_NAME
+    + python3_10.ACCESS_SUBSCR_NAMES
+    + python3_12.ACCESS_SLICE_NAMES
 )
 
 
@@ -170,17 +170,6 @@ def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
             return False
         case _:
             return None
-
-
-def end_with_explicit_return_none(instructions: Sequence[Instr]) -> bool:  # noqa: D103
-    return (
-            len(instructions) >= 3
-            # check if the "return None" is implicit or explicit
-            and instructions[-3].lineno != instructions[-2].lineno
-            and instructions[-2].name == "LOAD_CONST"
-            and instructions[-2].arg is None
-            and instructions[-1].name == "RETURN_VALUE"
-    )
 
 
 def stack_effects(  # noqa: D103 C901
@@ -232,7 +221,7 @@ def stack_effects(  # noqa: D103 C901
             return StackEffects(3, 0)
         # TODO(lk): Not in line with documentation; doesn't make sense
         case "RETURN_VALUE" | "INSTRUMENTED_RETURN_VALUE":
-            return StackEffects(1, 1) # if arg is None else StackEffects(1, 0)
+            return StackEffects(1, 1)  # if arg is None else StackEffects(1, 0)
         case _:
             return python3_13.stack_effects(opcode, arg, jump=jump)
 
@@ -248,8 +237,6 @@ class BranchCoverageInstrumentation(python3_12.BranchCoverageInstrumentation):
     extract_comparison = staticmethod(python3_13.extract_comparison)
 
 
-
-
 class Python314InstrumentationInstructionsGenerator(
     python3_13.Python313InstrumentationInstructionsGenerator
 ):
@@ -263,56 +250,23 @@ class Python314InstrumentationInstructionsGenerator(
         lineno: int | _UNSET | None,
     ) -> tuple[cf.ArtificialInstr, ...]:
         match arg:
-            # case InstrumentedSmallIntLoad(value):
-            #     return (cf.ArtificialInstr("LOAD_SMALL_INT", value, lineno=lineno),)
-            # case InstrumentationFastLoad(name):
-            #     return (cf.ArtificialInstr("LOAD_FAST_BORROW", name, lineno=lineno),)
-            # case InstrumentationFastLoadTuple(names):
-            #     return (
-            #         cf.ArtificialInstr(
-            #             "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
-            #         ),
-            #         cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
-            #     )
             case InstrumentationFastLoadTuple(names):
                 return (
-                    cf.ArtificialInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno),
+                    cf.ArtificialInstr(
+                        "LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno
+                    ),
                     cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
                 )
             case InstrumentationFastLoad(name):
                 if isinstance(name, tuple):
-                    # return (
-                    #     cf.ArtificialInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=name, lineno=lineno),
-                    #     cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
-                    # )
                     return (
-                        # cf.ArtificialInstr("LOAD_FAST", name[0], lineno=lineno),
-                        # cf.ArtificialInstr("LOAD_FAST", name[1], lineno=lineno),
-                        cf.ArtificialInstr("LOAD_FAST_LOAD_FAST", arg=name,
-                                           lineno=lineno),
+                        cf.ArtificialInstr("LOAD_FAST_LOAD_FAST", arg=name, lineno=lineno),
                         cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
                     )
                 return (cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno),)
             case _:
                 return super()._generate_argument_instructions(arg, position, lineno)
 
-    # @classmethod
-    # def generate_method_call_instructions(
-    #     cls,
-    #     method_call: InstrumentationMethodCall,
-    #     lineno: int | _UNSET | None,
-    # ) -> tuple[cf.ArtificialInstr, ...]:
-    #     return (
-    #         cf.ArtificialInstr("LOAD_CONST", method_call.self, lineno=lineno),
-    #         cf.ArtificialInstr("LOAD_ATTR", (True, method_call.method_name), lineno=lineno),
-    #         *chain(
-    #             *(
-    #                 cls._generate_argument_instructions(arg, position, lineno)
-    #                 for position, arg in enumerate(method_call.args)
-    #             )
-    #         ),
-    #         cf.ArtificialInstr("CALL", len(method_call.args), lineno=lineno),
-    #     )
 
 class LineCoverageInstrumentation(python3_13.LineCoverageInstrumentation):
     """Specialized instrumentation adapter for line coverage in Python 3.13."""
@@ -329,7 +283,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
     instructions_generator = Python314InstrumentationInstructionsGenerator
 
     def should_instrument_line(self, instr: Instr, lineno: int | _UNSET | None) -> bool:  # noqa: D102
-        return super().should_instrument_line(instr, lineno)  # and instr.name != "POP_TOP"
+        return super().should_instrument_line(instr, lineno)
 
     def visit_local_access(  # noqa: D102, PLR0917
         self,
@@ -366,7 +320,7 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                     InstrumentationConstantLoad(value=instr.lineno),
                     InstrumentationConstantLoad(value=instr_original_index),
                     InstrumentationConstantLoad(value=instr.arg),  # type: ignore[arg-type]
-                    # InstrumentationFastLoadTuple(names=instr.arg),  # type: ignore[arg-type]
+                    # Different from Python 3.13:
                     InstrumentationFastLoad(name=instr.arg),  # type: ignore[arg-type]
                 ),
             ),
@@ -378,13 +332,19 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
                 node.basic_block[before(instr_index)] = instructions
-            case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW" | \
-                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW" | "LOAD_FAST_LOAD_FAST" | \
-                 "STORE_FAST_STORE_FAST":
+            case (
+                "LOAD_FAST"
+                | "LOAD_FAST_CHECK"
+                | "STORE_FAST"
+                | "LOAD_FAST_BORROW"
+                | "LOAD_FAST_BORROW_LOAD_FAST_BORROW"
+                | "LOAD_FAST_LOAD_FAST"
+                | "STORE_FAST_STORE_FAST"
+            ):
                 # Instrumentation after the original instruction
                 node.basic_block[after(instr_index)] = instructions
 
-        return None
+        return
 
     METHODS: ClassVar[
         dict[

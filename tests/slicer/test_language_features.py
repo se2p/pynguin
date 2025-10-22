@@ -7,7 +7,6 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: E501, ERA001
-import dis
 import sys
 
 from unittest.mock import MagicMock
@@ -88,7 +87,6 @@ def test_simple_loop():
         for i in range(0, 3):  # noqa: PIE808
             result += i
         return result
-
 
     if sys.version_info >= (3, 14):
         range_call = (
@@ -171,25 +169,6 @@ def test_simple_loop():
     sliced_instructions = slice_function_at_return(func)
     assert_slice_equal(sliced_instructions, expected_instructions)
 
-
-def test_debug_simple_loop():
-    def func():
-        result = 0
-        for i in range(0, 3):  # noqa: PIE808
-            result += i
-        return result
-
-    dis.dis(func)
-
-def test_debug_call_without_arguments():
-    def callee():
-        return 0
-
-    def func():
-        result = callee()
-        return result
-
-    dis.dis(func)
 
 def test_call_without_arguments():
     if sys.version_info >= (3, 14):
@@ -307,11 +286,11 @@ def test_call_with_arguments():
         )
     elif sys.version_info >= (3, 12):
         create_callee = (
-             TracedInstr("LOAD_CONST", arg="a"),
-             TracedInstr("LOAD_NAME", arg="int"),
-             TracedInstr("LOAD_CONST", arg="b"),
-             TracedInstr("LOAD_NAME", arg="int"),
-             TracedInstr("BUILD_TUPLE", arg=4),
+            TracedInstr("LOAD_CONST", arg="a"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("LOAD_CONST", arg="b"),
+            TracedInstr("LOAD_NAME", arg="int"),
+            TracedInstr("BUILD_TUPLE", arg=4),
             TracedInstr("LOAD_CONST", arg=dummy_code_object),
             TracedInstr("MAKE_FUNCTION", arg=4),
         )
