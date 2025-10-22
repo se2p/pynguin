@@ -33,6 +33,7 @@ from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.slicer.dynamicslicer import DynamicSlicer
 from pynguin.slicer.dynamicslicer import SlicingCriterion
+from tests.testutils import instrument_function
 
 
 if TYPE_CHECKING:
@@ -145,9 +146,13 @@ def slice_function_at_return_with_result(
 ) -> tuple[list[UniqueInstruction], Any]:
     subject_properties = SubjectProperties()
     instrumentation = CheckedCoverageInstrumentation(subject_properties)
-    instrumentation_transformer = InstrumentationTransformer(subject_properties, [instrumentation])
+    instrumentation_transformer = InstrumentationTransformer(
+        subject_properties,
+        [instrumentation],
+        to_cover_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
+    )
 
-    function.__code__ = instrumentation_transformer.instrument_module(function.__code__)
+    instrument_function(instrumentation_transformer, function)
 
     with subject_properties.instrumentation_tracer:
         result = function()
@@ -175,7 +180,11 @@ def slice_function_at_return(function: Callable[[], Any]) -> list[UniqueInstruct
 def slice_module_at_return(module_name: str) -> list[UniqueInstruction]:
     config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
     subject_properties = SubjectProperties()
-    with install_import_hook(module_name, subject_properties):
+    with install_import_hook(
+        module_name,
+        subject_properties,
+        to_cover_config=config.ToCoverConfiguration(enable_inline_pragma_no_cover=False),
+    ):
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)
             importlib.reload(module)

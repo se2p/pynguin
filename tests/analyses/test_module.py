@@ -13,6 +13,7 @@ from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import astroid
 import pytest
 
 from pynguin.analyses import module
@@ -95,7 +96,7 @@ def test_parse_native_module():
     module.LOGGER.debug.assert_called_once()
 
 
-@pytest.mark.parametrize("exception_type", [TypeError, OSError, RuntimeError])
+@pytest.mark.parametrize("exception_type", [TypeError, OSError, astroid.AstroidError])
 @patch("astroid.parse")
 def test_parse_module_exceptions(mock_parse, exception_type):
     mock_parse.side_effect = exception_type("Mocked Exception")

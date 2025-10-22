@@ -1199,7 +1199,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
         code = compile(ast_node, AST_FILENAME, "exec")
         if self._instrument:
-            code = self._checked_transformer.instrument_module(code)
+            code = self._checked_transformer.instrument_code(code)
 
         try:
             exec(  # noqa: S102

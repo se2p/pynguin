@@ -59,7 +59,7 @@ class InstrumentationLoader(SourceFileLoader):
         super().exec_module(module)
         self._transformer.subject_properties.instrumentation_tracer.store_import_trace()
 
-    def get_code(self, fullname) -> CodeType:
+    def get_code(self, fullname: str) -> CodeType:
         """Add instrumentation instructions to the code of the module.
 
         This happens before the module is executed.
@@ -72,12 +72,13 @@ class InstrumentationLoader(SourceFileLoader):
         """
         to_instrument = cast("CodeType", super().get_code(fullname))
         assert to_instrument is not None, "Failed to get code object of module."
-        return self._transformer.instrument_module(to_instrument)
+        return self._transformer.instrument_code(to_instrument, fullname)
 
 
 def build_transformer(
     subject_properties: SubjectProperties,
     coverage_metrics: set[config.CoverageMetric],
+    to_cover_config: config.ToCoverConfiguration,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> InstrumentationTransformer:
     """Build a transformer that applies the configured instrumentation.
@@ -85,6 +86,7 @@ def build_transformer(
     Args:
         subject_properties: The properties of the subject under test.
         coverage_metrics: The coverage metrics to use.
+        to_cover_config: the configuration of which code elements are used as coverage goals.
         dynamic_constant_provider: The dynamic constant provider to use.
             When such a provider is passed, we apply the instrumentation for dynamic
             constant seeding.
@@ -103,7 +105,11 @@ def build_transformer(
     if dynamic_constant_provider is not None:
         adapters.append(DynamicSeedingInstrumentation(dynamic_constant_provider))
 
-    return InstrumentationTransformer(subject_properties, adapters)
+    return InstrumentationTransformer(
+        subject_properties,
+        adapters,
+        to_cover_config=to_cover_config,
+    )
 
 
 class InstrumentationFinder(MetaPathFinder):
@@ -122,6 +128,7 @@ class InstrumentationFinder(MetaPathFinder):
         module_to_instrument: str,
         subject_properties: SubjectProperties,
         coverage_metrics: set[config.CoverageMetric],
+        to_cover_config: config.ToCoverConfiguration,
         dynamic_constant_provider: DynamicConstantProvider | None = None,
     ) -> None:
         """Wraps the given pathfinder.
@@ -131,12 +138,14 @@ class InstrumentationFinder(MetaPathFinder):
             module_to_instrument: the name of the module, that should be instrumented.
             subject_properties: the properties of the subject under test.
             coverage_metrics: the coverage metrics to be used for instrumentation.
-            dynamic_constant_provider: Used for dynamic constant seeding
+            to_cover_config: the configuration of which code elements are used as coverage goals.
+            dynamic_constant_provider: Used for dynamic constant seeding.
         """
         self._module_to_instrument = module_to_instrument
         self._original_pathfinder = original_pathfinder
         self._subject_properties = subject_properties
         self._coverage_metrics = coverage_metrics
+        self._to_cover_config = to_cover_config
         self._dynamic_constant_provider = dynamic_constant_provider
 
     @property
@@ -194,6 +203,7 @@ class InstrumentationFinder(MetaPathFinder):
                         build_transformer(
                             self._subject_properties,
                             self._coverage_metrics,
+                            self._to_cover_config,
                             self._dynamic_constant_provider,
                         ),
                     )
@@ -227,6 +237,7 @@ def install_import_hook(
     module_to_instrument: str,
     subject_properties: SubjectProperties,
     coverage_metrics: set[config.CoverageMetric] | None = None,
+    to_cover_config: config.ToCoverConfiguration | None = None,
     dynamic_constant_provider: DynamicConstantProvider | None = None,
 ) -> ImportHookContextManager:
     """Install the InstrumentationFinder in the meta path.
@@ -236,7 +247,9 @@ def install_import_hook(
         subject_properties: The properties of the subject under test.
         coverage_metrics: the coverage metrics to be used for instrumentation, falls
             back to the configured metrics in the configuration, if not specified.
-        dynamic_constant_provider: Used for dynamic constant seeding
+        to_cover_config: the configuration of which code elements are used as coverage goals,
+            falls back to the global configuration, if not specified.
+        dynamic_constant_provider: Used for dynamic constant seeding.
 
     Returns:
         a context manager which can be used to uninstall the hook.
@@ -255,6 +268,16 @@ def install_import_hook(
         )
     if coverage_metrics is None:
         coverage_metrics = set(config.configuration.statistics_output.coverage_metrics)
+    if to_cover_config is None:
+        to_cover_config = config.configuration.to_cover
+
+    if config.configuration.ignore_methods:
+        module_prefix = f"{module_to_instrument}."
+        to_cover_config.no_cover.extend(
+            method.removeprefix(module_prefix)
+            for method in config.configuration.ignore_methods
+            if method.startswith(module_prefix)
+        )
 
     to_wrap = None
     for finder in sys.meta_path:
@@ -262,7 +285,7 @@ def install_import_hook(
             to_wrap = finder
             break
 
-    if not to_wrap:
+    if to_wrap is None:
         raise RuntimeError("Cannot find a PathFinder in sys.meta_path")
 
     hook = InstrumentationFinder(
@@ -270,6 +293,7 @@ def install_import_hook(
         module_to_instrument=module_to_instrument,
         subject_properties=subject_properties,
         coverage_metrics=coverage_metrics,
+        to_cover_config=to_cover_config,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     sys.meta_path.insert(0, hook)

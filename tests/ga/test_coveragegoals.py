@@ -309,6 +309,26 @@ def test_fitness_simple_nesting(
     var_0 = module_0.nested_branches(int_0)
 """,
         ),
+        (
+            "tests.fixtures.instrumentation.covered_functions",
+            1.0,  # module executed but not the `covered` function
+            """def test_case_0():
+    int_0 = -50
+    int_1 = 10
+    int_2 = 5
+    var_0 = module_0.not_covered1(int_0, int_1)
+    var_1 = module_0.not_covered2(int_0, int_1)
+    var_2 = module_0.not_covered3(int_0, int_1, int_2)
+""",
+        ),
+        (
+            "tests.fixtures.instrumentation.covered_functions",
+            0.0,  # module and `covered` function executed
+            """def test_case_0():
+    int_0 = 1
+    var_0 = covered.covered(int_0)
+""",
+        ),
     ],
 )
 def test_compute_fitness_values_branches(

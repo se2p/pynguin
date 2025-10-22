@@ -219,8 +219,11 @@ class _Context:
                         values.add(value)
                 return values
             _LOGGER.warning(
-                "Unexpectedly had no exception name raised and no exception in context."
+                "Unexpectedly had no exception name raised and no exception in context "
+                "for node: %s",
+                ast.dump(node, include_attributes=True),
             )
+            return set()
 
         if isinstance(name, str):
             self.exceptions.add(name)
@@ -330,18 +333,11 @@ class _RaiseVisitor(ast.NodeVisitor):
         for child in node.body:
             self.visit(child)
         for handler in node.handlers:
-            if handler.type:
+            if handler.type and isinstance(handler.type, ast.Attribute | ast.Name | ast.Tuple):
                 if handler.name and (isinstance(handler.type, ast.Name | ast.Tuple)):
                     self.context.add_variable(handler.name, handler.type)
                 elif isinstance(handler.type, ast.Attribute | ast.Name | ast.Tuple):
                     self.context.set_handling(handler.type)
-                else:
-                    _LOGGER.error(
-                        "While getting the types of exceptions in the handler, "
-                        "expected to find an ast.Name, ast.Tuple, or ast.Attribute,"
-                        "but got %s",
-                        handler.type,
-                    )
                 identifier = getattr(handler.type, "id", None)
                 if identifier:
                     self.context.remove_exception(identifier)

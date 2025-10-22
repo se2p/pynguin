@@ -1031,6 +1031,7 @@ def test_add_method_type_tracing_union_type(default_test_case):
     )
 
     usage_trace = MagicMock(tt.UsageTraceNode)
+    usage_trace.find_path = lambda _: None
     usage_trace.__len__.return_value = 1
     usage_trace.children = {}
     ordered_set = OrderedSet()

@@ -180,7 +180,6 @@ def _setup_path() -> bool:
 
 
 def _setup_import_hook(
-    coverage_metrics: set[config.CoverageMetric],
     dynamic_constant_provider: DynamicConstantProvider | None,
 ) -> SubjectProperties:
     _LOGGER.debug("Setting up instrumentation for %s", config.configuration.module_name)
@@ -189,7 +188,6 @@ def _setup_import_hook(
     install_import_hook(
         config.configuration.module_name,
         subject_properties,
-        coverage_metrics=coverage_metrics,
         dynamic_constant_provider=dynamic_constant_provider,
     )
     return subject_properties
@@ -277,6 +275,17 @@ def _setup_ml_testing_environment(test_cluster: ModuleTestCluster):
     tr.get_constructor_function(test_cluster)
 
 
+def _verify_config() -> None:
+    """Verify the configuration and raise an exception if something is invalid/not supported."""
+    coverage_metrics = config.configuration.statistics_output.coverage_metrics
+    if config.configuration.algorithm is config.configuration.algorithm.DYNAMOSA and any(
+        m for m in coverage_metrics if m is not config.CoverageMetric.BRANCH
+    ):
+        raise ConfigurationException(
+            "DynaMosa currently only supports branch coverage as coverage criterion."
+        )
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -288,10 +297,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     if not _setup_path():
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
-    subject_properties = _setup_import_hook(
-        set(config.configuration.statistics_output.coverage_metrics),
-        dynamic_constant_provider,
-    )
+    subject_properties = _setup_import_hook(dynamic_constant_provider)
     if not _load_sut(subject_properties):
         return None
     if not _setup_report_dir():
@@ -565,6 +571,7 @@ def add_additional_metrics(  # noqa: D103
 
 
 def _run() -> ReturnCode:  # noqa: C901
+    _verify_config()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
     executor, test_cluster, constant_provider = setup_result
@@ -665,24 +672,24 @@ def _run_llm() -> ReturnCode:
     return ReturnCode.OK
 
 
-def _check_coverage(original_coverage: float, minimized_coverage: float) -> bool:
+def _check_coverage(original_coverages: list[float], minimized_coverages: list[float]) -> bool:
     """Check if the coverage after minimization is the same as before.
 
     Args:
-        original_coverage: The coverage before minimization
-        minimized_coverage: The coverage after minimization
+        original_coverages: The coverages before minimization
+        minimized_coverages: The coverages after minimization
 
     Returns:
         If the coverage is still the same
     """
-    is_same = math.isclose(original_coverage, minimized_coverage)
+    is_same = all(map(math.isclose, original_coverages, minimized_coverages))
     if is_same:
-        _LOGGER.info("Coverage after minimization is the same as before: %.4f", minimized_coverage)
+        _LOGGER.info("Coverage after minimization is the same as before: %s", minimized_coverages)
     else:
         _LOGGER.warning(
-            "Coverage changed after minimization: before=%.4f, after=%.4f",
-            original_coverage,
-            minimized_coverage,
+            "Coverage after minimization changed from %s to %s",
+            original_coverages,
+            minimized_coverages,
         )
     return is_same
 
@@ -697,10 +704,12 @@ def _minimize(generation_result, algorithm=None):
         )
 
         if minimization_strategy != config.MinimizationStrategy.NONE and algorithm is not None:
-            fitness_function = _get_coverage_ff_from_algorithm(
-                algorithm, ff.TestSuiteBranchCoverageFunction
-            )
-            original_coverage = generation_result.get_coverage_for(fitness_function)
+            fitness_functions = algorithm.test_suite_coverage_functions
+            assert len(fitness_functions) > 0, "No test suite coverage functions available"
+            original_coverages = [
+                generation_result.get_coverage_for(fitness_function)
+                for fitness_function in fitness_functions
+            ]
 
             # Save a copy of the original test suite before minimization
             original_test_suite = generation_result.clone()
@@ -711,17 +720,17 @@ def _minimize(generation_result, algorithm=None):
                 == config.MinimizationDirection.FORWARD
             ):
                 iterative_minimizer: pp.IterativeMinimizationVisitor = (
-                    pp.ForwardIterativeMinimizationVisitor(fitness_function)
+                    pp.ForwardIterativeMinimizationVisitor(fitness_functions)
                 )
             else:
-                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_function)
+                iterative_minimizer = pp.BackwardIterativeMinimizationVisitor(fitness_functions)
 
             # Check if we should use the combined minimization approach
             if (
                 config.configuration.test_case_output.minimization.test_case_minimization_strategy
                 == config.MinimizationStrategy.COMBINED
             ):
-                combined_minimizer = pp.CombinedMinimizationVisitor(fitness_function)
+                combined_minimizer = pp.CombinedMinimizationVisitor(fitness_functions)
                 generation_result.accept(combined_minimizer)
 
                 _LOGGER.info(
@@ -747,7 +756,7 @@ def _minimize(generation_result, algorithm=None):
                     config.configuration.test_case_output.minimization.test_case_minimization_strategy
                     == config.MinimizationStrategy.SUITE
                 ):
-                    test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_function)
+                    test_suite_minimizer = pp.TestSuiteMinimizationVisitor(fitness_functions)
                     generation_result.accept(test_suite_minimizer)
 
                     if test_suite_minimizer.removed_test_cases > 0:
@@ -756,8 +765,11 @@ def _minimize(generation_result, algorithm=None):
                             test_suite_minimizer.removed_test_cases,
                         )
 
-            minimized_coverage = generation_result.get_coverage_for(fitness_function)
-            is_same = _check_coverage(original_coverage, minimized_coverage)
+            minimized_coverages = [
+                generation_result.get_coverage_for(fitness_function)
+                for fitness_function in fitness_functions
+            ]
+            is_same = _check_coverage(original_coverages, minimized_coverages)
             if not is_same:
                 # Restore unminimized test suite
                 _LOGGER.info("Restoring unminimized test suite due to coverage loss")
@@ -768,7 +780,7 @@ def _minimize(generation_result, algorithm=None):
                 # Mark the test suite as changed
                 generation_result.changed = True
                 # Verify that coverage is restored
-                restored_coverage = generation_result.get_coverage_for(fitness_function)
+                restored_coverage = generation_result.get_coverage_for(fitness_functions)
                 _LOGGER.info("Coverage after restoration: %.4f", restored_coverage)
 
         else:

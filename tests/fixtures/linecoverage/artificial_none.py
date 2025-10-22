@@ -37,3 +37,8 @@ def pass_on_both(x):
 def for_return(x):
     for y in x:
         return y
+
+
+def no_cover(x):
+    pass  # pynguin: no cover
+    pass

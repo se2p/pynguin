@@ -33,6 +33,7 @@ from pynguin.slicer.executedinstruction import ExecutedInstruction
 from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
 from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
 from pynguin.utils.orderedset import OrderedSet
+from tests.testutils import instrument_function
 
 
 @pytest.fixture
@@ -65,9 +66,7 @@ def subject_properties_mock() -> MagicMock:
 def test_entered_function(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.simple_function.__code__ = transformer.instrument_module(
-        simple_module.simple_function.__code__
-    )
+    instrument_function(transformer, simple_module.simple_function)
     simple_module.simple_function(1)
     subject_properties_mock.register_code_object.assert_called_once()
     subject_properties_mock.instrumentation_tracer.tracer.executed_code_object.assert_called_once()
@@ -76,7 +75,7 @@ def test_entered_function(simple_module, subject_properties_mock: MagicMock):
 def test_entered_for_loop_no_jump(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
+    instrument_function(transformer, simple_module.for_loop)
     subject_properties_mock.register_predicate.assert_called_once()
     simple_module.for_loop(3)
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
@@ -88,7 +87,7 @@ def test_entered_for_loop_no_jump(simple_module, subject_properties_mock: MagicM
 def test_entered_for_loop_no_jump_not_entered(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.for_loop.__code__ = transformer.instrument_module(simple_module.for_loop.__code__)
+    instrument_function(transformer, simple_module.for_loop)
     subject_properties_mock.register_predicate.assert_called_once()
     simple_module.for_loop(0)
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
@@ -100,9 +99,7 @@ def test_entered_for_loop_no_jump_not_entered(simple_module, subject_properties_
 def test_entered_for_loop_full_loop(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.full_for_loop.__code__ = transformer.instrument_module(
-        simple_module.full_for_loop.__code__
-    )
+    instrument_function(transformer, simple_module.full_for_loop)
     subject_properties_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(3)
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_has_calls([
@@ -120,9 +117,7 @@ def test_entered_for_loop_full_loop(simple_module, subject_properties_mock: Magi
 def test_entered_for_loop_full_loop_not_entered(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.full_for_loop.__code__ = transformer.instrument_module(
-        simple_module.full_for_loop.__code__
-    )
+    instrument_function(transformer, simple_module.full_for_loop)
     subject_properties_mock.register_predicate.assert_called_once()
     simple_module.full_for_loop(0)
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_with(
@@ -134,9 +129,7 @@ def test_entered_for_loop_full_loop_not_entered(simple_module, subject_propertie
 def test_add_bool_predicate(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.bool_predicate.__code__ = transformer.instrument_module(
-        simple_module.bool_predicate.__code__
-    )
+    instrument_function(transformer, simple_module.bool_predicate)
     simple_module.bool_predicate(True)  # noqa: FBT003
     subject_properties_mock.register_predicate.assert_called_once()
     subject_properties_mock.instrumentation_tracer.tracer.executed_bool_predicate.assert_called_once()
@@ -145,9 +138,7 @@ def test_add_bool_predicate(simple_module, subject_properties_mock: MagicMock):
 def test_add_cmp_predicate(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
-        simple_module.cmp_predicate.__code__
-    )
+    instrument_function(transformer, simple_module.cmp_predicate)
     simple_module.cmp_predicate(1, 2)
     subject_properties_mock.register_predicate.assert_called_once()
     subject_properties_mock.instrumentation_tracer.tracer.executed_compare_predicate.assert_called_once()
@@ -156,9 +147,7 @@ def test_add_cmp_predicate(simple_module, subject_properties_mock: MagicMock):
 def test_transform_for_loop_multi(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.multi_loop.__code__ = transformer.instrument_module(
-        simple_module.multi_loop.__code__
-    )
+    instrument_function(transformer, simple_module.multi_loop)
     assert simple_module.multi_loop(2) == 4
     assert subject_properties_mock.register_predicate.call_count == 3
     # fmt: off
@@ -184,9 +173,7 @@ def test_transform_for_loop_multi(simple_module, subject_properties_mock: MagicM
 def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.comprehension.__code__ = transformer.instrument_module(
-        simple_module.comprehension.__code__
-    )
+    instrument_function(transformer, simple_module.comprehension)
     call_count = 5
     simple_module.comprehension(call_count, 3)
     assert subject_properties_mock.register_predicate.call_count == 2
@@ -210,9 +197,7 @@ def test_add_cmp_predicate_loop_comprehension(simple_module, subject_properties_
 def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.lambda_func.__code__ = transformer.instrument_module(
-        simple_module.lambda_func.__code__
-    )
+    instrument_function(transformer, simple_module.lambda_func)
     lam = simple_module.lambda_func(10)
     lam(5)
     subject_properties_mock.register_predicate.assert_called_once()
@@ -226,9 +211,7 @@ def test_add_cmp_predicate_lambda(simple_module, subject_properties_mock: MagicM
 def test_conditional_assignment(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.conditional_assignment.__code__ = transformer.instrument_module(
-        simple_module.conditional_assignment.__code__
-    )
+    instrument_function(transformer, simple_module.conditional_assignment)
     simple_module.conditional_assignment(10)
     subject_properties_mock.register_predicate.assert_called_once()
     assert subject_properties_mock.register_code_object.call_count == 1
@@ -241,9 +224,7 @@ def test_conditional_assignment(simple_module, subject_properties_mock: MagicMoc
 def test_conditionally_nested_class(simple_module, subject_properties_mock: MagicMock):
     adapter = BranchCoverageInstrumentation(subject_properties_mock)
     transformer = InstrumentationTransformer(subject_properties_mock, [adapter])
-    simple_module.conditionally_nested_class.__code__ = transformer.instrument_module(
-        simple_module.conditionally_nested_class.__code__
-    )
+    instrument_function(transformer, simple_module.conditionally_nested_class)
     assert subject_properties_mock.register_code_object.call_count == 3
 
     simple_module.conditionally_nested_class(6)
@@ -257,9 +238,9 @@ def test_conditionally_nested_class(simple_module, subject_properties_mock: Magi
 def test_avoid_duplicate_instrumentation(simple_module, subject_properties: SubjectProperties):
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    already_instrumented = transformer.instrument_module(simple_module.cmp_predicate.__code__)
+    instrument_function(transformer, simple_module.cmp_predicate)
     with pytest.raises(AssertionError):
-        transformer.instrument_module(already_instrumented)
+        instrument_function(transformer, simple_module.cmp_predicate)
 
 
 # Starting with Python 3.12, the generators are not distinct code objects anymore
@@ -294,7 +275,7 @@ def test_integrate_branch_distance_instrumentation(
     function_callable = getattr(simple_module, function_name)
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
     assert sum(1 for _ in subject_properties.branch_less_code_objects) == branchless_function_count
     assert len(list(subject_properties.existing_predicates)) == branches_count
 
@@ -305,7 +286,7 @@ def test_integrate_line_coverage_instrumentation(
     function_callable = simple_module.multi_loop
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
 
     assert subject_properties.existing_lines
     # the body of the method contains 7 statements on lines 38 to 44
@@ -320,7 +301,7 @@ def test_integrate_line_coverage_instrumentation(
     } == subject_properties.existing_lines.keys()
 
 
-def test_offset_calculation_checked_coverage_instrumentation(
+def test_calculation_checked_coverage_instrumentation(
     simple_module, subject_properties: SubjectProperties
 ):
     """Checks if the instructions in the checked coverage are traced correctly.
@@ -483,7 +464,7 @@ def test_offset_calculation_checked_coverage_instrumentation(
     adapter = CheckedCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
 
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
 
     with subject_properties.instrumentation_tracer:
         function_callable(False)  # noqa: FBT003
@@ -513,7 +494,7 @@ def test_comparison(comparison_module, op, subject_properties: SubjectProperties
     function_callable = getattr(comparison_module, "_" + op.name.lower())
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
     with (
         mock.patch.object(
             subject_properties.instrumentation_tracer, "executed_compare_predicate"
@@ -534,7 +515,7 @@ def test_is_none_comparison(comparison_module, subject_properties: SubjectProper
     function_callable = comparison_module._is_none
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
     with (
         mock.patch.object(
             subject_properties.instrumentation_tracer, "executed_compare_predicate"
@@ -555,7 +536,7 @@ def test_is_not_none_comparison(comparison_module, subject_properties: SubjectPr
     function_callable = comparison_module._is_not_none
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    function_callable.__code__ = transformer.instrument_module(function_callable.__code__)
+    instrument_function(transformer, function_callable)
     with (
         mock.patch.object(
             subject_properties.instrumentation_tracer, "executed_compare_predicate"
@@ -577,7 +558,7 @@ def test_exception(subject_properties: SubjectProperties):
 
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
+    instrument_function(transformer, func)
     with (
         mock.patch.object(
             subject_properties.instrumentation_tracer, "executed_exception_match"
@@ -604,7 +585,7 @@ def test_exception_no_match():
 
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
+    instrument_function(transformer, func)
     with (
         mock.patch.object(
             subject_properties.instrumentation_tracer, "executed_exception_match"
@@ -629,7 +610,7 @@ def test_exception_integrate(subject_properties: SubjectProperties):
 
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
+    instrument_function(transformer, func)
 
     with subject_properties.instrumentation_tracer:
         func()
@@ -647,9 +628,7 @@ def test_multiple_instrumentations_share_code_object_ids(
     line_instr = LineCoverageInstrumentation(subject_properties)
     branch_instr = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [line_instr, branch_instr])
-    simple_module.simple_function.__code__ = transformer.instrument_module(
-        simple_module.simple_function.__code__
-    )
+    instrument_function(transformer, simple_module.simple_function)
 
     with subject_properties.instrumentation_tracer:
         simple_module.simple_function(42)
@@ -671,7 +650,7 @@ def test_exception_no_match_integrate(subject_properties: SubjectProperties):
 
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
+    instrument_function(transformer, func)
 
     with pytest.raises(RuntimeError), subject_properties.instrumentation_tracer:
         func()
@@ -691,7 +670,7 @@ def test_jump_if_true_or_pop(subject_properties: SubjectProperties):
 
     adapter = BranchCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    func.__code__ = transformer.instrument_module(func.__code__)
+    instrument_function(transformer, func)
 
     with contextlib.nullcontext(), subject_properties.instrumentation_tracer:
         func("123")
@@ -708,9 +687,7 @@ def test_tracking_covered_statements_explicit_return(
 ):
     instr = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [instr])
-    simple_module.explicit_none_return.__code__ = transformer.instrument_module(
-        simple_module.explicit_none_return.__code__
-    )
+    instrument_function(transformer, simple_module.explicit_none_return)
 
     with subject_properties.instrumentation_tracer:
         simple_module.explicit_none_return()
@@ -736,9 +713,7 @@ def test_tracking_covered_statements_cmp_predicate(
 ):
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    simple_module.cmp_predicate.__code__ = transformer.instrument_module(
-        simple_module.cmp_predicate.__code__
-    )
+    instrument_function(transformer, simple_module.cmp_predicate)
 
     with subject_properties.instrumentation_tracer:
         simple_module.cmp_predicate(value1, value2)
@@ -760,9 +735,7 @@ def test_tracking_covered_statements_bool_predicate(
 ):
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    simple_module.bool_predicate.__code__ = transformer.instrument_module(
-        simple_module.bool_predicate.__code__
-    )
+    instrument_function(transformer, simple_module.bool_predicate)
 
     with subject_properties.instrumentation_tracer:
         simple_module.bool_predicate(value)
@@ -784,9 +757,7 @@ def test_tracking_covered_statements_for_loop(
 ):
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    simple_module.full_for_loop.__code__ = transformer.instrument_module(
-        simple_module.full_for_loop.__code__
-    )
+    instrument_function(transformer, simple_module.full_for_loop)
 
     with subject_properties.instrumentation_tracer:
         simple_module.full_for_loop(number)
@@ -808,9 +779,7 @@ def test_tracking_covered_statements_while_loop(
 ):
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
-    simple_module.while_loop.__code__ = transformer.instrument_module(
-        simple_module.while_loop.__code__
-    )
+    instrument_function(transformer, simple_module.while_loop)
 
     with subject_properties.instrumentation_tracer:
         simple_module.while_loop(number)
@@ -834,6 +803,7 @@ def test_tracking_covered_statements_while_loop(
         ("pass_on_both", False, OrderedSet([31, 34])),
         ("for_return", [], OrderedSet([38])),
         ("for_return", [1], OrderedSet([38, 39])),
+        ("no_cover", None, OrderedSet([44])),
     ],
 )
 def test_expected_covered_lines(
@@ -842,7 +812,7 @@ def test_expected_covered_lines(
     adapter = LineCoverageInstrumentation(subject_properties)
     transformer = InstrumentationTransformer(subject_properties, [adapter])
     func_object = getattr(artificial_none_module, func)
-    func_object.__code__ = transformer.instrument_module(func_object.__code__)
+    instrument_function(transformer, func_object)
 
     with subject_properties.instrumentation_tracer:
         func_object(arg)
@@ -879,9 +849,7 @@ def dummy_module():
 
 def test_compare_op_int(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
-        dummy_module.compare_op_dummy.__code__
-    )
+    instrument_function(instr, dummy_module.compare_op_dummy)
     res = dummy_module.compare_op_dummy(10, 11)
 
     assert res == 1
@@ -890,9 +858,7 @@ def test_compare_op_int(dynamic_instr, dummy_module):
 
 def test_compare_op_float(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
-        dummy_module.compare_op_dummy.__code__
-    )
+    instrument_function(instr, dummy_module.compare_op_dummy)
     res = dummy_module.compare_op_dummy(1.0, 2.5)
 
     assert res == 1
@@ -901,9 +867,7 @@ def test_compare_op_float(dynamic_instr, dummy_module):
 
 def test_compare_op_string(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
-        dummy_module.compare_op_dummy.__code__
-    )
+    instrument_function(instr, dummy_module.compare_op_dummy)
     res = dummy_module.compare_op_dummy("abc", "def")
 
     assert res == 1
@@ -912,9 +876,7 @@ def test_compare_op_string(dynamic_instr, dummy_module):
 
 def test_compare_op_other_type(dynamic_instr, dummy_module):
     dynamic, instr = dynamic_instr
-    dummy_module.compare_op_dummy.__code__ = instr.instrument_module(
-        dummy_module.compare_op_dummy.__code__
-    )
+    instrument_function(instr, dummy_module.compare_op_dummy)
     res = dummy_module.compare_op_dummy(True, "def")  # noqa: FBT003
 
     assert res == 1
@@ -967,7 +929,7 @@ def test_string_functions(dynamic_instr, func_name, inp, tracked, result):
     func = loc["dummy"]
 
     dynamic, instr = dynamic_instr
-    func.__code__ = instr.instrument_module(func.__code__)
+    instrument_function(instr, func)
     assert func(inp) == result
     assert dynamic.has_constant_for(str)
     assert dynamic.get_all_constants_for(str) == OrderedSet([inp, tracked])
@@ -998,7 +960,7 @@ def test_binary_string_functions(  # noqa: PLR0917
     func = loc["dummy"]
 
     dynamic, instr = dynamic_instr
-    func.__code__ = instr.instrument_module(func.__code__)
+    instrument_function(instr, func)
     assert func(inp1, inp2) == result
     assert dynamic.has_constant_for(str)
     assert dynamic.get_all_constants_for(str) == OrderedSet([tracked])
