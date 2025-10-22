@@ -7,7 +7,7 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: ERA001
-
+import dis
 import sys
 
 from bytecode.instr import BinaryOp
@@ -307,6 +307,8 @@ def test_simple_control_dependency_2():
 
         return result
 
+    dis.dis(func)
+
     expected_instructions = [
         # result = 3
         TracedInstr(load_const, arg=3),
@@ -335,7 +337,10 @@ def test_simple_control_dependency_3():
 
         return result
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        jump_instruction = ()
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),)
+    elif sys.version_info >= (3, 13):
         jump_instruction = ()
         load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
     elif sys.version_info >= (3, 12):
@@ -376,10 +381,10 @@ def test_simple_control_dependency_3():
         TracedInstr(
             pop_jump_if_false,
             # the first instruction of the elif block
-            arg=TracedInstr("LOAD_FAST", arg="foo"),
+            arg=TracedInstr(load_fast, arg="foo"),
         ),
         # elif foo == 1:
-        TracedInstr("LOAD_FAST", arg="foo"),
+        TracedInstr(load_fast, arg="foo"),
         TracedInstr(load_const, arg=1),
         TracedInstr("COMPARE_OP", arg=eq_compare),
         TracedInstr(
@@ -392,7 +397,7 @@ def test_simple_control_dependency_3():
         TracedInstr("STORE_FAST", arg="result"),
         *jump_instruction,
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -415,7 +420,10 @@ def test_simple_control_dependency_4():
 
         return result
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),)
+        gt_compare = Compare.GT_CAST
+    elif sys.version_info >= (3, 13):
         load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
         gt_compare = Compare.GT_CAST
     else:
@@ -452,7 +460,7 @@ def test_simple_control_dependency_4():
         TracedInstr(load_const, arg=3),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 

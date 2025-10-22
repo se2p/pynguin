@@ -264,6 +264,23 @@ class Python314InstrumentationInstructionsGenerator(
             #         ),
             #         cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
             #     )
+            case InstrumentationFastLoadTuple(names):
+                return (
+                    cf.ArtificialInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=names, lineno=lineno),
+                    cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+                )
+            case InstrumentationFastLoad(name):
+                if isinstance(name, tuple):
+                    # return (
+                    #     cf.ArtificialInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=name, lineno=lineno),
+                    #     cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+                    # )
+                    return (
+                        cf.ArtificialInstr("LOAD_FAST", name[0], lineno=lineno),
+                        cf.ArtificialInstr("LOAD_FAST", name[1], lineno=lineno),
+                        cf.ArtificialInstr("BUILD_TUPLE", 2, lineno=lineno),
+                    )
+                return (cf.ArtificialInstr("LOAD_FAST", name, lineno=lineno),)
             case _:
                 return super()._generate_argument_instructions(arg, position, lineno)
 
@@ -339,7 +356,8 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
                 # Instrumentation before the original instruction
                 # (otherwise we can not read the data)
                 node.basic_block[before(instr_index)] = instructions
-            case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW":
+            case "LOAD_FAST" | "LOAD_FAST_CHECK" | "STORE_FAST" | "LOAD_FAST_BORROW" | \
+                 "LOAD_FAST_BORROW_LOAD_FAST_BORROW":
                 # Instrumentation after the original instruction
                 node.basic_block[after(instr_index)] = instructions
 
