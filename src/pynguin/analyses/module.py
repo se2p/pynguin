@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import abc
 import builtins
-from collections.abc import Sequence
+
 import dataclasses
 import enum
 import functools
@@ -40,6 +40,7 @@ from pynguin.analyses.type_inference import (
     InferenceProvider,
     LLMInference,
     NoInference,
+    ANY_STR,
 )
 import pynguin.configuration as config
 from pynguin.utils.llm import LLMProvider
@@ -97,6 +98,7 @@ if typing.TYPE_CHECKING:
 
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.utils.pynguinml.mlparameter import MLParameter
+    from collections.abc import Sequence
 
 AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
 
@@ -1915,6 +1917,12 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
     """Collects metrics from the given type inference provider.
 
     currently, this only works for LLM-based providers.
+
+    When using an LLM-based provider, collect the raw inferred
+    parameter strings per callable and the annotated parameter strings
+    as JSON and store in the LLMInferredSignatures runtime variable.
+
+    Other providers default all metrics to zero.
     """
     metrics = typ_provider.get_metrics()
     stat.track_output_variable(
@@ -1929,10 +1937,7 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
     stat.track_output_variable(
         RuntimeVariable.TypeInferenceLLMTime, metrics.get("total_setup_time", 0.0)
     )
-    # Additionally, when using an LLM-based provider, collect the raw inferred
-    # parameter strings per callable and the annotated parameter strings. The
-    # structure mirrors the evaluation format used elsewhere and is serialized
-    # as JSON and stored in the LLMInferredSignatures runtime variable.
+
     if isinstance(typ_provider, LLMInference):
         try:
             inferred_signatures: dict[str, dict] = {}
@@ -1964,9 +1969,9 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
 
                 for p in params:
                     if p in {"*args", "**kwargs"}:
-                        annotated_parameter_types[p] = "typing.Any"
+                        annotated_parameter_types[p] = ANY_STR
                     else:
-                        annotated_parameter_types[p] = prior.get(p, "typing.Any")
+                        annotated_parameter_types[p] = prior.get(p, ANY_STR)
 
                     guess = guessed_raw.get(p, "")
                     if isinstance(guess, str) and guess.strip():
@@ -1987,3 +1992,7 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
             )
         except Exception as exc:  # Catch at top-level to ensure metrics don't break analysis
             LOGGER.exception("Could not collect LLM inferred signatures: %s", exc)
+    else:
+        LOGGER.warning(
+            "Type inference provider is not LLM-based, skipping inferred signatures collection."
+        )

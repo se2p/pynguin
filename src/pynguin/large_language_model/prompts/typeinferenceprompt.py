@@ -21,6 +21,7 @@ _ROLE_USER = "<|user|>"
 class TypeInferencePrompt:
     """Implementation prompt for type inference using LLMs."""
 
+    # TODO: load templates form src/pynguin/resources/ would be cleaner
     def __init__(
         self, callable_obj: Callable[..., Any], subtypes: OrderedSet[str] | None = None
     ) -> None:
@@ -94,28 +95,24 @@ class TypeInferencePrompt:
             return inspect.getsource(func)
         except (OSError, TypeError):
             name = getattr(func, "__qualname__", getattr(func, "__name__", "<callable>"))
-            sig = self._safe_signature_str(func)
+            sig = self._get_signature_str(func)
             return f"def {name}{sig}:\n    pass\n"
 
-    def _safe_signature_str(self, func: Callable[..., Any]) -> str:
+    @staticmethod
+    def _get_signature_str(func: Callable[..., Any]) -> str:
         try:
             sig = inspect.signature(func)
             return str(sig)
         except (TypeError, ValueError):
             return "( *args, **kwargs )"
 
-    def _get_signature_str(self, func: Callable[..., Any]) -> str:
-        try:
-            sig = inspect.signature(func)
-            return str(sig)
-        except (TypeError, ValueError):
-            return "( *args, **kwargs )"
-
-    def _get_docstring(self, func: Callable[..., Any]) -> str:
+    @staticmethod
+    def _get_docstring(func: Callable[..., Any]) -> str:
         return inspect.getdoc(func) or "No docstring available."
 
-    def _get_all_function_signatures_in_class(self, func: Callable[..., Any]) -> str:
-        """Return a comma-separated list of all function signatures in the same class as the given function."""
+    @staticmethod
+    def _get_all_function_signatures_in_class(func: Callable[..., Any]) -> str:
+        """Return a comma-separated list of all function signatures in the same class as func."""
         cls = getattr(func, "__qualname__", "").split(".<locals>", 1)[0].rsplit(".", 1)
         if len(cls) < 2:
             return ""
@@ -139,7 +136,8 @@ class TypeInferencePrompt:
 
         return ", ".join(signatures)
 
-    def _get_parent_class_name(self, func: Callable[..., Any]) -> str:
+    @staticmethod
+    def _get_parent_class_name(func: Callable[..., Any]) -> str:
         qualname = getattr(func, "__qualname__", "")
         parts = qualname.split(".")
         if len(parts) > 1:
@@ -165,7 +163,8 @@ class TypeInferencePrompt:
 
         return ", ".join(all_classes) if all_classes else "No classes found."
 
-    def _get_imports(self, func: Callable[..., Any]) -> str:
+    @staticmethod
+    def _get_imports(func: Callable[..., Any]) -> str:
         module = inspect.getmodule(func)
         if module is None:
             return "no imports found"
@@ -182,12 +181,9 @@ class TypeInferencePrompt:
         return ", ".join(list(self.subtypes)) if self.subtypes else "(none)"
 
 
+@staticmethod
 def get_inference_system_prompt() -> str:
-    """Build the system prompt for type inference.
-
-    Args:
-        subtypes: optional list of known string subtypes (e.g. "email", "hexcolor").
-    """
+    """Build the system prompt for type inference."""
     return textwrap.dedent(
         """
             You are a Python type inference engine.

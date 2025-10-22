@@ -29,6 +29,7 @@ from pynguin.utils.orderedset import OrderedSet
 if typing.TYPE_CHECKING:
     from pynguin.analyses.typesystem import TypeSystem
     from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class InferenceProvider(ABC):
 
     @abstractmethod
     def provide(self, method: Callable) -> dict[str, Any]:
-        """Return the provider of the type inference for the given method."""
+        """Returns the parameter types for the given method."""
 
     def get_metrics(self) -> dict[str, Any]:
         """Return metrics about the inference process."""
@@ -220,7 +221,8 @@ class LLMInference(InferenceProvider):
                 result[p.name] = self._annotation_to_str(ann)
         return result
 
-    def _annotation_to_str(self, ann: Any) -> str:
+    @staticmethod
+    def _annotation_to_str(ann: Any) -> str:
         try:
             if getattr(ann, "__module__", "") and getattr(ann, "__qualname__", ""):
                 return f"{ann.__module__}.{ann.__qualname__}"
@@ -228,7 +230,8 @@ class LLMInference(InferenceProvider):
         except Exception:  # noqa: BLE001
             return ANY_STR
 
-    def _parse_json_response(self, response: str, prior: dict[str, str]) -> dict[str, str]:
+    @staticmethod
+    def _parse_json_response(response: str, prior: dict[str, str]) -> dict[str, str]:
         """Parse LLM JSON; on failure, return `prior` untouched."""
         if not response:
             return prior
@@ -250,17 +253,17 @@ class LLMInference(InferenceProvider):
             _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
             return prior
 
-    # Public accessors for external metrics/collection
+    # ---- metrics/collection ----
     def get_inference_map(self) -> OrderedDict[Callable[..., Any], dict[str, str]]:
         """Return the mapping from callables to parsed inference strings.
 
-        This is exposed for metrics collection and should be treated as read-only.
+        This is exposed for metrics collection.
         """
-        return OrderedDict(self._inference_by_callable)
+        return OrderedDict(deepcopy(self._inference_by_callable))
 
     def get_callables(self) -> list[Callable[..., Any]]:
         """Return the list of callables that were provided to this inference provider."""
-        return list(self._callables)
+        return deepcopy(self._callables)
 
     def prior_types_for(self, func: Callable[..., Any]) -> dict[str, str]:
         """Return the prior/annotated type strings for the given callable.
@@ -268,14 +271,14 @@ class LLMInference(InferenceProvider):
         This wraps the internal _prior_types helper so external code does not
         access private members.
         """
-        return self._prior_types(func)
+        return deepcopy(self._prior_types(func))
 
 
 class NoInference(InferenceProvider):
     """No-op type inference strategy that always returns empty dicts."""
 
     def provide(self, method: Callable) -> dict[str, Any]:
-        """Return the provider of the type inference for the given method."""
+        """Returns an empty dict for any method."""
         return {}
 
 
