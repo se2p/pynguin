@@ -1250,6 +1250,10 @@ def __is_constructor(method_name: str) -> bool:
     return method_name == "__init__"
 
 
+def __is_annotate(method_name: str) -> bool:
+    return method_name == "__annotate_func__"
+
+
 def __is_protected(method_name: str) -> bool:
     return method_name.startswith("_") and not method_name.startswith("__")
 
@@ -1524,7 +1528,8 @@ def __analyse_method(
     add_to_test: bool,
 ) -> None:
     if (
-        __is_private(method_name)
+        __is_annotate(method_name)
+        or __is_private(method_name)
         or __is_protected(method_name)
         or __is_constructor(method_name)
         or not __is_method_defined_in_class(type_info.raw_type, method)

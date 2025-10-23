@@ -25,7 +25,52 @@ def test_integration_create_cfg(conditional_jump_example_bytecode):
     cfg = CFG.from_bytecode(add_for_loop_no_yield_nodes(conditional_jump_example_bytecode))
     dot_representation = cfg.dot
 
-    if sys.version_info >= (3, 12):
+    if sys.version_info >= (3, 14):
+        graph = """strict digraph  {
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_CONST 'no'";
+"BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"ArtificialNode(ENTRY)";
+"ArtificialNode(EXIT)";
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
+LOAD_CONST 'no'"  [branch_value=False, label=False];
+"BasicBlockNode(1)
+LOAD_CONST 'yes'
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"BasicBlockNode(2)
+LOAD_CONST 'no'" -> "BasicBlockNode(3)
+CALL 1
+RETURN_VALUE";
+"BasicBlockNode(3)
+CALL 1
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
+LOAD_NAME 'print'
+LOAD_NAME 'test'
+POP_JUMP_IF_FALSE BasicBlockNode";
+}"""
+
+    elif sys.version_info >= (3, 12):
         graph = """strict digraph  {
 "BasicBlockNode(0)
 LOAD_NAME 'print'
@@ -191,7 +236,182 @@ def control_flow_labelling(foo):  # pragma: no cover
 
 
 def test_all_control_flow():
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        expected = """strict digraph  {
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(1)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode";
+"BasicBlockNode(2)
+LOAD_FAST_BORROW 'foo'
+LOAD_SMALL_INT 42
+COMPARE_OP EQ_CAST
+POP_JUMP_IF_FALSE BasicBlockNode";
+"BasicBlockNode(3)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+CALL 1
+POP_TOP";
+"BasicBlockNode(4)
+LOAD_FAST_BORROW 'foo'
+GET_ITER";
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST_BORROW 'f'
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode";
+"BasicBlockNode(7)
+END_FOR
+POP_ITER
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_TRUE BasicBlockNode";
+"BasicBlockNode(8)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE";
+"BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE";
+"ArtificialNode(ENTRY)";
+"ArtificialNode(EXIT)";
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(1)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(0)
+RESUME 0
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(2)
+LOAD_FAST_BORROW 'foo'
+LOAD_SMALL_INT 42
+COMPARE_OP EQ_CAST
+POP_JUMP_IF_FALSE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(1)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'a'
+CALL 1
+POP_TOP
+JUMP_FORWARD BasicBlockNode" -> "BasicBlockNode(4)
+LOAD_FAST_BORROW 'foo'
+GET_ITER";
+"BasicBlockNode(2)
+LOAD_FAST_BORROW 'foo'
+LOAD_SMALL_INT 42
+COMPARE_OP EQ_CAST
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(3)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+CALL 1
+POP_TOP"  [branch_value=True, label=True];
+"BasicBlockNode(2)
+LOAD_FAST_BORROW 'foo'
+LOAD_SMALL_INT 42
+COMPARE_OP EQ_CAST
+POP_JUMP_IF_FALSE BasicBlockNode" -> "BasicBlockNode(4)
+LOAD_FAST_BORROW 'foo'
+GET_ITER"  [branch_value=False, label=False];
+"BasicBlockNode(3)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'bar'
+CALL 1
+POP_TOP" -> "BasicBlockNode(4)
+LOAD_FAST_BORROW 'foo'
+GET_ITER";
+"BasicBlockNode(4)
+LOAD_FAST_BORROW 'foo'
+GET_ITER" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST_BORROW 'f'
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode"  [branch_value=True, label=True];
+"BasicBlockNode(5)
+FOR_ITER BasicBlockNode" -> "BasicBlockNode(7)
+END_FOR
+POP_ITER
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_TRUE BasicBlockNode"  [branch_value=False, label=False];
+"BasicBlockNode(6)
+STORE_FAST 'f'
+LOAD_GLOBAL (True, 'print')
+LOAD_FAST_BORROW 'f'
+CALL 1
+POP_TOP
+JUMP_BACKWARD BasicBlockNode" -> "BasicBlockNode(5)
+FOR_ITER BasicBlockNode";
+"BasicBlockNode(7)
+END_FOR
+POP_ITER
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE"  [branch_value=True, label=True];
+"BasicBlockNode(7)
+END_FOR
+POP_ITER
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_TRUE BasicBlockNode" -> "BasicBlockNode(8)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE"  [branch_value=False, label=False];
+"BasicBlockNode(8)
+NOT_TAKEN
+LOAD_GLOBAL (True, 'print')
+LOAD_CONST 'foo'
+CALL 1
+POP_TOP
+LOAD_CONST None
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"BasicBlockNode(9)
+LOAD_CONST None
+RETURN_VALUE" -> "ArtificialNode(EXIT)";
+"ArtificialNode(ENTRY)" -> "BasicBlockNode(0)
+RESUME 0
+LOAD_FAST_BORROW 'foo'
+TO_BOOL
+POP_JUMP_IF_FALSE BasicBlockNode";
+}"""
+    elif sys.version_info >= (3, 13):
         expected = """strict digraph  {
 "BasicBlockNode(0)
 RESUME 0

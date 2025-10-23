@@ -306,7 +306,7 @@ class _ConstantCollector(ast.NodeVisitor):
 
     def visit_Constant(self, node: ast.Constant):  # noqa: N802
         if type(node.value) in typing.get_args(ConstantTypes):
-            self._pool.add_constant(node.value)
+            self._pool.add_constant(node.value)  # type: ignore[arg-type]
         return self.generic_visit(node)
 
     def visit_Module(self, node: ast.Module):  # noqa: N802

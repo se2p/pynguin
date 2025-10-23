@@ -198,7 +198,7 @@ def get_non_root_control_flow_distance(
         node = existing_predicates[executed_predicate_id].node
         try:
             candidate = ControlFlowDistance()
-            candidate.approach_level = nx.shortest_path_length(cdg.graph, node, target_node)
+            candidate.approach_level = int(nx.shortest_path_length(cdg.graph, node, target_node))
             # Predicate was executed but did not lead to execution of desired predicate
             # So the remaining branch distance to the true or false branch is
             # the desired distance, right?

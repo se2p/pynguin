@@ -12,6 +12,7 @@ and integrated in Pynguin.
 """
 
 import ast
+import sys
 
 from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     AbstractArithmeticOperatorReplacement,
@@ -28,7 +29,10 @@ def is_docstring(node: ast.AST) -> bool:
     Returns:
         True if the node is a docstring, False otherwise.
     """
-    if not isinstance(node, ast.Str):
+    if sys.version_info >= (3, 14):
+        if not isinstance(node, ast.Constant):
+            return False
+    elif not isinstance(node, ast.Str):
         return False
 
     expression_node: ast.AST = node.parent  # type: ignore[attr-defined]
