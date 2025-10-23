@@ -24,6 +24,7 @@ from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import ConstructorStatement
 from pynguin.testcase.statement import FunctionStatement
 from pynguin.testcase.statement import MethodStatement
+from pynguin.testcase.statement import Statement
 from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
@@ -71,33 +72,15 @@ class LLMLocalSearch:
         Returns:
             True if the local search improved the test case, False otherwise.
         """
-        failing_test = self.chromosome.is_failing()
-        self._logger.debug("Starting local search with LLMs at position %d", position)
-        metrics = {config.CoverageMetric.BRANCH, config.CoverageMetric.LINE}
-        report = get_coverage_report(self.suite, self.executor, metrics)
-        agent = LLMAgent()
-        stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
         old_chromosomes = self.suite.test_case_chromosomes.copy()
-        if failing_test:
-            stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCallsFailingTests, 1)
-        if config.configuration.local_search.llm_whole_module:
-            module_source_code = get_module_source_code()
-            line_annotations = report.line_annotations
-        else:
-            module_source_code, line_annotations = self.get_shortened_source_code(
-                position, report.line_annotations
-            )
-        if len(module_source_code) == 0 or len(line_annotations) == 0:
-            self._logger.debug(
-                "This statement is not used in any method of source code, "
-                "or all branches are covered, skipping LLM request."
-            )
-            stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchSkippedLLMCalls, 1)
+        failing_test = self.chromosome.is_failing()
+        agent = LLMAgent()
+
+        setup_result = self._setup_llm_call(position)
+        if setup_result is None:
+            self._logger.debug("Skipping LLM local search call, because the setup failed.")
             return False
-        unparsed_test_case = unparse_test_case(self.chromosome.test_case)
-        if unparsed_test_case is None:
-            self._logger.debug("Failed to unparse test case, skipping LLM request.")
-            return False
+        unparsed_test_case, module_source_code, line_annotations = setup_result
         output = agent.local_search_call(
             position=position,
             test_case_source_code=unparsed_test_case,
@@ -137,19 +120,59 @@ class LLMLocalSearch:
         )
         return False
 
-    def get_shortened_source_code(  # noqa: C901
-        self, position: int, line_annotations: list[LineAnnotation]
+    def _setup_llm_call(self, position: int) -> tuple[str, str, list[LineAnnotation]] | None:
+        failing_test = self.chromosome.is_failing()
+        self._logger.debug("Starting local search with LLMs at position %d", position)
+        metrics = set(config.configuration.statistics_output.coverage_metrics)
+        report = get_coverage_report(self.suite, self.executor, metrics)
+
+        stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
+        if failing_test:
+            stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCallsFailingTests, 1)
+        if config.configuration.local_search.ls_llm_whole_module:
+            module_source_code = get_module_source_code()
+            line_annotations = report.line_annotations
+        else:
+            statement = self.chromosome.test_case.statements[position]
+            if not isinstance(statement, VariableCreatingStatement):
+                self._logger.debug(
+                    "Statement is not VariableCreatingStatement, skipping LLM request."
+                )
+                return None
+            module_source_code, line_annotations = self.get_shortened_source_code(
+                statement, report.line_annotations
+            )
+        if len(module_source_code) == 0 or len(line_annotations) == 0:
+            self._logger.debug(
+                "This statement is not used in any method of source code, "
+                "or all branches are covered, skipping LLM request."
+            )
+            stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchSkippedLLMCalls, 1)
+            return None
+        unparsed_test_case = unparse_test_case(self.chromosome.test_case)
+        if unparsed_test_case is None:
+            self._logger.debug("Failed to unparse test case, skipping LLM request.")
+            return None
+        return unparsed_test_case, module_source_code, line_annotations
+
+    def get_shortened_source_code(
+        self, statement: VariableCreatingStatement, line_annotations: list[LineAnnotation]
     ) -> tuple[str, list[LineAnnotation]]:
         """Returns the shortened source code of the module under test and shortens line annotations.
 
-        Only the methods where this statement is used are kept.
+        Everything of the source code, that is not forward dependent on the given statement
+        (including this statement) is removed. The list of LineAnnotations is also shortened to
+        only include the lines of the remaining source code. The line numerations of the original
+        code are added to the source code to match to the corresponding line annotation.
+
+        Args:
+            statement: The statement for which the source code should be shortened.
+            line_annotations (list[LineAnnotation]): The line annotations of the whole module.
 
         Returns:
             str: The source code of the current test case.
             list[LineAnnotation]: The line annotations of the current test case.
         """
-        statement = self.chromosome.test_case.statements[position]
-        assert isinstance(statement, VariableCreatingStatement)
         dependencies = self.chromosome.test_case.get_forward_dependencies(statement.ret_val)
         if isinstance(statement, MethodStatement | FunctionStatement | ConstructorStatement):
             dependencies.add(statement.ret_val)
@@ -162,24 +185,8 @@ class LLMLocalSearch:
         self._logger.debug("statements: %s", len(statements))
         shortened: list[LineAnnotation] = []
         for stmt in statements:
-            name = ""
-            accessible = stmt.accessible_object()
-            if isinstance(accessible, GenericMethod):
-                name = f"{accessible.owner.full_name.split('.', 1)[1]}.{accessible.method_name}"
-            elif isinstance(accessible, GenericFunction):
-                if accessible.function_name is None:
-                    continue
-                name = accessible.function_name
-            elif isinstance(accessible, GenericConstructor):
-                if accessible.owner is None:
-                    continue
-                name = accessible.owner.full_name.split(".", 1)[1] + ".__init__"
-            elif accessible is None and isinstance(stmt, CollectionStatement):
-                # Collections do not have an accessible object in cases like this: var_1 = [var2]
-                continue
-            else:
-                self._logger.debug("Unknown accessible object type")
-            if len(name) > 0:
+            name = self._get_name(stmt)
+            if name is not None and len(name) > 0:
                 module_source = get_part_of_source_code(name)
                 if type(module_source) is str:
                     out += module_source + "\n\n"
@@ -192,3 +199,28 @@ class LLMLocalSearch:
                     )
         self._logger.debug(out)
         return out, shortened
+
+    def _get_name(self, stmt: Statement) -> str | None:
+        name = ""
+        accessible = stmt.accessible_object()
+        self._logger.debug("Retrieving name for accessible object of type %s", type(accessible))
+
+        if isinstance(accessible, GenericMethod):
+            name = f"{accessible.owner.full_name.split('.', 1)[1]}.{accessible.method_name}"
+        elif isinstance(accessible, GenericFunction):
+            if accessible.function_name is None:
+                self._logger.debug("Skipping function with no name for name retrieval")
+                return None
+            name = accessible.function_name
+        elif isinstance(accessible, GenericConstructor):
+            if accessible.owner is None:
+                self._logger.debug("Skipping constructor with no owner for name retrieval")
+                return None
+            name = accessible.owner.full_name.split(".", 1)[1] + ".__init__"
+        elif accessible is None and isinstance(stmt, CollectionStatement):
+            self._logger.debug("Skipping collection statement for name retrieval")
+            # Collections do not have an accessible object in cases like this: var_1 = [var2]
+            return None
+        else:
+            self._logger.debug("Unknown accessible object type")
+        return name

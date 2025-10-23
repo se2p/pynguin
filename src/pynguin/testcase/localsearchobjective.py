@@ -3,7 +3,7 @@
 #  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-"""Provides the local search strategies."""
+"""Provides the objective for local search."""
 
 from __future__ import annotations
 
@@ -25,9 +25,7 @@ if TYPE_CHECKING:
 
 
 class LocalSearchObjective:
-    """A local search objective which is used to monitor the success of the current local search on
-    a chromosome.
-    """  # noqa: D205
+    """Monitors the success of the current local search on a chromosome."""
 
     _logger = logging.getLogger(__name__)
 
@@ -129,13 +127,12 @@ class LocalSearchObjective:
         return 0
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:
-        """Gives back if changing the old test case chromosome to the given one improves the fitness
-        of the test suite.
+        """Gives back if changing the old test case chromosome improves the fitness of the suite.
 
         Args:
             test_case_chromosome: The chromosome which will override the original chromosome.
 
         Returns:
             Gives back true, if the test suite has improved.
-        """  # noqa: D205
+        """
         return self.has_changed(test_case_chromosome) > 0

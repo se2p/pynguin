@@ -186,14 +186,14 @@ local_search_collections = false
 local_search_complex_objects = false
 local_search_probability = 0.02
 local_search_time = 5000
-int_delta_increasing_factor = 2
-string_random_mutation_count = 10
-random_parametrized_statement_call_count = 10
-max_different_type_mutations = 10
-different_type_primitive_probability = 0.3
-different_type_collection_probability = 0.3
-dict_max_insertions = 10
-llm_whole_module = false
+ls_int_delta_increasing_factor = 2
+ls_string_random_mutation_count = 10
+ls_random_parametrized_statement_call_count = 10
+ls_max_different_type_mutations = 10
+ls_different_type_primitive_probability = 0.3
+ls_different_type_collection_probability = 0.3
+ls_dict_max_insertions = 10
+ls_llm_whole_module = false
 
 [test_case_output.minimization]
 test_case_minimization_strategy = "CASE"
@@ -299,11 +299,11 @@ def expected_txt(tmp_path):
  'local_search_llm=False, local_search_primitives=True, '
  'local_search_collections=False, local_search_complex_objects=False, '
  'local_search_probability=0.02, local_search_time=5000, '
- 'int_delta_increasing_factor=2, string_random_mutation_count=10, '
- 'random_parametrized_statement_call_count=10, '
- 'max_different_type_mutations=10, different_type_primitive_probability=0.3, '
- 'different_type_collection_probability=0.3, dict_max_insertions=10, '
- 'llm_whole_module=False))')"""  # noqa:E501
+ 'ls_int_delta_increasing_factor=2, ls_string_random_mutation_count=10, '
+ 'ls_random_parametrized_statement_call_count=10, '
+ 'ls_max_different_type_mutations=10, ls_different_type_primitive_probability=0.3, '
+ 'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
+ 'ls_llm_whole_module=False))')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -433,11 +433,11 @@ def expected_parameter_list() -> list[str]:
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
-        "--dict_max_insertions 10",
-        "--different_type_collection_probability 0.3",
-        "--different_type_primitive_probability 0.3",
-        "--int_delta_increasing_factor 2",
-        "--llm_whole_module False",
+        "--ls_dict_max_insertions 10",
+        "--ls_different_type_collection_probability 0.3",
+        "--ls_different_type_primitive_probability 0.3",
+        "--ls_int_delta_increasing_factor 2",
+        "--ls_llm_whole_module False",
         "--local_search True",
         "--local_search_collections False",
         "--local_search_complex_objects False",
@@ -447,9 +447,9 @@ def expected_parameter_list() -> list[str]:
         "--local_search_probability 0.02",
         "--local_search_same_datatype True",
         "--local_search_time 5000",
-        "--max_different_type_mutations 10",
-        "--random_parametrized_statement_call_count 10",
-        "--string_random_mutation_count 10",
+        "--ls_max_different_type_mutations 10",
+        "--ls_random_parametrized_statement_call_count 10",
+        "--ls_string_random_mutation_count 10",
     ]
     return sorted(parameter_list)
 

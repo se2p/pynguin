@@ -864,12 +864,14 @@ class TestFactory:  # noqa: PLR0904
         """
         statement = test_case.get_statement(position)
         if not isinstance(statement, FieldStatement):
+            self._logger.debug("Statement at position %d is not a FieldStatement", position)
             return False
         objects = test_case.get_all_objects(statement.get_position())
         signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
         calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
         accessible_object = statement.accessible_object()
         if accessible_object is None:
+            self._logger.debug("Statement %s has no accessible object", statement.__class__)
             return False
         calls.remove(accessible_object)
         possible_fields = [cast("gao.GenericField", call) for call in calls if call.is_field()]
@@ -882,22 +884,32 @@ class TestFactory:  # noqa: PLR0904
         test_case.set_statement(replacement, position)
         return True
 
-    def change_statement(self, chromosome: TestCaseChromosome, position: int) -> bool:
-        """Replaces the statement at the given position with another statement of a different
-        type.
-        """  # noqa: D205
+    def change_statement_type(self, chromosome: TestCaseChromosome, position: int) -> bool:
+        """Replaces the statement at the given position with another statement of a different type.
+
+        Args:
+            chromosome: The chromosome containing the test case.
+            position: The position of the statement to be changed.
+
+        Returns:
+            Give back true if the replacement was successful and false otherwise.
+        """
         primitives = UnionType(tuple(self._test_cluster.type_system.primitive_proper_types))
         collection = UnionType(tuple(self._test_cluster.type_system.collection_proper_types))
 
         statement = chromosome.test_case.statements[position]
         if not isinstance(statement, VariableCreatingStatement):
+            self._logger.debug(
+                "Statement %s is no VariableCreatingStatement, aborting change.",
+                statement.__class__,
+            )
             return False
         probability = randomness.next_float()
         old_size = len(chromosome.test_case.statements)
         try:
             if (
                 probability
-                <= config.configuration.local_search.different_type_primitive_probability
+                <= config.configuration.local_search.ls_different_type_primitive_probability
             ):
                 self._attempt_generation(
                     chromosome.test_case, primitives, position, 0, allow_none=False
@@ -905,8 +917,8 @@ class TestFactory:  # noqa: PLR0904
                 self._logger.debug("Changed statement from %s to primitive", statement.__class__)
             elif (
                 probability
-                <= config.configuration.local_search.different_type_collection_probability
-                + config.configuration.local_search.different_type_primitive_probability
+                <= config.configuration.local_search.ls_different_type_collection_probability
+                + config.configuration.local_search.ls_different_type_primitive_probability
             ):
                 self._attempt_generation(
                     chromosome.test_case, collection, position, 0, allow_none=False
@@ -921,10 +933,15 @@ class TestFactory:  # noqa: PLR0904
             ):
                 return False
         except ConstructionFailedException:
+            self._logger.error("Creating a statement failed, aborting change")
             return False
         position += len(chromosome.test_case.statements) - old_size
         replacement = chromosome.test_case.get_statement(position - 1)
         if not isinstance(replacement, VariableCreatingStatement):
+            self._logger.debug(
+                "Replacement %s is no VariableCreatingStatement, aborting change.",
+                replacement.__class__,
+            )
             return False
         replacement.replace(replacement.ret_val, statement.ret_val)
         chromosome.test_case.statements.pop(position)

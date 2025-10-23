@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides class prompt for generating assertions for a test case."""
+"""Provides class prompt for LLM requests for local search."""
 
 import logging
 
@@ -14,7 +14,7 @@ from pynguin.utils.report import LineAnnotation
 
 
 class LocalSearchPrompt(Prompt):
-    """A prompt for local search."""
+    """Implementation prompt for local search with LLMs."""
 
     _logger = logging.getLogger(__name__)
 
@@ -27,7 +27,14 @@ class LocalSearchPrompt(Prompt):
     ):
         """Initializes the prompt.
 
-        Line numbers for the module code and the test code are added additionally.
+        For better parsing, the code of the module and the testcase should already contain line
+        numbers.
+
+        Args:
+            test_case_code: The source code of the test case.
+            position: The position of the statement to be mutated.
+            module_code: The source code of the module under test.
+            branch_coverage: The branch coverage information.
         """
         super().__init__(module_code, "")
         self.test_case_code = add_line_numbers(test_case_code)
@@ -46,10 +53,10 @@ class LocalSearchPrompt(Prompt):
             f"parsing\n"
             f"Also add a class where the test is in to the test_code.\n"
             f"Pick a branch where mutating the provided statement can actually increase the "
-            f"branch coverage.\n "
+            f"branch coverage.\n"
             f"Line of branches we failed to cover:\n"
             f"{uncovered_branches}\n"
-            f"Test case source code:\n `{self.test_case_code}` \n"
+            f"Test case source code:\n `{self.test_case_code}`\n"
             f"Module source code:\n `{self.module_code}`"
         )
 

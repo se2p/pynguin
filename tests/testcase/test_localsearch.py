@@ -1009,7 +1009,7 @@ def test_dict_replace(tc_mock):
 
 
 def test_dict_replace_max_insertions(tc_mock, monkeypatch):
-    monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.dict_max_insertions", 10)
+    monkeypatch.setattr("pynguin.config.LocalSearchConfiguration.ls_dict_max_insertions", 10)
     objective = MagicMock()
     objective.has_improved.side_effect = [False] * 30
     int_statement = IntPrimitiveStatement(tc_mock, 42)
@@ -1211,7 +1211,7 @@ def test_llm_local_search_int2(monkeypatch, tc_mock):
     monkeypatch.setattr("pynguin.testcase.llmlocalsearch.get_module_source_code", lambda: "")
     objective = MagicMock()
     objective.has_improved.return_value = True
-    config.configuration.local_search.llm_whole_module = True
+    config.configuration.local_search.ls_llm_whole_module = True
 
     statement = IntPrimitiveStatement(tc_mock.test_case, 30)
     tc_mock.test_case.statements[1] = statement

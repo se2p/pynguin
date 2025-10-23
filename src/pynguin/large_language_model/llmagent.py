@@ -122,20 +122,10 @@ def get_part_of_source_code(name: str) -> str:
     Returns:
         The source code of the specified part with line numbers.
     """
-    module = import_module(config.configuration.module_name)
-    parts = name.split(".")
-    obj = module
-    for part in parts:
-        obj = cast("ModuleType", getattr(obj, part, None))
-        if obj is None:
-            _logger.debug("%s not found in %s", part, ".".join(parts))
-            return ""
-
-    try:
-        source_lines, start_line = inspect.getsourcelines(obj)
-    except (OSError, TypeError, AttributeError) as e:
-        _logger.debug("Could not get source for %s: %s", name, e)
+    result = _find_lines(name)
+    if result is None:
         return ""
+    source_lines, start_line = result
 
     return "\n".join(f"{start_line + i:4d}: {line.rstrip()}" for i, line in enumerate(source_lines))
 
@@ -152,6 +142,19 @@ def shorten_line_annotations(
     Returns:
         The shortened list of line annotations.
     """
+    result = _find_lines(name)
+    if result is None:
+        return []
+    source_lines, start_line = result
+    end_line = start_line + len(source_lines)
+    return [
+        line_annotation
+        for line_annotation in line_annotations
+        if start_line <= line_annotation.line_no < end_line and line_annotation.branches.covered > 0
+    ]
+
+
+def _find_lines(name: str) -> tuple[list[str], int] | None:
     module = import_module(config.configuration.module_name)
     parts = name.split(".")
     obj = module
@@ -159,20 +162,13 @@ def shorten_line_annotations(
         obj = cast("ModuleType", getattr(obj, part, None))
         if obj is None:
             _logger.debug("%s not found in %s", part, ".".join(parts))
-            return []
+            return None
 
     try:
-        source_lines, start_line = inspect.getsourcelines(obj)
+        return inspect.getsourcelines(obj)
     except (OSError, TypeError, AttributeError) as e:
         _logger.debug("Could not get source for %s: %s", name, e)
-        return []
-
-    end_line = start_line + len(source_lines)
-    return [
-        line_annotation
-        for line_annotation in line_annotations
-        if start_line <= line_annotation.line_no < end_line and line_annotation.branches.covered > 0
-    ]
+        return None
 
 
 def is_api_key_present() -> bool:

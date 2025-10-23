@@ -1717,7 +1717,8 @@ class PrimitiveStatement(VariableCreatingStatement, Generic[T]):
         variable_type: ProperType,
         value: T | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         """Initializes a primitive statement.
 
@@ -1884,7 +1885,8 @@ class UIntPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         value: int | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         super().__init__(
             test_case,
@@ -1949,7 +1951,8 @@ class FloatPrimitiveStatement(PrimitiveStatement[float]):
         test_case: tc.TestCase,
         value: float | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         super().__init__(
             test_case,
@@ -2012,7 +2015,8 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
         test_case: tc.TestCase,
         value: complex | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         super().__init__(
             test_case,
@@ -2102,7 +2106,8 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         test_case: tc.TestCase,
         value: str | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         super().__init__(
             test_case,
@@ -2197,7 +2202,8 @@ class BytesPrimitiveStatement(PrimitiveStatement[bytes]):
         test_case: tc.TestCase,
         value: bytes | None = None,
         constant_provider: constants.ConstantProvider | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         super().__init__(
             test_case,
@@ -2291,14 +2297,15 @@ class BooleanPrimitiveStatement(PrimitiveStatement[bool]):
         self,
         test_case: tc.TestCase,
         value: bool | None = None,  # noqa: FBT001
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ) -> None:
         """Initializes a primitive statement for a boolean.
 
         Args:
             test_case: The test case this statement belongs to
             value: The boolean value
-            local_search_applied: Wheter local search has been applied
+            local_search_applied: Whether local search has been applied
         """
         super().__init__(
             test_case,
@@ -2344,7 +2351,8 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         test_case: tc.TestCase,
         generic_enum: gao.GenericEnum,
         value: int | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ):
         """Initializes an enum statement.
 
@@ -2352,7 +2360,7 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
             test_case: The test case the statement belongs to
             generic_enum: The enum
             value: The value
-            local_search_applied: Wheter local search has been applied
+            local_search_applied: Whether local search has been applied
         """
         self._generic_enum = generic_enum
         super().__init__(
@@ -2428,7 +2436,8 @@ class ClassPrimitiveStatement(PrimitiveStatement[int]):
         self,
         test_case: tc.TestCase,
         value: int | None = None,
-        local_search_applied: bool = False,  # noqa: FBT001, FBT002
+        *,
+        local_search_applied: bool = False,
     ):
         # TODO(fk) think about type being generic/bound, e.g., type[Foo]
         # We store the index in the global class list here.

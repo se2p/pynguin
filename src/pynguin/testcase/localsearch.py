@@ -47,7 +47,7 @@ class TestCaseLocalSearch:
             suite (TestSuiteChromosome): The test suite containing the test case.
             executor (TestCaseExecutor): The executor to run the test cases.
         """
-        self._max_mutations: int = config.configuration.local_search.max_different_type_mutations
+        self._max_mutations: int = config.configuration.local_search.ls_max_different_type_mutations
         self._suite = suite
         self._executor = executor
 
@@ -124,7 +124,7 @@ class TestCaseLocalSearch:
         chromosome: TestCaseChromosome,
         factory: TestFactory,
         objective: LocalSearchObjective,
-        position,
+        position: int,
     ) -> bool:
         statement = chromosome.test_case.statements[position]
         # Randomize value because it's likely to be at a local optima
@@ -159,7 +159,7 @@ class TestCaseLocalSearch:
         chromosome: TestCaseChromosome,
         factory: TestFactory,
         objective: LocalSearchObjective,
-        position,
+        position: int,
     ) -> bool:
         statement = chromosome.test_case.statements[position]
         self._logger.debug(
@@ -179,7 +179,7 @@ class TestCaseLocalSearch:
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             old_size = len(chromosome.test_case.statements)
-            if factory.change_statement(chromosome, position) and objective.has_improved(
+            if factory.change_statement_type(chromosome, position) and objective.has_improved(
                 chromosome
             ):
                 self._logger.debug("Local search has found another possible datatype")

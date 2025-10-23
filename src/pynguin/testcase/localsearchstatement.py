@@ -205,7 +205,7 @@ class IntegerLocalSearch(NumericalLocalSearch, ABC):
             "IntPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
         old_value = statement.value
-        increasing_factor = config.configuration.local_search.int_delta_increasing_factor
+        increasing_factor = config.configuration.local_search.ls_int_delta_increasing_factor
         if self.iterate_directions(statement, 1, increasing_factor):
             self._logger.debug(
                 "Successfully increased value of %s to %s ", old_value, statement.value
@@ -250,7 +250,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
         )
         improved = False
         original_value = statement.value
-        increasing_factor = config.configuration.local_search.int_delta_increasing_factor
+        increasing_factor = config.configuration.local_search.ls_int_delta_increasing_factor
         if self.iterate_directions(statement, 1, increasing_factor):
             improved = True
 
@@ -412,7 +412,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             Gives back True, if at least one iteration increased the fitness.
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
-        factor = config.configuration.local_search.int_delta_increasing_factor
+        factor = config.configuration.local_search.ls_int_delta_increasing_factor
         if statement.value is None:
             return False
 
@@ -464,7 +464,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         statement = cast(
             "StringPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
-        random_mutations_count = config.configuration.local_search.string_random_mutation_count
+        random_mutations_count = config.configuration.local_search.ls_string_random_mutation_count
         self._backup(statement)
         while random_mutations_count > 0:
             statement.randomize_value()
@@ -624,7 +624,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
             self._backup(statement)
             if LocalSearchTimer.get_instance().limit_reached() or statement.value is None:
                 break
-            delta *= config.configuration.local_search.int_delta_increasing_factor
+            delta *= config.configuration.local_search.ls_int_delta_increasing_factor
             if (
                 ord(statement.value[char_position]) + delta > sys.maxunicode
                 or ord(statement.value[char_position]) + delta < 0
@@ -679,7 +679,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         while (
             not LocalSearchTimer.get_instance().limit_reached()
             and mutations
-            < config.configuration.local_search.random_parametrized_statement_call_count
+            < config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
             total_iterations += 1
             operations: list[Operations] = [Operations.REPLACE]
@@ -711,7 +711,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                 mutations += 1
         if (
             total_iterations
-            == config.configuration.local_search.random_parametrized_statement_call_count
+            == config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
             stat.add_to_runtime_variable(RuntimeVariable.LocalSearchUnsuccessfulExploratoryMoves, 1)
         else:
@@ -849,7 +849,7 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
         while (
             changed
             and mutations
-            < config.configuration.local_search.random_parametrized_statement_call_count
+            < config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
             changed = self._factory.change_random_field_call(
                 self._chromosome.test_case, self._position
@@ -890,7 +890,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         statement = cast(
             "BytesPrimitiveStatement", self._chromosome.test_case.statements[self._position]
         )
-        random_mutations_count = config.configuration.local_search.string_random_mutation_count
+        random_mutations_count = config.configuration.local_search.ls_string_random_mutation_count
 
         while random_mutations_count > 0:
             self._backup(statement)
@@ -1038,7 +1038,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
             improved = True
             self._chromosome.changed = True
             self._backup(statement)
-            delta *= config.configuration.local_search.int_delta_increasing_factor
+            delta *= config.configuration.local_search.ls_int_delta_increasing_factor
             if statement.value[pos] + delta not in range(256):
                 return improved
             statement.value = (
@@ -1268,7 +1268,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
                             self._chromosome.test_case.remove(self._position)
             else:
                 for available_key in randomness.sample(
-                    keys, min(len(keys), config.configuration.local_search.dict_max_insertions)
+                    keys, min(len(keys), config.configuration.local_search.ls_dict_max_insertions)
                 ):
                     statement.elements[i] = (available_key, value)
                     if self._objective.has_improved(self._chromosome):
@@ -1297,7 +1297,8 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
                             self._chromosome.test_case.remove(self._position)
             else:
                 for available_value in randomness.sample(
-                    values, min(len(values), config.configuration.local_search.dict_max_insertions)
+                    values,
+                    min(len(values), config.configuration.local_search.ls_dict_max_insertions),
                 ):
                     statement.elements[i] = (key, available_value)
                     if not self._objective.has_improved(self._chromosome):
@@ -1332,7 +1333,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
                 self._restore(statement)
         insertions = 0
         while (
-            insertions < config.configuration.local_search.dict_max_insertions
+            insertions < config.configuration.local_search.ls_dict_max_insertions
             and not LocalSearchTimer.get_instance().limit_reached()
         ):
             values = self._chromosome.test_case.get_objects(AnyType(), self._position)

@@ -300,7 +300,7 @@ class _BranchFitnessGraph:
 
         Args:
             search_in: The list to search in
-            goal: The goal to search for<<
+            goal: The goal to search for
 
         Returns:
             The found fitness function.

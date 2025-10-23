@@ -802,31 +802,31 @@ class LocalSearchConfiguration:
     local_search_time: int = 5000
     """The budget which each local search iteration has in ms."""
 
-    int_delta_increasing_factor: int = 2
+    ls_int_delta_increasing_factor: int = 2
     """The factor which defines how much the delta should increase for each iteration for integer
     local search."""
 
-    string_random_mutation_count: int = 10
+    ls_string_random_mutation_count: int = 10
     """The number of mutations made to the string to determine if it's worth to completely mutate
     the string."""
 
-    random_parametrized_statement_call_count: int = 10
+    ls_random_parametrized_statement_call_count: int = 10
     """The number of mutations made to a parametrized statement call to determine if it's worth to
     further do local search"""
 
-    max_different_type_mutations: int = 10
+    ls_max_different_type_mutations: int = 10
     """The max number of searches for different datatypes"""
 
-    different_type_primitive_probability: float = 0.3
+    ls_different_type_primitive_probability: float = 0.3
     """Weight of generating primitive statements when changing the statement type."""
 
-    different_type_collection_probability: float = 0.3
+    ls_different_type_collection_probability: float = 0.3
     """Weight of generating collection statements when changing the statement type."""
 
-    dict_max_insertions: int = 10
+    ls_dict_max_insertions: int = 10
     """Max number of unsuccessful insertions of entries."""
 
-    llm_whole_module: bool = False
+    ls_llm_whole_module: bool = False
     """Whether to provide the whole module or selected functions/methods to the LLM for context
     when performing llm local search."""
 
