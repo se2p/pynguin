@@ -122,6 +122,9 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained size values at different points in time
     SizeTimeline = "SizeTimeline"
 
+    # Number of executed test cases
+    Executed = "Executed"
+
     # Obtained length values at different points in time
     LengthTimeline = "LengthTimeline"
 
@@ -229,6 +232,9 @@ class RuntimeVariable(str, enum.Enum):
 
     # Whether the subprocess mode was used or not
     SubprocessMode = "SubprocessMode"
+
+    # Number of unique generated crash revealing tests
+    CrashRevealingSize = "CrashRevealingSize"
 
     def __repr__(self):
         return f"{self.name}"

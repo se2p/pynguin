@@ -939,6 +939,8 @@ class AbstractTestCaseExecutor(abc.ABC):
         Returns:
             Result of the execution
         """
+        # TODO: Track Executed output variable here and make all implementing methods
+        #  call super().
 
     def execute_multiple(self, test_cases: Iterable[tc.TestCase]) -> Iterable[ExecutionResult]:
         """Executes multiple test cases.
@@ -1601,6 +1603,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _minimize_and_safe(self, test_case: tc.TestCase, exit_code: int | None) -> None:
         # Calculate hash before to ensure the same hash for minimized and non-minimized one
         test_case_hash = str(hash(test_case))
+        # TODO: Store hash and track CrashRevealingSize output variable if new hash
         self._safe_crash_test(test_case, hash_str=test_case_hash)
         try:
             minimized_test_case = self._minimize(test_case, exit_code)
