@@ -462,8 +462,8 @@ def test_write_configuration(expected_toml, expected_txt, tmp_path):
     write_configuration()
 
     toml_path = Path(config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TOML
-    #assert toml_path.exists()
-    #assert toml_path.read_text() == expected_toml.read_text()
+    assert toml_path.exists()
+    assert toml_path.read_text() == expected_toml.read_text()
 
     txt_path = Path(config.configuration.statistics_output.report_dir) / PYNGUIN_CONFIG_TXT
     assert txt_path.exists()
