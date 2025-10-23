@@ -122,9 +122,6 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained size values at different points in time
     SizeTimeline = "SizeTimeline"
 
-    # Number of executed test cases
-    Executed = "Executed"
-
     # Obtained length values at different points in time
     LengthTimeline = "LengthTimeline"
 
@@ -133,6 +130,9 @@ class RuntimeVariable(str, enum.Enum):
 
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
+
+    # Number of executed test cases
+    Executed = "Executed"
 
     # ========= Values collected at the end of the search =========
 
