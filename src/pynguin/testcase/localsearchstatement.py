@@ -23,7 +23,7 @@ import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import is_primitive_type
-from pynguin.testcase.localsearchtimer import LocalSearchTimer
+from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
 from pynguin.testcase.statement import CollectionStatement
@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.testcase.execution import ExecutionResult
     from pynguin.testcase.localsearchobjective import LocalSearchObjective
+    from pynguin.testcase.localsearchtimer import LocalSearchTimer
     from pynguin.testcase.testfactory import TestFactory
 
 
@@ -144,10 +145,7 @@ class NumericalLocalSearch(PrimitiveLocalSearch, ABC):
         improved = False
         self._backup(statement)
         statement.value += delta
-        while (
-            self._objective.has_improved(self._chromosome)
-            and not self._timer.limit_reached()
-        ):
+        while self._objective.has_improved(self._chromosome) and not self._timer.limit_reached():
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
             improved = True
@@ -265,7 +263,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
         ):
             self._backup(statement)
             statement.value = round(statement.value, precision)
-            if self._objective.has_changed(self._chromosome) < 0:
+            if self._objective.has_changed(self._chromosome) == LS_Imp.DETERIORATION:
                 self._restore(statement)
             self._logger.debug("Starting local search with precision %s", precision)
             if self.iterate_directions(statement, 10.0 ** (-precision), increasing_factor):
@@ -326,9 +324,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             improved = True
 
         precision = 1
-        while (
-            precision <= sys.float_info.dig and not self._timer.limit_reached()
-        ):
+        while precision <= sys.float_info.dig and not self._timer.limit_reached():
             self._logger.debug("Starting local search with precision %d", precision)
             if self.iterate_directions(statement, 10.0 ** (-precision), imaginary):
                 improved = True
@@ -343,7 +339,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
                     statement.value = complex(
                         round(statement.value.real, precision), statement.value.imag
                     )
-                if self._objective.has_changed(self._chromosome) < 0:
+                if self._objective.has_changed(self._chromosome) == LS_Imp.DETERIORATION:
                     self._restore(statement)
             precision += 1
         return improved
@@ -425,10 +421,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             statement.value = complex(statement.value.real, statement.value.imag + delta)
         else:
             statement.value = complex(statement.value.real + delta, statement.value.imag)
-        while (
-            self._objective.has_improved(self._chromosome)
-            and not self._timer.limit_reached()
-        ):
+        while self._objective.has_improved(self._chromosome) and not self._timer.limit_reached():
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
             improved = True
@@ -473,10 +466,10 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
             statement.randomize_value()
 
             improvement = self._objective.has_changed(self._chromosome)
-            if improvement < 0:
+            if improvement in {LS_Imp.DETERIORATION, LS_Imp.NONE}:
                 self._restore(statement)
 
-            if improvement != 0:
+            if improvement in {LS_Imp.DETERIORATION, LS_Imp.IMPROVEMENT}:
                 self._logger.debug(
                     "The random mutations have changed the fitness of %r, applying local search",
                     self._chromosome.test_case.statements[self._position],
@@ -899,9 +892,9 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
             self._backup(statement)
             statement.delta()
             changed = self._objective.has_changed(self._chromosome)
-            if changed < 1:
+            if changed in {LS_Imp.DETERIORATION, LS_Imp.NONE}:
                 self._restore(statement)
-            if changed != 0:
+            if changed in {LS_Imp.DETERIORATION, LS_Imp.IMPROVEMENT}:
                 self._logger.debug("Random mutations have an impact on the fitness")
                 stat.add_to_runtime_variable(
                     RuntimeVariable.LocalSearchSuccessfulExploratoryMoves, 1
@@ -1034,10 +1027,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         )
 
         improved = False
-        while (
-            self._objective.has_improved(self._chromosome)
-            and not self._timer.limit_reached()
-        ):
+        while self._objective.has_improved(self._chromosome) and not self._timer.limit_reached():
             improved = True
             self._chromosome.changed = True
             self._backup(statement)
@@ -1161,9 +1151,7 @@ class NonDictCollectionLocalSearch(CollectionLocalSearch, ABC):
         pos = 0
         improved = False
         self._logger.debug("Starting to add entries from %s", statement)
-        while (
-            pos <= len(statement.elements) and not self._timer.limit_reached()
-        ):
+        while pos <= len(statement.elements) and not self._timer.limit_reached():
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
                 objects = [obj for obj in objects if obj not in statement.elements]

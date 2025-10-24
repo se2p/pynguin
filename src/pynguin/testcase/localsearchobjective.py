@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 import time
 
@@ -64,7 +65,7 @@ class LocalSearchObjective:
                 coverage_function
             )
 
-    def has_changed(self, test_case_chromosome: TestCaseChromosome) -> int:
+    def has_changed(self, test_case_chromosome: TestCaseChromosome) -> LocalSearchImprovement:
         """Gives back, if the fitness of the testsuite has changed.
 
         It overrides the specific testcase with the provided chromosome.
@@ -101,7 +102,7 @@ class LocalSearchObjective:
             )
             self._update_latest_coverage_map()
             self._update_latest_fitness_map()
-            return 1
+            return LocalSearchImprovement.IMPROVEMENT
         if (
             new_fitness < self._old_fitness
             if self._is_maximization
@@ -114,7 +115,7 @@ class LocalSearchObjective:
             )
             self._test_suite.set_coverage_values(self._latest_coverage_map)
             self._test_suite.set_fitness_values(self._latest_fitness_map)
-            return -1
+            return LocalSearchImprovement.DETERIORATION
         self._logger.debug("Local search hasn't changed the fitness of %f", self._old_fitness)
         time_dif = int(time.perf_counter()) * 1000 - start_time
         old_time = stat.output_variables.get(
@@ -124,7 +125,7 @@ class LocalSearchObjective:
             RuntimeVariable.TotalLocalSearchFitnessEvaluationTime,
             old_time.value + time_dif if old_time is not None else time_dif,
         )
-        return 0
+        return LocalSearchImprovement.NONE
 
     def has_improved(self, test_case_chromosome: TestCaseChromosome) -> bool:
         """Gives back if changing the old test case chromosome improves the fitness of the suite.
@@ -135,4 +136,12 @@ class LocalSearchObjective:
         Returns:
             Gives back true, if the test suite has improved.
         """
-        return self.has_changed(test_case_chromosome) > 0
+        return self.has_changed(test_case_chromosome) == LocalSearchImprovement.IMPROVEMENT
+
+
+class LocalSearchImprovement(enum.Enum):
+    """Defines the changes in fitness which were observed."""
+
+    NONE = 0
+    IMPROVEMENT = 1
+    DETERIORATION = 2

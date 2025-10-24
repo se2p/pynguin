@@ -22,8 +22,8 @@ import pynguin.utils.statistics.stats as stat
 
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
-from pynguin.testcase.localsearch import LocalSearchTimer
 from pynguin.testcase.localsearch import TestSuiteLocalSearch
+from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -146,6 +146,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
             test_suite,
             self.test_factory,
             self.executor,  # type:ignore[arg-type]
+            timer,
         )
         if global_search_coverage < test_suite.get_coverage():
             self._logger.info(

@@ -19,7 +19,6 @@ from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import choose_local_search_statement
-from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import EnumPrimitiveStatement
@@ -32,6 +31,7 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.testcase.localsearchtimer import LocalSearchTimer
     from pynguin.testcase.testfactory import TestFactory
 
 
@@ -40,7 +40,9 @@ class TestCaseLocalSearch:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, suite: TestSuiteChromosome, executor: TestCaseExecutor, timer: LocalSearchTimer) -> None:
+    def __init__(
+        self, suite: TestSuiteChromosome, executor: TestCaseExecutor, timer: LocalSearchTimer
+    ) -> None:
         """Initializes the local search for a test case.
 
         Args:
@@ -175,11 +177,7 @@ class TestCaseLocalSearch:
 
         counter = 0
         found = False
-        while (
-            not found
-            and counter < self._max_mutations
-            and not self._timer.limit_reached()
-        ):
+        while not found and counter < self._max_mutations and not self._timer.limit_reached():
             old_size = len(chromosome.test_case.statements)
             if factory.change_statement_type(chromosome, position) and objective.has_improved(
                 chromosome
@@ -217,7 +215,8 @@ class TestCaseLocalSearch:
             )
             return self._search_same_datatype(chromosome, factory, objective, position)
         return LLMLocalSearch(
-            chromosome, objective, factory, self._suite, self._executor).llm_local_search(position)
+            chromosome, objective, factory, self._suite, self._executor
+        ).llm_local_search(position)
 
 
 class TestSuiteLocalSearch:

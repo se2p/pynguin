@@ -4,11 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from unittest.mock import patch
 
 import pynguin.configuration as config
 
-from pynguin.testcase.localsearch import LocalSearchTimer
+from pynguin.testcase.localsearchtimer import LocalSearchTimer
 
 
 def test_timer_limit_reached() -> None:
@@ -16,7 +15,6 @@ def test_timer_limit_reached() -> None:
     timer = LocalSearchTimer()
     timer.start_timer()
     assert timer.limit_reached()
-
 
 
 def test_timer_limit_not_reached() -> None:
