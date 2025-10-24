@@ -66,6 +66,7 @@ class StatementLocalSearch(abc.ABC):
         position: int,
         objective: LocalSearchObjective,
         factory: TestFactory,
+        timer: LocalSearchTimer,
     ):
         """Initializes the local search strategy for a specific statement.
 
@@ -74,11 +75,13 @@ class StatementLocalSearch(abc.ABC):
             position (int): The position of the statement in the test case.
             objective (LocalSearchObjective): The objective to check for improvements.
             factory (TestFactory): The factory to create new statements.
+            timer (LocalSearchTimer): The timer which limits the local search.
         """
         self._chromosome = chromosome
         self._objective = objective
         self._position = position
         self._factory = factory
+        self._timer = timer
 
     @abstractmethod
     def search(self) -> bool:
@@ -143,7 +146,7 @@ class NumericalLocalSearch(PrimitiveLocalSearch, ABC):
         statement.value += delta
         while (
             self._objective.has_improved(self._chromosome)
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
         ):
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
@@ -175,7 +178,7 @@ class NumericalLocalSearch(PrimitiveLocalSearch, ABC):
         done = False
         improved = False
 
-        while not done and not LocalSearchTimer.get_instance().limit_reached():
+        while not done and not self._timer.limit_reached():
             done = True
             if self.iterate(statement, delta, factor):
                 self._logger.debug(
@@ -227,7 +230,7 @@ class EnumLocalSearch(PrimitiveLocalSearch, ABC):
         initial_value = statement.value
         self._backup(statement)
         for value in range(len(statement.accessible_object().names)):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return False
             if value != initial_value:
                 if not self._objective.has_improved(self._chromosome):
@@ -257,7 +260,7 @@ class FloatLocalSearch(NumericalLocalSearch, ABC):
         precision = 1
         while (
             precision <= sys.float_info.dig
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
             and statement.value is not None
         ):
             self._backup(statement)
@@ -324,7 +327,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
 
         precision = 1
         while (
-            precision <= sys.float_info.dig and not LocalSearchTimer.get_instance().limit_reached()
+            precision <= sys.float_info.dig and not self._timer.limit_reached()
         ):
             self._logger.debug("Starting local search with precision %d", precision)
             if self.iterate_directions(statement, 10.0 ** (-precision), imaginary):
@@ -368,7 +371,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
         old_value = statement.value
 
         done = False
-        while not done and not LocalSearchTimer.get_instance().limit_reached():
+        while not done and not self._timer.limit_reached():
             done = True
             if self.iterate_complex(statement, imaginary, delta):
                 (
@@ -424,7 +427,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             statement.value = complex(statement.value.real + delta, statement.value.imag)
         while (
             self._objective.has_improved(self._chromosome)
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
         ):
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
@@ -502,7 +505,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         self._backup(statement)
         improved = False
         for i in range(len(statement.value) - 1, -1, -1):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return improved
             self._logger.debug("Removing character %d from string %r", i, statement.value)
             statement.value = statement.value[:i] + statement.value[i + 1 :]
@@ -622,7 +625,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
             improved = True
             self._chromosome.changed = True
             self._backup(statement)
-            if LocalSearchTimer.get_instance().limit_reached() or statement.value is None:
+            if self._timer.limit_reached() or statement.value is None:
                 break
             delta *= config.configuration.local_search.ls_int_delta_increasing_factor
             if (
@@ -677,7 +680,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         total_iterations = 0
         improved = False
         while (
-            not LocalSearchTimer.get_instance().limit_reached()
+            not self._timer.limit_reached()
             and mutations
             < config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
@@ -921,7 +924,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         improved = False
         if statement.value is None:
             return False
-        while i <= len(statement.value) and not LocalSearchTimer.get_instance().limit_reached():
+        while i <= len(statement.value) and not self._timer.limit_reached():
             statement.value = statement.value[:i] + bytes([97]) + statement.value[i:]
             self._logger.debug(
                 "Starting to add value at position %d from bytes %r", i, statement.value
@@ -931,7 +934,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
                 self._backup(statement)
                 finished = False
 
-                while not finished and not LocalSearchTimer.get_instance().limit_reached():
+                while not finished and not self._timer.limit_reached():
                     finished = True
                     if self._iterate_bytes(statement, i, 1):
                         finished = False
@@ -969,7 +972,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         for i in range(len(statement.value) - 1, -1, -1):
             finished = False
 
-            while not finished and not LocalSearchTimer.get_instance().limit_reached():
+            while not finished and not self._timer.limit_reached():
                 finished = True
                 old_value = statement.value
                 if self._iterate_bytes(statement, i, 1):
@@ -1003,7 +1006,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         if statement.value is None:
             return improved
         for i in range(len(statement.value) - 1, -1, -1):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 break
             self._logger.debug("Removing value %d from byte %r", i, statement.value)
             statement.value = statement.value[:i] + statement.value[i + 1 :]
@@ -1033,7 +1036,7 @@ class BytesLocalSearch(PrimitiveLocalSearch, ABC):
         improved = False
         while (
             self._objective.has_improved(self._chromosome)
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
         ):
             improved = True
             self._chromosome.changed = True
@@ -1094,7 +1097,7 @@ class NonDictCollectionLocalSearch(CollectionLocalSearch, ABC):
         improved = False
         self._logger.debug("Starting to remove entries from %s", statement)
         for i in range(len(statement.elements) - 1, -1, -1):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return improved
             statement.elements = statement.elements[:i] + statement.elements[i + 1 :]
             if self._objective.has_improved(self._chromosome):
@@ -1117,7 +1120,7 @@ class NonDictCollectionLocalSearch(CollectionLocalSearch, ABC):
         improved = False
         self._logger.debug("Starting to replace entries from %s", statement)
         for i in range(len(statement.elements)):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return improved
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
@@ -1159,7 +1162,7 @@ class NonDictCollectionLocalSearch(CollectionLocalSearch, ABC):
         improved = False
         self._logger.debug("Starting to add entries from %s", statement)
         while (
-            pos <= len(statement.elements) and not LocalSearchTimer.get_instance().limit_reached()
+            pos <= len(statement.elements) and not self._timer.limit_reached()
         ):
             objects = self._chromosome.test_case.get_objects(statement.ret_val.type, self._position)
             if isinstance(statement, SetStatement):
@@ -1220,7 +1223,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
         self._backup(statement)
         improved = False
         for key, value in statement.elements.copy():
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return improved
             statement.elements.remove((key, value))
             if self._objective.has_improved(self._chromosome):
@@ -1243,7 +1246,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
         improved = False
         for i in range(len(statement.elements)):
             key, value = statement.elements[i]
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return improved
             values = self._chromosome.test_case.get_objects(value.type, self._position)
             keys_reference = self._chromosome.test_case.get_objects(key.type, self._position)
@@ -1323,7 +1326,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
         self._backup(statement)
         has_key_errors = True
         improved = False
-        while has_key_errors and not LocalSearchTimer.get_instance().limit_reached():
+        while has_key_errors and not self._timer.limit_reached():
             has_key_errors = self._fix_possible_key_error(statement)
             if self._objective.has_improved(self._chromosome):
                 improved = True
@@ -1334,7 +1337,7 @@ class DictStatementLocalSearch(CollectionLocalSearch, ABC):
         insertions = 0
         while (
             insertions < config.configuration.local_search.ls_dict_max_insertions
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
         ):
             values = self._chromosome.test_case.get_objects(AnyType(), self._position)
             key_elements = {k for (k, _) in statement.elements}
@@ -1398,6 +1401,7 @@ def choose_local_search_statement(  # noqa: C901
     position: int,
     objective: LocalSearchObjective,
     factory: TestFactory,
+    timer: LocalSearchTimer,
 ) -> StatementLocalSearch | None:
     """Chooses the local search strategy for the statement at the position.
 
@@ -1406,54 +1410,55 @@ def choose_local_search_statement(  # noqa: C901
         position (int): The position of the statement in the test case.
         objective (LocalSearchObjective): The objective which checks if improvements are made.
         factory (TestFactory): The test factory which modifies the test case.
+        timer (LocalSearchTimer): The timer which limits the local search.
     """
     statement = chromosome.test_case.statements[position]
     logger = logging.getLogger(__name__)
     logger.debug("Choose local search statement from statement")
     if isinstance(statement, NoneStatement):
         logger.debug("None local search statement found")
-        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, EnumPrimitiveStatement):
         logger.debug("Statement is enum %r", statement.value)
-        return EnumLocalSearch(chromosome, position, objective, factory)
+        return EnumLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, PrimitiveStatement):
         primitive_type = statement.value
         if isinstance(primitive_type, bool):
             logger.debug("Primitive type is bool %s", primitive_type)
-            return BooleanLocalSearch(chromosome, position, objective, factory)
+            return BooleanLocalSearch(chromosome, position, objective, factory, timer)
         if isinstance(primitive_type, int):
             logger.debug("Primitive type is int %d", primitive_type)
-            return IntegerLocalSearch(chromosome, position, objective, factory)
+            return IntegerLocalSearch(chromosome, position, objective, factory, timer)
         if isinstance(primitive_type, str):
             logger.debug("Primitive type is string %s", primitive_type)
-            return StringLocalSearch(chromosome, position, objective, factory)
+            return StringLocalSearch(chromosome, position, objective, factory, timer)
         if isinstance(primitive_type, float):
             logger.debug("Primitive type is float %f", primitive_type)
-            return FloatLocalSearch(chromosome, position, objective, factory)
+            return FloatLocalSearch(chromosome, position, objective, factory, timer)
         if isinstance(primitive_type, complex):
             logger.debug("Primitive type is complex %s", primitive_type)
-            return ComplexLocalSearch(chromosome, position, objective, factory)
+            return ComplexLocalSearch(chromosome, position, objective, factory, timer)
         if isinstance(primitive_type, bytes):
             logger.debug("Primitive type is bytes %s", primitive_type)
-            return BytesLocalSearch(chromosome, position, objective, factory)
+            return BytesLocalSearch(chromosome, position, objective, factory, timer)
         logger.debug("Unknown primitive type: %s", primitive_type)
     elif isinstance(statement, NonDictCollection):
         logger.debug("%s non-dict collection found", statement.__class__.__name__)
-        return NonDictCollectionLocalSearch(chromosome, position, objective, factory)
+        return NonDictCollectionLocalSearch(chromosome, position, objective, factory, timer)
     elif isinstance(statement, DictStatement):
         logger.debug("%s dict statement found", statement.__class__.__name__)
-        return DictStatementLocalSearch(chromosome, position, objective, factory)
+        return DictStatementLocalSearch(chromosome, position, objective, factory, timer)
     elif (
         isinstance(statement, FunctionStatement)
         | isinstance(statement, ConstructorStatement)
         | isinstance(statement, MethodStatement)
     ):
         logger.debug("%s statement found", statement.__class__.__name__)
-        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory)
+        return ParametrizedStatementLocalSearch(chromosome, position, objective, factory, timer)
 
     elif isinstance(statement, FieldStatement):
         logger.debug("%s statement found", statement.__class__.__name__)
-        return FieldStatementLocalSearch(chromosome, position, objective, factory)
+        return FieldStatementLocalSearch(chromosome, position, objective, factory, timer)
 
     else:
         logger.debug("No local search statement found for %s", statement.__class__.__name__)

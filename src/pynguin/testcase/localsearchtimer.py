@@ -14,29 +14,17 @@ import pynguin.configuration as config
 class LocalSearchTimer:
     """Manages the local search budget."""
 
-    _instance = None
-    _logger: logging.Logger
+    _logger = logging.getLogger(__name__)
 
-    def __new__(cls):
-        """Provides the instance, or creates a new instance."""
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
-            cls._instance.end_time = 0
-            cls._instance._logger = logging.getLogger(__name__)  # noqa: SLF001
-        return cls._instance
+    def __init__(self):
+        """Creates a new LocalSearchTimer instance."""
+        self._end_time = 0
+        self._logger = logging.getLogger(__name__)
 
-    @classmethod
-    def get_instance(cls):
-        """Provides the instance.
-
-        Returns: The instance of LocalSearchTimer.
-        """
-        return cls()
-
-    def start_local_search(self) -> None:
+    def start_timer(self) -> None:
         """Starts the local search timer."""
         start_time = int(time.perf_counter()) * 1000
-        self.end_time = start_time + config.configuration.local_search.local_search_time
+        self._end_time = start_time + config.configuration.local_search.local_search_time
         self._logger.debug("Local search started at %f ms", start_time)
 
     def limit_reached(self) -> bool:
@@ -49,6 +37,6 @@ class LocalSearchTimer:
         self._logger.debug(
             "Checking limit: current time = %f, end time = %f",
             current_time,
-            self.end_time,
+            self._end_time,
         )
-        return current_time > self.end_time
+        return current_time > self._end_time

@@ -138,7 +138,8 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         test_suite = self.create_test_suite(test_cases)
         global_search_coverage = test_suite.get_coverage()
         self._logger.debug("Starting local search")
-        LocalSearchTimer.get_instance().start_local_search()
+        timer = LocalSearchTimer()
+        timer.start_timer()
 
         TestSuiteLocalSearch.local_search(
             TestSuiteLocalSearch(),

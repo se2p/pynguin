@@ -12,22 +12,20 @@ from pynguin.testcase.localsearch import LocalSearchTimer
 
 
 def test_timer_limit_reached() -> None:
-    with patch.object(LocalSearchTimer, "_instance", None):
-        config.configuration.local_search.local_search_time = -1000000
-        timer = LocalSearchTimer.get_instance()
-        timer.start_local_search()
-        assert timer.limit_reached()
+    config.configuration.local_search.local_search_time = -1000000
+    timer = LocalSearchTimer()
+    timer.start_timer()
+    assert timer.limit_reached()
+
 
 
 def test_timer_limit_not_reached() -> None:
-    with patch.object(LocalSearchTimer, "_instance", None):
-        config.configuration.local_search.local_search_time = 1000000000
-        timer = LocalSearchTimer.get_instance()
-        timer.start_local_search()
-        assert not timer.limit_reached()
+    config.configuration.local_search.local_search_time = 1000000000
+    timer = LocalSearchTimer()
+    timer.start_timer()
+    assert not timer.limit_reached()
 
 
 def test_timer_not_started() -> None:
-    with patch.object(LocalSearchTimer, "_instance", None):
-        timer = LocalSearchTimer.get_instance()
-        assert timer.limit_reached()
+    timer = LocalSearchTimer()
+    assert timer.limit_reached()

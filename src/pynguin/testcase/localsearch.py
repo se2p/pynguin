@@ -40,16 +40,18 @@ class TestCaseLocalSearch:
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, suite: TestSuiteChromosome, executor: TestCaseExecutor) -> None:
+    def __init__(self, suite: TestSuiteChromosome, executor: TestCaseExecutor, timer: LocalSearchTimer) -> None:
         """Initializes the local search for a test case.
 
         Args:
             suite (TestSuiteChromosome): The test suite containing the test case.
             executor (TestCaseExecutor): The executor to run the test cases.
+            timer (LocalSearchTimer): The timer which limits the local search run.
         """
         self._max_mutations: int = config.configuration.local_search.ls_max_different_type_mutations
         self._suite = suite
         self._executor = executor
+        self._timer = timer
 
     def local_search(
         self,
@@ -67,7 +69,7 @@ class TestCaseLocalSearch:
         assert objective is not None
 
         for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
-            if LocalSearchTimer.get_instance().limit_reached():
+            if self._timer.limit_reached():
                 return
             if (
                 randomness.next_float()
@@ -138,7 +140,7 @@ class TestCaseLocalSearch:
             statement.randomize_value()
 
         local_search_statement = choose_local_search_statement(
-            chromosome, position, objective, factory
+            chromosome, position, objective, factory, self._timer
         )
         if local_search_statement is not None:
             self._logger.debug("Local search statement found for the statement %s", statement)
@@ -176,7 +178,7 @@ class TestCaseLocalSearch:
         while (
             not found
             and counter < self._max_mutations
-            and not LocalSearchTimer.get_instance().limit_reached()
+            and not self._timer.limit_reached()
         ):
             old_size = len(chromosome.test_case.statements)
             if factory.change_statement_type(chromosome, position) and objective.has_improved(
@@ -215,8 +217,7 @@ class TestCaseLocalSearch:
             )
             return self._search_same_datatype(chromosome, factory, objective, position)
         return LLMLocalSearch(
-            chromosome, objective, factory, self._suite, self._executor
-        ).llm_local_search(position)
+            chromosome, objective, factory, self._suite, self._executor).llm_local_search(position)
 
 
 class TestSuiteLocalSearch:
@@ -229,6 +230,7 @@ class TestSuiteLocalSearch:
         chromosome: TestSuiteChromosome,
         factory: TestFactory,
         executor: TestCaseExecutor,
+        timer: LocalSearchTimer,
     ) -> None:
         """Executes local search on the suite.
 
@@ -236,6 +238,7 @@ class TestSuiteLocalSearch:
             chromosome (Chromosome): The test suite chromosome to be modified.
             factory (TestFactory): The factory to modify the test cases.
             executor (TestCaseExecutor): The executor to run the test cases.
+            timer (LocalSearchTimer): The timer to manage the local search budget.
         """
         start_time = int(time.perf_counter()) * 1000
         stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchIterations, 1)
@@ -243,9 +246,9 @@ class TestSuiteLocalSearch:
 
         indices = list(range(len(chromosome.test_case_chromosomes)))
         randomness.shuffle(indices)
-        test_case_local_search = TestCaseLocalSearch(chromosome, executor)
+        test_case_local_search = TestCaseLocalSearch(chromosome, executor, timer)
         for i in indices:
-            if LocalSearchTimer.get_instance().limit_reached():
+            if timer.limit_reached():
                 break
             objective = LocalSearchObjective(chromosome, i)
             test_case_local_search.local_search(
