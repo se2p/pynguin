@@ -70,6 +70,11 @@ class TestCaseLocalSearch:
         """
         assert objective is not None
 
+        # We iterate backwards because we would have to update the iterator every time when new
+        # statements are added in the local search methods, which results in later statements not
+        # being executed as likely as the first statement.
+        # Not updating the iterator would lead to local search being applied to the same statement
+        # twice.
         for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
             if self._timer.limit_reached():
                 return
@@ -77,6 +82,7 @@ class TestCaseLocalSearch:
                 randomness.next_float()
                 <= config.configuration.local_search.local_search_probability
                 and self._check_statement_type_enabled(chromosome.test_case.statements[i])
+                and i < len(chromosome.test_case.statements)
             ):
                 methods: list = []
                 stat.add_to_runtime_variable(RuntimeVariable.LocalSearchTotalStatements, 1)
@@ -263,7 +269,7 @@ class TestSuiteLocalSearch:
 
         This ensures that switching through branches increases the coverage properly
         so that after mutating a statement, the previously covered branch still
-        stays covered.
+        stays covered. This is similar to Evosuite.
 
         Args:
             suite (TestSuiteChromosome): the test suite which should be extended.

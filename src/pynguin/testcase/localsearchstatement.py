@@ -3,7 +3,11 @@
 #  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
-"""Provides the local search strategies."""
+"""Provides the local search strategies.
+
+Some of these strategies for primitives, which also exist in Java, and for complex objects are
+similar to the local search strategies from Evosuite.
+"""
 
 from __future__ import annotations
 
