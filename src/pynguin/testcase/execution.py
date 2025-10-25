@@ -51,6 +51,7 @@ import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
+import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.typesystem import ANY
@@ -70,6 +71,7 @@ from pynguin.utils.exceptions import MinimizationFailureError
 from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.mirror import Mirror
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 if TYPE_CHECKING:
@@ -991,6 +993,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._subject_properties,
             [checked_instrumentation],
         )
+        self._crash_revealing_hashes: set[str] = set()
+        self._executed_test_cases: int = 0
 
     @property
     def module_provider(self) -> ModuleProvider:  # noqa: D102
@@ -1046,6 +1050,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self,
         test_case: tc.TestCase,
     ) -> ExecutionResult:
+        self._executed_test_cases += 1
+        stat.track_output_variable(RuntimeVariable.Executed, self._executed_test_cases)
         self._before_remote_test_case_execution(test_case)
         output_suppression_context = OutputSuppressionContext()
         return_queue: Queue[ExecutionResult] = Queue()
@@ -1396,6 +1402,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         if not test_cases_tuple:
             return ()
 
+        self._executed_test_cases += len(test_cases_tuple)
+        stat.track_output_variable(RuntimeVariable.Executed, self._executed_test_cases)
+
         for test_case in test_cases_tuple:
             self._before_remote_test_case_execution(test_case)
 
@@ -1601,6 +1610,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _minimize_and_safe(self, test_case: tc.TestCase, exit_code: int | None) -> None:
         # Calculate hash before to ensure the same hash for minimized and non-minimized one
         test_case_hash = str(hash(test_case))
+
+        # Store hash and track CrashRevealingSize output variable if new hash
+        if test_case_hash not in self._crash_revealing_hashes:
+            self._crash_revealing_hashes.add(test_case_hash)
+            stat.track_output_variable(
+                RuntimeVariable.CrashRevealingSize, len(self._crash_revealing_hashes)
+            )
+
         self._safe_crash_test(test_case, hash_str=test_case_hash)
         try:
             minimized_test_case = self._minimize(test_case, exit_code)

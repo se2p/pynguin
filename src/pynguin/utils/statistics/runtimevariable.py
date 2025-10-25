@@ -131,6 +131,9 @@ class RuntimeVariable(str, enum.Enum):
     # Total number of exceptions
     TotalExceptionsTimeline = "TotalExceptionsTimeline"
 
+    # Number of executed test cases
+    Executed = "Executed"
+
     # ========= Values collected at the end of the search =========
 
     # Total number of statements in the resulting test suite
@@ -229,6 +232,9 @@ class RuntimeVariable(str, enum.Enum):
 
     # Whether the subprocess mode was used or not
     SubprocessMode = "SubprocessMode"
+
+    # Number of unique generated crash revealing tests
+    CrashRevealingSize = "CrashRevealingSize"
 
     # Total number of statements searched with local search
     LocalSearchTotalStatements = "LocalSearchTotalStatements"
