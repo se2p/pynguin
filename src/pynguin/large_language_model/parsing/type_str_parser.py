@@ -52,18 +52,18 @@ class TypeStrParser:
             if len(inner_types) == 2:
                 key_type = self.parse(inner_types[0]) or type(builtins.object)
                 value_type = self.parse(inner_types[1]) or type(builtins.object)
-                return type(dict[key_type, value_type])  # type: ignore # noqa: PGH003
+                return type(dict[key_type, value_type])  # type: ignore[valid-type]
             return type(dict[builtins.object, builtins.object])
         if self._is_set(type_str):
             # type_str could be e.g. "Set[int]", "set[int]", "typing.Set[int]"
             inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore # noqa: PGH003
-            return type(set[resolved_inner] or type(builtins.object))  # type: ignore # noqa: PGH003
+            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+            return type(set[resolved_inner] or type(builtins.object))  # type: ignore[misc]
         if self._is_list(type_str):
             # type_str could be e.g. "List[int]", "list[int]", "typing.List[int]"
             inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore # noqa: PGH003
-            return type(list[resolved_inner or type(builtins.object)])  # type: ignore # noqa: PGH003
+            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+            return type(list[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         if self._is_union(type_str):
             # type_str could be e.g. "Union[int, str]", "typing.Union[int, str]", or "int | str"
             inner_types = self._get_inner_types(type_str)
@@ -72,18 +72,18 @@ class TypeStrParser:
         if self._is_optional(type_str):
             # type_str could be e.g. "Optional[int]", "typing.Optional[int]"
             inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type)  # type: ignore # noqa: PGH003
+            resolved_inner = self.parse(inner_type)  # type: ignore[assignment]
             return type(typing.Optional[resolved_inner])  # noqa: UP045
         if self._is_deque(type_str):
             # type_str could be e.g. "Deque[int]", "deque[int]", "typing.Deque[int]"
             inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore # noqa: PGH003
-            return type(collections.deque[resolved_inner or type(builtins.object)])  # type: ignore # noqa: PGH003
+            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+            return type(collections.deque[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         if self._is_iterable(type_str):
             # type_str could be e.g. "Iterable[int]", "iterable[int]", "typing.Iterable[int]"
             inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore # noqa: PGH003
-            return type(typing.Iterable[resolved_inner or type(builtins.object)])  # type: ignore # noqa: PGH003
+            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+            return type(typing.Iterable[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         # Try to resolve the type directly
         return self._resolve_type_by_name(type_str)
 
