@@ -32,7 +32,7 @@ class TypeInferencePrompt:
             subtypes: list of known string subtypes (e.g., "email", "url", etc.)
         """
         self.callable_obj = callable_obj
-        self.subtypes: OrderedSet[str] = subtypes or []
+        self.subtypes: OrderedSet[str] = subtypes or []  # type: ignore # noqa: PGH003
 
     def build_user_prompt(self) -> str:
         """Build the complete prompt for type inference."""
