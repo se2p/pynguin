@@ -33,6 +33,7 @@ if not NUMPY_AVAILABLE:
         "NumPy is not available. You can install it with poetry install --with numpy."
     )
 
+from pynguin.analyses.type_inference import HintInference, NoInference
 import pynguin.configuration as config
 
 from pynguin.utils.exceptions import ConstraintValidationError
@@ -90,9 +91,13 @@ def get_nparray_function(test_cluster: "ModuleTestCluster") -> GenericFunction:
     Returns:
         A `GenericFunction` instance wrapping `numpy.array`.
     """
+    inference_provider = NoInference()
+    inference_config = config.configuration.type_inference.type_inference_strategy
+    if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
+        inference_provider = HintInference()
     inferred_signature = test_cluster.type_system.infer_type_info(
         np.array,
-        type_inference_provider=config.configuration.type_inference.type_inference_strategy,  # type: ignore[arg-type]
+        type_inference_provider=inference_provider,  # type: ignore[arg-type]
     )
 
     # np.array is a built-in function, adjust the signature manually
@@ -144,9 +149,15 @@ def get_constructor_function(test_cluster: "ModuleTestCluster") -> GenericFuncti
         for attr in function_path:
             func = getattr(func, attr)
 
+        inference_provider = NoInference()
+
+        inference_config = config.configuration.type_inference.type_inference_strategy
+        if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
+            inference_provider = HintInference()
+
         inferred_signature = test_cluster.type_system.infer_type_info(
             cast("FunctionType", func),
-            type_inference_provider=config.configuration.type_inference.type_inference_strategy,  # type: ignore[arg-type]
+            type_inference_provider=inference_provider,  # type: ignore[arg-type]
         )
 
         # If it is a built-in function, we will not have the right parameter names.

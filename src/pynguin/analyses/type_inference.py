@@ -123,7 +123,7 @@ class LLMInference(InferenceProvider):
                 result[param] = Any
             else:
                 resolved = self._type_string_parser.parse(type_str)
-                if resolved is None or resolved is builtins.object:
+                if resolved is None or resolved is type(builtins.object):
                     _LOGGER.debug(
                         "Could not resolve type string '%s' for parameter '%s'",
                         type_str,

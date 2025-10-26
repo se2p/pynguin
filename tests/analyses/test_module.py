@@ -523,7 +523,7 @@ def test_inheritance_graph():
         == len(COLLECTIONS)
         + len(PRIMITIVES)
         + len(cluster.type_system.get_subclasses(TypeInfo(str)))
-        + 3  # Foo, Bar, object.
+        + 2
     )
 
 
