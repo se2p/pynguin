@@ -33,9 +33,10 @@ if not NUMPY_AVAILABLE:
         "NumPy is not available. You can install it with poetry install --with numpy."
     )
 
-from pynguin.analyses.type_inference import HintInference, NoInference
 import pynguin.configuration as config
 
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import NoInference
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.pynguinml.mlparameter import MLParameter
