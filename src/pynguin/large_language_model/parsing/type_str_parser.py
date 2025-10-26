@@ -58,7 +58,7 @@ class TypeStrParser:
             # type_str could be e.g. "Set[int]", "set[int]", "typing.Set[int]"
             inner_type = self._get_inner_types(type_str).pop()
             resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
-            return type(set[resolved_inner] or type(builtins.object))  # type: ignore[misc]
+            return type(set[resolved_inner] or type(builtins.object))  # type: ignore[truthy-function, valid-type]
         if self._is_list(type_str):
             # type_str could be e.g. "List[int]", "list[int]", "typing.List[int]"
             inner_type = self._get_inner_types(type_str).pop()
