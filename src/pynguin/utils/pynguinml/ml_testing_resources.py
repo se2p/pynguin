@@ -95,10 +95,10 @@ def get_nparray_function(test_cluster: "ModuleTestCluster") -> GenericFunction:
     inference_provider = NoInference()
     inference_config = config.configuration.type_inference.type_inference_strategy
     if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
-        inference_provider = HintInference()
+        inference_provider = HintInference()  # type: ignore[assignment]
     inferred_signature = test_cluster.type_system.infer_type_info(
         np.array,
-        type_inference_provider=inference_provider,  # type: ignore[arg-type]
+        type_inference_provider=inference_provider,
     )
 
     # np.array is a built-in function, adjust the signature manually
@@ -154,11 +154,11 @@ def get_constructor_function(test_cluster: "ModuleTestCluster") -> GenericFuncti
 
         inference_config = config.configuration.type_inference.type_inference_strategy
         if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
-            inference_provider = HintInference()
+            inference_provider = HintInference()  # type: ignore[assignment]
 
         inferred_signature = test_cluster.type_system.infer_type_info(
             cast("FunctionType", func),
-            type_inference_provider=inference_provider,  # type: ignore[arg-type]
+            type_inference_provider=inference_provider,
         )
 
         # If it is a built-in function, we will not have the right parameter names.
