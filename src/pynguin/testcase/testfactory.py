@@ -30,8 +30,11 @@ from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import ProperType
 from pynguin.analyses.typesystem import StringSubtype
 from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import UnionType
 from pynguin.analyses.typesystem import is_collection_type
 from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.type_utils import is_arg_or_kwarg
@@ -43,6 +46,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.variablereference as vr
 
     from pynguin.analyses.module import ModuleTestCluster
+    from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.utils.orderedset import OrderedSet
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -54,7 +58,7 @@ if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
 
 # TODO(fk) find better name for this?
 # TODO split this monster!
-class TestFactory:
+class TestFactory:  # noqa: PLR0904
     """A factory for test-case generation.
 
     This factory does not generate test cases but provides all necessary means to
@@ -847,6 +851,143 @@ class TestFactory:
 
         replacement.ret_val = return_value
         test_case.set_statement(replacement, position)
+
+    def change_random_field_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replaces the given field statement with another possible field statement.
+
+        Args:
+            test_case: The testcase where the field statement gets replaced.
+            position: The position of the statement which should get changed.
+
+        Returns:
+            Gives back true, if the replacement was successful and false otherwise.
+        """
+        statement = test_case.get_statement(position)
+        if not isinstance(statement, FieldStatement):
+            self._logger.debug("Statement at position %d is not a FieldStatement", position)
+            return False
+        objects = test_case.get_all_objects(statement.get_position())
+        signature_memo: dict[InferredSignature, dict[str, ProperType]] = {}
+        calls = self._get_possible_calls(statement.ret_val.type, objects, signature_memo)
+        accessible_object = statement.accessible_object()
+        if accessible_object is None:
+            self._logger.debug("Statement %s has no accessible object", statement.__class__)
+            return False
+        calls.remove(accessible_object)
+        possible_fields = [cast("gao.GenericField", call) for call in calls if call.is_field()]
+        if len(possible_fields) == 0:
+            self._logger.debug("No other possible field calls available")
+            return False
+        field = randomness.choice(possible_fields)
+        replacement = stmt.FieldStatement(test_case, field, statement.source)
+        self._logger.debug("Replaced the old field %r with %r", statement.field, replacement.field)
+        test_case.set_statement(replacement, position)
+        return True
+
+    def change_statement_type(self, chromosome: TestCaseChromosome, position: int) -> bool:
+        """Replaces the statement at the given position with another statement of a different type.
+
+        Args:
+            chromosome: The chromosome containing the test case.
+            position: The position of the statement to be changed.
+
+        Returns:
+            Give back true if the replacement was successful and false otherwise.
+        """
+        primitives = UnionType(tuple(self._test_cluster.type_system.primitive_proper_types))
+        collection = UnionType(tuple(self._test_cluster.type_system.collection_proper_types))
+
+        statement = chromosome.test_case.statements[position]
+        if not isinstance(statement, VariableCreatingStatement):
+            self._logger.debug(
+                "Statement %s is no VariableCreatingStatement, aborting change.",
+                statement.__class__,
+            )
+            return False
+        probability = randomness.next_float()
+        old_size = len(chromosome.test_case.statements)
+        try:
+            if (
+                probability
+                <= config.configuration.local_search.ls_different_type_primitive_probability
+            ):
+                self._attempt_generation(
+                    chromosome.test_case, primitives, position, 0, allow_none=False
+                )
+                self._logger.debug("Changed statement from %s to primitive", statement.__class__)
+            elif (
+                probability
+                <= config.configuration.local_search.ls_different_type_collection_probability
+                + config.configuration.local_search.ls_different_type_primitive_probability
+            ):
+                self._attempt_generation(
+                    chromosome.test_case, collection, position, 0, allow_none=False
+                )
+                self._logger.debug("Changed statement from %s to collection", statement.__class__)
+            elif not self._attempt_generation(
+                chromosome.test_case,
+                UnionType(tuple(self._test_cluster.get_all_generatable_types())),
+                position,
+                0,
+                allow_none=False,
+            ):
+                return False
+        except ConstructionFailedException:
+            self._logger.error("Creating a statement failed, aborting change")
+            return False
+        position += len(chromosome.test_case.statements) - old_size
+        replacement = chromosome.test_case.get_statement(position - 1)
+        if not isinstance(replacement, VariableCreatingStatement):
+            self._logger.debug(
+                "Replacement %s is no VariableCreatingStatement, aborting change.",
+                replacement.__class__,
+            )
+            return False
+        replacement.replace(replacement.ret_val, statement.ret_val)
+        chromosome.test_case.statements.pop(position)
+        self._logger.debug(
+            "Changed statement from %s to %s", statement.__class__, replacement.__class__
+        )
+        return True
+
+    def create_fitting_reference(
+        self,
+        test_case: tc.TestCase,
+        param_type: ProperType,
+        *,
+        position: int = -1,
+        recursion_depth: int = 0,
+        allow_none: bool = True,
+    ) -> vr.VariableReference | None:
+        """Get a fitting variable references for the given type.
+
+        Args:
+            test_case: The test case
+            param_type: The type of the variable that is needed
+            position: The position to limit the search
+            recursion_depth: The recursion depth
+            allow_none: Whether a variable can be a None value
+
+        Returns:
+            A variable reference for the type
+        """
+        if position < 0:
+            position = test_case.size()
+
+        try:
+            var = self._attempt_generation(
+                test_case,
+                param_type,
+                position,
+                recursion_depth,
+                allow_none=allow_none,
+            )
+        except ConstructionFailedException:
+            self._logger.debug(
+                "Failed to create variable for type %s at position %d", param_type, position
+            )
+            return None
+        return var
 
     @staticmethod
     def _get_reuse_parameters(

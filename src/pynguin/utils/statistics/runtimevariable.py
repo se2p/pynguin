@@ -253,5 +253,46 @@ class RuntimeVariable(str, enum.Enum):
     # Number of unique generated crash revealing tests
     CrashRevealingSize = "CrashRevealingSize"
 
+    # Total number of statements searched with local search
+    LocalSearchTotalStatements = "LocalSearchTotalStatements"
+
+    # Total number of statements searched with local search that were successful (i.e., improved
+    # fitness)
+    LocalSearchNumberOfSuccessfulStatements = "LocalSearchNumberOfSuccessfulStatements"
+
+    # Total number of mutations made with local search of all statements mutated.
+    LocalSearchTotalMutations = "LocalSearchTotalMutations"
+
+    # Total number of LLM local search calls
+    TotalLocalSearchLLMCalls = "TotalLocalSearchLLMCalls"
+
+    # Total number of LLM local search calls which were successful
+    TotalLocalSearchLLMSuccessCalls = "TotalLocalSearchLLMSuccessCalls"
+
+    # Total number of LLM local search calls which were made despite failing test cases
+    TotalLocalSearchLLMCallsFailingTests = "TotalLocalSearchLLMCallsFailingTests"
+
+    # Total number of LLM local search calls which were successful despite failing test cases
+    TotalLocalSearchLLMSuccessCallsDespiteFailing = "TotalLocalSearchLLMSuccessCallsDespiteFailing"
+
+    # Total number of LLM local search calls which were skipped due to no relevant code or all
+    # branches covered
+    TotalLocalSearchSkippedLLMCalls = "TotalLocalSearchSkippedLLMCalls"
+
+    # Total time spent in local search
+    TotalLocalSearchTime = "TotalLocalSearchTime"
+
+    # Total time spent in local search fitness evaluation
+    TotalLocalSearchFitnessEvaluationTime = "TotalLocalSearchFitnessEvaluationTime"
+
+    # Total local search iterations
+    TotalLocalSearchIterations = "TotalLocalSearchIterations"
+
+    # Total number of exploratory moves that were not successful
+    LocalSearchUnsuccessfulExploratoryMoves = "LocalSearchUnsuccessfullyExploratoryMoves"
+
+    # Total number of exploratory moves that were successful (i.e., changed fitness)
+    LocalSearchSuccessfulExploratoryMoves = "LocalSearchSuccessfulExploratoryMoves"
+
     def __repr__(self):
         return f"{self.name}"

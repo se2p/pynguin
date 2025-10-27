@@ -15,7 +15,7 @@ import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
 
 
-class Chromosome(ABC):
+class Chromosome(ABC):  # noqa: PLR0904
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):
@@ -99,6 +99,14 @@ class Chromosome(ABC):
         """Invalidate all cached computation values."""
         self.computation_cache.invalidate_cache()
 
+    def set_fitness_values(self, fitness_values: dict[ff.FitnessFunction, float]) -> None:
+        """Sets the fitness values for the specific functions.
+
+        Args:
+            fitness_values: A dictionary of fitness values, keyed by fitness function.
+        """
+        self.computation_cache.set_fitness_values(fitness_values)
+
     def get_fitness(self) -> float:
         """Provide a sum of the current fitness values.
 
@@ -128,6 +136,14 @@ class Chromosome(ABC):
             True, iff the individual covers the fitness function.
         """
         return self.computation_cache.get_is_covered(fitness_function)
+
+    def set_coverage_values(self, coverage_values: dict[ff.CoverageFunction, float]) -> None:
+        """Sets the coverage values for the specific functions.
+
+        Args:
+            coverage_values: A dictionary of coverage values, keyed by coverage function.
+        """
+        self.computation_cache.set_coverage_values(coverage_values)
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.

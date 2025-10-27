@@ -8,9 +8,13 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
+
+from pynguin.testcase.statement import DictStatement
 
 
 class DummyCollectionStatement(stmt.CollectionStatement[vr.VariableReference]):
@@ -111,3 +115,24 @@ def test_random_deletion(default_test_case):
         float_mock.side_effect = [1, 0]
         assert dummy._random_deletion()
         assert dummy.elements == [int0.ret_val]
+
+
+@pytest.mark.parametrize(
+    "statement_type,collection",
+    [
+        (stmt.ListStatement, [1, 2, 3]),
+        (stmt.SetStatement, {1, 2, 3}),
+        (stmt.TupleStatement, (1, 2, 3)),
+    ],
+)
+def test_create_statement(default_test_case, collection, statement_type):
+    statement = stmt.create_statement(default_test_case, collection)
+    assert isinstance(statement, statement_type)
+    assert statement.elements == list(collection)
+
+
+def test_create_statement_dict(default_test_case):
+    maps: dict[int, int] = {1: 1, 2: 2}
+    statement = stmt.create_statement(default_test_case, maps)
+    assert isinstance(statement, DictStatement)
+    assert list(statement.elements) == list(maps.items())

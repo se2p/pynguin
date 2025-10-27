@@ -69,5 +69,6 @@ RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl \
     mypy==1.13.0 \
     typing-extensions==4.12.2
 
+
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []

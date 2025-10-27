@@ -67,6 +67,10 @@ class TestCaseChromosome(chrom.Chromosome):
         """
         return self._test_case
 
+    @test_case.setter
+    def test_case(self, value: tc.TestCase) -> None:
+        self._test_case = value
+
     def num_mutations(self) -> int:
         """The number of mutations.
 

@@ -11,9 +11,12 @@ import re
 
 from inspect import Parameter
 from inspect import Signature
+from typing import TYPE_CHECKING
+from typing import cast
 from unittest import mock
 from unittest.mock import MagicMock
 from unittest.mock import call
+from unittest.mock import patch
 
 import pytest
 
@@ -30,10 +33,16 @@ from pynguin.analyses.typesystem import AnyType
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.analyses.typesystem import NoneType
 from pynguin.analyses.typesystem import StringSubtype
+from pynguin.testcase.statement import FieldStatement
+from pynguin.testcase.statement import IntPrimitiveStatement
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
+
+
+if TYPE_CHECKING:
+    from pynguin.utils.generic.genericaccessibleobject import GenericField
 
 
 def test_append_statement_unknown_type(test_case_mock):
@@ -1040,3 +1049,40 @@ def test_add_method_type_tracing_union_type(default_test_case):
     generic_method.inferred_signature.usage_trace["sentence"] = usage_trace
     factory = tf.TestFactory(default_test_case.test_cluster)
     factory.add_method(default_test_case, generic_method, position=0, callee=MagicMock())
+
+
+def test_change_random_field_call(default_test_case, field_mock, variable_reference_mock):
+    statement = FieldStatement(default_test_case, field_mock, variable_reference_mock)
+    default_test_case.add_statement(statement)
+    test_cluster = default_test_case.test_cluster
+    test_factory = tf.TestFactory(test_cluster)
+    position = default_test_case.size() - 1
+    replacement_field: GenericField = MagicMock()
+    replacement_list: list[GenericField] = [replacement_field, statement.accessible_object()]
+    with patch.object(test_factory, "_get_possible_calls", return_value=replacement_list):
+        assert test_factory.change_random_field_call(default_test_case, position)
+        assert default_test_case.statements[position].accessible_object() == replacement_field
+
+
+def test_change_random_field_call_fail(default_test_case, field_mock, variable_reference_mock):
+    statement = FieldStatement(default_test_case, field_mock, variable_reference_mock)
+    default_test_case.add_statement(statement)
+    test_cluster = default_test_case.test_cluster
+    test_factory = tf.TestFactory(test_cluster)
+    position = default_test_case.size() - 1
+    replacement_list: list[GenericField] = [cast("GenericField", statement.accessible_object())]
+    with patch.object(test_factory, "_get_possible_calls", return_value=replacement_list):
+        assert not test_factory.change_random_field_call(default_test_case, position)
+        assert (
+            default_test_case.statements[position].accessible_object()
+            == statement.accessible_object()
+        )
+
+
+def test_change_field_call_wrong_statement(default_test_case):
+    statement = IntPrimitiveStatement(default_test_case, 42)
+    default_test_case.add_statement(statement)
+    test_cluster = default_test_case.test_cluster
+    test_factory = tf.TestFactory(test_cluster)
+    position = default_test_case.size() - 1
+    assert not test_factory.change_random_field_call(default_test_case, position)

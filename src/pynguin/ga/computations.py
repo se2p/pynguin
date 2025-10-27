@@ -569,6 +569,15 @@ class ComputationCache:
         self._is_covered_cache.clear()
         self._coverage_cache.clear()
 
+    def set_fitness_values(self, fitness_values: dict[FitnessFunction, float]) -> None:
+        """Sets the fitness values for the specific functions.
+
+        Args:
+            fitness_values: A dictionary of fitness values, keyed by fitness function.
+        """
+        for fitness_key, value in fitness_values.items():
+            self._fitness_cache[fitness_key] = value
+
     def get_fitness(self) -> float:
         """Provide a sum of the current fitness values.
 
@@ -615,6 +624,15 @@ class ComputationCache:
             fitness_function,
         )
         return self._is_covered_cache[fitness_function]
+
+    def set_coverage_values(self, coverage_values: dict[CoverageFunction, float]) -> None:
+        """Sets the coverage values for the specific functions.
+
+        Args:
+            coverage_values: A dictionary of coverage values, keyed by coverage function.
+        """
+        for coverage_key, value in coverage_values.items():
+            self._coverage_cache[coverage_key] = value
 
     def get_coverage(self) -> float:
         """Provides the mean coverage value.

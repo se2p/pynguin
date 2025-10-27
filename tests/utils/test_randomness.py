@@ -119,3 +119,27 @@ def test_weighted_choice_returns_callable():
 def test_weighted_choice_empty_raises():
     with pytest.raises(ValueError, match="Options must not be empty"):
         randomness.weighted_choice({})
+
+
+def test_shuffle():
+    sequence = [1, 2, 3]
+    randomness.shuffle(sequence)
+    assert len(sequence) == 3
+    assert set(sequence) == {1, 2, 3}
+
+
+def test_sample_set():
+    input_set = {1, 2, 3, 4, 5}
+    assert len(randomness.sample(sorted(input_set), 2)) == 2
+
+
+def test_sample_sequence():
+    sequence = [1, 2, 3, 4, 5]
+    assert len(randomness.sample(sequence, 3)) == 3
+
+
+def test_sample_whole_set():
+    sequence = {1, 2, 3}
+    result = randomness.sample(sorted(sequence), 3)
+    assert len(result) == 3
+    assert set(result) == {1, 2, 3}

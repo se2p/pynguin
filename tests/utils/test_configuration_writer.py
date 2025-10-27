@@ -177,6 +177,25 @@ no_cover = []
 enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
 
+[local_search]
+local_search = true
+local_search_same_datatype = true
+local_search_different_datatype = false
+local_search_llm = false
+local_search_primitives = true
+local_search_collections = false
+local_search_complex_objects = false
+local_search_probability = 0.02
+local_search_time = 5000
+ls_int_delta_increasing_factor = 2
+ls_string_random_mutation_count = 10
+ls_random_parametrized_statement_call_count = 10
+ls_max_different_type_mutations = 10
+ls_different_type_primitive_probability = 0.3
+ls_different_type_collection_probability = 0.3
+ls_dict_max_insertions = 10
+ls_llm_whole_module = false
+
 [test_case_output.minimization]
 test_case_minimization_strategy = "CASE"
 test_case_minimization_direction = "BACKWARD"
@@ -276,7 +295,18 @@ def expected_txt(tmp_path):
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
- 'subprocess=False, subprocess_if_recommended=True)')"""  # noqa:E501
+ 'subprocess=False, subprocess_if_recommended=True, '
+ 'local_search=LocalSearchConfiguration(local_search=True, '
+ 'local_search_same_datatype=True, local_search_different_datatype=False, '
+ 'local_search_llm=False, local_search_primitives=True, '
+ 'local_search_collections=False, local_search_complex_objects=False, '
+ 'local_search_probability=0.02, local_search_time=5000, '
+ 'ls_int_delta_increasing_factor=2, ls_string_random_mutation_count=10, '
+ 'ls_random_parametrized_statement_call_count=10, '
+ 'ls_max_different_type_mutations=10, '
+ 'ls_different_type_primitive_probability=0.3, '
+ 'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
+ 'ls_llm_whole_module=False))')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected = expected.replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
@@ -408,6 +438,23 @@ def expected_parameter_list() -> list[str]:
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
         "--api_key " + os.getenv("OPENAI_API_KEY", ""),
+        "--ls_dict_max_insertions 10",
+        "--ls_different_type_collection_probability 0.3",
+        "--ls_different_type_primitive_probability 0.3",
+        "--ls_int_delta_increasing_factor 2",
+        "--ls_llm_whole_module False",
+        "--local_search True",
+        "--local_search_collections False",
+        "--local_search_complex_objects False",
+        "--local_search_different_datatype False",
+        "--local_search_llm False",
+        "--local_search_primitives True",
+        "--local_search_probability 0.02",
+        "--local_search_same_datatype True",
+        "--local_search_time 5000",
+        "--ls_max_different_type_mutations 10",
+        "--ls_random_parametrized_statement_call_count 10",
+        "--ls_string_random_mutation_count 10",
     ]
     return sorted(parameter_list)
 

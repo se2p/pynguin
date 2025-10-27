@@ -151,6 +151,15 @@ class _StatisticsTracker:
         """
         return self._search_statistics.write_statistics()
 
+    def add_to_runtime_variable(self, variable: RuntimeVariable, value: Any) -> None:
+        """Adds a value to a runtime variable, assuming it is numeric.
+
+        Args:
+            variable: The variable to update
+            value: The value to add
+        """
+        self.search_statistics.add_to_runtime_variable(variable, value)
+
 
 class _SearchStatistics:
     """A singleton of SearchStatistics collects all the data values reported.
@@ -397,6 +406,19 @@ class _SearchStatistics:
                     self._logger.error("Failed to parse signature infos")
         return True
 
+    def add_to_runtime_variable(self, variable: RuntimeVariable, value: Any) -> None:
+        """Adds a value to a runtime variable, assuming it is numeric.
+
+        Args:
+            variable: The variable to update
+            value: The value to add
+        """
+        old_value = self.output_variables.get(variable.name)
+        self.set_output_variable_for_runtime_variable(
+            variable,
+            old_value.value + value if old_value is not None else value,
+        )
+
     class _ChromosomeLengthOutputVariableFactory(ovf.ChromosomeOutputVariableFactory):
         def __init__(self) -> None:
             super().__init__(RuntimeVariable.Length)
@@ -472,3 +494,4 @@ update_output_variable_for_runtime_variable = (
 output_variables = statistics_tracker.output_variables
 write_statistics = statistics_tracker.write_statistics
 reset = statistics_tracker.reset
+add_to_runtime_variable = statistics_tracker.add_to_runtime_variable

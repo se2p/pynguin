@@ -776,6 +776,66 @@ class LLMConfiguration:
 
 
 @dataclasses.dataclass
+class LocalSearchConfiguration:
+    """Configurations for local search."""
+
+    local_search: bool = True
+    """Defines if local search is generally enabled or not"""
+
+    local_search_same_datatype: bool = True
+    """Defines if local search within same datatype is enabled or not"""
+
+    local_search_different_datatype: bool = False
+    """Defines if local search with different datatypes is enabled or not"""
+
+    local_search_llm: bool = False
+    """Defines if local search with llm is enabled or not"""
+
+    local_search_primitives: bool = True
+    """Toggles if local search for primitive types is enabled or not"""
+
+    local_search_collections: bool = False
+    """Toggles if local search for collection types is enabled or not"""
+
+    local_search_complex_objects: bool = False
+    """Toggles if local search for complex object types is enabled or not"""
+
+    local_search_probability: float = 0.02
+    """Probability of starting local search on the specific candidate"""
+
+    local_search_time: int = 5000
+    """The budget which each local search iteration has in ms."""
+
+    ls_int_delta_increasing_factor: int = 2
+    """The factor which defines how much the delta should increase for each iteration for integer
+    local search."""
+
+    ls_string_random_mutation_count: int = 10
+    """The number of mutations made to the string to determine if it's worth to completely mutate
+    the string."""
+
+    ls_random_parametrized_statement_call_count: int = 10
+    """The number of mutations made to a parametrized statement call to determine if it's worth to
+    further do local search"""
+
+    ls_max_different_type_mutations: int = 10
+    """The max number of searches for different datatypes"""
+
+    ls_different_type_primitive_probability: float = 0.3
+    """Weight of generating primitive statements when changing the statement type."""
+
+    ls_different_type_collection_probability: float = 0.3
+    """Weight of generating collection statements when changing the statement type."""
+
+    ls_dict_max_insertions: int = 10
+    """Max number of unsuccessful insertions of entries."""
+
+    ls_llm_whole_module: bool = False
+    """Whether to provide the whole module or selected functions/methods to the LLM for context
+    when performing llm local search."""
+
+
+@dataclasses.dataclass
 class ToCoverConfiguration:
     """Configuration of which code elements are included or excluded as coverage goals.
 
@@ -867,6 +927,11 @@ class Configuration:
     subprocess_if_recommended: bool = True
     """Use the subprocess mode if the SUT analysis recommends it based on used
     C extension modules."""
+
+    local_search: LocalSearchConfiguration = dataclasses.field(
+        default_factory=LocalSearchConfiguration
+    )
+    """Local search configuration."""
 
 
 # Singleton instance of the configuration.

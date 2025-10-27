@@ -18,7 +18,9 @@ from typing import TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import MutableSequence
     from collections.abc import Sequence
+    from collections.abc import Set as AbstractSet
 
 
 class Random(random.Random):  # noqa: S311
@@ -216,3 +218,25 @@ def weighted_choice(options: dict[Callable[[], T], float]) -> Callable[[], T]:
 
     # Fallback in rare floating-point edge cases
     return next(iter(options))
+
+
+def shuffle(sequence: MutableSequence[_T]) -> None:
+    """Shuffles the sequence in place.
+
+    Args:
+        sequence: The sequence to be shuffled.
+    """
+    return RNG.shuffle(sequence)
+
+
+def sample(population: Sequence[_T] | AbstractSet[_T], num_elements: int) -> list[_T]:
+    """Samples a specific amount of elements from a population.
+
+    Args:
+        population: The population to sample from
+        num_elements: The number of elements to sample
+
+    Returns:
+        A list of num_element sampled elements from the population
+    """
+    return RNG.sample(population, num_elements)
