@@ -19,6 +19,7 @@ from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
 from pynguin.utils.configuration_writer import convert_config_to_dict
 from pynguin.utils.configuration_writer import extract_parameter_list_from_config
 from pynguin.utils.configuration_writer import write_configuration
+import os
 
 
 @pytest.fixture
@@ -73,7 +74,7 @@ maximum_memory = 3000
 test_execution_time_per_statement = 1
 
 [large_language_model]
-api_key = ""
+api_key = "{API_KEY}"
 model_name = "gpt-4o-mini"
 temperature = 0.8
 hybrid_initial_population = false
@@ -192,6 +193,7 @@ number_of_mutations = 10
 """
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
+    expected = expected.replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
     expected_toml.write_text(expected)
     return expected_toml
 
@@ -224,7 +226,7 @@ def expected_txt(tmp_path):
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
- "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
+ "large_language_model=LLMConfiguration(api_key='{API_KEY}', model_name='gpt-4o-mini', "
  'temperature=0.8, hybrid_initial_population=False, '
  'llm_test_case_percentage=0.5, enable_response_caching=False, '
  'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
@@ -277,6 +279,7 @@ def expected_txt(tmp_path):
  'subprocess=False, subprocess_if_recommended=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
+    expected = expected.replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
     expected_txt.write_text(expected)
     return expected_txt
 
@@ -404,7 +407,7 @@ def expected_parameter_list() -> list[str]:
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
-        "--api_key",
+        "--api_key " + os.getenv("OPENAI_API_KEY", ""),
     ]
     return sorted(parameter_list)
 
