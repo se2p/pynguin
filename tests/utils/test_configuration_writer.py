@@ -73,7 +73,7 @@ maximum_memory = 3000
 test_execution_time_per_statement = 1
 
 [large_language_model]
-api_key = "[MASKED]"
+api_key = ""
 model_name = "gpt-4o-mini"
 temperature = 0.8
 hybrid_initial_population = false
@@ -404,6 +404,7 @@ def expected_parameter_list() -> list[str]:
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
+        "--api_key",
     ]
     return sorted(parameter_list)
 
