@@ -404,7 +404,6 @@ def expected_parameter_list() -> list[str]:
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
-        "--api_key [MASKED]",
     ]
     return sorted(parameter_list)
 
