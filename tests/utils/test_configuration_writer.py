@@ -73,7 +73,7 @@ maximum_memory = 3000
 test_execution_time_per_statement = 1
 
 [large_language_model]
-api_key = "k-proj-eBqb1F3R34TER-jhkih1nNDtHL0ZUjlSMATMeG0uSWAMvbs24a84Bq_xZAJ1RY7QM_wIppoDVbT3BlbkFJRP_gKzuyglE_VTxYkMgaOIEQyrzBfCS9JJTdVB9lqzvMqGQ1-RQEPscDQlTBnTdKu5YjQcjvEA"
+api_key = "[MASKED]"
 model_name = "gpt-4o-mini"
 temperature = 0.8
 hybrid_initial_population = false
@@ -189,7 +189,7 @@ number_of_mutations = 1
 number_of_tests_per_target = 1
 random_test_or_from_archive_probability = 0.0
 number_of_mutations = 10
-"""  # noqa: E501
+"""
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_toml.write_text(expected)
@@ -404,7 +404,7 @@ def expected_parameter_list() -> list[str]:
         "--max_ndim 4",
         "--max_shape_dim 4",
         "--ignore_constraints_probability 0.25",
-        "--api_key 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",  # noqa: E501
+        "--api_key [MASKED]",
     ]
     return sorted(parameter_list)
 
