@@ -5,6 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 import logging
+import os
 
 from pathlib import Path
 from unittest.mock import patch
@@ -19,7 +20,6 @@ from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
 from pynguin.utils.configuration_writer import convert_config_to_dict
 from pynguin.utils.configuration_writer import extract_parameter_list_from_config
 from pynguin.utils.configuration_writer import write_configuration
-import os
 
 
 @pytest.fixture
