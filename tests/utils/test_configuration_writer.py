@@ -226,8 +226,8 @@ def expected_txt(tmp_path):
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
- "large_language_model=LLMConfiguration(api_key='{API_KEY}', model_name='gpt-4o-mini', '
- 'temperature=0.8, hybrid_initial_population=False, '
+ "large_language_model=LLMConfiguration(api_key='{API_KEY}', "
+ "model_name='gpt-4o-mini', temperature=0.8, hybrid_initial_population=False, "
  'llm_test_case_percentage=0.5, enable_response_caching=False, '
  'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
  'call_llm_on_stall_detection=False, max_plateau_len=25, '
