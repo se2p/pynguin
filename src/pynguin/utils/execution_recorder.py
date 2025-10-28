@@ -12,7 +12,6 @@ import logging
 
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Self
 
 import pynguin.configuration as config
 
@@ -23,6 +22,8 @@ from pynguin.testcase.export import PyTestChromosomeToAstVisitor
 
 if TYPE_CHECKING:
     import types
+
+    from typing_extensions import Self
 
     import pynguin.testcase.testcase as tc
 
