@@ -166,7 +166,9 @@ def stack_effects(  # noqa: D103 C901
         case (
             "POP_ITER"
             | "INSTRUMENTED_POP_ITER"
-            # TODO(lk): I don't understand why this worked in python3_12, as it pops 1.
+            # According to the documentation, the following 4 commands pop 1 in all
+            # python versions. However, in python3_12 it pops 0 according to
+            # `dis.stack_effect`, which does not make sense.
             | "INSTRUMENTED_POP_JUMP_IF_TRUE"
             | "INSTRUMENTED_POP_JUMP_IF_FALSE"
             | "INSTRUMENTED_POP_JUMP_IF_NONE"
@@ -196,12 +198,14 @@ def stack_effects(  # noqa: D103 C901
         case "INSTRUMENTED_CALL_KW":
             assert arg is not None
             return StackEffects(3 + arg, 1)
-        # TODO(lk): Not documented
-        case "ANNOTATIONS_PLACEHOLDER":
+        case "ANNOTATIONS_PLACEHOLDER":  # Not documented, but according to `dis.stack_effect`
             return StackEffects(0, 0)
         case "CALL_FUNCTION_EX" | "INSTRUMENTED_CALL_FUNCTION_EX":
             return StackEffects(3, 0)
-        # TODO(lk): Not in line with documentation; doesn't make sense
+        # According to the documentation, the following command pops 1 and does not push
+        # anything. This is also in line with `dis.stack_effect` of python3_10 to
+        # python3_13. In python3_14 it needs to push 1 according to `dis.stack_effect`,
+        # which does not make sense and is not in line with the documentation.
         case "RETURN_VALUE" | "INSTRUMENTED_RETURN_VALUE":
             return StackEffects(1, 1)
         case _:
