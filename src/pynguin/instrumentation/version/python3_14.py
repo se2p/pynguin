@@ -33,6 +33,7 @@ from pynguin.instrumentation.version.common import after
 # In Python 3.14 "LOAD_CONST None; RETURN_VALUE" is used again instead of "RETURN_CONST None"
 from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
 from pynguin.instrumentation.version.python3_13 import ACCESS_NAMES
+from pynguin.instrumentation.version.python3_13 import CALL_NAMES
 from pynguin.instrumentation.version.python3_13 import CLOSURE_LOAD_NAMES
 from pynguin.instrumentation.version.python3_13 import COND_BRANCH_NAMES
 from pynguin.instrumentation.version.python3_13 import IMPORT_FROM_NAMES
@@ -40,9 +41,12 @@ from pynguin.instrumentation.version.python3_13 import IMPORT_NAME_NAMES
 from pynguin.instrumentation.version.python3_13 import LOAD_DEREF_NAMES
 from pynguin.instrumentation.version.python3_13 import LOAD_GLOBAL_NAMES
 from pynguin.instrumentation.version.python3_13 import LOAD_NAME_NAMES
+from pynguin.instrumentation.version.python3_13 import MEMORY_DEF_NAMES
 from pynguin.instrumentation.version.python3_13 import MODIFY_DEREF_NAMES
+from pynguin.instrumentation.version.python3_13 import MODIFY_FAST_NAMES
 from pynguin.instrumentation.version.python3_13 import MODIFY_GLOBAL_NAMES
 from pynguin.instrumentation.version.python3_13 import MODIFY_NAME_NAMES
+from pynguin.instrumentation.version.python3_13 import OPERATION_NAMES
 from pynguin.instrumentation.version.python3_13 import RETURN_NONE_SIZE
 from pynguin.instrumentation.version.python3_13 import RETURNING_NAMES
 from pynguin.instrumentation.version.python3_13 import STORE_NAME_NAMES
@@ -97,12 +101,7 @@ LOAD_FAST_NAMES = (
     "LOAD_FAST_BORROW",
     "LOAD_FAST_BORROW_LOAD_FAST_BORROW",
 )
-MODIFY_FAST_NAMES = python3_13.MODIFY_FAST_NAMES
 ACCESS_FAST_NAMES = LOAD_FAST_NAMES + MODIFY_FAST_NAMES
-
-# Remaining opcodes
-CALL_NAMES = python3_13.CALL_NAMES
-OPERATION_NAMES = python3_13.OPERATION_NAMES
 
 # Regrouping opcodes
 TRACED_NAMES = (
@@ -132,8 +131,6 @@ MEMORY_USE_NAMES = (
     + python3_10.BINARY_SUBSCR_NAMES
     + python3_12.BINARY_SLICE_NAMES
 )
-
-MEMORY_DEF_NAMES = python3_13.MEMORY_DEF_NAMES
 
 
 def get_branch_type(opcode: int) -> bool | None:  # noqa: D103
