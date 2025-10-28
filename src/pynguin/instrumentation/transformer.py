@@ -1119,8 +1119,37 @@ class InstrumentationTransformer:
                 code_object=code_object,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
-                cdg=cf.ControlDependenceGraph.compute(cfg),
+                cdg=self._create_covered_cdg(cfg, ast_info),
             ),
         )
 
         return code_object
+
+    def _create_covered_cdg(
+        self,
+        cfg: cf.CFG,
+        ast_info: AstInfo | None,
+    ) -> cf.ControlDependenceGraph:
+        cdg = cf.ControlDependenceGraph.compute(cfg)
+
+        if ast_info is not None:
+            # Remove nodes that should not be covered
+            for node in tuple(cdg.graph):
+                if (
+                    not isinstance(node, cf.BasicBlockNode)
+                    or (last_instr := node.try_get_instruction(-1)) is None
+                    or not isinstance(last_instr.lineno, int)
+                    or ast_info.should_cover_line(last_instr.lineno)
+                ):
+                    continue
+
+                predecessors = tuple(cdg.get_predecessors(node))
+                successors = tuple(cdg.get_successors(node))
+
+                cdg.graph.remove_node(node)
+
+                for pred in predecessors:
+                    for succ in successors:
+                        cdg.graph.add_edge(pred, succ)
+
+        return cdg
