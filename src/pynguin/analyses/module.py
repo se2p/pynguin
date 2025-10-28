@@ -1137,6 +1137,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")
+            and acc.callable.__code__ in existing_code_objects
         }
         # Checking for __code__ is necessary, because the __init__ of a class that
         # does not define __init__ points to some internal CPython stuff.
