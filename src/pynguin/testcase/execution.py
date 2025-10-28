@@ -48,6 +48,7 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
+import pynguin.utils.execution_recorder as ter
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.statistics.stats as stat
@@ -1043,46 +1044,48 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         self._executed_test_cases += 1
         stat.track_output_variable(RuntimeVariable.Executed, self._executed_test_cases)
         self._before_remote_test_case_execution(test_case)
-        output_suppression_context = OutputSuppressionContext()
-        return_queue: Queue[ExecutionResult] = Queue()
-        thread = threading.Thread(
-            target=self._execute_test_case,
-            args=(test_case, output_suppression_context, return_queue),
-            daemon=True,
-        )
-        thread.start()
-        thread.join(
-            timeout=min(
-                self._maximum_test_execution_timeout,
-                self._test_execution_time_per_statement * len(test_case.statements),
+
+        with ter.ExecutionRecorder(test_case):
+            output_suppression_context = OutputSuppressionContext()
+            return_queue: Queue[ExecutionResult] = Queue()
+            thread = threading.Thread(
+                target=self._execute_test_case,
+                args=(test_case, output_suppression_context, return_queue),
+                daemon=True,
             )
-        )
-        if thread.is_alive():
-            # Kills the thread
-            self._subject_properties.instrumentation_tracer.stop()
-            # Wait for the thread so that stdout/stderr is not redirected anymore
-            _LOGGER.debug("Waiting for thread to finish")
-            thread.join(timeout=self._maximum_test_execution_timeout)
-            # Restore stdout and stderr if it was not already done by the thread
-            _LOGGER.debug("Restoring stdout and stderr")
-            output_suppression_context.restore()
-            result = ExecutionResult(timeout=True)
-            _LOGGER.warning("Experienced timeout from test-case execution")
-        else:
-            try:
-                result = return_queue.get(block=False)
-            except Empty:
-                _LOGGER.error("Finished thread did not return a result.")
-                # previously we re-raised the exception as a RuntimeError to have a marker in
-                # the logs, however, it is still not fully clear WHY this actually happens.
-                # Plus, it confuses users.  Thus, for now log the message, such that we can
-                # still search for it in the logs, but continue with an empty results.  This
-                # allows the EA to continue with the search process.
-                _LOGGER.error("Bug in Pynguin!")
+            thread.start()
+            thread.join(
+                timeout=min(
+                    self._maximum_test_execution_timeout,
+                    self._test_execution_time_per_statement * len(test_case.statements),
+                )
+            )
+            if thread.is_alive():
+                # Kills the thread
+                self._subject_properties.instrumentation_tracer.stop()
+                # Wait for the thread so that stdout/stderr is not redirected anymore
+                _LOGGER.debug("Waiting for thread to finish")
+                thread.join(timeout=self._maximum_test_execution_timeout)
+                # Restore stdout and stderr if it was not already done by the thread
+                _LOGGER.debug("Restoring stdout and stderr")
+                output_suppression_context.restore()
                 result = ExecutionResult(timeout=True)
-        self._after_remote_test_case_execution(test_case, result)
-        self._subject_properties.validate_execution_trace(result.execution_trace)
-        return result
+                _LOGGER.warning("Experienced timeout from test-case execution")
+            else:
+                try:
+                    result = return_queue.get(block=False)
+                except Empty:
+                    _LOGGER.error("Finished thread did not return a result.")
+                    # previously we re-raised the exception as a RuntimeError to have a marker in
+                    # the logs, however, it is still not fully clear WHY this actually happens.
+                    # Plus, it confuses users.  Thus, for now log the message, such that we can
+                    # still search for it in the logs, but continue with an empty results.  This
+                    # allows the EA to continue with the search process.
+                    _LOGGER.error("Bug in Pynguin!")
+                    result = ExecutionResult(timeout=True)
+            self._after_remote_test_case_execution(test_case, result)
+            self._subject_properties.validate_execution_trace(result.execution_trace)
+            return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
         self._subject_properties.instrumentation_tracer.init_trace()
@@ -1317,41 +1320,42 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         """
         self._before_remote_test_case_execution(test_case)
 
-        process, receiving_connection = self._setup_subprocess_execution(
-            (test_case,),
-            (self._create_variable_binding(test_case),),
-        )
+        with ter.ExecutionRecorder(test_case):
+            process, receiving_connection = self._setup_subprocess_execution(
+                (test_case,),
+                (self._create_variable_binding(test_case),),
+            )
 
-        # Calculate timeout based on test case size
-        timeout = self._calculate_timeout(test_case)
+            # Calculate timeout based on test case size
+            timeout = self._calculate_timeout(test_case)
 
-        # We need to use `poll` here because `recv` cannot take a timeout argument and
-        # `join` does not return until the pipe is closed in both processes.
-        has_results = receiving_connection.poll(timeout=timeout)
+            # We need to use `poll` here because `recv` cannot take a timeout argument and
+            # `join` does not return until the pipe is closed in both processes.
+            has_results = receiving_connection.poll(timeout=timeout)
 
-        if has_results:
-            try:
-                receiving_connection.recv()
-            except EOFError:
-                _LOGGER.error("EOFError during receiving results from subprocess")
+            if has_results:
+                try:
+                    receiving_connection.recv()
+                except EOFError:
+                    _LOGGER.error("EOFError during receiving results from subprocess")
 
-            receiving_connection.close()
+                receiving_connection.close()
 
-            process.join(timeout=self._maximum_test_execution_timeout)
+                process.join(timeout=self._maximum_test_execution_timeout)
 
-            if process.exitcode is None:
-                process.kill()
-                return None
-        elif test_case.size() == 0:
-            return 0
-        else:
-            receiving_connection.close()
+                if process.exitcode is None:
+                    process.kill()
+                    return None
+            elif test_case.size() == 0:
+                return 0
+            else:
+                receiving_connection.close()
 
-            if process.exitcode is None:
-                process.kill()
-                return None
+                if process.exitcode is None:
+                    process.kill()
+                    return None
 
-        return process.exitcode or 0
+            return process.exitcode or 0
 
     def _calculate_timeout(self, test_case: tc.TestCase) -> float:
         """Calculate timeout for a test case based on its size.

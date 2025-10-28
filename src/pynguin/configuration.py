@@ -269,6 +269,10 @@ class StatisticsOutputConfiguration:
     """When exporting type guesses for parameters, how many guesses per parameter
     should be exported? Expects positive integers."""
 
+    store_test_before_execution: bool = True
+    """When enabled, each test case is written to a file before execution and removed
+    after successful completion. If a test causes a crash, the file remains."""
+
 
 @dataclasses.dataclass
 class Minimization:

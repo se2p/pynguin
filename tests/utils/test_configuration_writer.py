@@ -57,6 +57,7 @@ run_id = ""
 project_name = ""
 create_coverage_report = false
 type_guess_top_n = 10
+store_test_before_execution = true
 
 [stopping]
 maximum_search_time = -1
@@ -235,7 +236,8 @@ def expected_txt(tmp_path):
  'timeline_interval=1000000000, timeline_interpolation=True, '
  "coverage_metrics=[<CoverageMetric.BRANCH: 'BRANCH'>], "
  "output_variables=[TargetModule, Coverage], configuration_id='', run_id='', "
- "project_name='', create_coverage_report=False, type_guess_top_n=10), "
+ "project_name='', create_coverage_report=False, type_guess_top_n=10, "
+ 'store_test_before_execution=True), '
  'stopping=StoppingConfiguration(maximum_search_time=-1, '
  'maximum_test_executions=-1, maximum_statement_executions=-1, '
  'maximum_slicing_time=600, maximum_iterations=-1, '
@@ -476,6 +478,8 @@ Coverage
 pynguin-report
 --statistics_output.statistics_backend
 CSV
+--statistics_output.store_test_before_execution
+False
 --statistics_output.timeline_interpolation
 True
 --statistics_output.timeline_interval
