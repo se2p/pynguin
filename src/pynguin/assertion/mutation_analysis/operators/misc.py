@@ -30,9 +30,10 @@ def is_docstring(node: ast.AST) -> bool:
         True if the node is a docstring, False otherwise.
     """
     if sys.version_info >= (3, 14):
-        if not isinstance(node, ast.Constant):
-            return False
-    elif not isinstance(node, ast.Str):
+        correct_type = ast.Constant
+    else:
+        correct_type = ast.Str
+    if not isinstance(node, correct_type):
         return False
 
     expression_node: ast.AST = node.parent  # type: ignore[attr-defined]
