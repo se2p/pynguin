@@ -29,7 +29,6 @@ from pynguin.instrumentation.version.common import (
 from pynguin.instrumentation.version.common import InstrumentationArgument
 from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
 from pynguin.instrumentation.version.common import after
-from pynguin.instrumentation.version.common import before
 
 # In Python 3.14 "LOAD_CONST None; RETURN_VALUE" is used again instead of "RETURN_CONST None"
 from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
@@ -283,22 +282,12 @@ class CheckedCoverageInstrumentation(python3_13.CheckedCoverageInstrumentation):
             cfg, code_object_id, instr, instr_original_index, node
         )
 
-        match instr.name:
-            case "DELETE_FAST" | "LOAD_FAST_AND_CLEAR":
-                # Instrumentation before the original instruction
-                # (otherwise we can not read the data)
-                node.basic_block[before(instr_index)] = instructions
-            case (
-                "LOAD_FAST"
-                | "LOAD_FAST_CHECK"
-                | "STORE_FAST"
-                | "LOAD_FAST_BORROW"
-                | "LOAD_FAST_BORROW_LOAD_FAST_BORROW"
-                | "LOAD_FAST_LOAD_FAST"
-                | "STORE_FAST_STORE_FAST"
-            ):
-                # Instrumentation after the original instruction
-                node.basic_block[after(instr_index)] = instructions
+        if instr.name in {
+            "LOAD_FAST_BORROW",
+            "LOAD_FAST_BORROW_LOAD_FAST_BORROW",
+        }:
+            # Instrumentation after the original instruction
+            node.basic_block[after(instr_index)] = instructions
 
         return
 
