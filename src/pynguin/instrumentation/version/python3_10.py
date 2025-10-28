@@ -849,7 +849,7 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         if (
             ast_info is not None
             and isinstance(maybe_jump.lineno, int)
-            and not ast_info.should_cover_line(maybe_jump.lineno)
+            and not ast_info.should_cover_conditional_statement(maybe_jump.lineno)
         ):
             return
 

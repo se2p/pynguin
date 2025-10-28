@@ -145,19 +145,57 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
 
 
 @pytest.mark.parametrize(
-    "scope_line, expected_lines",
+    "scope_line, expected_lines, expected_branches",
     [
-        # scope_line, dict of line: expected_should_cover
-        (8, {9: False, 10: False, 11: True, 12: True}),
-        (14, {15: True, 16: True, 17: False, 18: False, 19: True, 20: True}),
-        (22, {23: True, 24: True, 25: False, 26: False}),
-        (28, {29: False, 30: False, 31: False, 32: False, 33: False, 34: True, 35: True}),
-        (37, {38: True, 39: False, 40: False, 41: True, 42: True, 43: True, 44: True}),
-        (46, {47: False, 48: False, 49: True}),
-        (51, {52: False, 53: False, 54: True}),
+        # scope_line, dict of line: expected_should_cover, dict of line: expected_should_cover
+        (
+            8,
+            {9: False, 10: False, 11: True, 12: True},
+            {9: False, 11: False},
+        ),
+        (
+            14,
+            {15: True, 16: True, 17: False, 18: False, 19: True, 20: True},
+            {15: False, 17: False, 19: False},
+        ),
+        (
+            22,
+            {23: True, 24: True, 25: False, 26: False},
+            {23: False, 25: False},
+        ),
+        (
+            28,
+            {29: False, 30: False, 31: False, 32: False, 33: False, 34: True, 35: True},
+            {29: False, 30: True, 32: True, 34: False},
+        ),
+        (
+            37,
+            {38: True, 39: False, 40: False, 41: True, 42: True, 43: True, 44: True},
+            {38: True, 39: False, 41: False, 43: True},
+        ),
+        (
+            46,
+            {47: False, 48: False, 49: True},
+            {47: False},
+        ),
+        (
+            51,
+            {52: False, 53: False, 54: False, 55: False, 56: False, 57: True},
+            {52: False, 53: True, 55: True},
+        ),
+        (
+            59,
+            {60: False, 61: False, 62: True},
+            {60: False},
+        ),
+        (
+            64,
+            {65: True, 66: True, 67: False, 68: False, 69: True},
+            {65: False, 67: False},
+        ),
     ],
 )
-def test_ast_info_from_covered_branches(scope_line, expected_lines):
+def test_ast_info_from_covered_branches(scope_line, expected_lines, expected_branches):
     module_name = "tests.fixtures.instrumentation.covered_branches"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
@@ -167,11 +205,14 @@ def test_ast_info_from_covered_branches(scope_line, expected_lines):
 
     assert module_ast_info is not None
     assert not module_ast_info.only_cover_lines
-    assert module_ast_info.no_cover_lines == {9, 17, 25, 29, 39, 47, 52}
+    assert module_ast_info.no_cover_lines == {9, 17, 25, 29, 39, 47, 52, 60, 67}
 
     scope = module_ast_info.get_scope(scope_line)
     assert scope is not None
     assert scope.should_be_covered()
+
+    for line, expected in expected_branches.items():
+        assert scope.should_cover_conditional_statement(line) is expected
 
     for line, expected in expected_lines.items():
         assert scope.should_cover_line(line) is expected

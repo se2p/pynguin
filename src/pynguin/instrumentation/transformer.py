@@ -269,6 +269,37 @@ class AstInfo:
         """
         return bool(body) and body[0].fromlineno <= lineno <= body[-1].tolineno
 
+    @staticmethod
+    def _else_lines(branch_node: If | For) -> Iterable[int]:
+        if branch_node.body and branch_node.orelse:
+            yield from range(
+                branch_node.body[-1].tolineno + 1,
+                branch_node.orelse[0].fromlineno,
+            )
+
+    @staticmethod
+    def _get_parent_if(branch_node: If) -> If:
+        if (
+            isinstance(branch_node.parent, If)
+            and branch_node.parent.has_elif_block()
+            and branch_node.body[0] == branch_node
+        ):
+            return AstInfo._get_parent_if(branch_node.parent)
+
+        return branch_node
+
+    def _all_branches_in_cover(self, branch_node: If | While | For) -> bool:
+        if not self._in_cover(branch_node.fromlineno):
+            return False
+
+        if isinstance(branch_node, If) and branch_node.has_elif_block():
+            assert isinstance(branch_node.orelse[0], If)
+            return self._all_branches_in_cover(branch_node.orelse[0])
+
+        return isinstance(branch_node, While) or all(
+            self._in_cover(else_lineno) for else_lineno in self._else_lines(branch_node)
+        )
+
     def should_be_covered(self) -> bool:
         """Check if self should be covered.
 
@@ -295,6 +326,7 @@ class AstInfo:
 
         Returns:
             True if it should be covered, False otherwise.
+            Defaults to True if there is no instruction at lineno.
         """
         if not self._in_cover(lineno):
             return False
@@ -323,12 +355,31 @@ class AstInfo:
             # all lines in which it could be defined for now
             if self._in_body(branch_node.orelse, lineno) and any(
                 else_lineno in self.module.no_cover_lines
-                for else_lineno in range(
-                    branch_node.body[-1].tolineno + 1,
-                    branch_node.orelse[0].fromlineno,
-                )
+                for else_lineno in self._else_lines(branch_node)
             ):
                 return False
+
+        return True
+
+    def should_cover_conditional_statement(self, lineno: int) -> bool:
+        """Check if the conditional statement at the line number should be covered.
+
+        This means that the conditional statement must have all its branches in the cover lines.
+
+        Args:
+            lineno: The line number of the conditional statement.
+
+        Returns:
+            True if it should be covered, False otherwise.
+            Defaults to True if there is no conditional statement at lineno.
+        """
+        for branch_node in self.ast.nodes_of_class(If | For | While):
+            if branch_node.fromlineno == lineno or (
+                isinstance(branch_node, If | For) and lineno in self._else_lines(branch_node)
+            ):
+                if isinstance(branch_node, If):
+                    return self._all_branches_in_cover(self._get_parent_if(branch_node))
+                return self._all_branches_in_cover(branch_node)
 
         return True
 
@@ -1139,13 +1190,15 @@ class InstrumentationTransformer:
                     not isinstance(node, cf.BasicBlockNode)
                     or (last_instr := node.try_get_instruction(-1)) is None
                     or not isinstance(last_instr.lineno, int)
-                    or ast_info.should_cover_line(last_instr.lineno)
+                    or ast_info.should_cover_conditional_statement(last_instr.lineno)
                 ):
                     continue
 
-                predecessors = tuple(cdg.get_predecessors(node))
-                successors = tuple(cdg.get_successors(node))
+                predecessors = cdg.get_predecessors(node)
+                successors = cdg.get_successors(node)
 
+                predecessors.discard(node)
+                successors.discard(node)
                 cdg.graph.remove_node(node)
 
                 for pred in predecessors:

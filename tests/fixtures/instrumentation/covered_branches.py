@@ -32,7 +32,7 @@ def no_cover_nesting_if(x: int, y: int) -> int:
         else:
             return y
     else:
-        return y
+        return 0
 
 def no_cover_nested_if(x: int, y: int) -> int:
     if x > 0:
@@ -41,14 +41,29 @@ def no_cover_nested_if(x: int, y: int) -> int:
         else:
             return y
     else:
-        return y
+        return 0
 
 def no_cover_while(x: int) -> int:
     while x > 0:  # pynguin: no cover
         print(x)
     return x
 
+def no_cover_if_in_while(x: int) -> int:
+    while x > 0:  # pynguin: no cover
+        if x > 0:
+            print(x)
+        else:
+            print(-x)
+    return x
+
 def no_cover_for(x: int) -> int:
     for i in range(x):  # pynguin: no cover
         print(i)
+    return x
+
+def no_cover_for_else(x: int) -> int:
+    for i in range(x):
+        print(i)
+    else:  # pynguin: no cover
+        print(-1)
     return x
