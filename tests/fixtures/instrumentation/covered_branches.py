@@ -17,7 +17,7 @@ def no_cover_elif(x: int, y: int) -> int:
     elif y > 0:  # pynguin: no cover
         return y
     else:
-        return x
+        return 0
 
 def no_cover_else(x: int, y: int) -> int:
     if x > 0:

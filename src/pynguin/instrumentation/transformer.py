@@ -29,6 +29,7 @@ from astroid.nodes import Module
 from astroid.nodes import NodeNG
 from astroid.nodes import While
 from bytecode import Bytecode
+from bytecode.instr import Instr
 
 from pynguin.analyses.module import read_module_ast
 from pynguin.configuration import ToCoverConfiguration
@@ -41,7 +42,6 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from collections.abc import Iterable
 
-    from bytecode.instr import Instr
     from typing_extensions import Self
 
     from pynguin.analyses.constants import DynamicConstantProvider
@@ -1187,13 +1187,28 @@ class InstrumentationTransformer:
         if ast_info is not None:
             # Remove nodes that should not be covered
             for node in tuple(cdg.graph):
-                if (
-                    not isinstance(node, cf.BasicBlockNode)
-                    or (last_instr := node.try_get_instruction(-1)) is None
-                    or not isinstance(last_instr.lineno, int)
-                    or ast_info.should_cover_conditional_statement(last_instr.lineno)
+                if not isinstance(node, cf.BasicBlockNode) or all(
+                    not isinstance(instr, Instr) for instr in node.basic_block
                 ):
                     continue
+
+                if (
+                    (last_instr := node.try_get_instruction(-1)) is None
+                    or not isinstance(last_instr.lineno, int)
+                    or ast_info.should_cover_conditional_statement(last_instr.lineno)
+                ) and (
+                    any(
+                        not isinstance(instr.lineno, int)
+                        or ast_info.should_cover_line(instr.lineno)
+                        for instr in node.original_instructions
+                    )
+                ):
+                    continue
+
+                assert ast_info.module.only_cover_lines or ast_info.module.no_cover_lines, (
+                    f"Node {node} should not be removed as only_cover_lines and no_cover_lines "
+                    "are both empty."
+                )
 
                 predecessors = cdg.get_predecessors(node)
                 successors = cdg.get_successors(node)

@@ -284,54 +284,32 @@ def covered_branches_module():
 if sys.version_info >= (3, 14):
     no_cover_while_values = {
         (ArtificialNode.AUGMENTED_ENTRY, 0),
-        (ArtificialNode.AUGMENTED_ENTRY, 2),
         (ArtificialNode.AUGMENTED_ENTRY, 3),
     }
-    no_cover_while_id = (
-        "while initialisation (0), 'print(x)' (2) and 'return x' (3) depend on root only"
-    )
+    no_cover_while_id = "while initialisation (0) and 'return x' (3) depend on root only"
     no_cover_if_in_while_values = {
         (ArtificialNode.AUGMENTED_ENTRY, 0),
-        (ArtificialNode.AUGMENTED_ENTRY, 3),
-        (ArtificialNode.AUGMENTED_ENTRY, 4),
         (ArtificialNode.AUGMENTED_ENTRY, 5),
     }
-    no_cover_if_in_while_id = (
-        "while initialisation (0), 'print(x)' (3), 'print(-x)' (4) and "
-        "'return x' (5) depend on root only"
-    )
+    no_cover_if_in_while_id = "while initialisation (0) and 'return x' (5) depend on root only"
 elif sys.version_info >= (3, 12):
     no_cover_while_values = {
-        # 'print(x)' (1) is not included as its bytecode is included in the loop structure
-        # and is therefore removed when the loop is removed. It is not a problem as
-        # we only care about predicates here and there are none in the while loop.
         (ArtificialNode.AUGMENTED_ENTRY, 3),
     }
     no_cover_while_id = "'return x' (3) depends on root only"
     no_cover_if_in_while_values = {
-        (ArtificialNode.AUGMENTED_ENTRY, 2),
-        (ArtificialNode.AUGMENTED_ENTRY, 3),
         (ArtificialNode.AUGMENTED_ENTRY, 6),
     }
-    no_cover_if_in_while_id = (
-        "'print(x)' (2), 'print(-x)' (3) and 'return x' (6) depend on root only"
-    )
+    no_cover_if_in_while_id = "'return x' (6) depends on root only"
 else:
     no_cover_while_values = {
-        # 'print(x)' (1) is not included as its bytecode is included in the loop structure
-        # and is therefore removed when the loop is removed. It is not a problem as
-        # we only care about predicates here and there are none in the while loop.
         (ArtificialNode.AUGMENTED_ENTRY, 2),
     }
     no_cover_while_id = "'return x' (2) depends on root only"
     no_cover_if_in_while_values = {
-        (ArtificialNode.AUGMENTED_ENTRY, 2),
-        (ArtificialNode.AUGMENTED_ENTRY, 3),
         (ArtificialNode.AUGMENTED_ENTRY, 5),
     }
-    no_cover_if_in_while_id = (
-        "'print(x)' (2), 'print(-x)' (3) and 'return x' (5) depend on root only"
-    )
+    no_cover_if_in_while_id = "'return x' (5) depends on root only"
 
 
 @pytest.mark.parametrize(
@@ -340,47 +318,41 @@ else:
         pytest.param(
             "no_cover_if",
             {
-                (ArtificialNode.AUGMENTED_ENTRY, 1),
                 (ArtificialNode.AUGMENTED_ENTRY, 2),
             },
-            id="'return x' (1) and 'return y' (2) depend on root only",
+            id="'return y' (2) depends on root only",
         ),
         pytest.param(
             "no_cover_elif",
             {
                 (ArtificialNode.AUGMENTED_ENTRY, 1),
-                (ArtificialNode.AUGMENTED_ENTRY, 3),
                 (ArtificialNode.AUGMENTED_ENTRY, 4),
             },
-            id="'return x' (1), 'return y' (3) and 'return x' (4) depend on root only",
+            id="'return x' (1) and 'return 0' (4) depend on root only",
         ),
         pytest.param(
             "no_cover_else",
             {
                 (ArtificialNode.AUGMENTED_ENTRY, 1),
-                (ArtificialNode.AUGMENTED_ENTRY, 2),
             },
-            id="'return x' (1) and 'return y' (2) depend on root only",
+            id="'return x' (1) depends on root only",
         ),
         pytest.param(
             "no_cover_nesting_if",
             {
-                (ArtificialNode.AUGMENTED_ENTRY, 2),
-                (ArtificialNode.AUGMENTED_ENTRY, 3),
                 (ArtificialNode.AUGMENTED_ENTRY, 4),
             },
-            id="'return x' (2), 'return y' (3) and 'return 0' (4) depend on root only",
+            id="'return 0' (4) depends on root only",
         ),
         pytest.param(
             "no_cover_nested_if",
             {
                 (ArtificialNode.AUGMENTED_ENTRY, 0),
-                (0, 2),
                 (0, 3),
                 (0, 4),
             },
-            id="'return x' (2), 'return y' (3) and 'return 0' (4) depend on 'if x > 0' (0) and "
-            "'return 0' (4) depend on root only",
+            id="'return y' (3) depend on 'if x > 0' (0) and "
+            "'if x > 0' (0) and 'return 0' (4) depend on root only",
         ),
         pytest.param(
             "no_cover_while",
@@ -395,10 +367,9 @@ else:
         pytest.param(
             "no_cover_for",
             {
-                (ArtificialNode.AUGMENTED_ENTRY, 2),
                 (ArtificialNode.AUGMENTED_ENTRY, 3),
             },
-            id="'print(i)' (2) and 'return x' (3) depend on root only",
+            id="'return x' (3) depends on root only",
         ),
         pytest.param(
             "no_cover_for_else",
