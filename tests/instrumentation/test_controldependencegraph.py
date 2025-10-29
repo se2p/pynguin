@@ -292,14 +292,13 @@ if sys.version_info >= (3, 14):
     )
     no_cover_if_in_while_values = {
         (ArtificialNode.AUGMENTED_ENTRY, 0),
-        (ArtificialNode.AUGMENTED_ENTRY, 2),
-        (2, 3),
-        (2, 4),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+        (ArtificialNode.AUGMENTED_ENTRY, 4),
         (ArtificialNode.AUGMENTED_ENTRY, 5),
     }
     no_cover_if_in_while_id = (
-        "'print(x)' (2) and 'print(-x)' (3) depend on 'if x > 0' (1) and "
-        "while initialisation (0), 'if x > 0' (1) and 'return x' (5) depend on root only"
+        "while initialisation (0), 'print(x)' (3), 'print(-x)' (4) and "
+        "'return x' (5) depend on root only"
     )
 elif sys.version_info >= (3, 12):
     no_cover_while_values = {
@@ -310,14 +309,12 @@ elif sys.version_info >= (3, 12):
     }
     no_cover_while_id = "'return x' (3) depends on root only"
     no_cover_if_in_while_values = {
-        (ArtificialNode.AUGMENTED_ENTRY, 1),
-        (1, 2),
-        (1, 3),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
         (ArtificialNode.AUGMENTED_ENTRY, 6),
     }
     no_cover_if_in_while_id = (
-        "'print(x)' (2) and 'print(-x)' (3) depend on 'if x > 0' (1) and "
-        "'if x > 0' (1) and 'return x' (6) depend on root only"
+        "'print(x)' (2), 'print(-x)' (3) and 'return x' (6) depend on root only"
     )
 else:
     no_cover_while_values = {
@@ -328,14 +325,12 @@ else:
     }
     no_cover_while_id = "'return x' (2) depends on root only"
     no_cover_if_in_while_values = {
-        (ArtificialNode.AUGMENTED_ENTRY, 1),
-        (1, 2),
-        (1, 3),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
         (ArtificialNode.AUGMENTED_ENTRY, 5),
     }
     no_cover_if_in_while_id = (
-        "'print(x)' (2) and 'print(-x)' (3) depend on 'if x > 0' (1) and "
-        "'if x > 0' (1) and 'return x' (5) depend on root only"
+        "'print(x)' (2), 'print(-x)' (3) and 'return x' (5) depend on root only"
     )
 
 
@@ -370,13 +365,11 @@ else:
         pytest.param(
             "no_cover_nesting_if",
             {
-                (ArtificialNode.AUGMENTED_ENTRY, 1),
-                (1, 2),
-                (1, 3),
+                (ArtificialNode.AUGMENTED_ENTRY, 2),
+                (ArtificialNode.AUGMENTED_ENTRY, 3),
                 (ArtificialNode.AUGMENTED_ENTRY, 4),
             },
-            id="'return x' (2) and 'return y' (3) depend on 'if x > 0' (1) and "
-            "'if x > 0' (1) and 'return 0' (4) depend on root only",
+            id="'return x' (2), 'return y' (3) and 'return 0' (4) depend on root only",
         ),
         pytest.param(
             "no_cover_nested_if",

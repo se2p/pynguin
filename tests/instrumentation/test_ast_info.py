@@ -166,7 +166,7 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
         (
             28,
             {29: False, 30: False, 31: False, 32: False, 33: False, 34: True, 35: True},
-            {29: False, 30: True, 32: True, 34: False},
+            {29: False, 30: False, 32: False, 34: False},
         ),
         (
             37,
@@ -181,7 +181,7 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
         (
             51,
             {52: False, 53: False, 54: False, 55: False, 56: False, 57: True},
-            {52: False, 53: True, 55: True},
+            {52: False, 53: False, 55: False},
         ),
         (
             59,

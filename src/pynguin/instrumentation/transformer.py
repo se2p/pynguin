@@ -289,7 +289,7 @@ class AstInfo:
         return branch_node
 
     def _all_branches_in_cover(self, branch_node: If | While | For) -> bool:
-        if not self._in_cover(branch_node.fromlineno):
+        if not self.should_cover_line(branch_node.fromlineno):
             return False
 
         if isinstance(branch_node, If) and branch_node.has_elif_block():
@@ -297,7 +297,7 @@ class AstInfo:
             return self._all_branches_in_cover(branch_node.orelse[0])
 
         return isinstance(branch_node, While) or all(
-            self._in_cover(else_lineno) for else_lineno in self._else_lines(branch_node)
+            self.should_cover_line(else_lineno) for else_lineno in self._else_lines(branch_node)
         )
 
     def should_be_covered(self) -> bool:
@@ -364,7 +364,8 @@ class AstInfo:
     def should_cover_conditional_statement(self, lineno: int) -> bool:
         """Check if the conditional statement at the line number should be covered.
 
-        This means that the conditional statement must have all its branches in the cover lines.
+        This means that the conditional statement must have all its branches in the cover lines,
+        as well as all conditional instructions in which it is contained.
 
         Args:
             lineno: The line number of the conditional statement.
