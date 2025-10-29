@@ -282,7 +282,7 @@ class AstInfo:
         if (
             isinstance(branch_node.parent, If)
             and branch_node.parent.has_elif_block()
-            and branch_node.body[0] == branch_node
+            and branch_node.parent.orelse[0] == branch_node
         ):
             return AstInfo._get_parent_if(branch_node.parent)
 
