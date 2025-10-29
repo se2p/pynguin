@@ -156,7 +156,7 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
         (
             14,
             {15: True, 16: True, 17: False, 18: False, 19: True, 20: True},
-            {15: False, 17: False, 19: False},
+            {15: True, 17: False, 19: False},
         ),
         (
             22,
@@ -180,8 +180,8 @@ def test_ast_info_from_covered_classes(scope_line, expected_should_be_covered):
         ),
         (
             51,
-            {52: False, 53: False, 54: False, 55: False, 56: False, 57: True},
-            {52: False, 53: False, 55: False},
+            {52: True, 53: False, 54: False, 55: True, 56: True, 57: True},
+            {52: True, 53: False, 55: False},
         ),
         (
             59,
@@ -205,7 +205,7 @@ def test_ast_info_from_covered_branches(scope_line, expected_lines, expected_bra
 
     assert module_ast_info is not None
     assert not module_ast_info.only_cover_lines
-    assert module_ast_info.no_cover_lines == {9, 17, 25, 29, 39, 47, 52, 60, 67}
+    assert module_ast_info.no_cover_lines == {9, 17, 25, 29, 39, 47, 53, 60, 67}
 
     scope = module_ast_info.get_scope(scope_line)
     assert scope is not None

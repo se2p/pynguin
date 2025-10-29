@@ -277,29 +277,6 @@ class AstInfo:
                 branch_node.orelse[0].fromlineno,
             )
 
-    @staticmethod
-    def _get_parent_if(branch_node: If) -> If:
-        if (
-            isinstance(branch_node.parent, If)
-            and branch_node.parent.has_elif_block()
-            and branch_node.parent.orelse[0] == branch_node
-        ):
-            return AstInfo._get_parent_if(branch_node.parent)
-
-        return branch_node
-
-    def _all_branches_in_cover(self, branch_node: If | While | For) -> bool:
-        if not self.should_cover_line(branch_node.fromlineno):
-            return False
-
-        if isinstance(branch_node, If) and branch_node.has_elif_block():
-            assert isinstance(branch_node.orelse[0], If)
-            return self._all_branches_in_cover(branch_node.orelse[0])
-
-        return isinstance(branch_node, While) or all(
-            self.should_cover_line(else_lineno) for else_lineno in self._else_lines(branch_node)
-        )
-
     def should_be_covered(self) -> bool:
         """Check if self should be covered.
 
@@ -378,9 +355,14 @@ class AstInfo:
             if branch_node.fromlineno == lineno or (
                 isinstance(branch_node, If | For) and lineno in self._else_lines(branch_node)
             ):
-                if isinstance(branch_node, If):
-                    return self._all_branches_in_cover(self._get_parent_if(branch_node))
-                return self._all_branches_in_cover(branch_node)
+                return self.should_cover_line(branch_node.fromlineno) and (
+                    isinstance(branch_node, While)
+                    or (isinstance(branch_node, If) and branch_node.has_elif_block())
+                    or all(
+                        self.should_cover_line(else_lineno)
+                        for else_lineno in self._else_lines(branch_node)
+                    )
+                )
 
         return True
 

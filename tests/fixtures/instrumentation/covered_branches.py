@@ -49,8 +49,8 @@ def no_cover_while(x: int) -> int:
     return x
 
 def no_cover_if_in_while(x: int) -> int:
-    while x > 0:  # pynguin: no cover
-        if x > 0:
+    while x > 0:
+        if x > 0:  # pynguin: no cover
             print(x)
         else:
             print(-x)
