@@ -99,7 +99,12 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
             varname = self.generate_new_varname()
             if isinstance(node, ast.Constant):
                 self.constant_dict[node.value] = varname
-            assign_decl = ast.Assign(targets=[ast.Name(varname, ctx=ast.Store())], value=node)
+            target = ast.Name(varname, ctx=ast.Store())
+            target.lineno = 1
+            target.col_offset = 0
+            assign_decl = ast.Assign(targets=[target], value=node)
+            assign_decl.lineno = 1
+            assign_decl.col_offset = 0
             self.stmts_to_add.append(assign_decl)
 
         return ast.Name(varname, ctx=ast.Load())
@@ -413,10 +418,39 @@ class StmtRewriter(ast.NodeTransformer):  # noqa: PLR0904
         Returns:
             the transformed node.
         """
-        if isinstance(assert_node.test, ast.Call):
-            return self.generic_visit(assert_node)
-        new_test = self.visit_only_calls_subnodes(assert_node.test)
-        return ast.Assert(new_test)
+        # First visit the test expression to extract any sub-expressions
+        new_test = self.visit(assert_node.test)
+
+        # Always extract the entire test expression into a temporary variable
+        # only skip if it's already a simple variable name (not a complex expression)
+        if isinstance(new_test, ast.Name):
+            return ast.Assert(new_test)
+
+        # Generate a variable for the assertion test
+        var_name = self.generate_new_varname()
+
+        # Create assignment: var_X = test_expression
+        target = ast.Name(var_name, ctx=ast.Store())
+        # Set minimal required attributes
+        target.lineno = 1
+        target.col_offset = 0
+
+        assign_stmt = ast.Assign(targets=[target], value=new_test)
+        assign_stmt.lineno = 1
+        assign_stmt.col_offset = 0
+
+        self.stmts_to_add.append(assign_stmt)
+
+        # Return assertion with just the variable
+        var_ref = ast.Name(var_name, ctx=ast.Load())
+        var_ref.lineno = 1
+        var_ref.col_offset = 0
+
+        result = ast.Assert(var_ref)
+        result.lineno = 1
+        result.col_offset = 0
+
+        return result
 
     def visit_FunctionDef(self, fn_def_node: ast.FunctionDef):  # noqa: N802
         """Reformat the test in fn_def_node.
