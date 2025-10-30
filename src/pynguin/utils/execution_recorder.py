@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import pickle  # noqa: S403
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -57,11 +58,15 @@ class ExecutionRecorder:
         if self._should_record:
             self._target_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def __enter__(self) -> Self:
-        """Write the test case to the recording file before execution."""
-        if not self._should_record:
-            return self
+    def _store_binary(self):
+        try:
+            with Path(self._target_file).open("wb") as f:
+                pickle.dump(self._test_case, f)
 
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.warning("Failed to pickle dump test case: %s", e)
+
+    def _store_pytest(self):
         try:
             chromosome = TestCaseChromosome(self._test_case)
             exporter = PyTestChromosomeToAstVisitor()
@@ -71,6 +76,11 @@ class ExecutionRecorder:
         except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Failed to export test case to code: %s", e)
 
+    def __enter__(self) -> Self:
+        """Write the test case to the recording file before execution."""
+        if not self._should_record:
+            return self
+        self._store_binary()
         return self
 
     def __exit__(
