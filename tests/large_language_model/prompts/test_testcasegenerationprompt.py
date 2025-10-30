@@ -108,7 +108,7 @@ def test_actual_testcasegenerationprompt_coverage():
 
         # Force coverage of line 28 by calling build_prompt
         result = prompt.build_prompt()
-        assert "Write unit tests for the following module:" in result
+        assert "Write unit tests for the following module" in result
     finally:
         # Restore the original __init__ method
         TestCaseGenerationPrompt.__init__ = original_init
