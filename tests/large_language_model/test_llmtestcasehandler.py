@@ -140,32 +140,6 @@ EXPECTED = """def test_generated_function():
     assert var_1 is True"""
 
 
-@pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
-    reason="OpenAI API key is not provided in the configuration.",
-)
-def test_integration_get_test_case_chromosomes(executor_mock):
-    test_cluster = generate_test_cluster("tests.fixtures.examples.queue")
-    test_factory = MagicMock()
-    fitness_function = BranchDistanceTestSuiteFitnessFunction(executor_mock)
-    coverage_function = MagicMock()
-    model = LLMAgent()
-    handler = LLMTestCaseHandler(model)
-    config.configuration.test_case_output.assertion_generation = config.AssertionGenerator.LLM
-
-    result = handler.get_test_case_chromosomes_from_llm_results(
-        LLM_RESPONSE,
-        test_cluster,
-        test_factory,
-        [fitness_function],
-        [coverage_function],
-    )
-
-    unparsed = unparse_test_case(result[0].test_case)
-
-    assert unparsed == EXPECTED
-
-
 LLM_RESPONSE_2 = """
 # LLM generated and rewritten (in Pynguin format) test cases
 # Date and time: ...
@@ -220,7 +194,10 @@ EXPECTED_2 = """def test_generated_function():
     not is_api_key_present() or not is_api_key_valid(),
     reason="OpenAI API key is not provided in the configuration.",
 )
-def test_integration_get_test_case_chromosomes_2(executor_mock):
+@pytest.mark.parametrize(
+    ("llm_response", "expected_unparsed"), [(LLM_RESPONSE, EXPECTED), (LLM_RESPONSE_2, EXPECTED_2)]
+)
+def test_integration_get_test_case_chromosomes(executor_mock, llm_response, expected_unparsed):
     test_cluster = generate_test_cluster("tests.fixtures.examples.queue")
     test_factory = MagicMock()
     fitness_function = BranchDistanceTestSuiteFitnessFunction(executor_mock)
@@ -230,7 +207,7 @@ def test_integration_get_test_case_chromosomes_2(executor_mock):
     config.configuration.test_case_output.assertion_generation = config.AssertionGenerator.LLM
 
     test_case_crs = handler.get_test_case_chromosomes_from_llm_results(
-        LLM_RESPONSE_2,
+        llm_response,
         test_cluster,
         test_factory,
         [fitness_function],
@@ -239,4 +216,4 @@ def test_integration_get_test_case_chromosomes_2(executor_mock):
 
     unparsed = unparse_test_case(test_case_crs[0].test_case)
 
-    assert unparsed == EXPECTED_2
+    assert unparsed == expected_unparsed
