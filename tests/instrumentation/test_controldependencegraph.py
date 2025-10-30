@@ -298,6 +298,34 @@ if sys.version_info >= (3, 14):
         "'print(-x)' (4) and 'while (x > 0)' (1) depend on 'while (x > 0)' (1) and"
         "while initialisation (0), 'while (x > 0)' (1) and 'return x' (5) depend on root"
     )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
+elif sys.version_info >= (3, 13):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_while_id = "'return x' (3) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (4, 5),
+        (ArtificialNode.AUGMENTED_ENTRY, 6),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (6) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
 elif sys.version_info >= (3, 12):
     no_cover_while_values = {
         (ArtificialNode.AUGMENTED_ENTRY, 3),
@@ -316,6 +344,33 @@ elif sys.version_info >= (3, 12):
         "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
         "'while (x > 0)' (0) and 'return x' (6) depend on root"
     )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 1),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (1) and 'return str(a)' (2) depend on root"
+elif sys.version_info >= (3, 11):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_while_id = "'return x' (2) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (ArtificialNode.AUGMENTED_ENTRY, 5),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (5) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
 else:
     no_cover_while_values = {
         (ArtificialNode.AUGMENTED_ENTRY, 2),
@@ -333,6 +388,11 @@ else:
         "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
         "'while (x > 0)' (0) and 'return x' (5) depend on root"
     )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 1),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (1) and 'return str(a)' (2) depend on root"
 
 
 @pytest.mark.parametrize(
@@ -403,6 +463,28 @@ else:
                 (ArtificialNode.AUGMENTED_ENTRY, 3),
             },
             id="'print(i)' (2), 'return x' (3) depend on root",
+        ),
+        pytest.param(
+            "no_cover_match",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 3),
+            },
+            id="'return str(a) * 2' (3) depends on root",
+        ),
+        pytest.param(
+            "no_cover_case",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 2),
+                (2, 3),
+                (2, 4),
+            },
+            id="'return 2' (3) and 'return 0' (4) depend on 'case 2' (2) and "
+            "'case 2' (2) depends on root",
+        ),
+        pytest.param(
+            "no_cover_case_only_catchall",
+            no_cover_case_only_catchall_values,
+            id=no_cover_case_only_catchall_id,
         ),
     ],
 )

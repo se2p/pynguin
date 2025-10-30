@@ -25,6 +25,8 @@ from astroid.nodes import For
 from astroid.nodes import FunctionDef
 from astroid.nodes import If
 from astroid.nodes import Lambda
+from astroid.nodes import Match
+from astroid.nodes import MatchCase
 from astroid.nodes import Module
 from astroid.nodes import NodeNG
 from astroid.nodes import While
@@ -309,10 +311,18 @@ class AstInfo:
             return False
 
         # Handle branches
-        for branch_node in self.ast.nodes_of_class(If | For | While):
+        for branch_node in self.ast.nodes_of_class(If | For | While | Match):
             # Skip nodes that do not contains the lineno
             if lineno < branch_node.fromlineno or branch_node.tolineno < lineno:
                 continue
+
+            # Check the "match" branches
+            if isinstance(branch_node, Match):
+                return branch_node.fromlineno not in self.module.no_cover_lines and all(
+                    case_node.fromlineno not in self.module.no_cover_lines
+                    for case_node in branch_node.cases
+                    if self._in_body(case_node.body, lineno)
+                )
 
             # Check the "True" branch
             if (
@@ -351,12 +361,12 @@ class AstInfo:
             True if it should be covered, False otherwise.
             Defaults to True if there is no conditional statement at lineno.
         """
-        for branch_node in self.ast.nodes_of_class(If | For | While):
+        for branch_node in self.ast.nodes_of_class(If | For | While | MatchCase):
             if branch_node.fromlineno == lineno or (
                 isinstance(branch_node, If | For) and lineno in self._else_lines(branch_node)
             ):
                 return self.should_cover_line(branch_node.fromlineno) and (
-                    isinstance(branch_node, While)
+                    isinstance(branch_node, While | MatchCase)
                     or (isinstance(branch_node, If) and branch_node.has_elif_block())
                     or all(
                         self.should_cover_line(else_lineno)

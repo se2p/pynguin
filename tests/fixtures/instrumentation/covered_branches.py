@@ -67,3 +67,29 @@ def no_cover_for_else(x: int) -> int:
     else:  # pynguin: no cover
         print(-1)
     return x
+
+def no_cover_match(x: int) -> str:
+    match x:  # pynguin: no cover
+        case 1:
+            a = 1
+        case _:
+            a = 0
+    return str(a) * 2
+
+def no_cover_case(x: int) -> int:
+    match x:
+        case 1:  # pynguin: no cover
+            return 1
+        case 2:
+            return 2
+        case _:
+            return 0
+
+def no_cover_case_only_catchall(x: int) -> str:
+    a = -1
+    match x:
+        case 1:  # pynguin: no cover
+            a = 1
+        case _:
+            a = 0
+    return str(a)
