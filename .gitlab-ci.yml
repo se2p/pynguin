@@ -215,6 +215,7 @@ cluster-experiment:
   stage: deploy
   when: manual
   image: python:3.10-bookworm
+  timeout: 2h
   variables:
     USER: "pynguin-tool"
     HOST: "defender.fim.uni-passau.de"
