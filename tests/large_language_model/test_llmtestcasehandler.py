@@ -11,7 +11,15 @@ from unittest.mock import patch
 
 import pytest
 
+import pynguin.configuration as config
+
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.ga.computations import BranchDistanceTestSuiteFitnessFunction
+from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmagent import is_api_key_present
+from pynguin.large_language_model.llmagent import is_api_key_valid
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
+from pynguin.large_language_model.parsing.helpers import unparse_test_case
 
 
 @pytest.fixture
@@ -108,3 +116,51 @@ def test_get_test_case_chromosomes_from_llm_results_success(handler, mock_model)
         assert result[0] == mock_chromosome
         mock_chromosome.add_fitness_function.assert_called_once_with(fitness_function)
         mock_chromosome.add_coverage_function.assert_called_once_with(coverage_function)
+
+
+LLM_RESPONSE = """
+Some LLM text:
+
+```python
+import pytest
+from queue_example import Queue
+
+def test_initialization():
+    queue = Queue(5)
+    assert queue.max == 5
+```
+
+### Some LLM explanations"""
+
+EXPECTED = """def test_generated_function():
+    int_0 = 5
+    queue_0 = module_0.Queue(int_0)
+    var_0 = queue_0.max
+    var_1 = var_0 == int_0
+    assert var_1 is True"""
+
+
+@pytest.mark.skipif(
+    not is_api_key_present() or not is_api_key_valid(),
+    reason="OpenAI API key is not provided in the configuration.",
+)
+def test_integration_get_test_case_chromosomes(executor_mock):
+    test_cluster = generate_test_cluster("tests.fixtures.examples.queue")
+    test_factory = MagicMock()
+    fitness_function = BranchDistanceTestSuiteFitnessFunction(executor_mock)
+    coverage_function = MagicMock()
+    model = LLMAgent()
+    handler = LLMTestCaseHandler(model)
+    config.configuration.test_case_output.assertion_generation = config.AssertionGenerator.LLM
+
+    result = handler.get_test_case_chromosomes_from_llm_results(
+        LLM_RESPONSE,
+        test_cluster,
+        test_factory,
+        [fitness_function],
+        [coverage_function],
+    )
+
+    unparsed = unparse_test_case(result[0].test_case)
+
+    assert unparsed == EXPECTED
