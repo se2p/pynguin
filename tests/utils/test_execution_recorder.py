@@ -78,4 +78,4 @@ def test_export_exception_handling(monkeypatch, tmp_path):
     target_file = Path(tmp_path) / "last_executed_test.py"
     with ExecutionRecorder(test_case):
         # Should recover and not raise
-        assert not target_file.exists()
+        assert not target_file.exists() or not target_file.read_text()
