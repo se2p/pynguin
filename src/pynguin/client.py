@@ -11,12 +11,16 @@ from __future__ import annotations
 import logging
 import time
 
-import pynguin.configuration as config
+from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
 from pynguin.master import MasterProcess
 from pynguin.master import WorkerTask
 from pynguin.utils.configuration_writer import convert_config_to_dict
+
+
+if TYPE_CHECKING:
+    import pynguin.configuration as config
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,7 +83,7 @@ class PynguinClient:
 
         try:
             # Serialize configuration for worker
-            config_dict = convert_config_to_dict(config.configuration)
+            config_dict = convert_config_to_dict(self.configuration)
 
             # Create task
             task = WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=config_dict)

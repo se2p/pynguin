@@ -52,6 +52,18 @@ class WorkerResult:
     traceback_str: str = ""
 
 
+@dataclass
+class LogRecord:
+    """Log record from worker process."""
+
+    level: int
+    msg: str
+    args: tuple
+    name: str
+    created: float
+    worker_pid: int
+
+
 class MasterProcess:
     """Master process that manages worker processes for test generation."""
 
@@ -59,10 +71,12 @@ class MasterProcess:
         """Initialize master process."""
         self.task_queue: multiprocessing.Queue = multiprocessing.Queue()
         self.result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        self.log_queue: multiprocessing.Queue = multiprocessing.Queue()
         self.worker_process: multiprocessing.Process | None = None
         self.restart_count = 0
         self.is_running = False
         self.monitor_thread: threading.Thread | None = None
+        self.log_listener_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
 
     def start_worker(self) -> bool:
@@ -82,7 +96,9 @@ class MasterProcess:
 
             _LOGGER.info("Starting new worker process")
             self.worker_process = multiprocessing.Process(
-                target=worker_main, args=(self.task_queue, self.result_queue), name="PynguinWorker"
+                target=worker_main,
+                args=(self.task_queue, self.result_queue, self.log_queue),
+                name="PynguinWorker",
             )
             self.worker_process.start()
 
@@ -175,6 +191,12 @@ class MasterProcess:
         )
         self.monitor_thread.start()
 
+        # Start log listener thread
+        self.log_listener_thread = threading.Thread(
+            target=self._log_listener, name="LogListener", daemon=True
+        )
+        self.log_listener_thread.start()
+
         _LOGGER.info("Master process started successfully")
         return True
 
@@ -199,6 +221,10 @@ class MasterProcess:
         # Wait for monitor thread
         if self.monitor_thread and self.monitor_thread.is_alive():
             self.monitor_thread.join(timeout=2)
+
+        # Wait for log listener thread
+        if self.log_listener_thread and self.log_listener_thread.is_alive():
+            self.log_listener_thread.join(timeout=2)
 
         _LOGGER.info("Master process stopped")
 
@@ -226,13 +252,50 @@ class MasterProcess:
 
         _LOGGER.info("Worker monitoring stopped")
 
+    def _log_listener(self) -> None:
+        """Listen for log records from worker process and log them in master."""
+        _LOGGER.info("Starting log listener")
 
-def worker_main(task_queue: multiprocessing.Queue, result_queue: multiprocessing.Queue) -> None:
+        try:
+            while self.is_running and not self._shutdown_event.is_set():
+                try:
+                    # Try to get a log record with a short timeout
+                    log_record = self.log_queue.get(timeout=0.5)
+
+                    # Create a logger for the worker's logger name
+                    worker_logger = logging.getLogger(f"worker.{log_record.name}")
+
+                    # Format the message with worker PID prefix
+                    formatted_msg = f"[Worker-{log_record.worker_pid}] {log_record.msg}"
+
+                    # Log the message at the appropriate level
+                    worker_logger.log(log_record.level, formatted_msg, *log_record.args)
+
+                except queue.Empty:  # noqa: PERF203 TODO: improve?
+                    # No log records available, continue
+                    continue
+                except Exception as e:  # noqa: BLE001
+                    _LOGGER.error("Error processing log record: %s", e)
+                    continue
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.error("Fatal error in log listener: %s", e)
+
+        _LOGGER.info("Log listener stopped")
+
+
+def worker_main(  # noqa: C901
+    task_queue: multiprocessing.Queue,
+    result_queue: multiprocessing.Queue,
+    log_queue: multiprocessing.Queue,
+) -> None:
     """Main function for worker process.
+
+    TODO: simplify
 
     Args:
         task_queue: Queue to receive tasks from master
         result_queue: Queue to send results back to master
+        log_queue: Queue to send log records back to master
     """
 
     # Set up signal handlers for graceful shutdown
@@ -242,6 +305,44 @@ def worker_main(task_queue: multiprocessing.Queue, result_queue: multiprocessing
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
+
+    # Set up logging to forward logs to master process
+    class QueueHandler(logging.Handler):
+        """Logging handler that sends log records to a queue."""
+
+        def __init__(self, queue: multiprocessing.Queue):
+            super().__init__()
+            self.queue = queue
+            self.worker_pid = multiprocessing.current_process().pid
+
+        def emit(self, record):
+            """Send log record to queue."""
+            try:
+                # Create a simple log record that can be pickled
+                log_record = LogRecord(
+                    level=record.levelno,
+                    msg=record.getMessage(),
+                    args=(),  # Already formatted in getMessage()
+                    name=record.name,
+                    created=record.created,
+                    worker_pid=self.worker_pid,
+                )
+                self.queue.put_nowait(log_record)
+            except Exception:
+                _LOGGER.exception("Failed to send log record to master")
+
+    # Add the queue handler to the root logger in the worker process
+    queue_handler = QueueHandler(log_queue)
+    queue_handler.setLevel(logging.DEBUG)
+
+    # Get the root logger and configure it properly
+    root_logger = logging.getLogger()
+
+    # Set the root logger level to DEBUG to capture all logs
+    root_logger.setLevel(logging.DEBUG)
+
+    # Add our queue handler
+    root_logger.addHandler(queue_handler)
 
     _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
 
