@@ -938,6 +938,9 @@ class Configuration:
     )
     """Local search configuration."""
 
+    use_master_worker: bool = True
+    """Use master-worker architecture for fault tolerance."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(

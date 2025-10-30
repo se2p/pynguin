@@ -321,7 +321,7 @@ class _SearchStatistics:
         output_variables_map: dict[str, sb.OutputVariable] = {}
 
         for variable in config.configuration.statistics_output.output_variables:
-            variable_name = variable.name
+            variable_name = variable.name if hasattr(variable, "name") else str(variable)
             if variable_name in self._output_variables:
                 # Values directly sent
                 output_variables_map[variable_name] = self._output_variables[variable_name]

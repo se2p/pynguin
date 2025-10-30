@@ -28,6 +28,7 @@ from rich.traceback import install
 import pynguin.configuration as config
 
 from pynguin.__version__ import __version__
+from pynguin.client import run_pynguin_with_master_worker
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
 from pynguin.utils.configuration_writer import write_configuration
@@ -35,6 +36,9 @@ from pynguin.utils.configuration_writer import write_configuration
 
 if TYPE_CHECKING:
     import argparse
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
@@ -208,7 +212,16 @@ to see why this happens and what you must do to prevent it."""
 
     set_configuration(parsed.config)
     write_configuration()
-    if console is not None:
+
+    # Choose execution mode based on configuration
+    if parsed.config.use_master_worker:
+        _LOGGER.info("Using master-worker architecture")
+        if console is not None:
+            with console.status("Running Pynguin with master-worker architecture..."):
+                return run_pynguin_with_master_worker(parsed.config).value
+        else:
+            return run_pynguin_with_master_worker(parsed.config).value
+    elif console is not None:
         with console.status("Running Pynguin..."):
             return run_pynguin().value
     else:
