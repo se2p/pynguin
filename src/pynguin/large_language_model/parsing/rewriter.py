@@ -888,14 +888,21 @@ def extract_function_defs(module_node: ast.Module) -> list[ast.FunctionDef]:
     rewriter = TestClassRewriter()
     rewriter.visit(module_node)
 
-    # Use a list comprehension to collect all test functions
-    return [
-        child_node
-        for node in module_node.body
-        if isinstance(node, ast.ClassDef)
-        for child_node in node.body
-        if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_")
-    ]
+    test_functions = []
+    for node in module_node.body:
+        # Top-level test functions
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+            test_functions.append(node)
+
+        # Test methods inside classes
+        elif isinstance(node, ast.ClassDef):
+            test_functions.extend(
+                child_node
+                for child_node in node.body
+                if isinstance(child_node, ast.FunctionDef) and child_node.name.startswith("test_")
+            )
+
+    return test_functions
 
 
 def process_function_defs(
