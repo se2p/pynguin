@@ -137,8 +137,8 @@ class OnceOpeningExecutionRecorder:
             return
 
         try:
-            pickle.dump(test_case, self._file)
-            self._file.flush()
+            pickle.dump(test_case, self._file)  # type: ignore[arg-type]
+            self._file.flush()  # type: ignore[union-attr]
 
         except Exception as e:  # noqa: BLE001
             _LOGGER.warning("Failed to pickle dump test case: %s", e)
