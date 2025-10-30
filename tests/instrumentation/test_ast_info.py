@@ -237,7 +237,41 @@ def test_ast_info_from_covered_branches(scope_line, expected_lines, expected_bra
     "scope_line, expected_lines",
     [
         # scope_line, dict of line: expected_should_cover
-        (8, {9: True, 10: False, 12: True, 13: True, 14: True, 15: True, 16: False, 18: True}),
+        (
+            8,
+            {9: True, 10: False, 12: True, 13: True, 14: True, 15: True, 16: False, 18: True},
+        ),
+        (
+            20,
+            {21: True, 22: True, 23: True, 24: False, 25: False, 26: True},
+        ),
+        (
+            28,
+            {29: True, 30: True, 31: False, 32: False, 33: True},
+        ),
+        (
+            35,
+            {36: True, 37: True, 38: True, 39: True, 40: True, 41: False, 42: False, 43: True},
+        ),
+        (
+            45,
+            {46: True, 47: True, 48: True, 49: True, 50: True, 51: False, 52: False, 53: True},
+        ),
+        (
+            55,
+            {
+                56: True,
+                57: True,
+                58: True,
+                59: False,
+                60: False,
+                61: True,
+                62: True,
+                63: True,
+                64: True,
+                65: True,
+            },
+        ),
     ],
 )
 def test_ast_info_from_covered_lines(scope_line, expected_lines):
@@ -250,7 +284,7 @@ def test_ast_info_from_covered_lines(scope_line, expected_lines):
 
     assert module_ast_info is not None
     assert not module_ast_info.only_cover_lines
-    assert module_ast_info.no_cover_lines == {10, 16}
+    assert module_ast_info.no_cover_lines == {10, 16, 24, 31, 41, 51, 59}
 
     scope = module_ast_info.get_scope(scope_line)
     assert scope is not None
