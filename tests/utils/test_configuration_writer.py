@@ -19,6 +19,7 @@ from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TOML
 from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
 from pynguin.utils.configuration_writer import convert_config_to_dict
 from pynguin.utils.configuration_writer import extract_parameter_list_from_config
+from pynguin.utils.configuration_writer import read_config_from_dict
 from pynguin.utils.configuration_writer import write_configuration
 
 
@@ -32,6 +33,7 @@ ignore_modules = []
 ignore_methods = []
 subprocess = false
 subprocess_if_recommended = true
+use_master_worker = true
 
 [test_case_output]
 output_path = ""
@@ -307,7 +309,7 @@ def expected_txt(tmp_path):
  'ls_max_different_type_mutations=10, '
  'ls_different_type_primitive_probability=0.3, '
  'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
- 'ls_llm_whole_module=False))')"""  # noqa:E501
+ 'ls_llm_whole_module=False), use_master_worker=True)')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
@@ -778,6 +780,12 @@ def test_convert_object_with_dict():
     expected_output = {"option": "value"}
 
     assert convert_config_to_dict(obj) == expected_output
+
+
+def test_convert_forth_and_back():
+    config_dict = convert_config_to_dict(config.configuration)
+    read_config = read_config_from_dict(config_dict)
+    assert config.configuration == read_config
 
 
 def test_ignore_callable_and_dunder_methods():
