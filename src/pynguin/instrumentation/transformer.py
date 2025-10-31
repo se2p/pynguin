@@ -340,6 +340,9 @@ class AstInfo:
             if lineno < branch_node.fromlineno or branch_node.tolineno < lineno:
                 continue
 
+            # Handle the "Match" nodes by checking that they are in the cover lines and
+            # by checking that the branch in which the line number is contained is also
+            # in the cover lines.
             if isinstance(branch_node, Match) and (
                 branch_node.fromlineno in self.module.no_cover_lines
                 or any(
@@ -350,6 +353,9 @@ class AstInfo:
             ):
                 return False
 
+            # Handle the "True" branch of "If", "For" and "While" nodes and
+            # the "try" branch of "Try" and "TryStar" nodes by checking that the
+            # branch in which the line number is contained is in the cover lines.
             if (
                 isinstance(branch_node, If | For | While | Try | TryStar)
                 and self._in_body(branch_node.body, lineno)
@@ -357,6 +363,9 @@ class AstInfo:
             ):
                 return False
 
+            # Handle the "except", "else" and "finally" branches of "Try" and "TryStar" nodes
+            # by checking that the branch in which the line number is contained is in the
+            # cover lines.
             if isinstance(branch_node, Try | TryStar) and (  # noqa: PLR0916
                 any(
                     handler_node.fromlineno in self.module.no_cover_lines
@@ -380,6 +389,11 @@ class AstInfo:
             ):
                 return False
 
+            # Handle the "False" branch of "If", "For" and "While" nodes by checking that
+            # the branch in which the line number is contained is in the cover lines.
+            # The "elif" branches are ignored because they are already covered by the "True"
+            # branches, and if they were in the `no_cover_lines`, it would also influence
+            # all the "elif" and "else" branches they contain.
             if (
                 isinstance(branch_node, If | For | While)
                 and (not isinstance(branch_node, If) or not branch_node.has_elif_block())
@@ -1224,11 +1238,16 @@ class InstrumentationTransformer:
         if ast_info is not None:
             # Remove nodes that should not be covered
             for node in tuple(cdg.graph):
+                # Skip artificial nodes and nodes without "real" instructions (e.g., TryBegin, ...)
                 if not isinstance(node, cf.BasicBlockNode) or all(
                     not isinstance(instr, Instr) for instr in node.basic_block
                 ):
                     continue
 
+                # Skip nodes that have at least one instruction that should be covered and
+                # whose last instruction is either not a conditional statement or a conditional
+                # statement that should be covered. `should_cover_conditional_statement`
+                # defaults to True if there is no conditional statement at the line.
                 if (
                     (last_instr := node.try_get_instruction(-1)) is None
                     or not isinstance(last_instr.lineno, int)
