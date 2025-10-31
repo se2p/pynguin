@@ -11,7 +11,15 @@ from unittest.mock import patch
 
 import pytest
 
+import pynguin.configuration as config
+
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.ga.computations import BranchDistanceTestSuiteFitnessFunction
+from pynguin.large_language_model.llmagent import LLMAgent
+from pynguin.large_language_model.llmagent import is_api_key_present
+from pynguin.large_language_model.llmagent import is_api_key_valid
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
+from pynguin.large_language_model.parsing.helpers import unparse_test_case
 
 
 @pytest.fixture
@@ -108,3 +116,104 @@ def test_get_test_case_chromosomes_from_llm_results_success(handler, mock_model)
         assert result[0] == mock_chromosome
         mock_chromosome.add_fitness_function.assert_called_once_with(fitness_function)
         mock_chromosome.add_coverage_function.assert_called_once_with(coverage_function)
+
+
+LLM_RESPONSE = """
+Some LLM text:
+
+```python
+import pytest
+from queue_example import Queue
+
+def test_initialization():
+    queue = Queue(5)
+    assert queue.max == 5
+```
+
+### Some LLM explanations"""
+
+EXPECTED = """def test_generated_function():
+    int_0 = 5
+    queue_0 = module_0.Queue(int_0)
+    var_0 = queue_0.max
+    var_1 = var_0 == int_0
+    assert var_1 is True"""
+
+
+LLM_RESPONSE_2 = """
+# LLM generated and rewritten (in Pynguin format) test cases
+# Date and time: ...
+
+To create unit tests for the `Queue` class in the provided module, ...
+
+```python
+import pytest
+from queue_example import Queue  # Adjust the import based on the actual path.
+
+def test_queue_initialization():
+    # Test initialization with valid size
+    q = Queue(5)
+    assert q.max == 5
+    assert q.size == 0
+    assert q.head == 0
+    assert q.tail == 0
+
+    # Test initialization with invalid size
+    with pytest.raises(AssertionError):
+        Queue(0)
+    with pytest.raises(AssertionError):
+        Queue(-1)
+```
+
+### Explanation of Unit Tests
+..."""
+
+EXPECTED_2 = """def test_generated_function():
+    int_0 = 5
+    queue_0 = module_0.Queue(int_0)
+    var_0 = queue_0.max
+    var_1 = var_0 == int_0
+    assert var_1 is True
+    var_2 = queue_0.size
+    int_1 = 0
+    var_3 = var_2 == int_1
+    assert var_3 is True
+    var_4 = queue_0.head
+    var_5 = var_4 == int_1
+    assert var_5 is True
+    var_6 = queue_0.tail
+    var_7 = var_6 == int_1
+    assert var_7 is True
+    int_2 = 0
+    queue_1 = module_0.Queue(int_2)
+    int_3 = -1
+    queue_2 = module_0.Queue(int_3)"""
+
+
+@pytest.mark.skipif(
+    not is_api_key_present() or not is_api_key_valid(),
+    reason="OpenAI API key is not provided in the configuration.",
+)
+@pytest.mark.parametrize(
+    ("llm_response", "expected_unparsed"), [(LLM_RESPONSE, EXPECTED), (LLM_RESPONSE_2, EXPECTED_2)]
+)
+def test_integration_get_test_case_chromosomes(executor_mock, llm_response, expected_unparsed):
+    test_cluster = generate_test_cluster("tests.fixtures.examples.queue")
+    test_factory = MagicMock()
+    fitness_function = BranchDistanceTestSuiteFitnessFunction(executor_mock)
+    coverage_function = MagicMock()
+    model = LLMAgent()
+    handler = LLMTestCaseHandler(model)
+    config.configuration.test_case_output.assertion_generation = config.AssertionGenerator.LLM
+
+    test_case_crs = handler.get_test_case_chromosomes_from_llm_results(
+        llm_response,
+        test_cluster,
+        test_factory,
+        [fitness_function],
+        [coverage_function],
+    )
+
+    unparsed = unparse_test_case(test_case_crs[0].test_case)
+
+    assert unparsed == expected_unparsed
