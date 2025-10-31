@@ -125,7 +125,7 @@ def test_case_0():
     )
 
 
-def test_invalid_export_sequence(exportable_test_case, tmp_path):
+def test_invalid_export(exportable_test_case, tmp_path):
     path = tmp_path / "invalid.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case.accept(exporter)
