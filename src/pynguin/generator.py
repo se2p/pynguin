@@ -620,7 +620,7 @@ def _run() -> ReturnCode:  # noqa: C901
         try:
             coverage_report = get_coverage_report(
                 generation_result,
-                executor,
+                executor.subject_properties,
                 tracked_metrics,
             )
             render_coverage_report(
