@@ -123,3 +123,60 @@ Pynguin requires a second test execution, but allows for refining parameter type
 .. _SBSE 2024 repository: https://github.com/se2p/sbse2024
 .. _Search-Based Test Generation - Part 1: https://github.com/se2p/sbse2024/blob/main/Search-Based%20Test%20Generation%20-%20Part%201.ipynb
 .. _Search-Based Test Generation - Part 2: https://github.com/se2p/sbse2024/blob/main/Search-Based%20Test%20Generation%20-%20Part%202.ipynb
+
+Master-Worker Architecture
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+The master-worker architecture provides fault-recovering execution model
+for Pynguin's test generation process. It isolates the core test generation logic
+into a separate worker process, which is managed and monitored by a master process.
+This prevents the main Pynguin application from crashing if the test generation
+process fails unexpectedly (e.g., due to a segmentation fault during threaded
+execution) and allows for automatic restart (no recovery) of test generation.
+
+Components
+^^^^^^^^^^
+
+**PynguinClient**
+
+This is the main public interface. It simplifies the interaction with the
+master-worker system. The client is responsible for starting and stopping the
+``MasterProcess`` and submitting the initial test generation task.
+
+**MasterProcess**
+
+This is the central coordinator. It does not perform any test generation itself.
+Its responsibilities include:
+
+- Spawning and terminating the worker process.
+- Monitoring the worker's health. If the worker crashes, the master restarts it.
+- Managing communication queues for tasks, results, and logs between the client
+  and the worker.
+- Automatically adjusting the configuration (e.g., remaining search time) after
+  a worker crash.
+- Dynamically enabling a more robust subprocess execution mode within the worker
+  if repeated crashes occur.
+
+**worker_main**
+
+This function runs in a separate, dedicated process. It is the "workhorse" that
+performs the actual test generation.
+
+- It waits for a task from the master via a queue.
+- It executes ``run_pynguin`` with the provided configuration.
+- It sends results (success, error, or timeout) and log messages back to the
+  master through separate queues.
+
+Workflow
+^^^^^^^^
+
+1. A ``PynguinClient`` is created, which in turn initializes a ``MasterProcess``.
+2. The client starts the master, which spawns the first worker process.
+3. The client calls ``generate_tests``, passing the configuration to the master.
+4. The master sends a ``WorkerTask`` to the worker process.
+5. The worker executes the task. During execution, it sends log records back to
+   the master, which forwards them to the main logger.
+6. Upon completion (or failure), the worker sends a ``WorkerResult`` back to the
+   master.
+7. The client retrieves this result from the master and returns the final status.
+8. If the worker process dies at any point, the ``MasterProcess`` detects this,
+   restarts the worker, and resubmits the task with an adjusted configuration.
