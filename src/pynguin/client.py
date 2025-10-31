@@ -85,6 +85,18 @@ class PynguinClient:
             # Serialize configuration for worker
             config_dict = convert_config_to_dict(self.configuration)
 
+            # Override subprocess configuration for master-worker architecture behavior:
+            # If subprocess_if_recommended is True and use_master_worker is True,
+            # start with threaded execution (subprocess=False) and let the master
+            # handle switching to subprocess mode on crashes
+            if (
+                self.configuration.use_master_worker
+                and self.configuration.subprocess_if_recommended
+            ):
+                config_dict["subprocess"] = False
+                config_dict["subprocess_if_recommended"] = False
+                _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
+
             # Create task
             task = WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=config_dict)
 

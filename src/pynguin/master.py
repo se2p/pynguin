@@ -20,12 +20,15 @@ import traceback
 from dataclasses import dataclass
 from typing import Any
 
+from pynguin import config
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
 from pynguin.utils.configuration_writer import read_config_from_dict
 
 
 _LOGGER = logging.getLogger(__name__)
+
+DEFAULT_WORKER_ID = 10000
 
 
 @dataclass
@@ -78,6 +81,7 @@ class MasterProcess:
         self.monitor_thread: threading.Thread | None = None
         self.log_listener_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
+        self._force_subprocess_mode = False
 
     def start_worker(self) -> bool:
         """Start or restart worker process.
@@ -135,6 +139,12 @@ class MasterProcess:
                 _LOGGER.warning("Worker process is not alive, attempting restart")
                 if not self.start_worker():
                     return False
+
+            # Override subprocess mode in task config if we're forcing it
+            if self._force_subprocess_mode:
+                task.config_dict["subprocess"] = True
+                task.config_dict["subprocess_if_recommended"] = False
+                _LOGGER.debug("Forcing subprocess mode for task %s", task.task_id)
 
             _LOGGER.info("Submitting task %s to worker", task.task_id)
             self.task_queue.put(task, timeout=5)
@@ -238,6 +248,17 @@ class MasterProcess:
                     _LOGGER.warning("Worker process died, restarting (%d)", self.restart_count + 1)
                     self.restart_count += 1
 
+                    if (
+                        self.restart_count >= 1
+                        and config.configuration.use_master_worker
+                        and config.configuration.subprocess_if_recommended
+                        and not self._force_subprocess_mode
+                    ):
+                        _LOGGER.info(
+                            "Enabling subprocess mode after worker crash for fault tolerance"
+                        )
+                        self._force_subprocess_mode = True
+
                     if not self.start_worker():
                         _LOGGER.error("Failed to restart worker process")
                         break
@@ -313,7 +334,7 @@ def worker_main(  # noqa: C901
         def __init__(self, queue: multiprocessing.Queue):
             super().__init__()
             self.queue = queue
-            self.worker_pid = multiprocessing.current_process().pid
+            self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
 
         def emit(self, record):
             """Send log record to queue."""
