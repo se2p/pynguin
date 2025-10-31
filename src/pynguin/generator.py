@@ -609,6 +609,8 @@ def _run() -> ReturnCode:  # noqa: C901
         algorithm, executor, generation_result, constant_provider
     )
 
+    executor.subject_properties.instrumentation_tracer.disable()
+
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
