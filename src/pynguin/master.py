@@ -78,11 +78,45 @@ class MasterProcess:
         self.worker_process: multiprocessing.Process | None = None
         self.restart_count = 0
         self.is_running = False
+        self._current_task_start_time = None
         self.monitor_thread: threading.Thread | None = None
         self.log_listener_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._force_subprocess_mode = False
         self._config_dict = None
+
+    def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
+        """Adjust the search time in config after a worker crash.
+
+        There are no statistics for the used search_time, thus we need to use the elapsed
+        time instead. Furthermore, using search_time might result in an endless
+        setup-no_search-shutdown loop.
+
+        Args:
+            elapsed_time: Time consumed by the crashed worker
+        """
+        if not self._config_dict:
+            return
+
+        # Get current search time from config
+        current_search_time = self._config_dict.get("stopping", {}).get("maximum_search_time", 0)
+
+        if current_search_time > 0:
+            # Reduce search time by elapsed time
+            remaining_time = max(current_search_time - elapsed_time, 0.0)
+
+            # Update the nested configuration
+            if "stopping" not in self._config_dict:
+                self._config_dict["stopping"] = {}
+            self._config_dict["stopping"]["maximum_search_time"] = int(remaining_time)
+
+            _LOGGER.info(
+                "Adjusted maximum_search_time from %d to %d seconds "
+                "(%.1f seconds consumed by crashed worker)",
+                current_search_time,
+                int(remaining_time),
+                elapsed_time,
+            )
 
     def create_task(self) -> WorkerTask:
         """Create a new worker process.
@@ -163,6 +197,7 @@ class MasterProcess:
                 _LOGGER.debug("Forcing subprocess mode.")
 
             task = self.create_task()
+            self._current_task_start_time = time.time()
             _LOGGER.info("Submitting task %s to worker", task.task_id)
             self.task_queue.put(task, timeout=5)
             return True
@@ -262,6 +297,22 @@ class MasterProcess:
         while self.is_running and not self._shutdown_event.is_set():
             try:
                 if not self.worker_process or not self.worker_process.is_alive():
+                    # Calculate elapsed time if we have a start time
+                    if self._current_task_start_time is not None:
+                        elapsed_time = time.time() - self._current_task_start_time
+                        self._adjust_search_time_after_crash(elapsed_time)
+
+                    if self._config_dict.get("stopping", {}).get("maximum_search_time", 0) <= 0:
+                        _LOGGER.warning("Maximum search time is zero, aborting")
+                        self.result_queue.put(
+                            WorkerResult(
+                                task_id="unknown",
+                                status="timeout",
+                                error_message="Maximum search time reached after worker crash",
+                            )
+                        )
+                        break
+
                     _LOGGER.warning("Worker process died, restarting (%d)", self.restart_count + 1)
                     self.restart_count += 1
 
@@ -280,6 +331,9 @@ class MasterProcess:
                         _LOGGER.error("Failed to restart worker process")
                         break
 
+                    # Record the start time for the new task
+                    self._current_task_start_time = time.time()
+
                     if not self.run(config_dict=self._config_dict):
                         _LOGGER.error("Failed to submit test generation task")
                         break
@@ -295,7 +349,7 @@ class MasterProcess:
         _LOGGER.info("Worker monitoring stopped")
 
     def _log_listener(self) -> None:
-        """Listen for log records from worker process and log them in master."""
+        """Listen for log records from a worker process and log them in master."""
         _LOGGER.info("Starting log listener")
 
         try:
