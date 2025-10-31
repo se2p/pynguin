@@ -422,7 +422,8 @@ class AstInfo:
         """
         for branch_node in self.ast.nodes_of_class(If | For | While | MatchCase):
             if branch_node.fromlineno == lineno or (
-                isinstance(branch_node, If | For) and lineno in self._else_lines(branch_node)
+                isinstance(branch_node, If | For | While)
+                and lineno in self._else_lines(branch_node)
             ):
                 return self.should_cover_line(branch_node.fromlineno) and (
                     isinstance(branch_node, MatchCase)
