@@ -98,6 +98,12 @@ class MasterProcess:
                     _LOGGER.warning("Force killing worker process")
                     self.worker_process.kill()
 
+            # Recreate queues to ensure fresh communication channels for the new worker
+            _LOGGER.info("Recreating communication queues for new worker")
+            self.task_queue = multiprocessing.Queue()
+            self.result_queue = multiprocessing.Queue()
+            self.log_queue = multiprocessing.Queue()
+
             _LOGGER.info("Starting new worker process")
             self.worker_process = multiprocessing.Process(
                 target=worker_main,
