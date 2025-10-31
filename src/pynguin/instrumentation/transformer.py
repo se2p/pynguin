@@ -321,7 +321,9 @@ class AstInfo:
         """Check if a line number should be covered.
 
         This means that the instruction itself must be in the cover lines, as well as
-        all conditional instructions in which it is contained.
+        all conditional instructions in which it is contained. In other words, if the instruction
+        itself or any of its conditional instructions are part of the `no_cover_lines`, the line
+        should not be covered.
 
         Args:
             lineno: The line number.
