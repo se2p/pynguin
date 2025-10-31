@@ -28,9 +28,9 @@ from rich.traceback import install
 import pynguin.configuration as config
 
 from pynguin.__version__ import __version__
-from pynguin.client import run_pynguin_with_master_worker
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
+from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
 
 

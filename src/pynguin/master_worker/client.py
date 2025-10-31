@@ -13,7 +13,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
-from pynguin.master import MasterProcess
+from pynguin.master_worker.master import MasterProcess
 from pynguin.utils.configuration_writer import convert_config_to_dict
 
 
