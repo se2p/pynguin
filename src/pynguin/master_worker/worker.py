@@ -28,6 +28,31 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_WORKER_ID = 10000
 
 
+class _QueueHandler(logging.Handler):
+    """Logging handler that sends log records to a queue."""
+
+    def __init__(self, queue: multiprocessing.Queue):
+        super().__init__()
+        self.queue = queue
+        self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
+
+    def emit(self, record):
+        """Send log record to the queue."""
+        try:
+            # Create a simple log record that can be pickled
+            log_record = LogRecord(
+                level=record.levelno,
+                msg=record.getMessage(),
+                args=(),  # Already formatted in getMessage()
+                name=record.name,
+                created=record.created,
+                worker_pid=self.worker_pid,
+            )
+            self.queue.put_nowait(log_record)
+        except Exception:
+            _LOGGER.exception("Failed to send log record to master")
+
+
 @dataclass
 class WorkerResult:
     """Result from worker process execution."""
@@ -64,22 +89,9 @@ class WorkerTask:
             self.task_id = f"task_{time.time()}_{id(self)}"
 
 
-def worker_main(  # noqa: C901
-    task_queue: multiprocessing.Queue,
-    result_queue: multiprocessing.Queue,
-    log_queue: multiprocessing.Queue,
-) -> None:
-    """Entry point for worker processes.
+def _setup_signal_handlers() -> None:
+    """Set up signal handlers for graceful shutdown."""
 
-    TODO: simplify
-
-    Args:
-        task_queue: Queue to receive tasks from master
-        result_queue: Queue to send results back to master
-        log_queue: Queue to send log records back to master
-    """
-
-    # Set up signal handlers for graceful shutdown
     def signal_handler(signum, _):
         _LOGGER.info("Worker process received signal %d, shutting down", signum)
         sys.exit(0)
@@ -87,33 +99,11 @@ def worker_main(  # noqa: C901
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Set up logging to forward logs to the master process
-    class QueueHandler(logging.Handler):
-        """Logging handler that sends log records to a queue."""
 
-        def __init__(self, queue: multiprocessing.Queue):
-            super().__init__()
-            self.queue = queue
-            self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
-
-        def emit(self, record):
-            """Send log record to the queue."""
-            try:
-                # Create a simple log record that can be pickled
-                log_record = LogRecord(
-                    level=record.levelno,
-                    msg=record.getMessage(),
-                    args=(),  # Already formatted in getMessage()
-                    name=record.name,
-                    created=record.created,
-                    worker_pid=self.worker_pid,
-                )
-                self.queue.put_nowait(log_record)
-            except Exception:
-                _LOGGER.exception("Failed to send log record to master")
-
+def _setup_worker_logging(log_queue: multiprocessing.Queue) -> None:
+    """Set up logging to forward logs to the master process."""
     # Add the queue handler to the root logger in the worker process
-    queue_handler = QueueHandler(log_queue)
+    queue_handler = _QueueHandler(log_queue)
     queue_handler.setLevel(logging.DEBUG)
 
     # Get the root logger and configure it properly
@@ -124,49 +114,6 @@ def worker_main(  # noqa: C901
 
     # Add our queue handler
     root_logger.addHandler(queue_handler)
-
-    _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
-
-    try:
-        while True:
-            try:
-                # Get task from queue with timeout
-                task = task_queue.get(timeout=1)
-                _LOGGER.info("Worker received task: %s", task.task_id)
-
-                # Execute the task
-                result = _execute_task(task)
-
-                # Send result back
-                result_queue.put(result)
-                _LOGGER.info("Worker completed task: %s", task.task_id)
-
-            except queue.Empty:  # noqa: PERF203 TODO: remove?
-                # Continue waiting for tasks
-                continue
-            except Exception as e:  # noqa: BLE001
-                task_id = "unknown"
-                if "task" in locals() and hasattr(task, "task_id"):
-                    task_id = task.task_id
-
-                error_result = WorkerResult(
-                    task_id=task_id,
-                    status="error",
-                    error_message=str(e),
-                    traceback_str=traceback.format_exc(),
-                )
-                try:
-                    result_queue.put(error_result)
-                except Exception:  # noqa: BLE001
-                    _LOGGER.error("Failed to send error result to master")
-                _LOGGER.error("Worker error: %s", e)
-
-    except KeyboardInterrupt:
-        _LOGGER.info("Worker process interrupted")
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Worker process crashed: %s", e)
-    finally:
-        _LOGGER.info("Worker process exiting")
 
 
 def _execute_task(task: WorkerTask) -> WorkerResult:
@@ -197,3 +144,75 @@ def _execute_task(task: WorkerTask) -> WorkerResult:
             error_message=str(e),
             traceback_str=traceback.format_exc(),
         )
+
+
+def _process_task(
+    task_queue: multiprocessing.Queue,
+    result_queue: multiprocessing.Queue,
+) -> bool:
+    """Process a single task from the queue.
+
+    Returns:
+        True if a task was processed, False if the queue was empty
+    """
+    try:
+        # Get task from queue with timeout
+        task = task_queue.get(timeout=1)
+        _LOGGER.info("Worker received task: %s", task.task_id)
+
+        # Execute the task
+        result = _execute_task(task)
+
+        # Send result back
+        result_queue.put(result)
+        _LOGGER.info("Worker completed task: %s", task.task_id)
+        return True
+
+    except queue.Empty:
+        # Continue waiting for tasks
+        return False
+    except Exception as e:  # noqa: BLE001
+        task_id = "unknown"
+        if "task" in locals() and hasattr(task, "task_id"):
+            task_id = task.task_id
+
+        error_result = WorkerResult(
+            task_id=task_id,
+            status="error",
+            error_message=str(e),
+            traceback_str=traceback.format_exc(),
+        )
+        try:
+            result_queue.put(error_result)
+        except Exception:  # noqa: BLE001
+            _LOGGER.error("Failed to send error result to master")
+        _LOGGER.error("Worker error: %s", e)
+        return True
+
+
+def worker_main(
+    task_queue: multiprocessing.Queue,
+    result_queue: multiprocessing.Queue,
+    log_queue: multiprocessing.Queue,
+) -> None:
+    """Entry point for worker processes.
+
+    Args:
+        task_queue: Queue to receive tasks from master
+        result_queue: Queue to send results back to master
+        log_queue: Queue to send log records back to master
+    """
+    _setup_signal_handlers()
+    _setup_worker_logging(log_queue)
+    _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
+
+    try:
+        while True:
+            _process_task(task_queue, result_queue)
+
+    except KeyboardInterrupt:
+        _LOGGER.info("Worker process interrupted")
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.error("Worker process crashed: %s", e)
+    finally:
+        _LOGGER.info("Worker process exiting")
