@@ -282,7 +282,7 @@ convention = "google"
 
 [tool.tox]
 requires = ["tox~=4.28"]
-env_list = ["3.10", "3.11", "3.12", "3.13"]
+env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.tox.env_run_base]
 skip_install = true

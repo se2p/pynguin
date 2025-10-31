@@ -271,3 +271,239 @@ def test_yield_instrumented(subject_properties: SubjectProperties, yield_fun_mod
 def test_yield(yield_control_flow_graph):
     cdg = ControlDependenceGraph.compute(yield_control_flow_graph)
     assert cdg.entry_node is not None
+
+
+@pytest.fixture
+def covered_branches_module():
+    covered_branches_module = importlib.import_module(
+        "tests.fixtures.instrumentation.covered_branches"
+    )
+    return importlib.reload(covered_branches_module)
+
+
+if sys.version_info >= (3, 14):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_while_id = "while initialisation (0) and 'return x' (3) depend on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (ArtificialNode.AUGMENTED_ENTRY, 1),
+        (1, 1),
+        (1, 4),
+        (ArtificialNode.AUGMENTED_ENTRY, 5),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (4) and 'while (x > 0)' (1) depend on 'while (x > 0)' (1) and"
+        "while initialisation (0), 'while (x > 0)' (1) and 'return x' (5) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
+elif sys.version_info >= (3, 13):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_while_id = "'return x' (3) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (4, 5),
+        (ArtificialNode.AUGMENTED_ENTRY, 6),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (6) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
+elif sys.version_info >= (3, 12):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_while_id = "'return x' (3) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (4, 5),
+        (ArtificialNode.AUGMENTED_ENTRY, 6),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (6) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 1),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (1) and 'return str(a)' (2) depend on root"
+elif sys.version_info >= (3, 11):
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_while_id = "'return x' (2) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (ArtificialNode.AUGMENTED_ENTRY, 5),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (5) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+        (ArtificialNode.AUGMENTED_ENTRY, 3),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (2) and 'return str(a)' (3) depend on root"
+else:
+    no_cover_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_while_id = "'return x' (2) depends on root"
+    no_cover_if_in_while_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 0),
+        (0, 3),
+        (0, 4),
+        (4, 3),
+        (4, 4),
+        (ArtificialNode.AUGMENTED_ENTRY, 5),
+    }
+    no_cover_if_in_while_id = (
+        "'print(-x)' (3) and 'while (x > 0)' (4) depend on 'while (x > 0)' (0, 4) and"
+        "'while (x > 0)' (0) and 'return x' (5) depend on root"
+    )
+    no_cover_case_only_catchall_values = {
+        (ArtificialNode.AUGMENTED_ENTRY, 1),
+        (ArtificialNode.AUGMENTED_ENTRY, 2),
+    }
+    no_cover_case_only_catchall_id = "'a = 0' (1) and 'return str(a)' (2) depend on root"
+
+
+@pytest.mark.parametrize(
+    "function_name, expected_deps",
+    [
+        pytest.param(
+            "no_cover_if",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 2),
+            },
+            id="'return y' (2) depends on root",
+        ),
+        pytest.param(
+            "no_cover_elif",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 0),
+                (0, 1),
+                (0, 4),
+            },
+            id="'return x' (1) and 'return 0' (4) depend on 'if x > 0' (0) and "
+            "'if x > 0' (0) depends on root",
+        ),
+        pytest.param(
+            "no_cover_else",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 1),
+            },
+            id="'return x' (1) depends on root",
+        ),
+        pytest.param(
+            "no_cover_nesting_if",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 4),
+            },
+            id="'return 0' (4) depends on root",
+        ),
+        pytest.param(
+            "no_cover_nested_if",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 0),
+                (0, 3),
+                (0, 4),
+            },
+            id="'return y' (3) depend on 'if x > 0' (0) and "
+            "'if x > 0' (0) and 'return 0' (4) depend on root",
+        ),
+        pytest.param(
+            "no_cover_while",
+            no_cover_while_values,
+            id=no_cover_while_id,
+        ),
+        pytest.param(
+            "no_cover_if_in_while",
+            no_cover_if_in_while_values,
+            id=no_cover_if_in_while_id,
+        ),
+        pytest.param(
+            "no_cover_for",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 3),
+            },
+            id="'return x' (3) depends on root",
+        ),
+        pytest.param(
+            "no_cover_for_else",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 2),
+                (ArtificialNode.AUGMENTED_ENTRY, 3),
+            },
+            id="'print(i)' (2), 'return x' (3) depend on root",
+        ),
+        pytest.param(
+            "no_cover_match",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 3),
+            },
+            id="'return str(a) * 2' (3) depends on root",
+        ),
+        pytest.param(
+            "no_cover_case",
+            {
+                (ArtificialNode.AUGMENTED_ENTRY, 2),
+                (2, 3),
+                (2, 4),
+            },
+            id="'return 2' (3) and 'return 0' (4) depend on 'case 2' (2) and "
+            "'case 2' (2) depends on root",
+        ),
+        pytest.param(
+            "no_cover_case_only_catchall",
+            no_cover_case_only_catchall_values,
+            id=no_cover_case_only_catchall_id,
+        ),
+    ],
+)
+def test_no_cover(
+    subject_properties: SubjectProperties,
+    covered_branches_module,
+    function_name,
+    expected_deps,
+):
+    adapter = BranchCoverageInstrumentation(subject_properties)
+    transformer = InstrumentationTransformer(subject_properties, [adapter])
+    instrument_function(transformer, getattr(covered_branches_module, function_name))
+    cdg = next(iter(subject_properties.existing_code_objects.values())).cdg
+    actual_deps = {
+        (
+            node if isinstance(node, ArtificialNode) else node.index,
+            succ if isinstance(succ, ArtificialNode) else succ.index,
+        )
+        for (node, succ) in cdg.graph.edges
+    }
+
+    assert actual_deps == expected_deps, cdg.dot
