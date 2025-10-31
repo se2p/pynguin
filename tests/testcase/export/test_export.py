@@ -6,6 +6,8 @@
 #
 
 
+from unittest import mock
+
 from pynguin.testcase import export
 
 
@@ -120,4 +122,30 @@ def test_case_0():
     float_1 = 0.3
     complex_2 = module_0.weighted_avg(complex_0, complex_1, float_0, float_1)
 """
+    )
+
+
+def test_invalid_export(exportable_test_case, tmp_path):
+    path = tmp_path / "invalid.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case.accept(exporter)
+
+    from black.parsing import InvalidInput  # noqa: PLC0415
+
+    with mock.patch("black.format_str", side_effect=InvalidInput("Invalid input")):
+        export.save_module_to_file(exporter.to_module(), path)
+
+    assert (
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import pytest
+import tests.fixtures.accessibles.accessible as module_0
+
+def test_case_0():
+    int_0 = 5
+    some_type_0 = module_0.SomeType(int_0)
+    assert some_type_0 == 5
+    float_0 = 42.23
+    float_1 = module_0.simple_function(float_0)
+    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
     )

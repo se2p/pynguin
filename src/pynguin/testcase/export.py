@@ -8,6 +8,7 @@
 
 import ast
 import dataclasses
+import logging
 import sys
 
 from pathlib import Path
@@ -15,6 +16,9 @@ from pathlib import Path
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -226,6 +230,11 @@ def save_module_to_file(
             # Import of black might cause problems if it is a SUT dependency,
             # so we only import it if we need it.
             import black  # noqa: PLC0415
+            import black.parsing  # noqa: PLC0415
 
-            output = black.format_str(output, mode=black.FileMode())
+            try:
+                output = black.format_str(output, mode=black.FileMode())
+            except black.parsing.InvalidInput as e:
+                _LOGGER.warning("Could not format the module '%s' with black: %s", target, e)
+
         file.write(output)
