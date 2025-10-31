@@ -83,7 +83,7 @@ class MasterProcess:
         self.log_listener_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._force_subprocess_mode = False
-        self._config_dict = None
+        self._config_dict: dict[str, Any] = {}
 
     def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
         """Adjust the search time in config after a worker crash.

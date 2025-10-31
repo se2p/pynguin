@@ -91,8 +91,8 @@ class PynguinClient:
                 self.configuration.use_master_worker
                 and self.configuration.subprocess_if_recommended
             ):
-                config_dict["subprocess"] = False
-                config_dict["subprocess_if_recommended"] = False
+                config_dict["subprocess"] = "False"
+                config_dict["subprocess_if_recommended"] = "False"
                 _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
 
             if not self.master.run(config_dict=config_dict):
