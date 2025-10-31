@@ -57,7 +57,7 @@ class WorkerResult:
 
 @dataclass
 class LogRecord:
-    """Log record from worker process."""
+    """Log record from a worker process."""
 
     level: int
     msg: str
@@ -71,17 +71,25 @@ class MasterProcess:
     """Master process that manages worker processes for test generation."""
 
     def __init__(self):
-        """Initialize master process."""
-        self.task_queue: multiprocessing.Queue = multiprocessing.Queue()
-        self.result_queue: multiprocessing.Queue = multiprocessing.Queue()
-        self.log_queue: multiprocessing.Queue = multiprocessing.Queue()
-        self.worker_process: multiprocessing.Process | None = None
-        self.restart_count = 0
-        self.is_running = False
-        self._current_task_start_time = None
-        self.monitor_thread: threading.Thread | None = None
-        self.log_listener_thread: threading.Thread | None = None
+        """Initialize the master process."""
+        # A queue to send the task (run_pynguin) to the worker process
+        self._task_queue: multiprocessing.Queue = multiprocessing.Queue()
+        # A queue to receive log records from the worker process
+        self._log_queue: multiprocessing.Queue = multiprocessing.Queue()
+        # A queue to receive results from the worker process. Must not be re-initialized.
+        self._result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        # Reference to the current worker process, if any
+        self._worker_process: multiprocessing.Process | None = None
+        # Thread to forward logs from the worker to the master
+        self._log_listener_thread: threading.Thread | None = None
+        # Thread to restart the worker process if it crashes
+        self._monitor_thread: threading.Thread | None = None
+        # Event to signal shutdown of the master process and worker process
         self._shutdown_event = threading.Event()
+
+        self._is_running = False
+        self._restart_count = 0
+        self._current_task_start_time = None
         self._force_subprocess_mode = False
         self._config_dict: dict[str, Any] = {}
 
@@ -98,14 +106,10 @@ class MasterProcess:
         if not self._config_dict:
             return
 
-        # Get current search time from config
         current_search_time = self._config_dict.get("stopping", {}).get("maximum_search_time", 0)
-
         if current_search_time > 0:
             # Reduce search time by elapsed time
             remaining_time = max(current_search_time - elapsed_time, 0.0)
-
-            # Update the nested configuration
             if "stopping" not in self._config_dict:
                 self._config_dict["stopping"] = {}
             self._config_dict["stopping"]["maximum_search_time"] = int(remaining_time)
@@ -118,49 +122,41 @@ class MasterProcess:
                 elapsed_time,
             )
 
-    def create_task(self) -> WorkerTask:
-        """Create a new worker process.
-
-        Returns:
-            New worker task
-        """
-        return WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=self._config_dict)
-
     def start_worker(self) -> bool:
-        """Start or restart worker process.
+        """Start or restart a worker process.
 
         Returns:
-            True if worker started successfully, False otherwise
+            True if a worker started successfully, False otherwise
         """
         try:
-            if self.worker_process and self.worker_process.is_alive():
+            if self._worker_process and self._worker_process.is_alive():
                 _LOGGER.info("Terminating existing worker process")
-                self.worker_process.terminate()
-                self.worker_process.join(timeout=5)
-                if self.worker_process.is_alive():
+                self._worker_process.terminate()
+                self._worker_process.join(timeout=5)
+                if self._worker_process.is_alive():
                     _LOGGER.warning("Force killing worker process")
-                    self.worker_process.kill()
+                    self._worker_process.kill()
 
             # Recreate log and task for fresh communication channels to the new worker
             _LOGGER.info("Recreating communication queues for new worker")
-            self.task_queue = multiprocessing.Queue()
-            self.log_queue = multiprocessing.Queue()
+            self._task_queue = multiprocessing.Queue()
+            self._log_queue = multiprocessing.Queue()
             # Do not re-create the result queue to ensure the client gets a result
 
             _LOGGER.info("Starting new worker process")
-            self.worker_process = multiprocessing.Process(
+            self._worker_process = multiprocessing.Process(
                 target=worker_main,
-                args=(self.task_queue, self.result_queue, self.log_queue),
+                args=(self._task_queue, self._result_queue, self._log_queue),
                 name="PynguinWorker",
             )
-            self.worker_process.start()
+            self._worker_process.start()
 
             # Give worker some time to start
             time.sleep(0.5)
 
-            if self.worker_process.is_alive():
+            if self._worker_process.is_alive():
                 _LOGGER.info(
-                    "Worker process started successfully (PID: %d)", self.worker_process.pid
+                    "Worker process started successfully (PID: %d)", self._worker_process.pid
                 )
                 return True
             _LOGGER.error("Worker process failed to start")
@@ -171,35 +167,38 @@ class MasterProcess:
             return False
 
     def run(self, config_dict: dict) -> bool:
-        """Submit task to worker process.
+        """Run the task by submitting an (initial) worker task (run_pynguin).
+
+        `_monitor_worker` will monitor the worker process and restart it if necessary
+        by calling this method again.
 
         Args:
             config_dict: Task to execute
 
         Returns:
-            True if task was submitted successfully, False otherwise
+            True if the task was submitted successfully, False otherwise
         """
         self._config_dict = config_dict
         try:
-            if not self.is_running:
+            if not self._is_running:
                 _LOGGER.error("Master process is not running")
                 return False
 
-            if not self.worker_process or not self.worker_process.is_alive():
+            if not self._worker_process or not self._worker_process.is_alive():
                 _LOGGER.warning("Worker process is not alive, attempting restart")
                 if not self.start_worker():
                     return False
 
-            # Override subprocess mode in task config if we're forcing it
+            # Override subprocess mode in the task config if we're forcing it
             if self._force_subprocess_mode:
                 self._config_dict["subprocess"] = True
                 self._config_dict["subprocess_if_recommended"] = False
                 _LOGGER.debug("Forcing subprocess mode.")
 
-            task = self.create_task()
+            task = WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=self._config_dict)
             self._current_task_start_time = time.time()
             _LOGGER.info("Submitting task %s to worker", task.task_id)
-            self.task_queue.put(task, timeout=5)
+            self._task_queue.put(task, timeout=5)
             return True
 
         except queue.Full:
@@ -209,17 +208,14 @@ class MasterProcess:
             _LOGGER.error("Failed to submit task: %s", e)
             return False
 
-    def get_result(self, timeout: int | None = None) -> WorkerResult | None:
-        """Get result from worker process.
-
-        Args:
-            timeout: Timeout in seconds, None for no timeout
+    def get_result(self) -> WorkerResult:
+        """Get result from the worker process.
 
         Returns:
-            WorkerResult if available, None if timeout or error
+            Result from the worker process
         """
         try:
-            result = self.result_queue.get()
+            result = self._result_queue.get()
             _LOGGER.info("Received result for task %s: %s", result.task_id, result.status)
             return result
 
@@ -233,10 +229,12 @@ class MasterProcess:
     def start(self) -> bool:
         """Start the master process and worker monitoring.
 
+        An initial worker task must be submitted separately by calling `run`.
+
         Returns:
             True if started successfully, False otherwise
         """
-        if self.is_running:
+        if self._is_running:
             _LOGGER.warning("Master process is already running")
             return True
 
@@ -245,48 +243,48 @@ class MasterProcess:
         if not self.start_worker():
             return False
 
-        self.is_running = True
+        self._is_running = True
 
-        # Start monitoring thread
-        self.monitor_thread = threading.Thread(
+        # Start the monitoring thread
+        self._monitor_thread = threading.Thread(
             target=self._monitor_worker, name="WorkerMonitor", daemon=True
         )
-        self.monitor_thread.start()
+        self._monitor_thread.start()
 
-        # Start log listener thread
-        self.log_listener_thread = threading.Thread(
+        # Start the log listener thread
+        self._log_listener_thread = threading.Thread(
             target=self._log_listener, name="LogListener", daemon=True
         )
-        self.log_listener_thread.start()
+        self._log_listener_thread.start()
 
         _LOGGER.info("Master process started successfully")
         return True
 
     def stop(self) -> None:
         """Stop the master process and clean up resources."""
-        if not self.is_running:
+        if not self._is_running:
             return
 
         _LOGGER.info("Stopping master process")
-        self.is_running = False
+        self._is_running = False
         self._shutdown_event.set()
 
-        # Stop worker process
-        if self.worker_process and self.worker_process.is_alive():
+        # Stop the worker process
+        if self._worker_process and self._worker_process.is_alive():
             _LOGGER.info("Stopping worker process")
-            self.worker_process.terminate()
-            self.worker_process.join(timeout=5)
-            if self.worker_process.is_alive():
+            self._worker_process.terminate()
+            self._worker_process.join(timeout=5)
+            if self._worker_process.is_alive():
                 _LOGGER.warning("Force killing worker process")
-                self.worker_process.kill()
+                self._worker_process.kill()
 
         # Wait for monitor thread
-        if self.monitor_thread and self.monitor_thread.is_alive():
-            self.monitor_thread.join(timeout=2)
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            self._monitor_thread.join(timeout=2)
 
-        # Wait for log listener thread
-        if self.log_listener_thread and self.log_listener_thread.is_alive():
-            self.log_listener_thread.join(timeout=2)
+        # Wait for the log listener thread
+        if self._log_listener_thread and self._log_listener_thread.is_alive():
+            self._log_listener_thread.join(timeout=2)
 
         _LOGGER.info("Master process stopped")
 
@@ -294,9 +292,9 @@ class MasterProcess:
         """Monitor worker process health and restart if necessary."""
         _LOGGER.info("Starting worker monitoring")
 
-        while self.is_running and not self._shutdown_event.is_set():
+        while self._is_running and not self._shutdown_event.is_set():
             try:
-                if not self.worker_process or not self.worker_process.is_alive():
+                if not self._worker_process or not self._worker_process.is_alive():
                     # Calculate elapsed time if we have a start time
                     if self._current_task_start_time is not None:
                         elapsed_time = time.time() - self._current_task_start_time
@@ -304,7 +302,7 @@ class MasterProcess:
 
                     if self._config_dict.get("stopping", {}).get("maximum_search_time", 0) <= 0:
                         _LOGGER.warning("Maximum search time is zero, aborting")
-                        self.result_queue.put(
+                        self._result_queue.put(
                             WorkerResult(
                                 task_id="unknown",
                                 status="timeout",
@@ -313,11 +311,11 @@ class MasterProcess:
                         )
                         break
 
-                    _LOGGER.warning("Worker process died, restarting (%d)", self.restart_count + 1)
-                    self.restart_count += 1
+                    _LOGGER.warning("Worker process died, restarting (%d)", self._restart_count + 1)
+                    self._restart_count += 1
 
                     if (
-                        self.restart_count >= 1
+                        self._restart_count >= 1
                         and config.configuration.use_master_worker
                         and config.configuration.subprocess_if_recommended
                         and not self._force_subprocess_mode
@@ -353,20 +351,12 @@ class MasterProcess:
         _LOGGER.info("Starting log listener")
 
         try:
-            while self.is_running and not self._shutdown_event.is_set():
+            while self._is_running and not self._shutdown_event.is_set():
                 try:
-                    # Try to get a log record with a short timeout
-                    log_record = self.log_queue.get(timeout=0.5)
-
-                    # Create a logger for the worker's logger name
+                    log_record = self._log_queue.get(timeout=0.5)
                     worker_logger = logging.getLogger(f"worker.{log_record.name}")
-
-                    # Format the message with worker PID prefix
                     formatted_msg = f"[Worker-{log_record.worker_pid}] {log_record.msg}"
-
-                    # Log the message at the appropriate level
                     worker_logger.log(log_record.level, formatted_msg, *log_record.args)
-
                 except queue.Empty:  # noqa: PERF203 TODO: improve?
                     # No log records available, continue
                     continue
@@ -384,7 +374,7 @@ def worker_main(  # noqa: C901
     result_queue: multiprocessing.Queue,
     log_queue: multiprocessing.Queue,
 ) -> None:
-    """Main function for worker process.
+    """Entry point for worker processes.
 
     TODO: simplify
 
@@ -402,7 +392,7 @@ def worker_main(  # noqa: C901
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Set up logging to forward logs to master process
+    # Set up logging to forward logs to the master process
     class QueueHandler(logging.Handler):
         """Logging handler that sends log records to a queue."""
 
@@ -412,7 +402,7 @@ def worker_main(  # noqa: C901
             self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
 
         def emit(self, record):
-            """Send log record to queue."""
+            """Send log record to the queue."""
             try:
                 # Create a simple log record that can be pickled
                 log_record = LogRecord(

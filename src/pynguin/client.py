@@ -99,7 +99,7 @@ class PynguinClient:
                 _LOGGER.error("Failed to submit test generation task")
                 return ReturnCode.SETUP_FAILED
 
-            # Wait for result
+            # Wait for a result
             result = self.master.get_result()
 
             if result is None:
