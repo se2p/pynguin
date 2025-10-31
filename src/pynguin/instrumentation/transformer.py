@@ -282,7 +282,7 @@ class AstInfo:
             )
 
     @staticmethod
-    def _else_lines(node: If | For) -> Iterable[int]:
+    def _else_lines(node: If | For | While) -> Iterable[int]:
         return AstInfo._inter_lines(node.body, node.orelse)
 
     @staticmethod
@@ -379,7 +379,7 @@ class AstInfo:
                 return False
 
             if (
-                isinstance(branch_node, If | For)
+                isinstance(branch_node, If | For | While)
                 and (not isinstance(branch_node, If) or not branch_node.has_elif_block())
                 and self._in_body(branch_node.orelse, lineno)
                 and any(
@@ -409,7 +409,7 @@ class AstInfo:
                 isinstance(branch_node, If | For) and lineno in self._else_lines(branch_node)
             ):
                 return self.should_cover_line(branch_node.fromlineno) and (
-                    isinstance(branch_node, While | MatchCase)
+                    isinstance(branch_node, MatchCase)
                     or (isinstance(branch_node, If) and branch_node.has_elif_block())
                     or all(
                         self.should_cover_line(else_lineno)
