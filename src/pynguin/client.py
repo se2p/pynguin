@@ -9,13 +9,11 @@
 from __future__ import annotations
 
 import logging
-import time
 
 from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
 from pynguin.master import MasterProcess
-from pynguin.master import WorkerTask
 from pynguin.utils.configuration_writer import convert_config_to_dict
 
 
@@ -97,11 +95,7 @@ class PynguinClient:
                 config_dict["subprocess_if_recommended"] = False
                 _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
 
-            # Create task
-            task = WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=config_dict)
-
-            # Submit task to worker
-            if not self.master.submit_task(task):
+            if not self.master.run(config_dict=config_dict):
                 _LOGGER.error("Failed to submit test generation task")
                 return ReturnCode.SETUP_FAILED
 

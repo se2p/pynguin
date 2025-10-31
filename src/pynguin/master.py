@@ -82,6 +82,15 @@ class MasterProcess:
         self.log_listener_thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._force_subprocess_mode = False
+        self._config_dict = None
+
+    def create_task(self) -> WorkerTask:
+        """Create a new worker process.
+
+        Returns:
+            New worker task
+        """
+        return WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=self._config_dict)
 
     def start_worker(self) -> bool:
         """Start or restart worker process.
@@ -127,15 +136,16 @@ class MasterProcess:
             _LOGGER.error("Failed to start worker process: %s", e)
             return False
 
-    def submit_task(self, task: WorkerTask) -> bool:
+    def run(self, config_dict: dict) -> bool:
         """Submit task to worker process.
 
         Args:
-            task: Task to execute
+            config_dict: Task to execute
 
         Returns:
             True if task was submitted successfully, False otherwise
         """
+        self._config_dict = config_dict
         try:
             if not self.is_running:
                 _LOGGER.error("Master process is not running")
@@ -148,10 +158,11 @@ class MasterProcess:
 
             # Override subprocess mode in task config if we're forcing it
             if self._force_subprocess_mode:
-                task.config_dict["subprocess"] = True
-                task.config_dict["subprocess_if_recommended"] = False
-                _LOGGER.debug("Forcing subprocess mode for task %s", task.task_id)
+                self._config_dict["subprocess"] = True
+                self._config_dict["subprocess_if_recommended"] = False
+                _LOGGER.debug("Forcing subprocess mode.")
 
+            task = self.create_task()
             _LOGGER.info("Submitting task %s to worker", task.task_id)
             self.task_queue.put(task, timeout=5)
             return True
@@ -267,6 +278,10 @@ class MasterProcess:
 
                     if not self.start_worker():
                         _LOGGER.error("Failed to restart worker process")
+                        break
+
+                    if not self.run(config_dict=self._config_dict):
+                        _LOGGER.error("Failed to submit test generation task")
                         break
 
                 # Check every second
