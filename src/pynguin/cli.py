@@ -40,6 +40,8 @@ if TYPE_CHECKING:
 def _create_argument_parser() -> argparse.ArgumentParser:
     parser = simple_parsing.ArgumentParser(
         add_option_string_dash_variants=simple_parsing.DashVariant.UNDERSCORE_AND_DASH,
+        argument_generation_mode=simple_parsing.ArgumentGenerationMode.BOTH,
+        nested_mode=simple_parsing.NestedMode.WITHOUT_ROOT,
         description="Pynguin is an automatic unit test generation framework for Python",
         fromfile_prefix_chars="@",
     )
