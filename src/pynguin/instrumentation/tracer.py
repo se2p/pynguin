@@ -1097,10 +1097,10 @@ def _early_return(
 ) -> Callable[Concatenate[ExecutionTracer, _P], None]:
     @wraps(func)
     def wrapper(self: ExecutionTracer, *args: _P.args, **kwargs: _P.kwargs) -> None:
-        self.check()
-
         if self.is_disabled():
             return
+
+        self.check()
 
         func(self, *args, **kwargs)
 

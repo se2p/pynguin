@@ -174,7 +174,7 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
         # Main logic
         coverage_report: CoverageReport = get_coverage_report(
             solutions_test_suite,
-            self.executor,  # type:ignore[arg-type]
+            self.executor.subject_properties,
             set(config.configuration.statistics_output.coverage_metrics),
         )
         line_annotations: list[LineAnnotation] = coverage_report.line_annotations

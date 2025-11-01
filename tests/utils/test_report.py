@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-# ruff: noqa: E501
+
 import datetime
 import importlib
 import sys
@@ -258,12 +258,11 @@ def test_get_coverage_report(
         with subject_properties.instrumentation_tracer:
             importlib.import_module(test_module)
 
-        executor = MagicMock(subject_properties=subject_properties)
         config.configuration.module_name = test_module
         assert (
             get_coverage_report(
                 test_suite,
-                executor,
+                subject_properties,
                 {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
             )
             == sample_report
@@ -483,8 +482,6 @@ def test_get_coverage_report_with_inspect_valueerror():
     test_case.get_last_execution_result.return_value = last_result
     test_suite = MagicMock(test_case_chromosomes=[test_case])
 
-    tracer = MagicMock()
-    executor = MagicMock(tracer=tracer)
     module_name = "test_module"
     config.configuration.module_name = module_name
     mock_module = MagicMock()
@@ -497,15 +494,13 @@ def test_get_coverage_report_with_inspect_valueerror():
     # Use patches to mock all the functions called in get_coverage_report
     with (
         patch("pynguin.ga.computations.analyze_results", return_value=mock_trace),
-        patch.object(executor.tracer, "get_subject_properties", return_value=MagicMock()),
-        patch.object(executor.tracer, "lineids_to_linenos", return_value=OrderedSet()),
         patch.dict(sys.modules, {module_name: mock_module}),
         patch("inspect.getsourcelines", side_effect=value_error),
         pytest.raises(RuntimeError),  # Expect a RuntimeError to be raised
     ):
         get_coverage_report(
             test_suite,
-            executor,
+            SubjectProperties(),
             {config.CoverageMetric.LINE, config.CoverageMetric.BRANCH},
         )
 
