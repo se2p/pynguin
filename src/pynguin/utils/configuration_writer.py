@@ -12,6 +12,7 @@ import json
 import logging
 import pprint
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -62,10 +63,72 @@ def convert_config_to_dict(config_obj: object) -> dict[str, str | dict[str, str]
     return json.loads(json.dumps(config_obj, default=lambda o: o.__dict__))
 
 
+def _format_value(value: Any) -> str:
+    """Formats a configuration value for CLI output.
+
+    Args:
+        value: The configuration value to format.
+
+    Returns:
+        The formatted configuration value as a string.
+    """
+    if isinstance(value, list):
+        return "\n".join(_format_value(v) for v in value)
+    elif isinstance(value, enum.Enum):  # noqa: RET505
+        return value.name
+    else:
+        return str(value)
+
+
+def _create_params_from_config_dict(cfg_dict: dict[str, Any], prefix: str = "") -> Iterable[str]:
+    """Recursively creates CLI parameters from a configuration dictionary.
+
+    Args:
+        cfg_dict: The configuration dictionary.
+        prefix: The prefix for nested keys. Defaults to an empty string.
+
+    Yields:
+        CLI parameters as strings.
+    """
+    for key, value in cfg_dict.items():
+        if isinstance(value, (str, list)) and not value:
+            continue
+
+        key_name = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            yield from _create_params_from_config_dict(value, prefix=key_name)
+        else:
+            yield f"--{key_name}\n{_format_value(value)}"
+
+
+def _extract_verbosity_params(verbosity: bool) -> Iterable[str]:  # noqa: FBT001
+    """Extract the verbosity level from the logging configuration.
+
+    Args:
+        verbosity: Whether to include verbosity parameters in the output.
+
+    Yields:
+        CLI parameters representing the verbosity level, or an empty iterator.
+    """
+    if not verbosity:
+        return
+
+    logging_level = logging.getLogger().getEffectiveLevel()
+    if logging_level == logging.DEBUG:
+        verbosity_level = 2
+    elif logging_level == logging.INFO:
+        verbosity_level = 1
+    else:
+        return
+
+    # Set number of 'v's to the verbosity level
+    yield f"-{'v' * verbosity_level}"
+
+
 def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
     """Extracts the CLI parameter list from the current configuration.
 
-    Allows to use the dumped configuration as input for the CLI again.  Pynguin's CLI parser already
+    Allows to use the dumped configuration as input for the CLI again. Pynguin's CLI parser already
     supports the loading of configuration options from a file, as specified in the `argparse`
     documentation.
 
@@ -77,50 +140,7 @@ def extract_parameter_list_from_config(*, verbosity: bool = True) -> list[str]:
     Returns:
         A sorted list of CLI parameters.
     """
-
-    def format_parameter(k: str, v: Any) -> str:
-        if isinstance(v, list):
-            values = "\n".join(e.name if isinstance(e, enum.Enum) else e for e in v)
-            return f"--{k}\n{values}"
-        return f"--{k}\n{v.name if isinstance(v, enum.Enum) else v}"
-
-    parameter_list: list[str] = []
-    cfg_dict = dataclasses.asdict(config.configuration)
-
-    for key, value in cfg_dict.items():
-        if isinstance(value, (str, list)) and not value:
-            continue
-        if isinstance(value, dict):
-            for sub_key, sub_value in value.items():
-                if isinstance(sub_value, (str, list)) and not sub_value:
-                    continue
-                if isinstance(sub_value, dict):
-                    for sub_sub_key, sub_sub_value in sub_value.items():
-                        parameter_list.append(
-                            format_parameter(f"{sub_key}.{sub_sub_key}", sub_sub_value)
-                        )
-                else:
-                    parameter_list.append(format_parameter(f"{sub_key}", sub_value))
-        else:
-            parameter_list.append(format_parameter(key, value))
-
-    verbosity_params = _extract_verbosity_params() if verbosity else []
-    return sorted(parameter_list + verbosity_params)
-
-
-def _extract_verbosity_params() -> list[str]:
-    """Extract the verbosity level from the logging configuration."""
-    logging_level = logging.getLogger().getEffectiveLevel()
-    if logging_level == logging.DEBUG:
-        verbosity = 2
-    elif logging_level == logging.INFO:
-        verbosity = 1
-    else:
-        verbosity = 0
-
-    # set number of 'v's to the verbosity level
-    verbosity_params = []
-    if verbosity > 0:
-        verbosity_params.append(f"-{'v' * verbosity}")
-
-    return verbosity_params
+    return sorted((
+        *_extract_verbosity_params(verbosity),
+        *_create_params_from_config_dict(dataclasses.asdict(config.configuration)),
+    ))
