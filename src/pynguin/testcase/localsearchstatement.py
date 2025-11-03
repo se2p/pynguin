@@ -675,6 +675,14 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         )
 
 
+class ParametrizedStatementOperations(enum.Enum):
+    """The different operations for the parametrized statement local search."""
+
+    REPLACE = 0
+    RANDOM_CALL = 1
+    PARAMETER = 2
+
+
 class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for parametrized statements."""
 
@@ -693,11 +701,6 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         last_execution_result = self._chromosome.get_last_execution_result()
         old_test_case = self._chromosome.test_case.clone()
 
-        class Operations(enum.Enum):
-            REPLACE = 0
-            RANDOM_CALL = 1
-            PARAMETER = 2
-
         total_iterations = 0
         improved = False
         while (
@@ -706,16 +709,18 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             < config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
             total_iterations += 1
-            operations: list[Operations] = [Operations.REPLACE]
+            operations: list[ParametrizedStatementOperations] = [
+                ParametrizedStatementOperations.REPLACE
+            ]
             if isinstance(statement, ParametrizedStatement):
-                operations.append(Operations.RANDOM_CALL)
+                operations.append(ParametrizedStatementOperations.RANDOM_CALL)
                 if len(statement.args) > 0:
-                    operations.append(Operations.PARAMETER)
+                    operations.append(ParametrizedStatementOperations.PARAMETER)
             old_size = len(self._chromosome.test_case.statements)
             random = randomness.choice(operations)
-            if random == Operations.RANDOM_CALL:
+            if random == ParametrizedStatementOperations.RANDOM_CALL:
                 changed = self.random_call()
-            elif random == Operations.PARAMETER:
+            elif random == ParametrizedStatementOperations.PARAMETER:
                 changed = self.random_parameter()
             else:
                 changed = self.replace()
