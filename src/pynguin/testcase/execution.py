@@ -23,7 +23,6 @@ import sys
 import threading
 
 from abc import abstractmethod
-from importlib import reload
 from pathlib import Path
 from queue import Empty
 from queue import Queue
@@ -824,15 +823,6 @@ class ModuleProvider:
     def clear_mutated_modules(self):
         """Clear the existing aliases."""
         self._mutated_module_aliases.clear()
-
-    @staticmethod
-    def reload_module(module_name: str) -> None:
-        """Reloads the given module.
-
-        Args:
-            module_name: the module to reload.
-        """
-        reload(ModuleProvider.__get_imported_module(module_name))
 
 
 class OutputSuppressionContext:
