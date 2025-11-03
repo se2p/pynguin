@@ -30,6 +30,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
+from pynguin.testcase.statement import ClassPrimitiveStatement
 from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
@@ -239,6 +240,29 @@ class EnumLocalSearch(PrimitiveLocalSearch, ABC):
                     self._restore(statement)
                 else:
                     self._logger.debug("Local search successfully found better enum value")
+                    return True
+        return False
+
+
+class ClassLocalSearch(PrimitiveLocalSearch, ABC):
+    """A local search strategy for classes."""
+
+    def search(  # noqa: D102
+        self,
+    ) -> bool:
+        statement = cast(
+            "ClassPrimitiveStatement", self._chromosome.test_case.statements[self._position]
+        )
+        initial_value = statement.value
+        self._backup(statement)
+        for value in range(len(statement.test_case.test_cluster.type_system.get_all_types())):
+            if self._timer.limit_reached():
+                return False
+            if value != initial_value:
+                if not self._objective.has_improved(self._chromosome):
+                    self._restore(statement)
+                else:
+                    self._logger.debug("Local search successfully found better class value")
                     return True
         return False
 
@@ -1411,8 +1435,11 @@ def choose_local_search_statement(  # noqa: C901
         logger.debug("None local search statement found")
         return ParametrizedStatementLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, EnumPrimitiveStatement):
-        logger.debug("Statement is enum %r", statement.value)
+        logger.debug("Statement is enum %s", statement.value_name)
         return EnumLocalSearch(chromosome, position, objective, factory, timer)
+    if isinstance(statement, ClassPrimitiveStatement):
+        logger.debug("Statement is class %s", statement.type_info.full_name)
+        return ClassLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, PrimitiveStatement):
         primitive_type = statement.value
         if isinstance(primitive_type, bool):
