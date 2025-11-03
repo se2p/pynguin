@@ -720,7 +720,7 @@ class DynamicSlicer:
             if isinstance(tup, tuple):
                 if argument == tup[0] and comp_op(tup[1], scope_id):
                     complete_cover = True
-                    remove_tuples.add(tup)  # type: ignore[arg-type]
+                    remove_tuples.add(tup)
             elif argument == tup:
                 complete_cover = True
                 remove_tuples.add(tup)

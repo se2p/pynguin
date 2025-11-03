@@ -7,13 +7,45 @@
 import ast
 import inspect
 
+import pytest
+
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
 )
 from pynguin.assertion.mutation_analysis.operators.misc import BreakContinueReplacement
 from pynguin.assertion.mutation_analysis.operators.misc import ConstantReplacement
 from pynguin.assertion.mutation_analysis.operators.misc import SliceIndexRemove
+from pynguin.assertion.mutation_analysis.operators.misc import is_docstring
 from tests.testutils import assert_mutation
+
+
+def _attach_parents(node: ast.AST):
+    for child in ast.iter_child_nodes(node):
+        child.parent = node
+        _attach_parents(child)
+
+
+@pytest.mark.parametrize(
+    "code,expected",
+    [
+        ("def foo():\n    '''Docstring'''\n    pass", True),
+        ("def foo():\n    pass", False),
+        ('class Bar:\n    """Docstring"""\n    pass', True),
+        ("class Bar:\n    pass", False),
+        ("'''Module docstring'''\nimport sys", True),
+        ("import sys", False),
+    ],
+)
+def test_is_docstring_combined(code, expected):
+    tree = ast.parse(code)
+    _attach_parents(tree)
+
+    found = False
+    for node in ast.walk(tree):
+        if node and hasattr(node, "value") and is_docstring(node.value):
+            found = True
+
+    assert found == expected
 
 
 def test_add_to_sub_replacement():

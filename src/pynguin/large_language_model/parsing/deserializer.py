@@ -182,6 +182,16 @@ class StatementDeserializer:  # noqa: PLR0904
             The corresponding assert statement.
         """
         assertion: ass.Assertion | None = None
+
+        # E.g: assert var
+        if (
+            isinstance(assert_node, ast.Assert)
+            and hasattr(assert_node, "test")
+            and isinstance(assert_node.test, ast.Name)
+        ):
+            source = self._get_source_reference(assert_node.test)
+            return ass.ObjectAssertion(source, value=True), source
+
         try:
             # Assertion on attribute access
             # Example: assert x.attr == 5
@@ -500,7 +510,7 @@ class StatementDeserializer:  # noqa: PLR0904
             logger.debug("Strange function call: %s", ast.unparse(call))
             return None
         try:
-            call_id = call.func.value.id  # type: ignore[attr-defined]
+            call_id = call.func.value.id  # type: ignore[union-attr]
         except AttributeError:
             logger.debug("Can't get called for %s", ast.unparse(call))
             call_id = ""

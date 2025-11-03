@@ -609,6 +609,8 @@ def _run() -> ReturnCode:  # noqa: C901
         algorithm, executor, generation_result, constant_provider
     )
 
+    executor.subject_properties.instrumentation_tracer.disable()
+
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
@@ -620,7 +622,7 @@ def _run() -> ReturnCode:  # noqa: C901
         try:
             coverage_report = get_coverage_report(
                 generation_result,
-                executor,
+                executor.subject_properties,
                 tracked_metrics,
             )
             render_coverage_report(
@@ -911,7 +913,7 @@ def _track_search_metrics(
     ]:
         if metric in coverage_metrics:
             coverage_function: ff.TestSuiteCoverageFunction = _get_coverage_ff_from_algorithm(
-                algorithm, cast("type[ff.TestSuiteCoverageFunction]", fitness_type)
+                algorithm, cast("type", fitness_type)
             )
             stat.track_output_variable(
                 runtime, generation_result.get_coverage_for(coverage_function)

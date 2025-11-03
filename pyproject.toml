@@ -49,14 +49,14 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.14"
-astroid = "^3.3.9"
+python = ">=3.10, <3.15"
+astroid = "^4.0.1"
 black = "^25.1.0"
-bytecode = "^0.16.1"
-dill = "^0.3.9"
+bytecode = "0.17.0"
+dill = "^0.4.0"
 Jinja2 = "^3.1.6"
-networkx = "^3.4"
-multiprocess = "^0.70.16"
+networkx = "^3.4.2"
+multiprocess = "^0.70.18"
 rich = "^14.0.0"
 Pygments = "^2.19.2"
 pytest = "^8.3.5"
@@ -64,10 +64,14 @@ simple-parsing = "^0.1.7"
 typing_inspect = "^0.9.0"
 asciitree = "^0.3.3"
 libcst = "^1.7.0"
-setuptools = "^78.1"
+setuptools = "^80.9.0"
 toml = "^0.10.2"
-psutil = "^7.0.0"
+psutil = "^7.1.1"
 rstr = "^3.2.2"
+openai = { version = "^1.72.0", optional = true }
+numpy = { version = "^1.26.4", optional = true }
+mypy = { version = "^1.15.0", optional = true }
+typing-extensions = { version = "^4.12.2", optional = true }
 
 [tool.poetry.group.dev.dependencies]
 isort = { extras = ["pyproject"], version = "^6.0.1" }
@@ -92,17 +96,10 @@ pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
 pytest-sugar = "^1.0.0"
 
-[tool.poetry.group.openai]
-optional = true
-
-[tool.poetry.group.openai.dependencies]
-openai = "^1.72.0"
-
-[tool.poetry.group.numpy]
-optional = true
-
-[tool.poetry.group.numpy.dependencies]
-numpy = "^1.26.4"
+[tool.poetry.extras]
+openai = [ "openai" ]
+numpy = [ "numpy" ]
+typing = [ "mypy", "typing-extensions" ]
 
 [tool.poetry.scripts]
 pynguin = "pynguin.cli:main"
@@ -285,14 +282,14 @@ convention = "google"
 
 [tool.tox]
 requires = ["tox~=4.28"]
-env_list = ["3.10", "3.11", "3.12", "3.13"]
+env_list = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.tox.env_run_base]
 skip_install = true
 allowlist_externals = ["make", "poetry"]
 commands_pre = [
   ["poetry", "env", "use", "{env_name}"],
-  ["poetry", "install", "--with", "openai,numpy"],
+  ["poetry", "install", "--extras", "openai numpy"]
 ]
 commands = [
   ["make", "check"],

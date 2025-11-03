@@ -26,7 +26,8 @@ class TestCaseGenerationPrompt(Prompt):
     def build_prompt(self) -> str:
         """Builds the prompt message."""
         return (
-            f"Write unit tests for the following module:\n"
+            f"Write unit tests for the following module. Don't use unittest, "
+            f"but only pytest.\n"
             f"Module path: `{self.module_path}`\n"
             f"Module source code: `{self.module_code}`"
         )

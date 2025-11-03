@@ -87,6 +87,7 @@ class LLMTestCaseHandler:
         if llm_query_results is None:
             return llm_test_case_chromosomes
 
+        save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
         llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
 
         deserialized_code_to_testcases = deserialize_code_to_testcases(

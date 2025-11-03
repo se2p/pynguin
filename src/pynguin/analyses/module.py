@@ -1145,6 +1145,7 @@ class FilteredModuleTestCluster(TestCluster):  # noqa: PLR0904
             for acc in delegate.accessible_objects_under_test
             if isinstance(acc, GenericCallableAccessibleObject)
             and hasattr(acc.callable, "__code__")
+            and acc.callable.__code__ in existing_code_objects
         }
         # Checking for __code__ is necessary, because the __init__ of a class that
         # does not define __init__ points to some internal CPython stuff.
@@ -1256,6 +1257,10 @@ def __get_mccabe_complexity(tree: AstroidFunctionDef | None) -> int | None:
 
 def __is_constructor(method_name: str) -> bool:
     return method_name == "__init__"
+
+
+def __is_annotate(method_name: str) -> bool:
+    return method_name == "__annotate_func__"
 
 
 def __is_protected(method_name: str) -> bool:
@@ -1532,7 +1537,8 @@ def __analyse_method(
     add_to_test: bool,
 ) -> None:
     if (
-        __is_private(method_name)
+        __is_annotate(method_name)
+        or __is_private(method_name)
         or __is_protected(method_name)
         or __is_constructor(method_name)
         or not __is_method_defined_in_class(type_info.raw_type, method)

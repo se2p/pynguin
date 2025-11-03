@@ -25,10 +25,15 @@ from astroid.nodes import For
 from astroid.nodes import FunctionDef
 from astroid.nodes import If
 from astroid.nodes import Lambda
+from astroid.nodes import Match
+from astroid.nodes import MatchCase
 from astroid.nodes import Module
 from astroid.nodes import NodeNG
+from astroid.nodes import Try
+from astroid.nodes import TryStar
 from astroid.nodes import While
 from bytecode import Bytecode
+from bytecode.instr import Instr
 
 from pynguin.analyses.module import read_module_ast
 from pynguin.configuration import ToCoverConfiguration
@@ -41,7 +46,6 @@ if TYPE_CHECKING:
     from collections.abc import Collection
     from collections.abc import Iterable
 
-    from bytecode.instr import Instr
     from typing_extensions import Self
 
     from pynguin.analyses.constants import DynamicConstantProvider
@@ -269,6 +273,35 @@ class AstInfo:
         """
         return bool(body) and body[0].fromlineno <= lineno <= body[-1].tolineno
 
+    @staticmethod
+    def _inter_lines(previous_body: list[NodeNG], after_body: list[NodeNG]) -> Iterable[int]:
+        if previous_body and after_body:
+            yield from range(
+                previous_body[-1].tolineno + 1,
+                after_body[0].fromlineno,
+            )
+
+    @staticmethod
+    def _else_lines(node: If | For | While) -> Iterable[int]:
+        return AstInfo._inter_lines(node.body, node.orelse)
+
+    @staticmethod
+    def _try_else_lines(node: Try | TryStar) -> Iterable[int]:
+        if node.handlers:
+            return AstInfo._inter_lines(node.handlers[-1].body, node.orelse)
+
+        return AstInfo._inter_lines(node.body, node.orelse)
+
+    @staticmethod
+    def _try_finally_lines(node: Try | TryStar) -> Iterable[int]:
+        if node.orelse:
+            return AstInfo._inter_lines(node.orelse, node.finalbody)
+
+        if node.handlers:
+            return AstInfo._inter_lines(node.handlers[-1].body, node.finalbody)
+
+        return AstInfo._inter_lines(node.body, node.finalbody)
+
     def should_be_covered(self) -> bool:
         """Check if self should be covered.
 
@@ -288,47 +321,118 @@ class AstInfo:
         """Check if a line number should be covered.
 
         This means that the instruction itself must be in the cover lines, as well as
-        all conditional instructions in which it is contained.
+        all conditional instructions in which it is contained. In other words, if the instruction
+        itself or any of its conditional instructions are part of the `no_cover_lines`, the line
+        should not be covered.
 
         Args:
             lineno: The line number.
 
         Returns:
             True if it should be covered, False otherwise.
+            Defaults to True if there is no instruction at lineno.
         """
         if not self._in_cover(lineno):
             return False
 
-        # Handle branches
-        for branch_node in self.ast.nodes_of_class(If | For | While):
+        for branch_node in self.ast.nodes_of_class(If | For | While | Match | Try | TryStar):
             # Skip nodes that do not contains the lineno
             if lineno < branch_node.fromlineno or branch_node.tolineno < lineno:
                 continue
 
-            # Check the "True" branch
+            # Handle the "Match" nodes by checking that they are in the cover lines and
+            # by checking that the branch in which the line number is contained is also
+            # in the cover lines.
+            if isinstance(branch_node, Match) and (
+                branch_node.fromlineno in self.module.no_cover_lines
+                or any(
+                    case_node.fromlineno in self.module.no_cover_lines
+                    for case_node in branch_node.cases
+                    if self._in_body(case_node.body, lineno)
+                )
+            ):
+                return False
+
+            # Handle the "True" branch of "If", "For" and "While" nodes and
+            # the "try" branch of "Try" and "TryStar" nodes by checking that the
+            # branch in which the line number is contained is in the cover lines.
             if (
-                self._in_body(branch_node.body, lineno)
+                isinstance(branch_node, If | For | While | Try | TryStar)
+                and self._in_body(branch_node.body, lineno)
                 and branch_node.fromlineno in self.module.no_cover_lines
             ):
                 return False
 
-            # Do not check for a "else" when there is a "elif" or in a "while"
-            if (isinstance(branch_node, If) and branch_node.has_elif_block()) or isinstance(
-                branch_node, While
-            ):
-                continue
-
-            # Check the "False" branch
-            # We don't have access to the exact location of the else statement so we check
-            # all lines in which it could be defined for now
-            if self._in_body(branch_node.orelse, lineno) and any(
-                else_lineno in self.module.no_cover_lines
-                for else_lineno in range(
-                    branch_node.body[-1].tolineno + 1,
-                    branch_node.orelse[0].fromlineno,
+            # Handle the "except", "else" and "finally" branches of "Try" and "TryStar" nodes
+            # by checking that the branch in which the line number is contained is in the
+            # cover lines.
+            if isinstance(branch_node, Try | TryStar) and (  # noqa: PLR0916
+                any(
+                    handler_node.fromlineno in self.module.no_cover_lines
+                    for handler_node in branch_node.handlers
+                    if self._in_body(handler_node.body, lineno)
+                )
+                or (
+                    self._in_body(branch_node.orelse, lineno)
+                    and any(
+                        else_lineno in self.module.no_cover_lines
+                        for else_lineno in self._try_else_lines(branch_node)
+                    )
+                )
+                or (
+                    self._in_body(branch_node.finalbody, lineno)
+                    and any(
+                        final_lineno in self.module.no_cover_lines
+                        for final_lineno in self._try_finally_lines(branch_node)
+                    )
                 )
             ):
                 return False
+
+            # Handle the "False" branch of "If", "For" and "While" nodes by checking that
+            # the branch in which the line number is contained is in the cover lines.
+            # The "elif" branches are ignored because they are already covered by the "True"
+            # branches, and if they were in the `no_cover_lines`, it would also influence
+            # all the "elif" and "else" branches they contain.
+            if (
+                isinstance(branch_node, If | For | While)
+                and (not isinstance(branch_node, If) or not branch_node.has_elif_block())
+                and self._in_body(branch_node.orelse, lineno)
+                and any(
+                    else_lineno in self.module.no_cover_lines
+                    for else_lineno in self._else_lines(branch_node)
+                )
+            ):
+                return False
+
+        return True
+
+    def should_cover_conditional_statement(self, lineno: int) -> bool:
+        """Check if the conditional statement at the line number should be covered.
+
+        This means that the conditional statement must have all its branches in the cover lines,
+        as well as all conditional instructions in which it is contained.
+
+        Args:
+            lineno: The line number of the conditional statement.
+
+        Returns:
+            True if it should be covered, False otherwise.
+            Defaults to True if there is no conditional statement at lineno.
+        """
+        for branch_node in self.ast.nodes_of_class(If | For | While | MatchCase):
+            if branch_node.fromlineno == lineno or (
+                isinstance(branch_node, If | For | While)
+                and lineno in self._else_lines(branch_node)
+            ):
+                return self.should_cover_line(branch_node.fromlineno) and (
+                    isinstance(branch_node, MatchCase)
+                    or (isinstance(branch_node, If) and branch_node.has_elif_block())
+                    or all(
+                        self.should_cover_line(else_lineno)
+                        for else_lineno in self._else_lines(branch_node)
+                    )
+                )
 
         return True
 
@@ -1068,6 +1172,13 @@ class InstrumentationTransformer:
         module_ast_info: ModuleAstInfo | None,
         parent_code_object_id: int | None = None,
     ) -> CodeType:
+        # Ignore CPython's internal annotation helper introduced with PEP 649.
+        # It appears as a synthetic function named "__annotate__" and should not
+        # influence instrumentation or coverage goals.
+        if code.co_name == "__annotate__":
+            self._logger.debug("Skipping instrumentation of internal helper %s", code.co_name)
+            return code
+
         ast_info = (
             module_ast_info.get_scope(
                 # Special case as the line number of a module is 1
@@ -1112,8 +1223,59 @@ class InstrumentationTransformer:
                 code_object=code_object,
                 parent_code_object_id=parent_code_object_id,
                 cfg=cfg,
-                cdg=cf.ControlDependenceGraph.compute(cfg),
+                cdg=self._create_covered_cdg(cfg, ast_info),
             ),
         )
 
         return code_object
+
+    def _create_covered_cdg(
+        self,
+        cfg: cf.CFG,
+        ast_info: AstInfo | None,
+    ) -> cf.ControlDependenceGraph:
+        cdg = cf.ControlDependenceGraph.compute(cfg)
+
+        if ast_info is not None:
+            # Remove nodes that should not be covered
+            for node in tuple(cdg.graph):
+                # Skip artificial nodes and nodes without "real" instructions (e.g., TryBegin, ...)
+                if not isinstance(node, cf.BasicBlockNode) or all(
+                    not isinstance(instr, Instr) for instr in node.basic_block
+                ):
+                    continue
+
+                # Skip nodes that have at least one instruction that should be covered and
+                # whose last instruction is either not a conditional statement or a conditional
+                # statement that should be covered. `should_cover_conditional_statement`
+                # defaults to True if there is no conditional statement at the line.
+                if (
+                    (last_instr := node.try_get_instruction(-1)) is None
+                    or not isinstance(last_instr.lineno, int)
+                    or ast_info.should_cover_conditional_statement(last_instr.lineno)
+                ) and (
+                    any(
+                        not isinstance(instr.lineno, int)
+                        or ast_info.should_cover_line(instr.lineno)
+                        for instr in node.original_instructions
+                    )
+                ):
+                    continue
+
+                assert ast_info.module.only_cover_lines or ast_info.module.no_cover_lines, (
+                    f"Node {node} should not be removed as only_cover_lines and no_cover_lines "
+                    "are both empty."
+                )
+
+                predecessors = cdg.get_predecessors(node)
+                successors = cdg.get_successors(node)
+
+                predecessors.discard(node)
+                successors.discard(node)
+                cdg.graph.remove_node(node)
+
+                for pred in predecessors:
+                    for succ in successors:
+                        cdg.graph.add_edge(pred, succ)
+
+        return cdg

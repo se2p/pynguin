@@ -124,7 +124,7 @@ class LLMLocalSearch:
         failing_test = self.chromosome.is_failing()
         self._logger.debug("Starting local search with LLMs at position %d", position)
         metrics = set(config.configuration.statistics_output.coverage_metrics)
-        report = get_coverage_report(self.suite, self.executor, metrics)
+        report = get_coverage_report(self.suite, self.executor.subject_properties, metrics)
 
         stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchLLMCalls, 1)
         if failing_test:

@@ -7,7 +7,6 @@
 # Idea and structure are taken from the pyChecco project, see:
 # https://github.com/ipsw1/pychecco
 # ruff: noqa: ERA001
-
 import sys
 
 from bytecode.instr import BinaryOp
@@ -20,7 +19,22 @@ from tests.slicer.util import slice_function_at_return
 from tests.slicer.util import slice_module_at_return
 
 
-if sys.version_info >= (3, 13):
+if sys.version_info >= (3, 14):
+    add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
+    create_foo_class = (
+        TracedInstr("LOAD_BUILD_CLASS"),
+        TracedInstr("PUSH_NULL"),
+        TracedInstr("LOAD_CONST", arg=dummy_code_object),
+        TracedInstr("MAKE_FUNCTION"),
+        TracedInstr("LOAD_CONST", arg="Foo"),
+        TracedInstr("CALL", arg=2),
+    )
+    pop_jump_if_false = "POP_JUMP_IF_FALSE"
+    return_none = (TracedInstr("LOAD_CONST", arg=None), TracedInstr("RETURN_VALUE"))
+    eq_compare = Compare.EQ_CAST
+    load_const = "LOAD_SMALL_INT"
+    load_fast = "LOAD_FAST_BORROW"
+elif sys.version_info >= (3, 13):
     add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     create_foo_class = (
         TracedInstr("LOAD_BUILD_CLASS"),
@@ -33,6 +47,8 @@ if sys.version_info >= (3, 13):
     pop_jump_if_false = "POP_JUMP_IF_FALSE"
     return_none = (TracedInstr("RETURN_CONST", arg=None),)
     eq_compare = Compare.EQ_CAST
+    load_const = "LOAD_CONST"
+    load_fast = "LOAD_FAST"
 elif sys.version_info >= (3, 12):
     add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     create_foo_class = (
@@ -46,6 +62,8 @@ elif sys.version_info >= (3, 12):
     pop_jump_if_false = "POP_JUMP_IF_FALSE"
     return_none = (TracedInstr("RETURN_CONST", arg=None),)
     eq_compare = Compare.EQ
+    load_const = "LOAD_CONST"
+    load_fast = "LOAD_FAST"
 elif sys.version_info >= (3, 11):
     add_instr = TracedInstr("BINARY_OP", arg=BinaryOp.ADD.value)
     create_foo_class = (
@@ -63,6 +81,8 @@ elif sys.version_info >= (3, 11):
         TracedInstr("RETURN_VALUE"),
     )
     eq_compare = Compare.EQ
+    load_const = "LOAD_CONST"
+    load_fast = "LOAD_FAST"
 else:
     add_instr = TracedInstr("BINARY_ADD")
     create_foo_class = (
@@ -79,6 +99,8 @@ else:
         TracedInstr("RETURN_VALUE"),
     )
     eq_compare = Compare.EQ
+    load_const = "LOAD_CONST"
+    load_fast = "LOAD_FAST"
 
 
 def test_data_dependency_1():
@@ -89,10 +111,10 @@ def test_data_dependency_1():
 
     expected_instructions = [
         # result = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -110,10 +132,10 @@ def test_data_dependency_2():
 
     expected_instructions = [
         # result = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -130,15 +152,15 @@ def test_data_dependency_3():
 
     expected_instructions = [
         # foo = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="foo"),
         # result = 1 + foo
-        TracedInstr("LOAD_CONST", arg=1),
-        TracedInstr("LOAD_FAST", arg="foo"),
+        TracedInstr(load_const, arg=1),
+        TracedInstr(load_fast, arg="foo"),
         add_instr,
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -165,24 +187,24 @@ def test_data_dependency_4():
         *return_none,
         TracedInstr("STORE_NAME", arg="Foo"),
         # ob.attr1 = 1
-        TracedInstr("LOAD_CONST", arg=1),
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_const, arg=1),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr1"),
         # ob.attr2 = ob.attr2 + [ob.attr1]
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("LOAD_ATTR", arg=attr2),
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("LOAD_ATTR", arg=attr1),
         TracedInstr("BUILD_LIST", arg=1),
         add_instr,
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr2"),
         # result = ob.attr2
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("LOAD_ATTR", arg=attr2),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -221,14 +243,14 @@ def test_data_dependency_5():
         # ob = Foo()
         *instantiate_foo_class,
         # ob.attr1 = 1
-        TracedInstr("LOAD_CONST", arg=1),
-        TracedInstr("LOAD_FAST", arg="ob"),
+        TracedInstr(load_const, arg=1),
+        TracedInstr(load_fast, arg="ob"),
         TracedInstr("STORE_ATTR", arg="attr1"),
         # result = ob
         TracedInstr("LOAD_FAST", arg="ob"),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -250,22 +272,22 @@ def test_simple_control_dependency_1():
 
     expected_instructions = [
         # foo = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="foo"),
         # if foo == 1:
-        TracedInstr("LOAD_FAST", arg="foo"),
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_fast, arg="foo"),
+        TracedInstr(load_const, arg=1),
         TracedInstr("COMPARE_OP", arg=eq_compare),
         TracedInstr(
             pop_jump_if_false,
             # the first instruction of the return block
-            arg=TracedInstr("LOAD_FAST", arg="result"),
+            arg=TracedInstr(load_fast, arg="result"),
         ),
         # result = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -287,10 +309,10 @@ def test_simple_control_dependency_2():
 
     expected_instructions = [
         # result = 3
-        TracedInstr("LOAD_CONST", arg=3),
+        TracedInstr(load_const, arg=3),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -313,7 +335,10 @@ def test_simple_control_dependency_3():
 
         return result
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        jump_instruction = ()
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),)
+    elif sys.version_info >= (3, 13):
         jump_instruction = ()
         load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
     elif sys.version_info >= (3, 12):
@@ -343,10 +368,10 @@ def test_simple_control_dependency_3():
 
     expected_instructions = [
         # foo = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="foo"),
         # bar = 2
-        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr(load_const, arg=2),
         TracedInstr("STORE_FAST", arg="bar"),
         # if foo == bar:
         *load_foo_and_bar,
@@ -354,23 +379,23 @@ def test_simple_control_dependency_3():
         TracedInstr(
             pop_jump_if_false,
             # the first instruction of the elif block
-            arg=TracedInstr("LOAD_FAST", arg="foo"),
+            arg=TracedInstr(load_fast, arg="foo"),
         ),
         # elif foo == 1:
-        TracedInstr("LOAD_FAST", arg="foo"),
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_fast, arg="foo"),
+        TracedInstr(load_const, arg=1),
         TracedInstr("COMPARE_OP", arg=eq_compare),
         TracedInstr(
             pop_jump_if_false,
             # the first instruction of the else block
-            arg=TracedInstr("LOAD_CONST", arg=3),
+            arg=TracedInstr(load_const, arg=3),
         ),
         # result = 2
-        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr(load_const, arg=2),
         TracedInstr("STORE_FAST", arg="result"),
         *jump_instruction,
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 
@@ -393,7 +418,10 @@ def test_simple_control_dependency_4():
 
         return result
 
-    if sys.version_info >= (3, 13):
+    if sys.version_info >= (3, 14):
+        load_foo_and_bar = (TracedInstr("LOAD_FAST_BORROW_LOAD_FAST_BORROW", arg=("foo", "bar")),)
+        gt_compare = Compare.GT_CAST
+    elif sys.version_info >= (3, 13):
         load_foo_and_bar = (TracedInstr("LOAD_FAST_LOAD_FAST", arg=("foo", "bar")),)
         gt_compare = Compare.GT_CAST
     else:
@@ -405,10 +433,10 @@ def test_simple_control_dependency_4():
 
     expected_instructions = [
         # foo = 1
-        TracedInstr("LOAD_CONST", arg=1),
+        TracedInstr(load_const, arg=1),
         TracedInstr("STORE_FAST", arg="foo"),
         # bar = 2
-        TracedInstr("LOAD_CONST", arg=2),
+        TracedInstr(load_const, arg=2),
         TracedInstr("STORE_FAST", arg="bar"),
         # if foo == bar:
         *load_foo_and_bar,
@@ -424,13 +452,13 @@ def test_simple_control_dependency_4():
         TracedInstr(
             pop_jump_if_false,
             # the first instruction of the else block
-            arg=TracedInstr("LOAD_CONST", arg=3),
+            arg=TracedInstr(load_const, arg=3),
         ),
         # result = 3
-        TracedInstr("LOAD_CONST", arg=3),
+        TracedInstr(load_const, arg=3),
         TracedInstr("STORE_FAST", arg="result"),
         # return result
-        TracedInstr("LOAD_FAST", arg="result"),
+        TracedInstr(load_fast, arg="result"),
         TracedInstr("RETURN_VALUE"),
     ]
 

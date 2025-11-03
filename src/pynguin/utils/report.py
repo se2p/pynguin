@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:
 
     import pynguin.ga.testsuitechromosome as tsc
 
-    from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.instrumentation.tracer import SubjectProperties
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,14 +139,14 @@ class CoverageReport:
 
 def get_coverage_report(
     suite: tsc.TestSuiteChromosome,
-    executor: TestCaseExecutor,
+    subject_properties: SubjectProperties,
     metrics: set[config.CoverageMetric],
 ) -> CoverageReport:
     """Create a coverage report for the given test suite.
 
     Args:
         suite: The suite for which a coverage report should be generated.
-        executor: The executor
+        subject_properties: The subject properties.
         metrics: In which coverage metrics are we interested?
 
     Returns:
@@ -158,7 +158,6 @@ def get_coverage_report(
         assert result is not None
         results.append(result)
     trace = ff.analyze_results(results)
-    subject_properties = executor.subject_properties
     try:
         source = inspect.getsourcelines(sys.modules[config.configuration.module_name])[0]
     except Exception as e:

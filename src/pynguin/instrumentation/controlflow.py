@@ -541,12 +541,7 @@ class CFG(ProgramGraph):
         for block in blocks:
             for i, instr in enumerate(block):
                 if isinstance(instr, TryBegin):
-                    # We need to handle the next block manually here because there is a
-                    # bug in the bytecode library that does not set the next block correctly
-                    # after splitting a block.
-                    next_block = block.next_block
-                    new_block = blocks.split_block(block, i + 1)
-                    new_block.next_block = next_block
+                    blocks.split_block(block, i + 1)
 
     @staticmethod
     def _create_nodes_and_edges(
