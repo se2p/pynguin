@@ -313,13 +313,14 @@ class MasterProcess:
         try:
             while self._is_running and not self._shutdown_event.is_set():
                 try:
-                    log_record = self._log_queue.get(timeout=0.5)
+                    log_record = self._log_queue.get(timeout=0.1)
+                except queue.Empty:
+                    continue
+
+                try:
                     worker_logger = logging.getLogger(f"worker.{log_record.name}")
                     formatted_msg = f"[Worker-{log_record.worker_pid}] {log_record.msg}"
                     worker_logger.log(log_record.level, formatted_msg, *log_record.args)
-                except queue.Empty:  # noqa: PERF203 TODO: improve?
-                    # No log records available, continue
-                    continue
                 except Exception as e:  # noqa: BLE001
                     _LOGGER.error("Error processing log record: %s", e)
                     continue
