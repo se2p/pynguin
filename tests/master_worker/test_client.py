@@ -305,9 +305,10 @@ def test_run_pynguin_with_master_worker_exception():
 
 
 @pytest.mark.parametrize("subprocess", [True, False])
-def test_integration_run_pynguin_with_master_worker(subprocess):
+def test_integration_run_pynguin_with_master_worker(tmpdir, subprocess):
     """Test integration between client and master."""
     config.configuration.seeding = config.SeedingConfiguration(seed=42)
+    config.configuration.test_case_output = config.TestCaseOutputConfiguration(output_path=tmpdir)
     config.configuration.stopping.maximum_iterations = 2
     config.configuration.module_name = "tests.fixtures.examples.basket"
     config.configuration.search_algorithm.max_initial_tests = 1
