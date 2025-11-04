@@ -269,9 +269,11 @@ class StatisticsOutputConfiguration:
     """When exporting type guesses for parameters, how many guesses per parameter
     should be exported? Expects positive integers."""
 
-    store_test_before_execution: bool = True
+    store_test_before_execution: bool = False
     """When enabled, each test case is written to a file before execution and removed
-    after successful completion. If a test causes a crash, the file remains."""
+    after successful completion. If a test causes a crash, the file remains.
+    Use with caution: Converting pynguin internal representation to a pytest test case
+    and writing it to a file is expensive and leads to lower iterations/coverage."""
 
 
 @dataclasses.dataclass
