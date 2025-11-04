@@ -139,6 +139,8 @@ def _try_parse_enum(value: str, enum_classes: list[type[enum.Enum]]) -> Any:
 def read_config_from_dict(obj: Any) -> Any:
     """Recursively reads a configuration from a dictionary.
 
+    If this gets even more complex, one might consider using pydantic or dacite instead.
+
     Args:
         obj: The dictionary to read the configuration from.
 
