@@ -103,6 +103,9 @@ class ReturnCode(enum.IntEnum):
     NO_TESTS_GENERATED = 2
     """Symbolises that no test could be generated."""
 
+    FINAL_METRICS_TRACKING_FAILED = 3
+    """Symbolises that the final metrics tracking failed."""
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -434,8 +437,10 @@ def _reload_instrumentation_loader(
     try:
         with subject_properties.instrumentation_tracer:
             importlib.reload(module)
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.warning("Reload of module %s failed: %s", module_name, e)
+    except Exception as ex:
+        _LOGGER.exception("Failed to reload SUT: %s", ex)
+        return False
+    return True
 
 
 def _reset_cache_for_result(generation_result):
@@ -450,7 +455,7 @@ def _track_final_metrics(
     executor: TestCaseExecutor,
     generation_result: tsc.TestSuiteChromosome,
     constant_provider: ConstantProvider,
-) -> set[config.CoverageMetric]:
+) -> set[config.CoverageMetric] | None:
     """Track the final coverage metrics.
 
     Re-loads all required instrumentations for metrics that were not already
@@ -466,7 +471,8 @@ def _track_final_metrics(
             reloading of the module
 
     Returns:
-        The set of tracked coverage metrics, including the ones that we optimised for.
+        The set of tracked coverage metrics, including the ones that we optimised for
+        or None if the tracking failed.
     """
     output_variables = config.configuration.statistics_output.output_variables
     # Alias for shorter lines
@@ -499,11 +505,13 @@ def _track_final_metrics(
     dynamic_constant_provider = None
     if isinstance(constant_provider, DynamicConstantProvider):
         dynamic_constant_provider = constant_provider
-    _reload_instrumentation_loader(
+
+    if not _reload_instrumentation_loader(
         metrics_for_reinstrumenation,
         dynamic_constant_provider,
         executor.subject_properties,
-    )
+    ):
+        return None
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)
@@ -605,9 +613,16 @@ def _run() -> ReturnCode:  # noqa: C901
     except Exception as ex:
         _LOGGER.exception("Minimization failed: %s", ex)
     _generate_assertions(executor, generation_result, test_cluster)
-    tracked_metrics = _track_final_metrics(
-        algorithm, executor, generation_result, constant_provider
-    )
+
+    if (
+        tracked_metrics := _track_final_metrics(
+            algorithm,
+            executor,
+            generation_result,
+            constant_provider,
+        )
+    ) is None:
+        return ReturnCode.FINAL_METRICS_TRACKING_FAILED
 
     executor.subject_properties.instrumentation_tracer.disable()
 
