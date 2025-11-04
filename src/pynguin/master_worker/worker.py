@@ -13,6 +13,7 @@ import multiprocessing
 import queue
 import signal
 import sys
+import threading
 import time
 import traceback
 
@@ -29,17 +30,28 @@ DEFAULT_WORKER_ID = 10000
 
 
 class _QueueHandler(logging.Handler):
-    """Logging handler that sends log records to a queue."""
+    """Logging handler that sends log records to a queue in batches."""
 
     def __init__(self, queue: multiprocessing.Queue):
         super().__init__()
         self.queue = queue
         self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
+        self._buffer: list[LogRecord] = []
+        self._buffer_lock = threading.Lock()
+        self._flush_interval = 0.1  # seconds
+        self._shutdown_event = threading.Event()
 
-    def emit(self, record):
-        """Send log record to the queue."""
+        self._flush_thread = threading.Thread(target=self._flusher, daemon=True)
+        self._flush_thread.start()
+
+    def _flusher(self) -> None:
+        """Periodically flush the log buffer."""
+        while not self._shutdown_event.wait(self._flush_interval):
+            self.flush()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Add a log record to the buffer."""
         try:
-            # Create a simple log record that can be pickled
             log_record = LogRecord(
                 level=record.levelno,
                 msg=record.getMessage(),
@@ -48,9 +60,31 @@ class _QueueHandler(logging.Handler):
                 created=record.created,
                 worker_pid=self.worker_pid,
             )
-            self.queue.put(log_record)
-        except Exception:
-            _LOGGER.exception("Failed to send log record to master")
+            with self._buffer_lock:
+                self._buffer.append(log_record)
+        except Exception:  # noqa: BLE001
+            # Cannot use logger here as it would cause recursion
+            traceback.print_exc()
+
+    def flush(self) -> None:
+        """Send all buffered records to the queue."""
+        if not self._buffer:
+            return
+        with self._buffer_lock:
+            try:
+                records_to_send = list(self._buffer)
+                self._buffer.clear()
+                if records_to_send:
+                    self.queue.put(records_to_send)
+            except Exception:  # noqa: BLE001
+                traceback.print_exc()
+
+    def close(self) -> None:
+        """Flush the buffer and stop the flusher thread."""
+        self._shutdown_event.set()
+        self._flush_thread.join()
+        self.flush()
+        super().close()
 
 
 @dataclass
