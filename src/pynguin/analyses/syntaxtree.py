@@ -22,8 +22,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeAlias
 
-import astroid
-
+from astroid.nodes import AsyncFunctionDef
+from astroid.nodes import ClassDef
+from astroid.nodes import FunctionDef
+from astroid.nodes import Module
 from astroid.nodes.as_string import to_code
 
 
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
-AstroidFunctionDef: TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
+AstroidFunctionDef: TypeAlias = AsyncFunctionDef | FunctionDef
 ASTFunctionDef: TypeAlias = ast.AsyncFunctionDef | ast.FunctionDef
 
 
@@ -483,7 +485,7 @@ def astroid_to_ast(astroid_in: AstroidFunctionDef) -> ASTFunctionDef:
 
 
 def get_function_node_from_ast(
-    tree: astroid.Module | astroid.ClassDef | None, name: str
+    tree: Module | ClassDef | None, name: str
 ) -> AstroidFunctionDef | None:
     """Get the AST Node that represents the function with the given name.
 
@@ -499,12 +501,12 @@ def get_function_node_from_ast(
     if name not in tree.locals:
         return None
     maybe_function = tree.locals[name][0]
-    if isinstance(maybe_function, astroid.FunctionDef | astroid.AsyncFunctionDef):
+    if isinstance(maybe_function, FunctionDef | AsyncFunctionDef):
         return maybe_function
     return None
 
 
-def get_class_node_from_ast(tree: astroid.Module | None, name: str) -> astroid.ClassDef | None:
+def get_class_node_from_ast(tree: Module | None, name: str) -> ClassDef | None:
     """Get the AST Node that represents the class with the given name.
 
     Args:
@@ -519,7 +521,7 @@ def get_class_node_from_ast(tree: astroid.Module | None, name: str) -> astroid.C
     if name not in tree.locals:
         return None
     maybe_class = tree.locals[name][0]
-    if isinstance(maybe_class, astroid.ClassDef):
+    if isinstance(maybe_class, ClassDef):
         return maybe_class
     return None
 

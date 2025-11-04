@@ -19,6 +19,8 @@ import logging
 import astroid
 import pytest
 
+from astroid.nodes import Module
+
 from pynguin.analyses import syntaxtree
 from pynguin.analyses.syntaxtree import FunctionAnalysisVisitor
 from pynguin.analyses.syntaxtree import astroid_to_ast
@@ -29,7 +31,7 @@ from pynguin.analyses.syntaxtree import has_decorator
 
 
 @pytest.fixture(scope="module")
-def comments_tree() -> astroid.Module:
+def comments_tree() -> Module:
     module = importlib.import_module("tests.fixtures.cluster.comments")
     return astroid.parse(inspect.getsource(module), path="comments.py")
 

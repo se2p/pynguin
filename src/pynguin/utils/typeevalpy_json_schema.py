@@ -17,10 +17,8 @@ import typing
 
 from abc import ABC
 
-import astroid
-
-from astroid import Arguments
-from astroid import AssignName
+from astroid.nodes import AsyncFunctionDef
+from astroid.nodes import FunctionDef
 
 import pynguin.configuration as config
 
@@ -41,13 +39,16 @@ from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 if typing.TYPE_CHECKING:
+    from astroid.nodes import Arguments
+    from astroid.nodes import AssignName
+
     from pynguin.analyses.module import CallableData
     from pynguin.analyses.module import SignatureInfo
     from pynguin.analyses.module import TypeGuessingStats
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 
-AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
+AstroidFunctionDef: typing.TypeAlias = AsyncFunctionDef | FunctionDef
 
 
 _LOGGER = logging.getLogger(__name__)
