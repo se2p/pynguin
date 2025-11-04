@@ -14,6 +14,7 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import math
 import sys
 
 from abc import ABC
@@ -439,7 +440,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             Gives back True, if at least one iteration increased the fitness.
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
-        factor = config.configuration.local_search.ls_int_delta_increasing_factor
+        factor = float(config.configuration.local_search.ls_int_delta_increasing_factor)
         if statement.value is None:
             return False
 
@@ -449,11 +450,15 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             statement.value = complex(statement.value.real, statement.value.imag + delta)
         else:
             statement.value = complex(statement.value.real + delta, statement.value.imag)
-        while self._objective.has_improved(self._chromosome) and not self._timer.limit_reached():
+        while (
+            self._objective.has_improved(self._chromosome)
+            and not self._timer.limit_reached()
+            and {statement.value.real, statement.value.imag}.isdisjoint((-math.inf, math.inf))
+        ):
+            delta *= factor
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
             improved = True
-            delta *= factor
             if imaginary:
                 statement.value = complex(statement.value.real, statement.value.imag + delta)
             else:
