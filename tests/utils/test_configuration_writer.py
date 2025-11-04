@@ -35,6 +35,7 @@ subprocess_if_recommended = true
 [test_case_output]
 output_path = ""
 crash_path = ""
+store_best_population = true
 export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
@@ -220,8 +221,8 @@ def expected_txt(tmp_path):
     expected_txt = Path(tmp_path) / f"expected-{PYNGUIN_CONFIG_TXT}"
     expected = """("Configuration(project_path='', module_name='', "
  "test_case_output=TestCaseOutputConfiguration(output_path='', crash_path='', "
- "export_strategy=<ExportStrategy.PY_TEST: 'PY_TEST'>, "
- 'max_length_test_case=2500, '
+ 'store_best_population=True, export_strategy=<ExportStrategy.PY_TEST: '
+ "'PY_TEST'>, max_length_test_case=2500, "
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
@@ -531,6 +532,8 @@ CASE
 --test_case_output.mutation_strategy
 FIRST_ORDER_MUTANTS
 --test_case_output.post_process
+True
+--test_case_output.store_best_population
 True
 --test_creation.any_weight
 0
