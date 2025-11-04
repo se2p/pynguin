@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import MutableSequence
     from collections.abc import Sequence
-    from collections.abc import Set as AbstractSet
 
 
 class Random(random.Random):  # noqa: S311
@@ -229,7 +228,7 @@ def shuffle(sequence: MutableSequence[_T]) -> None:
     return RNG.shuffle(sequence)
 
 
-def sample(population: Sequence[_T] | AbstractSet[_T], num_elements: int) -> list[_T]:
+def sample(population: Sequence[_T], num_elements: int) -> list[_T]:
     """Samples a specific amount of elements from a population.
 
     Args:
