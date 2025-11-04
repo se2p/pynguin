@@ -31,8 +31,44 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def store_binary(test_case: tc.TestCase, target_file: Path) -> None:
+    """Store the test case as a binary file.
+
+    Warning: Does not work for SUT classes. Thus do not use this!
+
+    Args:
+        test_case: The test case to store.
+        target_file: The file to store the test case to.
+    """
+    try:
+        with Path(target_file).open("wb") as f:
+            pickle.dump(test_case, f)
+
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Failed to pickle dump test case: %s", e)
+
+
+def store_pytest(test_case: tc.TestCase, target_file: Path) -> None:
+    """Store the test case as a pytest file.
+
+    Args:
+        test_case: The test case to store.
+        target_file: The file to store the test case to.
+    """
+    try:
+        chromosome = TestCaseChromosome(test_case)
+        exporter = PyTestChromosomeToAstVisitor()
+        chromosome.accept(exporter)
+        export.save_module_to_file(exporter.to_module(), target_file, format_with_black=False)
+
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Failed to export test case to code: %s", e)
+
+
 class ExecutionRecorder:
     """A context manager to store the test case to be executed.
+
+    Warning: Does not work for SUT classes. Thus do not use this!
 
     This recorder writes the test case to a file before execution and removes it after
     execution. If the test execution process causes Pynguin to crash, the file remains.
@@ -58,29 +94,11 @@ class ExecutionRecorder:
         if self._should_record:
             self._target_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def _store_binary(self):
-        try:
-            with Path(self._target_file).open("wb") as f:
-                pickle.dump(self._test_case, f)
-
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.warning("Failed to pickle dump test case: %s", e)
-
-    def _store_pytest(self):
-        try:
-            chromosome = TestCaseChromosome(self._test_case)
-            exporter = PyTestChromosomeToAstVisitor()
-            chromosome.accept(exporter)
-            export.save_module_to_file(exporter.to_module(), self._target_file)
-
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.warning("Failed to export test case to code: %s", e)
-
     def __enter__(self) -> Self:
         """Write the test case to the recording file before execution."""
         if not self._should_record:
             return self
-        self._store_binary()
+        store_pytest(self._test_case, self._target_file)
         return self
 
     def __exit__(
