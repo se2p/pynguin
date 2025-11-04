@@ -594,7 +594,9 @@ TYPE_HINTS
 --type_inference.type_tracing_attribute_weight
 0.2
 --type_inference.type_tracing_subtype_weight
-0.3"""
+0.3
+--use_master_worker
+True"""
 
 
 def expected_parameter_list() -> list[str]:
