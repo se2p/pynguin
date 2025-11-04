@@ -48,7 +48,7 @@ class _QueueHandler(logging.Handler):
                 created=record.created,
                 worker_pid=self.worker_pid,
             )
-            self.queue.put_nowait(log_record)
+            self.queue.put(log_record)
         except Exception:
             _LOGGER.exception("Failed to send log record to master")
 
