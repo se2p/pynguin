@@ -129,10 +129,8 @@ def _try_parse_enum(value: str, enum_classes: list[type[enum.Enum]]) -> Any:
         The parsed enum value or the original string if parsing fails.
     """
     for enum_cls in enum_classes:
-        try:
+        if value in enum_cls.__members__:
             return enum_cls(value)
-        except (ValueError, TypeError):  # noqa: PERF203 # TODO
-            continue
     return value
 
 
