@@ -428,7 +428,13 @@ class GenericFunction(GenericCallableAccessibleObject):
         return f"{self.__class__.__name__}({self._callable.__name__}, {self.inferred_signature})"
 
     def __str__(self):
-        return f"{self._callable.__module__}.{self._callable.__qualname__}"
+        if hasattr(self._callable, "__qualname__"):
+            callable_name = self._callable.__qualname__
+        elif hasattr(self._callable, "__name__"):
+            callable_name = self._callable.__name__
+        else:
+            callable_name = str(type(self._callable).__name__)
+        return f"{self._callable.__module__}.{callable_name}"
 
 
 class GenericAbstractField(GenericAccessibleObject, abc.ABC):
