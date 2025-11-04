@@ -588,7 +588,11 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         self._backup(statement)
         i = 0
         improved = False
-        while statement.value is not None and i <= len(statement.value):
+        while (
+            statement.value is not None
+            and i <= len(statement.value)
+            and not self._timer.limit_reached()
+        ):
             statement.value = statement.value[:i] + chr(97) + statement.value[i:]
             # TODO: Which is best char to start with (maybe the one in the middle?)
             self._logger.debug(
@@ -599,7 +603,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
                 self._backup(statement)
                 finished = False
 
-                while not finished:
+                while not finished and not self._timer.limit_reached():
                     finished = True
                     if self.iterate_string(statement, i, 1):
                         finished = False
