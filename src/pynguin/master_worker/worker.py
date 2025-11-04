@@ -190,8 +190,8 @@ def _process_task(
         True if a task was processed, False if the queue was empty
     """
     try:
-        # Get task from queue with timeout
-        task = task_queue.get(timeout=1)
+        # Wait for the initial task.
+        task = task_queue.get(timeout=10)
         _LOGGER.info("Worker received task: %s", task.task_id)
 
         # Execute the task
@@ -203,7 +203,7 @@ def _process_task(
         return True
 
     except queue.Empty:
-        # Continue waiting for tasks
+        _LOGGER.warning("Did not receive a task within the timeout period.")
         return False
     except Exception as e:  # noqa: BLE001
         task_id = "unknown"
@@ -236,17 +236,26 @@ def worker_main(
         result_queue: Queue to send results back to master
         log_queue: Queue to send log records back to master
     """
-    _setup_signal_handlers()
-    _setup_worker_logging(log_queue)
-    _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
+    root_logger = logging.getLogger()
+    original_handlers = list(root_logger.handlers)
 
     try:
-        while True:
-            _process_task(task_queue, result_queue)
+        _setup_signal_handlers()
+        _setup_worker_logging(log_queue)
+        _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
+
+        # Process one task and then exit.
+        if not _process_task(task_queue, result_queue):
+            _LOGGER.warning("Worker did not receive a task and will exit.")
 
     except KeyboardInterrupt:
         _LOGGER.info("Worker process interrupted")
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Worker process crashed: %s", e)
+    except Exception as e:
+        _LOGGER.exception("Worker process crashed: %s", e)
     finally:
         _LOGGER.info("Worker process exiting")
+        # Explicitly close all logging handlers to ensure logs are flushed.
+        for handler in logging.getLogger().handlers:
+            handler.close()
+        # Restore original handlers to avoid issues in tests
+        root_logger.handlers = original_handlers

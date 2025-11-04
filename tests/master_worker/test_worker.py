@@ -169,7 +169,7 @@ def test_worker_main_normal_operation(mock_process_task, mock_worker_setup, mock
 
     mock_worker_setup["signals"].assert_called_once()
     mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-    assert mock_process_task.call_count == 3
+    assert mock_process_task.call_count == 1
 
 
 @patch("pynguin.master_worker.worker._process_task")
@@ -202,25 +202,6 @@ def test_worker_main_handles_exceptions(
 
     mock_worker_setup["signals"].assert_called_once()
     mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-
-
-@patch("pynguin.master_worker.worker._process_task")
-def test_worker_main_continuous_processing(mock_process_task, mock_queues):
-    """Test worker_main continues processing until interrupted."""
-    call_count = 0
-
-    def side_effect(*args):  # noqa: ARG001
-        nonlocal call_count
-        call_count += 1
-        if call_count >= 5:
-            raise KeyboardInterrupt
-        return True
-
-    mock_process_task.side_effect = side_effect
-
-    worker_main(mock_queues["task_queue"], mock_queues["result_queue"], mock_queues["log_queue"])
-
-    assert mock_process_task.call_count == 5
 
 
 @patch("pynguin.master_worker.worker._process_task")
