@@ -294,6 +294,10 @@ class TestCaseOutputConfiguration:
     Only works when running in a subprocess. If set to "", the are stored in the
     output_path."""
 
+    store_best_population: bool = True
+    """Whether to store and update the current best population as pytest in the
+    output_path during the search."""
+
     export_strategy: ExportStrategy = ExportStrategy.PY_TEST
     """The export strategy determines for which test-runner system the
     generated tests should fit."""

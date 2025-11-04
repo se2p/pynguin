@@ -277,6 +277,12 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
             if stop.observes_execution:
                 self._executor.add_observer(stop)
         strategy.add_search_observer(so.LogSearchObserver())
+
+        if config.configuration.test_case_output.store_best_population:
+            strategy.add_search_observer(
+                so.BestPopulationObserver(config.configuration.test_case_output.output_path)
+            )
+
         strategy.add_search_observer(sso.SequenceStartTimeObserver())
         strategy.add_search_observer(sso.IterationObserver())
         strategy.add_search_observer(sso.BestIndividualObserver())
