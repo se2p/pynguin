@@ -15,6 +15,7 @@ import json
 import logging
 import typing
 from abc import ABC
+from pathlib import Path
 
 from astroid.nodes import AsyncFunctionDef, FunctionDef
 
@@ -50,12 +51,100 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaElement(ABC):  # noqa: B024
-    """A base class for all the TypeEvalPy schema element classes."""
+class TypeEvalPySchemaElement:
+    """Data class for a TypeEvalPy schema element."""
+
+    file: str
+    line_number: int
+    type: list[str]
+    col_offset: int | None = None
+    variable: str | None = None
+    function: str | None = None
+    parameter: str | None = None
+    all_type_preds: list[list[str]] | None = None
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaLocalVariable(TypeEvalPySchemaElement):
+class ParsedTypeEvalPyData:
+    """Container for parsed TypeEvalPy JSON data."""
+
+    elements: list[TypeEvalPySchemaElement]
+    """List of all TypeEvalPy schema elements."""
+
+    def get_function_parameters(self, function_name: str) -> dict[str, list[str]]:
+        """Get all parameters for a specific function.
+
+        Args:
+            function_name: Name of the function
+
+        Returns:
+            Dictionary mapping parameter names to their types
+        """
+        parameters = {}
+        for element in self.elements:
+            if element.function == function_name and element.parameter is not None:
+                parameters[element.parameter] = element.type
+        return parameters
+
+    def get_function_return_types(self, function_name: str) -> list[str]:
+        """Get return types for a specific function.
+
+        Args:
+            function_name: Name of the function
+
+        Returns:
+            List of return types for the function
+        """
+        for element in self.elements:
+            if (
+                element.function == function_name
+                and element.parameter is None
+                and element.variable is None
+            ):
+                return element.type
+        return []
+
+    def get_variable_types(self, variable_name: str) -> list[str]:
+        """Get types for a specific variable.
+
+        Args:
+            variable_name: Name of the variable
+
+        Returns:
+            List of types for the variable
+        """
+        for element in self.elements:
+            if element.variable == variable_name:
+                return element.type
+        return []
+
+    def get_all_functions(self) -> set[str]:
+        """Get all function names in the data.
+
+        Returns:
+            Set of all function names
+        """
+        functions = set()
+        for element in self.elements:
+            if element.function is not None:
+                functions.add(element.function)
+        return functions
+
+    def get_all_variables(self) -> set[str]:
+        """Get all variable names in the data.
+
+        Returns:
+            Set of all variable names
+        """
+        variables = set()
+        for element in self.elements:
+            if element.variable is not None:
+                variables.add(element.variable)
+        return variables
+
+
+@dataclasses.dataclass(frozen=True)
+class TypeEvalPySchemaLocalVariable(ABC):
     """Information about a local variable.
 
     Attributes:
@@ -74,7 +163,7 @@ class TypeEvalPySchemaLocalVariable(TypeEvalPySchemaElement):
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaLocalVariableInsideFunction(TypeEvalPySchemaElement):
+class TypeEvalPySchemaLocalVariableInsideFunction(ABC):
     """Information about a local variable inside a function.
 
     Attributes:
@@ -95,7 +184,7 @@ class TypeEvalPySchemaLocalVariableInsideFunction(TypeEvalPySchemaElement):
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaParameter(TypeEvalPySchemaElement):
+class TypeEvalPySchemaParameter(ABC):
     """Information about a parameter of a function.
 
     Attributes:
@@ -116,7 +205,7 @@ class TypeEvalPySchemaParameter(TypeEvalPySchemaElement):
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaFunctionReturn(TypeEvalPySchemaElement):
+class TypeEvalPySchemaFunctionReturn(ABC):
     """Information about the return type of a function.
 
     Attributes:
@@ -269,6 +358,16 @@ def convert_return(
     )
 
 
+# Union type for backward compatibility with existing code
+TypeEvalPySchemaElementUnion = (
+    TypeEvalPySchemaElement
+    | TypeEvalPySchemaLocalVariable
+    | TypeEvalPySchemaLocalVariableInsideFunction
+    | TypeEvalPySchemaParameter
+    | TypeEvalPySchemaFunctionReturn
+)
+
+
 def provide_json(
     file_name: str,
     accessibles: OrderedSet[GenericAccessibleObject],
@@ -287,7 +386,7 @@ def provide_json(
     Returns:
         JSON string
     """
-    schema_elements: list[TypeEvalPySchemaElement] = []
+    schema_elements: list[TypeEvalPySchemaElementUnion] = []
 
     for accessible in accessibles:
         if not isinstance(accessible, GenericCallableAccessibleObject):
@@ -335,3 +434,119 @@ def provide_json(
                 schema_elements.append(return_json)
 
     return json.dumps([dataclasses.asdict(schema_element) for schema_element in schema_elements])
+
+
+def _validate_all_type_preds(all_type_preds: typing.Any) -> list[list[str]] | None:
+    """Validate and return all_type_preds if valid, None otherwise.
+
+    Args:
+        all_type_preds: The all_type_preds value to validate
+
+    Returns:
+        Valid all_type_preds or None if invalid
+    """
+    if all_type_preds is None:
+        return None
+
+    if not isinstance(all_type_preds, list):
+        _LOGGER.warning(
+            "all_type_preds field must be a list, got %s", type(all_type_preds).__name__
+        )
+        return None
+
+    # Validate that all_type_preds is a list of lists of strings
+    if not all(
+        isinstance(pred, list) and all(isinstance(t, str) for t in pred) for pred in all_type_preds
+    ):
+        _LOGGER.warning("all_type_preds must be a list of lists of strings, skipping field")
+        return None
+
+    return all_type_preds
+
+
+def _parse_schema_element(item: dict[str, typing.Any]) -> TypeEvalPySchemaElement | None:
+    """Parse a single schema element from a dictionary.
+
+    Args:
+        item: Dictionary containing schema element data
+
+    Returns:
+        TypeEvalPySchemaElement if valid, None otherwise
+    """
+    # Check required fields
+    required_fields = ["file", "line_number", "type"]
+    missing_fields = [field for field in required_fields if field not in item]
+    if missing_fields:
+        _LOGGER.warning("Skipping item missing required fields %s: %s", missing_fields, item)
+        return None
+
+    type_list = item["type"]
+    if not isinstance(type_list, list):
+        _LOGGER.warning("Skipping item with non-list type field: %s", item)
+        return None
+
+    # Extract and validate all type predictions if present
+    all_type_preds = _validate_all_type_preds(item.get("all_type_preds"))
+
+    try:
+        return TypeEvalPySchemaElement(
+            file=item["file"],
+            line_number=item["line_number"],
+            type=type_list,
+            col_offset=item.get("col_offset"),
+            variable=item.get("variable"),
+            function=item.get("function"),
+            parameter=item.get("parameter"),
+            all_type_preds=all_type_preds,
+        )
+    except (TypeError, ValueError) as e:
+        _LOGGER.warning("Failed to create TypeEvalPySchemaElement from %s: %s", item, e)
+        return None
+
+
+def parse_json(json_path: str) -> ParsedTypeEvalPyData:
+    """Parse a TypeEvalPy JSON file and extract type information.
+
+    Args:
+        json_path: Path to the TypeEvalPy JSON file
+
+    Returns:
+        ParsedTypeEvalPyData containing the extracted type information
+
+    Raises:
+        FileNotFoundError: If the JSON file does not exist
+        json.JSONDecodeError: If the JSON file is malformed
+        ValueError: If the JSON structure is not valid TypeEvalPy format
+    """
+    if not json_path:
+        return ParsedTypeEvalPyData(elements=[])
+
+    path = Path(json_path)
+    if not path.exists():
+        raise FileNotFoundError(f"TypeEvalPy JSON file not found: {json_path}")
+
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(
+            f"Invalid JSON in TypeEvalPy file {json_path}: {e.msg}", e.doc, e.pos
+        ) from e
+
+    if not isinstance(data, list):
+        raise ValueError(f"TypeEvalPy JSON file must contain a list, got {type(data).__name__}")
+
+    elements: list[TypeEvalPySchemaElement] = []
+
+    for item in data:
+        if not isinstance(item, dict):
+            _LOGGER.warning("Skipping non-dict item in TypeEvalPy JSON: %s", item)
+            continue
+
+        element = _parse_schema_element(item)
+        if element is not None:
+            elements.append(element)
+
+    _LOGGER.info("Parsed TypeEvalPy JSON with %d elements", len(elements))
+
+    return ParsedTypeEvalPyData(elements=elements)

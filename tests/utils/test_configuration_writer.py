@@ -118,6 +118,7 @@ subtype_inference = "NONE"
 type_tracing_subtype_weight = 0.3
 type_tracing_argument_type_weight = 0.5
 type_tracing_attribute_weight = 0.2
+typeevalpy_json_path = ""
 
 [pynguinml]
 ml_testing_enabled = false
@@ -275,7 +276,7 @@ def expected_txt(tmp_path):
  "'TYPE_HINTS'>, type_tracing=0.0, "
  "subtype_inference=<SubtypeInferenceStrategy.NONE: 'NONE'>, "
  'type_tracing_subtype_weight=0.3, type_tracing_argument_type_weight=0.5, '
- 'type_tracing_attribute_weight=0.2), '
+ "type_tracing_attribute_weight=0.2, typeevalpy_json_path=''), "
  'pynguinml=PynguinMLConfiguration(ml_testing_enabled=False, '
  "constraints_path='', dtype_mapping_path='', constructor_function='', "
  "constructor_function_parameter='', max_ndim=4, max_shape_dim=4, "

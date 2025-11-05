@@ -483,6 +483,11 @@ class TypeInferenceConfiguration:
     """Weight for selecting the attribute table inference strategy for type selection
     during type tracing."""
 
+    typeevalpy_json_path: str = ""
+    """Path to a TypeEvalPy JSON file containing type information to use during test
+    generation. If provided, the file will be parsed and the type information will be
+    used to improve type inference."""
+
 
 @dataclasses.dataclass
 class PynguinMLConfiguration:
