@@ -148,35 +148,25 @@ This is the central coordinator. It does not perform any test generation itself.
 Its responsibilities include:
 
 - Spawning and terminating the worker process.
-- Monitoring the worker's health. If the worker crashes, the master restarts it.
-- Managing communication queues for tasks, results, and logs between the client
-  and the worker.
+- Restarting the worker process if it crashes.
 - Automatically adjusting the configuration (e.g., remaining search time) after
   a worker crash.
-- Dynamically enabling a more robust subprocess execution mode within the worker
-  if repeated crashes occur.
+- Enabling the more robust subprocess execution mode within the worker if a crash
+  occurs.
 
 **worker_main**
 
-This function runs in a separate, dedicated process. It is the "workhorse" that
-performs the actual test generation.
-
-- It waits for a task from the master via a queue.
-- It executes ``run_pynguin`` with the provided configuration.
-- It sends results (success, error, or timeout) and log messages back to the
-  master through separate queues.
+This function runs in a separate, dedicated process. It executes ``run_pynguin``
+with the provided configuration and returns the results back to the master.
 
 Workflow
 ^^^^^^^^
 
 1. A ``PynguinClient`` is created, which in turn initializes a ``MasterProcess``.
-2. The client starts the master, which spawns the first worker process.
-3. The client calls ``generate_tests``, passing the configuration to the master.
-4. The master sends a ``WorkerTask`` to the worker process.
-5. The worker executes the task. During execution, it sends log records back to
-   the master, which forwards them to the main logger.
-6. Upon completion (or failure), the worker sends a ``WorkerResult`` back to the
-   master.
-7. The client retrieves this result from the master and returns the final status.
-8. If the worker process dies at any point, the ``MasterProcess`` detects this,
-   restarts the worker, and resubmits the task with an adjusted configuration.
+2. The client starts the master, which spawns the worker process with the task.
+3. The worker executes the task.
+4. If the worker crashes, the master restarts the worker with an adjusted
+   configuration (reduced search time, subprocess execution).
+5. Upon completion, the worker sends a ``WorkerResult`` back to the master.
+6. The client retrieves this result from the master and returns ``ReturnCode``
+   of the Pynguin execution.
