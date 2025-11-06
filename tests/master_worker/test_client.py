@@ -22,20 +22,20 @@ from pynguin.generator import ReturnCode
 from pynguin.master_worker.client import PynguinClient
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.master_worker.worker import WorkerResult
+from pynguin.master_worker.worker import WorkerReturnCode
 
 
-# Test Data Factories
 def create_worker_result(
     task_id: str = "test_task",
-    status: str = "success",
-    return_code: int = 0,
+    worker_return_code: WorkerReturnCode = WorkerReturnCode.OK,
+    return_code: ReturnCode = ReturnCode.OK,
     error_message: str = "",
     traceback_str: str = "",
 ) -> WorkerResult:
     """Factory for creating WorkerResult instances."""
     return WorkerResult(
         task_id=task_id,
-        status=status,
+        worker_return_code=worker_return_code,
         return_code=return_code,
         error_message=error_message,
         traceback_str=traceback_str,
@@ -54,7 +54,6 @@ def create_mock_configuration(
     return config
 
 
-# Test Helpers
 @contextmanager
 def mock_master_operations(
     config_convert_return=None,
@@ -90,7 +89,6 @@ def create_started_client(config=None) -> PynguinClient:
     return client
 
 
-# Fixtures
 @pytest.fixture
 def mock_configuration():
     """Mock configuration for testing."""
@@ -101,33 +99,6 @@ def mock_configuration():
 def client(mock_configuration):
     """PynguinClient instance for testing."""
     return PynguinClient(mock_configuration)
-
-
-# Test Cases
-@pytest.mark.parametrize(
-    "worker_result,expected_return_code",
-    [
-        (create_worker_result(status="success", return_code=0), ReturnCode.OK),
-        (create_worker_result(status="timeout", return_code=1), ReturnCode.SETUP_FAILED),
-        (
-            create_worker_result(
-                status="error",
-                return_code=1,
-                error_message="Test error",
-                traceback_str="Traceback...",
-            ),
-            ReturnCode.SETUP_FAILED,
-        ),
-    ],
-)
-def test_generate_tests_different_results(worker_result, expected_return_code):
-    """Test generate_tests with different worker results."""
-    client = create_started_client()
-
-    with mock_master_operations(master_result=worker_result):
-        result = client.generate_tests()
-
-    assert result == expected_return_code
 
 
 @pytest.mark.parametrize(

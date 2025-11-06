@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import enum
 import logging
 import queue
 import signal
@@ -15,13 +16,13 @@ import sys
 import threading
 import time
 import traceback
-import typing
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import multiprocess as mp
 
+from pynguin.generator import ReturnCode
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
 
@@ -92,13 +93,27 @@ class _QueueHandler(logging.Handler):
         super().close()
 
 
+@enum.unique
+class WorkerReturnCode(enum.IntEnum):
+    """Return codes for master-worker communication."""
+
+    OK = 0
+    """Symbolises that there was no error during master-worker communication."""
+
+    ERROR = 1
+    """Symbolises that an error occurred during master-worker communication."""
+
+    TIMEOUT = 2
+    """Symbolises that the worker process timed out."""
+
+
 @dataclass
 class WorkerResult:
     """Result from worker process execution."""
 
     task_id: str
-    status: typing.Literal["success", "error", "timeout"]
-    return_code: int = 0
+    worker_return_code: WorkerReturnCode
+    return_code: ReturnCode | None
     error_message: str = ""
     traceback_str: str = ""
 
@@ -167,13 +182,16 @@ def _execute_task(task: WorkerTask) -> WorkerResult:
         _LOGGER.info("Starting test generation for task %s", task.task_id)
         return_code = run_pynguin()
 
-        return WorkerResult(task_id=task.task_id, status="success", return_code=return_code.value)
+        return WorkerResult(
+            task_id=task.task_id, worker_return_code=WorkerReturnCode.OK, return_code=return_code
+        )
 
     except Exception as e:  # noqa: BLE001
         _LOGGER.error("Task execution failed: %s", e)
         return WorkerResult(
             task_id=task.task_id,
-            status="error",
+            worker_return_code=WorkerReturnCode.ERROR,
+            return_code=None,
             error_message=str(e),
             traceback_str=traceback.format_exc(),
         )
@@ -211,7 +229,8 @@ def _process_task(
 
         error_result = WorkerResult(
             task_id=task_id,
-            status="error",
+            worker_return_code=WorkerReturnCode.ERROR,
+            return_code=None,
             error_message=str(e),
             traceback_str=traceback.format_exc(),
         )

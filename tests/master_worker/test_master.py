@@ -15,8 +15,10 @@ import pytest
 
 import pynguin.configuration as config
 
+from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.worker import WorkerResult
+from pynguin.master_worker.worker import WorkerReturnCode
 
 
 @pytest.fixture
@@ -184,7 +186,9 @@ def test_run_queue_full(master_process, sample_config):
 
 def test_get_result_success(master_process):
     """Test successful result retrieval."""
-    expected_result = WorkerResult(task_id="test", status="success")
+    expected_result = WorkerResult(
+        task_id="test", worker_return_code=WorkerReturnCode.OK, return_code=ReturnCode.OK
+    )
     master_process._result_queue = Mock()
     master_process._result_queue.get.return_value = expected_result
 
@@ -200,7 +204,7 @@ def test_get_result_empty_queue(master_process):
 
     result = master_process.get_result()
 
-    assert result.status == "timeout"
+    assert result.worker_return_code == WorkerReturnCode.TIMEOUT
     assert result.task_id == "unknown"
 
 
@@ -211,7 +215,7 @@ def test_get_result_exception(master_process):
 
     result = master_process.get_result()
 
-    assert result.status == "error"
+    assert result.worker_return_code == WorkerReturnCode.ERROR
     assert result.task_id == "unknown"
 
 

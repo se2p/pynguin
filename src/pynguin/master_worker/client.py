@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
+from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.utils.configuration_writer import convert_config_to_dict
 
 
@@ -103,10 +104,13 @@ class PynguinClient:
                 _LOGGER.error("No result received from worker")
                 return ReturnCode.SETUP_FAILED
 
-            if result.status == "success":
-                _LOGGER.info("Test generation completed successfully")
-                return ReturnCode(result.return_code)
-            if result.status == "timeout":
+            if result.worker_return_code == WorkerReturnCode.OK:
+                if result.return_code is not None:
+                    _LOGGER.info("Test generation completed successfully")
+                    return result.return_code
+                _LOGGER.error("Test generation completed without return code")
+                return ReturnCode.SETUP_FAILED
+            if result.worker_return_code == WorkerReturnCode.TIMEOUT:
                 _LOGGER.error("Test generation timed out")
                 return ReturnCode.SETUP_FAILED
             _LOGGER.error("Test generation failed: %s", result.error_message)

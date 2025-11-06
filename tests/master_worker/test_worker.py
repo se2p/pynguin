@@ -17,8 +17,10 @@ import pytest
 
 import pynguin.configuration as config
 
+from pynguin.generator import ReturnCode
 from pynguin.master_worker.worker import LogRecord
 from pynguin.master_worker.worker import WorkerResult
+from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.master_worker.worker import WorkerTask
 from pynguin.master_worker.worker import worker_main
 
@@ -38,7 +40,9 @@ def worker_task(sample_config):
 @pytest.fixture
 def worker_result():
     """Sample worker result."""
-    return WorkerResult(task_id="test_task", status="success", return_code=0)
+    return WorkerResult(
+        task_id="test_task", worker_return_code=WorkerReturnCode.OK, return_code=ReturnCode.OK
+    )
 
 
 @pytest.fixture
@@ -83,44 +87,40 @@ def mock_worker_setup():
         }
 
 
-# Test WorkerResult dataclass
 @pytest.mark.parametrize(
-    "task_id,status,expected_defaults",
+    "task_id,worker_return_code,return_code,error_message,traceback_str",
     [
-        ("test_task", "success", {"return_code": 0, "error_message": "", "traceback_str": ""}),
-        ("another_task", "error", {"return_code": 0, "error_message": "", "traceback_str": ""}),
+        (
+            "test_task",
+            WorkerReturnCode.ERROR,
+            ReturnCode.SETUP_FAILED,
+            "Test error",
+            "Test traceback",
+        ),
+        (
+            "another_task",
+            WorkerReturnCode.TIMEOUT,
+            ReturnCode.NO_TESTS_GENERATED,
+            "Timeout error",
+            "Timeout traceback",
+        ),
+        ("third_task", WorkerReturnCode.OK, ReturnCode.OK, "", ""),
     ],
 )
-def test_worker_result_default_values(task_id, status, expected_defaults):
-    """Test WorkerResult initialization with default values."""
-    result = WorkerResult(task_id=task_id, status=status)
-
-    assert result.task_id == task_id
-    assert result.status == status
-    for attr, expected_value in expected_defaults.items():
-        assert getattr(result, attr) == expected_value
-
-
-@pytest.mark.parametrize(
-    "task_id,status,return_code,error_message,traceback_str",
-    [
-        ("test_task", "error", 1, "Test error", "Test traceback"),
-        ("another_task", "timeout", 2, "Timeout error", "Timeout traceback"),
-        ("third_task", "success", 0, "", ""),
-    ],
-)
-def test_worker_result_custom_values(task_id, status, return_code, error_message, traceback_str):
+def test_worker_result_custom_values(
+    task_id, worker_return_code, return_code, error_message, traceback_str
+):
     """Test WorkerResult initialization with custom values."""
     result = WorkerResult(
         task_id=task_id,
-        status=status,
+        worker_return_code=worker_return_code,
         return_code=return_code,
         error_message=error_message,
         traceback_str=traceback_str,
     )
 
     assert result.task_id == task_id
-    assert result.status == status
+    assert result.worker_return_code == worker_return_code
     assert result.return_code == return_code
     assert result.error_message == error_message
     assert result.traceback_str == traceback_str
@@ -136,7 +136,6 @@ def test_log_record_initialization(log_record):
     assert log_record.worker_pid == 12345
 
 
-# Test WorkerTask dataclass
 def test_worker_task_initialization(worker_task, sample_config):
     """Test WorkerTask initialization."""
     assert worker_task.task_id == "test_task"
@@ -236,8 +235,8 @@ def test_worker_main_with_real_queues(sample_config, mock_worker_setup):
     ):
         mock_execute.return_value = WorkerResult(
             task_id="integration_test",
-            status="success",
-            return_code=0,
+            worker_return_code=WorkerReturnCode.OK,
+            return_code=ReturnCode.OK,
         )
         mock_process_task.side_effect = [True, KeyboardInterrupt()]
 

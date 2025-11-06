@@ -17,6 +17,7 @@ import multiprocess as mp
 
 from pynguin import config
 from pynguin.master_worker.worker import WorkerResult
+from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.master_worker.worker import WorkerTask
 from pynguin.master_worker.worker import worker_main
 
@@ -176,15 +177,27 @@ class MasterProcess:
         """
         try:
             result = self._result_queue.get()
-            _LOGGER.info("Received result for task %s: %s", result.task_id, result.status)
+            _LOGGER.info(
+                "Received result for task %s: %s", result.task_id, result.worker_return_code
+            )
             return result
 
         except queue.Empty:
             _LOGGER.warning("Timeout waiting for worker result")
-            return WorkerResult(task_id="unknown", status="timeout", error_message="Worker timeout")
+            return WorkerResult(
+                task_id="unknown",
+                worker_return_code=WorkerReturnCode.TIMEOUT,
+                return_code=None,
+                error_message="Worker timeout",
+            )
         except Exception as e:  # noqa: BLE001
             _LOGGER.error("Error getting result: %s", e)
-            return WorkerResult(task_id="unknown", status="error", error_message=str(e))
+            return WorkerResult(
+                task_id="unknown",
+                worker_return_code=WorkerReturnCode.ERROR,
+                return_code=None,
+                error_message=str(e),
+            )
 
     def start(self) -> bool:
         """Start the master process and worker monitoring.
@@ -269,7 +282,8 @@ class MasterProcess:
                         self._result_queue.put(
                             WorkerResult(
                                 task_id="unknown",
-                                status="timeout",
+                                worker_return_code=WorkerReturnCode.TIMEOUT,
+                                return_code=None,
                                 error_message="Maximum search time reached after worker crash",
                             )
                         )
