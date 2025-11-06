@@ -49,15 +49,13 @@ def test_file_persists_on_crash(tmp_path):
     assert target_file.exists()
 
 
-def test_no_recording_if_disabled(tmp_path, monkeypatch):
+def test_no_recording_if_disabled(tmp_path):
     config.configuration.statistics_output.store_test_before_execution = True
     config.configuration.test_case_output.output_path = str(tmp_path)
 
     test_case = MagicMock(tc.TestCase)
     target_file = Path(tmp_path) / "last_executed_test.py"
-    monkeypatch.setattr(
-        config.configuration.statistics_output, "store_test_before_execution", False
-    )
+    config.configuration.statistics_output.store_test_before_execution = False
 
     with ExecutionRecorder(test_case):
         # File should never be created
