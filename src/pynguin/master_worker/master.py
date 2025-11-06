@@ -131,14 +131,25 @@ class MasterProcess:
             return result
 
         except Exception:  # noqa: BLE001
-            self._restart_pynguin()
+            success = self._restart_pynguin()
+            if not success:
+                return WorkerResult(
+                    task_id="unknown",
+                    worker_return_code=WorkerReturnCode.ERROR,
+                    return_code=None,
+                    error_message="Could not restart worker process",
+                )
             return self.get_result()
 
-    def _restart_pynguin(self):
-        """Restart the worker process."""
+    def _restart_pynguin(self) -> bool:
+        """Restart the worker process.
+
+        Returns:
+            True if the worker process was restarted, False otherwise
+        """
         if self._configuration is None:
             _LOGGER.error("No configuration set, aborting")
-            return
+            return False
 
         # Calculate elapsed time if we have a start time
         if self._current_task_start_time is not None:
@@ -147,7 +158,7 @@ class MasterProcess:
 
         if self._configuration.stopping.maximum_search_time <= 0:
             _LOGGER.warning("Maximum search time is zero, aborting")
-            return
+            return False
 
         _LOGGER.warning("Worker process died, restarting (%d)", self._restart_count + 1)
         self._restart_count += 1
@@ -165,3 +176,14 @@ class MasterProcess:
         self._current_task_start_time = time.time()
 
         self.start_pynguin(config.configuration)
+        return True
+
+    def stop(self):
+        """Stop the worker process."""
+        if self._worker_process and self._worker_process.is_alive():
+            _LOGGER.info("Stopping worker")
+            self._worker_process.terminate()
+            self._worker_process.join(timeout=5)
+            if self._worker_process.is_alive():
+                _LOGGER.warning("Force killing worker")
+                self._worker_process.kill()

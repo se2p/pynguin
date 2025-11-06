@@ -32,19 +32,16 @@ class PynguinClient:
         self.configuration = configuration
         self.master = MasterProcess()
 
-    def start(self) -> bool:
-        """Start the master-worker system.
-
-        Returns:
-            True if started successfully, False otherwise
-        """
+    @staticmethod
+    def start() -> None:
+        """Start the master-worker system."""
         _LOGGER.info("Starting Pynguin client with master-worker architecture")
-        return True
 
     def stop(self) -> None:
         """Stop the master-worker system."""
-        _LOGGER.info("Stopping Pynguin client")
-        _LOGGER.info("Pynguin client stopped")
+        _LOGGER.info("Stopping master-worker system")
+        self.master.stop()
+        _LOGGER.info("Master-worker system stopped")
 
     def generate_tests(self, timeout: int | None = None) -> ReturnCode:
         """Generate tests using the configured module.

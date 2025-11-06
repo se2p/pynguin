@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import enum
 import logging
-import signal
-import sys
 import time
 import traceback
 
@@ -105,15 +103,12 @@ class WorkerTask:
             self.task_id = f"task_{time.time()}_{id(self)}"
 
 
-def _setup_signal_handlers() -> None:
-    """Set up signal handlers for graceful shutdown."""
-
-    def signal_handler(signum, _):
-        _LOGGER.info("Worker process received signal %d, shutting down", signum)
-        sys.exit(0)
-
-    signal.signal(signal.SIGTERM, signal_handler)
-    signal.signal(signal.SIGINT, signal_handler)
+def _setup_logging() -> None:
+    """Set up logging for worker processes."""
+    worker_formatter = WorkerLogFormatter()
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.setFormatter(worker_formatter)
 
 
 def worker_main(
@@ -127,17 +122,7 @@ def worker_main(
         sending_connection: The connection to send results back to the master process.
     """
     try:
-        # Set up worker-specific logging
-        worker_formatter = WorkerLogFormatter()
-        for handler in _LOGGER.handlers:
-            handler.setFormatter(worker_formatter)
-
-        # Also set up root logger if needed
-        root_logger = logging.getLogger()
-        for handler in root_logger.handlers:
-            handler.setFormatter(worker_formatter)
-
-        _setup_signal_handlers()
+        _setup_logging()
         _LOGGER.info("Worker process started (PID: %d)", mp.current_process().pid)
 
         # Execute the task

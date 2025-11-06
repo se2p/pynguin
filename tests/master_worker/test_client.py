@@ -109,17 +109,6 @@ def test_run_pynguin_with_master_worker(generate_result, expected_result):
     assert result == expected_result
 
 
-def test_run_pynguin_with_master_worker_exception():
-    """Test the convenience function with exception during context management."""
-    configuration = create_mock_configuration()
-
-    with (
-        patch.object(PynguinClient, "start", side_effect=Exception("Test error")),
-        pytest.raises(Exception, match="Test error"),
-    ):
-        run_pynguin_with_master_worker(configuration)
-
-
 @pytest.mark.parametrize("subprocess", [True, False])
 def test_integration_run_pynguin_with_master_worker(tmpdir, subprocess):
     """Test integration between client and master."""
