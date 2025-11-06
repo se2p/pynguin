@@ -53,6 +53,11 @@ class MasterProcess:
         self._force_subprocess_mode = False
         self._config_dict: dict[str, Any] = {}
 
+    @property
+    def is_running(self) -> bool:
+        """Whether the master process is running."""
+        return self._is_running
+
     def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
         """Adjust the search time in config after a worker crash.
 

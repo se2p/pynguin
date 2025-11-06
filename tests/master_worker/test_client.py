@@ -8,6 +8,7 @@
 # ruff: noqa: FBT001, FBT002
 
 import logging
+import threading
 
 from contextlib import contextmanager
 from unittest.mock import MagicMock
@@ -85,7 +86,7 @@ def create_started_client(config=None) -> PynguinClient:
     if config is None:
         config = create_mock_configuration()
     client = PynguinClient(config)
-    client._started = True
+    client.master._is_running = True
     return client
 
 
@@ -194,28 +195,33 @@ def test_generate_tests_subprocess_configuration(use_master_worker, subprocess_i
     assert result == ReturnCode.OK
 
 
-@pytest.mark.parametrize(
-    "master_start_return,expected_started",
-    [
-        (True, True),  # Successful start
-        (False, False),  # Failed start
-    ],
-)
-def test_client_start(master_start_return, expected_started):
+def test_client_start():
     """Test client start functionality."""
     client = PynguinClient(create_mock_configuration())
+    result = client.start()
 
-    with patch.object(client.master, "start", return_value=master_start_return):
+    assert result
+    assert client.master.is_running
+
+    client.stop()
+    assert len(threading.enumerate()) == 1
+
+
+def test_client_start_failed():
+    """Test client start failure."""
+    client = PynguinClient(create_mock_configuration())
+    with patch.object(client.master, "start", return_value=False):
         result = client.start()
 
-    assert result == master_start_return
-    assert client._started == expected_started
+    assert not result
+    assert not client.master.is_running
+    assert len(threading.enumerate()) == 1
 
 
 def test_client_start_already_started(caplog):
     """Test starting already started client."""
     client = PynguinClient(create_mock_configuration())
-    client._started = True
+    client.master._is_running = True
 
     with caplog.at_level(logging.WARNING):
         result = client.start()
@@ -225,26 +231,18 @@ def test_client_start_already_started(caplog):
 
 
 @pytest.mark.parametrize(
-    "initially_started,should_call_master_stop",
+    "initially_started",
     [
-        (False, False),  # Not started, should not call master.stop
-        (True, True),  # Started, should call master.stop
+        False,
+        True,
     ],
 )
-def test_client_stop(initially_started, should_call_master_stop):
+def test_client_stop(initially_started):
     """Test client stop functionality."""
     client = PynguinClient(create_mock_configuration())
-    client._started = initially_started
-
-    with patch.object(client.master, "stop") as mock_stop:
-        client.stop()
-
-    if should_call_master_stop:
-        mock_stop.assert_called_once()
-    else:
-        mock_stop.assert_not_called()
-
-    assert not client._started
+    client.master._is_running = initially_started
+    client.stop()
+    assert not client.master.is_running
 
 
 def test_client_initialization():
@@ -254,7 +252,8 @@ def test_client_initialization():
 
     assert client.configuration == configuration
     assert client.master is not None
-    assert not client._started
+    assert not client.master.is_running
+    assert len(threading.enumerate()) == 1
 
 
 def test_context_manager():
@@ -322,3 +321,4 @@ def test_integration_run_pynguin_with_master_worker(tmpdir, subprocess):
     config.configuration.subprocess = subprocess
     return_code = run_pynguin_with_master_worker(config.configuration)
     assert return_code == ReturnCode.OK
+    assert len(threading.enumerate()) == 1

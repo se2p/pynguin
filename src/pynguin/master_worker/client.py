@@ -35,7 +35,6 @@ class PynguinClient:
         """
         self.configuration = configuration
         self.master = MasterProcess()
-        self._started = False
 
     def start(self) -> bool:
         """Start the master-worker system.
@@ -43,14 +42,13 @@ class PynguinClient:
         Returns:
             True if started successfully, False otherwise
         """
-        if self._started:
+        if self.master.is_running:
             _LOGGER.warning("Client is already started")
             return True
 
         _LOGGER.info("Starting Pynguin client with master-worker architecture")
 
         if self.master.start():
-            self._started = True
             _LOGGER.info("Pynguin client started successfully")
             return True
         _LOGGER.error("Failed to start Pynguin client")
@@ -58,12 +56,11 @@ class PynguinClient:
 
     def stop(self) -> None:
         """Stop the master-worker system."""
-        if not self._started:
+        if not self.master.is_running:
             return
 
         _LOGGER.info("Stopping Pynguin client")
         self.master.stop()
-        self._started = False
         _LOGGER.info("Pynguin client stopped")
 
     def generate_tests(self, timeout: int | None = None) -> ReturnCode:
@@ -75,7 +72,7 @@ class PynguinClient:
         Returns:
             ReturnCode indicating success or failure
         """
-        if not self._started:
+        if not self.master.is_running:
             _LOGGER.error("Client is not started. Call start() first.")
             return ReturnCode.SETUP_FAILED
 
