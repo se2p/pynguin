@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 import traceback
+import typing
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -96,7 +97,7 @@ class WorkerResult:
     """Result from worker process execution."""
 
     task_id: str
-    status: str  # 'success', 'error', 'timeout'
+    status: typing.Literal["success", "error", "timeout"]
     return_code: int = 0
     error_message: str = ""
     traceback_str: str = ""
