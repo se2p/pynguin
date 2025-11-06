@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import multiprocess as mp
+import multiprocess.connection as mp_conn
 
 from pynguin.generator import ReturnCode
 from pynguin.generator import run_pynguin
@@ -198,8 +199,8 @@ def _execute_task(task: WorkerTask) -> WorkerResult:
 
 
 def _process_task(
-    task_queue: mp.Queue,
-    result_queue: mp.Queue,
+    task: WorkerTask,
+    sending_connection: mp_conn.Connection,
 ) -> bool:
     """Process a single task from the queue.
 
@@ -207,15 +208,11 @@ def _process_task(
         True if a task was processed, False if the queue was empty
     """
     try:
-        # Wait for the initial task.
-        task = task_queue.get(timeout=10)
-        _LOGGER.info("Worker received task: %s", task.task_id)
-
         # Execute the task
         result = _execute_task(task)
 
         # Send result back
-        result_queue.put(result)
+        sending_connection.send(result)
         _LOGGER.info("Worker completed task: %s", task.task_id)
         return True
 
@@ -235,7 +232,7 @@ def _process_task(
             traceback_str=traceback.format_exc(),
         )
         try:
-            result_queue.put(error_result)
+            sending_connection.send(error_result)
         except Exception:  # noqa: BLE001
             _LOGGER.error("Failed to send error result to master")
         _LOGGER.error("Worker error: %s", e)
@@ -243,17 +240,11 @@ def _process_task(
 
 
 def worker_main(
-    task_queue: mp.Queue,
-    result_queue: mp.Queue,
+    task: WorkerTask,
+    sending_connection: mp_conn.Connection,
     log_queue: mp.Queue,
 ) -> None:
-    """Entry point for worker processes.
-
-    Args:
-        task_queue: Queue to receive tasks from master
-        result_queue: Queue to send results back to master
-        log_queue: Queue to send log records back to master
-    """
+    """Entry point for worker processes."""
     root_logger = logging.getLogger()
     original_handlers = list(root_logger.handlers)
 
@@ -263,7 +254,7 @@ def worker_main(
         _LOGGER.info("Worker process started (PID: %d)", mp.current_process().pid)
 
         # Process one task and then exit.
-        if not _process_task(task_queue, result_queue):
+        if not _process_task(task, sending_connection):
             _LOGGER.warning("Worker did not receive a task and will exit.")
 
     except KeyboardInterrupt:

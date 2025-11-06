@@ -41,3 +41,7 @@ class Queue:
         if self.head == self.max:
             self.head = 0
         return x
+
+def foo(arg):
+    import ctypes
+    ctypes.string_at(0)

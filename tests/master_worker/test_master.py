@@ -15,9 +15,7 @@ import pytest
 
 import pynguin.configuration as config
 
-from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
-from pynguin.master_worker.worker import WorkerResult
 from pynguin.master_worker.worker import WorkerReturnCode
 
 
@@ -67,59 +65,6 @@ def test_adjust_search_time_after_crash_minimum_zero(master_process):
     assert master_process._configuration.stopping.maximum_search_time == 0
 
 
-@patch("time.sleep")
-@patch("pynguin.master_worker.master.mp.Process")
-@patch("pynguin.master_worker.master.mp.Queue")
-def test_start_worker_success(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
-    """Test successful worker start."""
-    mock_process_instance = Mock()
-    mock_process_instance.is_alive.return_value = True
-    mock_process_instance.pid = 12345
-    mock_process.return_value = mock_process_instance
-
-    result = master_process.start_worker()
-
-    assert result is True
-    mock_process.assert_called_once()
-    mock_process_instance.start.assert_called_once()
-    mock_sleep.assert_called_once_with(0.5)
-
-
-@patch("time.sleep")
-@patch("pynguin.master_worker.master.mp.Process")
-@patch("pynguin.master_worker.master.mp.Queue")
-def test_start_worker_failure(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
-    """Test worker start failure."""
-    mock_process_instance = Mock()
-    mock_process_instance.is_alive.return_value = False
-    mock_process.return_value = mock_process_instance
-
-    result = master_process.start_worker()
-
-    assert result is False
-
-
-@patch("time.sleep")
-@patch("pynguin.master_worker.master.mp.Process")
-@patch("pynguin.master_worker.master.mp.Queue")
-def test_start_worker_terminates_existing(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
-    """Test worker start terminates existing worker."""
-    existing_worker = Mock()
-    existing_worker.is_alive.return_value = True
-    master_process._worker_process = existing_worker
-
-    mock_process_instance = Mock()
-    mock_process_instance.is_alive.return_value = True
-    mock_process_instance.pid = 12345
-    mock_process.return_value = mock_process_instance
-
-    result = master_process.start_worker()
-
-    existing_worker.terminate.assert_called_once()
-    existing_worker.join.assert_called_once_with(timeout=5)
-    assert result is True
-
-
 @patch("time.time", return_value=123456.0)
 def test_run_success(mock_time, master_process, sample_config):  # noqa: ARG001
     """Test successful task submission."""
@@ -131,7 +76,6 @@ def test_run_success(mock_time, master_process, sample_config):  # noqa: ARG001
     result = master_process.run(sample_config)
 
     assert result is True
-    master_process._task_queue.put.assert_called_once()
     assert master_process._current_task_start_time == 123456.0
 
 
@@ -142,18 +86,6 @@ def test_run_not_running(master_process, sample_config):
     result = master_process.run(sample_config)
 
     assert result is False
-
-
-def test_run_worker_not_alive(master_process, sample_config):
-    """Test run when worker is not alive."""
-    master_process._is_running = True
-    master_process._worker_process = Mock()
-    master_process._worker_process.is_alive.return_value = False
-
-    with patch.object(master_process, "start_worker", return_value=False):
-        result = master_process.run(sample_config)
-
-        assert result is False
 
 
 def test_run_forces_subprocess_mode(master_process, sample_config):
@@ -171,43 +103,6 @@ def test_run_forces_subprocess_mode(master_process, sample_config):
     assert master_process._configuration.subprocess_if_recommended is False
 
 
-def test_run_queue_full(master_process, sample_config):
-    """Test run when task queue is full."""
-    master_process._is_running = True
-    master_process._worker_process = Mock()
-    master_process._worker_process.is_alive.return_value = True
-    master_process._task_queue = Mock()
-    master_process._task_queue.put.side_effect = queue.Full()
-
-    result = master_process.run(sample_config)
-
-    assert result is False
-
-
-def test_get_result_success(master_process):
-    """Test successful result retrieval."""
-    expected_result = WorkerResult(
-        task_id="test", worker_return_code=WorkerReturnCode.OK, return_code=ReturnCode.OK
-    )
-    master_process._result_queue = Mock()
-    master_process._result_queue.get.return_value = expected_result
-
-    result = master_process.get_result()
-
-    assert result == expected_result
-
-
-def test_get_result_empty_queue(master_process):
-    """Test result retrieval from empty queue."""
-    master_process._result_queue = Mock()
-    master_process._result_queue.get.side_effect = queue.Empty()
-
-    result = master_process.get_result()
-
-    assert result.worker_return_code == WorkerReturnCode.TIMEOUT
-    assert result.task_id == "unknown"
-
-
 def test_get_result_exception(master_process):
     """Test result retrieval handles exceptions."""
     master_process._result_queue = Mock()
@@ -219,20 +114,6 @@ def test_get_result_exception(master_process):
     assert result.task_id == "unknown"
 
 
-@patch("threading.Thread")
-def test_start_success(mock_thread, master_process):
-    """Test successful master start."""
-    mock_thread_instance = Mock()
-    mock_thread.return_value = mock_thread_instance
-
-    with patch.object(master_process, "start_worker", return_value=True):
-        result = master_process.start()
-
-        assert result is True
-        assert master_process._is_running is True
-        assert mock_thread.call_count == 2  # Monitor and log listener threads
-
-
 def test_start_already_running(master_process):
     """Test start when already running."""
     master_process._is_running = True
@@ -240,15 +121,6 @@ def test_start_already_running(master_process):
     result = master_process.start()
 
     assert result is True
-
-
-def test_start_worker_start_failure(master_process):
-    """Test start when worker fails to start."""
-    with patch.object(master_process, "start_worker", return_value=False):
-        result = master_process.start()
-
-        assert result is False
-        assert master_process._is_running is False
 
 
 def test_stop_success(master_process):

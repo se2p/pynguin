@@ -78,6 +78,7 @@ class PynguinClient:
             return ReturnCode.SETUP_FAILED
 
         try:
+            # TODO: Remove
             # Serialize configuration for worker
             config_dict = convert_config_to_dict(self.configuration)
 
