@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-import queue
 import threading
 import time
 
@@ -31,28 +30,17 @@ class MasterProcess:
 
     def __init__(self):
         """Initialize the master process."""
-        # A queue to receive log records from the worker process
+        # Connection to the worker process to receive results, if any
         self._receiving_connection: mp_conn.Connection | None = None
-        self._log_queue: mp.Queue = mp.Queue()
         # Reference to the current worker process, if any
         self._worker_process: mp.Process | None = None
-        # Thread to forward logs from the worker to the master
-        self._log_listener_thread: threading.Thread | None = None
-        # Thread to restart the worker process if it crashes
-        self._monitor_thread: threading.Thread | None = None
         # Event to signal shutdown of the master process and worker process
         self._shutdown_event = threading.Event()
 
-        self._is_running = False
         self._restart_count = 0
         self._current_task_start_time = None
         self._force_subprocess_mode = False
         self._configuration: config.Configuration | None = None
-
-    @property
-    def is_running(self) -> bool:
-        """Whether the master process is running."""
-        return self._is_running
 
     def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
         """Adjust the search time in config after a worker crash.
@@ -81,26 +69,25 @@ class MasterProcess:
                 elapsed_time,
             )
 
-    def start_worker_with_task(self, task):
-        """Start a worker process with a task."""
+    def _start_worker_with_task(self, task: WorkerTask) -> None:
+        """Start a worker process with a task.
+
+        Args:
+            task: The task to run
+        """
         receiving_connection, sending_connection = mp.Pipe(duplex=False)
         process = mp.Process(
             target=worker_main,
-            args=(task, sending_connection, self._log_queue),
+            args=(task, sending_connection),
             name="PynguinWorker",
         )
         self._worker_process = process
         self._receiving_connection = receiving_connection
-
         process.start()
-
         sending_connection.close()
 
-    def run(self, configuration: config.Configuration) -> bool:
-        """Run the task by submitting an (initial) worker task (run_pynguin).
-
-        `_monitor_worker` will monitor the worker process and restart it if necessary
-        by calling this method again.
+    def start_pynguin(self, configuration: config.Configuration):
+        """Start the initial task.
 
         Args:
             configuration: Configuration for the test generation task to queue
@@ -109,26 +96,17 @@ class MasterProcess:
             True if the task was submitted successfully, False otherwise
         """
         self._configuration = configuration
-        try:
-            if not self._is_running:
-                _LOGGER.error("Master process is not running")
-                return False
 
-            # Override subprocess mode in the task config if we're forcing it
-            if self._force_subprocess_mode:
-                self._configuration.subprocess = True
-                self._configuration.subprocess_if_recommended = False
-                _LOGGER.debug("Forcing subprocess mode.")
+        # Override subprocess mode in the task config if we're forcing it
+        if self._force_subprocess_mode:
+            self._configuration.subprocess = True
+            self._configuration.subprocess_if_recommended = False
+            _LOGGER.debug("Forcing subprocess mode.")
 
-            task = WorkerTask(task_id=f"test_gen_{time.time()}", configuration=configuration)
-            self._current_task_start_time = time.time()
-            _LOGGER.info("Starting worker with task %s", task.task_id)
-            self.start_worker_with_task(task)
-            return True
-
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error("Failed to start task: %s", e)
-            return False
+        task = WorkerTask(task_id=f"test_gen_{time.time()}", configuration=configuration)
+        self._current_task_start_time = time.time()
+        _LOGGER.info("Starting new worker.")
+        self._start_worker_with_task(task)
 
     def get_result(self) -> WorkerResult:
         """Get result from the worker process.
@@ -153,10 +131,10 @@ class MasterProcess:
             return result
 
         except Exception:  # noqa: BLE001
-            self.restart()
+            self._restart_pynguin()
             return self.get_result()
 
-    def restart(self):
+    def _restart_pynguin(self):
         """Restart the worker process."""
         if self._configuration is None:
             _LOGGER.error("No configuration set, aborting")
@@ -169,7 +147,7 @@ class MasterProcess:
 
         if self._configuration.stopping.maximum_search_time <= 0:
             _LOGGER.warning("Maximum search time is zero, aborting")
-            self._is_running = False  # TODO?
+            return
 
         _LOGGER.warning("Worker process died, restarting (%d)", self._restart_count + 1)
         self._restart_count += 1
@@ -186,140 +164,4 @@ class MasterProcess:
         # Record the start time for the new task
         self._current_task_start_time = time.time()
 
-        if not self.run(config.configuration):
-            _LOGGER.error("Failed to submit test generation task")
-
-    def start(self) -> bool:
-        """Start the master process and worker monitoring.
-
-        An initial worker task must be submitted separately by calling `run`.
-
-        Returns:
-            True if started successfully, False otherwise
-        """
-        if self._is_running:
-            _LOGGER.warning("Master process is already running")
-            return True
-
-        _LOGGER.info("Starting master process")
-        self._is_running = True
-
-        # Start the monitoring thread
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_worker, name="WorkerMonitor", daemon=True
-        )
-        self._monitor_thread.start()
-
-        _LOGGER.info("Master process started successfully")
-        return True
-
-    def stop(self) -> None:
-        """Stop the master process and clean up resources."""
-        if not self._is_running:
-            return
-
-        _LOGGER.info("Stopping master process")
-        self._is_running = False
-        self._shutdown_event.set()
-
-        # Stop the worker process
-        if self._worker_process and self._worker_process.is_alive():
-            _LOGGER.info("Stopping worker process")
-            self._worker_process.terminate()
-            self._worker_process.join(timeout=5)
-            if self._worker_process.is_alive():
-                _LOGGER.warning("Force killing worker process")
-                self._worker_process.kill()
-
-        # Wait for monitor thread
-        if self._monitor_thread and self._monitor_thread.is_alive():
-            self._monitor_thread.join(timeout=2)
-
-        # Wait for the log listener thread
-        if self._log_listener_thread and self._log_listener_thread.is_alive():
-            self._log_listener_thread.join(timeout=2)
-
-        _LOGGER.info("Master process stopped")
-
-    def _monitor_worker(self) -> None:  # noqa: C901 # TODO
-        """Monitor worker process health and restart if necessary."""
-        _LOGGER.info("Starting worker monitoring")
-
-        # Wait for worker process to start
-        while not self._worker_process or not self._worker_process.is_alive():
-            if not self._is_running:
-                _LOGGER.info("Stopping worker monitoring")
-                return
-            time.sleep(1)
-
-        while self._is_running and not self._shutdown_event.is_set():
-            try:
-                if not self._worker_process or not self._worker_process.is_alive():
-                    if self._configuration is None:
-                        _LOGGER.error("No configuration set, aborting")
-                        break
-
-                    # Calculate elapsed time if we have a start time
-                    if self._current_task_start_time is not None:
-                        elapsed_time = time.time() - self._current_task_start_time
-                        self._adjust_search_time_after_crash(elapsed_time)
-
-                    if self._configuration.stopping.maximum_search_time <= 0:
-                        _LOGGER.warning("Maximum search time is zero, aborting")
-                        self._is_running = False  # TODO?
-                        break
-
-                    _LOGGER.warning("Worker process died, restarting (%d)", self._restart_count + 1)
-                    self._restart_count += 1
-
-                    if (
-                        self._restart_count >= 1
-                        and config.configuration.use_master_worker
-                        and config.configuration.subprocess_if_recommended
-                        and not self._force_subprocess_mode
-                    ):
-                        _LOGGER.info(
-                            "Enabling subprocess mode after worker crash for fault tolerance"
-                        )
-                        self._force_subprocess_mode = True
-
-                    # Record the start time for the new task
-                    self._current_task_start_time = time.time()
-
-                    if not self.run(config.configuration):
-                        _LOGGER.error("Failed to submit test generation task")
-                        break
-
-                # Check every second
-                if self._shutdown_event.wait(1):
-                    break
-
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.error("Error in worker monitoring: %s", e)
-                break
-
-        _LOGGER.info("Worker monitoring stopped")
-
-    def _log_listener(self) -> None:
-        """Listen for log records from a worker process and log them in master."""
-        _LOGGER.info("Starting log listener")
-
-        try:
-            while self._is_running and not self._shutdown_event.is_set():
-                try:
-                    log_records = self._log_queue.get(timeout=0.1)
-                except queue.Empty:
-                    continue
-
-                try:
-                    for log_record in log_records:
-                        worker_logger = logging.getLogger(f"worker.{log_record.name}")
-                        formatted_msg = f"[Worker-{log_record.worker_pid}] {log_record.msg}"
-                        worker_logger.log(log_record.level, formatted_msg, *log_record.args)
-                except Exception as e:  # noqa: BLE001
-                    _LOGGER.error("Error processing log record: %s", e)
-                    continue
-        except Exception as e:  # noqa: BLE001
-            _LOGGER.error("Fatal error in log listener: %s", e)
-
-        _LOGGER.info("Log listener stopped")
+        self.start_pynguin(config.configuration)

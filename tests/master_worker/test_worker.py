@@ -12,7 +12,6 @@ from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
-import multiprocess as mp
 import pytest
 
 import pynguin.configuration as config
@@ -22,7 +21,6 @@ from pynguin.master_worker.worker import LogRecord
 from pynguin.master_worker.worker import WorkerResult
 from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.master_worker.worker import WorkerTask
-from pynguin.master_worker.worker import worker_main
 
 
 @pytest.fixture
@@ -157,90 +155,3 @@ def test_worker_task_post_init_with_valid_task_id(sample_config):
 
     assert task.task_id == "valid_task"
     assert task.configuration == sample_config
-
-
-# Test worker_main function
-@patch("pynguin.master_worker.worker._process_task")
-def test_worker_main_normal_operation(mock_process_task, mock_worker_setup, mock_queues):
-    """Test worker_main normal operation."""
-    mock_process_task.side_effect = [True, True, KeyboardInterrupt()]
-
-    worker_main(mock_queues["task_queue"], mock_queues["result_queue"], mock_queues["log_queue"])
-
-    mock_worker_setup["signals"].assert_called_once()
-    mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-    assert mock_process_task.call_count == 1
-
-
-@patch("pynguin.master_worker.worker._process_task")
-def test_worker_main_keyboard_interrupt(mock_process_task, mock_worker_setup, mock_queues):
-    """Test worker_main handles KeyboardInterrupt gracefully."""
-    mock_process_task.side_effect = KeyboardInterrupt()
-
-    worker_main(mock_queues["task_queue"], mock_queues["result_queue"], mock_queues["log_queue"])
-
-    mock_worker_setup["signals"].assert_called_once()
-    mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-
-
-@pytest.mark.parametrize(
-    "exception_type,exception_msg",
-    [
-        (RuntimeError, "Unexpected error"),
-        (ValueError, "Invalid value"),
-        (OSError, "System error"),
-    ],
-)
-@patch("pynguin.master_worker.worker._process_task")
-def test_worker_main_handles_exceptions(
-    mock_process_task, mock_worker_setup, mock_queues, exception_type, exception_msg
-):
-    """Test worker_main handles various exceptions."""
-    mock_process_task.side_effect = exception_type(exception_msg)
-
-    worker_main(mock_queues["task_queue"], mock_queues["result_queue"], mock_queues["log_queue"])
-
-    mock_worker_setup["signals"].assert_called_once()
-    mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-
-
-@patch("pynguin.master_worker.worker._process_task")
-def test_worker_main_exception_recovery(mock_process_task, mock_worker_setup, mock_queues):
-    """Test worker_main recovers from exceptions in task processing."""
-    mock_process_task.side_effect = [
-        RuntimeError("Task processing error"),
-        True,
-        KeyboardInterrupt(),
-    ]
-
-    worker_main(mock_queues["task_queue"], mock_queues["result_queue"], mock_queues["log_queue"])
-
-    mock_worker_setup["signals"].assert_called_once()
-    mock_worker_setup["logging"].assert_called_once_with(mock_queues["log_queue"])
-    assert mock_process_task.call_count == 1
-
-
-def test_worker_main_with_real_queues(sample_config, mock_worker_setup):
-    """Test worker_main with actual multiprocessing queues."""
-    task_queue = mp.Queue()
-    result_queue = mp.Queue()
-    log_queue = mp.Queue()
-
-    sample_task = WorkerTask(task_id="integration_test", configuration=sample_config)
-    task_queue.put(sample_task)
-
-    with (
-        patch("pynguin.master_worker.worker._execute_task") as mock_execute,
-        patch("pynguin.master_worker.worker._process_task") as mock_process_task,
-    ):
-        mock_execute.return_value = WorkerResult(
-            task_id="integration_test",
-            worker_return_code=WorkerReturnCode.OK,
-            return_code=ReturnCode.OK,
-        )
-        mock_process_task.side_effect = [True, KeyboardInterrupt()]
-
-        worker_main(task_queue, result_queue, log_queue)
-
-    mock_worker_setup["signals"].assert_called_once()
-    mock_worker_setup["logging"].assert_called_once_with(log_queue)

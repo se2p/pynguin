@@ -10,16 +10,11 @@ from __future__ import annotations
 
 import logging
 
-from typing import TYPE_CHECKING
+import pynguin.configuration as config
 
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.worker import WorkerReturnCode
-from pynguin.utils.configuration_writer import convert_config_to_dict
-
-
-if TYPE_CHECKING:
-    import pynguin.configuration as config
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,25 +38,12 @@ class PynguinClient:
         Returns:
             True if started successfully, False otherwise
         """
-        if self.master.is_running:
-            _LOGGER.warning("Client is already started")
-            return True
-
         _LOGGER.info("Starting Pynguin client with master-worker architecture")
-
-        if self.master.start():
-            _LOGGER.info("Pynguin client started successfully")
-            return True
-        _LOGGER.error("Failed to start Pynguin client")
-        return False
+        return True
 
     def stop(self) -> None:
         """Stop the master-worker system."""
-        if not self.master.is_running:
-            return
-
         _LOGGER.info("Stopping Pynguin client")
-        self.master.stop()
         _LOGGER.info("Pynguin client stopped")
 
     def generate_tests(self, timeout: int | None = None) -> ReturnCode:
@@ -73,15 +55,7 @@ class PynguinClient:
         Returns:
             ReturnCode indicating success or failure
         """
-        if not self.master.is_running:
-            _LOGGER.error("Client is not started. Call start() first.")
-            return ReturnCode.SETUP_FAILED
-
         try:
-            # TODO: Remove
-            # Serialize configuration for worker
-            config_dict = convert_config_to_dict(self.configuration)
-
             # Override subprocess configuration for master-worker architecture behavior:
             # If subprocess_if_recommended is True and use_master_worker is True,
             # start with threaded execution (subprocess=False) and let the master
@@ -90,37 +64,34 @@ class PynguinClient:
                 self.configuration.use_master_worker
                 and self.configuration.subprocess_if_recommended
             ):
-                config_dict["subprocess"] = "False"
-                config_dict["subprocess_if_recommended"] = "False"
+                config.configuration.subprocess = False
+                config.configuration.subprocess_if_recommended = True
                 _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
 
-            if not self.master.run(self.configuration):
-                _LOGGER.error("Failed to submit test generation task")
-                return ReturnCode.SETUP_FAILED
+            self.master.start_pynguin(self.configuration)
 
             # Wait for a result
             result = self.master.get_result()
 
             if result is None:
                 _LOGGER.error("No result received from worker")
-                return ReturnCode.SETUP_FAILED
+                return ReturnCode.NO_TESTS_GENERATED
 
-            if result.worker_return_code == WorkerReturnCode.OK:
-                if result.return_code is not None:
-                    _LOGGER.info("Test generation completed successfully")
+            match result.worker_return_code:
+                case WorkerReturnCode.ERROR:
+                    _LOGGER.error("Worker process crashed")
+                    return ReturnCode.NO_TESTS_GENERATED
+                case WorkerReturnCode.TIMEOUT:
+                    _LOGGER.error("Worker process timed out")
+                    return ReturnCode.NO_TESTS_GENERATED
+                case WorkerReturnCode.OK:
+                    if result.return_code is None:
+                        _LOGGER.error("Worker process returned without error code")
+                        return ReturnCode.NO_TESTS_GENERATED
                     return result.return_code
-                _LOGGER.error("Test generation completed without return code")
-                return ReturnCode.SETUP_FAILED
-            if result.worker_return_code == WorkerReturnCode.TIMEOUT:
-                _LOGGER.error("Test generation timed out")
-                return ReturnCode.SETUP_FAILED
-            _LOGGER.error("Test generation failed: %s", result.error_message)
-            if result.traceback_str:
-                _LOGGER.debug("Worker traceback: %s", result.traceback_str)
-            return ReturnCode.SETUP_FAILED
 
         except Exception as e:  # noqa: BLE001
-            _LOGGER.error("Error during test generation: %s", e)
+            _LOGGER.error("Error in master-worker architecture: %s", e)
             return ReturnCode.SETUP_FAILED
 
     def __enter__(self):
