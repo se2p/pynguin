@@ -7,13 +7,15 @@
 """Tests for the worker module."""
 
 import logging
-import multiprocessing
 
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
+import multiprocess as mp
 import pytest
+
+import pynguin.configuration as config
 
 from pynguin.master_worker.worker import LogRecord
 from pynguin.master_worker.worker import WorkerResult
@@ -21,17 +23,16 @@ from pynguin.master_worker.worker import WorkerTask
 from pynguin.master_worker.worker import worker_main
 
 
-# Common fixtures
 @pytest.fixture
-def sample_config_dict():
-    """Sample configuration dictionary."""
-    return {"module_name": "test_module", "algorithm": "RANDOM"}
+def sample_config():
+    """Sample configuration."""
+    return config.configuration
 
 
 @pytest.fixture
-def worker_task(sample_config_dict):
+def worker_task(sample_config):
     """Sample worker task."""
-    return WorkerTask(task_id="test_task", config_dict=sample_config_dict)
+    return WorkerTask(task_id="test_task", configuration=sample_config)
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def mock_worker_setup():
     with (
         patch("pynguin.master_worker.worker._setup_signal_handlers") as mock_signals,
         patch("pynguin.master_worker.worker._setup_worker_logging") as mock_logging,
-        patch("multiprocessing.current_process") as mock_process,
+        patch("pynguin.master_worker.worker.mp.current_process") as mock_process,
     ):
         mock_proc = Mock()
         mock_proc.pid = 12345
@@ -136,27 +137,27 @@ def test_log_record_initialization(log_record):
 
 
 # Test WorkerTask dataclass
-def test_worker_task_initialization(worker_task, sample_config_dict):
+def test_worker_task_initialization(worker_task, sample_config):
     """Test WorkerTask initialization."""
     assert worker_task.task_id == "test_task"
-    assert worker_task.config_dict == sample_config_dict
+    assert worker_task.configuration == sample_config
 
 
 @pytest.mark.parametrize("task_id", ["", None])
-def test_worker_task_post_init_with_empty_task_id(task_id, sample_config_dict):
+def test_worker_task_post_init_with_empty_task_id(task_id, sample_config):
     """Test WorkerTask post_init with empty task_id."""
-    task = WorkerTask(task_id=task_id, config_dict=sample_config_dict)
+    task = WorkerTask(task_id=task_id, configuration=sample_config)
 
     assert task.task_id.startswith("task_")
-    assert task.config_dict == sample_config_dict
+    assert task.configuration == sample_config
 
 
-def test_worker_task_post_init_with_valid_task_id(sample_config_dict):
+def test_worker_task_post_init_with_valid_task_id(sample_config):
     """Test WorkerTask post_init with valid task_id."""
-    task = WorkerTask(task_id="valid_task", config_dict=sample_config_dict)
+    task = WorkerTask(task_id="valid_task", configuration=sample_config)
 
     assert task.task_id == "valid_task"
-    assert task.config_dict == sample_config_dict
+    assert task.configuration == sample_config
 
 
 # Test worker_main function
@@ -220,13 +221,13 @@ def test_worker_main_exception_recovery(mock_process_task, mock_worker_setup, mo
     assert mock_process_task.call_count == 1
 
 
-def test_worker_main_with_real_queues(mock_worker_setup):
+def test_worker_main_with_real_queues(sample_config, mock_worker_setup):
     """Test worker_main with actual multiprocessing queues."""
-    task_queue = multiprocessing.Queue()
-    result_queue = multiprocessing.Queue()
-    log_queue = multiprocessing.Queue()
+    task_queue = mp.Queue()
+    result_queue = mp.Queue()
+    log_queue = mp.Queue()
 
-    sample_task = WorkerTask(task_id="integration_test", config_dict={"test": "value"})
+    sample_task = WorkerTask(task_id="integration_test", configuration=sample_config)
     task_queue.put(sample_task)
 
     with (

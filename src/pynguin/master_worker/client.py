@@ -92,7 +92,7 @@ class PynguinClient:
                 config_dict["subprocess_if_recommended"] = "False"
                 _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
 
-            if not self.master.run(config_dict=config_dict):
+            if not self.master.run(self.configuration):
                 _LOGGER.error("Failed to submit test generation task")
                 return ReturnCode.SETUP_FAILED
 

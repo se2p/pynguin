@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import queue
 import signal
 import sys
@@ -18,11 +17,16 @@ import time
 import traceback
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
+
+import multiprocess as mp
 
 from pynguin.generator import run_pynguin
 from pynguin.generator import set_configuration
-from pynguin.utils.configuration_writer import read_config_from_dict
+
+
+if TYPE_CHECKING:
+    import pynguin.configuration as config
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -32,10 +36,10 @@ DEFAULT_WORKER_ID = 10000
 class _QueueHandler(logging.Handler):
     """Logging handler that sends log records to a queue in batches."""
 
-    def __init__(self, queue: multiprocessing.Queue):
+    def __init__(self, queue: mp.Queue):
         super().__init__()
         self.queue = queue
-        self.worker_pid = multiprocessing.current_process().pid or DEFAULT_WORKER_ID
+        self.worker_pid = mp.current_process().pid or DEFAULT_WORKER_ID
         self._buffer: list[LogRecord] = []
         self._buffer_lock = threading.Lock()
         self._flush_interval = 0.1  # seconds
@@ -115,7 +119,7 @@ class WorkerTask:
     """Task to be executed by a worker process."""
 
     task_id: str
-    config_dict: dict[str, Any]
+    configuration: config.Configuration
 
     def __post_init__(self):
         """Ensure task_id is unique if not provided."""
@@ -134,17 +138,13 @@ def _setup_signal_handlers() -> None:
     signal.signal(signal.SIGINT, signal_handler)
 
 
-def _setup_worker_logging(log_queue: multiprocessing.Queue) -> None:
+def _setup_worker_logging(log_queue: mp.Queue) -> None:
     """Set up logging to forward logs to the master process."""
     # Add the queue handler to the root logger in the worker process
     queue_handler = _QueueHandler(log_queue)
-    queue_handler.setLevel(logging.DEBUG)
 
     # Get the root logger and configure it properly
     root_logger = logging.getLogger()
-
-    # Set the root logger level to DEBUG to capture all logs
-    root_logger.setLevel(logging.DEBUG)
 
     # Add our queue handler
     root_logger.addHandler(queue_handler)
@@ -160,9 +160,7 @@ def _execute_task(task: WorkerTask) -> WorkerResult:
         Result of task execution
     """
     try:
-        # Deserialize configuration
-        configuration = read_config_from_dict(task.config_dict)
-        set_configuration(configuration)
+        set_configuration(task.configuration)
 
         # Run test generation
         _LOGGER.info("Starting test generation for task %s", task.task_id)
@@ -181,8 +179,8 @@ def _execute_task(task: WorkerTask) -> WorkerResult:
 
 
 def _process_task(
-    task_queue: multiprocessing.Queue,
-    result_queue: multiprocessing.Queue,
+    task_queue: mp.Queue,
+    result_queue: mp.Queue,
 ) -> bool:
     """Process a single task from the queue.
 
@@ -225,9 +223,9 @@ def _process_task(
 
 
 def worker_main(
-    task_queue: multiprocessing.Queue,
-    result_queue: multiprocessing.Queue,
-    log_queue: multiprocessing.Queue,
+    task_queue: mp.Queue,
+    result_queue: mp.Queue,
+    log_queue: mp.Queue,
 ) -> None:
     """Entry point for worker processes.
 
@@ -242,7 +240,7 @@ def worker_main(
     try:
         _setup_signal_handlers()
         _setup_worker_logging(log_queue)
-        _LOGGER.info("Worker process started (PID: %d)", multiprocessing.current_process().pid)
+        _LOGGER.info("Worker process started (PID: %d)", mp.current_process().pid)
 
         # Process one task and then exit.
         if not _process_task(task_queue, result_queue):

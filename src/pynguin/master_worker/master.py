@@ -9,12 +9,11 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import queue
 import threading
 import time
 
-from typing import Any
+import multiprocess as mp
 
 from pynguin import config
 from pynguin.master_worker.worker import WorkerResult
@@ -33,13 +32,13 @@ class MasterProcess:
     def __init__(self):
         """Initialize the master process."""
         # A queue to send the task (run_pynguin) to the worker process
-        self._task_queue: multiprocessing.Queue = multiprocessing.Queue()
+        self._task_queue: mp.Queue = mp.Queue()
         # A queue to receive log records from the worker process
-        self._log_queue: multiprocessing.Queue = multiprocessing.Queue()
+        self._log_queue: mp.Queue = mp.Queue()
         # A queue to receive results from the worker process. Must not be re-initialized.
-        self._result_queue: multiprocessing.Queue = multiprocessing.Queue()
+        self._result_queue: mp.Queue = mp.Queue()
         # Reference to the current worker process, if any
-        self._worker_process: multiprocessing.Process | None = None
+        self._worker_process: mp.Process | None = None
         # Thread to forward logs from the worker to the master
         self._log_listener_thread: threading.Thread | None = None
         # Thread to restart the worker process if it crashes
@@ -51,7 +50,7 @@ class MasterProcess:
         self._restart_count = 0
         self._current_task_start_time = None
         self._force_subprocess_mode = False
-        self._config_dict: dict[str, Any] = {}
+        self._configuration: config.Configuration | None = None
 
     @property
     def is_running(self) -> bool:
@@ -68,16 +67,14 @@ class MasterProcess:
         Args:
             elapsed_time: Time consumed by the crashed worker
         """
-        if not self._config_dict:
+        if not self._configuration:
             return
 
-        current_search_time = self._config_dict.get("stopping", {}).get("maximum_search_time", 0)
+        current_search_time = self._configuration.stopping.maximum_search_time
         if current_search_time > 0:
             # Reduce search time by elapsed time
             remaining_time = max(current_search_time - elapsed_time, 0.0)
-            if "stopping" not in self._config_dict:
-                self._config_dict["stopping"] = {}
-            self._config_dict["stopping"]["maximum_search_time"] = int(remaining_time)
+            self._configuration.stopping.maximum_search_time = int(remaining_time)
 
             _LOGGER.info(
                 "Adjusted maximum_search_time from %d to %d seconds "
@@ -104,12 +101,12 @@ class MasterProcess:
 
             # Recreate log and task for fresh communication channels to the new worker
             _LOGGER.info("Recreating communication queues for new worker")
-            self._task_queue = multiprocessing.Queue()
-            self._log_queue = multiprocessing.Queue()
+            self._task_queue = mp.Queue()
+            self._log_queue = mp.Queue()
             # Do not re-create the result queue to ensure the client gets a result
 
             _LOGGER.info("Starting new worker process")
-            self._worker_process = multiprocessing.Process(
+            self._worker_process = mp.Process(
                 target=worker_main,
                 args=(self._task_queue, self._result_queue, self._log_queue),
                 name="PynguinWorker",
@@ -131,19 +128,19 @@ class MasterProcess:
             _LOGGER.error("Failed to start worker process: %s", e)
             return False
 
-    def run(self, config_dict: dict) -> bool:
+    def run(self, configuration: config.Configuration) -> bool:
         """Run the task by submitting an (initial) worker task (run_pynguin).
 
         `_monitor_worker` will monitor the worker process and restart it if necessary
         by calling this method again.
 
         Args:
-            config_dict: Task to execute
+            configuration: Configuration for the test generation task to queue
 
         Returns:
             True if the task was submitted successfully, False otherwise
         """
-        self._config_dict = config_dict
+        self._configuration = configuration
         try:
             if not self._is_running:
                 _LOGGER.error("Master process is not running")
@@ -156,11 +153,11 @@ class MasterProcess:
 
             # Override subprocess mode in the task config if we're forcing it
             if self._force_subprocess_mode:
-                self._config_dict["subprocess"] = True
-                self._config_dict["subprocess_if_recommended"] = False
+                self._configuration.subprocess = True
+                self._configuration.subprocess_if_recommended = False
                 _LOGGER.debug("Forcing subprocess mode.")
 
-            task = WorkerTask(task_id=f"test_gen_{time.time()}", config_dict=self._config_dict)
+            task = WorkerTask(task_id=f"test_gen_{time.time()}", configuration=configuration)
             self._current_task_start_time = time.time()
             _LOGGER.info("Submitting task %s to worker", task.task_id)
             self._task_queue.put(task, timeout=5)
@@ -253,19 +250,23 @@ class MasterProcess:
 
         _LOGGER.info("Master process stopped")
 
-    def _monitor_worker(self) -> None:
+    def _monitor_worker(self) -> None:  # noqa: C901 # TODO
         """Monitor worker process health and restart if necessary."""
         _LOGGER.info("Starting worker monitoring")
 
         while self._is_running and not self._shutdown_event.is_set():
             try:
                 if not self._worker_process or not self._worker_process.is_alive():
+                    if self._configuration is None:
+                        _LOGGER.error("No configuration set, aborting")
+                        break
+
                     # Calculate elapsed time if we have a start time
                     if self._current_task_start_time is not None:
                         elapsed_time = time.time() - self._current_task_start_time
                         self._adjust_search_time_after_crash(elapsed_time)
 
-                    if self._config_dict.get("stopping", {}).get("maximum_search_time", 0) <= 0:
+                    if self._configuration.stopping.maximum_search_time <= 0:
                         _LOGGER.warning("Maximum search time is zero, aborting")
                         self._result_queue.put(
                             WorkerResult(
@@ -297,7 +298,7 @@ class MasterProcess:
                     # Record the start time for the new task
                     self._current_task_start_time = time.time()
 
-                    if not self.run(config_dict=self._config_dict):
+                    if not self.run(config.configuration):
                         _LOGGER.error("Failed to submit test generation task")
                         break
 

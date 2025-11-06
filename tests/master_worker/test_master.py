@@ -13,24 +13,24 @@ from unittest.mock import patch
 
 import pytest
 
+import pynguin.configuration as config
+
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.worker import WorkerResult
 
 
 @pytest.fixture
-def master_process():
-    """Create a MasterProcess instance for testing."""
-    return MasterProcess()
+def sample_config():
+    """Sample configuration."""
+    return config.configuration
 
 
 @pytest.fixture
-def sample_config_dict():
-    """Sample configuration dictionary."""
-    return {
-        "module_name": "test_module",
-        "algorithm": "RANDOM",
-        "stopping": {"maximum_search_time": 60},
-    }
+def master_process(sample_config):
+    """Create a MasterProcess instance for testing."""
+    master_process = MasterProcess()
+    master_process._configuration = sample_config
+    return master_process
 
 
 def test_master_process_init():
@@ -41,42 +41,33 @@ def test_master_process_init():
     assert master._restart_count == 0
     assert master._current_task_start_time is None
     assert master._force_subprocess_mode is False
-    assert master._config_dict == {}
+    assert master._configuration is None
     assert master._worker_process is None
     assert master._log_listener_thread is None
     assert master._monitor_thread is None
 
 
-def test_adjust_search_time_after_crash_with_config(master_process):
+def test_adjust_search_time_after_crash(master_process):
     """Test search time adjustment after worker crash."""
-    master_process._config_dict = {"stopping": {"maximum_search_time": 100}}
+    master_process._configuration.stopping.maximum_search_time = 100
 
     master_process._adjust_search_time_after_crash(30.0)
 
-    assert master_process._config_dict["stopping"]["maximum_search_time"] == 70
-
-
-def test_adjust_search_time_after_crash_no_config(master_process):
-    """Test search time adjustment with no config."""
-    master_process._config_dict = {}
-
-    master_process._adjust_search_time_after_crash(30.0)
-
-    assert master_process._config_dict == {}
+    assert master_process._configuration.stopping.maximum_search_time == 70
 
 
 def test_adjust_search_time_after_crash_minimum_zero(master_process):
     """Test search time adjustment doesn't go below zero."""
-    master_process._config_dict = {"stopping": {"maximum_search_time": 30}}
+    master_process._configuration.stopping.maximum_search_time = 30
 
     master_process._adjust_search_time_after_crash(50.0)
 
-    assert master_process._config_dict["stopping"]["maximum_search_time"] == 0
+    assert master_process._configuration.stopping.maximum_search_time == 0
 
 
 @patch("time.sleep")
-@patch("multiprocessing.Process")
-@patch("multiprocessing.Queue")
+@patch("pynguin.master_worker.master.mp.Process")
+@patch("pynguin.master_worker.master.mp.Queue")
 def test_start_worker_success(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
     """Test successful worker start."""
     mock_process_instance = Mock()
@@ -93,8 +84,8 @@ def test_start_worker_success(mock_queue, mock_process, mock_sleep, master_proce
 
 
 @patch("time.sleep")
-@patch("multiprocessing.Process")
-@patch("multiprocessing.Queue")
+@patch("pynguin.master_worker.master.mp.Process")
+@patch("pynguin.master_worker.master.mp.Queue")
 def test_start_worker_failure(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
     """Test worker start failure."""
     mock_process_instance = Mock()
@@ -107,8 +98,8 @@ def test_start_worker_failure(mock_queue, mock_process, mock_sleep, master_proce
 
 
 @patch("time.sleep")
-@patch("multiprocessing.Process")
-@patch("multiprocessing.Queue")
+@patch("pynguin.master_worker.master.mp.Process")
+@patch("pynguin.master_worker.master.mp.Queue")
 def test_start_worker_terminates_existing(mock_queue, mock_process, mock_sleep, master_process):  # noqa: ARG001
     """Test worker start terminates existing worker."""
     existing_worker = Mock()
@@ -128,42 +119,42 @@ def test_start_worker_terminates_existing(mock_queue, mock_process, mock_sleep, 
 
 
 @patch("time.time", return_value=123456.0)
-def test_run_success(mock_time, master_process, sample_config_dict):  # noqa: ARG001
+def test_run_success(mock_time, master_process, sample_config):  # noqa: ARG001
     """Test successful task submission."""
     master_process._is_running = True
     master_process._worker_process = Mock()
     master_process._worker_process.is_alive.return_value = True
     master_process._task_queue = Mock()
 
-    result = master_process.run(sample_config_dict)
+    result = master_process.run(sample_config)
 
     assert result is True
     master_process._task_queue.put.assert_called_once()
     assert master_process._current_task_start_time == 123456.0
 
 
-def test_run_not_running(master_process, sample_config_dict):
+def test_run_not_running(master_process, sample_config):
     """Test run when master is not running."""
     master_process._is_running = False
 
-    result = master_process.run(sample_config_dict)
+    result = master_process.run(sample_config)
 
     assert result is False
 
 
-def test_run_worker_not_alive(master_process, sample_config_dict):
+def test_run_worker_not_alive(master_process, sample_config):
     """Test run when worker is not alive."""
     master_process._is_running = True
     master_process._worker_process = Mock()
     master_process._worker_process.is_alive.return_value = False
 
     with patch.object(master_process, "start_worker", return_value=False):
-        result = master_process.run(sample_config_dict)
+        result = master_process.run(sample_config)
 
         assert result is False
 
 
-def test_run_forces_subprocess_mode(master_process, sample_config_dict):
+def test_run_forces_subprocess_mode(master_process, sample_config):
     """Test run forces subprocess mode when enabled."""
     master_process._is_running = True
     master_process._force_subprocess_mode = True
@@ -171,14 +162,14 @@ def test_run_forces_subprocess_mode(master_process, sample_config_dict):
     master_process._worker_process.is_alive.return_value = True
     master_process._task_queue = Mock()
 
-    result = master_process.run(sample_config_dict)
+    result = master_process.run(sample_config)
 
     assert result is True
-    assert master_process._config_dict["subprocess"] is True
-    assert master_process._config_dict["subprocess_if_recommended"] is False
+    assert master_process._configuration.subprocess is True
+    assert master_process._configuration.subprocess_if_recommended is False
 
 
-def test_run_queue_full(master_process, sample_config_dict):
+def test_run_queue_full(master_process, sample_config):
     """Test run when task queue is full."""
     master_process._is_running = True
     master_process._worker_process = Mock()
@@ -186,7 +177,7 @@ def test_run_queue_full(master_process, sample_config_dict):
     master_process._task_queue = Mock()
     master_process._task_queue.put.side_effect = queue.Full()
 
-    result = master_process.run(sample_config_dict)
+    result = master_process.run(sample_config)
 
     assert result is False
 
@@ -317,9 +308,9 @@ def test_log_listener_handles_exception(master_process):
 
 
 @patch("time.time")
-@patch("multiprocessing.Process")
-@patch("multiprocessing.Queue")
-def test_integration(mock_queue, mock_process, mock_time, master_process, sample_config_dict):  # noqa: ARG001
+@patch("pynguin.master_worker.master.mp.Process")
+@patch("pynguin.master_worker.master.mp.Queue")
+def test_integration(mock_queue, mock_process, mock_time, master_process, sample_config):  # noqa: ARG001
     """Test a full lifecycle of master process."""
     # Mock time for consistent task IDs
     mock_time.return_value = 123456.0
@@ -340,7 +331,7 @@ def test_integration(mock_queue, mock_process, mock_time, master_process, sample
         assert master_process._is_running is True
 
         # Run a task
-        assert master_process.run(sample_config_dict) is True
+        assert master_process.run(sample_config) is True
 
         # Stop the master
         master_process.stop()
