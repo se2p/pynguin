@@ -34,6 +34,13 @@ from typing import Any
 
 import astroid
 
+from astroid.nodes import Assign
+from astroid.nodes import AsyncFunctionDef
+from astroid.nodes import ClassDef
+from astroid.nodes import FunctionDef
+from astroid.nodes import Lambda
+from astroid.nodes import Module
+
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
@@ -98,7 +105,7 @@ if typing.TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
-AstroidFunctionDef: typing.TypeAlias = astroid.AsyncFunctionDef | astroid.FunctionDef
+AstroidFunctionDef: typing.TypeAlias = AsyncFunctionDef | FunctionDef
 
 LOGGER = logging.getLogger(__name__)
 
@@ -408,7 +415,7 @@ class _ModuleParseResult:
     linenos: int
     module_name: str
     module: ModuleType
-    syntax_tree: astroid.Module | None
+    syntax_tree: Module | None
 
 
 def import_module(module_name: str) -> ModuleType:
@@ -447,7 +454,7 @@ def import_module(module_name: str) -> ModuleType:
         return submodule
 
 
-def read_module_ast(module_path: str, module_name: str) -> tuple[astroid.Module, str]:
+def read_module_ast(module_path: str, module_name: str) -> tuple[Module, str]:
     """Reads the AST of the module and returns it along with its source code.
 
     Args:
@@ -481,7 +488,7 @@ def parse_module(module_name: str) -> _ModuleParseResult:
         A tuple of the imported module type and its optional AST
     """
     module = import_module(module_name)
-    syntax_tree: astroid.Module | None = None
+    syntax_tree: Module | None = None
     linenos: int = -1
     try:
         module_path = inspect.getsourcefile(module)
@@ -1318,11 +1325,11 @@ def _get_lambda_assigned_name(module_tree, lambda_lineno) -> str | None:
         this function will return "y" if the lambda node starts at line 10.
     """
     for node in module_tree.body:
-        if isinstance(node, astroid.Assign) and len(node.targets) == 1:
+        if isinstance(node, Assign) and len(node.targets) == 1:
             target = node.targets[0]
             if (
                 hasattr(target, "name")
-                and isinstance(node.value, astroid.Lambda)
+                and isinstance(node.value, Lambda)
                 and node.value.lineno == lambda_lineno
             ):
                 return target.name
@@ -1334,7 +1341,7 @@ def __analyse_function(
     func_name: str,
     func: FunctionType,
     type_inference_provider: InferenceProvider,
-    module_tree: astroid.Module | None,
+    module_tree: Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1402,7 +1409,7 @@ def __analyse_class(
     *,
     type_info: TypeInfo,
     type_inference_provider: InferenceProvider,
-    module_tree: astroid.Module | None,
+    module_tree: Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
@@ -1510,7 +1517,7 @@ IGNORED_SYMBOLS: set[str] = {
 }
 
 
-def __add_symbols(class_ast: astroid.ClassDef | None, type_info: TypeInfo) -> None:
+def __add_symbols(class_ast: ClassDef | None, type_info: TypeInfo) -> None:
     """Tries to infer what symbols can be found on an instance of the given class.
 
     We also try to infer what attributes are defined in '__init__'.
@@ -1532,7 +1539,7 @@ def __analyse_method(
     method_name: str,
     method: (FunctionType | BuiltinFunctionType | WrapperDescriptorType | MethodDescriptorType),
     type_inference_provider: InferenceProvider,
-    class_tree: astroid.ClassDef | None,
+    class_tree: ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:

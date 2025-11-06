@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 import pytest
 
-from astroid import FunctionDef
 from astroid import parse
+from astroid.nodes import FunctionDef
 
 import pynguin.configuration as config
 

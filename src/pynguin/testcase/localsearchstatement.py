@@ -14,6 +14,7 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import math
 import sys
 
 from abc import ABC
@@ -30,6 +31,7 @@ from pynguin.analyses.typesystem import is_primitive_type
 from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
 from pynguin.testcase.statement import BooleanPrimitiveStatement
 from pynguin.testcase.statement import BytesPrimitiveStatement
+from pynguin.testcase.statement import ClassPrimitiveStatement
 from pynguin.testcase.statement import CollectionStatement
 from pynguin.testcase.statement import ComplexPrimitiveStatement
 from pynguin.testcase.statement import ConstructorStatement
@@ -243,6 +245,29 @@ class EnumLocalSearch(PrimitiveLocalSearch, ABC):
         return False
 
 
+class ClassLocalSearch(PrimitiveLocalSearch, ABC):
+    """A local search strategy for classes."""
+
+    def search(  # noqa: D102
+        self,
+    ) -> bool:
+        statement = cast(
+            "ClassPrimitiveStatement", self._chromosome.test_case.statements[self._position]
+        )
+        initial_value = statement.value
+        self._backup(statement)
+        for value in range(len(statement.test_case.test_cluster.type_system.get_all_types())):
+            if self._timer.limit_reached():
+                return False
+            if value != initial_value:
+                if not self._objective.has_improved(self._chromosome):
+                    self._restore(statement)
+                else:
+                    self._logger.debug("Local search successfully found better class value")
+                    return True
+        return False
+
+
 class FloatLocalSearch(NumericalLocalSearch, ABC):
     """A local search strategy for floats."""
 
@@ -415,7 +440,7 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             Gives back True, if at least one iteration increased the fitness.
         """  # noqa: D205
         self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
-        factor = config.configuration.local_search.ls_int_delta_increasing_factor
+        factor = float(config.configuration.local_search.ls_int_delta_increasing_factor)
         if statement.value is None:
             return False
 
@@ -425,11 +450,15 @@ class ComplexLocalSearch(PrimitiveLocalSearch, ABC):
             statement.value = complex(statement.value.real, statement.value.imag + delta)
         else:
             statement.value = complex(statement.value.real + delta, statement.value.imag)
-        while self._objective.has_improved(self._chromosome) and not self._timer.limit_reached():
+        while (
+            self._objective.has_improved(self._chromosome)
+            and not self._timer.limit_reached()
+            and {statement.value.real, statement.value.imag}.isdisjoint((-math.inf, math.inf))
+        ):
+            delta *= factor
             self._logger.debug("Incrementing value of %s with delta %s ", statement.value, delta)
             self._backup(statement)
             improved = True
-            delta *= factor
             if imaginary:
                 statement.value = complex(statement.value.real, statement.value.imag + delta)
             else:
@@ -559,7 +588,11 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         self._backup(statement)
         i = 0
         improved = False
-        while statement.value is not None and i <= len(statement.value):
+        while (
+            statement.value is not None
+            and i <= len(statement.value)
+            and not self._timer.limit_reached()
+        ):
             statement.value = statement.value[:i] + chr(97) + statement.value[i:]
             # TODO: Which is best char to start with (maybe the one in the middle?)
             self._logger.debug(
@@ -570,7 +603,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
                 self._backup(statement)
                 finished = False
 
-                while not finished:
+                while not finished and not self._timer.limit_reached():
                     finished = True
                     if self.iterate_string(statement, i, 1):
                         finished = False
@@ -651,6 +684,14 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         )
 
 
+class ParametrizedStatementOperations(enum.Enum):
+    """The different operations for the parametrized statement local search."""
+
+    REPLACE = 0
+    RANDOM_CALL = 1
+    PARAMETER = 2
+
+
 class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
     """A local search strategy for parametrized statements."""
 
@@ -669,11 +710,6 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
         last_execution_result = self._chromosome.get_last_execution_result()
         old_test_case = self._chromosome.test_case.clone()
 
-        class Operations(enum.Enum):
-            REPLACE = 0
-            RANDOM_CALL = 1
-            PARAMETER = 2
-
         total_iterations = 0
         improved = False
         while (
@@ -682,16 +718,18 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
             < config.configuration.local_search.ls_random_parametrized_statement_call_count
         ):
             total_iterations += 1
-            operations: list[Operations] = [Operations.REPLACE]
+            operations: list[ParametrizedStatementOperations] = [
+                ParametrizedStatementOperations.REPLACE
+            ]
             if isinstance(statement, ParametrizedStatement):
-                operations.append(Operations.RANDOM_CALL)
+                operations.append(ParametrizedStatementOperations.RANDOM_CALL)
                 if len(statement.args) > 0:
-                    operations.append(Operations.PARAMETER)
+                    operations.append(ParametrizedStatementOperations.PARAMETER)
             old_size = len(self._chromosome.test_case.statements)
             random = randomness.choice(operations)
-            if random == Operations.RANDOM_CALL:
+            if random == ParametrizedStatementOperations.RANDOM_CALL:
                 changed = self.random_call()
-            elif random == Operations.PARAMETER:
+            elif random == ParametrizedStatementOperations.PARAMETER:
                 changed = self.random_parameter()
             else:
                 changed = self.replace()
@@ -1411,8 +1449,11 @@ def choose_local_search_statement(  # noqa: C901
         logger.debug("None local search statement found")
         return ParametrizedStatementLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, EnumPrimitiveStatement):
-        logger.debug("Statement is enum %r", statement.value)
+        logger.debug("Statement is enum %s", statement.value_name)
         return EnumLocalSearch(chromosome, position, objective, factory, timer)
+    if isinstance(statement, ClassPrimitiveStatement):
+        logger.debug("Statement is class %s", statement.type_info.full_name)
+        return ClassLocalSearch(chromosome, position, objective, factory, timer)
     if isinstance(statement, PrimitiveStatement):
         primitive_type = statement.value
         if isinstance(primitive_type, bool):

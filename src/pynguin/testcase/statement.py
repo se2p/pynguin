@@ -2479,7 +2479,7 @@ class ClassPrimitiveStatement(PrimitiveStatement[int]):
         )
 
     def __repr__(self) -> str:
-        return f"EnumPrimitiveStatement({self._test_case}, {self._value})"
+        return f"ClassPrimitiveStatement({self._test_case}, {self._value})"
 
     def __str__(self) -> str:
         assert self._value is not None
