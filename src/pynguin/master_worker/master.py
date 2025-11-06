@@ -23,8 +23,6 @@ from pynguin.master_worker.worker import worker_main
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_WORKER_ID = 10000
-
 
 class MasterProcess:
     """Master process that manages worker processes for test generation."""
