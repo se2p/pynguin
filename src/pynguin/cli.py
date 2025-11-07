@@ -213,19 +213,22 @@ to see why this happens and what you must do to prevent it."""
     set_configuration(parsed.config)
     write_configuration()
 
-    # Choose execution mode based on configuration
-    if parsed.config.use_master_worker:
+    use_master_worker = parsed.config.use_master_worker
+    run_fn = run_pynguin_with_master_worker if use_master_worker else run_pynguin
+    message = (
+        "Running Pynguin with master-worker architecture..."
+        if use_master_worker
+        else "Running Pynguin..."
+    )
+
+    if use_master_worker:
         _LOGGER.info("Using master-worker architecture")
-        if console is not None:
-            with console.status("Running Pynguin with master-worker architecture..."):
-                return run_pynguin_with_master_worker(parsed.config).value
-        else:
-            return run_pynguin_with_master_worker(parsed.config).value
-    elif console is not None:
-        with console.status("Running Pynguin..."):
-            return run_pynguin().value
+
+    if console is not None:
+        with console.status(message):
+            return run_fn(parsed.config).value if use_master_worker else run_fn().value
     else:
-        return run_pynguin().value
+        return run_fn(parsed.config).value if use_master_worker else run_fn().value
 
 
 if __name__ == "__main__":

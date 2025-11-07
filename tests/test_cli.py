@@ -59,6 +59,71 @@ def test_main_no_env_marker():
         assert main([]) == -1
 
 
+@pytest.fixture(autouse=True)
+def patch_dependencies():
+    """Patch common dependencies used across tests."""
+    with (
+        mock.patch("pynguin.cli._setup_output_path"),
+        mock.patch("pynguin.cli._setup_logging") as log_mock,
+        mock.patch("pynguin.cli._create_argument_parser") as parser_mock,
+        mock.patch("pynguin.cli.set_configuration"),
+        mock.patch("pynguin.cli.write_configuration"),
+    ):
+        # Default parser mock setup
+        parser = MagicMock()
+        parser.parse_args.return_value = MagicMock()
+        parser_mock.return_value = parser
+
+        yield log_mock, parser_mock, parser
+
+
+@pytest.mark.parametrize(
+    "use_master_worker, has_console, run_fn_name",
+    [
+        (True, True, "pynguin.cli.run_pynguin_with_master_worker"),
+        (True, False, "pynguin.cli.run_pynguin_with_master_worker"),
+        (False, True, "pynguin.cli.run_pynguin"),
+        (False, False, "pynguin.cli.run_pynguin"),
+    ],
+)
+def test_main_modes(patch_dependencies, use_master_worker, has_console, run_fn_name):
+    """Covers all combinations of master-worker/regular mode and console presence."""
+    log_mock, _, parser = patch_dependencies
+    parsed = parser.parse_args.return_value
+
+    # Configure parsed arguments
+    parsed.config.use_master_worker = use_master_worker
+    parsed.verbosity = 1 if has_console else 0
+    parsed.no_rich = not has_console
+    parsed.log_file = "foo.log" if has_console else None
+    parsed.config.test_case_output.output_path = "out"
+
+    # Set up console mock via fixture's _setup_logging mock
+    mock_console = MagicMock()
+    mock_console.status.return_value.__enter__.return_value = None
+    log_mock.return_value = mock_console if has_console else None
+
+    # Patch only run function, not _setup_logging again
+    with (
+        mock.patch.dict(os.environ, {_DANGER_ENV: "foobar"}),
+        mock.patch(run_fn_name, return_value=ReturnCode.OK) as run_fn,
+    ):
+        result = main(["prog"])
+        assert result == 0
+
+        # Ensure the correct run function was called
+        run_fn.assert_called_once()
+
+    # Verify console behavior
+    if has_console:
+        mock_console.status.assert_called_once()
+    else:
+        mock_console.status.assert_not_called()
+
+    # Verify that logging setup was invoked once
+    log_mock.assert_called_once()
+
+
 def test__create_argument_parser():
     parser = _create_argument_parser()
     assert isinstance(parser, argparse.ArgumentParser)
