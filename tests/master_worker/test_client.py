@@ -102,7 +102,7 @@ def test_run_pynguin_with_master_worker(generate_result, expected_result):
     with (
         patch.object(PynguinClient, "start"),
         patch.object(PynguinClient, "stop"),
-        patch.object(PynguinClient, "generate_tests", return_value=generate_result),
+        patch.object(PynguinClient, "run_pynguin", return_value=generate_result),
     ):
         result = run_pynguin_with_master_worker(configuration)
 
