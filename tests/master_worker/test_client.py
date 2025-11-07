@@ -23,23 +23,6 @@ from pynguin.master_worker.worker import WorkerResult
 from pynguin.master_worker.worker import WorkerReturnCode
 
 
-def create_worker_result(
-    task_id: str = "test_task",
-    worker_return_code: WorkerReturnCode = WorkerReturnCode.OK,
-    return_code: ReturnCode = ReturnCode.OK,
-    error_message: str = "",
-    traceback_str: str = "",
-) -> WorkerResult:
-    """Factory for creating WorkerResult instances."""
-    return WorkerResult(
-        task_id=task_id,
-        worker_return_code=worker_return_code,
-        return_code=return_code,
-        error_message=error_message,
-        traceback_str=traceback_str,
-    )
-
-
 def create_mock_configuration(
     *,
     use_master_worker: bool = True,
@@ -52,25 +35,56 @@ def create_mock_configuration(
     return config
 
 
-def create_started_client(config=None) -> PynguinClient:
-    """Helper to create a started PynguinClient."""
-    if config is None:
-        config = create_mock_configuration()
-    client = PynguinClient(config)
-    client.master._is_running = True
-    return client
+@pytest.mark.parametrize(
+    "mock_result, expected_return_code, raises_exception",
+    [
+        (None, ReturnCode.NO_TESTS_GENERATED, False),
+        (
+            WorkerResult(
+                task_id="1",
+                worker_return_code=WorkerReturnCode.ERROR,
+                return_code=ReturnCode.NO_TESTS_GENERATED,
+            ),
+            ReturnCode.NO_TESTS_GENERATED,
+            False,
+        ),
+        (
+            WorkerResult(
+                task_id="2",
+                worker_return_code=WorkerReturnCode.TIMEOUT,
+                return_code=ReturnCode.NO_TESTS_GENERATED,
+            ),
+            ReturnCode.NO_TESTS_GENERATED,
+            False,
+        ),
+        (
+            WorkerResult(task_id="3", worker_return_code=WorkerReturnCode.OK, return_code=None),
+            ReturnCode.NO_TESTS_GENERATED,
+            False,
+        ),
+        (
+            WorkerResult(
+                task_id="4", worker_return_code=WorkerReturnCode.OK, return_code="success_code"
+            ),
+            "success_code",
+            False,
+        ),
+        (None, ReturnCode.SETUP_FAILED, True),
+    ],
+)
+def test_run_pynguin(mock_result, expected_return_code, raises_exception):
+    mock_config = MagicMock()
+    client = PynguinClient(mock_config)
+    client.master = MagicMock()
 
+    if raises_exception:
+        client.master.start_pynguin.side_effect = Exception("fail")
+    else:
+        client.master.start_pynguin.side_effect = None
 
-@pytest.fixture
-def mock_configuration():
-    """Mock configuration for testing."""
-    return create_mock_configuration()
-
-
-@pytest.fixture
-def client(mock_configuration):
-    """PynguinClient instance for testing."""
-    return PynguinClient(mock_configuration)
+    client.master.get_result = MagicMock(return_value=mock_result)
+    result = client.run_pynguin()
+    assert result == expected_return_code
 
 
 def test_context_manager():
