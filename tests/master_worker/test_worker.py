@@ -9,7 +9,6 @@
 import logging
 
 from unittest.mock import MagicMock
-from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
@@ -17,10 +16,11 @@ import pytest
 import pynguin.configuration as config
 
 from pynguin.generator import ReturnCode
-from pynguin.master_worker.worker import LogRecord
+from pynguin.master_worker.worker import WorkerLogFormatter
 from pynguin.master_worker.worker import WorkerResult
 from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.master_worker.worker import WorkerTask
+from pynguin.master_worker.worker import worker_main
 
 
 @pytest.fixture
@@ -35,54 +35,22 @@ def worker_task(sample_config):
     return WorkerTask(task_id="test_task", configuration=sample_config)
 
 
-@pytest.fixture
-def worker_result():
-    """Sample worker result."""
-    return WorkerResult(
-        task_id="test_task", worker_return_code=WorkerReturnCode.OK, return_code=ReturnCode.OK
-    )
+def test_worker_log_formatter_format():
+    formatter = WorkerLogFormatter()
 
-
-@pytest.fixture
-def log_record():
-    """Sample log record."""
-    return LogRecord(
+    record = logging.LogRecord(
+        name="test",
         level=logging.INFO,
+        pathname="",
+        lineno=0,
         msg="Test message",
-        args=("arg1", "arg2"),
-        name="test.module",
-        created=123456789.0,
-        worker_pid=12345,
+        args=(),
+        exc_info=None,
     )
 
-
-@pytest.fixture
-def mock_queues():
-    """Mock multiprocessing queues."""
-    return {
-        "task_queue": MagicMock(),
-        "result_queue": MagicMock(),
-        "log_queue": MagicMock(),
-    }
-
-
-@pytest.fixture
-def mock_worker_setup():
-    """Common mocks for worker_main setup functions."""
-    with (
-        patch("pynguin.master_worker.worker._setup_signal_handlers") as mock_signals,
-        patch("pynguin.master_worker.worker._setup_worker_logging") as mock_logging,
-        patch("pynguin.master_worker.worker.mp.current_process") as mock_process,
-    ):
-        mock_proc = Mock()
-        mock_proc.pid = 12345
-        mock_process.return_value = mock_proc
-
-        yield {
-            "signals": mock_signals,
-            "logging": mock_logging,
-            "process": mock_process,
-        }
+    result = formatter.format(record)
+    assert result.startswith("[Worker-")
+    assert "Test message" in result
 
 
 @pytest.mark.parametrize(
@@ -124,16 +92,6 @@ def test_worker_result_custom_values(
     assert result.traceback_str == traceback_str
 
 
-def test_log_record_initialization(log_record):
-    """Test LogRecord initialization."""
-    assert log_record.level == logging.INFO
-    assert log_record.msg == "Test message"
-    assert log_record.args == ("arg1", "arg2")
-    assert log_record.name == "test.module"
-    assert log_record.created == 123456789.0
-    assert log_record.worker_pid == 12345
-
-
 def test_worker_task_initialization(worker_task, sample_config):
     """Test WorkerTask initialization."""
     assert worker_task.task_id == "test_task"
@@ -149,9 +107,41 @@ def test_worker_task_post_init_with_empty_task_id(task_id, sample_config):
     assert task.configuration == sample_config
 
 
-def test_worker_task_post_init_with_valid_task_id(sample_config):
-    """Test WorkerTask post_init with valid task_id."""
-    task = WorkerTask(task_id="valid_task", configuration=sample_config)
+def test_worker_main():
+    worker_task = WorkerTask(task_id="test_task", configuration=config.configuration)
+    sending_connection = MagicMock()
+    worker_main(worker_task, sending_connection)
 
-    assert task.task_id == "valid_task"
-    assert task.configuration == sample_config
+    sending_connection.send.assert_called_once()
+
+
+def test_worker_main_keyboardinterrupt():
+    worker_task = WorkerTask(task_id="test_task", configuration=config.configuration)
+    sending_connection = MagicMock()
+    with patch("pynguin.master_worker.worker.run_pynguin", side_effect=KeyboardInterrupt):
+        worker_main(worker_task, sending_connection)
+
+    sending_connection.send.assert_not_called()
+
+
+def test_worker_main_generic_exception():
+    worker_task = WorkerTask(task_id="test_task", configuration=config.configuration)
+    sending_connection = MagicMock()
+    with patch("pynguin.master_worker.worker.run_pynguin", side_effect=Exception("Test exception")):
+        worker_main(worker_task, sending_connection)
+
+    sending_connection.send.assert_called_once()
+    sent_result = sending_connection.send.call_args[0][0]
+    assert sent_result.worker_return_code == WorkerReturnCode.ERROR
+    assert "Test exception" in sent_result.error_message
+    assert sent_result.traceback_str is not None
+
+
+def test_worker_main_generic_exception_send_fails():
+    worker_task = WorkerTask(task_id="test_task", configuration=config.configuration)
+    sending_connection = MagicMock()
+    sending_connection.send.side_effect = Exception("Send failed")
+    with patch("pynguin.master_worker.worker.run_pynguin", side_effect=Exception("Test exception")):
+        worker_main(worker_task, sending_connection)
+
+    sending_connection.send.assert_called_once()

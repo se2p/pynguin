@@ -79,18 +79,6 @@ class WorkerResult:
 
 
 @dataclass
-class LogRecord:
-    """Log record from a worker process."""
-
-    level: int
-    msg: str
-    args: tuple
-    name: str
-    created: float
-    worker_pid: int
-
-
-@dataclass
 class WorkerTask:
     """Task to be executed by a worker process."""
 
