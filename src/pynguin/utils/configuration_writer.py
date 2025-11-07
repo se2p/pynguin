@@ -14,7 +14,6 @@ import pprint
 
 from collections.abc import Iterable
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import toml
@@ -110,11 +109,7 @@ def _try_construct_dataclass(obj_dict: dict[str, Any], dataclass_types: list[typ
             processed = {k: read_config_from_dict(v) for k, v in obj_dict.items()}
             # Only pass fields that are defined in the dataclass
             filtered_kwargs = {k: v for k, v in processed.items() if k in field_names}
-            try:
-                return cls(**filtered_kwargs)
-            except (TypeError, ValueError):
-                # If construction fails, continue to next class
-                continue
+            return cls(**filtered_kwargs)
     return None
 
 
@@ -151,11 +146,10 @@ def read_config_from_dict(obj: Any) -> Any:
     if isinstance(obj, dict):
         # Try to construct a dataclass from the dictionary
         dataclass_instance = _try_construct_dataclass(obj, dataclass_types)
-        if dataclass_instance is not None:
-            return dataclass_instance
+        if dataclass_instance is None:
+            raise ValueError(f"Could not construct dataclass from dictionary: {obj}")
 
-        # fallback generic object
-        return SimpleNamespace(**{k: read_config_from_dict(v) for k, v in obj.items()})
+        return dataclass_instance
 
     if isinstance(obj, list):
         return [read_config_from_dict(item) for item in obj]

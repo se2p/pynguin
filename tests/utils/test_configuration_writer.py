@@ -784,6 +784,12 @@ def test_convert_object_with_dict():
     assert convert_config_to_dict(obj) == expected_output
 
 
+def test_read_config_from_dict_none_instance():
+    test_input = {"unknown_key": "some_value"}
+    with pytest.raises(ValueError, match="Could not construct dataclass from dictionary"):
+        read_config_from_dict(test_input)
+
+
 def test_convert_forth_and_back():
     config_dict = convert_config_to_dict(config.configuration)
     read_config = read_config_from_dict(config_dict)
