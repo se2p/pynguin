@@ -6,6 +6,7 @@
 #
 """Tests for the master process module."""
 
+from unittest.mock import MagicMock
 from unittest.mock import Mock
 
 import pytest
@@ -43,18 +44,27 @@ def test_master_process_init():
 def test_adjust_search_time_after_crash(master_process):
     """Test search time adjustment after worker crash."""
     master_process._configuration.stopping.maximum_search_time = 100
+    master_process._adjust_search_time_after_crash(30.0)
+    assert master_process._configuration.stopping.maximum_search_time == 70
 
+
+def test_adjust_search_time_after_crash_no_config(master_process):
+    """Test search time adjustment when configuration is None."""
+    master_process._configuration = None
     master_process._adjust_search_time_after_crash(30.0)
 
-    assert master_process._configuration.stopping.maximum_search_time == 70
+
+def test_adjust_search_time_after_crash_no_time_left(master_process):
+    """Test search time adjustment when no time is left."""
+    master_process._configuration.stopping.maximum_search_time = 0
+    master_process._adjust_search_time_after_crash(30.0)
+    assert master_process._configuration.stopping.maximum_search_time == 0
 
 
 def test_adjust_search_time_after_crash_minimum_zero(master_process):
     """Test search time adjustment doesn't go below zero."""
     master_process._configuration.stopping.maximum_search_time = 30
-
     master_process._adjust_search_time_after_crash(50.0)
-
     assert master_process._configuration.stopping.maximum_search_time == 0
 
 
@@ -81,3 +91,30 @@ def test_get_result_exception(master_process):
 
     assert result.worker_return_code == WorkerReturnCode.ERROR
     assert result.task_id == "unknown"
+
+
+def test_start_pynguin_with_restart():
+    master = MasterProcess()
+    mock_config = MagicMock()
+    mock_config.subprocess = False
+    mock_config.subprocess_if_recommended = False
+    mock_config.stopping.maximum_search_time = 100
+    master._configuration = mock_config
+
+    # Start the initial task
+    master.start_pynguin(mock_config)
+
+    # Simulate a receiving connection that raises on recv (simulate failure)
+    class DummyConnection:
+        def recv(self):
+            raise Exception("Simulated worker failure")
+
+        def close(self):
+            pass
+
+    master._receiving_connection = DummyConnection()
+
+    result = master.get_result()
+
+    assert master._restart_count > 0
+    assert result.worker_return_code == WorkerReturnCode.OK
