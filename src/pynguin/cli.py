@@ -214,21 +214,23 @@ to see why this happens and what you must do to prevent it."""
     write_configuration()
 
     use_master_worker = parsed.config.use_master_worker
-    run_fn = run_pynguin_with_master_worker if use_master_worker else run_pynguin
     message = (
         "Running Pynguin with master-worker architecture..."
         if use_master_worker
         else "Running Pynguin..."
     )
-
     if use_master_worker:
         _LOGGER.info("Using master-worker architecture")
 
     if console is not None:
         with console.status(message):
-            return run_fn(parsed.config).value if use_master_worker else run_fn().value
+            if use_master_worker:
+                return run_pynguin_with_master_worker(parsed.config).value
+            return run_pynguin().value
+    elif use_master_worker:
+        return run_pynguin_with_master_worker(parsed.config).value
     else:
-        return run_fn(parsed.config).value if use_master_worker else run_fn().value
+        return run_pynguin().value
 
 
 if __name__ == "__main__":

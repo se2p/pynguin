@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import logging
 
-import pynguin.configuration as config
+from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.worker import WorkerReturnCode
+
+
+if TYPE_CHECKING:
+    import pynguin.configuration as config
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,28 +47,13 @@ class PynguinClient:
         self.master.stop()
         _LOGGER.info("Master-worker system stopped")
 
-    def generate_tests(self, timeout: int | None = None) -> ReturnCode:
-        """Generate tests using the configured module.
-
-        Args:
-            timeout: Optional timeout in seconds for the generation
+    def run_pynguin(self) -> ReturnCode:
+        """Run Pynguin with master-worker architecture.
 
         Returns:
             ReturnCode indicating success or failure
         """
         try:
-            # Override subprocess configuration for master-worker architecture behavior:
-            # If subprocess_if_recommended is True and use_master_worker is True,
-            # start with threaded execution (subprocess=False) and let the master
-            # handle switching to subprocess mode on crashes
-            if (
-                self.configuration.use_master_worker
-                and self.configuration.subprocess_if_recommended
-            ):
-                config.configuration.subprocess = False
-                config.configuration.subprocess_if_recommended = True
-                _LOGGER.info("Starting with threaded execution mode in master-worker architecture")
-
             self.master.start_pynguin(self.configuration)
 
             # Wait for a result
@@ -114,4 +103,4 @@ def run_pynguin_with_master_worker(configuration: config.Configuration) -> Retur
         ReturnCode indicating success or failure
     """
     with PynguinClient(configuration) as client:
-        return client.generate_tests()
+        return client.run_pynguin()
