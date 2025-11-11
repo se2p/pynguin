@@ -134,6 +134,7 @@ class RunningTask:
             _LOGGER.info(
                 "Received result for task %s: %s", result.task_id, result.worker_return_code
             )
+            result.restart_count = self._restart_count
             return result
 
         except Exception:  # noqa: BLE001
@@ -144,6 +145,7 @@ class RunningTask:
                     worker_return_code=WorkerReturnCode.ERROR,
                     return_code=None,
                     error_message="Could not restart worker process",
+                    restart_count=self._restart_count,
                 )
             return self.get_result()
 

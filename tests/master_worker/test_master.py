@@ -30,6 +30,17 @@ def running_task(worker_task: WorkerTask) -> RunningTask:  # noqa: F811
     return running_task
 
 
+@pytest.fixture
+def master_and_config() -> tuple[MasterProcess, MagicMock]:
+    master = MasterProcess()
+    mock_config = MagicMock()
+    mock_config.subprocess = False
+    mock_config.subprocess_if_recommended = False
+    mock_config.stopping.maximum_search_time = 100
+    master._configuration = mock_config
+    return master, mock_config
+
+
 def test_adjust_search_time_after_crash(running_task):
     """Test search time adjustment after worker crash."""
     running_task._task.configuration.stopping.maximum_search_time = 100
@@ -51,15 +62,9 @@ def test_adjust_search_time_after_crash_minimum_zero(running_task):
     assert running_task._task.configuration.stopping.maximum_search_time == 0
 
 
-def test_start_pynguin_with_restart():
-    master = MasterProcess()
-    mock_config = MagicMock()
-    mock_config.subprocess = False
-    mock_config.subprocess_if_recommended = False
-    mock_config.stopping.maximum_search_time = 100
-    master._configuration = mock_config
+def test_start_pynguin_with_restart(master_and_config):
+    master, mock_config = master_and_config
 
-    # Start the initial task
     taskid = master.start_pynguin(mock_config)
 
     # Simulate a receiving connection that raises on recv (simulate failure)
@@ -70,7 +75,27 @@ def test_start_pynguin_with_restart():
         def close(self):
             pass
 
-    master._receiving_connection = DummyConnection()
+    master._running_tasks[taskid]._receiving_connection = DummyConnection()
     result = master.get_result(taskid)
-
+    assert result.restart_count == 1
     assert result.worker_return_code == WorkerReturnCode.OK
+
+
+def test_stop(master_and_config):
+    master, mock_config = master_and_config
+
+    taskid = master.start_pynguin(mock_config)
+
+    master.stop()
+    assert taskid not in master._running_tasks
+
+
+def test_get_result_task_id_not_found(master_and_config):
+    master, mock_config = master_and_config
+
+    taskid = master.start_pynguin(mock_config)
+    master.stop()
+
+    result = master.get_result(taskid)
+    assert result.worker_return_code == WorkerReturnCode.ERROR
+    assert "not found" in result.error_message

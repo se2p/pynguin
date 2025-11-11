@@ -76,6 +76,7 @@ class WorkerResult:
     return_code: ReturnCode | None
     error_message: str = ""
     traceback_str: str = ""
+    restart_count: int = 0
 
 
 @dataclass
