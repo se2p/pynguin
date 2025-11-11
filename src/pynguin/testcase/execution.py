@@ -1669,6 +1669,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         Args:
             test_case: The test case
         """
+        _LOGGER.debug("Creating variable bindings for test case of size %d", test_case.size())
         return {
             position: reference
             for position, statement in enumerate(test_case.statements)

@@ -8,6 +8,7 @@
 
 import dataclasses
 import enum
+import os
 import time
 
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -166,6 +167,9 @@ class TypeInferenceStrategy(str, enum.Enum):
 
     TYPE_HINTS = "TYPE_HINTS"
     """Use type information from type hints in the module under test."""
+
+    LLM = "LLM"
+    """Use an LLM to infer types for the module under test."""
 
 
 class SubtypeInferenceStrategy(str, enum.Enum):
@@ -740,7 +744,7 @@ class StoppingConfiguration:
 class LLMConfiguration:
     """Configuration for the LLM."""
 
-    api_key: str = ""
+    api_key: str = os.environ.get("OPENAI_API_KEY", "")
     """The api key to call OpenAI LLM with."""
 
     model_name: str = "gpt-4o-mini"

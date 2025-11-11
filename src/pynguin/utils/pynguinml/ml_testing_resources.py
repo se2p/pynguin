@@ -35,6 +35,8 @@ if not NUMPY_AVAILABLE:
 
 import pynguin.configuration as config
 
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import NoInference
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.pynguinml.mlparameter import MLParameter
@@ -90,9 +92,13 @@ def get_nparray_function(test_cluster: "ModuleTestCluster") -> GenericFunction:
     Returns:
         A `GenericFunction` instance wrapping `numpy.array`.
     """
+    inference_provider = NoInference()
+    inference_config = config.configuration.type_inference.type_inference_strategy
+    if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
+        inference_provider = HintInference()  # type: ignore[assignment]
     inferred_signature = test_cluster.type_system.infer_type_info(
         np.array,
-        type_inference_strategy=config.configuration.type_inference.type_inference_strategy,
+        type_inference_provider=inference_provider,
     )
 
     # np.array is a built-in function, adjust the signature manually
@@ -144,9 +150,15 @@ def get_constructor_function(test_cluster: "ModuleTestCluster") -> GenericFuncti
         for attr in function_path:
             func = getattr(func, attr)
 
+        inference_provider = NoInference()
+
+        inference_config = config.configuration.type_inference.type_inference_strategy
+        if inference_config is config.TypeInferenceStrategy.TYPE_HINTS:
+            inference_provider = HintInference()  # type: ignore[assignment]
+
         inferred_signature = test_cluster.type_system.infer_type_info(
             cast("FunctionType", func),
-            type_inference_strategy=config.configuration.type_inference.type_inference_strategy,
+            type_inference_provider=inference_provider,
         )
 
         # If it is a built-in function, we will not have the right parameter names.

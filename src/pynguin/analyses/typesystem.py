@@ -31,7 +31,6 @@ from typing import _BaseGenericAlias  # type: ignore[attr-defined]  # noqa: PLC2
 from typing import _eval_type  # type: ignore[attr-defined]  # noqa: PLC2701
 from typing import cast
 from typing import get_origin
-from typing import get_type_hints
 
 import networkx as nx
 
@@ -42,8 +41,9 @@ import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import InferenceProvider
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice
 from pynguin.utils.type_utils import COLLECTIONS
@@ -222,6 +222,147 @@ class StringSubtype(ProperType):
 
     def accept(self, visitor: TypeVisitor[T]) -> T:  # noqa: D102
         return visitor.visit_string_subtype(self)
+
+
+class NumericString(StringSubtype):
+    """A string that only contains numerical characters and an optional decimal point.
+
+    Examples: "123", "123.45", "0.001"
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d+(\.\d+)?$"))
+
+
+class EmailString(StringSubtype):
+    """A string that follows the general pattern of an email address.
+
+    Example: "name@domain.edu".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^[^@]+@[^@]+\.[^@]+$"))
+
+
+class HexadecimalString(StringSubtype):
+    """A string that represents a hexadecimal number.
+
+    Examples: "0x1A3F", "1a3f", "0XABCDEF".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^(0x|0X)?[0-9a-fA-F]+$"))
+
+
+class ISOColorString(StringSubtype):
+    """A string that represents a hexadecimal color code.
+
+    Examples: "#FFFFFF", "#000000", "#FF5733".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$"))
+
+
+class UUIDString(StringSubtype):
+    """A string that represents a UUID.
+
+    Examples: "123e4567-e89b-12d3-a456-426614174000".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(
+            re.compile(
+                r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+            )
+        )
+
+
+class ISODateString(StringSubtype):
+    """A string that represents a date in ISO 8601 format.
+
+    Examples: "2023-10-05", "1999-12-31".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d{4}-\d{2}-\d{2}$"))
+
+
+class ISOTimeString(StringSubtype):
+    """A string that represents a time in ISO 8601 format.
+
+    Examples: "14:30:00", "23:59:59".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\d{2}:\d{2}:\d{2}$"))
+
+
+class CSVString(StringSubtype):
+    """A string that represents comma-separated values.
+
+    Examples: "value1,value2,value3", "itemA,itemB,itemC".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^([^,]+,)*[^,]+$"))
+
+
+class URLString(StringSubtype):
+    """A string that represents a URL.
+
+    Examples: "http://example.com", "https://www.domain.org/path?query=param".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^(https?|ftp)://[^\s/$.?#].[^\s]*$"))
+
+
+class IPv4String(StringSubtype):
+    """A string that represents an IPv4 address.
+
+    Examples: "192.168.0.0", "74.5.123.31".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(
+            re.compile(
+                r"^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\."
+                r"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            )
+        )
+
+
+class IPv6String(StringSubtype):
+    """A string that represents an IPv6 address.
+
+    Examples: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", "fe80::1ff:fe23:4567:890a".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}$"))
+
+
+class PhoneNumberString(StringSubtype):
+    """A string that represents a phone number.
+
+    Examples: "+1-800-555-1234", "(123) 456-7890".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^\+?[\d\s\-\(\)]+$"))
+
+
+class SHA256String(StringSubtype):
+    """A string that represents a SHA-256 hash.
+
+    Examples: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".
+    """
+
+    def __init__(self):  # noqa: D107
+        super().__init__(re.compile(r"^[a-fA-F0-9]{64}$"))
 
 
 class Unsupported(ProperType):
@@ -772,6 +913,21 @@ _STRING_SUBTYPE_ATTRIBUTES = OrderedSet([
     "count",
 ])
 
+STRING_SUBTYPES = OrderedSet([
+    NumericString,
+    EmailString,
+    HexadecimalString,
+    ISOColorString,
+    UUIDString,
+    ISODateString,
+    ISOTimeString,
+    CSVString,
+    URLString,
+    IPv4String,
+    IPv6String,
+    PhoneNumberString,
+    SHA256String,
+])
 # We can guess the element type by looking at the knowledge from these
 _LIST_ELEMENT_ATTRIBUTES = OrderedSet(("__iter__", "__getitem__"))
 _DICT_KEY_ATTRIBUTES = OrderedSet(("__iter__",))
@@ -1313,6 +1469,9 @@ class TypeSystem:  # noqa: PLR0904
                 for idx, typ in enumerate(numeric)
             },
         )
+        for subtype in STRING_SUBTYPES:
+            type_info = TypeInfo(subtype)
+            self.add_subclass_edge(super_class=self.to_type_info(str), sub_class=type_info)
 
     def enable_numeric_tower(self):
         """Enable the numeric tower on this type system."""
@@ -1497,7 +1656,6 @@ class TypeSystem:  # noqa: PLR0904
         """
         return self._attribute_map[attr]
 
-    @functools.lru_cache(maxsize=1)
     def get_all_types(self) -> list[TypeInfo]:
         """Provides a list of all known types.
 
@@ -1569,66 +1727,18 @@ class TypeSystem:  # noqa: PLR0904
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_strategy=config.TypeInferenceStrategy.TYPE_HINTS,
+        type_inference_provider: InferenceProvider,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
-            type_inference_strategy: Whether to incorporate type annotations
+            type_inference_provider: The provider for type inference
 
         Returns:
             The inference result
-
-        Raises:
-            ConfigurationException: in case an unknown type-inference strategy was
-                selected
         """
-        match type_inference_strategy:
-            case config.TypeInferenceStrategy.TYPE_HINTS:
-                return self.infer_signature(method, self.type_hints_provider)
-            case config.TypeInferenceStrategy.NONE:
-                return self.infer_signature(method, self.no_type_hints_provider)
-            case _:
-                raise ConfigurationException(
-                    f"Unknown type-inference strategy {type_inference_strategy}"
-                )
-
-    @staticmethod
-    def no_type_hints_provider(_: Callable) -> dict[str, Any]:
-        """Provides no type hints.
-
-        Args:
-            _: Ignored.
-
-        Returns:
-            An empty dict.
-        """
-        return {}
-
-    @staticmethod
-    def type_hints_provider(method: Callable) -> dict[str, Any]:
-        """Provides PEP484-style type information, if available.
-
-        Args:
-            method: The method for which we want type hints.
-
-        Returns:
-            A dict mapping parameter names to type hints.
-        """
-        try:
-            hints = get_type_hints(method)
-            # Sadly there is no guarantee that resolving the type hints actually works.
-            # If the developers annotated something with an erroneous type hint we fall
-            # back to no type hints, i.e., use Any.
-            # The import used in the type hint could also be conditional on
-            # typing.TYPE_CHECKING, e.g., to avoid circular imports, in which case this
-            # also fails.
-        except (AttributeError, NameError, TypeError) as exc:
-            _LOGGER.debug("Could not retrieve type hints for %s", method)
-            _LOGGER.debug(exc)
-            hints = {}
-        return hints
+        return self.infer_signature(method, type_inference_provider.provide)
 
     def infer_signature(
         self,
@@ -1667,7 +1777,8 @@ class TypeSystem:  # noqa: PLR0904
         parameters: dict[str, ProperType] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
-        hints_for_statistics: dict = self.type_hints_provider(method)
+        hints_provider_for_statistics = HintInference()
+        hints_for_statistics: dict = hints_provider_for_statistics.provide(method)
         parameters_for_statistics: dict[str, ProperType] = {}
         for param_name in method_signature.parameters:
             if param_name == "self":

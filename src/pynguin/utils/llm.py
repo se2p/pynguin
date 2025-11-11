@@ -132,7 +132,7 @@ if OPENAI_AVAILABLE:
             api_key: SecretStr = OPENAI_API_KEY,
             temperature: float = 0.2,
             system_prompt: str = OPENAI_SYSTEM_PROMPT,
-            model: str = "gpt-4o",
+            model: str = "gpt-4.1-nano-2025-04-14",
         ) -> None:
             if not api_key:
                 raise AssertionError(

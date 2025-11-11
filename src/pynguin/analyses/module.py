@@ -45,6 +45,13 @@ import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 
+from pynguin.analyses.type_inference import ANY_STR
+from pynguin.analyses.type_inference import HintInference
+from pynguin.analyses.type_inference import InferenceProvider
+from pynguin.analyses.type_inference import LLMInference
+from pynguin.analyses.type_inference import NoInference
+from pynguin.utils.llm import LLMProvider
+
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
@@ -90,6 +97,7 @@ from pynguin.utils.typeevalpy_json_schema import provide_json
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
+    from collections.abc import Sequence
 
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
@@ -1332,7 +1340,7 @@ def __analyse_function(
     *,
     func_name: str,
     func: FunctionType,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     module_tree: Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1350,7 +1358,7 @@ def __analyse_function(
     LOGGER.debug("Analysing function %s", func_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         func,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
     )
     func_ast = get_function_node_from_ast(module_tree, func_name)
     description = get_function_description(func_ast)
@@ -1400,7 +1408,7 @@ def __analyse_function(
 def __analyse_class(
     *,
     type_info: TypeInfo,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     module_tree: Module | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1430,7 +1438,7 @@ def __analyse_class(
             type_info,
             test_cluster.type_system.infer_type_info(
                 type_info.raw_type.__init__,  # type: ignore[misc]
-                type_inference_strategy=type_inference_strategy,
+                type_inference_provider=type_inference_provider,
             ),
             raised_exceptions,
         )
@@ -1489,7 +1497,7 @@ def __analyse_class(
             type_info=type_info,
             method_name=method_name,
             method=method,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             class_tree=class_ast,
             test_cluster=test_cluster,
             add_to_test=add_to_test,
@@ -1530,7 +1538,7 @@ def __analyse_method(
     type_info: TypeInfo,
     method_name: str,
     method: (FunctionType | BuiltinFunctionType | WrapperDescriptorType | MethodDescriptorType),
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     class_tree: ClassDef | None,
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
@@ -1554,7 +1562,7 @@ def __analyse_method(
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)
     inferred_signature = test_cluster.type_system.infer_type_info(
         method,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
     )
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
@@ -1603,7 +1611,7 @@ class _ParseResults(dict):  # noqa: FURB189
 
 def __resolve_dependencies(
     root_module: _ModuleParseResult,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
 ) -> None:
     parse_results: dict[str, _ModuleParseResult] = _ParseResults()
@@ -1621,7 +1629,7 @@ def __resolve_dependencies(
     __analyse_included_classes(
         module=builtins,
         root_module_name=root_module.module_name,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_inference_provider,
         test_cluster=test_cluster,
         seen_classes=seen_classes,
         parse_results=parse_results,
@@ -1652,7 +1660,7 @@ def __resolve_dependencies(
         __analyse_included_classes(
             module=current_module,
             root_module_name=root_module.module_name,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             test_cluster=test_cluster,
             seen_classes=seen_classes,
             parse_results=parse_results,
@@ -1662,7 +1670,7 @@ def __resolve_dependencies(
         __analyse_included_functions(
             module=current_module,
             root_module_name=root_module.module_name,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             test_cluster=test_cluster,
             seen_functions=seen_functions,
             parse_results=parse_results,
@@ -1689,7 +1697,7 @@ def __analyse_included_classes(
     *,
     module: ModuleType,
     root_module_name: str,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_classes: set[type],
@@ -1731,7 +1739,7 @@ def __analyse_included_classes(
 
         __analyse_class(
             type_info=type_info,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             module_tree=results.syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
@@ -1756,7 +1764,7 @@ def __analyse_included_functions(
     *,
     module: ModuleType,
     root_module_name: str,
-    type_inference_strategy: TypeInferenceStrategy,
+    type_inference_provider: InferenceProvider,
     test_cluster: ModuleTestCluster,
     parse_results: dict[str, _ModuleParseResult],
     seen_functions: set,
@@ -1771,7 +1779,7 @@ def __analyse_included_functions(
         __analyse_function(
             func_name=current.__qualname__,
             func=current,
-            type_inference_strategy=type_inference_strategy,
+            type_inference_provider=type_inference_provider,
             module_tree=parse_results[current.__module__].syntax_tree,
             test_cluster=test_cluster,
             add_to_test=current.__module__ == root_module_name,
@@ -1827,11 +1835,17 @@ def analyse_module(
         A test cluster for the module
     """
     test_cluster = ModuleTestCluster(linenos=parsed_module.linenos)
+
+    type_provider = get_type_provider(
+        type_inference_strategy, parsed_module.module, test_cluster.type_system
+    )
+
     __resolve_dependencies(
         root_module=parsed_module,
-        type_inference_strategy=type_inference_strategy,
+        type_inference_provider=type_provider,
         test_cluster=test_cluster,
     )
+    collect_provider_metrics(type_provider)
     return test_cluster
 
 
@@ -1849,3 +1863,147 @@ def generate_test_cluster(
         A new test cluster for the given module
     """
     return analyse_module(parse_module(module_name), type_inference_strategy)
+
+
+def get_type_provider(
+    type_inference_strategy: TypeInferenceStrategy, module: ModuleType, type_system: TypeSystem
+) -> InferenceProvider:
+    """Get the initialised inference provider for the given strategy.
+
+    Args:
+        type_inference_strategy: The type inference strategy to use
+        module: The module to analyse (only needed for LLM-based inference)
+        type_system: The type system to use
+
+    Returns:
+        The type inference provider for the given strategy
+    """
+    match type_inference_strategy:
+        case TypeInferenceStrategy.LLM:
+            callables = _collect_public_callables(module)
+            return LLMInference(callables, LLMProvider.OPENAI, type_system)
+        case TypeInferenceStrategy.TYPE_HINTS:
+            return HintInference()
+        case TypeInferenceStrategy.NONE:
+            return NoInference()
+        case _:
+            LOGGER.error(
+                "Unknown type inference strategy: '%s'. Falling back to NoInference.",
+                type_inference_strategy,
+            )
+            return NoInference()
+
+
+def _collect_public_callables(module: ModuleType) -> Sequence[Callable[..., Any]]:
+    """Collects a list of all public accessibles in a module."""
+    callables = []
+    seen = set()
+
+    def add(obj):
+        if id(obj) not in seen:
+            callables.append(obj)
+            seen.add(id(obj))
+
+    for name, obj in vars(module).items():
+        if name.startswith("_") and name != "__init__":
+            continue
+        if inspect.isfunction(obj) and obj.__module__ == module.__name__:
+            add(obj)
+
+    for cls_name, cls in vars(module).items():
+        if (
+            cls_name.startswith("_")
+            or not inspect.isclass(cls)
+            or cls.__module__ != module.__name__
+        ):
+            continue
+        for meth_name, member in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if not meth_name.startswith("_"):
+                add(member)
+
+    return callables
+
+
+def collect_provider_metrics(typ_provider: InferenceProvider):
+    """Collects metrics from the given type inference provider.
+
+    currently, this only works for LLM-based providers.
+
+    When using an LLM-based provider, collect the raw inferred
+    parameter strings per callable and the annotated parameter strings
+    as JSON and store in the LLMInferredSignatures runtime variable.
+
+    Other providers default all metrics to zero.
+    """
+    metrics = typ_provider.get_metrics()
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceInferredParameters, metrics.get("successful_inferences", 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceFailedParameters, metrics.get("failed_inferences", 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceLLMCalls, metrics.get("sent_requests", 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TypeInferenceLLMTime, metrics.get("total_setup_time", 0.0)
+    )
+
+    if isinstance(typ_provider, LLMInference):
+        try:
+            inferred_signatures: dict[str, dict] = {}
+
+            inference_map = typ_provider.get_inference_map()
+            callables = typ_provider.get_callables()
+
+            for func in callables:
+                # Build a stable key: module.qualname when possible
+                module_part = getattr(func, "__module__", "")
+                qualname_part = getattr(func, "__qualname__", None)
+                key = str(func) if qualname_part is None else f"{module_part}.{qualname_part}"
+
+                # Annotated parameter strings (prior), fallback to typing.Any
+                try:
+                    prior = typ_provider.prior_types_for(func)
+                except (
+                    Exception  # noqa: BLE001
+                ) as exc:  # narrow catch for unexpected provider failures
+                    LOGGER.debug("Could not obtain prior types for %s: %s", func, exc)
+                    prior = {}
+
+                guessed_raw = inference_map.get(func, {})
+
+                params = set(prior.keys()) | set(guessed_raw.keys())
+
+                annotated_parameter_types: dict[str, str] = {}
+                guessed_parameter_types: dict[str, list[str]] = {}
+
+                for p in params:
+                    if p in {"*args", "**kwargs"}:
+                        annotated_parameter_types[p] = ANY_STR
+                    else:
+                        annotated_parameter_types[p] = prior.get(p, ANY_STR)
+
+                    guess = guessed_raw.get(p, "")
+                    if isinstance(guess, str) and guess.strip():
+                        guessed_parameter_types[p] = [guess.strip()]
+                    else:
+                        guessed_parameter_types[p] = []
+
+                inferred_signatures[key] = {
+                    "annotated_parameter_types": annotated_parameter_types,
+                    "guessed_parameter_types": guessed_parameter_types,
+                    "partial_type_matches": {},
+                    "annotated_return_type": None,
+                    "recorded_return_type": None,
+                }
+
+            stat.track_output_variable(
+                RuntimeVariable.LLMInferredSignatures, json.dumps(inferred_signatures)
+            )
+        except Exception as exc:  # Catch at top-level to ensure metrics don't break analysis
+            LOGGER.exception("Could not collect LLM inferred signatures: %s", exc)
+    else:
+        LOGGER.warning(
+            "Type inference provider is not LLM-based, skipping inferred signatures collection."
+        )
