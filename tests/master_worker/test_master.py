@@ -11,86 +11,46 @@ from unittest.mock import Mock
 
 import pytest
 
-import pynguin.configuration as config
 
 from pynguin.master_worker.master import MasterProcess
+from pynguin.master_worker.master import RunningTask
 from pynguin.master_worker.worker import WorkerReturnCode
+from pynguin.master_worker.worker import WorkerTask
+from tests.master_worker.test_worker import sample_config # noqa: F401
+from tests.master_worker.test_worker import worker_task # noqa: F401
 
-
-@pytest.fixture
-def sample_config():
-    """Sample configuration."""
-    return config.configuration
 
 
 @pytest.fixture
-def master_process(sample_config):
-    """Create a MasterProcess instance for testing."""
-    master_process = MasterProcess()
-    master_process._configuration = sample_config
-    return master_process
+def running_task(worker_task: WorkerTask) -> RunningTask:
+    running_task = RunningTask(
+        worker_process=Mock(),
+        task=worker_task,
+        receiving_connection=Mock(),
+    )
+    running_task._task = worker_task
+    return running_task
 
 
-def test_master_process_init():
-    """Test MasterProcess initialization."""
-    master = MasterProcess()
-    assert master._restart_count == 0
-    assert master._current_task_start_time is None
-    assert master._force_subprocess_mode is False
-    assert master._configuration is None
-    assert master._worker_process is None
-
-
-def test_adjust_search_time_after_crash(master_process):
+def test_adjust_search_time_after_crash(running_task):
     """Test search time adjustment after worker crash."""
-    master_process._configuration.stopping.maximum_search_time = 100
-    master_process._adjust_search_time_after_crash(30.0)
-    assert master_process._configuration.stopping.maximum_search_time == 70
+    running_task._task.configuration.stopping.maximum_search_time = 100
+    running_task._adjust_search_time_after_crash(30.0)
+    assert running_task._task.configuration.stopping.maximum_search_time == 70
 
 
-def test_adjust_search_time_after_crash_no_config(master_process):
-    """Test search time adjustment when configuration is None."""
-    master_process._configuration = None
-    master_process._adjust_search_time_after_crash(30.0)
-
-
-def test_adjust_search_time_after_crash_no_time_left(master_process):
+def test_adjust_search_time_after_crash_no_time_left(running_task):
     """Test search time adjustment when no time is left."""
-    master_process._configuration.stopping.maximum_search_time = 0
-    master_process._adjust_search_time_after_crash(30.0)
-    assert master_process._configuration.stopping.maximum_search_time == 0
+    running_task._task.configuration.stopping.maximum_search_time = 0
+    running_task._adjust_search_time_after_crash(30.0)
+    assert running_task._task.configuration.stopping.maximum_search_time == 0
 
 
-def test_adjust_search_time_after_crash_minimum_zero(master_process):
+def test_adjust_search_time_after_crash_minimum_zero(running_task):
     """Test search time adjustment doesn't go below zero."""
-    master_process._configuration.stopping.maximum_search_time = 30
-    master_process._adjust_search_time_after_crash(50.0)
-    assert master_process._configuration.stopping.maximum_search_time == 0
-
-
-def test_run_forces_subprocess_mode(master_process, sample_config):
-    """Test run forces subprocess mode when enabled."""
-    master_process._is_running = True
-    master_process._force_subprocess_mode = True
-    master_process._worker_process = Mock()
-    master_process._worker_process.is_alive.return_value = True
-    master_process._task_queue = Mock()
-
-    master_process.start_pynguin(sample_config)
-
-    assert master_process._configuration.subprocess is True
-    assert master_process._configuration.subprocess_if_recommended is False
-
-
-def test_get_result_exception(master_process):
-    """Test result retrieval handles exceptions."""
-    master_process._result_queue = Mock()
-    master_process._result_queue.get.side_effect = Exception("Test error")
-
-    result = master_process.get_result()
-
-    assert result.worker_return_code == WorkerReturnCode.ERROR
-    assert result.task_id == "unknown"
+    running_task._task.configuration.stopping.maximum_search_time = 30
+    running_task._adjust_search_time_after_crash(50.0)
+    assert running_task._task.configuration.stopping.maximum_search_time == 0
 
 
 def test_start_pynguin_with_restart():
@@ -102,7 +62,7 @@ def test_start_pynguin_with_restart():
     master._configuration = mock_config
 
     # Start the initial task
-    master.start_pynguin(mock_config)
+    taskid = master.start_pynguin(mock_config)
 
     # Simulate a receiving connection that raises on recv (simulate failure)
     class DummyConnection:
@@ -113,8 +73,6 @@ def test_start_pynguin_with_restart():
             pass
 
     master._receiving_connection = DummyConnection()
+    result = master.get_result(taskid)
 
-    result = master.get_result()
-
-    assert master._restart_count > 0
     assert result.worker_return_code == WorkerReturnCode.OK

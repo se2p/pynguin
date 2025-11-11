@@ -54,10 +54,10 @@ class PynguinClient:
             ReturnCode indicating success or failure
         """
         try:
-            self.master.start_pynguin(self.configuration)
+            task_id = self.master.start_pynguin(self.configuration)
 
             # Wait for a result
-            result = self.master.get_result()
+            result = self.master.get_result(task_id)
 
             if result is None:
                 _LOGGER.error("No result received from worker")

@@ -24,20 +24,35 @@ from pynguin.master_worker.worker import worker_main
 _LOGGER = logging.getLogger(__name__)
 
 
-class MasterProcess:
-    """Master process that manages worker processes for test generation."""
+class RunningTask:
+    """Represents a running test generation task with its associated worker process."""
 
-    def __init__(self):
-        """Initialize the master process."""
-        # Connection to the worker process to receive results, if any
-        self._receiving_connection: mp_conn.Connection | None = None
-        # Reference to the current worker process, if any
-        self._worker_process: mp.Process | None = None
+    _worker_process: mp.Process
+    _task: WorkerTask
+    _receiving_connection: mp_conn.Connection
+    _restart_count: int
+    _start_time: float
+    _force_subprocess_mode: bool
 
+    def __init__(
+        self,
+        worker_process: mp.Process,
+        task: WorkerTask,
+        receiving_connection: mp_conn.Connection,
+    ):
+        """Initialize the running task.
+
+        Args:
+            worker_process: The worker process handling the task
+            task: The worker task details
+            receiving_connection: Connection to receive results from the worker
+        """
+        self._worker_process = worker_process
+        self._task = task
+        self._receiving_connection = receiving_connection
         self._restart_count = 0
-        self._current_task_start_time = None
+        self._start_time = time.time()
         self._force_subprocess_mode = False
-        self._configuration: config.Configuration | None = None
 
     def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
         """Adjust the search time in config after a worker crash.
@@ -49,14 +64,11 @@ class MasterProcess:
         Args:
             elapsed_time: Time consumed by the crashed worker
         """
-        if not self._configuration:
-            return
-
-        current_search_time = self._configuration.stopping.maximum_search_time
+        current_search_time = self._task.configuration.stopping.maximum_search_time
         if current_search_time > 0:
             # Reduce search time by elapsed time
             remaining_time = max(current_search_time - elapsed_time, 0.0)
-            self._configuration.stopping.maximum_search_time = int(remaining_time)
+            self._task.configuration.stopping.maximum_search_time = int(remaining_time)
 
             _LOGGER.info(
                 "Adjusted maximum_search_time from %d to %d seconds "
@@ -66,94 +78,17 @@ class MasterProcess:
                 elapsed_time,
             )
 
-    def _start_worker_with_task(self, task: WorkerTask) -> None:
-        """Start a worker process with a task.
-
-        Args:
-            task: The task to run
-        """
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-        process = mp.Process(
-            target=worker_main,
-            args=(task, sending_connection),
-            name="PynguinWorker",
-        )
-        self._worker_process = process
-        self._receiving_connection = receiving_connection
-        process.start()
-        sending_connection.close()
-
-    def start_pynguin(self, configuration: config.Configuration):
-        """Start the initial task.
-
-        Args:
-            configuration: Configuration for the test generation task to queue
+    def _restart(self) -> bool:
+        """Restart the worker process for this task.
 
         Returns:
-            True if the task was submitted successfully, False otherwise
+            True if the worker process was restarted successfully, False otherwise
         """
-        self._configuration = configuration
+        # Calculate elapsed time
+        elapsed_time = time.time() - self._start_time
+        self._adjust_search_time_after_crash(elapsed_time)
 
-        # Override subprocess mode in the task config if we're forcing it
-        if self._force_subprocess_mode:
-            self._configuration.subprocess = True
-            self._configuration.subprocess_if_recommended = False
-            _LOGGER.debug("Forcing subprocess mode.")
-
-        task = WorkerTask(task_id=f"test_gen_{time.time()}", configuration=configuration)
-        self._current_task_start_time = time.time()
-        _LOGGER.info("Starting new worker.")
-        self._start_worker_with_task(task)
-
-    def get_result(self) -> WorkerResult:
-        """Get result from the worker process.
-
-        Returns:
-            Result from the worker process
-        """
-        if self._receiving_connection is None:
-            return WorkerResult(
-                task_id="unknown",
-                worker_return_code=WorkerReturnCode.ERROR,
-                return_code=None,
-                error_message="No worker process running",
-            )
-
-        try:
-            result = self._receiving_connection.recv()
-            self._receiving_connection.close()
-            _LOGGER.info(
-                "Received result for task %s: %s", result.task_id, result.worker_return_code
-            )
-            return result
-
-        except Exception:  # noqa: BLE001
-            success = self._restart_pynguin()
-            if not success:
-                return WorkerResult(
-                    task_id="unknown",
-                    worker_return_code=WorkerReturnCode.ERROR,
-                    return_code=None,
-                    error_message="Could not restart worker process",
-                )
-            return self.get_result()
-
-    def _restart_pynguin(self) -> bool:
-        """Restart the worker process.
-
-        Returns:
-            True if the worker process was restarted, False otherwise
-        """
-        if self._configuration is None:
-            _LOGGER.error("No configuration set, aborting")
-            return False
-
-        # Calculate elapsed time if we have a start time
-        if self._current_task_start_time is not None:
-            elapsed_time = time.time() - self._current_task_start_time
-            self._adjust_search_time_after_crash(elapsed_time)
-
-        if self._configuration.stopping.maximum_search_time <= 0:
+        if self._task.configuration.stopping.maximum_search_time <= 0:
             _LOGGER.warning("Maximum search time is zero, aborting")
             return False
 
@@ -163,20 +98,57 @@ class MasterProcess:
         if (
             self._restart_count >= 1
             and config.configuration.use_master_worker
-            and config.configuration.subprocess_if_recommended
             and not self._force_subprocess_mode
         ):
             _LOGGER.info("Enabling subprocess mode after worker crash for fault tolerance")
             self._force_subprocess_mode = True
+            self._task.configuration.subprocess = True
+            self._task.configuration.subprocess_if_recommended = False
 
-        # Record the start time for the new task
-        self._current_task_start_time = time.time()
+        # Start new worker process
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+        process = mp.Process(
+            target=worker_main,
+            args=(self._task, sending_connection),
+            name="PynguinWorker",
+        )
 
-        self.start_pynguin(config.configuration)
+        # Update task data
+        self._worker_process = process
+        self._receiving_connection = receiving_connection
+        self._start_time = time.time()
+
+        process.start()
+        sending_connection.close()
         return True
 
-    def stop(self):
-        """Stop the worker process."""
+    def get_result(self) -> WorkerResult:
+        """Get the result of the running task and restart the worker if necessary.
+
+        Returns:
+            Result from the worker process
+        """
+        try:
+            result = self._receiving_connection.recv()
+            self._receiving_connection.close()
+            _LOGGER.info(
+                "Received result for task %s: %s", result.task_id, result.worker_return_code
+            )
+            return result
+
+        except Exception:  # noqa: BLE001
+            success = self._restart()
+            if not success:
+                return WorkerResult(
+                    task_id=self._task.task_id,
+                    worker_return_code=WorkerReturnCode.ERROR,
+                    return_code=None,
+                    error_message="Could not restart worker process",
+                )
+            return self.get_result()
+
+    def stop(self) -> None:
+        """Stop the worker process for this task."""
         if self._worker_process and self._worker_process.is_alive():
             _LOGGER.info("Stopping worker")
             self._worker_process.terminate()
@@ -184,3 +156,82 @@ class MasterProcess:
             if self._worker_process.is_alive():
                 _LOGGER.warning("Force killing worker")
                 self._worker_process.kill()
+
+
+class MasterProcess:
+    """Master process that manages worker processes for test generation."""
+
+    def __init__(self):
+        """Initialize the master process."""
+        self._running_tasks: dict[str, RunningTask] = {}
+
+    def start_pynguin(self, configuration: config.Configuration) -> str:
+        """Start a new task with the given configuration and returns its ID.
+
+        Args:
+            configuration: Configuration for the test generation task
+
+        Returns:
+            Task ID of the started task
+        """
+        task_id = f"test_gen_{time.time()}"
+        task = WorkerTask(task_id=task_id, configuration=configuration)
+
+        # Start worker process
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+        process = mp.Process(
+            target=worker_main,
+            args=(task, sending_connection),
+            name="PynguinWorker",
+        )
+
+        running_task = RunningTask(
+            worker_process=process, task=task, receiving_connection=receiving_connection
+        )
+
+        self._running_tasks[task_id] = running_task
+        process.start()
+        sending_connection.close()
+
+        _LOGGER.info("Starting new worker for task %s.", task_id)
+        return task_id
+
+    def get_result(self, task_id: str) -> WorkerResult:
+        """Get the result of a running task and remove it from the running tasks.
+
+        Args:
+            task_id: ID of the task to get the result for
+
+        Returns:
+            Result from the worker process
+        """
+        if task_id not in self._running_tasks:
+            return WorkerResult(
+                task_id=task_id,
+                worker_return_code=WorkerReturnCode.ERROR,
+                return_code=None,
+                error_message=f"Task {task_id} not found",
+            )
+
+        running_task = self._running_tasks[task_id]
+        try:
+            result = running_task.get_result()
+            # Remove task from running tasks after getting result successfully
+            if result.worker_return_code != WorkerReturnCode.ERROR:
+                del self._running_tasks[task_id]
+            return result
+        except Exception as e:  # noqa: BLE001
+            _LOGGER.error("Error getting result for task %s: %s", task_id, str(e))
+            return WorkerResult(
+                task_id=task_id,
+                worker_return_code=WorkerReturnCode.ERROR,
+                return_code=None,
+                error_message=f"Error getting result: {e!s}",
+            )
+
+    def stop(self) -> None:
+        """Stop all running tasks and remove them."""
+        for task_id, running_task in self._running_tasks.items():
+            _LOGGER.info("Stopping task %s", task_id)
+            running_task.stop()
+        self._running_tasks.clear()

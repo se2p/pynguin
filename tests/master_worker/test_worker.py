@@ -24,13 +24,13 @@ from pynguin.master_worker.worker import worker_main
 
 
 @pytest.fixture
-def sample_config():
+def sample_config() -> config.Configuration:
     """Sample configuration."""
     return config.configuration
 
 
 @pytest.fixture
-def worker_task(sample_config):
+def worker_task(sample_config: config.Configuration) -> WorkerTask:
     """Sample worker task."""
     return WorkerTask(task_id="test_task", configuration=sample_config)
 
