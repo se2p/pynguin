@@ -19,7 +19,13 @@ from collections import OrderedDict
 from typing import Any
 from typing import get_type_hints
 
-from pydantic import SecretStr
+
+try:
+    from pydantic import SecretStr
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 import pynguin.configuration as config
 
