@@ -144,15 +144,16 @@ master-worker system. The client is responsible for starting and stopping the
 
 **MasterProcess**
 
-This is the central coordinator. It does not perform any test generation itself.
-Its responsibilities include:
+This is the central coordinator. It manages worker processes as ``RunningTask`` instances.
 
-- Spawning and terminating the worker process.
+**RunningTask**
+
+A ``RunningTask`` represents a test generation task in its own worker process.
+It is responsible for:
+
 - Restarting the worker process if it crashes.
-- Automatically adjusting the configuration (e.g., remaining search time) after
-  a worker crash.
-- Enabling the more robust subprocess execution mode within the worker if a crash
-  occurs.
+- Automatically adjusting the configuration (e.g., remaining search time) after a worker crash.
+- Enabling the more robust subprocess execution mode within the worker if a crash occurs.
 
 **worker_main**
 
@@ -163,10 +164,13 @@ Workflow
 ^^^^^^^^
 
 1. A ``PynguinClient`` is created, which in turn initializes a ``MasterProcess``.
-2. The client starts the master, which spawns the worker process with the task.
-3. The worker executes the task.
-4. If the worker crashes, the master restarts the worker with an adjusted
-   configuration (reduced search time, subprocess execution).
-5. Upon completion, the worker sends a ``WorkerResult`` back to the master.
-6. The client retrieves this result from the master and returns ``ReturnCode``
+2. The client starts the master with a given configuration for test generation.
+3. The ``MasterProcess`` starts a ``WorkerTask`` as subprocess and stores a
+   ``RunningTask`` for the provided configuration.
+4. The worker executes the ``WorkerTask``.
+5. If the worker crashes, the ``RunningTask`` starts a new ``WorkerTask`` with an
+   adjusted configuration (reduced search time, subprocess execution).
+6. Upon completion, the worker sends a ``WorkerResult`` back to the ``RunningTask``,
+   which returns it to the ``MasterProcess``.
+7. The client retrieves this result from the master and returns the ``ReturnCode``
    of the Pynguin execution.
