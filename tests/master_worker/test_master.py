@@ -59,23 +59,38 @@ def test_adjust_search_time_after_crash_minimum_zero(running_task):
     assert running_task._task.configuration.stopping.maximum_search_time == 0
 
 
+class FailingConnection:
+    """Dummy connection class to simulate a failing receiving connection."""
+
+    def recv(self):
+        raise Exception("Simulated worker failure")
+
+    def close(self):
+        pass
+
+
 def test_start_pynguin_with_restart(master_and_config):
     master, mock_config = master_and_config
 
     taskid = master.start_pynguin(mock_config)
-
-    # Simulate a receiving connection that raises on recv (simulate failure)
-    class DummyConnection:
-        def recv(self):
-            raise Exception("Simulated worker failure")
-
-        def close(self):
-            pass
-
-    master._running_tasks[taskid]._receiving_connection = DummyConnection()
+    master._running_tasks[taskid]._receiving_connection = FailingConnection()
     result = master.get_result(taskid)
+
     assert result.restart_count == 1
     assert result.worker_return_code == WorkerReturnCode.OK
+
+
+def test_start_pynguin_with_restart_out_of_time(master_and_config):
+    master, mock_config = master_and_config
+    mock_config.stopping.maximum_search_time = 0
+
+    taskid = master.start_pynguin(mock_config)
+    master._running_tasks[taskid]._receiving_connection = FailingConnection()
+    result = master.get_result(taskid)
+
+    assert result.restart_count == 0
+    assert result.worker_return_code == WorkerReturnCode.ERROR
+    assert "Could not restart worker process" in result.error_message
 
 
 def test_stop(master_and_config):
