@@ -11,18 +11,16 @@ from unittest.mock import Mock
 
 import pytest
 
-
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.master import RunningTask
 from pynguin.master_worker.worker import WorkerReturnCode
 from pynguin.master_worker.worker import WorkerTask
-from tests.master_worker.test_worker import sample_config # noqa: F401
-from tests.master_worker.test_worker import worker_task # noqa: F401
-
+from tests.master_worker.test_worker import sample_config  # noqa: F401
+from tests.master_worker.test_worker import worker_task  # noqa: F401
 
 
 @pytest.fixture
-def running_task(worker_task: WorkerTask) -> RunningTask:
+def running_task(worker_task: WorkerTask) -> RunningTask:  # noqa: F811
     running_task = RunningTask(
         worker_process=Mock(),
         task=worker_task,
