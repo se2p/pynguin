@@ -56,6 +56,7 @@ def test_generate_sequences_exception(executor):
 
     config.configuration.stopping.maximum_search_time = 1
     config.configuration.algorithm = config.Algorithm.RANDOM
+    config.configuration.test_case_output.store_best_population = False
     logger = MagicMock(Logger)
     algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
         executor, MagicMock(ModuleTestCluster)
