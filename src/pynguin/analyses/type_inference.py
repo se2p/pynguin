@@ -23,6 +23,8 @@ from typing import get_type_hints
 try:
     from pydantic import SecretStr
 
+    from pynguin.utils.llm import OpenAI
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
@@ -35,7 +37,6 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
     get_inference_system_prompt,
 )
 from pynguin.utils.llm import LLMProvider
-from pynguin.utils.llm import OpenAI
 from pynguin.utils.orderedset import OrderedSet
 
 
