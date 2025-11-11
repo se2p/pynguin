@@ -216,9 +216,7 @@ class MasterProcess:
         running_task = self._running_tasks[task_id]
         try:
             result = running_task.get_result()
-            # Remove task from running tasks after getting result successfully
-            if result.worker_return_code != WorkerReturnCode.ERROR:
-                del self._running_tasks[task_id]
+            del self._running_tasks[task_id]
             return result
         except Exception as e:  # noqa: BLE001
             _LOGGER.error("Error getting result for task %s: %s", task_id, str(e))
