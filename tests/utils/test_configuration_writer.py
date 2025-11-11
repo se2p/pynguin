@@ -75,7 +75,7 @@ maximum_memory = 3000
 test_execution_time_per_statement = 1
 
 [large_language_model]
-api_key = "{API_KEY}"
+api_key = ""
 model_name = "gpt-4o-mini"
 temperature = 0.8
 hybrid_initial_population = false
@@ -213,7 +213,6 @@ number_of_mutations = 10
 """
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
-    expected = expected.replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
     expected_toml.write_text(expected)
     return expected_toml
 
@@ -247,8 +246,8 @@ def expected_txt(tmp_path):
  'maximum_coverage_plateau=-1, minimum_coverage=100, '
  'minimum_plateau_iterations=-1, maximum_memory=3000, '
  'test_execution_time_per_statement=1), '
- "large_language_model=LLMConfiguration(api_key='{API_KEY}', "
- "model_name='gpt-4o-mini', temperature=0.8, hybrid_initial_population=False, "
+ "large_language_model=LLMConfiguration(api_key='', model_name='gpt-4o-mini', "
+ 'temperature=0.8, hybrid_initial_population=False, '
  'llm_test_case_percentage=0.5, enable_response_caching=False, '
  'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
  'call_llm_on_stall_detection=False, max_plateau_len=25, '
@@ -311,7 +310,6 @@ def expected_txt(tmp_path):
  'ls_llm_whole_module=False))')"""  # noqa:E501
     expected = expected.replace("{REPORT_DIR}", str(tmp_path))
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
-    expected = expected.replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
     expected_txt.write_text(expected)
     return expected_txt
 
@@ -320,8 +318,6 @@ def expected_txt(tmp_path):
 def expected_parameters() -> str:
     return """--algorithm
 RANDOM
---large_language_model.api_key
-{API_KEY}
 --large_language_model.call_llm_for_uncovered_targets
 False
 --large_language_model.call_llm_on_stall_detection
@@ -596,7 +592,7 @@ TYPE_HINTS
 --type_inference.type_tracing_attribute_weight
 0.2
 --type_inference.type_tracing_subtype_weight
-0.3""".replace("{API_KEY}", os.getenv("OPENAI_API_KEY", ""))
+0.3"""
 
 
 def expected_parameter_list() -> list[str]:
