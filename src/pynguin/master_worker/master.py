@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 import time
 
 import multiprocess as mp
@@ -34,8 +33,6 @@ class MasterProcess:
         self._receiving_connection: mp_conn.Connection | None = None
         # Reference to the current worker process, if any
         self._worker_process: mp.Process | None = None
-        # Event to signal shutdown of the master process and worker process
-        self._shutdown_event = threading.Event()
 
         self._restart_count = 0
         self._current_task_start_time = None
