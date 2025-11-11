@@ -30,29 +30,40 @@ class RunningTask:
     _worker_process: mp.Process
     _task: WorkerTask
     _receiving_connection: mp_conn.Connection
-    _restart_count: int
     _start_time: float
-    _force_subprocess_mode: bool
+    _restart_count: int = 0
+    _force_subprocess_mode: bool = False
 
     def __init__(
         self,
-        worker_process: mp.Process,
         task: WorkerTask,
-        receiving_connection: mp_conn.Connection,
     ):
         """Initialize the running task.
 
         Args:
-            worker_process: The worker process handling the task
             task: The worker task details
-            receiving_connection: Connection to receive results from the worker
         """
-        self._worker_process = worker_process
-        self._task = task
+        self._start_worker(task)
+
+    def _start_worker(self, task: WorkerTask) -> None:
+        """Start a worker subprocess for the given task.
+
+        Args:
+            task: The worker task details
+        """
+        receiving_connection, sending_connection = mp.Pipe(duplex=False)
+        process = mp.Process(
+            target=worker_main,
+            args=(task, sending_connection),
+            name="PynguinWorker",
+        )
+        self._worker_process = process
         self._receiving_connection = receiving_connection
-        self._restart_count = 0
+        self._task = task
         self._start_time = time.time()
-        self._force_subprocess_mode = False
+        _LOGGER.info("Starting new worker for task %s.", task.task_id)
+        process.start()
+        sending_connection.close()
 
     def _adjust_search_time_after_crash(self, elapsed_time: float) -> None:
         """Adjust the search time in config after a worker crash.
@@ -105,21 +116,7 @@ class RunningTask:
             self._task.configuration.subprocess = True
             self._task.configuration.subprocess_if_recommended = False
 
-        # Start new worker process
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-        process = mp.Process(
-            target=worker_main,
-            args=(self._task, sending_connection),
-            name="PynguinWorker",
-        )
-
-        # Update task data
-        self._worker_process = process
-        self._receiving_connection = receiving_connection
-        self._start_time = time.time()
-
-        process.start()
-        sending_connection.close()
+        self._start_worker(self._task)
         return True
 
     def get_result(self) -> WorkerResult:
@@ -178,24 +175,8 @@ class MasterProcess:
         """
         task_id = f"test_gen_{time.time()}"
         task = WorkerTask(task_id=task_id, configuration=configuration)
-
-        # Start worker process
-        receiving_connection, sending_connection = mp.Pipe(duplex=False)
-        process = mp.Process(
-            target=worker_main,
-            args=(task, sending_connection),
-            name="PynguinWorker",
-        )
-
-        running_task = RunningTask(
-            worker_process=process, task=task, receiving_connection=receiving_connection
-        )
-
+        running_task = RunningTask(task=task)
         self._running_tasks[task_id] = running_task
-        process.start()
-        sending_connection.close()
-
-        _LOGGER.info("Starting new worker for task %s.", task_id)
         return task_id
 
     def get_result(self, task_id: str) -> WorkerResult:

@@ -7,7 +7,6 @@
 """Tests for the master process module."""
 
 from unittest.mock import MagicMock
-from unittest.mock import Mock
 
 import pytest
 
@@ -22,9 +21,7 @@ from tests.master_worker.test_worker import worker_task  # noqa: F401
 @pytest.fixture
 def running_task(worker_task: WorkerTask) -> RunningTask:  # noqa: F811
     running_task = RunningTask(
-        worker_process=Mock(),
         task=worker_task,
-        receiving_connection=Mock(),
     )
     running_task._task = worker_task
     return running_task

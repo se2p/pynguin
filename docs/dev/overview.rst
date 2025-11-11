@@ -165,8 +165,8 @@ Workflow
 
 1. A ``PynguinClient`` is created, which in turn initializes a ``MasterProcess``.
 2. The client starts the master with a given configuration for test generation.
-3. The ``MasterProcess`` starts a ``WorkerTask`` as subprocess and stores a
-   ``RunningTask`` for the provided configuration.
+3. The ``MasterProcess`` creates a ``RunningTask`` which starts a worker with a
+   ``WorkerTask`` as subprocess for the provided configuration.
 4. The worker executes the ``WorkerTask``.
 5. If the worker crashes, the ``RunningTask`` starts a new ``WorkerTask`` with an
    adjusted configuration (reduced search time, subprocess execution).
