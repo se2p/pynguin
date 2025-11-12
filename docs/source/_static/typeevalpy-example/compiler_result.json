@@ -1,0 +1,1062 @@
+[
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "parameter": "parent",
+    "type": [
+      "Any",
+      "abc.ABCMeta",
+      "apimd.compiler.PathModule",
+      "enum.Enum",
+      "function",
+      "int",
+      "list[Any]",
+      "module",
+      "object",
+      "re.RegexFlag",
+      "type",
+      "types.GenericAlias"
+    ]
+  },
+  {
+    "col_offset": 28,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "parameter": "obj",
+    "type": [
+      "Any",
+      "apimd.compiler.PathModule",
+      "collections.abc.Callable",
+      "enum.Enum",
+      "float",
+      "function",
+      "inspect.FullArgSpec",
+      "int",
+      "method_descriptor",
+      "slice",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "get_name",
+    "line_number": 60,
+    "parameter": "obj",
+    "type": [
+      "Any",
+      "abc.ABCMeta",
+      "apimd.compiler.PathModule",
+      "bytes",
+      "enum.Enum",
+      "functools.partial",
+      "generator",
+      "int",
+      "re.RegexFlag",
+      "tuple[Any, Any, Any]",
+      "type",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_name",
+    "line_number": 60,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "compiler.py",
+    "function": "is_root",
+    "line_number": 77,
+    "parameter": "m",
+    "type": [
+      "module"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_root",
+    "line_number": 77,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "parameter": "names",
+    "type": [
+      "bytes",
+      "collections.abc.Iterable",
+      "dict[Any, Any]",
+      "dict[type, Any]",
+      "float",
+      "list[Any]",
+      "list[type]",
+      "set",
+      "set[Any]",
+      "set[bytes]",
+      "set[type]",
+      "str"
+    ]
+  },
+  {
+    "col_offset": 34,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "parameter": "init",
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "type": [
+      "collections.abc.Iterable",
+      "generator"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "local_vars",
+    "line_number": 90,
+    "parameter": "m",
+    "type": [
+      "abc.ABCMeta",
+      "enum.Enum",
+      "float",
+      "module",
+      "re.Pattern",
+      "set",
+      "type",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "local_vars",
+    "line_number": 90,
+    "type": [
+      "collections.abc.Iterable",
+      "generator"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "docstring",
+    "line_number": 107,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "docstring",
+    "line_number": 107,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "table_row",
+    "line_number": 119,
+    "parameter": "items",
+    "type": [
+      "bytes",
+      "collections.abc.Iterable",
+      "dict",
+      "dict[Any, Any]",
+      "functools.partial",
+      "list[Any]",
+      "object",
+      "set[Any]",
+      "str",
+      "tuple[Any, Any, Any, Any]",
+      "tuple[Any, Any, Any]",
+      "tuple[Any, Any]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "table_row",
+    "line_number": 119,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "make_table",
+    "line_number": 138,
+    "parameter": "obj",
+    "type": [
+      "builtin_function_or_method",
+      "classmethod_descriptor",
+      "collections.abc.Callable",
+      "function",
+      "functools.partial",
+      "method",
+      "method-wrapper",
+      "module",
+      "object",
+      "type",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "make_table",
+    "line_number": 138,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 23,
+    "file": "compiler.py",
+    "function": "is_abstractmethod",
+    "line_number": 179,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_abstractmethod",
+    "line_number": 179,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "parameter": "parent",
+    "type": [
+      "bool",
+      "enum.Enum",
+      "function",
+      "functools.partial",
+      "generator",
+      "method_descriptor",
+      "module",
+      "tuple[Any, Any]",
+      "type",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 35,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "parameter": "obj",
+    "type": [
+      "Any",
+      "apimd.compiler.PathModule",
+      "dict[Any, Any]",
+      "enum.Enum",
+      "function",
+      "method-wrapper",
+      "module",
+      "re.Pattern",
+      "slice",
+      "str",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "parameter": "parent",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 34,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "is_property",
+    "line_number": 200,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_property",
+    "line_number": 200,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "is_callable",
+    "line_number": 205,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_callable",
+    "line_number": 205,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "compiler.py",
+    "function": "is_enum",
+    "line_number": 210,
+    "parameter": "obj",
+    "type": [
+      "Any",
+      "apimd.compiler.PathModule",
+      "collections.abc.Iterable",
+      "generator",
+      "inspect.FullArgSpec",
+      "int",
+      "list[Any]",
+      "method",
+      "re.Pattern",
+      "str",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_enum",
+    "line_number": 210,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "is_alias",
+    "line_number": 217,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_alias",
+    "line_number": 217,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "parameters",
+    "line_number": 222,
+    "parameter": "obj",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "parameters",
+    "line_number": 222,
+    "type": [
+      "tuple"
+    ]
+  },
+  {
+    "col_offset": 9,
+    "file": "compiler.py",
+    "function": "mro",
+    "line_number": 229,
+    "parameter": "obj",
+    "type": [
+      "builtin_function_or_method",
+      "dict[Any, Any]",
+      "enum.Enum",
+      "function",
+      "method",
+      "method-wrapper",
+      "method_descriptor",
+      "set",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "mro",
+    "line_number": 229,
+    "type": [
+      "tuple"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "super_cls",
+    "line_number": 234,
+    "parameter": "obj",
+    "type": [
+      "apimd.compiler.PathModule",
+      "bytes",
+      "collections.abc.Iterable",
+      "function",
+      "generator",
+      "method-wrapper",
+      "method_descriptor",
+      "set[Any]",
+      "str",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "super_cls",
+    "line_number": 234,
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "linker",
+    "line_number": 239,
+    "parameter": "name",
+    "type": [
+      "apimd.compiler.PathModule",
+      "apimd.compiler.PubModule",
+      "builtin_function_or_method",
+      "bytes",
+      "collections.defaultdict",
+      "enum.Enum",
+      "float",
+      "int",
+      "module",
+      "slice",
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "linker",
+    "line_number": 239,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "escape",
+    "line_number": 244,
+    "parameter": "s",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "escape",
+    "line_number": 244,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "interpret_mode",
+    "line_number": 254,
+    "parameter": "doc",
+    "type": [
+      "apimd.compiler.PathModule",
+      "bool",
+      "bytes",
+      "enum.Enum",
+      "method-wrapper",
+      "object",
+      "re.Match",
+      "re.Pattern",
+      "str",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "interpret_mode",
+    "line_number": 254,
+    "type": [
+      "collections.abc.Iterable",
+      "generator"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "compiler.py",
+    "function": "get_type_doc",
+    "line_number": 274,
+    "parameter": "obj",
+    "type": [
+      "dict[Any, Any]",
+      "function",
+      "list[Any]",
+      "re.Match",
+      "set",
+      "set[Any]",
+      "str",
+      "tuple[Any, Any, Any]",
+      "tuple[Any]",
+      "type",
+      "types.GenericAlias"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_type_doc",
+    "line_number": 274,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "parameter": "parent",
+    "type": [
+      "Any",
+      "bytes",
+      "collections.abc.Callable",
+      "collections.defaultdict",
+      "function",
+      "inspect.FullArgSpec",
+      "list[Any]",
+      "method-wrapper",
+      "object",
+      "slice",
+      "type",
+      "types.GenericAlias"
+    ]
+  },
+  {
+    "col_offset": 33,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "parameter": "obj",
+    "type": [
+      "Any",
+      "apimd.compiler.PathModule",
+      "enum.Enum",
+      "method-wrapper",
+      "object",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 26,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 31,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 42,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "level",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 54,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "prefix",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 33,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 44,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "prefix",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 22,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "parameter": "doc",
+    "type": [
+      "bool",
+      "bytes",
+      "enum.Enum",
+      "function",
+      "functools.partial",
+      "list[Any]",
+      "method-wrapper",
+      "str",
+      "types.GenericAlias",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 32,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "parameter": "ignore_module",
+    "type": [
+      "list"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "import_from",
+    "line_number": 375,
+    "parameter": "name",
+    "type": [
+      "bytes",
+      "dict[Any, Any]",
+      "dict[slice, Any]",
+      "enum.Enum",
+      "generator",
+      "int",
+      "re.RegexFlag",
+      "set[Any]",
+      "str",
+      "tuple",
+      "tuple[Any]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "import_from",
+    "line_number": 375,
+    "type": [
+      "module"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "parameter": "code",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 26,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "parameter": "mod",
+    "type": [
+      "module"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "load_stubs",
+    "line_number": 399,
+    "parameter": "m",
+    "type": [
+      "module"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_stubs",
+    "line_number": 399,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "get_level",
+    "line_number": 438,
+    "parameter": "name",
+    "type": [
+      "bytes",
+      "function",
+      "list",
+      "list[Any]",
+      "module",
+      "re.RegexFlag",
+      "str",
+      "tuple",
+      "tuple[Any, Any, Any, Any]",
+      "tuple[Any, Any, Any]",
+      "tuple[Any, Any]",
+      "tuple[Any]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_level",
+    "line_number": 438,
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "parameter": "root_name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 31,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "parameter": "root_module",
+    "type": [
+      "apimd.compiler.PathModule",
+      "bytes",
+      "complex",
+      "dict[Any, Any]",
+      "dict[slice, str]",
+      "list[Any]",
+      "list[str]",
+      "method",
+      "str",
+      "tuple",
+      "tuple[str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "basename",
+    "line_number": 473,
+    "parameter": "name",
+    "type": [
+      "builtin_function_or_method",
+      "bytes",
+      "collections.abc.Callable",
+      "float",
+      "generator",
+      "inspect.FullArgSpec",
+      "int",
+      "method",
+      "re.RegexFlag",
+      "str",
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "basename",
+    "line_number": 473,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "ref_link",
+    "line_number": 478,
+    "parameter": "doc",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "ref_link",
+    "line_number": 478,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 495,
+    "parameter": "root_names",
+    "type": [
+      "apimd.compiler.PubModule",
+      "bool",
+      "classmethod_descriptor",
+      "complex",
+      "dict",
+      "dict[Any, Any]",
+      "functools.partial",
+      "generator",
+      "list[Any]",
+      "re.Pattern",
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 496,
+    "parameter": "prefix",
+    "type": [
+      "abc.ABCMeta",
+      "bytes",
+      "float",
+      "functools.partial",
+      "inspect.FullArgSpec",
+      "int",
+      "list[Any]",
+      "method-wrapper",
+      "slice",
+      "str",
+      "wrapper_descriptor"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 497,
+    "parameter": "dry",
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 494,
+    "type": [
+      "None"
+    ]
+  }
+]

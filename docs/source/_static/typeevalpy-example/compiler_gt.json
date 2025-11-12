@@ -1,0 +1,846 @@
+[
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 28,
+    "file": "compiler.py",
+    "function": "full_name",
+    "line_number": 53,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_name",
+    "line_number": 60,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "get_name",
+    "line_number": 60,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_root",
+    "line_number": 77,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "compiler.py",
+    "function": "is_root",
+    "line_number": 77,
+    "parameter": "m",
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "type": [
+      "Iterable[str]"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "parameter": "names",
+    "type": [
+      "Iterable[str]"
+    ]
+  },
+  {
+    "col_offset": 34,
+    "file": "compiler.py",
+    "function": "public",
+    "line_number": 83,
+    "parameter": "init",
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "local_vars",
+    "line_number": 90,
+    "type": [
+      "Iterable[str]"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "local_vars",
+    "line_number": 90,
+    "parameter": "m",
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "docstring",
+    "line_number": 107,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "docstring",
+    "line_number": 107,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "table_row",
+    "line_number": 119,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 9,
+    "file": "compiler.py",
+    "function": "table",
+    "line_number": 122,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "table",
+    "line_number": 122,
+    "parameter": "_items",
+    "type": [
+      "Iterable[str]"
+    ]
+  },
+  {
+    "col_offset": 38,
+    "file": "compiler.py",
+    "function": "table",
+    "line_number": 122,
+    "parameter": "space",
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "make_table",
+    "line_number": 138,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "make_table",
+    "line_number": 138,
+    "parameter": "obj",
+    "type": [
+      "Callable"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_abstractmethod",
+    "line_number": 179,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 23,
+    "file": "compiler.py",
+    "function": "is_abstractmethod",
+    "line_number": 179,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "parameter": "parent",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 35,
+    "file": "compiler.py",
+    "function": "is_staticmethod",
+    "line_number": 184,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "parameter": "parent",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 34,
+    "file": "compiler.py",
+    "function": "is_classmethod",
+    "line_number": 193,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_property",
+    "line_number": 200,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "is_property",
+    "line_number": 200,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_callable",
+    "line_number": 205,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "is_callable",
+    "line_number": 205,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_enum",
+    "line_number": 210,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "compiler.py",
+    "function": "is_enum",
+    "line_number": 210,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "is_alias",
+    "line_number": 217,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "is_alias",
+    "line_number": 217,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "parameters",
+    "line_number": 222,
+    "type": [
+      "Tuple[Any, ...]"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "parameters",
+    "line_number": 222,
+    "parameter": "obj",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "mro",
+    "line_number": 229,
+    "type": [
+      "Tuple[type, ...]"
+    ]
+  },
+  {
+    "col_offset": 9,
+    "file": "compiler.py",
+    "function": "mro",
+    "line_number": 229,
+    "parameter": "obj",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "super_cls",
+    "line_number": 234,
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "super_cls",
+    "line_number": 234,
+    "parameter": "obj",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "linker",
+    "line_number": 239,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "linker",
+    "line_number": 239,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "escape",
+    "line_number": 244,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "compiler.py",
+    "function": "escape",
+    "line_number": 244,
+    "parameter": "s",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "interpret_mode",
+    "line_number": 254,
+    "type": [
+      "Iterable[str]"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "interpret_mode",
+    "line_number": 254,
+    "parameter": "doc",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_type_doc",
+    "line_number": 274,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "compiler.py",
+    "function": "get_type_doc",
+    "line_number": 274,
+    "parameter": "obj",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 33,
+    "file": "compiler.py",
+    "function": "get_method_doc",
+    "line_number": 291,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "parameter": "obj",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 26,
+    "file": "compiler.py",
+    "function": "get_my_doc",
+    "line_number": 305,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 31,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 42,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "level",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 54,
+    "file": "compiler.py",
+    "function": "get_stub_doc",
+    "line_number": 310,
+    "parameter": "prefix",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "parent",
+    "type": [
+      "Any"
+    ]
+  },
+  {
+    "col_offset": 33,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 44,
+    "file": "compiler.py",
+    "function": "cache_orig_doc",
+    "line_number": 348,
+    "parameter": "prefix",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 22,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "parameter": "doc",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 32,
+    "file": "compiler.py",
+    "function": "replace_keywords",
+    "line_number": 363,
+    "parameter": "ignore_module",
+    "type": [
+      "List[str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "import_from",
+    "line_number": 375,
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "compiler.py",
+    "function": "import_from",
+    "line_number": 375,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "parameter": "code",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 26,
+    "file": "compiler.py",
+    "function": "load_file",
+    "line_number": 384,
+    "parameter": "mod",
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_stubs",
+    "line_number": 399,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "compiler.py",
+    "function": "load_stubs",
+    "line_number": 399,
+    "parameter": "m",
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "get_level",
+    "line_number": 438,
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "get_level",
+    "line_number": 438,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "parameter": "root_name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 31,
+    "file": "compiler.py",
+    "function": "load_root",
+    "line_number": 443,
+    "parameter": "root_module",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "basename",
+    "line_number": 473,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "basename",
+    "line_number": 473,
+    "parameter": "name",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "ref_link",
+    "line_number": 478,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "compiler.py",
+    "function": "ref_link",
+    "line_number": 478,
+    "parameter": "doc",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 494,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 495,
+    "parameter": "root_names",
+    "type": [
+      "Dict[str, str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 496,
+    "parameter": "prefix",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "compiler.py",
+    "function": "gen_api",
+    "line_number": 497,
+    "parameter": "dry",
+    "type": [
+      "bool"
+    ]
+  }
+]
