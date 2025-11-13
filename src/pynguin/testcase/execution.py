@@ -56,11 +56,10 @@ from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.testcase import export
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import (
-    MinimizationFailureError,
-    ModuleNotImportedError,
-    TracingAbortedException,
-)
+from pynguin.utils.exceptions import MinimizationFailureError
+from pynguin.utils.exceptions import ModuleNotImportedError
+from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -1078,7 +1077,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             self._before_test_case_execution(test_case)
             result = ExecutionResult()
             exec_ctx = ExecutionContext(self._module_provider)
-            with output_suppression_context, self._subject_properties.instrumentation_tracer:
+            with (
+                FilesystemIsolation(),
+                output_suppression_context,
+                self._subject_properties.instrumentation_tracer,
+            ):
                 for idx, statement in enumerate(test_case.statements):
                     ast_node = self._before_statement_execution(statement, exec_ctx)
                     exception = self.execute_ast(ast_node, exec_ctx)
