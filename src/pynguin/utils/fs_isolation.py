@@ -83,6 +83,7 @@ class FilesystemIsolation(ContextDecorator):
     ) -> Callable:
         """Factory for creating tracked methods for creation, deletion, and renaming."""
         sig = inspect.signature(original_func)
+        params = list(sig.parameters)
 
         @functools.wraps(original_func)
         def tracked_method(*args, **kwargs):
@@ -90,26 +91,23 @@ class FilesystemIsolation(ContextDecorator):
             record_dst_path = None
             forget_path = None
 
-            try:
-                bound_args = sig.bind(*args, **kwargs)
-                bound_args.apply_defaults()
-                arguments = bound_args.arguments
-                params = list(sig.parameters)
+            def get_arg(index: int | None) -> str | os.PathLike | None:
+                if index is None:
+                    return None
+                param_name = params[index]
+                if index < len(args):
+                    return args[index]
+                return kwargs.get(param_name)
 
-                if forget_arg_idx is not None:
-                    param_name = params[forget_arg_idx]
-                    forget_path = arguments[param_name]
+            try:
+                forget_path = get_arg(forget_arg_idx)
+                if forget_path:
                     abs_path = self._abspath(forget_path)
                     if abs_path not in self._created:
                         raise PermissionError(f"Attempted to modify non-isolated path: {abs_path}")
 
-                if record_arg_idx is not None:
-                    param_name = params[record_arg_idx]
-                    record_path = arguments[param_name]
-
-                if record_dst_idx is not None:
-                    param_name = params[record_dst_idx]
-                    record_dst_path = arguments[param_name]
+                record_path = get_arg(record_arg_idx)
+                record_dst_path = get_arg(record_dst_idx)
 
             except (IndexError, KeyError, TypeError):
                 # Ignore binding errors, proceed to original function
