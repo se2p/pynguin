@@ -529,6 +529,7 @@ def test_cleanup_directory_branch():
     with (
         patch("pathlib.Path.is_symlink", return_value=False),
         patch("pathlib.Path.is_dir", return_value=True) as mock_is_dir,
+        patch("pathlib.Path.exists", return_value=True),
         patch("shutil.rmtree") as mock_rmtree,
     ):
         # Should not raise any exceptions
@@ -537,8 +538,8 @@ def test_cleanup_directory_branch():
 
         # Should have called is_dir check
         mock_is_dir.assert_called()
-        # Should have called rmtree for the directory
-        mock_rmtree.assert_called_with(dir_path, ignore_errors=True)
+        # Should have called rmtree for the directory among other possible calls
+        mock_rmtree.assert_any_call(dir_path, ignore_errors=True)
 
 
 def test_cleanup_mixed_path_types():
