@@ -32,16 +32,14 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FilesystemIsolation(ContextDecorator):
-    """Isolate SUT filesystem side-effects within a temp directory.
+    """Isolates filesystem side effects during test execution.
 
-    Notes:
-    - Absolute paths are tracked via wrappers (open/os.open/mkdir/makedirs/rename/replace
-      and shutil.copy*/copytree).
-    - Deletion calls are observed to update the internal created set so that cleanup
-      does not error or double-delete.
-    - Environment variables TMPDIR/TEMP/TMP are redirected to the isolation directory
-      so tempfile.* uses it; we also set tempfile.tempdir accordingly.
-    - All monkeypatches are restored on exit.
+    Provides a sandboxed environment that:
+    - Tracks and records file and directory creations, deletions, and renames.
+    - Prevents modifications to non-isolated (real) filesystem paths.
+    - Redirects temporary paths (TMP, TEMP, TMPDIR) to a temporary directory.
+    - Automatically cleans up all created files and directories on exit.
+    - Works as both a context manager and decorator.
     """
 
     def __init__(self) -> None:
@@ -52,21 +50,27 @@ class FilesystemIsolation(ContextDecorator):
 
     @staticmethod
     def _abspath(path: os.PathLike | str) -> str:
+        """Convert a path to an absolute path."""
         try:
             return Path(path).resolve().as_posix()
         except Exception:  # noqa: BLE001
             return str(path)
 
-    def _record_created(self, *paths: os.PathLike | str) -> None:
+    def _record_created(self, *paths: os.PathLike | str | None) -> None:
+        """Record a created path."""
         for p in paths:
-            self._created.add(self._abspath(p))
+            if p is not None:
+                self._created.add(self._abspath(p))
 
-    def _maybe_forget(self, *paths: os.PathLike | str) -> None:
+    def _forget(self, *paths: os.PathLike | str | None) -> None:
+        """Forget a path (e.g., on deletion)."""
         for p in paths:
-            self._created.discard(self._abspath(p))
+            if p is not None:
+                self._created.discard(self._abspath(p))
 
     @staticmethod
     def _is_write_mode(mode: str) -> bool:
+        """Check if a mode is write mode."""
         return any(ch in mode for ch in ("w", "a", "x", "+"))
 
     def _create_tracked_method(
@@ -74,32 +78,48 @@ class FilesystemIsolation(ContextDecorator):
         original_func: Callable,
         *,
         record_arg_idx: int | None = None,
-        forget_arg_idx: int | None = None,
         record_dst_idx: int | None = None,
+        forget_arg_idx: int | None = None,
     ) -> Callable:
-        """Factory for creating tracked methods."""
+        """Factory for creating tracked methods for creation, deletion, and renaming."""
         sig = inspect.signature(original_func)
 
         @functools.wraps(original_func)
         def tracked_method(*args, **kwargs):
-            res = original_func(*args, **kwargs)
+            record_path = None
+            record_dst_path = None
+            forget_path = None
+
             try:
                 bound_args = sig.bind(*args, **kwargs)
                 bound_args.apply_defaults()
                 arguments = bound_args.arguments
+                params = list(sig.parameters)
+
+                if forget_arg_idx is not None:
+                    param_name = params[forget_arg_idx]
+                    forget_path = arguments[param_name]
+                    abs_path = self._abspath(forget_path)
+                    if abs_path not in self._created:
+                        raise PermissionError(f"Attempted to modify non-isolated path: {abs_path}")
 
                 if record_arg_idx is not None:
-                    param_name = list(sig.parameters)[record_arg_idx]
-                    self._record_created(arguments[param_name])
-                if forget_arg_idx is not None:
-                    param_name = list(sig.parameters)[forget_arg_idx]
-                    self._maybe_forget(arguments[param_name])
+                    param_name = params[record_arg_idx]
+                    record_path = arguments[param_name]
+
                 if record_dst_idx is not None:
-                    param_name = list(sig.parameters)[record_dst_idx]
-                    self._record_created(arguments[param_name])
+                    param_name = params[record_dst_idx]
+                    record_dst_path = arguments[param_name]
+
             except (IndexError, KeyError, TypeError):
-                # Ignore binding errors if signature mismatches, but this is unlikely
+                # Ignore binding errors, proceed to original function
                 pass
+
+            res = original_func(*args, **kwargs)
+
+            self._forget(forget_path)
+            self._record_created(record_path, record_dst_path)
+
             return res
 
         return tracked_method
@@ -122,6 +142,8 @@ class FilesystemIsolation(ContextDecorator):
         return tracked_open
 
     def _os_open_tracked(self, original_func: Callable) -> Callable:
+        """Factory for creating tracked os.open methods."""
+
         @functools.wraps(original_func)
         def tracked_os_open(path, flags, *args, **kwargs):
             should_record = False
@@ -156,9 +178,12 @@ class FilesystemIsolation(ContextDecorator):
 
         @functools.wraps(original_func)
         def tracked_method(path_self, target):
+            abs_path = self._abspath(path_self)
+            if abs_path not in self._created:
+                raise PermissionError(f"Attempted to rename/replace non-isolated path: {abs_path}")
             res = original_func(path_self, target)
             try:
-                self._maybe_forget(path_self)
+                self._forget(path_self)
                 self._record_created(res)
             except Exception:  # noqa: BLE001
                 _LOGGER.warning("Failed to record created path: %s", res)
@@ -168,15 +193,11 @@ class FilesystemIsolation(ContextDecorator):
 
     def _initialize_patches(self) -> None:
         """Initialize all method patches with their tracked versions."""
-        simple_patches = {
+        patches = {
             (os, "mkdir"): {"record_arg_idx": 0},
             (os, "makedirs"): {"record_arg_idx": 0},
-            (os, "remove"): {"forget_arg_idx": 0},
-            (os, "unlink"): {"forget_arg_idx": 0},
-            (os, "rmdir"): {"forget_arg_idx": 0},
             (os, "rename"): {"forget_arg_idx": 0, "record_dst_idx": 1},
             (os, "replace"): {"forget_arg_idx": 0, "record_dst_idx": 1},
-            (shutil, "rmtree"): {"forget_arg_idx": 0},
             (shutil, "copyfile"): {"record_dst_idx": 1},
             (shutil, "copy"): {"record_dst_idx": 1},
             (shutil, "copy2"): {"record_dst_idx": 1},
@@ -186,15 +207,18 @@ class FilesystemIsolation(ContextDecorator):
             (Path, "touch"): {"record_arg_idx": 0},
             (Path, "write_text"): {"record_arg_idx": 0},
             (Path, "write_bytes"): {"record_arg_idx": 0},
+            (os, "remove"): {"forget_arg_idx": 0},
+            (os, "unlink"): {"forget_arg_idx": 0},
+            (os, "rmdir"): {"forget_arg_idx": 0},
+            (shutil, "rmtree"): {"forget_arg_idx": 0},
             (Path, "unlink"): {"forget_arg_idx": 0},
             (Path, "rmdir"): {"forget_arg_idx": 0},
         }
-        for (module, method), track_kwargs in simple_patches.items():
+        for (module, method), track_kwargs in patches.items():
             original = getattr(module, method)
             tracked = self._create_tracked_method(original, **track_kwargs)
             self._exit_stack.enter_context(patch.object(module, method, new=tracked))
 
-        # Special handling for Path.rename/replace
         for method_name in ("rename", "replace"):
             original = getattr(Path, method_name)
             tracked = self._create_path_rename_replace_tracked(original)
@@ -211,6 +235,7 @@ class FilesystemIsolation(ContextDecorator):
         self._exit_stack.enter_context(patch.object(os, "open", new=tracked_os_open))
 
     def __enter__(self):
+        """Enter the filesystem isolation context."""
         self._exit_stack.enter_context(self._tmp)
         for key in ("TMPDIR", "TEMP", "TMP"):
             self._exit_stack.enter_context(patch.dict(os.environ, {key: self._tmp.name}))
@@ -220,8 +245,9 @@ class FilesystemIsolation(ContextDecorator):
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:
+        """Exit the filesystem isolation context."""
         self._exit_stack.close()
-        # Cleanup tracked paths
+
         for path in sorted(self._created, key=lambda p: (p.count(os.sep), p), reverse=True):
             try:
                 if Path(path).is_symlink():
