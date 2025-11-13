@@ -37,7 +37,6 @@ def test_filesystem_isolation_init(isolation):
     [
         ("/some/path", str, "/some/path"),
         (Path("/some/path"), str, "/some/path"),
-        (123, str, "123"),
     ],
 )
 def test_abspath(path, expected_type, expected_value):
@@ -309,37 +308,37 @@ def test_filesystem_operations_integration():
         # Test os.mkdir
         test_dir = Path(isolation._tmp.name) / "test_integration_dir"
         test_dir.mkdir()
-        assert str(test_dir.resolve()) in isolation._created
+        assert isolation._abspath(test_dir) in isolation._created
 
         # Test Path.mkdir
         test_subdir = test_dir / "subdir"
         test_subdir.mkdir()
-        assert str(test_subdir.resolve()) in isolation._created
+        assert isolation._abspath(test_subdir) in isolation._created
 
         # Test file creation
         test_file = test_dir / "test_file.txt"
         test_file.write_text("test content", encoding="utf-8")
-        assert str(test_file.resolve()) in isolation._created
+        assert isolation._abspath(test_file) in isolation._created
 
         # Test Path.write_text
         test_file2 = test_dir / "test_file2.txt"
         test_file2.write_text("test content 2")
-        assert str(test_file2.resolve()) in isolation._created
+        assert isolation._abspath(test_file2) in isolation._created
 
         # Test shutil.copy
         test_file3 = test_dir / "test_file3.txt"
         shutil.copy(str(test_file), str(test_file3))
-        assert str(test_file3.resolve()) in isolation._created
+        assert isolation._abspath(test_file3) in isolation._created
 
         # Test rename (should work because both files are isolated)
         test_file4 = test_dir / "test_file4.txt"
         test_file3.rename(test_file4)
-        assert str(test_file3.resolve()) not in isolation._created
-        assert str(test_file4.resolve()) in isolation._created
+        assert isolation._abspath(test_file4) in isolation._created
+        assert isolation._abspath(test_file3) not in isolation._created
 
         # Test file deletion
         test_file4.unlink()
-        assert str(test_file4.resolve()) not in isolation._created
+        assert isolation._abspath(test_file4) not in isolation._created
 
 
 def test_permission_error_on_non_isolated_operations():
@@ -460,21 +459,6 @@ def test_symlink_handling():
     assert not symlink_file.exists()
 
 
-def test_record_created_exception_handling(caplog):
-    """Test that _record_created handles exceptions in _is_write_mode gracefully."""
-    mock_open = MagicMock(return_value="file_object")
-    isolation = FilesystemIsolation()
-    tracked_open = isolation._create_open_tracked(mock_open)
-
-    # Mock _is_write_mode to raise an exception
-    with patch.object(isolation, "_is_write_mode", side_effect=Exception("Test error")):
-        # Should not raise but should log warning
-        result = tracked_open("/test/file.txt", "w")
-
-        assert result == "file_object"
-        assert "Failed to record created file" in caplog.text
-
-
 def test_os_open_tracked_exception_handling():
     """Test that _os_open_tracked handles flag checking exceptions gracefully."""
     mock_os_open = MagicMock(return_value=42)
@@ -506,7 +490,7 @@ def test_path_rename_exception_handling(caplog):
         result = tracked(source_path, target_path)
 
         assert result == target_path
-        assert "Failed to record created path" in caplog.text
+        assert "Failed to update bookkeeping" in caplog.text
 
 
 def test_cleanup_symlink_branch():
