@@ -32,40 +32,37 @@ def test_filesystem_isolation_init(isolation):
     assert isolation._exit_stack is not None
 
 
-def test_abspath():
+@pytest.mark.parametrize(
+    ("path", "expected_type", "expected_value"),
+    [
+        ("/some/path", str, "/some/path"),
+        (Path("/some/path"), str, "/some/path"),
+        (123, str, "123"),
+    ],
+)
+def test_abspath(path, expected_type, expected_value):
     """Test the _abspath static method."""
-    # Test with string path
-    path = "/some/path"
     result = FilesystemIsolation._abspath(path)
-    assert isinstance(result, str)
-
-    # Test with Path object
-    path_obj = Path("/some/path")
-    result = FilesystemIsolation._abspath(path_obj)
-    assert isinstance(result, str)
-
-    # Test with invalid path (should not raise)
-    result = FilesystemIsolation._abspath(123)
-    assert result == "123"
+    assert isinstance(result, expected_type)
+    assert result == expected_value
 
 
-def test_record_created(isolation):
+@pytest.mark.parametrize(
+    ("paths_to_record", "expected_recorded"),
+    [
+        (["/test/path"], ["/test/path"]),
+        (["/test/path1", "/test/path2"], ["/test/path1", "/test/path2"]),
+        ([None], []),
+        (["/test/path", None], ["/test/path"]),
+    ],
+)
+def test_record_created(isolation, paths_to_record, expected_recorded):
     """Test the _record_created method."""
-    # Test recording single path
-    path = "/test/path"
-    isolation._record_created(path)
-    assert FilesystemIsolation._abspath(path) in isolation._created
-
-    # Test recording multiple paths
-    path1 = "/test/path1"
-    path2 = "/test/path2"
-    isolation._record_created(path1, path2)
-    assert FilesystemIsolation._abspath(path1) in isolation._created
-    assert FilesystemIsolation._abspath(path2) in isolation._created
-
-    # Test recording None (should be ignored)
-    isolation._record_created(None)
-    assert None not in isolation._created
+    isolation._record_created(*paths_to_record)
+    for path in expected_recorded:
+        assert FilesystemIsolation._abspath(path) in isolation._created
+    if None not in paths_to_record:
+        assert None not in isolation._created
 
 
 def test_forget(isolation):
@@ -83,21 +80,24 @@ def test_forget(isolation):
     isolation._forget(None)
 
 
-def test_is_write_mode():
+@pytest.mark.parametrize(
+    ("mode", "is_write"),
+    [
+        ("w", True),
+        ("a", True),
+        ("x", True),
+        ("r+", True),
+        ("w+", True),
+        ("wb", True),
+        ("ab", True),
+        ("r", False),
+        ("rb", False),
+        ("", False),
+    ],
+)
+def test_is_write_mode(mode, is_write):
     """Test the _is_write_mode static method."""
-    # Write modes
-    assert FilesystemIsolation._is_write_mode("w")
-    assert FilesystemIsolation._is_write_mode("a")
-    assert FilesystemIsolation._is_write_mode("x")
-    assert FilesystemIsolation._is_write_mode("r+")
-    assert FilesystemIsolation._is_write_mode("w+")
-    assert FilesystemIsolation._is_write_mode("wb")
-    assert FilesystemIsolation._is_write_mode("ab")
-
-    # Read-only modes
-    assert not FilesystemIsolation._is_write_mode("r")
-    assert not FilesystemIsolation._is_write_mode("rb")
-    assert not FilesystemIsolation._is_write_mode("")
+    assert FilesystemIsolation._is_write_mode(mode) is is_write
 
 
 def test_create_tracked_method_record_arg(isolation):
@@ -161,69 +161,55 @@ def test_create_tracked_method_binding_error(isolation):
     mock_func.assert_called_once_with("arg")
 
 
-def test_create_open_tracked_write_mode(isolation):
-    """Test _create_open_tracked records files opened in write mode."""
+@pytest.mark.parametrize(
+    ("args", "kwargs", "should_record"),
+    [
+        (("w",), {}, True),
+        (("r",), {}, False),
+        ((), {"mode": "w"}, True),
+        ((), {"mode": "r"}, False),
+    ],
+)
+def test_create_open_tracked(isolation, args, kwargs, should_record):
+    """Test _create_open_tracked records files based on open mode."""
     mock_open = MagicMock(return_value="file_object")
     tracked_open = isolation._create_open_tracked(mock_open)
+    file_path = "/test/file.txt"
 
-    # Test with write mode
-    result = tracked_open("/test/file.txt", "w")
-
-    assert result == "file_object"
-    mock_open.assert_called_once_with("/test/file.txt", "w")
-    assert FilesystemIsolation._abspath("/test/file.txt") in isolation._created
-
-
-def test_create_open_tracked_read_mode(isolation):
-    """Test _create_open_tracked doesn't record files opened in read mode."""
-    mock_open = MagicMock(return_value="file_object")
-    tracked_open = isolation._create_open_tracked(mock_open)
-
-    # Test with read mode
-    result = tracked_open("/test/file.txt", "r")
+    result = tracked_open(file_path, *args, **kwargs)
 
     assert result == "file_object"
-    mock_open.assert_called_once_with("/test/file.txt", "r")
-    assert FilesystemIsolation._abspath("/test/file.txt") not in isolation._created
+    mock_open.assert_called_once_with(file_path, *args, **kwargs)
+    if should_record:
+        assert FilesystemIsolation._abspath(file_path) in isolation._created
+    else:
+        assert FilesystemIsolation._abspath(file_path) not in isolation._created
 
 
-def test_create_open_tracked_kwargs_mode(isolation):
-    """Test _create_open_tracked handles mode passed as keyword argument."""
-    mock_open = MagicMock(return_value="file_object")
-    tracked_open = isolation._create_open_tracked(mock_open)
-
-    # Test with mode as kwarg
-    result = tracked_open("/test/file.txt", mode="w")
-
-    assert result == "file_object"
-    mock_open.assert_called_once_with("/test/file.txt", mode="w")
-    assert FilesystemIsolation._abspath("/test/file.txt") in isolation._created
-
-
-def test_os_open_tracked_write_flags(isolation):
-    """Test _os_open_tracked records files opened with write flags."""
+@pytest.mark.parametrize(
+    ("flag", "should_record"),
+    [
+        (os.O_WRONLY, True),
+        (os.O_RDONLY, False),
+        (os.O_RDWR, True),
+        (os.O_APPEND, True),
+        (os.O_CREAT, True),
+    ],
+)
+def test_os_open_tracked(isolation, flag, should_record):
+    """Test _os_open_tracked records files based on open flags."""
     mock_os_open = MagicMock(return_value=42)
     tracked_os_open = isolation._os_open_tracked(mock_os_open)
+    file_path = "/test/file.txt"
 
-    # Test with write flag
-    result = tracked_os_open("/test/file.txt", os.O_WRONLY)
-
-    assert result == 42
-    mock_os_open.assert_called_once_with("/test/file.txt", os.O_WRONLY)
-    assert FilesystemIsolation._abspath("/test/file.txt") in isolation._created
-
-
-def test_os_open_tracked_read_flags(isolation):
-    """Test _os_open_tracked doesn't record files opened with read-only flags."""
-    mock_os_open = MagicMock(return_value=42)
-    tracked_os_open = isolation._os_open_tracked(mock_os_open)
-
-    # Test with read flag
-    result = tracked_os_open("/test/file.txt", os.O_RDONLY)
+    result = tracked_os_open(file_path, flag)
 
     assert result == 42
-    mock_os_open.assert_called_once_with("/test/file.txt", os.O_RDONLY)
-    assert FilesystemIsolation._abspath("/test/file.txt") not in isolation._created
+    mock_os_open.assert_called_once_with(file_path, flag)
+    if should_record:
+        assert FilesystemIsolation._abspath(file_path) in isolation._created
+    else:
+        assert FilesystemIsolation._abspath(file_path) not in isolation._created
 
 
 def test_create_path_rename_replace_tracked(isolation):
@@ -317,7 +303,6 @@ def test_decorator_usage():
     assert not created_file.exists()
 
 
-@pytest.mark.integration
 def test_filesystem_operations_integration():
     """Integration test for various filesystem operations."""
     with FilesystemIsolation() as isolation:
