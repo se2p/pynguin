@@ -32,6 +32,16 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+
+try:
+    import random
+
+    from faker import Faker
+
+    FANDANGO_FAKER_AVAILABLE = True
+except ImportError:
+    FANDANGO_FAKER_AVAILABLE = False
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -239,6 +249,12 @@ def _setup_random_number_generator() -> None:
     randomness.RNG.seed(config.configuration.seeding.seed)
     if config.configuration.pynguinml.ml_testing_enabled:
         np_rng.init_rng(config.configuration.seeding.seed)
+
+    if FANDANGO_FAKER_AVAILABLE:
+        # Seed Fandango
+        random.seed(config.configuration.seeding.seed)
+        # Seed Faker
+        Faker.seed(config.configuration.seeding.seed)
 
 
 def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider | None]:

@@ -688,6 +688,23 @@ class SearchAlgorithmConfiguration:
 
 
 @dataclasses.dataclass
+class StringStatementConfiguration:
+    """Configuration related to string statements."""
+
+    random_string_weight: float = 0.3
+    """Probability use the random generator for string statement generation."""
+
+    faker_string_weight: float = 0.3
+    """Probability use the Faker generator for string statement generation."""
+
+    fandango_string_weight: float = 0.4
+    """Probability use the Fandango generator for string statement generation."""
+
+    fandango_faker_string_weight: float = 0.0
+    """Probability use the Fandango + Faker generator for string statement generation."""
+
+
+@dataclasses.dataclass
 class StoppingConfiguration:
     """Configuration related to when Pynguin should stop.
 
@@ -889,6 +906,11 @@ class Configuration:
 
     large_language_model: LLMConfiguration = dataclasses.field(default_factory=LLMConfiguration)
     """Large Language Model(LLM) configuration."""
+
+    string_statement: StringStatementConfiguration = dataclasses.field(
+        default_factory=StringStatementConfiguration
+    )
+    """String statement configuration."""
 
     seeding: SeedingConfiguration = dataclasses.field(default_factory=SeedingConfiguration)
     """Seeding configuration."""

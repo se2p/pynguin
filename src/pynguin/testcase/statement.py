@@ -19,6 +19,7 @@ import typing
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import ClassVar
 from typing import Generic
 from typing import TypeVar
 from typing import cast
@@ -30,6 +31,17 @@ try:
     NUMPY_AVAILABLE = True
 except ImportError:
     NUMPY_AVAILABLE = False
+
+try:
+    from faker import Faker
+
+    if TYPE_CHECKING:
+        from fandango.language.grammar import DerivationTree
+        from fandango.language.grammar import Grammar
+
+    FANDANGO_FAKER_AVAILABLE = True
+except ImportError:
+    FANDANGO_FAKER_AVAILABLE = False
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -51,6 +63,7 @@ from pynguin.analyses.typesystem import UnionType
 from pynguin.large_language_model.parsing import astscoping
 from pynguin.utils import mutation_utils
 from pynguin.utils import randomness
+from pynguin.utils.fandango_faker_utils import load_fandango_grammars
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
 
@@ -2098,8 +2111,8 @@ class ComplexPrimitiveStatement(PrimitiveStatement[complex]):
         visitor.visit_complex_primitive_statement(self)
 
 
-class StringPrimitiveStatement(PrimitiveStatement[str]):
-    """Primitive Statement that creates a String."""
+class StringPrimitiveStatementImpl(PrimitiveStatement[str]):
+    """Abstract string primitive statement implementation."""
 
     def __init__(  # noqa: D107
         self,
@@ -2116,6 +2129,16 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
             constant_provider=constant_provider,
             local_search_applied=local_search_applied,
         )
+
+    def __str__(self) -> str:
+        return f"{self._value}: str"
+
+    def accept(self, visitor: StatementVisitor) -> None:  # noqa: D102
+        visitor.visit_string_primitive_statement(self)
+
+
+class RandomStringPrimitiveStatement(StringPrimitiveStatementImpl):
+    """Primitive Statement that creates a random String."""
 
     def randomize_value(self) -> None:  # noqa: D102
         if (
@@ -2176,11 +2199,243 @@ class StringPrimitiveStatement(PrimitiveStatement[str]):
         self,
         test_case: tc.TestCase,
         memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> RandomStringPrimitiveStatement:
+        return RandomStringPrimitiveStatement(
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
+        )
+
+    def __repr__(self) -> str:
+        return f"RandomStringPrimitiveStatement({self._test_case}, {self._value})"
+
+
+class FakerStringPrimitiveStatement(RandomStringPrimitiveStatement):
+    """Primitive Statement that creates a String using Faker."""
+
+    FAKER = Faker(use_weighting=False)
+
+    def randomize_value(self) -> None:  # noqa: D102
+        if (
+            self._constant_provider
+            and randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(str)) is not None
+        ):
+            self._value = seeded_value
+        else:
+            generators: list[Callable[[], str | int]] = [
+                FakerStringPrimitiveStatement.FAKER.random_number,
+                FakerStringPrimitiveStatement.FAKER.xml,
+                FakerStringPrimitiveStatement.FAKER.csv,
+                FakerStringPrimitiveStatement.FAKER.json,
+                FakerStringPrimitiveStatement.FAKER.file_path,
+                FakerStringPrimitiveStatement.FAKER.email,
+                FakerStringPrimitiveStatement.FAKER.date,
+                FakerStringPrimitiveStatement.FAKER.ipv4,
+                FakerStringPrimitiveStatement.FAKER.ipv6,
+                FakerStringPrimitiveStatement.FAKER.hostname,
+                FakerStringPrimitiveStatement.FAKER.color,
+                FakerStringPrimitiveStatement.FAKER.file_name,
+                FakerStringPrimitiveStatement.FAKER.password,
+            ]
+            generator = randomness.choice(generators)
+            self._value = str(generator())
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> FakerStringPrimitiveStatement:
+        return FakerStringPrimitiveStatement(
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
+        )
+
+    def __repr__(self) -> str:
+        return f"FakerStringPrimitiveStatement({self._test_case}, {self._value})"
+
+
+class FandangoStringPrimitiveStatement(RandomStringPrimitiveStatement):
+    """Primitive Statement that creates a String using Fandango."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        value: str | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+        *,
+        local_search_applied: bool = False,
+    ) -> None:
+        self._grammar: Grammar = None
+        self._node: DerivationTree = None
+        super().__init__(
+            test_case,
+            value,
+            constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
+        )
+
+    GRAMMARS: ClassVar[list[Grammar]] = load_fandango_grammars("src/pynguin/resources/fans")
+
+    def randomize_value(self) -> None:  # noqa: D102
+        if (
+            self._constant_provider
+            and randomness.next_float()
+            <= config.configuration.seeding.seeded_primitives_reuse_probability
+            and (seeded_value := self._constant_provider.get_constant_for(str)) is not None
+        ):
+            self._value = seeded_value
+        else:
+            self._grammar = randomness.choice(self.__class__.GRAMMARS)
+
+            self._node = self._grammar.fuzz()
+            self._value = str(self._node)
+
+    def delta(self) -> None:  # noqa: D102
+        if self._grammar is None:
+            # mutate seeded values using random delta
+            super().delta()
+            return
+
+        nodes = self._node.flatten()
+        mutable_nodes = [s for s in nodes if s.symbol.is_non_terminal]
+        node_to_mutate = randomness.choice(mutable_nodes)
+        mutated_node = self._grammar.fuzz(node_to_mutate.symbol)
+        parent = node_to_mutate.parent
+        if parent is None:
+            # root node
+            self._node = mutated_node
+        else:
+            children = parent.children
+            children[children.index(node_to_mutate)] = mutated_node
+            parent.set_children(children)
+        self._value = str(self._node)
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> FandangoStringPrimitiveStatement:
+        return FandangoStringPrimitiveStatement(
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
+        )
+
+    def __repr__(self) -> str:
+        return f"FandangoStringPrimitiveStatement({self._test_case}, {self._value})"
+
+
+class FandangoFakerStringPrimitiveStatement(FandangoStringPrimitiveStatement):
+    """Primitive Statement that creates a String using Fandango and Faker."""
+
+    GRAMMARS = load_fandango_grammars("src/pynguin/resources/fans/faker")
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
+    ) -> FandangoFakerStringPrimitiveStatement:
+        return FandangoFakerStringPrimitiveStatement(
+            test_case,
+            self._value,
+            constant_provider=self._constant_provider,
+            local_search_applied=self.local_search_applied,
+        )
+
+    def __repr__(self) -> str:
+        return f"FandangoFakerStringPrimitiveStatement({self._test_case}, {self._value})"
+
+
+class StringPrimitiveStatement(PrimitiveStatement[str]):
+    """Primitive Statement that creates a String."""
+
+    def __init__(  # noqa: D107
+        self,
+        test_case: tc.TestCase,
+        value: str | None = None,
+        constant_provider: constants.ConstantProvider | None = None,
+        implementation: PrimitiveStatement[str] | None = None,
+        *,
+        local_search_applied: bool = False,
+    ) -> None:
+        if implementation is None:
+            impl_type = StringPrimitiveStatement._get_implementation()
+            implementation = impl_type(test_case, value, constant_provider)
+
+        self._impl = implementation
+        super().__init__(
+            test_case,
+            Instance(test_case.test_cluster.type_system.to_type_info(str)),
+            self.value,
+            constant_provider=constant_provider,
+            local_search_applied=local_search_applied,
+        )
+
+    @staticmethod
+    def _get_implementation() -> type[StringPrimitiveStatementImpl]:
+        if not FANDANGO_FAKER_AVAILABLE:
+            return RandomStringPrimitiveStatement
+
+        choices = [
+            RandomStringPrimitiveStatement,
+            FakerStringPrimitiveStatement,
+            FandangoStringPrimitiveStatement,
+            FandangoFakerStringPrimitiveStatement,
+        ]
+        weights = [
+            config.configuration.string_statement.random_string_weight,
+            config.configuration.string_statement.faker_string_weight,
+            config.configuration.string_statement.fandango_string_weight,
+            config.configuration.string_statement.fandango_faker_string_weight,
+        ]
+
+        return randomness.choices(choices, weights)[0]
+
+    def randomize_value(self) -> None:  # noqa: D102
+        impl = StringPrimitiveStatement._get_implementation()
+        self._impl = impl(
+            self.test_case,
+            constant_provider=self._constant_provider,
+        )
+        self._impl.randomize_value()
+        self._value = self._impl.value
+
+    def delta(self) -> None:  # noqa: D102
+        assert self._impl is not None
+        self._impl.delta()
+        self._value = self._impl.value
+
+    @property
+    def value(self) -> str | None:
+        """Provides the primitive value of the current implementation.
+
+        Returns:
+            The primitive value
+        """
+        assert self._impl is not None
+        return self._impl.value
+
+    @value.setter
+    def value(self, value: str) -> None:
+        self._impl.value = value
+        self._value = value
+
+    def clone(  # noqa: D102
+        self,
+        test_case: tc.TestCase,
+        memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> StringPrimitiveStatement:
         return StringPrimitiveStatement(
             test_case,
             self._value,
             constant_provider=self._constant_provider,
+            implementation=self._impl,
             local_search_applied=self.local_search_applied,
         )
 

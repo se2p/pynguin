@@ -50,6 +50,7 @@ If you want to contribute to the project, this part of the documentation is for 
 
    dev/contributing
    dev/overview
+   dev/extensions
    dev/development
 
 The API Documentation

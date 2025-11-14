@@ -89,6 +89,12 @@ call_llm_on_stall_detection = false
 max_plateau_len = 25
 max_llm_interventions = 1
 
+[string_statement]
+random_string_weight = 0.3
+faker_string_weight = 0.3
+fandango_string_weight = 0.4
+fandango_faker_string_weight = 0.0
+
 [seeding]
 seed = {SEED}
 constant_seeding = true
@@ -254,6 +260,9 @@ def expected_txt(tmp_path):
  'call_llm_for_uncovered_targets=False, coverage_threshold=1, '
  'call_llm_on_stall_detection=False, max_plateau_len=25, '
  'max_llm_interventions=1), '
+ 'string_statement=StringStatementConfiguration(random_string_weight=0.3, '
+ 'faker_string_weight=0.3, fandango_string_weight=0.4, '
+ 'fandango_faker_string_weight=0.0), '
  'seeding=SeedingConfiguration(seed={SEED}, '
  'constant_seeding=True, initial_population_seeding=False, '
  "initial_population_data='', seeded_testcases_reuse_probability=0.9, "
@@ -513,6 +522,14 @@ True
 -1
 --stopping.test_execution_time_per_statement
 1
+--string_statement.faker_string_weight
+0.3
+--string_statement.fandango_faker_string_weight
+0.0
+--string_statement.fandango_string_weight
+0.4
+--string_statement.random_string_weight
+0.3
 --subprocess
 False
 --subprocess_if_recommended
@@ -711,6 +728,10 @@ def expected_parameter_list() -> list[str]:
         "--model_name gpt-4o-mini",
         "--temperature 0.8",
         "--hybrid_initial_population False",
+        "--random_string_weight 0.3",
+        "--faker_string_weight 0.3",
+        "--fandango_string_weight 0.4",
+        "--fandango_faker_string_weight 0.0",
         "--llm_test_case_percentage 0.5",
         "--enable_response_caching False",
         "--call_llm_for_uncovered_targets False",
