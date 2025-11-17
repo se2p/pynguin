@@ -154,11 +154,11 @@ use_random_object_for_call = 0.0
 [search_algorithm]
 min_initial_tests = 1
 max_initial_tests = 10
-population = 50
-chromosome_length = 40
+population = 10
+chromosome_length = 48
 chop_max_length = true
 elite = 1
-crossover_rate = 0.75
+crossover_rate = 0.648
 test_insertion_probability = 0.1
 test_delete_probability = 0.3333333333333333
 test_change_probability = 0.3333333333333333
@@ -166,12 +166,12 @@ test_insert_probability = 0.3333333333333333
 statement_insertion_probability = 0.5
 random_perturbation = 0.2
 change_parameter_probability = 0.1
-tournament_size = 5
-rank_bias = 1.7
-selection = "TOURNAMENT_SELECTION"
+tournament_size = 4
+rank_bias = 1.68
+selection = "RANK_SELECTION"
 use_archive = false
 filter_covered_targets_from_test_cluster = false
-number_of_mutations = 1
+number_of_mutations = 3
 
 [mio]
 exploitation_starts_at_percent = 0.5
@@ -288,16 +288,15 @@ def expected_txt(tmp_path):
  'negate_type=0.1, skip_optional_parameter_probability=0.7, max_attempts=1000, '
  'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
  'search_algorithm=SearchAlgorithmConfiguration(min_initial_tests=1, '
- 'max_initial_tests=10, population=50, chromosome_length=40, '
- 'chop_max_length=True, elite=1, crossover_rate=0.75, '
+ 'max_initial_tests=10, population=10, chromosome_length=48, '
+ 'chop_max_length=True, elite=1, crossover_rate=0.648, '
  'test_insertion_probability=0.1, test_delete_probability=0.3333333333333333, '
  'test_change_probability=0.3333333333333333, '
  'test_insert_probability=0.3333333333333333, '
  'statement_insertion_probability=0.5, random_perturbation=0.2, '
- 'change_parameter_probability=0.1, tournament_size=5, rank_bias=1.7, '
- "selection=<Selection.TOURNAMENT_SELECTION: 'TOURNAMENT_SELECTION'>, "
- 'use_archive=False, filter_covered_targets_from_test_cluster=False, '
- 'number_of_mutations=1), '
+ 'change_parameter_probability=0.1, tournament_size=4, rank_bias=1.68, '
+ "selection=<Selection.RANK_SELECTION: 'RANK_SELECTION'>, use_archive=False, "
+ 'filter_covered_targets_from_test_cluster=False, number_of_mutations=3), '
  'mio=MIOConfiguration(initial_config=MIOPhaseConfiguration(number_of_tests_per_target=10, '
  'random_test_or_from_archive_probability=0.5, number_of_mutations=1), '
  'focused_config=MIOPhaseConfiguration(number_of_tests_per_target=1, '
@@ -418,9 +417,9 @@ False
 --search_algorithm.chop_max_length
 True
 --search_algorithm.chromosome_length
-40
+48
 --search_algorithm.crossover_rate
-0.75
+0.648
 --search_algorithm.elite
 1
 --search_algorithm.filter_covered_targets_from_test_cluster
@@ -430,15 +429,15 @@ False
 --search_algorithm.min_initial_tests
 1
 --search_algorithm.number_of_mutations
-1
+3
 --search_algorithm.population
-50
+10
 --search_algorithm.random_perturbation
 0.2
 --search_algorithm.rank_bias
-1.7
+1.68
 --search_algorithm.selection
-TOURNAMENT_SELECTION
+RANK_SELECTION
 --search_algorithm.statement_insertion_probability
 0.5
 --search_algorithm.test_change_probability
@@ -450,7 +449,7 @@ TOURNAMENT_SELECTION
 --search_algorithm.test_insertion_probability
 0.1
 --search_algorithm.tournament_size
-5
+4
 --search_algorithm.use_archive
 False
 --seeding.constant_seeding
@@ -696,13 +695,13 @@ def expected_parameter_list() -> list[str]:
         "--use_random_object_for_call 0.0",
         "--min_initial_tests 1",
         "--max_initial_tests 10",
-        "--population 50",
-        "--chromosome_length 40",
+        "--population 10",
+        "--chromosome_length 48",
         "--chop_max_length True",
         "--elite 1",
         "--enable_inline_pragma_no_cover True",
         "--enable_inline_pynguin_no_cover True",
-        "--crossover_rate 0.75",
+        "--crossover_rate 0.648",
         "--test_insertion_probability 0.1",
         "--test_delete_probability 0.3333333333333333",
         "--test_change_probability 0.3333333333333333",
@@ -710,12 +709,12 @@ def expected_parameter_list() -> list[str]:
         "--statement_insertion_probability 0.5",
         "--random_perturbation 0.2",
         "--change_parameter_probability 0.1",
-        "--tournament_size 5",
-        "--rank_bias 1.7",
-        "--selection TOURNAMENT_SELECTION",
+        "--tournament_size 4",
+        "--rank_bias 1.68",
+        "--selection RANK_SELECTION",
         "--use_archive False",
         "--filter_covered_targets_from_test_cluster False",
-        "--number_of_mutations 1",
+        "--number_of_mutations 3",
         "--exploitation_starts_at_percent 0.5",
         "--initial_config.number_of_tests_per_target 10",
         "--initial_config.random_test_or_from_archive_probability 0.5",
