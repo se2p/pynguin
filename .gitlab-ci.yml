@@ -179,8 +179,12 @@ mypy:
 sphinx:
   stage: build
   image: python:3.10-bookworm
+  before_script: # overwrite to not install extras to be consistent with readthedocs from GitHub CI
+    - pip install poetry
+    - poetry config virtualenvs.in-project true
+    - poetry install
   script:
-    - poetry run sphinx-build -W docs docs/_build
+    - make documentation
   artifacts:
     expire_in: 1 week
     paths:
