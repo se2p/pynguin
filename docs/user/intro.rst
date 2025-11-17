@@ -22,6 +22,46 @@ All contributions to Pynguin should keep these important rules in mind.
 Publications on Pynguin
 -----------------------
 
+* L. Krodinger, A. Hajdari, S. Lukasczyk and G. Fraser.
+  **Constraint-Guided Unit Test Generation for Machine Learning Libraries**
+  `arXiv:2510.09108 <https://arxiv.org/abs/2510.09108>`_.
+
+  BibTeX entry:
+
+  .. code-block:: bibtex
+
+        @article{DBLP:journals/corr/abs-2510-09108,
+          author       = {Lukas Krodinger and
+                          Altin Hajdari and
+                          Stephan Lukasczyk and
+                          Gordon Fraser},
+          title        = {Constraint-Guided Unit Test Generation for Machine Learning Libraries},
+          journal      = {CoRR},
+          volume       = {abs/2510.09108},
+          year         = {2025},
+          eprinttype   = {arXiv},
+          eprint       = {2510.09108},
+        }
+
+  BibTeX entry:
+
+* S. Lukasczyk and G. Fraser.
+  **Search-based Hyperparameter Tuning for Python Unit Test Generation**
+  `arXiv:2510.08716 <https://arxiv.org/abs/2510.08716>`_.
+
+  .. code-block:: bibtex
+
+        @article{DBLP:journals/corr/abs-2510-08716,
+          author       = {Stephan Lukasczyk and
+                          Gordon Fraser},
+          title        = {Search-based Hyperparameter Tuning for Python Unit Test Generation},
+          journal      = {CoRR},
+          volume       = {abs/2510.08716},
+          year         = {2025},
+          eprinttype   = {arXiv},
+          eprint       = {2510.08716},
+        }
+
 * L. Krodinger, S. Lukasczyk, and G. Fraser.
   **Combining Type Inference and Automated Unit Test Generation for Python**
   `arXiv:2507.01477 <https://arxiv.org/abs/2507.01477>`_.
