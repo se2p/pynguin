@@ -627,10 +627,10 @@ class SearchAlgorithmConfiguration:
     max_initial_tests: int = 10
     """Maximum number of tests in initial test suites"""
 
-    population: int = 50
+    population: int = 10
     """Population size of genetic algorithm"""
 
-    chromosome_length: int = 40
+    chromosome_length: int = 48
     """Maximum length of chromosomes during search"""
 
     chop_max_length: bool = True
@@ -639,7 +639,7 @@ class SearchAlgorithmConfiguration:
     elite: int = 1
     """Elite size for search algorithm"""
 
-    crossover_rate: float = 0.75
+    crossover_rate: float = 0.648
     """Probability of crossover"""
 
     test_insertion_probability: float = 0.1
@@ -665,13 +665,13 @@ class SearchAlgorithmConfiguration:
     """Probability of replacing parameters when mutating a method or constructor
     statement in a test case.  Expects values in [0,1]"""
 
-    tournament_size: int = 5
+    tournament_size: int = 4
     """Number of individuals for tournament selection."""
 
-    rank_bias: float = 1.7
+    rank_bias: float = 1.68
     """Bias for better individuals in rank selection"""
 
-    selection: Selection = Selection.TOURNAMENT_SELECTION
+    selection: Selection = Selection.RANK_SELECTION
     """The selection operator for genetic algorithms."""
 
     use_archive: bool = False
@@ -683,7 +683,7 @@ class SearchAlgorithmConfiguration:
     """Focus search by filtering out elements from the test cluster when
      they are fully covered."""
 
-    number_of_mutations: int = 1
+    number_of_mutations: int = 3
     """Number of mutations that should be applied in one breeding step."""
 
 
