@@ -63,7 +63,11 @@ class PynguinClient:
 
             match result.worker_return_code:
                 case WorkerReturnCode.ERROR:
-                    _LOGGER.error("Worker process crashed")
+                    _LOGGER.error(
+                        "Pynguin error: %s\n%s",
+                        result.error,
+                        result.error.traceback_str if result.error else "",
+                    )
                     return ReturnCode.NO_TESTS_GENERATED
                 case WorkerReturnCode.TIMEOUT:
                     _LOGGER.error("Worker process timed out")

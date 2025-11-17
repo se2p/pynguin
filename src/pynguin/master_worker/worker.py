@@ -54,13 +54,27 @@ class WorkerReturnCode(enum.IntEnum):
     """Return codes for master-worker communication."""
 
     OK = 0
-    """Symbolises that there was no error during master-worker communication."""
+    """Symbolises that there was no error with master-worker architecture."""
 
     ERROR = 1
-    """Symbolises that an error occurred during master-worker communication."""
+    """Symbolises that an error occurred in master-worker architecture."""
 
     TIMEOUT = 2
     """Symbolises that the worker process timed out."""
+
+
+class WorkerError(Exception):
+    """Error that occurred during worker process execution."""
+
+    def __init__(self, message="", traceback_str=""):
+        """Initialize the error.
+
+        Args:
+            message: The error message.
+            traceback_str: The traceback string.
+        """
+        super().__init__(message)
+        self.traceback_str = traceback_str
 
 
 @dataclass
@@ -70,9 +84,13 @@ class WorkerResult:
     task_id: str
     worker_return_code: WorkerReturnCode
     return_code: ReturnCode | None
-    error_message: str = ""
-    traceback_str: str = ""
+    error: WorkerError | None = None
     restart_count: int = 0
+
+    @property
+    def traceback_str(self) -> str:
+        """Get traceback string from WorkerError if present."""
+        return self.error.traceback_str if self.error else ""
 
 
 @dataclass
@@ -132,11 +150,9 @@ def worker_main(
             task_id=task_id,
             worker_return_code=WorkerReturnCode.ERROR,
             return_code=None,
-            error_message=str(e),
-            traceback_str=traceback.format_exc(),
+            error=WorkerError(str(e), traceback.format_exc()),
         )
         try:
             sending_connection.send(error_result)
         except Exception:  # noqa: BLE001
             _LOGGER.error("Failed to send error result to master")
-        _LOGGER.error("Worker error: %s", e)
