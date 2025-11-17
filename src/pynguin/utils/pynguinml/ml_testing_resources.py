@@ -10,16 +10,12 @@ import importlib
 import inspect
 import json
 import logging
-
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import networkx as nx
 import yaml
-
 
 try:
     import numpy as np
@@ -34,13 +30,10 @@ if not NUMPY_AVAILABLE:
     )
 
 import pynguin.configuration as config
-
-from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.type_inference import NoInference
+from pynguin.analyses.type_inference import HintInference, NoInference
 from pynguin.utils.exceptions import ConstraintValidationError
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.pynguinml.mlparameter import MLParameter
-
 
 if TYPE_CHECKING:
     from types import FunctionType

@@ -8,15 +8,10 @@ import enum
 import importlib
 import inspect
 import re
-
-from inspect import Parameter
-from inspect import Signature
-from typing import TYPE_CHECKING
-from typing import cast
+from inspect import Parameter, Signature
+from typing import TYPE_CHECKING, cast
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import call
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -26,20 +21,14 @@ import pynguin.testcase.testfactory as tf
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.typetracing as tt
-
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import StringSubtype
-from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import IntPrimitiveStatement
+from pynguin.analyses.typesystem import AnyType, InferredSignature, NoneType, StringSubtype
+from pynguin.testcase.statement import FieldStatement, IntPrimitiveStatement
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.examples.monkey import Monkey
 from tests.testutils import feed_typesystem
-
 
 if TYPE_CHECKING:
     from pynguin.utils.generic.genericaccessibleobject import GenericField

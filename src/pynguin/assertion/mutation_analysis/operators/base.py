@@ -16,18 +16,12 @@ import abc
 import ast
 import copy
 import re
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from typing import TypeVar
-
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     import types
-
-    from collections.abc import Callable
-    from collections.abc import Generator
-    from collections.abc import Iterable
+    from collections.abc import Callable, Generator, Iterable
 
 
 def fix_lineno(node: ast.AST, fixing_node: ast.AST | None) -> None:

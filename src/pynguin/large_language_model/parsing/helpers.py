@@ -14,7 +14,6 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcase_to_ast as tta
 import pynguin.utils.namingscope as ns
 
-
 logger = logging.getLogger(__name__)
 
 

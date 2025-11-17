@@ -27,11 +27,8 @@ import json
 import logging
 import math
 import sys
-
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import cast
-
+from typing import TYPE_CHECKING, cast
 
 try:
     import random
@@ -56,38 +53,38 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
 
-
 if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
-from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.constants import DelegatingConstantProvider
-from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.constants import RestrictedConstantPool
-from pynguin.analyses.constants import collect_static_constants
+from pynguin.analyses.constants import (
+    ConstantProvider,
+    DelegatingConstantProvider,
+    DynamicConstantProvider,
+    EmptyConstantProvider,
+    RestrictedConstantPool,
+    collect_static_constants,
+)
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
-from pynguin.instrumentation.machinery import InstrumentationFinder
-from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
-from pynguin.testcase.execution import RemoteAssertionExecutionObserver
-from pynguin.testcase.execution import SubprocessTestCaseExecutor
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import (
+    RemoteAssertionExecutionObserver,
+    SubprocessTestCaseExecutor,
+    TestCaseExecutor,
+)
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConfigurationException
-from pynguin.utils.exceptions import CoroutineFoundException
-from pynguin.utils.llm import LLM
-from pynguin.utils.llm import LLMProvider
-from pynguin.utils.llm import extract_code
-from pynguin.utils.report import get_coverage_report
-from pynguin.utils.report import render_coverage_report
-from pynguin.utils.report import render_xml_coverage_report
+from pynguin.utils.exceptions import ConfigurationException, CoroutineFoundException
+from pynguin.utils.llm import LLM, LLMProvider, extract_code
+from pynguin.utils.report import (
+    get_coverage_report,
+    render_coverage_report,
+    render_xml_coverage_report,
+)
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -10,13 +10,11 @@ ifeq ($(STRICT), 1)
 	POETRY_COMMAND_FLAG =
 	PIP_COMMAND_FLAG =
 	SECRETS_COMMAND_FLAG =
-	ISORT_COMMAND_FLAG =
 	MYPY_COMMAND_FLAG =
 else
 	POETRY_COMMAND_FLAG = -
 	PIP_COMMAND_FLAG = -
 	SECRETS_COMMAND_FLAG = -
-	ISORT_COMMAND_FLAG = -
 	MYPY_COMMAND_FLAG = -
 endif
 
@@ -36,12 +34,6 @@ ifeq ($(SECRETS_STRICT), 1)
 	SECRETS_COMMAND_FLAG =
 else ifeq ($(SECRETS_STRICT), 0)
 	SECRETS_COMMAND_FLAG = -
-endif
-
-ifeq ($(ISORT_STRICT), 1)
-	ISORT_COMMAND_FLAG =
-else ifeq ($(ISORT_STRICT), 0)
-	ISORT_COMMAND_FLAG = -
 endif
 
 ifeq ($(MYPY_STRICT), 1)
@@ -70,7 +62,6 @@ check-safety:
 
 .PHONY: check-style
 check-style:
-	$(ISORT_COMMAND_FLAG)poetry run isort --check-only .
 	$(MYPY_COMMAND_FLAG)poetry run mypy
 
 .PHONY: codestyle
@@ -89,16 +80,12 @@ mypy:
 ruff:
 	poetry run ruff check src/pynguin
 
-.PHONY: isort
-isort:
-	poetry run isort .
-
 .PHONY: ruff-format
 ruff-format:
 	poetry run ruff format .
 
 .PHONY: check
-check: isort mypy ruff ruff-format test
+check: mypy ruff ruff-format test
 
 .PHONY: lint
 lint: test check-safety check-style

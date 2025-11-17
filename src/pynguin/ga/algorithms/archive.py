@@ -10,22 +10,17 @@ from __future__ import annotations
 
 import logging
 import sys
-
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
-
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 
-
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 
 class Archive(ABC):

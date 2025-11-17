@@ -15,8 +15,8 @@ import ast
 
 from pynguin.assertion.mutation_analysis.operators.base import (
     AbstractUnaryOperatorDeletion,
+    MutationOperator,
 )
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
 
 
 class ArithmeticOperatorDeletion(AbstractUnaryOperatorDeletion):

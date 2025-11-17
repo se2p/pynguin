@@ -5,16 +5,13 @@
 #  SPDX-License-Identifier: MIT
 #
 import json
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
 import pynguin.configuration as config
 import pynguin.utils.pynguinml.ml_testing_resources as tr
-
 from pynguin.utils.exceptions import ConstraintValidationError
 
 

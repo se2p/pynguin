@@ -32,12 +32,6 @@ repos:
       - id: poetry-lock
       - id: poetry-install
 
-  - repo: https://github.com/PyCQA/isort
-    rev: 6.0.1
-    hooks:
-      - id: isort
-        args: [ --profile, black ]
-
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.4
     hooks:

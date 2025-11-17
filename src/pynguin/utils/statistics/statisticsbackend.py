@@ -11,16 +11,12 @@ from __future__ import annotations
 import csv
 import ctypes
 import logging
-
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generic
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.configuration as config
-
 
 T = TypeVar("T")
 

@@ -8,7 +8,6 @@ import string
 
 import hypothesis.strategies as st
 import pytest
-
 from hypothesis import given
 
 from pynguin.utils import randomness

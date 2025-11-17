@@ -12,9 +12,7 @@ import pytest
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-
-from pynguin.testcase.variablereference import Reference
-from pynguin.testcase.variablereference import VariableReference
+from pynguin.testcase.variablereference import Reference, VariableReference
 from pynguin.utils import namingscope as ns
 
 

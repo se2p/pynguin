@@ -7,56 +7,56 @@
 import enum
 import math
 import sys
-
 from types import NoneType
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.configuration as config
-
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import TypeInfo
+from pynguin.analyses.typesystem import ANY, TypeInfo
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearch import TestCaseLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
-from pynguin.testcase.localsearchstatement import BooleanLocalSearch
-from pynguin.testcase.localsearchstatement import BytesLocalSearch
-from pynguin.testcase.localsearchstatement import ComplexLocalSearch
-from pynguin.testcase.localsearchstatement import DictStatementLocalSearch
-from pynguin.testcase.localsearchstatement import EnumLocalSearch
-from pynguin.testcase.localsearchstatement import FieldStatementLocalSearch
-from pynguin.testcase.localsearchstatement import FloatLocalSearch
-from pynguin.testcase.localsearchstatement import IntegerLocalSearch
-from pynguin.testcase.localsearchstatement import NonDictCollectionLocalSearch
-from pynguin.testcase.localsearchstatement import ParametrizedStatementLocalSearch
-from pynguin.testcase.localsearchstatement import StringLocalSearch
-from pynguin.testcase.localsearchstatement import choose_local_search_statement
+from pynguin.testcase.localsearchstatement import (
+    BooleanLocalSearch,
+    BytesLocalSearch,
+    ComplexLocalSearch,
+    DictStatementLocalSearch,
+    EnumLocalSearch,
+    FieldStatementLocalSearch,
+    FloatLocalSearch,
+    IntegerLocalSearch,
+    NonDictCollectionLocalSearch,
+    ParametrizedStatementLocalSearch,
+    StringLocalSearch,
+    choose_local_search_statement,
+)
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
-from pynguin.testcase.statement import BooleanPrimitiveStatement
-from pynguin.testcase.statement import BytesPrimitiveStatement
-from pynguin.testcase.statement import ComplexPrimitiveStatement
-from pynguin.testcase.statement import ConstructorStatement
-from pynguin.testcase.statement import DictStatement
-from pynguin.testcase.statement import EnumPrimitiveStatement
-from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import FloatPrimitiveStatement
-from pynguin.testcase.statement import FunctionStatement
-from pynguin.testcase.statement import IntPrimitiveStatement
-from pynguin.testcase.statement import ListStatement
-from pynguin.testcase.statement import MethodStatement
-from pynguin.testcase.statement import NoneStatement
-from pynguin.testcase.statement import ParametrizedStatement
-from pynguin.testcase.statement import SetStatement
-from pynguin.testcase.statement import StringPrimitiveStatement
-from pynguin.testcase.statement import TupleStatement
-from pynguin.testcase.statement import UIntPrimitiveStatement
+from pynguin.testcase.statement import (
+    BooleanPrimitiveStatement,
+    BytesPrimitiveStatement,
+    ComplexPrimitiveStatement,
+    ConstructorStatement,
+    DictStatement,
+    EnumPrimitiveStatement,
+    FieldStatement,
+    FloatPrimitiveStatement,
+    FunctionStatement,
+    IntPrimitiveStatement,
+    ListStatement,
+    MethodStatement,
+    NoneStatement,
+    ParametrizedStatement,
+    SetStatement,
+    StringPrimitiveStatement,
+    TupleStatement,
+    UIntPrimitiveStatement,
+)
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils import randomness
 from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 from pynguin.utils.mirror import Mirror
-from pynguin.utils.report import CoverageEntry
-from pynguin.utils.report import LineAnnotation
+from pynguin.utils.report import CoverageEntry, LineAnnotation
 
 
 @pytest.fixture(autouse=True)

@@ -9,17 +9,11 @@ import inspect
 
 from pynguin.assertion.mutation_analysis.operators.inheritance import (
     HidingVariableDeletion,
-)
-from pynguin.assertion.mutation_analysis.operators.inheritance import (
     OverriddenMethodCallingPositionChange,
-)
-from pynguin.assertion.mutation_analysis.operators.inheritance import (
     OverridingMethodDeletion,
-)
-from pynguin.assertion.mutation_analysis.operators.inheritance import (
     SuperCallingDeletion,
+    SuperCallingInsert,
 )
-from pynguin.assertion.mutation_analysis.operators.inheritance import SuperCallingInsert
 from tests.testutils import assert_mutation
 
 

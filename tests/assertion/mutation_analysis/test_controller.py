@@ -10,7 +10,6 @@ import pynguin.assertion.mutation_analysis.controller as ct
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
-
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from tests.testutils import import_module_safe
 

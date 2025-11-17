@@ -9,8 +9,6 @@ import inspect
 
 from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     ArithmeticOperatorDeletion,
-)
-from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     ArithmeticOperatorReplacement,
 )
 from tests.testutils import assert_mutation

@@ -7,13 +7,11 @@
 """Tests for the caching module."""
 
 import pathlib
-
 from unittest.mock import patch
 
 import pytest
 
-from pynguin.large_language_model.caching import Cache
-from pynguin.large_language_model.caching import sanitize_key
+from pynguin.large_language_model.caching import Cache, sanitize_key
 
 
 @pytest.fixture

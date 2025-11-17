@@ -11,35 +11,30 @@
 from __future__ import annotations
 
 import opcode
-
 from dataclasses import dataclass
 from types import CodeType
 from typing import TYPE_CHECKING
 
 from bytecode.cfg import BasicBlock
-from bytecode.instr import BITFLAG2_OPCODES
-from bytecode.instr import BITFLAG_OPCODES
-from bytecode.instr import UNSET
-from bytecode.instr import Instr
-from bytecode.instr import InstrArg
+from bytecode.instr import BITFLAG2_OPCODES, BITFLAG_OPCODES, UNSET, Instr, InstrArg
 
-from pynguin.instrumentation.version import CALL_NAMES
-from pynguin.instrumentation.version import COND_BRANCH_NAMES
-from pynguin.instrumentation.version import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version import MEMORY_DEF_NAMES
-from pynguin.instrumentation.version import MEMORY_USE_NAMES
-from pynguin.instrumentation.version import RETURNING_NAMES
-from pynguin.instrumentation.version import TRACED_NAMES
-from pynguin.instrumentation.version import YIELDING_NAMES
-from pynguin.instrumentation.version import stack_effects
+from pynguin.instrumentation.version import (
+    CALL_NAMES,
+    COND_BRANCH_NAMES,
+    IMPORT_NAME_NAMES,
+    MEMORY_DEF_NAMES,
+    MEMORY_USE_NAMES,
+    RETURNING_NAMES,
+    TRACED_NAMES,
+    YIELDING_NAMES,
+    stack_effects,
+)
 from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
-
 
 if TYPE_CHECKING:
     from pynguin.instrumentation import StackEffects
     from pynguin.instrumentation.controlflow import BasicBlockNode
-    from pynguin.instrumentation.tracer import CodeObjectMetaData
-    from pynguin.instrumentation.tracer import ExecutionTrace
+    from pynguin.instrumentation.tracer import CodeObjectMetaData, ExecutionTrace
     from pynguin.slicer.executedinstruction import ExecutedInstruction
 
 

@@ -21,87 +21,83 @@ import logging
 import queue
 import types
 import typing
-
 from collections import defaultdict
 from pathlib import Path
-from types import BuiltinFunctionType
-from types import FunctionType
-from types import GenericAlias
-from types import MethodDescriptorType
-from types import ModuleType
-from types import WrapperDescriptorType
+from types import (
+    BuiltinFunctionType,
+    FunctionType,
+    GenericAlias,
+    MethodDescriptorType,
+    ModuleType,
+    WrapperDescriptorType,
+)
 from typing import Any
 
 import astroid
-
-from astroid.nodes import Assign
-from astroid.nodes import AsyncFunctionDef
-from astroid.nodes import ClassDef
-from astroid.nodes import FunctionDef
-from astroid.nodes import Lambda
-from astroid.nodes import Module
+from astroid.nodes import Assign, AsyncFunctionDef, ClassDef, FunctionDef, Lambda, Module
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
-
-from pynguin.analyses.type_inference import ANY_STR
-from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.type_inference import InferenceProvider
-from pynguin.analyses.type_inference import LLMInference
-from pynguin.analyses.type_inference import NoInference
+from pynguin.analyses.type_inference import (
+    ANY_STR,
+    HintInference,
+    InferenceProvider,
+    LLMInference,
+    NoInference,
+)
 from pynguin.utils.llm import LLMProvider
-
 
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
-from pynguin.analyses.syntaxtree import FunctionDescription
-from pynguin.analyses.syntaxtree import astroid_to_ast
-from pynguin.analyses.syntaxtree import get_class_node_from_ast
-from pynguin.analyses.syntaxtree import get_function_description
-from pynguin.analyses.syntaxtree import get_function_node_from_ast
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.analyses.typesystem import TypeVisitor
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import Unsupported
-from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.analyses.syntaxtree import (
+    FunctionDescription,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
+)
+from pynguin.analyses.typesystem import (
+    ANY,
+    AnyType,
+    Instance,
+    NoneType,
+    ProperType,
+    TupleType,
+    TypeInfo,
+    TypeSystem,
+    TypeVisitor,
+    UnionType,
+    Unsupported,
+    is_primitive_type,
+)
 from pynguin.configuration import TypeInferenceStrategy
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import ConstraintValidationError
-from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.exceptions import CoroutineFoundException
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.utils.generic.genericaccessibleobject import (
-    GenericCallableAccessibleObject,
+from pynguin.utils.exceptions import (
+    ConstraintValidationError,
+    ConstructionFailedException,
+    CoroutineFoundException,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericEnum
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
+    GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericEnum,
+    GenericFunction,
+    GenericMethod,
+)
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-from pynguin.utils.type_utils import COLLECTIONS
-from pynguin.utils.type_utils import PRIMITIVES
-from pynguin.utils.type_utils import get_class_that_defined_method
+from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, get_class_that_defined_method
 from pynguin.utils.typeevalpy_json_schema import provide_json
 
-
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
-
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 

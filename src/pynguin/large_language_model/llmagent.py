@@ -12,21 +12,19 @@ import logging
 import pathlib
 import re
 import time
-
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
 from pynguin.utils.report import LineAnnotation
 
-
 try:
     import openai
-
-    from openai.types.chat import ChatCompletionMessageParam
-    from openai.types.chat import ChatCompletionSystemMessageParam
-    from openai.types.chat import ChatCompletionUserMessageParam
+    from openai.types.chat import (
+        ChatCompletionMessageParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionUserMessageParam,
+    )
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -35,7 +33,6 @@ except ImportError:
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.analyses.module import import_module
 from pynguin.large_language_model.caching import Cache
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
@@ -53,7 +50,6 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from types import ModuleType

@@ -6,14 +6,10 @@
 """Tests for type inference module."""
 
 import operator
-
 from typing import Any
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.type_inference import LLMInference
-from pynguin.analyses.type_inference import NoInference
+from pynguin.analyses.type_inference import HintInference, LLMInference, NoInference
 from pynguin.utils.llm import LLMProvider
 
 

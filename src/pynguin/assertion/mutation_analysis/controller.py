@@ -10,20 +10,16 @@ from __future__ import annotations
 
 import ast
 import logging
-
 from typing import TYPE_CHECKING
 
 from pynguin.assertion.mutation_analysis.transformer import create_module
 
-
 if TYPE_CHECKING:
     import types
-
     from collections.abc import Generator
     from types import ModuleType
 
     import pynguin.assertion.mutation_analysis.mutators as mu
-
     from pynguin.assertion.mutation_analysis.operators.base import Mutation
 
 

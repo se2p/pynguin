@@ -11,11 +11,11 @@ import pytest
 
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
+    BreakContinueReplacement,
+    ConstantReplacement,
+    SliceIndexRemove,
+    is_docstring,
 )
-from pynguin.assertion.mutation_analysis.operators.misc import BreakContinueReplacement
-from pynguin.assertion.mutation_analysis.operators.misc import ConstantReplacement
-from pynguin.assertion.mutation_analysis.operators.misc import SliceIndexRemove
-from pynguin.assertion.mutation_analysis.operators.misc import is_docstring
 from tests.testutils import assert_mutation
 
 

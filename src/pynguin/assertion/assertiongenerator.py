@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-
 from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertion as ass
@@ -21,18 +20,14 @@ import pynguin.configuration as config
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.execution as ex
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
     import types
-
-    from collections.abc import Generator
-    from collections.abc import Iterable
+    from collections.abc import Generator, Iterable
 
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc

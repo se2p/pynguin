@@ -11,40 +11,33 @@ from __future__ import annotations
 import contextlib
 import inspect
 import logging
-
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.utils.generic.genericaccessibleobject as gao
-
-from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.string_subtypes import generate_from_regex
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import StringSubtype
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import is_collection_type
-from pynguin.analyses.typesystem import is_primitive_type
-from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import VariableCreatingStatement
+from pynguin.analyses.typesystem import (
+    ANY,
+    InferredSignature,
+    Instance,
+    NoneType,
+    ProperType,
+    StringSubtype,
+    TupleType,
+    UnionType,
+    is_collection_type,
+    is_primitive_type,
+)
+from pynguin.testcase.statement import FieldStatement, VariableCreatingStatement
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.type_utils import is_arg_or_kwarg
-from pynguin.utils.type_utils import is_optional_parameter
-
+from pynguin.utils.type_utils import is_arg_or_kwarg, is_optional_parameter
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.variablereference as vr
-
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.utils.orderedset import OrderedSet

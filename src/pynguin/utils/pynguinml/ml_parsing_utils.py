@@ -7,11 +7,9 @@
 """Provides utility functions for parsing ML-specific data."""
 
 import re
-
 from functools import cache
 
 import pynguin.configuration as config
-
 
 try:
     import numpy as np

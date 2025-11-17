@@ -18,16 +18,17 @@ import logging
 
 import astroid
 import pytest
-
 from astroid.nodes import Module
 
 from pynguin.analyses import syntaxtree
-from pynguin.analyses.syntaxtree import FunctionAnalysisVisitor
-from pynguin.analyses.syntaxtree import astroid_to_ast
-from pynguin.analyses.syntaxtree import get_class_node_from_ast
-from pynguin.analyses.syntaxtree import get_function_description
-from pynguin.analyses.syntaxtree import get_function_node_from_ast
-from pynguin.analyses.syntaxtree import has_decorator
+from pynguin.analyses.syntaxtree import (
+    FunctionAnalysisVisitor,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
+    has_decorator,
+)
 
 
 @pytest.fixture(scope="module")

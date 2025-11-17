@@ -8,16 +8,12 @@ import ast
 import importlib
 import inspect
 import sys
-
 from collections.abc import Callable
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
-from bytecode import Bytecode
-from bytecode import Instr
-from bytecode import Label
+from bytecode import Bytecode, Instr, Label
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
@@ -27,28 +23,20 @@ import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.instrumentation.controlflow import CFG
-from pynguin.instrumentation.controlflow import BasicBlockNode
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericField
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
-from tests.fixtures.accessibles.accessible import SomeType
-from tests.fixtures.accessibles.accessible import simple_function
+from pynguin.analyses.typesystem import InferredSignature, Instance, NoneType, TypeInfo, TypeSystem
+from pynguin.instrumentation.controlflow import CFG, BasicBlockNode
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
+from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericField,
+    GenericFunction,
+    GenericMethod,
+)
+from tests.fixtures.accessibles.accessible import SomeType, simple_function
 
 # -- FIXTURES --------------------------------------------------------------------------
 from tests.fixtures.linecoverage.list import ListTest

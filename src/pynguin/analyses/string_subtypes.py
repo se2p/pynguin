@@ -8,15 +8,11 @@
 
 import logging
 import re
-
-from collections.abc import Callable
-from collections.abc import Iterable
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
 
 import rstr
 
 from pynguin.utils.randomness import RNG
-
 
 _LOGGER = logging.getLogger(__name__)
 

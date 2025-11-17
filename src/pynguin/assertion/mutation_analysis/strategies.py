@@ -13,11 +13,9 @@ and integrated in Pynguin.
 from __future__ import annotations
 
 import abc
-
 from typing import TYPE_CHECKING
 
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     from collections.abc import Generator

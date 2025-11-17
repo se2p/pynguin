@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import time
-
 from unittest import mock
 
 import pytest

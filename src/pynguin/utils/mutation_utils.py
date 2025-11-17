@@ -8,13 +8,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import pynguin.configuration as config
-
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

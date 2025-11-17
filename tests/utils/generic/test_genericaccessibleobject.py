@@ -7,14 +7,14 @@
 from types import ClassMethodDescriptorType
 from unittest.mock import MagicMock
 
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericField
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.analyses.typesystem import InferredSignature, ProperType, TypeInfo
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
+    GenericConstructor,
+    GenericField,
+    GenericFunction,
+    GenericMethod,
+)
 from pynguin.utils.orderedset import OrderedSet
 from tests.fixtures.accessibles.accessible import SomeType
 

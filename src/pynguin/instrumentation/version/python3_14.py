@@ -13,52 +13,47 @@
 from __future__ import annotations
 
 from opcode import opname
-from typing import TYPE_CHECKING
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import StackEffects, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import transformer
-from pynguin.instrumentation.version import python3_10
-from pynguin.instrumentation.version import python3_11
-from pynguin.instrumentation.version import python3_12
-from pynguin.instrumentation.version import python3_13
+from pynguin.instrumentation.version import python3_10, python3_11, python3_12, python3_13
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
+    InstrumentationArgument,
+    InstrumentationFastLoadTuple,
+    after,
 )
-from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
-from pynguin.instrumentation.version.common import after
 
 # In Python 3.14 "LOAD_CONST None; RETURN_VALUE" is used again instead of "RETURN_CONST None"
 from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
-from pynguin.instrumentation.version.python3_13 import ACCESS_NAMES
-from pynguin.instrumentation.version.python3_13 import CALL_NAMES
-from pynguin.instrumentation.version.python3_13 import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version.python3_13 import COND_BRANCH_NAMES
-from pynguin.instrumentation.version.python3_13 import IMPORT_FROM_NAMES
-from pynguin.instrumentation.version.python3_13 import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version.python3_13 import LOAD_DEREF_NAMES
-from pynguin.instrumentation.version.python3_13 import LOAD_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_13 import LOAD_NAME_NAMES
-from pynguin.instrumentation.version.python3_13 import MEMORY_DEF_NAMES
-from pynguin.instrumentation.version.python3_13 import MODIFY_DEREF_NAMES
-from pynguin.instrumentation.version.python3_13 import MODIFY_FAST_NAMES
-from pynguin.instrumentation.version.python3_13 import MODIFY_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_13 import MODIFY_NAME_NAMES
-from pynguin.instrumentation.version.python3_13 import OPERATION_NAMES
-from pynguin.instrumentation.version.python3_13 import RETURN_NONE_SIZE
-from pynguin.instrumentation.version.python3_13 import RETURNING_NAMES
-from pynguin.instrumentation.version.python3_13 import STORE_NAME_NAMES
-from pynguin.instrumentation.version.python3_13 import STORE_NAMES
-from pynguin.instrumentation.version.python3_13 import YIELDING_NAMES
-from pynguin.instrumentation.version.python3_13 import add_for_loop_no_yield_nodes
-from pynguin.instrumentation.version.python3_13 import is_conditional_jump
-
+from pynguin.instrumentation.version.python3_13 import (
+    ACCESS_NAMES,
+    CALL_NAMES,
+    CLOSURE_LOAD_NAMES,
+    COND_BRANCH_NAMES,
+    IMPORT_FROM_NAMES,
+    IMPORT_NAME_NAMES,
+    LOAD_DEREF_NAMES,
+    LOAD_GLOBAL_NAMES,
+    LOAD_NAME_NAMES,
+    MEMORY_DEF_NAMES,
+    MODIFY_DEREF_NAMES,
+    MODIFY_FAST_NAMES,
+    MODIFY_GLOBAL_NAMES,
+    MODIFY_NAME_NAMES,
+    OPERATION_NAMES,
+    RETURN_NONE_SIZE,
+    RETURNING_NAMES,
+    STORE_NAME_NAMES,
+    STORE_NAMES,
+    YIELDING_NAMES,
+    add_for_loop_no_yield_nodes,
+    is_conditional_jump,
+)
 
 if TYPE_CHECKING:
-    from bytecode.instr import _UNSET
-    from bytecode.instr import Instr
+    from bytecode.instr import _UNSET, Instr
 
 
 __all__ = [

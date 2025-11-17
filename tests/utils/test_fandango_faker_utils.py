@@ -11,7 +11,6 @@ import pytest
 
 from pynguin.utils.fandango_faker_utils import load_fandango_grammars
 
-
 faker_installed = importlib.util.find_spec("faker")
 fandango_installed = importlib.util.find_spec("fandango")
 

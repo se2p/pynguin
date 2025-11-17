@@ -13,9 +13,7 @@ and integrated in Pynguin.
 import ast
 import typing
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.operators.base import copy_node
-
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
 
 T = typing.TypeVar("T", ast.For, ast.While)
 

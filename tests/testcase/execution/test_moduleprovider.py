@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import sys
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,7 +13,6 @@ import pynguin.testcase.execution as ex
 
 # Needs to be loaded to be in sys.modules
 import tests.fixtures.examples.module_alias  # noqa: F401
-
 from tests.fixtures.examples import simple
 
 

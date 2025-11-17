@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

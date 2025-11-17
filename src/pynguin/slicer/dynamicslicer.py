@@ -14,42 +14,42 @@ from __future__ import annotations
 import logging
 import operator
 import time
-
-from dataclasses import dataclass
-from dataclasses import field
-from typing import TYPE_CHECKING
-from typing import TypeVar
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, TypeVar
 
 import pynguin.configuration as config
-
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.controlflow import BasicBlockNode
-from pynguin.instrumentation.version import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version import IMPORT_FROM_NAMES
-from pynguin.instrumentation.version import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version import LOAD_DEREF_NAMES
-from pynguin.instrumentation.version import LOAD_FAST_NAMES
-from pynguin.instrumentation.version import LOAD_GLOBAL_NAMES
-from pynguin.instrumentation.version import LOAD_NAME_NAMES
-from pynguin.instrumentation.version import MODIFY_DEREF_NAMES
-from pynguin.instrumentation.version import MODIFY_FAST_NAMES
-from pynguin.instrumentation.version import MODIFY_GLOBAL_NAMES
-from pynguin.instrumentation.version import MODIFY_NAME_NAMES
-from pynguin.slicer.executedinstruction import ExecutedAttributeInstruction
-from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
-from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder
-from pynguin.slicer.executionflowbuilder import UniqueInstruction
+from pynguin.instrumentation.version import (
+    CLOSURE_LOAD_NAMES,
+    IMPORT_FROM_NAMES,
+    IMPORT_NAME_NAMES,
+    LOAD_DEREF_NAMES,
+    LOAD_FAST_NAMES,
+    LOAD_GLOBAL_NAMES,
+    LOAD_NAME_NAMES,
+    MODIFY_DEREF_NAMES,
+    MODIFY_FAST_NAMES,
+    MODIFY_GLOBAL_NAMES,
+    MODIFY_NAME_NAMES,
+)
+from pynguin.slicer.executedinstruction import (
+    ExecutedAttributeInstruction,
+    ExecutedMemoryInstruction,
+)
+from pynguin.slicer.executionflowbuilder import ExecutionFlowBuilder, UniqueInstruction
 from pynguin.slicer.stack.stacksimulation import TraceStack
 from pynguin.utils.exceptions import SlicingTimeoutException
-
 
 if TYPE_CHECKING:
     from bytecode.instr import _UNSET
 
-    from pynguin.instrumentation.tracer import CodeObjectMetaData
-    from pynguin.instrumentation.tracer import ExecutedAssertion
-    from pynguin.instrumentation.tracer import ExecutionTrace
-    from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.instrumentation.tracer import (
+        CodeObjectMetaData,
+        ExecutedAssertion,
+        ExecutionTrace,
+        SubjectProperties,
+    )
     from pynguin.slicer.executedinstruction import ExecutedInstruction
     from pynguin.slicer.executionflowbuilder import InstrState
 

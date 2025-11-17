@@ -8,17 +8,14 @@
 
 import datetime
 import logging
-
 from collections.abc import Iterable
 from pathlib import Path
 
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.analyses.module import TestCluster
-from pynguin.ga.computations import CoverageFunction
-from pynguin.ga.computations import FitnessFunction
+from pynguin.ga.computations import CoverageFunction, FitnessFunction
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
@@ -26,7 +23,6 @@ from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 _logger = logging.getLogger(__name__)
 

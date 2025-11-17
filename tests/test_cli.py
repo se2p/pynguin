@@ -9,21 +9,20 @@ import importlib
 import logging
 import os
 import re
-
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 
 import pynguin.configuration as config
-
-from pynguin.cli import _DANGER_ENV  # noqa: PLC2701
-from pynguin.cli import _create_argument_parser  # noqa: PLC2701
-from pynguin.cli import _expand_arguments_if_necessary  # noqa: PLC2701
-from pynguin.cli import _setup_logging  # noqa: PLC2701
-from pynguin.cli import main
+from pynguin.cli import (
+    _DANGER_ENV,  # noqa: PLC2701
+    _create_argument_parser,  # noqa: PLC2701
+    _expand_arguments_if_necessary,  # noqa: PLC2701
+    _setup_logging,  # noqa: PLC2701
+    main,
+)
 from pynguin.generator import ReturnCode
 
 

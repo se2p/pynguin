@@ -13,21 +13,16 @@ and integrated in Pynguin.
 from __future__ import annotations
 
 import abc
-
 from typing import TYPE_CHECKING
 
-from pynguin.assertion.mutation_analysis.strategies import FirstToLastHOMStrategy
-from pynguin.assertion.mutation_analysis.strategies import HOMStrategy
-
+from pynguin.assertion.mutation_analysis.strategies import FirstToLastHOMStrategy, HOMStrategy
 
 if TYPE_CHECKING:
     import ast
     import types
-
     from collections.abc import Generator
 
-    from pynguin.assertion.mutation_analysis.operators.base import Mutation
-    from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+    from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
 
 
 class Mutator(abc.ABC):

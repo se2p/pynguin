@@ -15,24 +15,19 @@ from __future__ import annotations
 import logging
 import os
 import sys
-
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import simple_parsing
-
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.traceback import install
 
 import pynguin.configuration as config
-
 from pynguin.__version__ import __version__
-from pynguin.generator import run_pynguin
-from pynguin.generator import set_configuration
+from pynguin.generator import run_pynguin, set_configuration
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
-
 
 if TYPE_CHECKING:
     import argparse

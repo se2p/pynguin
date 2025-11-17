@@ -6,21 +6,21 @@
 #
 import logging
 import os
-
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.configuration import StatisticsBackend
-from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TOML
-from pynguin.utils.configuration_writer import PYNGUIN_CONFIG_TXT
-from pynguin.utils.configuration_writer import convert_config_to_dict
-from pynguin.utils.configuration_writer import extract_parameter_list_from_config
-from pynguin.utils.configuration_writer import read_config_from_dict
-from pynguin.utils.configuration_writer import write_configuration
+from pynguin.utils.configuration_writer import (
+    PYNGUIN_CONFIG_TOML,
+    PYNGUIN_CONFIG_TXT,
+    convert_config_to_dict,
+    extract_parameter_list_from_config,
+    read_config_from_dict,
+    write_configuration,
+)
 
 
 @pytest.fixture

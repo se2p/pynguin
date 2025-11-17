@@ -13,16 +13,12 @@ from typing import TYPE_CHECKING
 
 import pynguin.ga.computations as ff
 import pynguin.utils.controlflowdistance as cfd
-
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     import pynguin.ga.testcasechromosome as tcc
-
     from pynguin.instrumentation.tracer import SubjectProperties
-    from pynguin.testcase.execution import AbstractTestCaseExecutor
-    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
 
 
 class AbstractCoverageGoal:

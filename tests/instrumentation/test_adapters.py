@@ -9,29 +9,28 @@ import importlib
 import os
 import string
 import sys
-
 from opcode import opmap
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 
-from pynguin.analyses.constants import ConstantPool
-from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import ConstantPool, DynamicConstantProvider, EmptyConstantProvider
 from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer, SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
-from pynguin.instrumentation.version import BranchCoverageInstrumentation
-from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.instrumentation.version import DynamicSeedingInstrumentation
-from pynguin.instrumentation.version import LineCoverageInstrumentation
-from pynguin.slicer.executedinstruction import ExecutedControlInstruction
-from pynguin.slicer.executedinstruction import ExecutedInstruction
-from pynguin.slicer.executedinstruction import ExecutedMemoryInstruction
-from pynguin.slicer.executedinstruction import ExecutedReturnInstruction
+from pynguin.instrumentation.version import (
+    BranchCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
+    DynamicSeedingInstrumentation,
+    LineCoverageInstrumentation,
+)
+from pynguin.slicer.executedinstruction import (
+    ExecutedControlInstruction,
+    ExecutedInstruction,
+    ExecutedMemoryInstruction,
+    ExecutedReturnInstruction,
+)
 from pynguin.utils.orderedset import OrderedSet
 from tests.testutils import instrument_function
 

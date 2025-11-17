@@ -10,19 +10,14 @@ from __future__ import annotations
 
 import logging
 import time
-
 from abc import abstractmethod
 from statistics import mean
-from typing import TYPE_CHECKING
-from typing import Generic
-from typing import TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -32,7 +27,6 @@ if TYPE_CHECKING:
     import pynguin.ga.coveragegoals as bg
     import pynguin.ga.searchobserver as so
     import pynguin.testcase.testfactory as tf
-
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking import RankingFunction

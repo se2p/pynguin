@@ -10,15 +10,12 @@ from __future__ import annotations
 
 import logging
 import re
-
 from dataclasses import dataclass
 from typing import Any
 
 import pynguin.configuration as config
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
-
 from pynguin.utils.exceptions import ConstraintValidationError
-
 
 COMMON_NUMPY_DTYPES = [
     "int32",

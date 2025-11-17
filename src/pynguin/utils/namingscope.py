@@ -9,26 +9,25 @@
 from __future__ import annotations
 
 import typing
-
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Any
 
 from pynguin.analyses.typesystem import TypeVisitor
 
-
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
 
     import pynguin.testcase.variablereference as vr
-
-    from pynguin.analyses.typesystem import AnyType
-    from pynguin.analyses.typesystem import Instance
-    from pynguin.analyses.typesystem import NoneType
-    from pynguin.analyses.typesystem import ProperType
-    from pynguin.analyses.typesystem import TupleType
-    from pynguin.analyses.typesystem import UnionType
-    from pynguin.analyses.typesystem import Unsupported
+    from pynguin.analyses.typesystem import (
+        AnyType,
+        Instance,
+        NoneType,
+        ProperType,
+        TupleType,
+        UnionType,
+        Unsupported,
+    )
 
 
 class AbstractNamingScope:

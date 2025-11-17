@@ -8,13 +8,10 @@
 
 from abc import abstractmethod
 from math import floor
-from typing import Generic
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
-
 from pynguin.utils import randomness
-
 
 T = TypeVar("T", bound=chrom.Chromosome)
 

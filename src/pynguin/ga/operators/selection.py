@@ -10,14 +10,11 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from math import sqrt
-from typing import Generic
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-
 from pynguin.utils import randomness
-
 
 T = TypeVar("T", bound=chrom.Chromosome)
 

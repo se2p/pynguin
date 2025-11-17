@@ -10,7 +10,6 @@ import pytest
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
-
 from pynguin.ga.chromosome import Chromosome
 
 

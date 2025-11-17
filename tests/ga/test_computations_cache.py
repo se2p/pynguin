@@ -15,10 +15,8 @@ import pytest
 
 import pynguin.ga.computations as ff
 
-
 if TYPE_CHECKING:
-    from pynguin.ga.computations import CoverageFunction
-    from pynguin.ga.computations import FitnessFunction
+    from pynguin.ga.computations import CoverageFunction, FitnessFunction
 
 
 @pytest.fixture

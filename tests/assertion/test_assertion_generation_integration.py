@@ -20,7 +20,6 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
-
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer

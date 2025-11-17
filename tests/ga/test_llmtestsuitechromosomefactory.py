@@ -9,7 +9,6 @@ from unittest import mock
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.ga.chromosomefactory import ChromosomeFactory
 from pynguin.ga.llmtestsuitechromosomefactory import LLMTestSuiteChromosomeFactory
 from pynguin.ga.testcasechromosome import TestCaseChromosome

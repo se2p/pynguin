@@ -16,12 +16,10 @@ https://github.com/microsoft/codamosa
 
 import ast
 import copy
-
 from collections.abc import Callable
 from typing import Any
 
 import pynguin.testcase.variablereference as vr
-
 from pynguin.utils import randomness
 
 

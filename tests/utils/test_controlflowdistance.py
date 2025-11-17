@@ -10,19 +10,15 @@
 #  SPDX-License-Identifier: MIT
 #
 import math
-
 from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
 import pytest
-
 from hypothesis import given
 
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.utils.controlflowdistance import ControlFlowDistance
-from pynguin.utils.controlflowdistance import get_root_control_flow_distance
+from pynguin.utils.controlflowdistance import ControlFlowDistance, get_root_control_flow_distance
 
 
 @pytest.fixture(scope="module")

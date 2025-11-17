@@ -8,14 +8,11 @@
 
 from __future__ import annotations
 
-from typing import Generic
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
-
 from pynguin.utils.orderedset import OrderedSet
-
 
 C = TypeVar("C", bound=chrom.Chromosome)
 

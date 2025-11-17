@@ -12,9 +12,11 @@ import pytest
 from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
     UncoveredTargetsPrompt,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
 
 
 @pytest.fixture

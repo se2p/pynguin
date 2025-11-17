@@ -13,7 +13,6 @@ import pytest
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-
 from pynguin.testcase.statement import DictStatement
 
 

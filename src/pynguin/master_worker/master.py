@@ -15,11 +15,7 @@ import multiprocess as mp
 import multiprocess.connection as mp_conn
 
 from pynguin import config
-from pynguin.master_worker.worker import WorkerResult
-from pynguin.master_worker.worker import WorkerReturnCode
-from pynguin.master_worker.worker import WorkerTask
-from pynguin.master_worker.worker import worker_main
-
+from pynguin.master_worker.worker import WorkerResult, WorkerReturnCode, WorkerTask, worker_main
 
 _LOGGER = logging.getLogger(__name__)
 

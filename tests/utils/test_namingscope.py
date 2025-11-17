@@ -4,8 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from collections.abc import Callable
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Union
 from unittest.mock import MagicMock
 

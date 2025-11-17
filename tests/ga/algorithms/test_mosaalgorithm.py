@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.ga.chromosomefactory as cf
-
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.operators.crossover import CrossOverFunction
 from pynguin.ga.operators.ranking import RankingFunction

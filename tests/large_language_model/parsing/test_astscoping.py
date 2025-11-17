@@ -7,23 +7,19 @@
 """Tests for the astscoping module."""
 
 import ast
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.testcase.variablereference as vr
 
 # We're testing a private function directly, which is acceptable in test code
-from pynguin.large_language_model.parsing.astscoping import FreeVariableOperator
-from pynguin.large_language_model.parsing.astscoping import VariableRefAST
-from pynguin.large_language_model.parsing.astscoping import VariableReferenceVisitor
 from pynguin.large_language_model.parsing.astscoping import (
+    FreeVariableOperator,
+    VariableRefAST,
+    VariableReferenceVisitor,
     copy_and_operate_on_variable_references,
-)
-from pynguin.large_language_model.parsing.astscoping import operate_on_free_variables
-from pynguin.large_language_model.parsing.astscoping import (
+    operate_on_free_variables,
     operate_on_variable_references,
 )
 

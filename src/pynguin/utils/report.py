@@ -17,7 +17,6 @@ import typing
 import xml.etree.ElementTree as ET  # noqa: S405
 
 import pygments
-
 from jinja2 import Template
 from pygments.formatters.html import HtmlFormatter
 from pygments.lexers.python import PythonLexer
@@ -25,15 +24,12 @@ from pygments.lexers.python import PythonLexer
 import pynguin.__version__ as ver
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
-
 from pynguin.utils.orderedset import OrderedSet
-
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
 
     import pynguin.ga.testsuitechromosome as tsc
-
     from pynguin.instrumentation.tracer import SubjectProperties
 
 

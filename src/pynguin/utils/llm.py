@@ -15,20 +15,20 @@ import os
 import re
 import typing
 
-
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
 
 
 try:
     import openai
-
-    from openai.types.chat import ChatCompletionAssistantMessageParam
-    from openai.types.chat import ChatCompletionDeveloperMessageParam
-    from openai.types.chat import ChatCompletionFunctionMessageParam
-    from openai.types.chat import ChatCompletionSystemMessageParam
-    from openai.types.chat import ChatCompletionToolMessageParam
-    from openai.types.chat import ChatCompletionUserMessageParam
+    from openai.types.chat import (
+        ChatCompletionAssistantMessageParam,
+        ChatCompletionDeveloperMessageParam,
+        ChatCompletionFunctionMessageParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionToolMessageParam,
+        ChatCompletionUserMessageParam,
+    )
     from pydantic import SecretStr
 
     OPENAI_AVAILABLE = True

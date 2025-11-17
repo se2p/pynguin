@@ -14,7 +14,6 @@ import logging
 import os
 import string
 import typing
-
 from abc import ABC
 from pathlib import Path
 from pkgutil import iter_modules
@@ -27,11 +26,9 @@ from pynguin.utils.orderedset import OrderedSet
 # Used for type hinting and for restricting stored types
 from pynguin.utils.typetracing import unwrap
 
-
 if typing.TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Any
-    from typing import ClassVar
+    from typing import Any, ClassVar
 
 
 ConstantTypes = float | int | str | bytes | complex

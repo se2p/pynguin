@@ -7,21 +7,20 @@
 
 import dis
 import sys
-
 from itertools import starmap
 from unittest.mock import MagicMock
 
 import pytest
-
 from bytecode import Bytecode
 
 from pynguin.instrumentation.version import stack_effects
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import InstrumentationStackValue
-from pynguin.instrumentation.version.common import before
-
+from pynguin.instrumentation.version.common import (
+    InstrumentationConstantLoad,
+    InstrumentationMethodCall,
+    InstrumentationSetupAction,
+    InstrumentationStackValue,
+    before,
+)
 
 if sys.version_info >= (3, 14):
     from pynguin.instrumentation.version.python3_14 import (

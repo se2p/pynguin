@@ -6,10 +6,8 @@
 #
 import ast
 import importlib
-
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -18,18 +16,14 @@ import pynguin.ga.postprocess as pp
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.assertion.assertion import ExceptionAssertion
-from pynguin.ga.computations import TestSuiteBranchCoverageFunction
-from pynguin.ga.computations import TestSuiteLineCoverageFunction
+from pynguin.ga.computations import TestSuiteBranchCoverageFunction, TestSuiteLineCoverageFunction
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
-from pynguin.testcase.execution import SubprocessTestCaseExecutor
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import SubprocessTestCaseExecutor, TestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from pynguin.utils.orderedset import OrderedSet
 

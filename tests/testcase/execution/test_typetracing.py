@@ -5,23 +5,21 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
-
-from typing import TYPE_CHECKING
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import NoneType, UnionType
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ReturnTypeObserver
-from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.testcase.execution import TypeTracingObserver
-from pynguin.testcase.execution import TypeTracingTestCaseExecutor
-
+from pynguin.testcase.execution import (
+    ReturnTypeObserver,
+    TestCaseExecutor,
+    TypeTracingObserver,
+    TypeTracingTestCaseExecutor,
+)
 
 if TYPE_CHECKING:
     from pynguin.utils.generic.genericaccessibleobject import (

@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import runpy
-
 from unittest import mock
 
 import pytest

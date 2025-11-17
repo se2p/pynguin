@@ -6,8 +6,7 @@
 #
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,14 +15,13 @@ import pynguin.large_language_model.helpers.testcasereferencecopier as trc
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.assertion.llmassertiongenerator import LLMAssertionGenerator
 from pynguin.assertion.llmassertiongenerator import (
+    LLMAssertionGenerator,
     MutationAnalysisLLMAssertionGenerator,
+    extract_assertions,
+    indent_assertions,
 )
-from pynguin.assertion.llmassertiongenerator import extract_assertions
-from pynguin.assertion.llmassertiongenerator import indent_assertions
 from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent

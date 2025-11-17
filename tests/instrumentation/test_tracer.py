@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import threading
-
 from decimal import Decimal
 from math import inf
 from unittest.mock import MagicMock
@@ -13,14 +12,15 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.utils.typetracing as tt
-
 from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation.tracer import CodeObjectMetaData
-from pynguin.instrumentation.tracer import ExecutionTracer
-from pynguin.instrumentation.tracer import LineMetaData
-from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.instrumentation.tracer import _le  # noqa: PLC2701
-from pynguin.instrumentation.tracer import _lt  # noqa: PLC2701
+from pynguin.instrumentation.tracer import (
+    CodeObjectMetaData,
+    ExecutionTracer,
+    LineMetaData,
+    SubjectProperties,
+    _le,  # noqa: PLC2701
+    _lt,  # noqa: PLC2701
+)
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 

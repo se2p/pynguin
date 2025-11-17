@@ -13,7 +13,6 @@ import multiprocessing.connection as mp_conn
 import os
 import signal
 import unittest.mock
-
 from typing import Any
 from unittest.mock import patch
 
@@ -22,14 +21,11 @@ import pytest
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.typesystem import InferredSignature, NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ModuleProvider
-from pynguin.testcase.execution import SubprocessTestCaseExecutor
+from pynguin.testcase.execution import ModuleProvider, SubprocessTestCaseExecutor
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from tests.fixtures.crash.seg_fault import cause_segmentation_fault
 

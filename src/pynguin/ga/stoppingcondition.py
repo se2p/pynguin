@@ -16,31 +16,25 @@ from __future__ import annotations
 import logging
 import threading
 import time
-
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 import psutil
 
 import pynguin.ga.searchobserver as so
-
-from pynguin.testcase.execution import ExecutionContext
-from pynguin.testcase.execution import ExecutionObserver
-from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import RemoteExecutionObserver
-
+from pynguin.testcase.execution import (
+    ExecutionContext,
+    ExecutionObserver,
+    ExecutionResult,
+    RemoteExecutionObserver,
+)
 
 if TYPE_CHECKING:
     import ast
 
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
-
-    from pynguin.testcase.execution import ExecutionContext
-    from pynguin.testcase.execution import ExecutionResult
-    from pynguin.testcase.execution import TestCaseExecutor
+    from pynguin.testcase.execution import ExecutionContext, ExecutionResult, TestCaseExecutor
     from pynguin.testcase.statement import Statement
     from pynguin.testcase.testcase import TestCase
 

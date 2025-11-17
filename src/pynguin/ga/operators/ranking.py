@@ -10,22 +10,15 @@ from __future__ import annotations
 
 import logging
 import sys
-
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from typing import Generic
-from typing import TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-
-from pynguin.ga.operators.comparator import DominanceComparator
-from pynguin.ga.operators.comparator import PreferenceSortingComparator
+from pynguin.ga.operators.comparator import DominanceComparator, PreferenceSortingComparator
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff

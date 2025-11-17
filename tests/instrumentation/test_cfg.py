@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import sys
-
 from opcode import opmap
 from unittest.mock import MagicMock
 
@@ -13,9 +12,7 @@ from bytecode import Bytecode
 from bytecode.cfg import BasicBlock
 from bytecode.instr import Instr
 
-from pynguin.instrumentation.controlflow import CFG
-from pynguin.instrumentation.controlflow import ArtificialNode
-from pynguin.instrumentation.controlflow import BasicBlockNode
+from pynguin.instrumentation.controlflow import CFG, ArtificialNode, BasicBlockNode
 from pynguin.instrumentation.version import add_for_loop_no_yield_nodes
 from tests.fixtures.programgraph.whileloop import Foo
 from tests.fixtures.programgraph.yield_fun import yield_fun

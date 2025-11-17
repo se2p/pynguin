@@ -16,49 +16,44 @@ from itertools import chain
 from opcode import opname
 from typing import ClassVar
 
-from bytecode.instr import _UNSET
-from bytecode.instr import UNSET
-from bytecode.instr import BinaryOp
-from bytecode.instr import Instr
+from bytecode.instr import _UNSET, UNSET, BinaryOp, Instr
 
-from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
-from pynguin.instrumentation import transformer
 from pynguin.instrumentation.version import python3_10
-from pynguin.instrumentation.version.common import COMPARE_OP_POS
-from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (
+    COMPARE_OP_POS,
+    JUMP_OP_POS,
     CheckedCoverageInstrumentationVisitorMethod,
+    InstrumentationArgument,
+    InstrumentationConstantLoad,
+    InstrumentationGlobalLoad,
+    InstrumentationMethodCall,
+    InstrumentationSetupAction,
+    InstrumentationStackValue,
+    before,
 )
-from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import InstrumentationStackValue
-from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.python3_10 import ACCESS_NAMES
-from pynguin.instrumentation.version.python3_10 import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version.python3_10 import IMPORT_FROM_NAMES
-from pynguin.instrumentation.version.python3_10 import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version.python3_10 import LOAD_DEREF_NAMES
-from pynguin.instrumentation.version.python3_10 import LOAD_FAST_NAMES
-from pynguin.instrumentation.version.python3_10 import LOAD_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_10 import LOAD_NAME_NAMES
-from pynguin.instrumentation.version.python3_10 import MODIFY_DEREF_NAMES
-from pynguin.instrumentation.version.python3_10 import MODIFY_FAST_NAMES
-from pynguin.instrumentation.version.python3_10 import MODIFY_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_10 import MODIFY_NAME_NAMES
-from pynguin.instrumentation.version.python3_10 import RETURN_NONE_SIZE
-from pynguin.instrumentation.version.python3_10 import RETURNING_NAMES
-from pynguin.instrumentation.version.python3_10 import STORE_NAME_NAMES
-from pynguin.instrumentation.version.python3_10 import STORE_NAMES
-from pynguin.instrumentation.version.python3_10 import add_for_loop_no_yield_nodes
-from pynguin.instrumentation.version.python3_10 import end_with_explicit_return_none
-from pynguin.instrumentation.version.python3_10 import is_conditional_jump
-
+from pynguin.instrumentation.version.python3_10 import (
+    ACCESS_NAMES,
+    CLOSURE_LOAD_NAMES,
+    IMPORT_FROM_NAMES,
+    IMPORT_NAME_NAMES,
+    LOAD_DEREF_NAMES,
+    LOAD_FAST_NAMES,
+    LOAD_GLOBAL_NAMES,
+    LOAD_NAME_NAMES,
+    MODIFY_DEREF_NAMES,
+    MODIFY_FAST_NAMES,
+    MODIFY_GLOBAL_NAMES,
+    MODIFY_NAME_NAMES,
+    RETURN_NONE_SIZE,
+    RETURNING_NAMES,
+    STORE_NAME_NAMES,
+    STORE_NAMES,
+    add_for_loop_no_yield_nodes,
+    end_with_explicit_return_none,
+    is_conditional_jump,
+)
 
 __all__ = [
     "ACCESS_NAMES",

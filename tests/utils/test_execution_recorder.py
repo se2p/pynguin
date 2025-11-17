@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
-
 from pynguin.utils.execution_recorder import ExecutionRecorder
 
 

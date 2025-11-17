@@ -10,17 +10,13 @@ from __future__ import annotations
 import enum
 import logging
 import time
-
 from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
-    from pynguin.ga.computations import CoverageFunction
-    from pynguin.ga.computations import FitnessFunction
+    from pynguin.ga.computations import CoverageFunction, FitnessFunction
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 

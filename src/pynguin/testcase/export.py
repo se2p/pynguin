@@ -10,13 +10,11 @@ import ast
 import dataclasses
 import logging
 import sys
-
 from pathlib import Path
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
-
 
 _LOGGER = logging.getLogger(__name__)
 

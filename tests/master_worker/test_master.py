@@ -10,12 +10,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.master_worker.master import MasterProcess
-from pynguin.master_worker.master import RunningTask
-from pynguin.master_worker.worker import WorkerReturnCode
-from pynguin.master_worker.worker import WorkerTask
-from tests.master_worker.test_worker import sample_config  # noqa: F401
-from tests.master_worker.test_worker import worker_task  # noqa: F401
+from pynguin.master_worker.master import MasterProcess, RunningTask
+from pynguin.master_worker.worker import WorkerReturnCode, WorkerTask
+from tests.master_worker.test_worker import (
+    sample_config,  # noqa: F401
+    worker_task,  # noqa: F401
+)
 
 
 @pytest.fixture

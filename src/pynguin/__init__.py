@@ -9,15 +9,15 @@
 import copyreg
 import logging
 import threading
-
 from collections.abc import Callable
 
-from bytecode.instr import _UNSET  # noqa: PLC2701
-from bytecode.instr import InstrLocation
+from bytecode.instr import (
+    _UNSET,  # noqa: PLC2701
+    InstrLocation,
+)
 
 import pynguin.configuration as config
 import pynguin.generator as gen
-
 
 set_configuration = gen.set_configuration
 run_pynguin = gen.run_pynguin

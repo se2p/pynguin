@@ -11,7 +11,6 @@ from __future__ import annotations
 import abc
 import logging
 import math
-
 from abc import ABC
 from typing import TYPE_CHECKING
 
@@ -20,16 +19,12 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
-
-from pynguin.assertion.assertion import Assertion
-from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.assertion.assertion import Assertion, ExceptionAssertion
 from pynguin.testcase.statement import StatementVisitor
 from pynguin.utils.orderedset import OrderedSet
 
-
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
-
     from pynguin.testcase.execution import SubprocessTestCaseExecutor
 
 _LOGGER = logging.getLogger(__name__)

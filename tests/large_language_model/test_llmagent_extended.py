@@ -7,24 +7,21 @@
 """Extended tests for the LLMAgent module."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
-from unittest.mock import Mock
-from unittest.mock import mock_open
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
 
 import pynguin.configuration as config
-
-from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import get_module_source_code
-from pynguin.large_language_model.llmagent import get_part_of_source_code
-from pynguin.large_language_model.llmagent import save_prompt_info_to_file
-from pynguin.large_language_model.llmagent import set_api_key
-from pynguin.large_language_model.llmagent import shorten_line_annotations
+from pynguin.large_language_model.llmagent import (
+    LLMAgent,
+    get_module_source_code,
+    get_part_of_source_code,
+    save_prompt_info_to_file,
+    set_api_key,
+    shorten_line_annotations,
+)
 from pynguin.large_language_model.prompts.prompt import Prompt
-from pynguin.utils.report import CoverageEntry
-from pynguin.utils.report import LineAnnotation
+from pynguin.utils.report import CoverageEntry, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

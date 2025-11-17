@@ -13,49 +13,38 @@
 from __future__ import annotations
 
 import logging
-
 from opcode import opname
 from opcode import stack_effect as opcode_stack_effect
-from typing import TYPE_CHECKING
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from bytecode.cfg import BasicBlock
-from bytecode.instr import _UNSET
-from bytecode.instr import UNSET
-from bytecode.instr import Compare
-from bytecode.instr import Instr
-from bytecode.instr import Label
+from bytecode.instr import _UNSET, UNSET, Compare, Instr, Label
 
 from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.instrumentation import AST_FILENAME
-from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import AST_FILENAME, PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
-from pynguin.instrumentation import transformer
-from pynguin.instrumentation.version.common import COMPARE_OP_POS
-from pynguin.instrumentation.version.common import JUMP_OP_POS
 from pynguin.instrumentation.version.common import (
+    COMPARE_OP_POS,
+    JUMP_OP_POS,
     CheckedCoverageInstrumentationVisitorMethod,
+    ExtractComparisonFunction,
+    InstrumentationArgument,
+    InstrumentationClassDeref,
+    InstrumentationConstantLoad,
+    InstrumentationDeref,
+    InstrumentationFastLoad,
+    InstrumentationFastLoadTuple,
+    InstrumentationGlobalLoad,
+    InstrumentationInstructionsGenerator,
+    InstrumentationMethodCall,
+    InstrumentationNameLoad,
+    InstrumentationSetupAction,
+    InstrumentationStackValue,
+    after,
+    before,
+    extract_name,
+    override,
 )
-from pynguin.instrumentation.version.common import ExtractComparisonFunction
-from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationClassDeref
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationDeref
-from pynguin.instrumentation.version.common import InstrumentationFastLoad
-from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
-from pynguin.instrumentation.version.common import InstrumentationGlobalLoad
-from pynguin.instrumentation.version.common import InstrumentationInstructionsGenerator
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationNameLoad
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import InstrumentationStackValue
-from pynguin.instrumentation.version.common import after
-from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.common import extract_name
-from pynguin.instrumentation.version.common import override
-
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

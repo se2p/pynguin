@@ -6,7 +6,6 @@
 #
 import ast
 import inspect
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,11 +14,12 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-
 from pynguin.analyses.typesystem import InferredSignature
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
 from pynguin.utils.namingscope import NamingScope
 
 

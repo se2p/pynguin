@@ -10,9 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import pynguin.configuration as config
-
-from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
-from pynguin.ga.algorithms.mioalgorithm import Parameters
+from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm, Parameters
 
 
 def test_parameters_default():

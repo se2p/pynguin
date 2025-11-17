@@ -12,7 +12,6 @@ import threading
 import pynguin.testcase.execution as ex
 import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
-
 from pynguin.ga.computations import compute_statement_checked_lines
 from pynguin.slicer.dynamicslicer import SlicingCriterion
 

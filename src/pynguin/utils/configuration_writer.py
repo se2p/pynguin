@@ -11,7 +11,6 @@ import enum
 import json
 import logging
 import pprint
-
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -19,7 +18,6 @@ from typing import Any
 import toml
 
 import pynguin.configuration as config
-
 
 PYNGUIN_CLI_PARAMS = "pynguin-cli-params.txt"
 PYNGUIN_CONFIG_TXT = "pynguin-config.txt"

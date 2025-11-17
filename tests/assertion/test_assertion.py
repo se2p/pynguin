@@ -5,16 +5,13 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
-
 from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.assertion.assertion as ass
-
-from pynguin.assertion.assertion import Assertion
-from pynguin.assertion.assertion import AssertionVisitor
+from pynguin.assertion.assertion import Assertion, AssertionVisitor
 from pynguin.testcase import variablereference as vr
 
 

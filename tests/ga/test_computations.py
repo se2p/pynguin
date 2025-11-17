@@ -4,15 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
 
 

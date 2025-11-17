@@ -8,11 +8,9 @@ from unittest.mock import MagicMock
 
 import hypothesis.strategies as st
 import pytest
-
 from hypothesis import given
 
 import pynguin.ga.testsuitechromosome as tsc
-
 from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
 
 

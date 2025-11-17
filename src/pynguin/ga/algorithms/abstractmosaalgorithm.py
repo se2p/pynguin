@@ -9,15 +9,12 @@
 from __future__ import annotations
 
 import logging
-
 from abc import ABC
-from typing import TYPE_CHECKING
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
-
 from pynguin.ga.algorithms.archive import CoverageArchive
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.ga.operators.comparator import DominanceComparator
@@ -25,10 +22,8 @@ from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 
-
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf
-
     from pynguin.utils.orderedset import OrderedSet
 
 

@@ -6,7 +6,6 @@
 #
 import importlib
 import itertools
-
 from logging import Logger
 from unittest.mock import MagicMock
 
@@ -14,7 +13,6 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
-
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties

@@ -8,7 +8,6 @@
 
 import ast
 import math
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -16,9 +15,7 @@ import pytest
 import pynguin.large_language_model.helpers.testcasereferencecopier as trc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-
-from pynguin.assertion.assertion import FloatAssertion
-from pynguin.assertion.assertion import IsInstanceAssertion
+from pynguin.assertion.assertion import FloatAssertion, IsInstanceAssertion
 from pynguin.utils.generic.genericaccessibleobject import GenericField
 
 

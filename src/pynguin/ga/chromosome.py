@@ -8,8 +8,7 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff

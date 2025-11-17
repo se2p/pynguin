@@ -10,19 +10,12 @@
 from __future__ import annotations
 
 import enum
-
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import Protocol
-from typing import TypeAlias
-
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
 if TYPE_CHECKING:
-    from bytecode.instr import _UNSET
-    from bytecode.instr import Instr
-    from bytecode.instr import InstrArg
+    from bytecode.instr import _UNSET, Instr, InstrArg
 
     from pynguin.instrumentation import PynguinCompare
     from pynguin.instrumentation import controlflow as cf

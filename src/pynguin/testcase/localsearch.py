@@ -9,24 +9,23 @@ from __future__ import annotations
 
 import logging
 import time
-
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
 from pynguin.testcase.localsearchstatement import choose_local_search_statement
-from pynguin.testcase.statement import BooleanPrimitiveStatement
-from pynguin.testcase.statement import CollectionStatement
-from pynguin.testcase.statement import EnumPrimitiveStatement
-from pynguin.testcase.statement import PrimitiveStatement
-from pynguin.testcase.statement import Statement
+from pynguin.testcase.statement import (
+    BooleanPrimitiveStatement,
+    CollectionStatement,
+    EnumPrimitiveStatement,
+    PrimitiveStatement,
+    Statement,
+)
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome

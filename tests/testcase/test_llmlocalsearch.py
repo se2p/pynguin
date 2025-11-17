@@ -7,8 +7,7 @@
 import pytest
 
 from pynguin.large_language_model.prompts.localsearchprompt import LocalSearchPrompt
-from pynguin.utils.report import CoverageEntry
-from pynguin.utils.report import LineAnnotation
+from pynguin.utils.report import CoverageEntry, LineAnnotation
 
 
 @pytest.fixture

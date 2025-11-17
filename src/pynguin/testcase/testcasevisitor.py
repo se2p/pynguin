@@ -6,8 +6,7 @@
 #
 """Defines an abstract test case visitor."""
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 
 class TestCaseVisitor(ABC):

@@ -7,12 +7,13 @@
 import ast
 import inspect
 
-from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
-from pynguin.assertion.mutation_analysis.mutators import HighOrderMutator
-from pynguin.assertion.mutation_analysis.operators import ArithmeticOperatorDeletion
-from pynguin.assertion.mutation_analysis.operators import ArithmeticOperatorReplacement
-from pynguin.assertion.mutation_analysis.operators import AssignmentOperatorReplacement
-from pynguin.assertion.mutation_analysis.operators import ConstantReplacement
+from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator, HighOrderMutator
+from pynguin.assertion.mutation_analysis.operators import (
+    ArithmeticOperatorDeletion,
+    ArithmeticOperatorReplacement,
+    AssignmentOperatorReplacement,
+    ConstantReplacement,
+)
 from tests.testutils import assert_mutator_mutation
 
 

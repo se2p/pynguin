@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.operators.selection as sel
-
 from pynguin.utils import randomness
 
 

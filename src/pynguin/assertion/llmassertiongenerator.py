@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import re
-
 from typing import TYPE_CHECKING
 
 import pynguin.ga.chromosomevisitor as cv
@@ -20,7 +19,6 @@ import pynguin.large_language_model.helpers.testcasereferencecopier as trc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.assertion.assertiongenerator import MutationAnalysisAssertionGenerator
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.parsing.deserializer import (
@@ -28,7 +26,6 @@ from pynguin.large_language_model.parsing.deserializer import (
 )
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import ModuleTestCluster

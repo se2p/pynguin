@@ -7,9 +7,11 @@
 import ast
 import inspect
 
-from pynguin.assertion.mutation_analysis.operators.loop import OneIterationLoop
-from pynguin.assertion.mutation_analysis.operators.loop import ReverseIterationLoop
-from pynguin.assertion.mutation_analysis.operators.loop import ZeroIterationLoop
+from pynguin.assertion.mutation_analysis.operators.loop import (
+    OneIterationLoop,
+    ReverseIterationLoop,
+    ZeroIterationLoop,
+)
 from tests.testutils import assert_mutation
 
 

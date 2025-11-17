@@ -5,8 +5,7 @@
 #  SPDX-License-Identifier: MIT
 #
 from unittest import mock
-from unittest.mock import MagicMock
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -14,10 +13,8 @@ import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testfactory as tf
-
 from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.statement import ConstructorStatement
-from pynguin.testcase.statement import IntPrimitiveStatement
+from pynguin.testcase.statement import ConstructorStatement, IntPrimitiveStatement
 
 
 @pytest.fixture

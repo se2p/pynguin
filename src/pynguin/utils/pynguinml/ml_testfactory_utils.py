@@ -11,12 +11,9 @@ from __future__ import annotations
 import logging
 import math
 import re
-
-from typing import TYPE_CHECKING
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
-
 
 try:
     import numpy as np
@@ -32,12 +29,10 @@ if not NUMPY_AVAILABLE:
 
 import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
-
 from pynguin.analyses.constants import MLConstantPool
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.pynguinml.np_rng import get_rng
-
 
 if TYPE_CHECKING:
     from pynguin.analyses.typesystem import ProperType

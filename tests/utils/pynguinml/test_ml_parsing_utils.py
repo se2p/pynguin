@@ -10,7 +10,6 @@ import numpy as np
 import pytest
 
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
-
 from pynguin.utils.exceptions import ConstraintValidationError
 
 

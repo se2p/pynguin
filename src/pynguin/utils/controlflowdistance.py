@@ -21,7 +21,6 @@ import networkx as nx
 
 import pynguin.ga.computations as ff
 
-
 if TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.execution import ExecutionResult

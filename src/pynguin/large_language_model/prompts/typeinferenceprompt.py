@@ -8,12 +8,10 @@
 
 import inspect
 import textwrap
-
 from collections.abc import Callable
 from typing import Any
 
 from pynguin.utils.orderedset import OrderedSet
-
 
 _ROLE_USER = "<|user|>"
 

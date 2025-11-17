@@ -9,9 +9,7 @@
 from __future__ import annotations
 
 import enum
-
 from typing import NamedTuple
-
 
 AST_FILENAME = "<ast>"
 

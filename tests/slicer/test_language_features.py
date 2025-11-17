@@ -9,22 +9,19 @@
 # ruff: noqa: E501, ERA001
 
 import sys
-
 from unittest.mock import MagicMock
 
-from bytecode.instr import BinaryOp
-from bytecode.instr import CellVar
-from bytecode.instr import Compare
-from bytecode.instr import FreeVar
+from bytecode.instr import BinaryOp, CellVar, Compare, FreeVar
 
 from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-from tests.slicer.util import TracedInstr
-from tests.slicer.util import assert_slice_equal
-from tests.slicer.util import dummy_code_object
-from tests.slicer.util import slice_function_at_return
-from tests.slicer.util import slice_function_at_return_with_result
-from tests.slicer.util import slice_module_at_return
-
+from tests.slicer.util import (
+    TracedInstr,
+    assert_slice_equal,
+    dummy_code_object,
+    slice_function_at_return,
+    slice_function_at_return_with_result,
+    slice_module_at_return,
+)
 
 jump_target = TracedInstr("LOAD_CONST", arg=InstrumentationExecutionTracer(MagicMock()))
 if sys.version_info >= (3, 14):

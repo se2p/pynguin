@@ -14,26 +14,20 @@ from __future__ import annotations
 import contextlib
 import logging
 import sys
-
-from importlib.abc import FileLoader
-from importlib.abc import MetaPathFinder
-from importlib.machinery import ModuleSpec
-from importlib.machinery import SourceFileLoader
+from importlib.abc import FileLoader, MetaPathFinder
+from importlib.machinery import ModuleSpec, SourceFileLoader
 from inspect import isclass
-from typing import TYPE_CHECKING
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
-
-from pynguin.analyses.constants import ConstantPool
-from pynguin.analyses.constants import DynamicConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import ConstantPool, DynamicConstantProvider, EmptyConstantProvider
 from pynguin.instrumentation.transformer import InstrumentationTransformer
-from pynguin.instrumentation.version import BranchCoverageInstrumentation
-from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.instrumentation.version import DynamicSeedingInstrumentation
-from pynguin.instrumentation.version import LineCoverageInstrumentation
-
+from pynguin.instrumentation.version import (
+    BranchCoverageInstrumentation,
+    CheckedCoverageInstrumentation,
+    DynamicSeedingInstrumentation,
+    LineCoverageInstrumentation,
+)
 
 if TYPE_CHECKING:
     from types import CodeType

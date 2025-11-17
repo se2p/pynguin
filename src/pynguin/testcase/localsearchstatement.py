@@ -16,43 +16,38 @@ import enum
 import logging
 import math
 import sys
-
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import cast
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, cast
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.analyses.typesystem import AnyType, ProperType, is_primitive_type
 from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
-from pynguin.testcase.statement import BooleanPrimitiveStatement
-from pynguin.testcase.statement import BytesPrimitiveStatement
-from pynguin.testcase.statement import ClassPrimitiveStatement
-from pynguin.testcase.statement import CollectionStatement
-from pynguin.testcase.statement import ComplexPrimitiveStatement
-from pynguin.testcase.statement import ConstructorStatement
-from pynguin.testcase.statement import DictStatement
-from pynguin.testcase.statement import EnumPrimitiveStatement
-from pynguin.testcase.statement import FieldStatement
-from pynguin.testcase.statement import FloatPrimitiveStatement
-from pynguin.testcase.statement import FunctionStatement
-from pynguin.testcase.statement import IntPrimitiveStatement
-from pynguin.testcase.statement import MethodStatement
-from pynguin.testcase.statement import NonDictCollection
-from pynguin.testcase.statement import NoneStatement
-from pynguin.testcase.statement import ParametrizedStatement
-from pynguin.testcase.statement import PrimitiveStatement
-from pynguin.testcase.statement import SetStatement
-from pynguin.testcase.statement import StringPrimitiveStatement
-from pynguin.testcase.statement import VariableCreatingStatement
-from pynguin.testcase.statement import create_statement
+from pynguin.testcase.statement import (
+    BooleanPrimitiveStatement,
+    BytesPrimitiveStatement,
+    ClassPrimitiveStatement,
+    CollectionStatement,
+    ComplexPrimitiveStatement,
+    ConstructorStatement,
+    DictStatement,
+    EnumPrimitiveStatement,
+    FieldStatement,
+    FloatPrimitiveStatement,
+    FunctionStatement,
+    IntPrimitiveStatement,
+    MethodStatement,
+    NonDictCollection,
+    NoneStatement,
+    ParametrizedStatement,
+    PrimitiveStatement,
+    SetStatement,
+    StringPrimitiveStatement,
+    VariableCreatingStatement,
+    create_statement,
+)
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from pynguin.ga.testcasechromosome import TestCaseChromosome

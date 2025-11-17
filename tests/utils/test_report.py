@@ -8,26 +8,24 @@
 import datetime
 import importlib
 import sys
-
 from pathlib import Path
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.__version__ as ver  # noqa: PLC2701
 import pynguin.configuration as config
-
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.report import CoverageEntry
-from pynguin.utils.report import CoverageReport
-from pynguin.utils.report import LineAnnotation
-from pynguin.utils.report import get_coverage_report
-from pynguin.utils.report import render_coverage_report
-from pynguin.utils.report import render_xml_coverage_report
+from pynguin.utils.report import (
+    CoverageEntry,
+    CoverageReport,
+    LineAnnotation,
+    get_coverage_report,
+    render_coverage_report,
+    render_xml_coverage_report,
+)
 
 
 def test_coverage_entry_add():

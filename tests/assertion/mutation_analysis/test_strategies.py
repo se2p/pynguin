@@ -6,14 +6,18 @@
 #
 import ast
 
-from pynguin.assertion.mutation_analysis.operators import ArithmeticOperatorDeletion
-from pynguin.assertion.mutation_analysis.operators import AssignmentOperatorReplacement
-from pynguin.assertion.mutation_analysis.operators import ConstantReplacement
+from pynguin.assertion.mutation_analysis.operators import (
+    ArithmeticOperatorDeletion,
+    AssignmentOperatorReplacement,
+    ConstantReplacement,
+)
 from pynguin.assertion.mutation_analysis.operators.base import Mutation
-from pynguin.assertion.mutation_analysis.strategies import BetweenOperatorsHOMStrategy
-from pynguin.assertion.mutation_analysis.strategies import EachChoiceHOMStrategy
-from pynguin.assertion.mutation_analysis.strategies import FirstToLastHOMStrategy
-from pynguin.assertion.mutation_analysis.strategies import RandomHOMStrategy
+from pynguin.assertion.mutation_analysis.strategies import (
+    BetweenOperatorsHOMStrategy,
+    EachChoiceHOMStrategy,
+    FirstToLastHOMStrategy,
+    RandomHOMStrategy,
+)
 from pynguin.utils.randomness import RNG
 from tests.testutils import create_aor_mutation_on_substraction
 

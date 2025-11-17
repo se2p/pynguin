@@ -44,7 +44,6 @@ import pytest
 
 from pynguin.analyses.modulecomplexity import mccabe_complexity
 
-
 _expr_as_statement = """
 def f():
     0xF00D

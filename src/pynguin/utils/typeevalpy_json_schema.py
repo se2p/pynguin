@@ -14,37 +14,32 @@ import dataclasses
 import json
 import logging
 import typing
-
 from abc import ABC
 
-from astroid.nodes import AsyncFunctionDef
-from astroid.nodes import FunctionDef
+from astroid.nodes import AsyncFunctionDef, FunctionDef
 
 import pynguin.configuration as config
-
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeVisitor
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import Unsupported
+from pynguin.analyses.typesystem import (
+    AnyType,
+    InferredSignature,
+    Instance,
+    NoneType,
+    TupleType,
+    TypeVisitor,
+    UnionType,
+    Unsupported,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
-
 
 if typing.TYPE_CHECKING:
-    from astroid.nodes import Arguments
-    from astroid.nodes import AssignName
+    from astroid.nodes import Arguments, AssignName
 
-    from pynguin.analyses.module import CallableData
-    from pynguin.analyses.module import SignatureInfo
-    from pynguin.analyses.module import TypeGuessingStats
+    from pynguin.analyses.module import CallableData, SignatureInfo, TypeGuessingStats
     from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
     from pynguin.utils.orderedset import OrderedSet
 

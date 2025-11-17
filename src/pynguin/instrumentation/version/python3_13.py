@@ -14,54 +14,45 @@ from opcode import opname
 from typing import ClassVar
 
 from bytecode.cfg import BasicBlock
-from bytecode.instr import _UNSET
-from bytecode.instr import UNSET
-from bytecode.instr import Compare
-from bytecode.instr import Instr
+from bytecode.instr import _UNSET, UNSET, Compare, Instr
 
-from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
-from pynguin.instrumentation import transformer
-from pynguin.instrumentation.controlflow import CFG
-from pynguin.instrumentation.controlflow import ArtificialInstr
-from pynguin.instrumentation.controlflow import BasicBlockNode
-from pynguin.instrumentation.version import python3_10
-from pynguin.instrumentation.version import python3_11
-from pynguin.instrumentation.version import python3_12
+from pynguin.instrumentation.controlflow import CFG, ArtificialInstr, BasicBlockNode
+from pynguin.instrumentation.version import python3_10, python3_11, python3_12
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
+    ExtractComparisonFunction,
+    InstrumentationArgument,
+    InstrumentationConstantLoad,
+    InstrumentationFastLoadTuple,
+    InstrumentationMethodCall,
+    InstrumentationSetupAction,
+    after,
+    before,
 )
-from pynguin.instrumentation.version.common import ExtractComparisonFunction
-from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationFastLoadTuple
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import after
-from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.python3_12 import ACCESS_NAMES
-from pynguin.instrumentation.version.python3_12 import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version.python3_12 import COND_BRANCH_NAMES
-from pynguin.instrumentation.version.python3_12 import IMPORT_FROM_NAMES
-from pynguin.instrumentation.version.python3_12 import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version.python3_12 import LOAD_DEREF_NAMES
-from pynguin.instrumentation.version.python3_12 import LOAD_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_12 import LOAD_NAME_NAMES
-from pynguin.instrumentation.version.python3_12 import MODIFY_DEREF_NAMES
-from pynguin.instrumentation.version.python3_12 import MODIFY_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_12 import MODIFY_NAME_NAMES
-from pynguin.instrumentation.version.python3_12 import RETURN_NONE_SIZE
-from pynguin.instrumentation.version.python3_12 import RETURNING_NAMES
-from pynguin.instrumentation.version.python3_12 import STORE_NAME_NAMES
-from pynguin.instrumentation.version.python3_12 import STORE_NAMES
-from pynguin.instrumentation.version.python3_12 import YIELDING_NAMES
-from pynguin.instrumentation.version.python3_12 import add_for_loop_no_yield_nodes
-from pynguin.instrumentation.version.python3_12 import end_with_explicit_return_none
-from pynguin.instrumentation.version.python3_12 import get_branch_type
-from pynguin.instrumentation.version.python3_12 import is_conditional_jump
-
+from pynguin.instrumentation.version.python3_12 import (
+    ACCESS_NAMES,
+    CLOSURE_LOAD_NAMES,
+    COND_BRANCH_NAMES,
+    IMPORT_FROM_NAMES,
+    IMPORT_NAME_NAMES,
+    LOAD_DEREF_NAMES,
+    LOAD_GLOBAL_NAMES,
+    LOAD_NAME_NAMES,
+    MODIFY_DEREF_NAMES,
+    MODIFY_GLOBAL_NAMES,
+    MODIFY_NAME_NAMES,
+    RETURN_NONE_SIZE,
+    RETURNING_NAMES,
+    STORE_NAME_NAMES,
+    STORE_NAMES,
+    YIELDING_NAMES,
+    add_for_loop_no_yield_nodes,
+    end_with_explicit_return_none,
+    get_branch_type,
+    is_conditional_jump,
+)
 
 __all__ = [
     "ACCESS_NAMES",

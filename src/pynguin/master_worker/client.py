@@ -9,13 +9,11 @@
 from __future__ import annotations
 
 import logging
-
 from typing import TYPE_CHECKING
 
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.master import MasterProcess
 from pynguin.master_worker.worker import WorkerReturnCode
-
 
 if TYPE_CHECKING:
     import pynguin.configuration as config

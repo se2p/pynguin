@@ -15,15 +15,8 @@ import enum
 import logging
 import math
 import typing
-
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import ClassVar
-from typing import Generic
-from typing import TypeVar
-from typing import cast
-
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 try:
     import numpy as np
@@ -36,8 +29,7 @@ try:
     from faker import Faker
 
     if TYPE_CHECKING:
-        from fandango.language.grammar import DerivationTree
-        from fandango.language.grammar import Grammar
+        from fandango.language.grammar import DerivationTree, Grammar
 
     FANDANGO_FAKER_AVAILABLE = True
 except ImportError:
@@ -48,31 +40,29 @@ import pynguin.configuration as config
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
 
-
 if config.configuration.pynguinml.ml_testing_enabled or TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import UnionType
+from pynguin.analyses.typesystem import (
+    ANY,
+    AnyType,
+    InferredSignature,
+    Instance,
+    NoneType,
+    ProperType,
+    TypeInfo,
+    UnionType,
+)
 from pynguin.large_language_model.parsing import astscoping
-from pynguin.utils import mutation_utils
-from pynguin.utils import randomness
+from pynguin.utils import mutation_utils, randomness
 from pynguin.utils.fandango_faker_utils import load_fandango_grammars
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.type_utils import is_optional_parameter
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     import pynguin.testcase.testcase as tc
-
     from pynguin.analyses import constants
     from pynguin.testcase.testcase import TestCase
 

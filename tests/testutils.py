@@ -10,22 +10,16 @@ import ast
 import importlib
 import inspect
 import types
-
 from pathlib import Path
 
 import pynguin.utils.generic.genericaccessibleobject as gao
-
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TypeSystem
+from pynguin.analyses.typesystem import Instance, ProperType, TypeSystem
 from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
 from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     ArithmeticOperatorReplacement,
 )
-from pynguin.assertion.mutation_analysis.operators.base import Mutation
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
-from pynguin.assertion.mutation_analysis.transformer import create_module
+from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer, create_module
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 
 

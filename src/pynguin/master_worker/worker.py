@@ -12,17 +12,13 @@ import enum
 import logging
 import time
 import traceback
-
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import multiprocess as mp
 import multiprocess.connection as mp_conn
 
-from pynguin.generator import ReturnCode
-from pynguin.generator import run_pynguin
-from pynguin.generator import set_configuration
-
+from pynguin.generator import ReturnCode, run_pynguin, set_configuration
 
 if TYPE_CHECKING:
     import pynguin.configuration as config

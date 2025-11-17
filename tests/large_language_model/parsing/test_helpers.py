@@ -7,18 +7,17 @@
 """Tests for the helpers module."""
 
 import ast
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pynguin.testcase.testcase as tc
-
-from pynguin.large_language_model.parsing.helpers import add_line_numbers
-from pynguin.large_language_model.parsing.helpers import has_bound_variables
-from pynguin.large_language_model.parsing.helpers import has_call
-from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
-from pynguin.large_language_model.parsing.helpers import key_in_dict
-from pynguin.large_language_model.parsing.helpers import unparse_test_case
+from pynguin.large_language_model.parsing.helpers import (
+    add_line_numbers,
+    has_bound_variables,
+    has_call,
+    is_expr_or_stmt,
+    key_in_dict,
+    unparse_test_case,
+)
 
 
 # Copy of the private function for testing purposes

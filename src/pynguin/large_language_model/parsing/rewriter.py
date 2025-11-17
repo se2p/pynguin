@@ -15,14 +15,14 @@ import ast
 import logging
 import re
 import sys
-
 from typing import Any
 
-from pynguin.large_language_model.parsing.helpers import has_bound_variables
-from pynguin.large_language_model.parsing.helpers import has_call
-from pynguin.large_language_model.parsing.helpers import is_expr_or_stmt
-from pynguin.large_language_model.parsing.helpers import key_in_dict
-
+from pynguin.large_language_model.parsing.helpers import (
+    has_bound_variables,
+    has_call,
+    is_expr_or_stmt,
+    key_in_dict,
+)
 
 logger = logging.getLogger(__name__)
 

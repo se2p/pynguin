@@ -9,25 +9,21 @@
 from __future__ import annotations
 
 import sys
-
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Protocol
-
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from bytecode import Bytecode
-    from bytecode import Instr
+    from bytecode import Bytecode, Instr
 
     from pynguin.instrumentation import StackEffects
-    from pynguin.instrumentation.transformer import BranchCoverageInstrumentationAdapter
     from pynguin.instrumentation.transformer import (
+        BranchCoverageInstrumentationAdapter,
         CheckedCoverageInstrumentationAdapter,
+        DynamicSeedingInstrumentationAdapter,
+        LineCoverageInstrumentationAdapter,
     )
-    from pynguin.instrumentation.transformer import DynamicSeedingInstrumentationAdapter
-    from pynguin.instrumentation.transformer import LineCoverageInstrumentationAdapter
 
 
 __all__ = [

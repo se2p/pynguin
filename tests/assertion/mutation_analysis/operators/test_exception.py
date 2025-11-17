@@ -9,8 +9,8 @@ import inspect
 
 from pynguin.assertion.mutation_analysis.operators.exception import (
     ExceptionHandlerDeletion,
+    ExceptionSwallowing,
 )
-from pynguin.assertion.mutation_analysis.operators.exception import ExceptionSwallowing
 from tests.testutils import assert_mutation
 
 

@@ -7,7 +7,6 @@
 import ast
 import importlib
 import inspect
-
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,13 +14,14 @@ import pytest
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.analyses.typesystem import InferredSignature
-from pynguin.ga.computations import TestCaseStatementCheckedCoverageFunction
-from pynguin.ga.computations import TestSuiteStatementCheckedCoverageFunction
+from pynguin.ga.computations import (
+    TestCaseStatementCheckedCoverageFunction,
+    TestSuiteStatementCheckedCoverageFunction,
+)
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.slicer.dynamicslicer import DynamicSlicer

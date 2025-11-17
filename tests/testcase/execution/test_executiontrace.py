@@ -6,8 +6,7 @@
 #
 from unittest.mock import MagicMock
 
-from pynguin.instrumentation.tracer import ExecutedAssertion
-from pynguin.instrumentation.tracer import ExecutionTrace
+from pynguin.instrumentation.tracer import ExecutedAssertion, ExecutionTrace
 from pynguin.slicer.executedinstruction import ExecutedInstruction
 
 

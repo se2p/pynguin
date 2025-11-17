@@ -8,8 +8,7 @@ import copy
 
 import pytest
 
-from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.orderedset import OrderedTypeSet
+from pynguin.utils.orderedset import OrderedSet, OrderedTypeSet
 
 
 @pytest.mark.parametrize("length, iterable", [(0, []), (3, [1, 2, 3]), (2, [1, 2, 2])])

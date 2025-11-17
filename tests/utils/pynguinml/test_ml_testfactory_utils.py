@@ -4,20 +4,17 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
 import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
-
 from pynguin.analyses.typesystem import AnyType
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.pynguinml import np_rng
-from pynguin.utils.pynguinml.mlparameter import MLParameter
-from pynguin.utils.pynguinml.mlparameter import Range
+from pynguin.utils.pynguinml.mlparameter import MLParameter, Range
 
 
 def test_select_dtype():

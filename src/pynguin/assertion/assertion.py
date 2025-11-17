@@ -8,17 +8,13 @@
 
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
-
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     import ast
 
     import pynguin.testcase.variablereference as vr
-
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 

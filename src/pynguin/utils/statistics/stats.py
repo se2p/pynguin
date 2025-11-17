@@ -12,18 +12,14 @@ import json
 import logging
 import queue
 import time
-
 from pathlib import Path
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.utils.statistics.outputvariablefactory as ovf
 import pynguin.utils.statistics.statisticsbackend as sb
-
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     from collections.abc import Generator

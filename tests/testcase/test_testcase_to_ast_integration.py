@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
-
 from ast import Module
 
 import pytest
@@ -15,7 +14,6 @@ import pynguin.testcase.statement as stmt
 import pynguin.testcase.statement_to_ast as stmt_to_ast
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
-
 from pynguin.testcase.execution import ExecutionResult
 
 

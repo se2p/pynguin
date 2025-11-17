@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import importlib
-
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
@@ -20,19 +19,13 @@ import pynguin.ga.coveragegoals as bg
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.controlflowdistance as cfd
-
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import LineMetaData
-from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ExecutionResult
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.instrumentation.tracer import ExecutionTrace, LineMetaData, SubjectProperties
+from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

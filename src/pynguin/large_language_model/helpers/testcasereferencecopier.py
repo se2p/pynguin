@@ -10,10 +10,7 @@ from __future__ import annotations
 
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-
-from pynguin.assertion.assertion import FloatAssertion
-from pynguin.assertion.assertion import IsInstanceAssertion
-from pynguin.assertion.assertion import ObjectAssertion
+from pynguin.assertion.assertion import FloatAssertion, IsInstanceAssertion, ObjectAssertion
 from pynguin.utils.orderedset import OrderedSet
 
 

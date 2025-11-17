@@ -10,7 +10,6 @@ import pytest
 
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-
 from pynguin.testcase.statement import AssignmentStatement
 
 

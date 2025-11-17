@@ -13,15 +13,12 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
 import pynguin.testcase.statement as stmt
-
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomevisitor as cv
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
-
     from pynguin.testcase.execution import ExecutionResult
 
 

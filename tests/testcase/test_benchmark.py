@@ -9,7 +9,6 @@ import pytest
 import pynguin.assertion.assertion as ass
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-
 from pynguin.analyses.module import ModuleTestCluster
 
 

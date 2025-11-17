@@ -9,24 +9,19 @@
 import ast
 import importlib
 import threading
-
 from queue import Empty
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ModuleProvider
-from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.testcase.statement import IntPrimitiveStatement
-from pynguin.testcase.statement import MethodStatement
+from pynguin.testcase.execution import ModuleProvider, TestCaseExecutor
+from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
 
 
 def test_simple_execution(default_test_case, subject_properties: SubjectProperties):

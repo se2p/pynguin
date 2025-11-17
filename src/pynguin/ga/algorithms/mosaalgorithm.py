@@ -9,15 +9,12 @@
 from __future__ import annotations
 
 import logging
-
 from typing import TYPE_CHECKING
 
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
-
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc

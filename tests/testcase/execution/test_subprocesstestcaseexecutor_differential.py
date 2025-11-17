@@ -7,11 +7,9 @@
 import importlib
 
 import pynguin.configuration as config
-
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import SubprocessTestCaseExecutor
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import SubprocessTestCaseExecutor, TestCaseExecutor
 
 
 def test_simple_execution(short_test_case, subject_properties: SubjectProperties):

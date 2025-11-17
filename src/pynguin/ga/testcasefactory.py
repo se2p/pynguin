@@ -13,14 +13,11 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.testcase.defaulttestcase as dtc
-
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
-
     from pynguin.analyses.module import TestCluster
     from pynguin.analyses.seeding import InitialPopulationProvider
 

@@ -6,7 +6,6 @@
 #
 
 import pynguin.configuration as config
-
 from pynguin.testcase.localsearchtimer import LocalSearchTimer
 
 

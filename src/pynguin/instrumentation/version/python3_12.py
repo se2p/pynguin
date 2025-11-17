@@ -14,48 +14,43 @@ from __future__ import annotations
 
 from itertools import chain
 from opcode import opname
-from typing import TYPE_CHECKING
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-from bytecode.instr import _UNSET
-from bytecode.instr import Instr
+from bytecode.instr import _UNSET, Instr
 
-from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import StackEffects
+from pynguin.instrumentation import PynguinCompare, StackEffects, tracer, transformer
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
-from pynguin.instrumentation import transformer
-from pynguin.instrumentation.version import python3_10
-from pynguin.instrumentation.version import python3_11
+from pynguin.instrumentation.version import python3_10, python3_11
 from pynguin.instrumentation.version.common import (
     CheckedCoverageInstrumentationVisitorMethod,
+    InstrumentationArgument,
+    InstrumentationClassDeref,
+    InstrumentationConstantLoad,
+    InstrumentationDeref,
+    InstrumentationFastLoad,
+    InstrumentationMethodCall,
+    InstrumentationSetupAction,
+    InstrumentationStackValue,
+    after,
+    before,
+    extract_name,
+    override,
 )
-from pynguin.instrumentation.version.common import InstrumentationArgument
-from pynguin.instrumentation.version.common import InstrumentationClassDeref
-from pynguin.instrumentation.version.common import InstrumentationConstantLoad
-from pynguin.instrumentation.version.common import InstrumentationDeref
-from pynguin.instrumentation.version.common import InstrumentationFastLoad
-from pynguin.instrumentation.version.common import InstrumentationMethodCall
-from pynguin.instrumentation.version.common import InstrumentationSetupAction
-from pynguin.instrumentation.version.common import InstrumentationStackValue
-from pynguin.instrumentation.version.common import after
-from pynguin.instrumentation.version.common import before
-from pynguin.instrumentation.version.common import extract_name
-from pynguin.instrumentation.version.common import override
-from pynguin.instrumentation.version.python3_11 import CALL_NAMES
-from pynguin.instrumentation.version.python3_11 import CLOSURE_LOAD_NAMES
-from pynguin.instrumentation.version.python3_11 import IMPORT_FROM_NAMES
-from pynguin.instrumentation.version.python3_11 import IMPORT_NAME_NAMES
-from pynguin.instrumentation.version.python3_11 import LOAD_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_11 import LOAD_NAME_NAMES
-from pynguin.instrumentation.version.python3_11 import MODIFY_DEREF_NAMES
-from pynguin.instrumentation.version.python3_11 import MODIFY_FAST_NAMES
-from pynguin.instrumentation.version.python3_11 import MODIFY_GLOBAL_NAMES
-from pynguin.instrumentation.version.python3_11 import MODIFY_NAME_NAMES
-from pynguin.instrumentation.version.python3_11 import STORE_NAME_NAMES
-from pynguin.instrumentation.version.python3_11 import YIELDING_NAMES
-from pynguin.instrumentation.version.python3_11 import is_conditional_jump
-
+from pynguin.instrumentation.version.python3_11 import (
+    CALL_NAMES,
+    CLOSURE_LOAD_NAMES,
+    IMPORT_FROM_NAMES,
+    IMPORT_NAME_NAMES,
+    LOAD_GLOBAL_NAMES,
+    LOAD_NAME_NAMES,
+    MODIFY_DEREF_NAMES,
+    MODIFY_FAST_NAMES,
+    MODIFY_GLOBAL_NAMES,
+    MODIFY_NAME_NAMES,
+    STORE_NAME_NAMES,
+    YIELDING_NAMES,
+    is_conditional_jump,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

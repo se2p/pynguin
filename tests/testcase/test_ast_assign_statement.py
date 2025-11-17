@@ -7,15 +7,12 @@
 from __future__ import annotations
 
 import ast
-
-from unittest.mock import MagicMock
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.variablereference as vr
-
 from pynguin.large_language_model.parsing.astscoping import VariableRefAST
 from pynguin.testcase.defaulttestcase import DefaultTestCase
 from pynguin.testcase.statement import StatementVisitor

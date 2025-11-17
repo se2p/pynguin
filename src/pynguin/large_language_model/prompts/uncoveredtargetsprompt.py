@@ -9,10 +9,10 @@
 from pynguin.large_language_model.prompts.prompt import Prompt
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 
 
 class UncoveredTargetsPrompt(Prompt):

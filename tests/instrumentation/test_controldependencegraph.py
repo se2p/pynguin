@@ -6,14 +6,12 @@
 #
 import importlib
 import sys
-
 from contextlib import contextmanager
 
 import pytest
 
 from pynguin.configuration import ToCoverConfiguration
-from pynguin.instrumentation.controlflow import ArtificialNode
-from pynguin.instrumentation.controlflow import ControlDependenceGraph
+from pynguin.instrumentation.controlflow import ArtificialNode, ControlDependenceGraph
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import BranchCoverageInstrumentation

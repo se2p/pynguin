@@ -13,17 +13,16 @@ from __future__ import annotations
 
 import abc
 import typing
+from types import (
+    BuiltinFunctionType,
+    ClassMethodDescriptorType,
+    FunctionType,
+    MethodDescriptorType,
+    WrapperDescriptorType,
+)
 
-from types import BuiltinFunctionType
-from types import ClassMethodDescriptorType
-from types import FunctionType
-from types import MethodDescriptorType
-from types import WrapperDescriptorType
-
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
+from pynguin.analyses.typesystem import InferredSignature, Instance
 from pynguin.utils.orderedset import OrderedSet
-
 
 TypesOfCallables = (
     FunctionType
@@ -36,8 +35,7 @@ TypesOfCallables = (
 if typing.TYPE_CHECKING:
     import enum
 
-    from pynguin.analyses.typesystem import ProperType
-    from pynguin.analyses.typesystem import TypeInfo
+    from pynguin.analyses.typesystem import ProperType, TypeInfo
 
 
 class GenericAccessibleObject(abc.ABC):

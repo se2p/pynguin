@@ -10,23 +10,21 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import hypothesis.strategies as st
 import pytest
-
 from hypothesis import given
 
 import pynguin.ga.computations as ff
-
-from pynguin.instrumentation.tracer import ExecutedAssertion
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import LineMetaData
-from pynguin.instrumentation.tracer import PredicateMetaData
-from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.slicer.dynamicslicer import AssertionSlicer
-from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.instrumentation.tracer import (
+    ExecutedAssertion,
+    ExecutionTrace,
+    LineMetaData,
+    PredicateMetaData,
+    SubjectProperties,
+)
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 from pynguin.testcase.execution import ExecutionResult
 from pynguin.utils.orderedset import OrderedSet
 

@@ -9,11 +9,9 @@
 from __future__ import annotations
 
 import logging
-
 from typing import TYPE_CHECKING
 
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
-
 
 if TYPE_CHECKING:
     import pynguin.ga.testsuitechromosome as tsc

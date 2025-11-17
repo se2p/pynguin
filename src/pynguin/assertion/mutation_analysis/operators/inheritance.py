@@ -12,15 +12,15 @@ and integrated in Pynguin.
 
 import ast
 import functools
-
 from collections.abc import Iterable
-from typing import Any
-from typing import cast
+from typing import Any, cast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.operators.base import copy_node
-from pynguin.assertion.mutation_analysis.operators.base import set_lineno
-from pynguin.assertion.mutation_analysis.operators.base import shift_lines
+from pynguin.assertion.mutation_analysis.operators.base import (
+    MutationOperator,
+    copy_node,
+    set_lineno,
+    shift_lines,
+)
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 
 

@@ -9,16 +9,16 @@
 # ruff: noqa: E501, ERA001
 import sys
 
-from bytecode.instr import BinaryOp
-from bytecode.instr import TryEnd
+from bytecode.instr import BinaryOp, TryEnd
 
-from tests.slicer.util import TracedInstr
-from tests.slicer.util import assert_slice_equal
-from tests.slicer.util import dummy_code_object
-from tests.slicer.util import slice_function_at_return
-from tests.slicer.util import slice_function_at_return_with_result
-from tests.slicer.util import slice_module_at_return
-
+from tests.slicer.util import (
+    TracedInstr,
+    assert_slice_equal,
+    dummy_code_object,
+    slice_function_at_return,
+    slice_function_at_return_with_result,
+    slice_module_at_return,
+)
 
 if sys.version_info >= (3, 14):
     inplace_add_instruction = TracedInstr("BINARY_OP", arg=BinaryOp.INPLACE_ADD.value)

@@ -6,44 +6,41 @@
 """Tests for the TypeEvalPy JSON generation."""
 
 import json
-
 from collections.abc import Callable
 from inspect import Signature
-from unittest.mock import MagicMock
-from unittest.mock import Mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-
 from astroid import parse
 from astroid.nodes import FunctionDef
 
 import pynguin.configuration as config
-
-from pynguin.analyses.module import CallableData
-from pynguin.analyses.module import SignatureInfo
-from pynguin.analyses.module import TypeGuessingStats
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import Unsupported
+from pynguin.analyses.module import CallableData, SignatureInfo, TypeGuessingStats
+from pynguin.analyses.typesystem import (
+    AnyType,
+    InferredSignature,
+    Instance,
+    NoneType,
+    TupleType,
+    TypeInfo,
+    UnionType,
+    Unsupported,
+)
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.typeevalpy_json_schema import TypeEvalPySchemaFunctionReturn
-from pynguin.utils.typeevalpy_json_schema import TypeEvalPySchemaParameter
-from pynguin.utils.typeevalpy_json_schema import _TypeExpansionVisitor  # noqa: PLC2701
-from pynguin.utils.typeevalpy_json_schema import convert_parameter
-from pynguin.utils.typeevalpy_json_schema import convert_return
-from pynguin.utils.typeevalpy_json_schema import provide_json
+from pynguin.utils.typeevalpy_json_schema import (
+    TypeEvalPySchemaFunctionReturn,
+    TypeEvalPySchemaParameter,
+    _TypeExpansionVisitor,  # noqa: PLC2701
+    convert_parameter,
+    convert_return,
+    provide_json,
+)
 
 
 @pytest.fixture(scope="session")

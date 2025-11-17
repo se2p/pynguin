@@ -10,41 +10,37 @@ from __future__ import annotations
 
 import logging
 import re
-
 from abc import abstractmethod
 from dataclasses import dataclass
 from types import CodeType
-from typing import TYPE_CHECKING
-from typing import Protocol
-from typing import TypeAlias
+from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 from astroid.exceptions import AstroidError
-from astroid.nodes import ClassDef
-from astroid.nodes import ComprehensionScope
-from astroid.nodes import For
-from astroid.nodes import FunctionDef
-from astroid.nodes import If
-from astroid.nodes import Lambda
-from astroid.nodes import Match
-from astroid.nodes import MatchCase
-from astroid.nodes import Module
-from astroid.nodes import NodeNG
-from astroid.nodes import Try
-from astroid.nodes import TryStar
-from astroid.nodes import While
+from astroid.nodes import (
+    ClassDef,
+    ComprehensionScope,
+    For,
+    FunctionDef,
+    If,
+    Lambda,
+    Match,
+    MatchCase,
+    Module,
+    NodeNG,
+    Try,
+    TryStar,
+    While,
+)
 from bytecode import Bytecode
 from bytecode.instr import Instr
 
 from pynguin.analyses.module import read_module_ast
 from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation import controlflow as cf
-from pynguin.instrumentation import tracer
-from pynguin.instrumentation import version
-
+from pynguin.instrumentation import tracer, version
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
-    from collections.abc import Iterable
+    from collections.abc import Collection, Iterable
 
     from typing_extensions import Self
 

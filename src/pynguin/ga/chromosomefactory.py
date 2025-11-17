@@ -7,11 +7,9 @@
 """Factory for chromosome used by the genetic algorithm."""
 
 from abc import abstractmethod
-from typing import Generic
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import pynguin.ga.chromosome as chrom
-
 
 T = TypeVar("T", bound=chrom.Chromosome)
 

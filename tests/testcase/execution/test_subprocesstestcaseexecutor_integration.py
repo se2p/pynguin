@@ -6,7 +6,6 @@
 #
 import importlib
 import inspect
-
 from pathlib import Path
 
 import pytest
@@ -15,11 +14,8 @@ import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
-
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import NoneType
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
+from pynguin.analyses.typesystem import InferredSignature, NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import SubprocessTestCaseExecutor

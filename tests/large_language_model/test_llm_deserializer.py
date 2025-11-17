@@ -10,33 +10,26 @@ import ast
 import inspect
 import math
 import textwrap
-
-from unittest.mock import MagicMock
-from unittest.mock import call
-from unittest.mock import create_autospec
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
 import pytest
 
 import pynguin.testcase.statement as stmt
-
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.assertion.assertion import FloatAssertion
-from pynguin.assertion.assertion import ObjectAssertion
-from pynguin.large_language_model.parsing.deserializer import AstToTestCaseTransformer
-from pynguin.large_language_model.parsing.deserializer import StatementDeserializer
+from pynguin.analyses.typesystem import AnyType, Instance, TypeInfo
+from pynguin.assertion.assertion import FloatAssertion, ObjectAssertion
 from pynguin.large_language_model.parsing.deserializer import (
+    AstToTestCaseTransformer,
+    StatementDeserializer,
     deserialize_code_to_testcases,
 )
 from pynguin.testcase import defaulttestcase as dtc
 from pynguin.testcase import variablereference as vr
-from pynguin.testcase.variablereference import FieldReference
-from pynguin.testcase.variablereference import VariableReference
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
+from pynguin.testcase.variablereference import FieldReference, VariableReference
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
 
 
 @pytest.fixture

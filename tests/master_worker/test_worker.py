@@ -7,20 +7,19 @@
 """Tests for the worker module."""
 
 import logging
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.generator import ReturnCode
-from pynguin.master_worker.worker import WorkerLogFormatter
-from pynguin.master_worker.worker import WorkerResult
-from pynguin.master_worker.worker import WorkerReturnCode
-from pynguin.master_worker.worker import WorkerTask
-from pynguin.master_worker.worker import worker_main
+from pynguin.master_worker.worker import (
+    WorkerLogFormatter,
+    WorkerResult,
+    WorkerReturnCode,
+    WorkerTask,
+    worker_main,
+)
 
 
 @pytest.fixture

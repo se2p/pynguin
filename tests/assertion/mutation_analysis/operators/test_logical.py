@@ -9,20 +9,10 @@ import inspect
 
 from pynguin.assertion.mutation_analysis.operators.logical import (
     ConditionalOperatorDeletion,
-)
-from pynguin.assertion.mutation_analysis.operators.logical import (
     ConditionalOperatorInsertion,
-)
-from pynguin.assertion.mutation_analysis.operators.logical import (
     LogicalConnectorReplacement,
-)
-from pynguin.assertion.mutation_analysis.operators.logical import (
     LogicalOperatorDeletion,
-)
-from pynguin.assertion.mutation_analysis.operators.logical import (
     LogicalOperatorReplacement,
-)
-from pynguin.assertion.mutation_analysis.operators.logical import (
     RelationalOperatorReplacement,
 )
 from tests.testutils import assert_mutation

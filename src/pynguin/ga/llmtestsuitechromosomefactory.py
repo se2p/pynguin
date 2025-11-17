@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-
 from itertools import cycle
 from typing import TYPE_CHECKING
 
@@ -19,14 +18,11 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
-
     from pynguin.analyses.module import TestCluster
     from pynguin.utils.orderedset import OrderedSet
 

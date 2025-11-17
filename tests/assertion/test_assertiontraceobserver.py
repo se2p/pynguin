@@ -5,14 +5,11 @@
 #  SPDX-License-Identifier: MIT
 #
 import ast
-
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pynguin.assertion.assertiontraceobserver as ato
-
-from pynguin.testcase.execution import ExecutionContext
-from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.execution import ExecutionContext, TestCaseExecutor
 from pynguin.testcase.statement import Statement
 
 

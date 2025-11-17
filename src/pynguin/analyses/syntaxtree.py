@@ -16,18 +16,11 @@ from __future__ import annotations
 import ast
 import dataclasses
 import logging
-
 from collections import deque
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
-from astroid.nodes import AsyncFunctionDef
-from astroid.nodes import ClassDef
-from astroid.nodes import FunctionDef
-from astroid.nodes import Module
+from astroid.nodes import AsyncFunctionDef, ClassDef, FunctionDef, Module
 from astroid.nodes.as_string import to_code
-
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

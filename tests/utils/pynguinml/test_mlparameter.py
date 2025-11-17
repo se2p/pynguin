@@ -7,8 +7,7 @@
 import pytest
 
 from pynguin.utils.exceptions import ConstraintValidationError
-from pynguin.utils.pynguinml.mlparameter import MLParameter
-from pynguin.utils.pynguinml.mlparameter import Range
+from pynguin.utils.pynguinml.mlparameter import MLParameter, Range
 
 
 @pytest.fixture

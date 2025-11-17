@@ -10,28 +10,32 @@ import logging
 
 import pynguin.configuration as config
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
-from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import get_module_source_code
-from pynguin.large_language_model.llmagent import get_part_of_source_code
-from pynguin.large_language_model.llmagent import shorten_line_annotations
+from pynguin.large_language_model.llmagent import (
+    LLMAgent,
+    get_module_source_code,
+    get_part_of_source_code,
+    shorten_line_annotations,
+)
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
-from pynguin.testcase.statement import CollectionStatement
-from pynguin.testcase.statement import ConstructorStatement
-from pynguin.testcase.statement import FunctionStatement
-from pynguin.testcase.statement import MethodStatement
-from pynguin.testcase.statement import Statement
-from pynguin.testcase.statement import VariableCreatingStatement
+from pynguin.testcase.statement import (
+    CollectionStatement,
+    ConstructorStatement,
+    FunctionStatement,
+    MethodStatement,
+    Statement,
+    VariableCreatingStatement,
+)
 from pynguin.testcase.testfactory import TestFactory
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
-from pynguin.utils.report import LineAnnotation
-from pynguin.utils.report import get_coverage_report
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
+)
+from pynguin.utils.report import LineAnnotation, get_coverage_report
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

@@ -6,7 +6,6 @@
 """Tests for type string parser module."""
 
 import builtins
-
 from unittest.mock import Mock
 
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser

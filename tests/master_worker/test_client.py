@@ -8,19 +8,14 @@
 # ruff: noqa: FBT001, FBT002
 
 import threading
-
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.generator import ReturnCode
-from pynguin.master_worker.client import PynguinClient
-from pynguin.master_worker.client import run_pynguin_with_master_worker
-from pynguin.master_worker.worker import WorkerResult
-from pynguin.master_worker.worker import WorkerReturnCode
+from pynguin.master_worker.client import PynguinClient, run_pynguin_with_master_worker
+from pynguin.master_worker.worker import WorkerResult, WorkerReturnCode
 
 
 def create_mock_configuration(

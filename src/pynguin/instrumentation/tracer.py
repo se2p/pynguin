@@ -11,54 +11,39 @@ from __future__ import annotations
 import inspect
 import logging
 import threading
-
-from abc import ABC
-from abc import abstractmethod
-from collections.abc import Callable
-from collections.abc import Iterable
-from collections.abc import Sized
-from dataclasses import dataclass
-from dataclasses import field
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Sized
+from dataclasses import dataclass, field
 from functools import wraps
 from itertools import count
 from math import inf
 from opcode import opname
-from types import BuiltinFunctionType
-from types import BuiltinMethodType
-from types import CodeType
-from types import MethodType
-from types import TracebackType
-from typing import TYPE_CHECKING
-from typing import Concatenate
-from typing import ParamSpec
+from types import BuiltinFunctionType, BuiltinMethodType, CodeType, MethodType, TracebackType
+from typing import TYPE_CHECKING, Concatenate, ParamSpec
 
-from bytecode.instr import CellVar
-from bytecode.instr import FreeVar
+from bytecode.instr import CellVar, FreeVar
 
 import pynguin.assertion.assertion as ass
 import pynguin.slicer.executedinstruction as ei
 import pynguin.testcase.statement as stmt
 import pynguin.utils.typetracing as tt
-
-from pynguin.instrumentation import PynguinCompare
-from pynguin.instrumentation import version
+from pynguin.instrumentation import PynguinCompare, version
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.utils.type_utils import given_exception_matches
-from pynguin.utils.type_utils import is_bytes
-from pynguin.utils.type_utils import is_numeric
-from pynguin.utils.type_utils import is_string
-from pynguin.utils.type_utils import string_distance
-from pynguin.utils.type_utils import string_le_distance
-from pynguin.utils.type_utils import string_lt_distance
-
+from pynguin.utils.type_utils import (
+    given_exception_matches,
+    is_bytes,
+    is_numeric,
+    is_string,
+    string_distance,
+    string_le_distance,
+    string_lt_distance,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from pynguin.instrumentation.controlflow import CFG
-    from pynguin.instrumentation.controlflow import BasicBlockNode
-    from pynguin.instrumentation.controlflow import ControlDependenceGraph
+    from pynguin.instrumentation.controlflow import CFG, BasicBlockNode, ControlDependenceGraph
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
 

@@ -14,46 +14,37 @@ import logging
 import re
 import types
 import typing
-
-from abc import ABC
-from abc import abstractmethod
-from collections import Counter
-from collections import defaultdict
-from dataclasses import dataclass
-from dataclasses import field
+from abc import ABC, abstractmethod
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
 from itertools import starmap
-from typing import Any
-from typing import Final
-from typing import ForwardRef
-from typing import Generic
-from typing import TypeVar
-from typing import _BaseGenericAlias  # type: ignore[attr-defined]  # noqa: PLC2701
-from typing import _eval_type  # type: ignore[attr-defined]  # noqa: PLC2701
-from typing import cast
-from typing import get_origin
+from typing import (
+    Any,
+    Final,
+    ForwardRef,
+    Generic,
+    TypeVar,
+    _BaseGenericAlias,  # type: ignore[attr-defined]  # noqa: PLC2701
+    _eval_type,  # type: ignore[attr-defined]  # noqa: PLC2701
+    cast,
+    get_origin,
+)
 
 import networkx as nx
-
 from networkx.drawing.nx_pydot import to_pydot
 from typing_inspect import is_union_type
 
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
-
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
-from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.type_inference import InferenceProvider
+from pynguin.analyses.type_inference import HintInference, InferenceProvider
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice
-from pynguin.utils.type_utils import COLLECTIONS
-from pynguin.utils.type_utils import PRIMITIVES
-
+from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES
 
 if typing.TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import Mapping
-    from collections.abc import Sequence
+    from collections.abc import Callable, Mapping, Sequence
     from typing import ClassVar
 
     from pynguin.analyses.module import TypeGuessingStats

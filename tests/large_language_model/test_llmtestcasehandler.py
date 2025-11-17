@@ -6,18 +6,14 @@
 #
 """Tests for the LLMTestCaseHandler class."""
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.ga.computations import BranchDistanceTestSuiteFitnessFunction
-from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import is_api_key_present
-from pynguin.large_language_model.llmagent import is_api_key_valid
+from pynguin.large_language_model.llmagent import LLMAgent, is_api_key_present, is_api_key_valid
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
 

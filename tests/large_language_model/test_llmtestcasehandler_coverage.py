@@ -6,13 +6,11 @@
 #
 """Tests to improve coverage for the LLMTestCaseHandler module."""
 
-from unittest.mock import mock_open
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.large_language_model.llmtestcasehandler import save_llm_tests_to_file
 
 

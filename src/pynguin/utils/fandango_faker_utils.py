@@ -8,7 +8,6 @@
 
 from pathlib import Path
 
-
 try:
     from fandango.language.grammar import Grammar
     from fandango.language.parse import parse

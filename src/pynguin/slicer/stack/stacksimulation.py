@@ -11,15 +11,11 @@
 from __future__ import annotations
 
 import logging
-
 from collections import UserList
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
-from pynguin.instrumentation.version import ACCESS_NAMES
-from pynguin.instrumentation.version import STORE_NAMES
+from pynguin.instrumentation.version import ACCESS_NAMES, STORE_NAMES
 from pynguin.slicer.executionflowbuilder import UniqueInstruction
-
 
 DEFAULT_STACK_HEIGHT = 40
 DEFAULT_FRAME_HEIGHT = 40

@@ -13,10 +13,11 @@ import pynguin.configuration as config
 import pynguin.testcase.statement as stmt
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
-
-from pynguin.analyses.constants import ConstantPool
-from pynguin.analyses.constants import DelegatingConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
+from pynguin.analyses.constants import (
+    ConstantPool,
+    DelegatingConstantProvider,
+    EmptyConstantProvider,
+)
 
 
 @pytest.mark.parametrize(

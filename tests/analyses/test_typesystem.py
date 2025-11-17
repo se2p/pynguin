@@ -9,44 +9,40 @@
 import inspect
 import operator
 import re
-
-from typing import Any
-from typing import TypeVar
-from typing import Union
+from typing import Any, TypeVar, Union
 from unittest import mock
 
 import pytest
 
 import pynguin.configuration as config
-
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.type_inference import HintInference
-from pynguin.analyses.type_inference import NoInference
-from pynguin.analyses.typesystem import _DICT_KEY_ATTRIBUTES
-from pynguin.analyses.typesystem import _DICT_KEY_FROM_ARGUMENT_TYPES
-from pynguin.analyses.typesystem import _DICT_VALUE_ATTRIBUTES
-from pynguin.analyses.typesystem import _DICT_VALUE_FROM_ARGUMENT_TYPES
-from pynguin.analyses.typesystem import _LIST_ELEMENT_ATTRIBUTES
-from pynguin.analyses.typesystem import _LIST_ELEMENT_FROM_ARGUMENT_TYPES
-from pynguin.analyses.typesystem import _SET_ELEMENT_ATTRIBUTES
-from pynguin.analyses.typesystem import _SET_ELEMENT_FROM_ARGUMENT_TYPES
-from pynguin.analyses.typesystem import UNSUPPORTED
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import InferredSignature
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import StringSubtype
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import _is_partial_type_match
-from pynguin.analyses.typesystem import is_collection_type
-from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.analyses.type_inference import HintInference, NoInference
+from pynguin.analyses.typesystem import (
+    _DICT_KEY_ATTRIBUTES,
+    _DICT_KEY_FROM_ARGUMENT_TYPES,
+    _DICT_VALUE_ATTRIBUTES,
+    _DICT_VALUE_FROM_ARGUMENT_TYPES,
+    _LIST_ELEMENT_ATTRIBUTES,
+    _LIST_ELEMENT_FROM_ARGUMENT_TYPES,
+    _SET_ELEMENT_ATTRIBUTES,
+    _SET_ELEMENT_FROM_ARGUMENT_TYPES,
+    UNSUPPORTED,
+    AnyType,
+    InferredSignature,
+    Instance,
+    NoneType,
+    StringSubtype,
+    TupleType,
+    TypeInfo,
+    TypeSystem,
+    UnionType,
+    _is_partial_type_match,
+    is_collection_type,
+    is_primitive_type,
+)
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.typetracing import UsageTraceNode
-from tests.fixtures.types.subtyping import Sub
-from tests.fixtures.types.subtyping import Super
+from tests.fixtures.types.subtyping import Sub, Super
 
 
 def __dummy(x: int, y: int) -> int:  # noqa: FURB118

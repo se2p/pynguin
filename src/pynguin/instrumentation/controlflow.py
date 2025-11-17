@@ -12,25 +12,14 @@ from collections import defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypeAlias
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, TypeAlias, TypeVar
 
 import networkx as nx
-
-from bytecode.cfg import BasicBlock
-from bytecode.cfg import ControlFlowGraph
-from bytecode.instr import UNSET
-from bytecode.instr import Compare
-from bytecode.instr import Instr
-from bytecode.instr import SetLineno
-from bytecode.instr import TryBegin
-from bytecode.instr import TryEnd
+from bytecode.cfg import BasicBlock, ControlFlowGraph
+from bytecode.instr import UNSET, Compare, Instr, SetLineno, TryBegin, TryEnd
 
 from pynguin.instrumentation import version
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

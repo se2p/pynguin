@@ -10,14 +10,11 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.testsuitechromosome as tsc
-
 from pynguin.utils.statistics.outputvariablefactory import (
     ChromosomeOutputVariableFactory,
-)
-from pynguin.utils.statistics.outputvariablefactory import (
     DirectSequenceOutputVariableFactory,
+    SequenceOutputVariableFactory,
 )
-from pynguin.utils.statistics.outputvariablefactory import SequenceOutputVariableFactory
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

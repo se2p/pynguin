@@ -14,12 +14,8 @@
 from __future__ import annotations
 
 import logging
-
-from abc import ABC
-from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Generic
-from typing import TypeVar
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import pynguin.configuration as config
 import pynguin.ga.algorithms.archive as arch
@@ -34,46 +30,42 @@ import pynguin.ga.testsuitechromosome as tsc
 import pynguin.ga.testsuitechromosomefactory as tscf
 import pynguin.testcase.testfactory as tf
 import pynguin.utils.statistics.statisticsobserver as sso
-
-from pynguin.analyses.constants import ConstantProvider
-from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import FilteredModuleTestCluster
-from pynguin.analyses.module import ModuleTestCluster
+from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
+from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
 from pynguin.analyses.seeding import InitialPopulationProvider
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
-from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestCaseSearchAlgorithm
-from pynguin.ga.algorithms.randomsearchalgorithm import RandomTestSuiteSearchAlgorithm
+from pynguin.ga.algorithms.randomsearchalgorithm import (
+    RandomTestCaseSearchAlgorithm,
+    RandomTestSuiteSearchAlgorithm,
+)
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.operators.crossover import SinglePointRelativeCrossOver
 from pynguin.ga.operators.ranking import RankBasedPreferenceSorting
-from pynguin.ga.operators.selection import RankSelection
-from pynguin.ga.operators.selection import SelectionFunction
-from pynguin.ga.operators.selection import TournamentSelection
-from pynguin.ga.stoppingcondition import CoveragePlateauStoppingCondition
-from pynguin.ga.stoppingcondition import MaxCoverageStoppingCondition
-from pynguin.ga.stoppingcondition import MaxIterationsStoppingCondition
-from pynguin.ga.stoppingcondition import MaxMemoryStoppingCondition
-from pynguin.ga.stoppingcondition import MaxSearchTimeStoppingCondition
-from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
-from pynguin.ga.stoppingcondition import MaxTestExecutionsStoppingCondition
-from pynguin.ga.stoppingcondition import MinimumCoveragePlateauStoppingCondition
-from pynguin.ga.stoppingcondition import StoppingCondition
-from pynguin.testcase.execution import AbstractTestCaseExecutor
-from pynguin.testcase.execution import TypeTracingTestCaseExecutor
+from pynguin.ga.operators.selection import RankSelection, SelectionFunction, TournamentSelection
+from pynguin.ga.stoppingcondition import (
+    CoveragePlateauStoppingCondition,
+    MaxCoverageStoppingCondition,
+    MaxIterationsStoppingCondition,
+    MaxMemoryStoppingCondition,
+    MaxSearchTimeStoppingCondition,
+    MaxStatementExecutionsStoppingCondition,
+    MaxTestExecutionsStoppingCondition,
+    MinimumCoveragePlateauStoppingCondition,
+    StoppingCondition,
+)
+from pynguin.testcase.execution import AbstractTestCaseExecutor, TypeTracingTestCaseExecutor
 from pynguin.utils.exceptions import ConfigurationException
 from pynguin.utils.orderedset import OrderedSet
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import ClassVar
 
     import pynguin.ga.chromosomefactory as cf
-
     from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
     from pynguin.ga.operators.crossover import CrossOverFunction
     from pynguin.ga.operators.ranking import RankingFunction

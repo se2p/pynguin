@@ -12,9 +12,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     import pynguin.ga.chromosomefactory as cf

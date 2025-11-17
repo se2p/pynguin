@@ -9,43 +9,37 @@
 from __future__ import annotations
 
 import ast
-
 from inspect import Parameter
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.utils.ast_util as au
-
-from pynguin.testcase.statement import ASTAssignStatement
-from pynguin.testcase.statement import ClassPrimitiveStatement
-from pynguin.testcase.statement import StatementVisitor
-
+from pynguin.testcase.statement import ASTAssignStatement, ClassPrimitiveStatement, StatementVisitor
 
 if TYPE_CHECKING:
     import pynguin.utils.namingscope as ns
-
-    from pynguin.testcase.statement import AllowedValuesStatement
-    from pynguin.testcase.statement import AssignmentStatement
-    from pynguin.testcase.statement import BooleanPrimitiveStatement
-    from pynguin.testcase.statement import BytesPrimitiveStatement
-    from pynguin.testcase.statement import ComplexPrimitiveStatement
-    from pynguin.testcase.statement import ConstructorStatement
-    from pynguin.testcase.statement import DictStatement
-    from pynguin.testcase.statement import EnumPrimitiveStatement
-    from pynguin.testcase.statement import FieldStatement
-    from pynguin.testcase.statement import FloatPrimitiveStatement
-    from pynguin.testcase.statement import FunctionStatement
-    from pynguin.testcase.statement import IntPrimitiveStatement
-    from pynguin.testcase.statement import ListStatement
-    from pynguin.testcase.statement import MethodStatement
-    from pynguin.testcase.statement import NdArrayStatement
-    from pynguin.testcase.statement import NoneStatement
-    from pynguin.testcase.statement import ParametrizedStatement
-    from pynguin.testcase.statement import PrimitiveStatement
-    from pynguin.testcase.statement import SetStatement
-    from pynguin.testcase.statement import StringPrimitiveStatement
-    from pynguin.testcase.statement import TupleStatement
+    from pynguin.testcase.statement import (
+        AllowedValuesStatement,
+        AssignmentStatement,
+        BooleanPrimitiveStatement,
+        BytesPrimitiveStatement,
+        ComplexPrimitiveStatement,
+        ConstructorStatement,
+        DictStatement,
+        EnumPrimitiveStatement,
+        FieldStatement,
+        FloatPrimitiveStatement,
+        FunctionStatement,
+        IntPrimitiveStatement,
+        ListStatement,
+        MethodStatement,
+        NdArrayStatement,
+        NoneStatement,
+        ParametrizedStatement,
+        PrimitiveStatement,
+        SetStatement,
+        StringPrimitiveStatement,
+        TupleStatement,
+    )
     from pynguin.utils.generic.genericaccessibleobject import (
         GenericCallableAccessibleObject,
     )

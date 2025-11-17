@@ -12,17 +12,12 @@ import abc
 import dataclasses
 import math
 import statistics
-
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.slicer.dynamicslicer import AssertionSlicer
-from pynguin.slicer.dynamicslicer import DynamicSlicer
-
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -30,10 +25,8 @@ if TYPE_CHECKING:
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
-    from pynguin.slicer.dynamicslicer import SlicingCriterion
-    from pynguin.slicer.dynamicslicer import UniqueInstruction
-    from pynguin.testcase.execution import AbstractTestCaseExecutor
-    from pynguin.testcase.execution import ExecutionResult
+    from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
+    from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
     from pynguin.testcase.statement import Statement
 
 

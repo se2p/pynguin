@@ -10,31 +10,27 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-
 from dataclasses import dataclass
 from types import CodeType
-from typing import TYPE_CHECKING
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bytecode.cfg import BasicBlock
-from bytecode.instr import _UNSET  # noqa: PLC2701
-from bytecode.instr import UNSET
-from bytecode.instr import CellVar
-from bytecode.instr import FreeVar
-from bytecode.instr import Instr
-from bytecode.instr import TryEnd
+from bytecode.instr import (
+    _UNSET,  # noqa: PLC2701
+    UNSET,
+    CellVar,
+    FreeVar,
+    Instr,
+    TryEnd,
+)
 
 import pynguin.configuration as config
-
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import InstrumentationExecutionTracer
-from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.instrumentation.tracer import InstrumentationExecutionTracer, SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.slicer.dynamicslicer import DynamicSlicer
-from pynguin.slicer.dynamicslicer import SlicingCriterion
+from pynguin.slicer.dynamicslicer import DynamicSlicer, SlicingCriterion
 from tests.testutils import instrument_function
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

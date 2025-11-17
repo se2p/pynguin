@@ -10,8 +10,7 @@ import re
 import pytest
 
 from pynguin.analyses import string_subtypes
-from pynguin.analyses.string_subtypes import generate_from_regex
-from pynguin.analyses.string_subtypes import infer_regex_from_methods
+from pynguin.analyses.string_subtypes import generate_from_regex, infer_regex_from_methods
 from pynguin.utils.orderedset import OrderedSet
 
 

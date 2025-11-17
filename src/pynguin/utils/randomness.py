@@ -10,16 +10,10 @@ from __future__ import annotations
 
 import random
 import string
-
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypeVar
-
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import MutableSequence
-    from collections.abc import Sequence
+    from collections.abc import Callable, MutableSequence, Sequence
 
 
 class Random(random.Random):  # noqa: S311

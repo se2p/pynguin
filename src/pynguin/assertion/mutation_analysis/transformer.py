@@ -13,7 +13,6 @@ and integrated in Pynguin.
 import ast
 import copy
 import types
-
 from typing import TypeVar
 
 

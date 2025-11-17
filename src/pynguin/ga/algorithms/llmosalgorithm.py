@@ -10,31 +10,25 @@ from __future__ import annotations
 
 import inspect
 import logging
-
 from typing import TYPE_CHECKING
 
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
-    import pynguin.ga.testsuitechromosome as tsc
     import pynguin.ga.chromosomefactory as cf
+    import pynguin.ga.testsuitechromosome as tsc
 
 import operator
 
 import pynguin.configuration as config
-
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.report import CoverageReport
-from pynguin.utils.report import LineAnnotation
-from pynguin.utils.report import get_coverage_report
+from pynguin.utils.report import CoverageReport, LineAnnotation, get_coverage_report
 
 
 class LLMOSAAlgorithm(MOSAAlgorithm):

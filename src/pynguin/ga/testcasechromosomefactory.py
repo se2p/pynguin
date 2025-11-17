@@ -13,16 +13,13 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.ga.chromosomefactory as cf
 import pynguin.ga.testcasechromosome as tcc
-
 from pynguin.utils import randomness
-
 
 if TYPE_CHECKING:
     import pynguin.ga.algorithms.archive as arch
     import pynguin.ga.computations as ff
     import pynguin.ga.testcasefactory as tcf
     import pynguin.testcase.testfactory as tf
-
     from pynguin.utils.orderedset import OrderedSet
 
 

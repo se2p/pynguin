@@ -12,8 +12,7 @@ and integrated in Pynguin.
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.operators.base import copy_node
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
 
 
 class DecoratorDeletion(MutationOperator):

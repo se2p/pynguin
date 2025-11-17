@@ -4,14 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 import importlib
-
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.ga.algorithms.dynamosaalgorithm as dyna
 import pynguin.ga.coveragegoals as bg
-
 from pynguin.configuration import ToCoverConfiguration
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.instrumentation.transformer import InstrumentationTransformer

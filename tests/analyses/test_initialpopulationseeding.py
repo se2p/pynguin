@@ -22,11 +22,9 @@ import pynguin.configuration as config
 import pynguin.ga.testcasefactory as tcf
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.testfactory as tf
-
 from pynguin.analyses import seeding
 from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
 from pynguin.ga.generationalgorithmfactory import TestSuiteGenerationAlgorithmFactory
 
 

@@ -6,23 +6,19 @@
 #
 """Tests for the MOSA-LLM test-generation strategy."""
 
-from unittest.mock import MagicMock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.utils.statistics.stats as stat
-
 from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.report import CoverageEntry
-from pynguin.utils.report import CoverageReport
-from pynguin.utils.report import LineAnnotation
+from pynguin.utils.report import CoverageEntry, CoverageReport, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 

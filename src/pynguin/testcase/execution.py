@@ -21,16 +21,11 @@ import os
 import signal
 import sys
 import threading
-
 from abc import abstractmethod
 from pathlib import Path
-from queue import Empty
-from queue import Queue
+from queue import Empty, Queue
 from types import ModuleType
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import TypeVar
-from typing import cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import dill  # noqa: S403
 import multiprocess as mp
@@ -53,39 +48,29 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.namingscope as ns
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
-
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.machinery import InstrumentationFinder
-from pynguin.instrumentation.tracer import ExecutedAssertion
-from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.instrumentation.tracer import ExecutionTracer
+from pynguin.instrumentation.tracer import ExecutedAssertion, ExecutionTrace, ExecutionTracer
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.testcase import export
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import MinimizationFailureError
-from pynguin.utils.exceptions import ModuleNotImportedError
-from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.exceptions import (
+    MinimizationFailureError,
+    ModuleNotImportedError,
+    TracingAbortedException,
+)
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
-
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from collections.abc import Collection
-    from collections.abc import Generator
-    from collections.abc import Iterable
+    from collections.abc import Callable, Collection, Generator, Iterable
     from contextlib import AbstractContextManager
     from types import ModuleType
 
     import pynguin.testcase.testcase as tc
-
-    from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.analyses.module import TestCluster
+    from pynguin.analyses.module import ModuleTestCluster, TestCluster
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.testcase.testcase import TestCase
 

@@ -11,14 +11,13 @@ and integrated in Pynguin.
 """
 
 import ast
-
 from typing import TypeVar
 
 from pynguin.assertion.mutation_analysis.operators.base import (
     AbstractUnaryOperatorDeletion,
+    MutationOperator,
+    copy_node,
 )
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
-from pynguin.assertion.mutation_analysis.operators.base import copy_node
 
 
 class ConditionalOperatorDeletion(AbstractUnaryOperatorDeletion):

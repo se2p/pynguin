@@ -6,28 +6,29 @@
 #
 import enum
 import inspect
-
 from unittest.mock import MagicMock
 
 import pytest
 
 from pynguin.analyses.typesystem import InferredSignature
-from pynguin.utils.type_utils import given_exception_matches
-from pynguin.utils.type_utils import is_arg_or_kwarg
-from pynguin.utils.type_utils import is_assertable
-from pynguin.utils.type_utils import is_bytes
-from pynguin.utils.type_utils import is_collection_type
-from pynguin.utils.type_utils import is_dict
-from pynguin.utils.type_utils import is_enum
-from pynguin.utils.type_utils import is_ignorable_type
-from pynguin.utils.type_utils import is_list
-from pynguin.utils.type_utils import is_none_type
-from pynguin.utils.type_utils import is_numeric
-from pynguin.utils.type_utils import is_optional_parameter
-from pynguin.utils.type_utils import is_primitive_type
-from pynguin.utils.type_utils import is_set
-from pynguin.utils.type_utils import is_string
-from pynguin.utils.type_utils import is_tuple
+from pynguin.utils.type_utils import (
+    given_exception_matches,
+    is_arg_or_kwarg,
+    is_assertable,
+    is_bytes,
+    is_collection_type,
+    is_dict,
+    is_enum,
+    is_ignorable_type,
+    is_list,
+    is_none_type,
+    is_numeric,
+    is_optional_parameter,
+    is_primitive_type,
+    is_set,
+    is_string,
+    is_tuple,
+)
 
 
 @pytest.mark.parametrize(

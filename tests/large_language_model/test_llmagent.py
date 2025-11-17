@@ -8,11 +8,12 @@
 import pytest
 
 import pynguin.configuration as config
-
-from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.llmagent import is_api_key_present
-from pynguin.large_language_model.llmagent import is_api_key_valid
-from pynguin.large_language_model.llmagent import set_api_key
+from pynguin.large_language_model.llmagent import (
+    LLMAgent,
+    is_api_key_present,
+    is_api_key_valid,
+    set_api_key,
+)
 from pynguin.large_language_model.prompts.testcasegenerationprompt import (
     TestCaseGenerationPrompt,
 )

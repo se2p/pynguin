@@ -35,21 +35,11 @@ from __future__ import annotations
 
 import itertools
 import types
-
-from collections.abc import Hashable
-from collections.abc import Iterable
-from collections.abc import Iterator
-from collections.abc import MutableSet
-from collections.abc import Sequence
+from collections.abc import Hashable, Iterable, Iterator, MutableSet, Sequence
 from collections.abc import Set as AbstractSet
-from typing import Any
-from typing import TypeVar
-from typing import cast
-from typing import get_args
-from typing import overload
+from typing import Any, TypeVar, cast, get_args, overload
 
 from typing_extensions import Self
-
 
 T = TypeVar("T")
 T_co = TypeVar("T_co", covariant=True)

@@ -16,35 +16,26 @@ from __future__ import annotations
 import ast
 import inspect
 import logging
-
-from typing import TYPE_CHECKING
-from typing import Any
-from typing import cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pynguin.testcase.defaulttestcase as dtc
-
 from pynguin import configuration as config
 from pynguin.analyses.seeding import get_collection_type
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TupleType
+from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
 from pynguin.assertion import assertion as ass
 from pynguin.large_language_model.parsing.helpers import _count_all_statements
 from pynguin.testcase import statement as stmt
 from pynguin.testcase import variablereference as vr
 from pynguin.testcase.statement import ASTAssignStatement
-from pynguin.testcase.variablereference import FieldReference
-from pynguin.testcase.variablereference import Reference
+from pynguin.testcase.variablereference import FieldReference, Reference
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericField,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericField
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.type_utils import is_assertable
-
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster
