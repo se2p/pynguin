@@ -208,6 +208,23 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* L Vögl: **Improving Automated Unit Test Generation with Realistic String Inputs**.
+  Bachelor's Thesis. University of Passau, 2025.
+
+  Added realistic string input generation using `Faker <https://faker.readthedocs.io/en/master/>`_ and
+  `Fandango <https://fandango-fuzzer.github.io/>`_.
+
+* L. Leppelmann: **LLM Based Type Inference for Unit Test Generation in Untyped Languages**.
+  Bachelor's Thesis. University of Passau, 2025.
+
+  Added a type inference approach based on querying LLMs.
+
+* A. Wüst: **Memetic Unit Test Generation for Python**.
+  Bachelor's Thesis. University of Passau, 2025.
+
+  Added a memetic algorithm for test generation, combining DynaMOSA with three local search
+  strategies: Same Datatype, Different Datatype and LLM Local Search.
+
 * A. Hajdari: **Enhancing Automated Unit Testing for Machine Learning Libraries
   Based on API Constraints**. Master's Thesis. University of Passau, 2025.
 

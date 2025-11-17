@@ -130,6 +130,9 @@ of the [University of Passau](https://www.uni-passau.de).
 Maintainers: [Stephan Lukasczyk](https://github.com/stephanlukasczyk), [Lukas Krodinger](https://github.com/LuKrO2011)
 
 Contributors:
+- [Lukas Vögl](https://github.com/lvoegl)
+- Louis Leppelmann
+- Alexander Wüst
 - [Altin Hajdari](https://github.com/AltinHajdari)
 - [Abdelillah Aissani](https://github.com/Abassion)
 - [Juan Altmayer Pizzorno](https://github.com/jaltmayerpizzorno)
