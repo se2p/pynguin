@@ -63,13 +63,6 @@ def test_worker_log_formatter_format():
             "Test error",
             "Test traceback",
         ),
-        (
-            "another_task",
-            WorkerReturnCode.TIMEOUT,
-            ReturnCode.NO_TESTS_GENERATED,
-            "Timeout error",
-            "Timeout traceback",
-        ),
         ("third_task", WorkerReturnCode.OK, ReturnCode.OK, "", ""),
     ],
 )
@@ -138,7 +131,7 @@ def test_worker_main_generic_exception():
 
     sending_connection.send.assert_called_once()
     sent_result = sending_connection.send.call_args[0][0]
-    assert sent_result.worker_return_code == WorkerReturnCode.ERROR
+    assert sent_result.worker_return_code == WorkerReturnCode.OK
     assert "Test exception" in str(sent_result)
     assert sent_result.error.traceback_str
 

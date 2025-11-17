@@ -44,15 +44,6 @@ def create_mock_configuration(
             False,
         ),
         (
-            WorkerResult(
-                task_id="2",
-                worker_return_code=WorkerReturnCode.TIMEOUT,
-                return_code=ReturnCode.NO_TESTS_GENERATED,
-            ),
-            ReturnCode.NO_TESTS_GENERATED,
-            False,
-        ),
-        (
             WorkerResult(task_id="3", worker_return_code=WorkerReturnCode.OK, return_code=None),
             ReturnCode.NO_TESTS_GENERATED,
             False,

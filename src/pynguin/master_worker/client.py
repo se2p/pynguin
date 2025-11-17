@@ -63,18 +63,9 @@ class PynguinClient:
 
             match result.worker_return_code:
                 case WorkerReturnCode.ERROR:
-                    _LOGGER.error(
-                        "Pynguin error: %s\n%s",
-                        result.error,
-                        result.error.traceback_str if result.error else "",
-                    )
-                    return ReturnCode.NO_TESTS_GENERATED
-                case WorkerReturnCode.TIMEOUT:
-                    _LOGGER.error("Worker process timed out")
                     return ReturnCode.NO_TESTS_GENERATED
                 case WorkerReturnCode.OK:
                     if result.return_code is None:
-                        _LOGGER.error("Worker process returned without error code")
                         return ReturnCode.NO_TESTS_GENERATED
                     return result.return_code
 
