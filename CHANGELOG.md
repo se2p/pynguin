@@ -11,6 +11,34 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.44.0
+
+- Remove unnecessary log messages in case of test execution timeouts (cf. GitHub PR #113)
+- Remove unused exceptions, classes, and arguments (cf. GitHub PR #114)
+- Conditional coverage (cf. GitHub PR #115, #121)
+- Prevent destructors from being explicitly called during test generation (cf. GitHub PR #117)
+- Add support for Python3.14 (cf. GitHub PR #120)
+- Remove the temporary hack caused by the `bytecode` library (cf. GitHub PR #122)
+- Handle `InvalidInput` when formatting module with `black` (cf. GitHub PR #124)
+- Fix configuration write (cf. GitHub PR #125)
+- Fix "tracing aborted" in coverage report (cf. GitHub PR #126)
+- Add local search (fix bugs in cf. GitHub PR #127)
+- Fix reload module (cf. GitHub PR #128)
+- Fix deprecated typing (cf. GitHub PR #129)
+- Add master-worker architecture (cf. GitHub PR #130)
+- Add execution recorder (cf. GitHub PR #132)
+- Add faker and fandango string generation
+- Enhance `TypeTracing` for string subtypes
+- Fix `TypeError` with `NoneType` (cf. GitHub Issue #53)
+- Add test suite/case minimization with multiple fitness functions
+- Add LLM type inference
+- Adjust optional dependencies to use `--extras` instead of `--with`
+- Add `Executed` and `CrashRevealingSize` runtime variables
+- Add before-execution execution recorder
+- Improve LLM assertion parsing
+- Replace `isort` with `ruff-format`
+- Improve DynaMOSA parameters
+
 ## Pynguin 0.43.0
 
 - Add experimental support for Python 3.11, 3.12, and 3.13 (cf. GitHub PR #110, Issue #84)
