@@ -2,5 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+# Replace isort by ruff-format's import sorting
+9ec54fc841479912b1f1a67301f39be8f4982b32
+
 # Replace black with ruff-format
 0729abe647ddd0ab6a7fc33fbbcec10a16819d07
