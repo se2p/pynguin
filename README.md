@@ -132,7 +132,7 @@ Maintainers: [Stephan Lukasczyk](https://github.com/stephanlukasczyk), [Lukas Kr
 Contributors:
 - [Lukas Vögl](https://github.com/lvoegl)
 - [Louis Leppelmann](https://github.com/Tudeldu)
-- Alexander Wüst
+- [Alexander Wüst](https://github.com/Ravaqor)
 - [Altin Hajdari](https://github.com/AltinHajdari)
 - [Abdelillah Aissani](https://github.com/Abassion)
 - [Juan Altmayer Pizzorno](https://github.com/jaltmayerpizzorno)
