@@ -71,6 +71,7 @@ class WorkerError(Exception):
             traceback_str: The traceback string.
         """
         super().__init__(message)
+        # separately needed for serialization and formatting
         self.traceback_str = traceback_str
 
 
@@ -81,13 +82,10 @@ class WorkerResult:
     task_id: str
     worker_return_code: WorkerReturnCode
     return_code: ReturnCode | None
+    # As the error is logged inside the worker, this is currently not used but
+    # might be useful in the future.
     error: WorkerError | None = None
     restart_count: int = 0
-
-    @property
-    def traceback_str(self) -> str:
-        """Get traceback string from WorkerError if present."""
-        return self.error.traceback_str if self.error else ""
 
 
 @dataclass
@@ -147,6 +145,7 @@ def worker_main(
             task_id=task_id,
             worker_return_code=WorkerReturnCode.OK,
             return_code=None,
+            # from syntax does not work here
             error=WorkerError(str(e), traceback.format_exc()),
         )
         try:
