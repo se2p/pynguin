@@ -18,14 +18,14 @@ from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from itertools import starmap
-from typing import (
+from typing import (  # type: ignore[attr-defined]
     Any,
     Final,
     ForwardRef,
     Generic,
     TypeVar,
-    _BaseGenericAlias,  # type: ignore[attr-defined]  # noqa: PLC2701
-    _eval_type,  # type: ignore[attr-defined]  # noqa: PLC2701
+    _BaseGenericAlias,  # noqa: PLC2701
+    _eval_type,  # noqa: PLC2701
     cast,
     get_origin,
 )
