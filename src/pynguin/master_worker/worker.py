@@ -59,9 +59,6 @@ class WorkerReturnCode(enum.IntEnum):
     ERROR = 1
     """Symbolises that an error occurred in master-worker architecture."""
 
-    TIMEOUT = 2
-    """Symbolises that the worker process timed out."""
-
 
 class WorkerError(Exception):
     """Error that occurred during worker process execution."""
@@ -148,7 +145,7 @@ def worker_main(
 
         error_result = WorkerResult(
             task_id=task_id,
-            worker_return_code=WorkerReturnCode.ERROR,
+            worker_return_code=WorkerReturnCode.OK,
             return_code=None,
             error=WorkerError(str(e), traceback.format_exc()),
         )
@@ -156,3 +153,4 @@ def worker_main(
             sending_connection.send(error_result)
         except Exception:  # noqa: BLE001
             _LOGGER.error("Failed to send error result to master")
+        _LOGGER.error("Pynguin error in worker process: %s\n%s", e, traceback.format_exc())
