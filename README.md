@@ -131,7 +131,7 @@ Maintainers: [Stephan Lukasczyk](https://github.com/stephanlukasczyk), [Lukas Kr
 
 Contributors:
 - [Lukas Vögl](https://github.com/lvoegl)
-- Louis Leppelmann
+- [Louis Leppelmann](https://github.com/Tudeldu)
 - Alexander Wüst
 - [Altin Hajdari](https://github.com/AltinHajdari)
 - [Abdelillah Aissani](https://github.com/Abassion)
