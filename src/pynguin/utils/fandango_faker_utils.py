@@ -6,12 +6,16 @@
 #
 """Provides utilities related to Fandango and Faker."""
 
+from __future__ import annotations
+
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 try:
-    from fandango.language.grammar import Grammar
     from fandango.language.parse import parse
 
+    if TYPE_CHECKING:
+        from fandango.language.grammar import Grammar
     FANDANGO_FAKER_AVAILABLE = True
 except ImportError:
     FANDANGO_FAKER_AVAILABLE = False

@@ -2204,8 +2204,6 @@ class RandomStringPrimitiveStatement(StringPrimitiveStatementImpl):
 class FakerStringPrimitiveStatement(RandomStringPrimitiveStatement):
     """Primitive Statement that creates a String using Faker."""
 
-    FAKER = Faker(use_weighting=False)
-
     def randomize_value(self) -> None:  # noqa: D102
         if (
             self._constant_provider
@@ -2215,20 +2213,21 @@ class FakerStringPrimitiveStatement(RandomStringPrimitiveStatement):
         ):
             self._value = seeded_value
         else:
+            faker = Faker(use_weighting=False)
             generators: list[Callable[[], str | int]] = [
-                FakerStringPrimitiveStatement.FAKER.random_number,
-                FakerStringPrimitiveStatement.FAKER.xml,
-                FakerStringPrimitiveStatement.FAKER.csv,
-                FakerStringPrimitiveStatement.FAKER.json,
-                FakerStringPrimitiveStatement.FAKER.file_path,
-                FakerStringPrimitiveStatement.FAKER.email,
-                FakerStringPrimitiveStatement.FAKER.date,
-                FakerStringPrimitiveStatement.FAKER.ipv4,
-                FakerStringPrimitiveStatement.FAKER.ipv6,
-                FakerStringPrimitiveStatement.FAKER.hostname,
-                FakerStringPrimitiveStatement.FAKER.color,
-                FakerStringPrimitiveStatement.FAKER.file_name,
-                FakerStringPrimitiveStatement.FAKER.password,
+                faker.random_number,
+                faker.xml,
+                faker.csv,
+                faker.json,
+                faker.file_path,
+                faker.email,
+                faker.date,
+                faker.ipv4,
+                faker.ipv6,
+                faker.hostname,
+                faker.color,
+                faker.file_name,
+                faker.password,
             ]
             generator = randomness.choice(generators)
             self._value = str(generator())
