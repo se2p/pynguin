@@ -7,19 +7,21 @@
 
 import json
 import tempfile
-
 from pathlib import Path
 
 import pytest
 
-from pynguin.analyses.typesystem import EnhancedTypeHintProvider
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import TypeEvalPyTypeProvider
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.analyses.typesystem import UnionType
-from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
-from pynguin.utils.typeevalpy_json_schema import TypeEvalPySchemaElement
-from pynguin.utils.typeevalpy_json_schema import parse_json
+from pynguin.analyses.type_inference import EnhancedTypeHintProvider, TypeEvalPyTypeProvider
+from pynguin.analyses.typesystem import (
+    Instance,
+    TypeSystem,
+    UnionType,
+)
+from pynguin.utils.typeevalpy_json_schema import (
+    ParsedTypeEvalPyData,
+    TypeEvalPySchemaElement,
+    parse_json,
+)
 
 
 def test_typeevalpy_provider_parameter_types():

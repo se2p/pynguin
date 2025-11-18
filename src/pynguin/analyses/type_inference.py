@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import importlib
 import inspect
 import json
 import logging
@@ -14,7 +15,12 @@ import types
 import typing
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Any, get_type_hints
+from functools import reduce
+from operator import or_
+from typing import TYPE_CHECKING, Any, get_type_hints
+
+if TYPE_CHECKING:
+    from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
 
 try:
     from pydantic import SecretStr
@@ -25,7 +31,15 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
+
 import pynguin.configuration as config
+from pynguin.analyses.typesystem import (
+    ANY,
+    Instance,
+    TupleType,
+    TypeInfo,
+    UnionType,
+)
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
 from pynguin.large_language_model.prompts.typeinferenceprompt import (
     TypeInferencePrompt,
@@ -37,7 +51,10 @@ from pynguin.utils.orderedset import OrderedSet
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from pynguin.analyses.typesystem import TypeSystem
+    from pynguin.analyses.typesystem import (
+        ProperType,
+        TypeSystem,
+    )
 
 from copy import deepcopy
 
@@ -317,3 +334,300 @@ class HintInference(InferenceProvider):
             _LOGGER.debug(exc)
             hints = {}
         return hints
+
+
+class EnhancedTypeHintProvider:
+    """Enhanced type hint provider that combines type hints with TypeEvalPy data."""
+
+    def __init__(self, typeevalpy_data: ParsedTypeEvalPyData | None = None):
+        """Initialize the enhanced type hint provider.
+
+        Args:
+            typeevalpy_data: Optional TypeEvalPy data to enhance type hints
+        """
+        self._typeevalpy_provider = (
+            TypeEvalPyTypeProvider(typeevalpy_data) if typeevalpy_data else None
+        )
+
+    def get_enhanced_type_hints(self, method: Callable, function_name: str) -> dict[str, Any]:
+        """Get enhanced type hints combining original hints with TypeEvalPy data.
+
+        Args:
+            method: The method for which we want type hints
+            function_name: The name of the function in TypeEvalPy format
+
+        Returns:
+            A dict mapping parameter names to enhanced type hints
+        """
+        # Start with original type hints
+        try:
+            hints = get_type_hints(method)
+        except (AttributeError, NameError, TypeError) as exc:
+            _LOGGER.debug("Could not retrieve type hints for %s", method)
+            _LOGGER.debug(exc)
+            hints = {}
+
+        # Enhance with TypeEvalPy data if available
+        if self._typeevalpy_provider:
+            return self._enhance_with_typeevalpy(hints, method, function_name)
+
+        return hints
+
+    def _enhance_with_typeevalpy(
+        self, original_hints: dict[str, Any], method: Callable, function_name: str
+    ) -> dict[str, Any]:
+        """Enhance original type hints with TypeEvalPy data.
+
+        Args:
+            original_hints: Original type hints from method annotations
+            method: The method being analyzed
+            function_name: Function name in TypeEvalPy format
+
+        Returns:
+            Enhanced type hints combining both sources
+        """
+        enhanced_hints = original_hints.copy()
+
+        try:
+            signature = inspect.signature(method)
+
+            # Enhance parameter types
+            for param_name in signature.parameters:
+                if param_name == "self":
+                    continue
+
+                # Get TypeEvalPy type for this parameter
+                if self._typeevalpy_provider is not None:
+                    typeevalpy_type = self._typeevalpy_provider.get_parameter_types(
+                        function_name, param_name
+                    )
+                else:
+                    typeevalpy_type = None
+
+                if typeevalpy_type:
+                    # If we don't have original type hints, use TypeEvalPy
+                    if param_name not in original_hints:
+                        enhanced_hints[param_name] = self._convert_proper_type_to_hint(
+                            typeevalpy_type
+                        )
+                        _LOGGER.debug(
+                            "Enhanced parameter %s.%s with TypeEvalPy type: %s",
+                            function_name,
+                            param_name,
+                            typeevalpy_type,
+                        )
+                    else:
+                        # TODO: Could implement type hint merging/validation here
+                        _LOGGER.debug(
+                            "Parameter %s.%s already has type hint, keeping original",
+                            function_name,
+                            param_name,
+                        )
+
+            # Enhance return type
+            if "return" not in original_hints:
+                if self._typeevalpy_provider is not None:
+                    typeevalpy_return_type = self._typeevalpy_provider.get_return_types(
+                        function_name
+                    )
+                else:
+                    typeevalpy_return_type = None
+
+                if typeevalpy_return_type:
+                    enhanced_hints["return"] = self._convert_proper_type_to_hint(
+                        typeevalpy_return_type
+                    )
+                    _LOGGER.debug(
+                        "Enhanced return type for %s with TypeEvalPy type: %s",
+                        function_name,
+                        typeevalpy_return_type,
+                    )
+
+        except (ValueError, TypeError, AttributeError) as e:
+            _LOGGER.debug("Failed to enhance type hints with TypeEvalPy data: %s", e)
+
+        return enhanced_hints
+
+    def _convert_proper_type_to_hint(self, proper_type: ProperType) -> Any:
+        """Convert a ProperType back to a type hint.
+
+        Args:
+            proper_type: The ProperType to convert
+
+        Returns:
+            A type hint object
+        """
+        if isinstance(proper_type, Instance):
+            return proper_type.type.raw_type
+        if isinstance(proper_type, UnionType):
+            # Convert union types
+
+            union_types = [self._convert_proper_type_to_hint(item) for item in proper_type.items]
+            if len(union_types) == 1:
+                return union_types[0]
+            # Use the | syntax for union types (Python 3.10+)
+            return reduce(or_, union_types)
+        # For other types, try to extract the underlying type
+        try:
+            return getattr(proper_type, "raw_type", object)
+        except AttributeError:
+            return object
+
+
+class TypeEvalPyTypeProvider:
+    """Provides type information from TypeEvalPy JSON data for use during test generation."""
+
+    def __init__(self, typeevalpy_data: ParsedTypeEvalPyData):
+        """Initialize the TypeEvalPy type provider.
+
+        Args:
+            typeevalpy_data: Parsed TypeEvalPy JSON data
+        """
+        self._data = typeevalpy_data
+        self._builtin_type_map = {
+            "int": int,
+            "float": float,
+            "str": str,
+            "bool": bool,
+            "list": list,
+            "dict": dict,
+            "set": set,
+            "None": type(None),
+            "NoneType": type(None),
+        }
+
+    def get_parameter_types(self, function_name: str, parameter_name: str) -> ProperType | None:
+        """Get the inferred type for a parameter from TypeEvalPy data.
+
+        Args:
+            function_name: Name of the function
+            parameter_name: Name of the parameter
+
+        Returns:
+            ProperType representing the types from TypeEvalPy, or None if not found
+        """
+        type_names = self._data.get_function_parameters(function_name).get(parameter_name)
+        if not type_names:
+            return None
+
+        return self._convert_type_names_to_proper_type(type_names)
+
+    def get_return_types(self, function_name: str) -> ProperType | None:
+        """Get the return types for a function from TypeEvalPy data.
+
+        Args:
+            function_name: Name of the function
+
+        Returns:
+            ProperType representing the return types from TypeEvalPy, or None if not found
+        """
+        type_names = self._data.get_function_return_types(function_name)
+        if not type_names:
+            return None
+
+        return self._convert_type_names_to_proper_type(type_names)
+
+    def get_variable_types(self, variable_name: str) -> ProperType | None:
+        """Get the types for a variable from TypeEvalPy data.
+
+        Args:
+            variable_name: Name of the variable
+
+        Returns:
+            ProperType representing the types from TypeEvalPy, or None if not found
+        """
+        type_names = self._data.get_variable_types(variable_name)
+        if not type_names:
+            return None
+
+        return self._convert_type_names_to_proper_type(type_names)
+
+    def has_type_info_for_function(self, function_name: str) -> bool:
+        """Check if type information exists for a function.
+
+        Args:
+            function_name: Name of the function
+
+        Returns:
+            True if type information exists for the function
+        """
+        return function_name in self._data.get_all_functions()
+
+    def _convert_type_names_to_proper_type(self, type_names: list[str]) -> ProperType | None:
+        """Convert a list of type names to a ProperType.
+
+        Args:
+            type_names: List of type names from TypeEvalPy
+
+        Returns:
+            ProperType representing the types, or None if no valid types found
+        """
+        types = []
+        for type_name in type_names:
+            proper_type = self._convert_single_type_name(type_name)
+            if proper_type:
+                types.append(proper_type)
+
+        if not types:
+            return None
+        if len(types) == 1:
+            return types[0]
+        return UnionType(tuple(types))
+
+    def _convert_single_type_name(self, type_name: str) -> ProperType | None:  # noqa: C901
+        """Convert a single type name to a ProperType.
+
+        Args:
+            type_name: Name of the type
+
+        Returns:
+            ProperType for the type, or None if not convertible
+        """
+        # Handle builtin types
+        if type_name in self._builtin_type_map:
+            return Instance(TypeInfo(self._builtin_type_map[type_name]))
+
+        if type_name == "tuple":
+            return TupleType((ANY,), unknown_size=True)
+
+        # Handle complex types like typing.List, typing.Dict, etc.
+        if "." in type_name:
+            try:
+                # Try to import and resolve the type
+                module_name, class_name = type_name.rsplit(".", 1)
+                if module_name == "typing":
+                    # Handle common typing module types
+                    typing_map = {
+                        "List": list,
+                        "Dict": dict,
+                        "Set": set,
+                        "Tuple": tuple,
+                        "Optional": type(None),  # Simplified
+                        "Union": None,  # Will be handled elsewhere
+                        "Any": object,  # Simplified
+                    }
+                    if class_name in typing_map and typing_map[class_name] is not None:
+                        return Instance(TypeInfo(typing_map[class_name]))  # type: ignore[arg-type]
+                else:
+                    # Try to resolve custom types by importing
+                    try:
+                        module = importlib.import_module(module_name)
+                        type_obj = getattr(module, class_name, None)
+                        if type_obj and isinstance(type_obj, type):
+                            return Instance(TypeInfo(type_obj))
+                    except (ImportError, AttributeError):
+                        _LOGGER.debug("Could not resolve type %s", type_name)
+            except ValueError:
+                pass
+
+        # Try to resolve as builtin type by name
+        try:
+            type_obj = getattr(builtins, type_name, None)
+            if type_obj and isinstance(type_obj, type):
+                return Instance(TypeInfo(type_obj))
+        except AttributeError:
+            pass
+
+        # Log unknown types for debugging
+        _LOGGER.debug("Unknown type name in TypeEvalPy data: %s", type_name)
+        return None

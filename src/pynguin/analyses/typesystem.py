@@ -37,7 +37,6 @@ from typing_inspect import is_union_type
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
-from pynguin.analyses.type_inference import HintInference, InferenceProvider
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice
@@ -1722,17 +1721,42 @@ class TypeSystem:  # noqa: PLR0904
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_provider: InferenceProvider,
+        type_inference_provider: InferenceProvider | None = None,
+        *,
+        function_name: str | None = None,
+        typeevalpy_data=None,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
-            type_inference_provider: The provider for type inference
+            type_inference_provider: The provider for type inference. If not provided,
+                defaults to HintInference.
+            function_name: Optional function name used for TypeEvalPy integration.
+            typeevalpy_data: Optional ParsedTypeEvalPyData to enhance hints.
 
         Returns:
             The inference result
         """
+        # Lazy imports to avoid circular dependencies
+        from pynguin.analyses.type_inference import (  # noqa: PLC0415
+            EnhancedTypeHintProvider,
+            HintInference,
+        )
+
+        if type_inference_provider is None:
+            type_inference_provider = HintInference()
+
+        if function_name is not None or typeevalpy_data is not None:
+            # Use enhanced provider that merges annotations with TypeEvalPy data
+            enhancer = EnhancedTypeHintProvider(typeevalpy_data)
+
+            def provider_func(m: Callable) -> dict:
+                arg_2: str = function_name or getattr(m, "__name__", "")  # type: ignore[assignment]
+                return enhancer.get_enhanced_type_hints(m, arg_2)
+
+            return self.infer_signature(method, provider_func)
+
         return self.infer_signature(method, type_inference_provider.provide)
 
     def infer_signature(
@@ -1773,6 +1797,9 @@ class TypeSystem:  # noqa: PLR0904
         parameters: dict[str, ProperType] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
+        # Lazy import to avoid circular dependencies
+        from pynguin.analyses.type_inference import HintInference  # noqa: PLC0415
+
         hints_provider_for_statistics = HintInference()
         hints_for_statistics: dict = hints_provider_for_statistics.provide(method)
         parameters_for_statistics: dict[str, ProperType] = {}
@@ -1943,3 +1970,13 @@ class TypeSystem:  # noqa: PLR0904
                 args = args[: result.type.num_hardcoded_generic_parameters]
             return Instance(result.type, args)
         return result
+
+
+# Re-export selected inference helpers to maintain public API without top-level circular import
+try:  # noqa: SIM105
+    from pynguin.analyses.type_inference import (
+        InferenceProvider,  # noqa: TC001
+    )
+except Exception:  # noqa: BLE001, S110
+    # During early/partial imports these may not be available; they will be provided later.
+    pass
