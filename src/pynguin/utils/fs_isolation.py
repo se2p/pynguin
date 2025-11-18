@@ -23,6 +23,8 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
+import pynguin.configuration as config
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -61,9 +63,11 @@ class FilesystemIsolation(ContextDecorator):
 
     def __init__(self) -> None:
         """Initialize the isolation."""
-        self._tmp = TemporaryDirectory()
-        self._created: set[str] = set()
-        self._exit_stack = ExitStack()
+        self._enabled = config.configuration.filesystem_isolation
+        if self._enabled:
+            self._tmp = TemporaryDirectory()
+            self._created: set[str] = set()
+            self._exit_stack = ExitStack()
 
     @staticmethod
     def _abspath(path: os.PathLike | str) -> str:
@@ -248,6 +252,9 @@ class FilesystemIsolation(ContextDecorator):
 
     def __enter__(self):
         """Enter the isolation context: set up tmpdir and patches."""
+        if not self._enabled:
+            return self
+
         # mount the TemporaryDirectory
         self._exit_stack.enter_context(self._tmp)
         tmpdir = self._tmp.name
@@ -263,6 +270,9 @@ class FilesystemIsolation(ContextDecorator):
 
     def __exit__(self, exc_type, exc, tb) -> bool:
         """Exit the filesystem isolation context."""
+        if not self._enabled:
+            return False
+
         self._exit_stack.close()
 
         for path in sorted(self._created, key=lambda p: (p.count(os.sep), p), reverse=True):

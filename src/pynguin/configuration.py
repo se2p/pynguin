@@ -971,6 +971,11 @@ class Configuration:
     use_master_worker: bool = True
     """Use master-worker architecture for fault tolerance."""
 
+    filesystem_isolation: bool = True
+    """Whether to use filesystem isolation during test execution.
+    Filesystem isolation provides some safety by tracking and controlling file operations,
+    e.g. preventing file deletion of non-created files, but adds performance overhead."""
+
 
 # Singleton instance of the configuration.
 configuration = Configuration(

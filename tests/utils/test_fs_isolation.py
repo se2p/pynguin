@@ -16,7 +16,14 @@ from unittest.mock import patch
 
 import pytest
 
+import pynguin.configuration as config
+
 from pynguin.utils.fs_isolation import FilesystemIsolation
+
+
+@pytest.fixture(autouse=True)
+def _force_filesystem_isolation():
+    config.configuration.filesystem_isolation = True
 
 
 @pytest.fixture
@@ -27,9 +34,17 @@ def isolation():
 
 def test_filesystem_isolation_init(isolation):
     """Test that FilesystemIsolation initializes correctly."""
+    assert isolation._enabled
     assert isolation._created == set()
     assert isolation._tmp is not None
     assert isolation._exit_stack is not None
+
+
+def test_filesystem_isolation_init_disabled():
+    """Test that FilesystemIsolation initializes correctly."""
+    config.configuration.filesystem_isolation = False
+    isolation = FilesystemIsolation()
+    assert not isolation._enabled
 
 
 @pytest.mark.parametrize(
