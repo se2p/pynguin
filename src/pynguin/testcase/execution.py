@@ -34,8 +34,6 @@ import multiprocess.connection as mp_conn
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
 import pytest  # noqa: F401
 
-from pyfakefs.fake_filesystem_unittest import Patcher
-
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
@@ -61,6 +59,7 @@ from pynguin.utils import randomness
 from pynguin.utils.exceptions import MinimizationFailureError
 from pynguin.utils.exceptions import ModuleNotImportedError
 from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -1079,7 +1078,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             result = ExecutionResult()
             exec_ctx = ExecutionContext(self._module_provider)
             with (
-                Patcher(),
+                FilesystemIsolation(),
                 output_suppression_context,
                 self._subject_properties.instrumentation_tracer,
             ):
