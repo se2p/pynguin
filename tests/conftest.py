@@ -43,7 +43,6 @@ from tests.fixtures.accessibles.accessible import SomeType, simple_function
 from tests.fixtures.linecoverage.list import ListTest
 from tests.fixtures.linecoverage.plus import Plus
 
-
 load_dotenv()
 
 
