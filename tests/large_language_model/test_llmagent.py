@@ -74,6 +74,7 @@ def test_openai_model_query_success():
     module_path = "/path/to/fake_module.py"
     prompt = TestCaseGenerationPrompt(module_code, module_path)
     model = LLMAgent()
+    model.clear_cache()
 
     response = model.query(prompt)
 
