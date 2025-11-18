@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from pynguin.analyses.type_inference import EnhancedTypeHintProvider, TypeEvalPyTypeProvider
+from pynguin.analyses.type_inference import TypeEvalPyInference, TypeEvalPyTypeProvider
 from pynguin.analyses.typesystem import (
     Instance,
     TypeSystem,
@@ -79,43 +79,6 @@ def test_typeevalpy_provider_return_types():
     assert return_type.type.raw_type is str
 
 
-def test_enhanced_type_hint_provider_no_typeevalpy():
-    """Test enhanced provider without TypeEvalPy data."""
-    provider = EnhancedTypeHintProvider()
-
-    def test_func(x: int) -> str:
-        return str(x)
-
-    hints = provider.get_enhanced_type_hints(test_func, "test_func")
-    assert hints["x"] is int
-    assert hints["return"] is str
-
-
-def test_enhanced_type_hint_provider_with_typeevalpy():
-    """Test enhanced provider with TypeEvalPy data."""
-    # Create TypeEvalPy data
-    elements = [
-        TypeEvalPySchemaElement(
-            file="test.py",
-            line_number=1,
-            type=["float"],
-            function="test_func",
-            parameter="y",
-        ),
-    ]
-    data = ParsedTypeEvalPyData(elements=elements)
-    provider = EnhancedTypeHintProvider(data)
-
-    def test_func(x: int, y) -> str:  # y has no type hint
-        return str(x + y)
-
-    hints = provider.get_enhanced_type_hints(test_func, "test_func")
-    assert hints["x"] is int  # Original type hint preserved
-    assert hints["return"] is str  # Original type hint preserved
-    # y should get type from TypeEvalPy (converted back to type hint)
-    assert "y" in hints  # y should be enhanced with TypeEvalPy data
-
-
 def test_type_system_infer_type_info_with_typeevalpy():
     """Test TypeSystem.infer_type_info with TypeEvalPy data."""
     # Create TypeEvalPy data
@@ -136,10 +99,7 @@ def test_type_system_infer_type_info_with_typeevalpy():
 
     type_system = TypeSystem()
 
-    # Test with TypeEvalPy data using the new adapter
-    from pynguin.analyses.type_inference import EnhancedHintInference  # noqa: PLC0415
-
-    provider = EnhancedHintInference(typeevalpy_data=data)
+    provider = TypeEvalPyInference(typeevalpy_data=data)
     signature_with = type_system.infer_type_info(test_func, type_inference_provider=provider)
 
     # The signature with TypeEvalPy should have enhanced parameter types

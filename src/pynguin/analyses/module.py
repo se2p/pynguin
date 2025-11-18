@@ -41,7 +41,6 @@ import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.type_inference import (
     ANY_STR,
-    EnhancedHintInference,
     HintInference,
     InferenceProvider,
     LLMInference,
@@ -1919,13 +1918,6 @@ def get_type_provider(
                 )
                 return NoInference()
             return TypeEvalPyInference(typeevalpy_data)
-        case TypeInferenceStrategy.ENHANCED:
-            typeevalpy_data = _load_typeevalpy_data()
-            LOGGER.warning(
-                "TypeEvalPy strategy selected but no valid data found. "
-                "Only using existing type hints. "
-            )
-            return EnhancedHintInference(typeevalpy_data)
         case _:
             LOGGER.error(
                 "Unknown type inference strategy: '%s'. Falling back to NoInference.",
