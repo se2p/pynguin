@@ -16,6 +16,7 @@ import logging
 import math
 import typing
 from abc import abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 try:
@@ -2268,7 +2269,8 @@ class FandangoStringPrimitiveStatement(RandomStringPrimitiveStatement):
             local_search_applied=local_search_applied,
         )
 
-    GRAMMARS: ClassVar[list[Grammar]] = load_fandango_grammars("src/pynguin/resources/fans")
+    _FANDANGO_FANS_DIR = Path(__file__).resolve().parent.parent / "resources" / "fans"
+    GRAMMARS: ClassVar[list[Grammar]] = load_fandango_grammars(str(_FANDANGO_FANS_DIR))
 
     def randomize_value(self) -> None:  # noqa: D102
         if (
