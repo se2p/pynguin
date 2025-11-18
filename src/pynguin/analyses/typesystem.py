@@ -37,6 +37,7 @@ from typing_inspect import is_union_type
 import pynguin.configuration as config
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.string_subtypes import infer_regex_from_methods
+from pynguin.analyses.type_inference import HintInference
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice
@@ -1773,9 +1774,6 @@ class TypeSystem:  # noqa: PLR0904
         parameters: dict[str, ProperType] = {}
 
         # Always use type hints for statistics, regardless of configured inference.
-        # Lazy import to avoid circular dependencies
-        from pynguin.analyses.type_inference import HintInference  # noqa: PLC0415
-
         hints_provider_for_statistics = HintInference()
         hints_for_statistics: dict = hints_provider_for_statistics.provide(method)
         parameters_for_statistics: dict[str, ProperType] = {}
