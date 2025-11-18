@@ -51,6 +51,7 @@ if typing.TYPE_CHECKING:
     from typing import ClassVar
 
     from pynguin.analyses.module import TypeGuessingStats
+    from pynguin.analyses.type_inference import InferenceProvider
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -1721,24 +1722,17 @@ class TypeSystem:  # noqa: PLR0904
     def infer_type_info(
         self,
         method: Callable,
-        type_inference_provider: InferenceProvider | None = None,
+        type_inference_provider: InferenceProvider,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
         Args:
             method: The callable we try to infer type information for
-            type_inference_provider: The provider for type inference. If not provided,
-                defaults to HintInference.
+            type_inference_provider: The provider for type inference.
 
         Returns:
             The inference result
         """
-        # Lazy imports to avoid circular dependencies
-        from pynguin.analyses.type_inference import HintInference  # noqa: PLC0415
-
-        if type_inference_provider is None:
-            type_inference_provider = HintInference()
-
         return self.infer_signature(method, type_inference_provider.provide)
 
     def infer_signature(
@@ -1952,13 +1946,3 @@ class TypeSystem:  # noqa: PLR0904
                 args = args[: result.type.num_hardcoded_generic_parameters]
             return Instance(result.type, args)
         return result
-
-
-# Re-export selected inference helpers to maintain public API without top-level circular import
-try:  # noqa: SIM105
-    from pynguin.analyses.type_inference import (
-        InferenceProvider,  # noqa: TC001
-    )
-except Exception:  # noqa: BLE001, S110
-    # During early/partial imports these may not be available; they will be provided later.
-    pass

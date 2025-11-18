@@ -41,10 +41,12 @@ import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.type_inference import (
     ANY_STR,
+    EnhancedHintInference,
     HintInference,
     InferenceProvider,
     LLMInference,
     NoInference,
+    TypeEvalPyInference,
 )
 from pynguin.utils.llm import LLMProvider
 
@@ -91,7 +93,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, get_class_that_defined_method
-from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, provide_json
+from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData, parse_json, provide_json
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -1900,12 +1902,6 @@ def get_type_provider(
     Returns:
         The type inference provider for the given strategy
     """
-    # Lazy imports to avoid circular dependencies
-    from pynguin.analyses.type_inference import (  # noqa: PLC0415
-        EnhancedHintInference,
-        TypeEvalPyInference,
-    )
-
     match type_inference_strategy:
         case TypeInferenceStrategy.LLM:
             callables = _collect_public_callables(module)
@@ -1925,6 +1921,10 @@ def get_type_provider(
             return TypeEvalPyInference(typeevalpy_data)
         case TypeInferenceStrategy.ENHANCED:
             typeevalpy_data = _load_typeevalpy_data()
+            LOGGER.warning(
+                "TypeEvalPy strategy selected but no valid data found. "
+                "Only using existing type hints. "
+            )
             return EnhancedHintInference(typeevalpy_data)
         case _:
             LOGGER.error(
@@ -1940,9 +1940,6 @@ def _load_typeevalpy_data() -> ParsedTypeEvalPyData | None:
     Returns:
         Parsed TypeEvalPy data if available, None otherwise
     """
-    import pynguin.configuration as config  # noqa: PLC0415
-    from pynguin.utils.typeevalpy_json_schema import parse_json  # noqa: PLC0415
-
     json_path = config.configuration.type_inference.typeevalpy_json_path
     if not json_path:
         return None
