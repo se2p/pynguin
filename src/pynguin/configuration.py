@@ -170,6 +170,12 @@ class TypeInferenceStrategy(str, enum.Enum):
     LLM = "LLM"
     """Use an LLM to infer types for the module under test."""
 
+    TYPEEVALPY = "TYPEEVALPY"
+    """Use TypeEvalPy data only for type inference."""
+
+    ENHANCED = "ENHANCED"
+    """Use enhanced type hints that combine annotations with TypeEvalPy data."""
+
 
 class SubtypeInferenceStrategy(str, enum.Enum):
     """The different available type-inference strategies."""

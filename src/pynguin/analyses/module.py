@@ -1900,6 +1900,12 @@ def get_type_provider(
     Returns:
         The type inference provider for the given strategy
     """
+    # Lazy imports to avoid circular dependencies
+    from pynguin.analyses.type_inference import (  # noqa: PLC0415
+        EnhancedHintInference,
+        TypeEvalPyInference,
+    )
+
     match type_inference_strategy:
         case TypeInferenceStrategy.LLM:
             callables = _collect_public_callables(module)
@@ -1908,12 +1914,44 @@ def get_type_provider(
             return HintInference()
         case TypeInferenceStrategy.NONE:
             return NoInference()
+        case TypeInferenceStrategy.TYPEEVALPY:
+            typeevalpy_data = _load_typeevalpy_data()
+            if typeevalpy_data is None:
+                LOGGER.warning(
+                    "TypeEvalPy strategy selected but no valid data found. "
+                    "Falling back to NoInference."
+                )
+                return NoInference()
+            return TypeEvalPyInference(typeevalpy_data)
+        case TypeInferenceStrategy.ENHANCED:
+            typeevalpy_data = _load_typeevalpy_data()
+            return EnhancedHintInference(typeevalpy_data)
         case _:
             LOGGER.error(
                 "Unknown type inference strategy: '%s'. Falling back to NoInference.",
                 type_inference_strategy,
             )
             return NoInference()
+
+
+def _load_typeevalpy_data() -> ParsedTypeEvalPyData | None:
+    """Load TypeEvalPy data from the configured JSON file path.
+
+    Returns:
+        Parsed TypeEvalPy data if available, None otherwise
+    """
+    import pynguin.configuration as config  # noqa: PLC0415
+    from pynguin.utils.typeevalpy_json_schema import parse_json  # noqa: PLC0415
+
+    json_path = config.configuration.type_inference.typeevalpy_json_path
+    if not json_path:
+        return None
+
+    try:
+        return parse_json(json_path)
+    except (FileNotFoundError, ValueError, OSError) as e:
+        LOGGER.warning("Failed to load TypeEvalPy data from %s: %s", json_path, e)
+        return None
 
 
 def _collect_public_callables(module: ModuleType) -> Sequence[Callable[..., Any]]:

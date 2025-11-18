@@ -1722,9 +1722,6 @@ class TypeSystem:  # noqa: PLR0904
         self,
         method: Callable,
         type_inference_provider: InferenceProvider | None = None,
-        *,
-        function_name: str | None = None,
-        typeevalpy_data=None,
     ) -> InferredSignature:
         """Infers the type information for a callable.
 
@@ -1732,30 +1729,15 @@ class TypeSystem:  # noqa: PLR0904
             method: The callable we try to infer type information for
             type_inference_provider: The provider for type inference. If not provided,
                 defaults to HintInference.
-            function_name: Optional function name used for TypeEvalPy integration.
-            typeevalpy_data: Optional ParsedTypeEvalPyData to enhance hints.
 
         Returns:
             The inference result
         """
         # Lazy imports to avoid circular dependencies
-        from pynguin.analyses.type_inference import (  # noqa: PLC0415
-            EnhancedTypeHintProvider,
-            HintInference,
-        )
+        from pynguin.analyses.type_inference import HintInference  # noqa: PLC0415
 
         if type_inference_provider is None:
             type_inference_provider = HintInference()
-
-        if function_name is not None or typeevalpy_data is not None:
-            # Use enhanced provider that merges annotations with TypeEvalPy data
-            enhancer = EnhancedTypeHintProvider(typeevalpy_data)
-
-            def provider_func(m: Callable) -> dict:
-                arg_2: str = function_name or getattr(m, "__name__", "")  # type: ignore[assignment]
-                return enhancer.get_enhanced_type_hints(m, arg_2)
-
-            return self.infer_signature(method, provider_func)
 
         return self.infer_signature(method, type_inference_provider.provide)
 

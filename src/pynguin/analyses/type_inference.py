@@ -631,3 +631,100 @@ class TypeEvalPyTypeProvider:
         # Log unknown types for debugging
         _LOGGER.debug("Unknown type name in TypeEvalPy data: %s", type_name)
         return None
+
+
+def _default_function_name(func: Callable[..., Any]) -> str:
+    """Derive a TypeEvalPy-style function name from a callable.
+
+    This attempts to match the function naming used in TypeEvalPy JSON:
+    - Methods: "Class.method" (including "Class.__init__")
+    - Functions: "function_name"
+    It intentionally omits the module prefix.
+    """
+    try:
+        qual = getattr(func, "__qualname__", getattr(func, "__name__", ""))
+        # Remove nested function markers to better match TypeEvalPy output
+        return qual.split(".<locals>", 1)[0]
+    except Exception:  # noqa: BLE001
+        return getattr(func, "__name__", "")
+
+
+class EnhancedHintInference(InferenceProvider):
+    """InferenceProvider adapter that uses EnhancedTypeHintProvider.
+
+    It combines existing annotations (get_type_hints) with optional
+    TypeEvalPy data and exposes them via the InferenceProvider interface.
+    """
+
+    def __init__(
+        self,
+        typeevalpy_data: ParsedTypeEvalPyData | None = None,
+        *,
+        name_resolver: Callable[[Callable[..., Any]], str] | None = None,
+    ) -> None:
+        """Initialize the EnhancedHintInference."""
+        super().__init__()
+        self._enhanced = EnhancedTypeHintProvider(typeevalpy_data)
+        self._name_resolver = name_resolver or _default_function_name
+
+    def provide(self, method: Callable[..., Any]) -> dict[str, Any]:
+        """Return enhanced type hints for the given callable."""
+        function_name = self._name_resolver(method)
+        return self._enhanced.get_enhanced_type_hints(method, function_name)
+
+
+class TypeEvalPyInference(InferenceProvider):
+    """InferenceProvider that sources all types from TypeEvalPy data only.
+
+    It does not consult annotations; it converts ProperType to runtime
+    hint objects (e.g., int, str, tuple) where possible.
+    """
+
+    def __init__(
+        self,
+        typeevalpy_data: ParsedTypeEvalPyData,
+        *,
+        name_resolver: Callable[[Callable[..., Any]], str] | None = None,
+    ) -> None:
+        """Initialize the TypeEvalPyInference."""
+        super().__init__()
+        self._provider = TypeEvalPyTypeProvider(typeevalpy_data)
+        self._name_resolver = name_resolver or _default_function_name
+
+    @staticmethod
+    def _proper_to_hint(proper_type: ProperType) -> Any:
+        if isinstance(proper_type, Instance):
+            return proper_type.type.raw_type
+        if isinstance(proper_type, UnionType):
+            parts = [TypeEvalPyInference._proper_to_hint(p) for p in proper_type.items]
+            if len(parts) == 1:
+                return parts[0]
+            return reduce(or_, parts)
+        try:
+            return getattr(proper_type, "raw_type", object)
+        except AttributeError:
+            return object
+
+    def provide(self, method: Callable[..., Any]) -> dict[str, Any]:
+        """Return only TypeEvalPy-derived hints for the given callable."""
+        hints: dict[str, Any] = {}
+        name = self._name_resolver(method)
+        try:
+            sig = inspect.signature(method)
+        except (TypeError, ValueError):
+            return hints
+
+        # Parameters
+        for idx, param in enumerate(sig.parameters.values()):
+            if idx == 0 and param.name in {"self", "cls"}:
+                continue
+            proper = self._provider.get_parameter_types(name, param.name)
+            if proper is not None:
+                hints[param.name] = self._proper_to_hint(proper)
+
+        # Return type
+        proper_ret = self._provider.get_return_types(name)
+        if proper_ret is not None:
+            hints["return"] = self._proper_to_hint(proper_ret)
+
+        return hints

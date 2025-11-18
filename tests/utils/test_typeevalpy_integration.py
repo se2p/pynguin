@@ -136,10 +136,11 @@ def test_type_system_infer_type_info_with_typeevalpy():
 
     type_system = TypeSystem()
 
-    # Test with TypeEvalPy data
-    signature_with = type_system.infer_type_info(
-        test_func, function_name="test_func", typeevalpy_data=data
-    )
+    # Test with TypeEvalPy data using the new adapter
+    from pynguin.analyses.type_inference import EnhancedHintInference  # noqa: PLC0415
+
+    provider = EnhancedHintInference(typeevalpy_data=data)
+    signature_with = type_system.infer_type_info(test_func, type_inference_provider=provider)
 
     # The signature with TypeEvalPy should have enhanced parameter types
     assert "x" in signature_with.original_parameters
