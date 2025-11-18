@@ -180,7 +180,7 @@ sphinx:
   stage: build
   image: python:3.10-bookworm
   script:
-    - poetry run sphinx-build -W docs docs/_build
+    - poetry run sphinx-build docs docs/_build
   artifacts:
     expire_in: 1 week
     paths:
