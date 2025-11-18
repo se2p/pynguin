@@ -7,15 +7,14 @@
 
 import json
 import tempfile
+import typing
 from pathlib import Path
 
 import pytest
 
-from pynguin.analyses.type_inference import TypeEvalPyInference, TypeEvalPyTypeProvider
+from pynguin.analyses.type_inference import TypeEvalPyInference
 from pynguin.analyses.typesystem import (
-    Instance,
     TypeSystem,
-    UnionType,
 )
 from pynguin.utils.typeevalpy_json_schema import (
     ParsedTypeEvalPyData,
@@ -44,21 +43,24 @@ def test_typeevalpy_provider_parameter_types():
         ),
     ]
     data = ParsedTypeEvalPyData(elements=elements)
-    provider = TypeEvalPyTypeProvider(data)
+    provider = TypeEvalPyInference(typeevalpy_data=data)
+
+    # Define a matching function and get hints
+    def foo(bar, baz):
+        pass
+
+    hints = provider.provide(foo)
 
     # Test single type parameter
-    param_type = provider.get_parameter_types("foo", "bar")
-    assert isinstance(param_type, Instance)
-    assert param_type.type.raw_type is int
+    assert "bar" in hints
+    assert hints["bar"] is int
 
-    # Test union type parameter
-    param_type = provider.get_parameter_types("foo", "baz")
-    assert isinstance(param_type, UnionType)
-    assert len(param_type.items) == 2
+    baz_hint = hints.get("baz")
+    assert baz_hint is not None
+    assert set(typing.get_args(baz_hint)) == {str, int}
 
     # Test non-existent parameter
-    param_type = provider.get_parameter_types("foo", "nonexistent")
-    assert param_type is None
+    assert "nonexistent" not in hints
 
 
 def test_typeevalpy_provider_return_types():
@@ -72,11 +74,14 @@ def test_typeevalpy_provider_return_types():
         ),
     ]
     data = ParsedTypeEvalPyData(elements=elements)
-    provider = TypeEvalPyTypeProvider(data)
+    provider = TypeEvalPyInference(typeevalpy_data=data)
 
-    return_type = provider.get_return_types("foo")
-    assert isinstance(return_type, Instance)
-    assert return_type.type.raw_type is str
+    def foo():
+        return ""
+
+    hints = provider.provide(foo)
+    assert "return" in hints
+    assert hints["return"] is str
 
 
 def test_type_system_infer_type_info_with_typeevalpy():
@@ -139,10 +144,14 @@ def test_parse_json_integration():
         assert parsed_data.get_function_return_types("foo") == ["str"]
 
         # Test with provider
-        provider = TypeEvalPyTypeProvider(parsed_data)
-        param_type = provider.get_parameter_types("foo", "bar")
-        assert isinstance(param_type, Instance)
-        assert param_type.type.raw_type is int
+        provider = TypeEvalPyInference(typeevalpy_data=parsed_data)
+
+        def foo(bar):  # noqa: ARG001
+            return None
+
+        hints = provider.provide(foo)
+        assert "bar" in hints
+        assert hints["bar"] is int
 
     finally:
         Path(temp_path).unlink()
@@ -186,14 +195,16 @@ def test_type_conversion_edge_cases():
         ),
     ]
     data = ParsedTypeEvalPyData(elements=elements)
-    provider = TypeEvalPyTypeProvider(data)
+    provider = TypeEvalPyInference(typeevalpy_data=data)
 
-    # Test unknown type
-    param_type = provider.get_parameter_types("foo", "x")
-    # Should return None for unknown types
-    assert param_type is None
+    def foo(x, y):  # noqa: ARG001
+        return None
+
+    hints = provider.provide(foo)
+
+    # Test unknown type: should not be present
+    assert "x" not in hints
 
     # Test typing module type
-    param_type = provider.get_parameter_types("foo", "y")
-    assert isinstance(param_type, Instance)
-    assert param_type.type.raw_type is list
+    assert "y" in hints
+    assert hints["y"] is list

@@ -1728,7 +1728,7 @@ class TypeSystem:  # noqa: PLR0904
 
         Args:
             method: The callable we try to infer type information for
-            type_inference_provider: The provider for type inference.
+            type_inference_provider: The provider for type inference
 
         Returns:
             The inference result
