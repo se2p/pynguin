@@ -14,9 +14,7 @@ import io
 import logging
 import os
 import shutil
-
-from contextlib import ContextDecorator
-from contextlib import ExitStack
+from contextlib import ContextDecorator, ExitStack
 from functools import lru_cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -24,7 +22,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pynguin.configuration as config
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable

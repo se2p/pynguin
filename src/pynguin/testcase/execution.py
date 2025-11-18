@@ -56,9 +56,11 @@ from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
 from pynguin.testcase import export
 from pynguin.utils import randomness
-from pynguin.utils.exceptions import MinimizationFailureError
-from pynguin.utils.exceptions import ModuleNotImportedError
-from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.exceptions import (
+    MinimizationFailureError,
+    ModuleNotImportedError,
+    TracingAbortedException,
+)
 from pynguin.utils.fs_isolation import FilesystemIsolation
 from pynguin.utils.mirror import Mirror
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
