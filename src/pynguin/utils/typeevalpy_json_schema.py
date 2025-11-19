@@ -71,6 +71,24 @@ class ParsedTypeEvalPyData:
     elements: list[TypeEvalPySchemaElement]
     """List of all TypeEvalPy schema elements."""
 
+    def __post_init__(self):
+        """Validate the data.
+
+        There is only one file intput, and all TypeEvalPy schema elements should have
+        the same file name.
+        """
+        if not self.elements:
+            raise ValueError("No elements found in the data")
+
+        first_file = self.elements[0].file
+        for element in self.elements:
+            if element.file != first_file:
+                raise ValueError("Inconsistent file names in TypeEvalPy data")
+
+    def get_file_name(self) -> str:
+        """Get the name of the file the data is for."""
+        return self.elements[0].file
+
     def get_function_parameters(self, function_name: str) -> dict[str, list[str]]:
         """Get all parameters for a specific function.
 

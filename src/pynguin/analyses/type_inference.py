@@ -17,6 +17,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from functools import reduce
 from operator import or_
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, get_type_hints
 
 if TYPE_CHECKING:
@@ -343,6 +344,15 @@ def _default_function_name(func: Callable[..., Any]) -> str:
         return getattr(func, "__name__", "")
 
 
+def _default_file_name(func: Callable[..., Any]) -> str:
+    """Derive a TypeEvalPy-style file name from a callable."""
+    try:
+        file = Path(inspect.getfile(func))
+        return file.name
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 class TypeEvalPyInference(InferenceProvider):
     """InferenceProvider that sources type hints from TypeEvalPy JSON data."""
 
@@ -351,11 +361,13 @@ class TypeEvalPyInference(InferenceProvider):
         typeevalpy_data: ParsedTypeEvalPyData,
         *,
         name_resolver: Callable[[Callable[..., Any]], str] | None = None,
+        file_resolver: Callable[[Callable[..., Any]], str] | None = None,
     ) -> None:
         """Initialize the TypeEvalPyInference."""
         super().__init__()
         self._data = typeevalpy_data
         self._name_resolver = name_resolver or _default_function_name
+        self._file_resolver = file_resolver or _default_file_name
         self._builtin_type_map = {
             "int": int,
             "float": float,
@@ -369,16 +381,18 @@ class TypeEvalPyInference(InferenceProvider):
             "Any": Any,
         }
 
-    def provide(self, method: Callable[..., Any]) -> dict[str, Any]:
+    def provide(self, method: Callable[..., Any]) -> dict[str, Any]:  # noqa: C901
         """Provide runtime-style type hints for `method` based on TypeEvalPy data.
-
-        TODO: Also check if the file is correct!
 
         Args:
             method: The method for which we want type hints.
         """
+        file_name = self._file_resolver(method)
+        if self._data.get_file_name() != file_name:
+            return {}
+
         hints: dict[str, Any] = {}
-        name = self._name_resolver(method)
+        function_name = self._name_resolver(method)
         try:
             sig = inspect.signature(method)
         except (TypeError, ValueError):
@@ -387,31 +401,30 @@ class TypeEvalPyInference(InferenceProvider):
         for idx, param in enumerate(sig.parameters.values()):
             if idx == 0 and param.name in {"self", "cls"}:
                 continue
-            type_names = self._data.get_function_parameters(name).get(param.name)
+            type_names = self._data.get_function_parameters(function_name).get(param.name)
             if not type_names:
                 continue
-            hint = self._convert_type_names_to_hint(type_names)
+            try:
+                hint = self._convert_type_names_to_hint(type_names)
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Failed to convert TypeEvalPy type names: %s", type_names)
+                hint = None
             if hint is not None:
                 hints[param.name] = hint
 
-        return_type_names = self._data.get_function_return_types(name)
+        return_type_names = self._data.get_function_return_types(function_name)
         if return_type_names:
-            ret_hint = self._convert_type_names_to_hint(return_type_names)
+            try:
+                ret_hint = self._convert_type_names_to_hint(return_type_names)
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Failed to convert TypeEvalPy return type names: %s", return_type_names
+                )
+                ret_hint = None
             if ret_hint is not None:
                 hints["return"] = ret_hint
 
         return hints
-
-    def get_variable_types(self, variable_name: str) -> Any | None:
-        """Return a runtime hint for a variable from TypeEvalPy data, or None.
-
-        Args:
-            variable_name: The name of the variable.
-        """
-        type_names = self._data.get_variable_types(variable_name)
-        if not type_names:
-            return None
-        return self._convert_type_names_to_hint(type_names)
 
     def has_type_info_for_function(self, function_name: str) -> bool:
         """Return whether TypeEvalPy data has type information for the given function."""

@@ -1,0 +1,978 @@
+[
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_None",
+    "line_number": 28,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_None",
+    "line_number": 28,
+    "parameter": "x",
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_bool",
+    "line_number": 32,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_bool",
+    "line_number": 32,
+    "parameter": "x",
+    "type": [
+      "bool"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_int",
+    "line_number": 36,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "dummy.py",
+    "function": "fn_int",
+    "line_number": 36,
+    "parameter": "x",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_float",
+    "line_number": 40,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_float",
+    "line_number": 40,
+    "parameter": "x",
+    "type": [
+      "float"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_complex",
+    "line_number": 44,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "dummy.py",
+    "function": "fn_complex",
+    "line_number": 44,
+    "parameter": "x",
+    "type": [
+      "complex"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_str",
+    "line_number": 48,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "dummy.py",
+    "function": "fn_str",
+    "line_number": 48,
+    "parameter": "x",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_bytes",
+    "line_number": 52,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_bytes",
+    "line_number": 52,
+    "parameter": "x",
+    "type": [
+      "bytes"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_bytearray",
+    "line_number": 56,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "dummy.py",
+    "function": "fn_bytearray",
+    "line_number": 56,
+    "parameter": "x",
+    "type": [
+      "bytearray"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_memoryview",
+    "line_number": 60,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 19,
+    "file": "dummy.py",
+    "function": "fn_memoryview",
+    "line_number": 60,
+    "parameter": "x",
+    "type": [
+      "memoryview"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_object",
+    "line_number": 64,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "dummy.py",
+    "function": "fn_object",
+    "line_number": 64,
+    "parameter": "x",
+    "type": [
+      "object"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_type",
+    "line_number": 68,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_type",
+    "line_number": 68,
+    "parameter": "x",
+    "type": [
+      "type"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_list",
+    "line_number": 75,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_list",
+    "line_number": 75,
+    "parameter": "x",
+    "type": [
+      "list"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_tuple",
+    "line_number": 79,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_tuple",
+    "line_number": 79,
+    "parameter": "x",
+    "type": [
+      "tuple"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_set",
+    "line_number": 83,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "dummy.py",
+    "function": "fn_set",
+    "line_number": 83,
+    "parameter": "x",
+    "type": [
+      "set"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_frozenset",
+    "line_number": 87,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "dummy.py",
+    "function": "fn_frozenset",
+    "line_number": 87,
+    "parameter": "x",
+    "type": [
+      "frozenset"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_dict",
+    "line_number": 91,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_dict",
+    "line_number": 91,
+    "parameter": "x",
+    "type": [
+      "dict"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_range",
+    "line_number": 95,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_range",
+    "line_number": 95,
+    "parameter": "x",
+    "type": [
+      "range"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_List",
+    "line_number": 102,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_List",
+    "line_number": 102,
+    "parameter": "x",
+    "type": [
+      "list[int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_Dict",
+    "line_number": 106,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_Dict",
+    "line_number": 106,
+    "parameter": "x",
+    "type": [
+      "dict[str, int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_Set",
+    "line_number": 110,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 12,
+    "file": "dummy.py",
+    "function": "fn_Set",
+    "line_number": 110,
+    "parameter": "x",
+    "type": [
+      "set[str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_Tuple",
+    "line_number": 114,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_Tuple",
+    "line_number": 114,
+    "parameter": "x",
+    "type": [
+      "tuple[int, str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_Tuple_variadic",
+    "line_number": 118,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 23,
+    "file": "dummy.py",
+    "function": "fn_Tuple_variadic",
+    "line_number": 118,
+    "parameter": "x",
+    "type": [
+      "tuple[int, ...]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_deque",
+    "line_number": 125,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 14,
+    "file": "dummy.py",
+    "function": "fn_deque",
+    "line_number": 125,
+    "parameter": "x",
+    "type": [
+      "deque[int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_defaultdict",
+    "line_number": 129,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "dummy.py",
+    "function": "fn_defaultdict",
+    "line_number": 129,
+    "parameter": "x",
+    "type": [
+      "defaultdict[str, int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_OrderedDict",
+    "line_number": 133,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "dummy.py",
+    "function": "fn_OrderedDict",
+    "line_number": 133,
+    "parameter": "x",
+    "type": [
+      "OrderedDict[str, int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_optional",
+    "line_number": 140,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "dummy.py",
+    "function": "fn_optional",
+    "line_number": 140,
+    "parameter": "x",
+    "type": [
+      "int | None"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_union_two",
+    "line_number": 144,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "dummy.py",
+    "function": "fn_union_two",
+    "line_number": 144,
+    "parameter": "x",
+    "type": [
+      "int | str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_union_three",
+    "line_number": 148,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "dummy.py",
+    "function": "fn_union_three",
+    "line_number": 148,
+    "parameter": "x",
+    "type": [
+      "int | str | None"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_callable_any",
+    "line_number": 155,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "dummy.py",
+    "function": "fn_callable_any",
+    "line_number": 155,
+    "parameter": "x",
+    "type": [
+      "Callable[..., Any]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_callable_empty",
+    "line_number": 159,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 23,
+    "file": "dummy.py",
+    "function": "fn_callable_empty",
+    "line_number": 159,
+    "parameter": "x",
+    "type": [
+      "Callable[[], None]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_callable_one",
+    "line_number": 163,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "dummy.py",
+    "function": "fn_callable_one",
+    "line_number": 163,
+    "parameter": "x",
+    "type": [
+      "Callable[[int], str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_callable_two",
+    "line_number": 167,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "dummy.py",
+    "function": "fn_callable_two",
+    "line_number": 167,
+    "parameter": "x",
+    "type": [
+      "Callable[[int, str], bool]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_int",
+    "line_number": 174,
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_str",
+    "line_number": 178,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_list",
+    "line_number": 182,
+    "type": [
+      "list[int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_dict",
+    "line_number": 186,
+    "type": [
+      "dict[str, int]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_callable",
+    "line_number": 190,
+    "type": [
+      "Callable[[int], str]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_return_NoReturn",
+    "line_number": 194,
+    "type": [
+      "NoReturn"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_no_params",
+    "line_number": 201,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_literal",
+    "line_number": 208,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "dummy.py",
+    "function": "fn_literal",
+    "line_number": 208,
+    "parameter": "x",
+    "type": [
+      "Literal[1, 'a', True]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_annotated",
+    "line_number": 215,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "dummy.py",
+    "function": "fn_annotated",
+    "line_number": 215,
+    "parameter": "x",
+    "type": [
+      "Annotated[int, 'metadata']"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_typeddict",
+    "line_number": 233,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 18,
+    "file": "dummy.py",
+    "function": "fn_typeddict",
+    "line_number": 233,
+    "parameter": "x",
+    "type": [
+      "TDExample"
+    ]
+  },
+  {
+    "col_offset": 9,
+    "file": "dummy.py",
+    "function": "method",
+    "line_number": 241,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 22,
+    "file": "dummy.py",
+    "function": "method",
+    "line_number": 241,
+    "parameter": "x",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_protocol",
+    "line_number": 244,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "dummy.py",
+    "function": "fn_protocol",
+    "line_number": 244,
+    "parameter": "x",
+    "type": [
+      "ProtoExample"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_enum",
+    "line_number": 256,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 13,
+    "file": "dummy.py",
+    "function": "fn_enum",
+    "line_number": 256,
+    "parameter": "x",
+    "type": [
+      "Color"
+    ]
+  },
+  {
+    "col_offset": 9,
+    "file": "dummy.py",
+    "function": "bar",
+    "line_number": 264,
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 19,
+    "file": "dummy.py",
+    "function": "bar",
+    "line_number": 264,
+    "parameter": "x",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_custom_class",
+    "line_number": 267,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 21,
+    "file": "dummy.py",
+    "function": "fn_custom_class",
+    "line_number": 267,
+    "parameter": "x",
+    "type": [
+      "Foo"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_nested_list",
+    "line_number": 274,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "dummy.py",
+    "function": "fn_nested_list",
+    "line_number": 274,
+    "parameter": "x",
+    "type": [
+      "list[dict[str, list[int]]]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_nested_dict",
+    "line_number": 278,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 20,
+    "file": "dummy.py",
+    "function": "fn_nested_dict",
+    "line_number": 278,
+    "parameter": "x",
+    "type": [
+      "dict[str, list[tuple[int, str]]]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_module",
+    "line_number": 285,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 15,
+    "file": "dummy.py",
+    "function": "fn_module",
+    "line_number": 285,
+    "parameter": "x",
+    "type": [
+      "ModuleType"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_pathlike",
+    "line_number": 289,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 17,
+    "file": "dummy.py",
+    "function": "fn_pathlike",
+    "line_number": 289,
+    "parameter": "x",
+    "type": [
+      "PathLike"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_two_params",
+    "line_number": 296,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 19,
+    "file": "dummy.py",
+    "function": "fn_two_params",
+    "line_number": 296,
+    "parameter": "a",
+    "type": [
+      "int"
+    ]
+  },
+  {
+    "col_offset": 27,
+    "file": "dummy.py",
+    "function": "fn_two_params",
+    "line_number": 296,
+    "parameter": "b",
+    "type": [
+      "str"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_two_params_complex",
+    "line_number": 300,
+    "type": [
+      "None"
+    ]
+  },
+  {
+    "col_offset": 27,
+    "file": "dummy.py",
+    "function": "fn_two_params_complex",
+    "line_number": 300,
+    "parameter": "a",
+    "type": [
+      "list[int]"
+    ]
+  },
+  {
+    "col_offset": 41,
+    "file": "dummy.py",
+    "function": "fn_two_params_complex",
+    "line_number": 300,
+    "parameter": "b",
+    "type": [
+      "dict[str, tuple[int, ...]]"
+    ]
+  },
+  {
+    "col_offset": 5,
+    "file": "dummy.py",
+    "function": "fn_generic",
+    "line_number": 309,
+    "type": [
+      "T"
+    ]
+  },
+  {
+    "col_offset": 16,
+    "file": "dummy.py",
+    "function": "fn_generic",
+    "line_number": 309,
+    "parameter": "x",
+    "type": [
+      "T"
+    ]
+  }
+]

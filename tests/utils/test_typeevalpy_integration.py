@@ -5,17 +5,26 @@
 #  SPDX-License-Identifier: MIT
 """Tests for TypeEvalPy integration with Pynguin's type inference."""
 
+import importlib
 import json
 import tempfile
 import typing
+from logging import Logger
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
+import pynguin.ga.generationalgorithmfactory as gaf
+from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.type_inference import TypeEvalPyInference
 from pynguin.analyses.typesystem import (
     TypeSystem,
 )
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.utils.typeevalpy_json_schema import (
     ParsedTypeEvalPyData,
     TypeEvalPySchemaElement,
@@ -28,14 +37,14 @@ def test_typeevalpy_provider_parameter_types():
     # Create test data
     elements = [
         TypeEvalPySchemaElement(
-            file="test.py",
+            file="test_typeevalpy_integration.py",
             line_number=1,
             type=["int"],
             function="foo",
             parameter="bar",
         ),
         TypeEvalPySchemaElement(
-            file="test.py",
+            file="test_typeevalpy_integration.py",
             line_number=1,
             type=["str", "int"],
             function="foo",
@@ -67,7 +76,7 @@ def test_typeevalpy_provider_return_types():
     """Test that TypeEvalPy provider can retrieve return types."""
     elements = [
         TypeEvalPySchemaElement(
-            file="test.py",
+            file="test_typeevalpy_integration.py",
             line_number=1,
             type=["str"],
             function="foo",
@@ -117,14 +126,14 @@ def test_parse_json_integration():
     # Create a temporary JSON file
     test_data = [
         {
-            "file": "test.py",
+            "file": "test_typeevalpy_integration.py",
             "line_number": 1,
             "type": ["int"],
             "function": "foo",
             "parameter": "bar",
         },
         {
-            "file": "test.py",
+            "file": "test_typeevalpy_integration.py",
             "line_number": 2,
             "type": ["str"],
             "function": "foo",
@@ -180,14 +189,14 @@ def test_type_conversion_edge_cases():
     """Test edge cases in type conversion."""
     elements = [
         TypeEvalPySchemaElement(
-            file="test.py",
+            file="test_typeevalpy_integration.py",
             line_number=1,
             type=["unknown.Type"],
             function="foo",
             parameter="x",
         ),
         TypeEvalPySchemaElement(
-            file="test.py",
+            file="test_typeevalpy_integration.py",
             line_number=1,
             type=["typing.List"],
             function="foo",
@@ -208,3 +217,37 @@ def test_type_conversion_edge_cases():
     # Test typing module type
     assert "y" in hints
     assert hints["y"] is list
+
+
+def test_integrate(subject_properties: SubjectProperties):
+    module_name = "tests.resources.typeevalpy.dummy"
+    typeevalpy_resources = Path(__file__).parent.parent / "resources" / "typeevalpy"
+    config.configuration.type_inference.typeevalpy_json_path = str(
+        typeevalpy_resources / "dummy_gt.json"
+    )
+    algorithm = config.Algorithm.DYNAMOSA
+    config.configuration.algorithm = algorithm
+    config.configuration.stopping.maximum_iterations = 2
+    config.configuration.module_name = module_name
+    config.configuration.search_algorithm.min_initial_tests = 1
+    config.configuration.search_algorithm.max_initial_tests = 1
+    config.configuration.search_algorithm.population = 2
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 1
+    logger = MagicMock(Logger)
+    with install_import_hook(module_name, subject_properties):
+        # Need to force reload in order to apply instrumentation.
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        executor = TestCaseExecutor(subject_properties)
+        cluster = generate_test_cluster(
+            module_name, type_inference_strategy=config.TypeInferenceStrategy.TYPEEVALPY
+        )
+        search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
+            executor, cluster
+        ).get_search_algorithm()
+        search_algorithm._logger = logger
+        test_cases = search_algorithm.generate_tests()
+        assert test_cases.size() >= 0
