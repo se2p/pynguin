@@ -794,25 +794,6 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
 
-        # TypeEvalPy data for enhanced type inference
-        self._typeevalpy_data: ParsedTypeEvalPyData | None = None
-
-    def set_typeevalpy_data(self, data: ParsedTypeEvalPyData | None) -> None:
-        """Set the TypeEvalPy data for this test cluster.
-
-        Args:
-            data: The TypeEvalPy data to store
-        """
-        self._typeevalpy_data = data
-
-    def get_typeevalpy_data(self) -> ParsedTypeEvalPyData | None:
-        """Get the TypeEvalPy data for this test cluster.
-
-        Returns:
-            The TypeEvalPy data or None if not set
-        """
-        return self._typeevalpy_data
-
     def log_cluster_statistics(self) -> None:  # noqa: D102
         stats = TypeGuessingStats()
         for accessible in self.__accessible_objects_under_test:
