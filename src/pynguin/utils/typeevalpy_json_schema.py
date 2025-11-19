@@ -14,7 +14,6 @@ import dataclasses
 import json
 import logging
 import typing
-from abc import ABC
 from pathlib import Path
 
 from astroid.nodes import AsyncFunctionDef, FunctionDef
@@ -52,7 +51,17 @@ _LOGGER = logging.getLogger(__name__)
 
 @dataclasses.dataclass(frozen=True)
 class TypeEvalPySchemaElement:
-    """Data class for a TypeEvalPy schema element."""
+    """Data class for a TypeEvalPy schema element.
+
+    file: the name of the file containing this variable
+    line_number: the line number of the variable declaration
+    col_offset: the column offset of the variable declaration
+    type: the list of types suitable for this variable
+    variable: the name of the variable
+    function: the name of the function containing this variable
+    parameter: the name of the parameter containing this variable, if any
+    all_type_preds: the list of all type predictions for this variable
+    """
 
     file: str
     line_number: int
@@ -122,123 +131,25 @@ class ParsedTypeEvalPyData:
                 return element.type
         return []
 
-    def get_variable_types(self, variable_name: str) -> list[str]:
-        """Get types for a specific variable.
 
-        Args:
-            variable_name: Name of the variable
-
-        Returns:
-            List of types for the variable
-        """
-        for element in self.elements:
-            if element.variable == variable_name:
-                return element.type
-        return []
-
-    def get_all_functions(self) -> set[str]:
-        """Get all function names in the data.
-
-        Returns:
-            Set of all function names
-        """
-        functions = set()
-        for element in self.elements:
-            if element.function is not None:
-                functions.add(element.function)
-        return functions
-
-    def get_all_variables(self) -> set[str]:
-        """Get all variable names in the data.
-
-        Returns:
-            Set of all variable names
-        """
-        variables = set()
-        for element in self.elements:
-            if element.variable is not None:
-                variables.add(element.variable)
-        return variables
+@dataclasses.dataclass(frozen=True)
+class TypeEvalPySchemaLocalVariable(TypeEvalPySchemaElement):
+    """Information about a local variable."""
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaLocalVariable(ABC):
-    """Information about a local variable.
-
-    Attributes:
-        file: the name of the file containing this variable
-        line_number: the line number of the variable declaration
-        col_offset: the column offset of the variable declaration
-        type: the list of types suitable for this variable
-        variable: the name of the variable
-    """
-
-    file: str
-    line_number: int
-    col_offset: int
-    type: list[str]
-    variable: str
+class TypeEvalPySchemaLocalVariableInsideFunction(TypeEvalPySchemaElement):
+    """Information about a local variable inside a function."""
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaLocalVariableInsideFunction(ABC):
-    """Information about a local variable inside a function.
-
-    Attributes:
-        file: the name of the file containing this variable
-        line_number: the line number of the variable declaration
-        col_offset: the column offset of the variable declaration
-        type: the list of types suitable for this variable
-        function: the name of the function defining the variable
-        variable: the name of the variable
-    """
-
-    file: str
-    line_number: int
-    col_offset: int
-    type: list[str]
-    function: str
-    variable: str
+class TypeEvalPySchemaParameter(TypeEvalPySchemaElement):
+    """Information about a parameter of a function."""
 
 
 @dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaParameter(ABC):
-    """Information about a parameter of a function.
-
-    Attributes:
-        file: the name of the file containing this function
-        line_number: the line number of the function
-        col_offset: the column offset of the function
-        type: the list of types suitable for this parameter
-        function: the name of the function
-        parameter: the name of the parameter
-    """
-
-    file: str
-    line_number: int
-    col_offset: int
-    type: list[str]
-    function: str
-    parameter: str
-
-
-@dataclasses.dataclass(frozen=True)
-class TypeEvalPySchemaFunctionReturn(ABC):
-    """Information about the return type of a function.
-
-    Attributes:
-         file: the name of the file containing this function
-         line_number: the line number of the function
-         col_offset: the column offset of the function
-         type: the list of types suitable as return types
-         function: the name of the function
-    """
-
-    file: str
-    line_number: int
-    col_offset: int
-    type: list[str]
-    function: str | None = None
+class TypeEvalPySchemaFunctionReturn(TypeEvalPySchemaElement):
+    """Information about the return type of a function."""
 
 
 class _TypeExpansionVisitor(TypeVisitor[set[str]]):
@@ -376,16 +287,6 @@ def convert_return(
     )
 
 
-# Union type for backward compatibility with existing code
-TypeEvalPySchemaElementUnion = (
-    TypeEvalPySchemaElement
-    | TypeEvalPySchemaLocalVariable
-    | TypeEvalPySchemaLocalVariableInsideFunction
-    | TypeEvalPySchemaParameter
-    | TypeEvalPySchemaFunctionReturn
-)
-
-
 def provide_json(
     file_name: str,
     accessibles: OrderedSet[GenericAccessibleObject],
@@ -404,7 +305,7 @@ def provide_json(
     Returns:
         JSON string
     """
-    schema_elements: list[TypeEvalPySchemaElementUnion] = []
+    schema_elements: list[TypeEvalPySchemaElement] = []
 
     for accessible in accessibles:
         if not isinstance(accessible, GenericCallableAccessibleObject):
@@ -451,7 +352,10 @@ def provide_json(
                 )
                 schema_elements.append(return_json)
 
-    return json.dumps([dataclasses.asdict(schema_element) for schema_element in schema_elements])
+    return json.dumps([
+        {k: v for k, v in dataclasses.asdict(schema_element).items() if v is not None}
+        for schema_element in schema_elements
+    ])
 
 
 def _validate_all_type_preds(all_type_preds: typing.Any) -> list[list[str]] | None:

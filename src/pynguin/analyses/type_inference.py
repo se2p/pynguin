@@ -426,10 +426,6 @@ class TypeEvalPyInference(InferenceProvider):
 
         return hints
 
-    def has_type_info_for_function(self, function_name: str) -> bool:
-        """Return whether TypeEvalPy data has type information for the given function."""
-        return function_name in self._data.get_all_functions()
-
     def _convert_type_names_to_hint(self, type_names: list[str]) -> Any | None:
         parts: list[Any] = []
         for name in type_names:
