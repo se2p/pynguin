@@ -90,7 +90,7 @@ def test_start_pynguin_with_restart_out_of_time(master_and_config):
 
     assert result.restart_count == 0
     assert result.worker_return_code == WorkerReturnCode.ERROR
-    assert "Could not restart worker process" in result.error_message
+    assert "Could not restart worker process" in str(result.error)
 
 
 def test_stop(master_and_config):
@@ -110,4 +110,4 @@ def test_get_result_task_id_not_found(master_and_config):
 
     result = master.get_result(taskid)
     assert result.worker_return_code == WorkerReturnCode.ERROR
-    assert "not found" in result.error_message
+    assert "not found" in str(result.error)

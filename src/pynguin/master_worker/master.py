@@ -15,7 +15,13 @@ import multiprocess as mp
 import multiprocess.connection as mp_conn
 
 from pynguin import config
-from pynguin.master_worker.worker import WorkerResult, WorkerReturnCode, WorkerTask, worker_main
+from pynguin.master_worker.worker import (
+    WorkerError,
+    WorkerResult,
+    WorkerReturnCode,
+    WorkerTask,
+    worker_main,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,12 +139,13 @@ class RunningTask:
         except Exception:  # noqa: BLE001
             success = self._restart()
             if not success:
+                _LOGGER.error("Could not restart worker process.")
                 return WorkerResult(
                     task_id=self._task.task_id,
                     worker_return_code=WorkerReturnCode.ERROR,
                     return_code=None,
-                    error_message="Could not restart worker process",
                     restart_count=self._restart_count,
+                    error=WorkerError(message="Could not restart worker process."),
                 )
             return self.get_result()
 
@@ -185,11 +192,12 @@ class MasterProcess:
             Result from the worker process
         """
         if task_id not in self._running_tasks:
+            _LOGGER.error("Task %s not found", task_id)
             return WorkerResult(
                 task_id=task_id,
                 worker_return_code=WorkerReturnCode.ERROR,
                 return_code=None,
-                error_message=f"Task {task_id} not found",
+                error=WorkerError(message=f"Task {task_id} not found"),
             )
 
         running_task = self._running_tasks[task_id]
@@ -203,7 +211,7 @@ class MasterProcess:
                 task_id=task_id,
                 worker_return_code=WorkerReturnCode.ERROR,
                 return_code=None,
-                error_message=f"Error getting result: {e!s}",
+                error=WorkerError(f"Error getting result for task {task_id}: {e!s}"),
             )
 
     def stop(self) -> None:

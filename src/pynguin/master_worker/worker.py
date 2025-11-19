@@ -54,13 +54,25 @@ class WorkerReturnCode(enum.IntEnum):
     """Return codes for master-worker communication."""
 
     OK = 0
-    """Symbolises that there was no error during master-worker communication."""
+    """Symbolises that there was no error with master-worker architecture."""
 
     ERROR = 1
-    """Symbolises that an error occurred during master-worker communication."""
+    """Symbolises that an error occurred in master-worker architecture."""
 
-    TIMEOUT = 2
-    """Symbolises that the worker process timed out."""
+
+class WorkerError(Exception):
+    """Error that occurred during worker process execution."""
+
+    def __init__(self, message="", traceback_str=""):
+        """Initialize the error.
+
+        Args:
+            message: The error message.
+            traceback_str: The traceback string.
+        """
+        super().__init__(message)
+        # separately needed for serialization and formatting
+        self.traceback_str = traceback_str
 
 
 @dataclass
@@ -70,8 +82,9 @@ class WorkerResult:
     task_id: str
     worker_return_code: WorkerReturnCode
     return_code: ReturnCode | None
-    error_message: str = ""
-    traceback_str: str = ""
+    # As the error is logged inside the worker, this is currently not used but
+    # might be useful in the future.
+    error: WorkerError | None = None
     restart_count: int = 0
 
 
@@ -130,13 +143,13 @@ def worker_main(
 
         error_result = WorkerResult(
             task_id=task_id,
-            worker_return_code=WorkerReturnCode.ERROR,
+            worker_return_code=WorkerReturnCode.OK,
             return_code=None,
-            error_message=str(e),
-            traceback_str=traceback.format_exc(),
+            # from syntax does not work here
+            error=WorkerError(str(e), traceback.format_exc()),
         )
         try:
             sending_connection.send(error_result)
         except Exception:  # noqa: BLE001
             _LOGGER.error("Failed to send error result to master")
-        _LOGGER.error("Worker error: %s", e)
+        _LOGGER.error("Pynguin error in worker process: %s\n%s", e, traceback.format_exc())

@@ -14,6 +14,7 @@ import pytest
 import pynguin.configuration as config
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.worker import (
+    WorkerError,
     WorkerLogFormatter,
     WorkerResult,
     WorkerReturnCode,
@@ -62,13 +63,6 @@ def test_worker_log_formatter_format():
             "Test error",
             "Test traceback",
         ),
-        (
-            "another_task",
-            WorkerReturnCode.TIMEOUT,
-            ReturnCode.NO_TESTS_GENERATED,
-            "Timeout error",
-            "Timeout traceback",
-        ),
         ("third_task", WorkerReturnCode.OK, ReturnCode.OK, "", ""),
     ],
 )
@@ -76,19 +70,25 @@ def test_worker_result_custom_values(
     task_id, worker_return_code, return_code, error_message, traceback_str
 ):
     """Test WorkerResult initialization with custom values."""
+    error = None
+    if error_message or traceback_str:
+        error = WorkerError(error_message, traceback_str)
+
     result = WorkerResult(
         task_id=task_id,
         worker_return_code=worker_return_code,
         return_code=return_code,
-        error_message=error_message,
-        traceback_str=traceback_str,
+        error=error,
     )
 
     assert result.task_id == task_id
     assert result.worker_return_code == worker_return_code
     assert result.return_code == return_code
-    assert result.error_message == error_message
-    assert result.traceback_str == traceback_str
+    if error:
+        assert result.error.traceback_str == traceback_str
+        assert result.error == error
+    else:
+        assert result.error is None
 
 
 def test_worker_task_initialization(worker_task, sample_config):
@@ -131,9 +131,9 @@ def test_worker_main_generic_exception():
 
     sending_connection.send.assert_called_once()
     sent_result = sending_connection.send.call_args[0][0]
-    assert sent_result.worker_return_code == WorkerReturnCode.ERROR
-    assert "Test exception" in sent_result.error_message
-    assert sent_result.traceback_str is not None
+    assert sent_result.worker_return_code == WorkerReturnCode.OK
+    assert "Test exception" in str(sent_result)
+    assert sent_result.error.traceback_str
 
 
 def test_worker_main_generic_exception_send_fails():
