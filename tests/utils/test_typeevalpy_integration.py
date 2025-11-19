@@ -13,8 +13,6 @@ from logging import Logger
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 from pynguin.analyses.module import generate_test_cluster
@@ -121,7 +119,7 @@ def test_type_system_infer_type_info_with_typeevalpy():
     # The parameter type should be influenced by TypeEvalPy data
 
 
-def test_parse_json_integration():
+def test_parse_json():
     """Test complete JSON parsing and integration."""
     # Create a temporary JSON file
     test_data = [
@@ -166,27 +164,8 @@ def test_parse_json_integration():
         Path(temp_path).unlink()
 
 
-def test_parse_json_file_not_found():
-    """Test parse_json with non-existent file."""
-    with pytest.raises(FileNotFoundError):
-        parse_json("nonexistent.json")
-
-
-def test_parse_json_invalid_json():
-    """Test parse_json with invalid JSON."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
-        f.write("invalid json content")
-        temp_path = f.name
-
-    try:
-        with pytest.raises(json.JSONDecodeError):
-            parse_json(temp_path)
-    finally:
-        Path(temp_path).unlink()
-
-
-def test_type_conversion_edge_cases():
-    """Test edge cases in type conversion."""
+def test_type_conversion():
+    """Test type conversion."""
     elements = [
         TypeEvalPySchemaElement(
             file="test_typeevalpy_integration.py",

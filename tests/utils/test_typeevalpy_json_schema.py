@@ -6,8 +6,10 @@
 """Tests for the TypeEvalPy JSON generation."""
 
 import json
+import tempfile
 from collections.abc import Callable
 from inspect import Signature
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -39,6 +41,7 @@ from pynguin.utils.typeevalpy_json_schema import (
     _TypeExpansionVisitor,  # noqa: PLC2701
     convert_parameter,
     convert_return,
+    parse_json,
     provide_json,
 )
 
@@ -413,3 +416,22 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
         actual_json = provide_json(file_name, accessibles, function_data, stats)
         mock_logger.assert_called_once()
         assert actual_json is not None  # Ensure function doesn't crash
+
+
+def test_parse_json_file_not_found():
+    """Test parse_json with non-existent file."""
+    with pytest.raises(FileNotFoundError):
+        parse_json("nonexistent.json")
+
+
+def test_parse_json_invalid_json():
+    """Test parse_json with invalid JSON."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        f.write("invalid json content")
+        temp_path = f.name
+
+    try:
+        with pytest.raises(json.JSONDecodeError):
+            parse_json(temp_path)
+    finally:
+        Path(temp_path).unlink()
