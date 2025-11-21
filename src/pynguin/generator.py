@@ -320,10 +320,9 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         return None
 
     # Analyzing the SUT should not cause any coverage.
-    subject_properties.instrumentation_tracer.disable()
-    if (test_cluster := _setup_test_cluster()) is None:
-        return None
-    subject_properties.instrumentation_tracer.enable()
+    with subject_properties.instrumentation_tracer.temporarily_disable():
+        if (test_cluster := _setup_test_cluster()) is None:
+            return None
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping

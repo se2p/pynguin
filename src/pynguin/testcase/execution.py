@@ -451,13 +451,8 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
         exception: BaseException | None,
     ) -> None:
         # This is a bit cumbersome, because the tracer is disabled by default.
-        enabled = False
         tracer = executor.subject_properties.instrumentation_tracer
-        try:
-            if tracer.is_disabled():
-                enabled = True
-                tracer.enable()
-
+        with tracer.temporarily_enable():
             if statement.has_only_exception_assertion():
                 if exception is not None:
                     tracer.track_exception_assertion(statement)
@@ -470,10 +465,6 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 executor.execute_ast(assertion_node, exec_ctx)
 
                 tracer.track_assertion_position(assertion)
-        finally:
-            if enabled:
-                # Restore old state
-                tracer.disable()
 
 
 class RemoteReturnTypeObserver(RemoteExecutionObserver):
@@ -1152,14 +1143,11 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT via the ExecutionContext and trigger code execution, which
         # is not caused by the test case and should therefore not be in the trace.
-        self._subject_properties.instrumentation_tracer.disable()
-
-        ast_node = exec_ctx.node_for_statement(statement)
-        try:
+        with self._subject_properties.instrumentation_tracer.temporarily_disable():
+            ast_node = exec_ctx.node_for_statement(statement)
             for observer in self._yield_remote_observers():
                 ast_node = observer.before_statement_execution(statement, ast_node, exec_ctx)
-        finally:
-            self._subject_properties.instrumentation_tracer.enable()
+
         return ExecutionContext.wrap_node_in_module(ast_node)
 
     def execute_ast(
@@ -1205,12 +1193,9 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # See comments in _before_statement_execution
         self.subject_properties.instrumentation_tracer.check()
 
-        self._subject_properties.instrumentation_tracer.disable()
-        try:
+        with self._subject_properties.instrumentation_tracer.temporarily_disable():
             for observer in reversed(tuple(self._yield_remote_observers())):
                 observer.after_statement_execution(statement, self, exec_ctx, exception)
-        finally:
-            self._subject_properties.instrumentation_tracer.enable()
 
 
 SUPPORTED_EXIT_CODE_MESSAGES = {}
@@ -1320,7 +1305,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
             if has_results:
                 try:
-                    receiving_connection.recv()
+                    with self._subject_properties.instrumentation_tracer.temporarily_disable():
+                        receiving_connection.recv()
                 except EOFError:
                     _LOGGER.error("EOFError during receiving results from subprocess")
 
@@ -1482,13 +1468,14 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             )
         else:
             try:
-                return_value: tuple[
-                    ExecutionTracer,
-                    ModuleProvider,
-                    tuple[ExecutionResult, ...],
-                    tuple[dict[int, vr.VariableReference] | None, ...],
-                    tuple[Any, ...],
-                ] = context.receiving_connection.recv()
+                with self._subject_properties.instrumentation_tracer.temporarily_disable():
+                    return_value: tuple[
+                        ExecutionTracer,
+                        ModuleProvider,
+                        tuple[ExecutionResult, ...],
+                        tuple[dict[int, vr.VariableReference] | None, ...],
+                        tuple[Any, ...],
+                    ] = context.receiving_connection.recv()
             except EOFError:
                 _LOGGER.error("EOFError during receiving results from subprocess")
                 context.receiving_connection.close()

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import threading
@@ -41,6 +42,8 @@ from pynguin.utils.type_utils import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from typing_extensions import Self
 
     from pynguin.instrumentation.controlflow import CFG, BasicBlockNode, ControlDependenceGraph
@@ -641,6 +644,34 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
     def disable(self) -> None:
         """Disable tracing."""
 
+    @contextlib.contextmanager
+    def temporarily_disable(self) -> Generator[None, None, None]:
+        """Temporarily disable tracing.
+
+        If the tracing is already disabled, do nothing.
+        """
+        if self.is_disabled():
+            yield
+            return
+
+        self.disable()
+        yield
+        self.enable()
+
+    @contextlib.contextmanager
+    def temporarily_enable(self) -> Generator[None, None, None]:
+        """Temporarily enable tracing.
+
+        If the tracing is already enabled, do nothing.
+        """
+        if not self.is_disabled():
+            yield
+            return
+
+        self.enable()
+        yield
+        self.disable()
+
     @abstractmethod
     def stop(self) -> None:
         """Stop the tracer.
@@ -1208,8 +1239,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def executed_compare_predicate(  # noqa: D102, C901
         self, value1, value2, predicate: int, cmp_op: PynguinCompare
     ) -> None:
-        try:
-            self.disable()
+        with self.temporarily_disable():
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
 
@@ -1261,13 +1291,10 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                 case _:
                     raise AssertionError("Unknown compare op")
             self._update_metrics(distance_false, distance_true, predicate)
-        finally:
-            self.enable()
 
     @_early_return
     def executed_bool_predicate(self, value, predicate: int) -> None:  # noqa: D102
-        try:
-            self.disable()
+        with self.temporarily_disable():
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1291,8 +1318,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                 distance_true = 1.0
 
             self._update_metrics(distance_false, distance_true, predicate)
-        finally:
-            self.enable()
 
     @_early_return
     def executed_exception_match(  # noqa: D102
@@ -1301,8 +1326,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         exc: type[BaseException],
         predicate: int,
     ) -> None:
-        try:
-            self.disable()
+        with self.temporarily_disable():
             distance_true = 0.0
             distance_false = 0.0
             # Might be necessary when using Proxies.
@@ -1318,8 +1342,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
                 distance_true = 1.0
 
             self._update_metrics(distance_false, distance_true, predicate)
-        finally:
-            self.enable()
 
     @_early_return
     def track_line_visit(self, line_id: int) -> None:  # noqa: D102
