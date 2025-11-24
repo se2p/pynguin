@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import enum
 import logging
+import os
 import time
 import traceback
 from dataclasses import dataclass
@@ -26,27 +27,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_WORKER_ID = 10000
-
-
-class WorkerLogFormatter(logging.Formatter):
-    """Custom formatter that adds worker ID to log messages."""
-
-    def __init__(self):
-        """Initialize the formatter."""
-        super().__init__()
-        self.worker_pid = mp.current_process().pid or DEFAULT_WORKER_ID
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Format the log record by adding the worker ID to the message.
-
-        Args:
-            record: The log record to format.
-
-        Returns:
-            The formatted log record.
-        """
-        original_msg = super().format(record)
-        return f"[Worker-{self.worker_pid}] {original_msg}"
 
 
 @enum.unique
@@ -101,12 +81,32 @@ class WorkerTask:
             self.task_id = f"task_{time.time()}_{id(self)}"
 
 
+DATE_LOG_FORMAT = "[%X]"
+NO_WORKER_LOG_FORMAT = "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
+
+
+class _WorkerFormatter(logging.Formatter):
+    """Wrap a base formatter and inject worker id as ``record.worker``."""
+
+    def __init__(self, base_formatter: logging.Formatter) -> None:
+        super().__init__()
+        self._base = base_formatter
+        self._pid = os.getpid() or DEFAULT_WORKER_ID
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.worker = f"[Worker-{self._pid}]"
+        return self._base.format(record)
+
+
 def _setup_logging() -> None:
     """Set up logging for worker processes."""
-    worker_formatter = WorkerLogFormatter()
     root_logger = logging.getLogger()
     for handler in root_logger.handlers:
-        handler.setFormatter(worker_formatter)
+        base_formatter = handler.formatter or logging.Formatter(
+            NO_WORKER_LOG_FORMAT,
+            datefmt=DATE_LOG_FORMAT,
+        )
+        handler.setFormatter(_WorkerFormatter(base_formatter))
 
 
 def worker_main(

@@ -12,13 +12,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import pynguin.configuration as config
+from pynguin.cli import _OptionalWorkerFormatter  # noqa: PLC2701
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.worker import (
     WorkerError,
-    WorkerLogFormatter,
     WorkerResult,
     WorkerReturnCode,
     WorkerTask,
+    _WorkerFormatter,  # noqa: PLC2701
     worker_main,
 )
 
@@ -36,7 +37,8 @@ def worker_task(sample_config: config.Configuration) -> WorkerTask:
 
 
 def test_worker_log_formatter_format():
-    formatter = WorkerLogFormatter()
+    base_formatter = _OptionalWorkerFormatter()
+    formatter = _WorkerFormatter(base_formatter)
 
     record = logging.LogRecord(
         name="test",
@@ -49,7 +51,7 @@ def test_worker_log_formatter_format():
     )
 
     result = formatter.format(record)
-    assert result.startswith("[Worker-")
+    assert "[Worker-" in result
     assert "Test message" in result
 
 
