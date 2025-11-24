@@ -29,6 +29,7 @@ from pynguin.generator import run_pynguin, set_configuration
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
 from pynguin.utils.logging_utils import (
+    DATE_LOG_FORMAT,
     RICH_NO_WORKER_LOG_FORMAT,
     RICH_WORKER_LOG_FORMAT,
     OptionalWorkerFormatter,
@@ -154,7 +155,9 @@ def _setup_logging(
     else:
         install()
         console = Console(tab_size=4)
-        handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]", console=console)
+        handler = RichHandler(
+            rich_tracebacks=True, log_time_format=DATE_LOG_FORMAT, console=console
+        )
         handler.setFormatter(
             OptionalWorkerFormatter(
                 fmt_with_worker=RICH_WORKER_LOG_FORMAT,
