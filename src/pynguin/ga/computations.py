@@ -538,7 +538,7 @@ class ComputationCache:
                 # When computing a minimising fitness value, we can also determine
                 # whether the goal is covered without calling compute_is_covered,
                 # simply by checking if the fitness value is close enough to zero.
-                self._is_covered_cache[fitness_func] = abs(new_value) < 0.00001
+                self._is_covered_cache[fitness_func] = math.isclose(new_value, 0.0)
 
     def _compute_is_covered(self, only: FitnessFunction | None = None):
         for fitness_func in self._fitness_functions if only is None else (only,):
