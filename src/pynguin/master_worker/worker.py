@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_WORKER_ID = 10000
 
 
 @enum.unique
