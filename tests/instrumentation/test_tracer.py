@@ -16,6 +16,7 @@ from pynguin.instrumentation import PynguinCompare
 from pynguin.instrumentation.tracer import (
     CodeObjectMetaData,
     ExecutionTracer,
+    InstrumentationExecutionTracer,
     LineMetaData,
     SubjectProperties,
     _le,  # noqa: PLC2701
@@ -466,63 +467,55 @@ def test_enable_disable_cmp(subject_properties: SubjectProperties):
     assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 1
 
 
-def test_temporarily_enable_disable_cmp(subject_properties: SubjectProperties):
+@pytest.mark.parametrize(
+    "executed_predicates_before,executed_predicates_after,is_disabled_before,is_disabled_during,is_disabled_after,function",
+    [
+        # Temporarily disable when enabled
+        (0, 0, False, True, False, InstrumentationExecutionTracer.temporarily_disable),
+        # Temporarily disable when already disabled
+        (0, 0, True, True, True, InstrumentationExecutionTracer.temporarily_disable),
+        # Temporarily enable when disabled
+        (0, 1, True, False, True, InstrumentationExecutionTracer.temporarily_enable),
+        # Temporarily enable when already enabled
+        (0, 1, False, False, False, InstrumentationExecutionTracer.temporarily_enable),
+    ],
+)
+def test_temporarily_enable_disable_cmp(  # noqa: PLR0917
+    subject_properties: SubjectProperties,
+    executed_predicates_before: int,
+    executed_predicates_after: int,
+    is_disabled_before: bool,  # noqa: FBT001
+    is_disabled_during: bool,  # noqa: FBT001
+    is_disabled_after: bool,  # noqa: FBT001
+    function,
+):
     subject_properties.register_predicate(MagicMock(code_object_id=0))
-    assert subject_properties.instrumentation_tracer.is_disabled() is False
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
-    # Temporarily disable when enabled
+    if is_disabled_before:
+        subject_properties.instrumentation_tracer.disable()
+    else:
+        subject_properties.instrumentation_tracer.enable()
+
+    assert subject_properties.instrumentation_tracer.is_disabled() is is_disabled_before
+    assert (
+        len(subject_properties.instrumentation_tracer.get_trace().executed_predicates)
+        == executed_predicates_before
+    )
+
     with (
         subject_properties.instrumentation_tracer,
-        subject_properties.instrumentation_tracer.temporarily_disable(),
+        function(subject_properties.instrumentation_tracer),
     ):
-        assert subject_properties.instrumentation_tracer.is_disabled() is True
+        assert subject_properties.instrumentation_tracer.is_disabled() is is_disabled_during
         subject_properties.instrumentation_tracer.executed_compare_predicate(
             0, 0, 0, PynguinCompare.EQ
         )
-    assert subject_properties.instrumentation_tracer.is_disabled() is False
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
 
-    # Temporarily enable when already enabled
-    with (
-        subject_properties.instrumentation_tracer,
-        subject_properties.instrumentation_tracer.temporarily_enable(),
-    ):
-        assert subject_properties.instrumentation_tracer.is_disabled() is False
-        subject_properties.instrumentation_tracer.executed_compare_predicate(
-            0, 0, 0, PynguinCompare.EQ
-        )
-    assert subject_properties.instrumentation_tracer.is_disabled() is False
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 1
-
-    subject_properties.instrumentation_tracer.reset()
-    subject_properties.instrumentation_tracer.disable()
-    assert subject_properties.instrumentation_tracer.is_disabled() is True
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
-
-    # Temporarily disable when already disabled
-    with (
-        subject_properties.instrumentation_tracer,
-        subject_properties.instrumentation_tracer.temporarily_disable(),
-    ):
-        assert subject_properties.instrumentation_tracer.is_disabled() is True
-        subject_properties.instrumentation_tracer.executed_compare_predicate(
-            0, 0, 0, PynguinCompare.EQ
-        )
-    assert subject_properties.instrumentation_tracer.is_disabled() is True
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 0
-
-    # Temporarily enable when disabled
-    with (
-        subject_properties.instrumentation_tracer,
-        subject_properties.instrumentation_tracer.temporarily_enable(),
-    ):
-        assert subject_properties.instrumentation_tracer.is_disabled() is False
-        subject_properties.instrumentation_tracer.executed_compare_predicate(
-            0, 0, 0, PynguinCompare.EQ
-        )
-    assert subject_properties.instrumentation_tracer.is_disabled() is True
-    assert len(subject_properties.instrumentation_tracer.get_trace().executed_predicates) == 1
+    assert subject_properties.instrumentation_tracer.is_disabled() is is_disabled_after
+    assert (
+        len(subject_properties.instrumentation_tracer.get_trace().executed_predicates)
+        == executed_predicates_after
+    )
 
 
 def test_enable_disable_bool(subject_properties: SubjectProperties):
