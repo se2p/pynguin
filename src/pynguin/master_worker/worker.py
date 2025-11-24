@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import enum
 import logging
-import os
 import time
 import traceback
 from dataclasses import dataclass
@@ -82,19 +81,6 @@ class WorkerTask:
         """Ensure task_id is unique if not provided."""
         if not self.task_id:
             self.task_id = f"task_{time.time()}_{id(self)}"
-
-
-class _WorkerFormatter(logging.Formatter):
-    """Wrap a base formatter and inject worker id as ``record.worker``."""
-
-    def __init__(self, base_formatter: logging.Formatter) -> None:
-        super().__init__()
-        self._base = base_formatter
-        self._pid = os.getpid() or DEFAULT_WORKER_ID
-
-    def format(self, record: logging.LogRecord) -> str:
-        record.worker = f"[Worker-{self._pid}]"
-        return self._base.format(record)
 
 
 def worker_main(
