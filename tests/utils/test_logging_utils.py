@@ -9,8 +9,15 @@ from __future__ import annotations
 
 import io
 import logging
+from typing import TYPE_CHECKING
 
+import pytest
+
+from pynguin.cli import _setup_logging  # noqa: PLC2701
 from pynguin.utils.logging_utils import OptionalWorkerFormatter, WorkerFormatting
+
+if TYPE_CHECKING:
+    from _pytest.capture import CaptureFixture
 
 
 def _make_isolated_logger(name: str) -> logging.Logger:
@@ -74,3 +81,35 @@ def test_worker_formatting_injects_tag_and_restores_factory() -> None:
 
     # Cleanup handler
     logger.removeHandler(handler)
+
+
+@pytest.mark.parametrize(
+    ("no_rich", "worker_set"),
+    [
+        (True, False),
+        (True, True),
+        (False, False),
+        (False, True),
+    ],
+)
+def test_logging_with_and_without_rich_and_worker(
+    capsys: CaptureFixture[str], *, no_rich: bool, worker_set: bool
+) -> None:
+    """Test that logging works with and without rich and with and without worker tag."""
+    _setup_logging(verbosity=1, no_rich=no_rich, log_file=None)
+
+    message = "hello"
+    if worker_set:
+        logging.info(message, extra={"worker": "[W]"})  # noqa: LOG015
+    else:
+        logging.info(message)  # noqa: LOG015
+
+    # Handlers write to stderr by default (both StreamHandler and Rich Console).
+    captured = capsys.readouterr()
+    text = captured.out + captured.err
+
+    assert message in text
+    if worker_set:
+        assert "[W]" in text
+    else:
+        assert "[W]" not in text
