@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import math
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -244,9 +245,8 @@ class BranchGoal(AbstractBranchCoverageGoal):
     def is_covered(self, result: ExecutionResult) -> bool:  # noqa: D102
         trace = result.execution_trace
         distances = trace.true_distances if self._value else trace.false_distances
-        return (
-            self._predicate_id in trace.executed_predicates
-            and abs(distances[self._predicate_id]) < 0.00001
+        return self._predicate_id in trace.executed_predicates and math.isclose(
+            distances[self._predicate_id], 0.0
         )
 
     @property
