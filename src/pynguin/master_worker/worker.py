@@ -20,6 +20,9 @@ import multiprocess as mp
 import multiprocess.connection as mp_conn
 
 from pynguin.generator import ReturnCode, run_pynguin, set_configuration
+from pynguin.utils.logging_utils import (
+    WorkerFormatting,
+)
 
 if TYPE_CHECKING:
     import pynguin.configuration as config
@@ -81,10 +84,6 @@ class WorkerTask:
             self.task_id = f"task_{time.time()}_{id(self)}"
 
 
-DATE_LOG_FORMAT = "[%X]"
-NO_WORKER_LOG_FORMAT = "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
-
-
 class _WorkerFormatter(logging.Formatter):
     """Wrap a base formatter and inject worker id as ``record.worker``."""
 
@@ -98,17 +97,6 @@ class _WorkerFormatter(logging.Formatter):
         return self._base.format(record)
 
 
-def _setup_logging() -> None:
-    """Set up logging for worker processes."""
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers:
-        base_formatter = handler.formatter or logging.Formatter(
-            NO_WORKER_LOG_FORMAT,
-            datefmt=DATE_LOG_FORMAT,
-        )
-        handler.setFormatter(_WorkerFormatter(base_formatter))
-
-
 def worker_main(
     task: WorkerTask,
     sending_connection: mp_conn.Connection,
@@ -120,19 +108,21 @@ def worker_main(
         sending_connection: The connection to send results back to the master process.
     """
     try:
-        _setup_logging()
-        _LOGGER.info("Worker process started (PID: %d)", mp.current_process().pid)
+        with WorkerFormatting():
+            _LOGGER.info("Worker process started (PID: %d)", mp.current_process().pid)
 
-        # Execute the task
-        set_configuration(task.configuration)
-        return_code = run_pynguin()
-        result = WorkerResult(
-            task_id=task.task_id, worker_return_code=WorkerReturnCode.OK, return_code=return_code
-        )
+            # Execute the task
+            set_configuration(task.configuration)
+            return_code = run_pynguin()
+            result = WorkerResult(
+                task_id=task.task_id,
+                worker_return_code=WorkerReturnCode.OK,
+                return_code=return_code,
+            )
 
-        # Send result back
-        sending_connection.send(result)
-        _LOGGER.info("Worker completed task: %s", task.task_id)
+            # Send result back
+            sending_connection.send(result)
+            _LOGGER.info("Worker completed task: %s", task.task_id)
 
     except KeyboardInterrupt:
         _LOGGER.info("Worker process interrupted")

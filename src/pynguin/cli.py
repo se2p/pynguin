@@ -28,6 +28,11 @@ from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin, set_configuration
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
+from pynguin.utils.logging_utils import (
+    RICH_NO_WORKER_LOG_FORMAT,
+    RICH_WORKER_LOG_FORMAT,
+    OptionalWorkerFormatter,
+)
 
 if TYPE_CHECKING:
     import argparse
@@ -124,47 +129,6 @@ def _setup_output_path(output_path: str) -> None:
         path.mkdir(parents=True, exist_ok=True)
 
 
-DATE_LOG_FORMAT = "[%X]"
-NO_WORKER_LOG_FORMAT = "%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s"
-WORKER_LOG_FORMAT = (
-    "%(asctime)s [%(levelname)s] %(worker)s(%(name)s:%(funcName)s:%(lineno)d): %(message)s"
-)
-RICH_WORKER_LOG_FORMAT = "%(worker)s %(message)s"
-RICH_NO_WORKER_LOG_FORMAT = "%(message)s"
-
-
-class _OptionalWorkerFormatter(logging.Formatter):
-    """Formatter that conditionally includes the worker field.
-
-    If a log record contains a non-empty attribute ``worker``, the formatter uses
-    a format string that includes the worker. Otherwise, it falls back to a format
-    that omits the worker.
-    """
-
-    def __init__(
-        self,
-        fmt_with_worker: str = WORKER_LOG_FORMAT,
-        fmt_without_worker: str = NO_WORKER_LOG_FORMAT,
-        datefmt: str | None = DATE_LOG_FORMAT,
-    ) -> None:
-        """Initialize the formatter.
-
-        Args:
-            fmt_with_worker: Format string used when ``record.worker`` is present.
-            fmt_without_worker: Format string used when no worker is present.
-            datefmt: Optional date format for the underlying formatters.
-        """
-        super().__init__()
-        self._with_worker = logging.Formatter(fmt_with_worker, datefmt=datefmt)
-        self._without_worker = logging.Formatter(fmt_without_worker, datefmt=datefmt)
-
-    def format(self, record: logging.LogRecord) -> str:
-        """Format the log record conditionally including the worker."""
-        if getattr(record, "worker", None):
-            return self._with_worker.format(record)
-        return self._without_worker.format(record)
-
-
 def _setup_logging(
     verbosity: int,
     no_rich: bool,  # noqa: FBT001
@@ -186,34 +150,21 @@ def _setup_logging(
     handler: logging.Handler
     if no_rich:
         handler = logging.StreamHandler()
-        handler.setFormatter(
-            _OptionalWorkerFormatter(
-                fmt_with_worker=WORKER_LOG_FORMAT,
-                fmt_without_worker=NO_WORKER_LOG_FORMAT,
-                datefmt=DATE_LOG_FORMAT,
-            )
-        )
+        handler.setFormatter(OptionalWorkerFormatter())
     else:
         install()
         console = Console(tab_size=4)
         handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]", console=console)
         handler.setFormatter(
-            _OptionalWorkerFormatter(
+            OptionalWorkerFormatter(
                 fmt_with_worker=RICH_WORKER_LOG_FORMAT,
                 fmt_without_worker=RICH_NO_WORKER_LOG_FORMAT,
-                datefmt=DATE_LOG_FORMAT,
             )
         )
 
     if log_file is not None:
         handler = logging.FileHandler(log_file)
-        handler.setFormatter(
-            _OptionalWorkerFormatter(
-                fmt_with_worker=WORKER_LOG_FORMAT,
-                fmt_without_worker=NO_WORKER_LOG_FORMAT,
-                datefmt=DATE_LOG_FORMAT,
-            )
-        )
+        handler.setFormatter(OptionalWorkerFormatter())
 
     logging.basicConfig(
         level=level,
