@@ -28,6 +28,12 @@ from pynguin.__version__ import __version__
 from pynguin.generator import run_pynguin, set_configuration
 from pynguin.master_worker.client import run_pynguin_with_master_worker
 from pynguin.utils.configuration_writer import write_configuration
+from pynguin.utils.logging_utils import (
+    DATE_LOG_FORMAT,
+    RICH_NO_WORKER_LOG_FORMAT,
+    RICH_WORKER_LOG_FORMAT,
+    OptionalWorkerFormatter,
+)
 
 if TYPE_CHECKING:
     import argparse
@@ -145,19 +151,26 @@ def _setup_logging(
     handler: logging.Handler
     if no_rich:
         handler = logging.StreamHandler()
+        handler.setFormatter(OptionalWorkerFormatter())
     else:
         install()
         console = Console(tab_size=4)
-        handler = RichHandler(rich_tracebacks=True, log_time_format="[%X]", console=console)
-        handler.setFormatter(logging.Formatter("%(message)s"))
+        handler = RichHandler(
+            rich_tracebacks=True, log_time_format=DATE_LOG_FORMAT, console=console
+        )
+        handler.setFormatter(
+            OptionalWorkerFormatter(
+                fmt_with_worker=RICH_WORKER_LOG_FORMAT,
+                fmt_without_worker=RICH_NO_WORKER_LOG_FORMAT,
+            )
+        )
 
     if log_file is not None:
         handler = logging.FileHandler(log_file)
+        handler.setFormatter(OptionalWorkerFormatter())
 
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s",
-        datefmt="[%X]",
         handlers=[handler],
     )
     return console

@@ -6,7 +6,6 @@
 #
 """Tests for the worker module."""
 
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +14,6 @@ import pynguin.configuration as config
 from pynguin.generator import ReturnCode
 from pynguin.master_worker.worker import (
     WorkerError,
-    WorkerLogFormatter,
     WorkerResult,
     WorkerReturnCode,
     WorkerTask,
@@ -33,24 +31,6 @@ def sample_config() -> config.Configuration:
 def worker_task(sample_config: config.Configuration) -> WorkerTask:
     """Sample worker task."""
     return WorkerTask(task_id="test_task", configuration=sample_config)
-
-
-def test_worker_log_formatter_format():
-    formatter = WorkerLogFormatter()
-
-    record = logging.LogRecord(
-        name="test",
-        level=logging.INFO,
-        pathname="",
-        lineno=0,
-        msg="Test message",
-        args=(),
-        exc_info=None,
-    )
-
-    result = formatter.format(record)
-    assert result.startswith("[Worker-")
-    assert "Test message" in result
 
 
 @pytest.mark.parametrize(
