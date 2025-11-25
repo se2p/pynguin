@@ -2629,6 +2629,19 @@ class EnumPrimitiveStatement(PrimitiveStatement[int]):
         assert self._value is not None
         return self._generic_enum.names[self._value]
 
+    def mutate(self) -> bool:  # noqa: D102
+        old_value = self._value
+        while (
+            self._value == old_value
+            and self._value is not None
+            and len(self._generic_enum.names) > 1
+        ):
+            if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
+                self.randomize_value()
+            else:
+                self.delta()
+        return True
+
     def randomize_value(self) -> None:  # noqa: D102
         self._value = randomness.next_int(0, len(self._generic_enum.names))
 
@@ -2703,6 +2716,19 @@ class ClassPrimitiveStatement(PrimitiveStatement[int]):
         """
         assert self._value is not None
         return self._test_case.test_cluster.type_system.get_all_types()[self._value]
+
+    def mutate(self) -> bool:  # noqa: D102
+        old_value = self._value
+        while (
+            self._value == old_value
+            and self._value is not None
+            and len(self._test_case.test_cluster.type_system.get_all_types()) > 1
+        ):
+            if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
+                self.randomize_value()
+            else:
+                self.delta()
+        return True
 
     def randomize_value(self) -> None:  # noqa: D102
         self._value = randomness.next_int(
