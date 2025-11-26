@@ -2722,6 +2722,8 @@ class ClassPrimitiveStatement(PrimitiveStatement[int]):
         while (
             self._value == old_value
             and self._value is not None
+            # The next check should always be True in practice, but it is here to prevent
+            # potential issues in future changes. See GH PR #140 for details.
             and len(self._test_case.test_cluster.type_system.get_all_types()) > 1
         ):
             if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
