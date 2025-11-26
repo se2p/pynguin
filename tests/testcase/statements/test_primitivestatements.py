@@ -4,6 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import enum
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -18,6 +19,8 @@ from pynguin.analyses.constants import (
     DelegatingConstantProvider,
     EmptyConstantProvider,
 )
+from pynguin.analyses.typesystem import TypeInfo
+from pynguin.utils.generic.genericaccessibleobject import GenericEnum
 
 
 @pytest.mark.parametrize(
@@ -672,6 +675,33 @@ def test_enum_statement_delta(test_case_mock):
     statement.delta()
     assert statement.value != prev
     assert 0 <= statement.value <= 2
+
+
+@pytest.mark.parametrize("next_float", [0.0, 1.0])
+def test_enum_statement_mutate(default_test_case, next_float):
+    class Binary(enum.Enum):
+        ZERO = 0
+        ONE = 1
+
+    generic_enum = GenericEnum(TypeInfo(Binary))
+    statement = stmt.EnumPrimitiveStatement(default_test_case, generic_enum, 0)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = next_float
+        statement.mutate()
+        assert statement.value == 1
+
+
+@pytest.mark.parametrize("next_float", [0.0, 1.0])
+def test_enum_statement_mutate_single_choice(default_test_case, next_float):
+    class Unary(enum.Enum):
+        ZERO = 0
+
+    generic_enum = GenericEnum(TypeInfo(Unary))
+    statement = stmt.EnumPrimitiveStatement(default_test_case, generic_enum, 0)
+    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
+        float_mock.return_value = next_float
+        statement.mutate()
+        assert statement.value == 0
 
 
 def test_enum_statement_clone(test_case_mock):
