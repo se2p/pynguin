@@ -2325,7 +2325,8 @@ class FandangoStringPrimitiveStatement(RandomStringPrimitiveStatement):
 class FandangoFakerStringPrimitiveStatement(FandangoStringPrimitiveStatement):
     """Primitive Statement that creates a String using Fandango and Faker."""
 
-    GRAMMARS = load_fandango_grammars("src/pynguin/resources/fans/faker")
+    _FAKER_FANS_DIR = Path(__file__).resolve().parent.parent / "resources" / "fans" / "faker"
+    GRAMMARS: ClassVar[list[Grammar]] = load_fandango_grammars(str(_FAKER_FANS_DIR))
 
     def clone(  # noqa: D102
         self,
