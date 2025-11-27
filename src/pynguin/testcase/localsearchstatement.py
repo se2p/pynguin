@@ -553,7 +553,7 @@ class StringLocalSearch(PrimitiveLocalSearch, ABC):
         for i in range(len(statement.value) - 1, -1, -1):
             finished = False
 
-            while not finished:
+            while not finished and not self._timer.limit_reached():
                 finished = True
                 old_value = statement.value
                 if self.iterate_string(statement, i, 1):
