@@ -848,7 +848,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                     "Creating new fitting reference for callee %r", statement.callee.type
                 )
                 new_type = self._factory.create_fitting_reference(
-                    self._chromosome.test_case, statement.ret_val.type, position=self._position
+                    self._chromosome.test_case, statement.callee.type, position=self._position
                 )
                 if new_type is not None:
                     statement.callee = new_type
