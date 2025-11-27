@@ -232,6 +232,7 @@ class EnumLocalSearch(PrimitiveLocalSearch, ABC):
             if self._timer.limit_reached():
                 return False
             if value != initial_value:
+                statement.value = value
                 if not self._objective.has_improved(self._chromosome):
                     self._restore(statement)
                 else:
@@ -255,6 +256,7 @@ class ClassLocalSearch(PrimitiveLocalSearch, ABC):
             if self._timer.limit_reached():
                 return False
             if value != initial_value:
+                statement.value = value
                 if not self._objective.has_improved(self._chromosome):
                     self._restore(statement)
                 else:
