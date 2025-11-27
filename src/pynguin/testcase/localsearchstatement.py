@@ -888,16 +888,15 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
                 self._chromosome.test_case, self._position
             )
             if changed:
-                if not self._objective.has_improved(self._chromosome):
+                if self._objective.has_improved(self._chromosome):
                     improved = True
-                    changed = False
-                    self._chromosome.test_case = old_test_case
-                    self._chromosome.set_last_execution_result(last_execution_result)
-                else:
                     old_test_case = self._chromosome.test_case.clone()
                     last_execution_result = cast(
                         "ExecutionResult", self._chromosome.get_last_execution_result()
                     )
+                else:
+                    self._chromosome.test_case = old_test_case
+                    self._chromosome.set_last_execution_result(last_execution_result)
             mutations += 1
         return improved
 
