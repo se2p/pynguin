@@ -211,7 +211,7 @@ class TestCaseLocalSearch:
         statement = chromosome.test_case.statements[position]
         # Not querying LLM for boolean or enum primitives since this is too expensive to query
         # for llm requests
-        if isinstance(statement, BooleanPrimitiveStatement | EnumPrimitiveStatement):
+        if isinstance(statement, (BooleanPrimitiveStatement, EnumPrimitiveStatement)):
             self._logger.debug(
                 "Skipping LLM local search for statement %s at position %d since it's a "
                 "boolean or enum primitive. Instead use same datatype local search.",

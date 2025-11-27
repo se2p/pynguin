@@ -232,6 +232,7 @@ class EnumLocalSearch(PrimitiveLocalSearch, ABC):
             if self._timer.limit_reached():
                 return False
             if value != initial_value:
+                statement.value = value
                 if not self._objective.has_improved(self._chromosome):
                     self._restore(statement)
                 else:
@@ -255,6 +256,7 @@ class ClassLocalSearch(PrimitiveLocalSearch, ABC):
             if self._timer.limit_reached():
                 return False
             if value != initial_value:
+                statement.value = value
                 if not self._objective.has_improved(self._chromosome):
                     self._restore(statement)
                 else:
@@ -846,7 +848,7 @@ class ParametrizedStatementLocalSearch(StatementLocalSearch, ABC):
                     "Creating new fitting reference for callee %r", statement.callee.type
                 )
                 new_type = self._factory.create_fitting_reference(
-                    self._chromosome.test_case, statement.ret_val.type, position=self._position
+                    self._chromosome.test_case, statement.callee.type, position=self._position
                 )
                 if new_type is not None:
                     statement.callee = new_type
@@ -888,16 +890,15 @@ class FieldStatementLocalSearch(StatementLocalSearch, ABC):
                 self._chromosome.test_case, self._position
             )
             if changed:
-                if not self._objective.has_improved(self._chromosome):
+                if self._objective.has_improved(self._chromosome):
                     improved = True
-                    changed = False
-                    self._chromosome.test_case = old_test_case
-                    self._chromosome.set_last_execution_result(last_execution_result)
-                else:
                     old_test_case = self._chromosome.test_case.clone()
                     last_execution_result = cast(
                         "ExecutionResult", self._chromosome.get_last_execution_result()
                     )
+                else:
+                    self._chromosome.test_case = old_test_case
+                    self._chromosome.set_last_execution_result(last_execution_result)
             mutations += 1
         return improved
 
