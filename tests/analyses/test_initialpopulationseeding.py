@@ -249,7 +249,7 @@ def test_algorithm_generation_factory(
     assert type(test_case_factory) is fac_type
 
 
-@mock.patch("ast.parse")
+@mock.patch("pynguin.analyses.seeding.ast.parse")
 def test_module_not_readable(parse_mock, constant_provider, seed_modules_path, dummy_test_cluster):
     test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
     provider = seeding.InitialPopulationProvider(
