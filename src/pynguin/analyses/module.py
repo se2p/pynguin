@@ -384,12 +384,19 @@ def _handle_c_modules(
     subprocess_mode_recommended = len(c_extensions) > 0
     if config.configuration.subprocess_if_recommended:
         config.configuration.subprocess = subprocess_mode_recommended
-        LOGGER.info(
-            "Subprocess mode is set to %s because the subject module uses "
-            "the following C extensions: %s. ",
-            config.configuration.subprocess,
-            ", ".join(sorted(c_extensions)),
-        )
+        if config.configuration.subprocess:
+            LOGGER.info(
+                "Subprocess mode is set to %s because the subject module uses "
+                "the following C extensions: %s. ",
+                config.configuration.subprocess,
+                ", ".join(sorted(c_extensions)),
+            )
+        else:
+            LOGGER.debug(
+                "Subprocess mode is set to %s because the subject module does not use "
+                "any C extensions. ",
+                config.configuration.subprocess,
+            )
     elif not config.configuration.subprocess and subprocess_mode_recommended:
         LOGGER.warning(
             "You are using threaded execution mode, but the subject module "
@@ -2000,6 +2007,6 @@ def collect_provider_metrics(typ_provider: InferenceProvider):
         except Exception as exc:  # Catch at top-level to ensure metrics don't break analysis
             LOGGER.exception("Could not collect LLM inferred signatures: %s", exc)
     else:
-        LOGGER.warning(
+        LOGGER.debug(
             "Type inference provider is not LLM-based, skipping inferred signatures collection."
         )

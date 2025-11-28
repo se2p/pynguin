@@ -63,7 +63,7 @@ class RunningTask:
         self._receiving_connection = receiving_connection
         self._task = task
         self._start_time = time.time()
-        _LOGGER.info("Starting new worker for task %s.", task.task_id)
+        _LOGGER.debug("Starting new worker for task %s.", task.task_id)
         process.start()
         sending_connection.close()
 

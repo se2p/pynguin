@@ -232,7 +232,7 @@ to see why this happens and what you must do to prevent it."""
         else "Running Pynguin..."
     )
     if use_master_worker:
-        _LOGGER.info("Using master-worker architecture")
+        _LOGGER.debug("Using master-worker architecture")
 
     if console is not None:
         with console.status(message):
