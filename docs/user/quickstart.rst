@@ -86,15 +86,23 @@ The output on the command line might be something like the following:
 
 .. literalinclude:: ../source/_static/example-stdout.txt
 
-The first few lines show that Pynguin starts, that it has not gotten any seed for its
-(pseudo) random-number generator, followed by the configuration
-options that are used for its *DYNAMOSA* algorithm.
-We can also see that it ran zero iterations of that algorithm, i.e.,
+The first few lines show that Pynguin starts using a master-worker
+architecture, which allows automatic restarting the test generation
+in case of unexpected errors. Then, we see that Pynguin tries collecting
+constants from the module under test, but none were found in this case.
+Pynguin analyzes the module and finds one function, namely ``triangle``,
+which it will try to cover with generated test cases.
+The ``11`` found classes are the built-in types that are always present.
+Pynguin has not gotten any seed for its (pseudo) random-number generator,
+so it generates one itself. We see some information about the
+(default) configuration options used. We use, for example, the *DYNAMOSA*
+algorithm. Pynguin ran zero iterations of that algorithm, i.e.,
 the initial random test cases were sufficient to cover all branches.
 This was to be expected, since the triangle example can be trivially covered with tests.
-Pynguin created assertions using :ref:`Mutation Analysis <mutation_analysis>`.
-The output then concludes with its results:
-Five test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
+Pynguin minimizes the test suite and then generates assertions
+using :ref:`Mutation Analysis <mutation_analysis>`.
+Before stopping the master-worker system, the results are printed:
+Three test cases were written to ``/tmp/pynguin/results/test_example.py``, which look
 like the following (the result can differ on your machine):
 
 .. literalinclude:: ../source/_static/test_example.py
@@ -104,16 +112,12 @@ like the following (the result can differ on your machine):
 
 We can see that each test case consists of one or more invocations of the ``triangle`` function
 and that there are assertions that check for the correct return value.
+We can now run the generated test cases using ``pytest`` with coverage enabled
+to see that indeed all code is covered::
 
-.. note::
-  As of version 0.6.0, Pynguin is able to generate assertions for simple data
-  types (``int``, ``float``, ``str``, ``bytes`` and ``bool``), as well as checks for ``None``
-  return values.
-
-.. note::
-  As of version 0.13.0, Pynguin also provides a better assertion generation based on
-  mutation. This allows to generate assertions also for more complex data types, see
-  :ref:`assertions <assertions>` for more details.
+   $ pytest \
+       --cov=example \
+       --cov-branch docs/source/_static/test_example.py
 
 .. note::
   Pynguin uses `ruff-format <https://docs.astral.sh/ruff/formatter/>`_ for formatting.
@@ -157,6 +161,13 @@ We can also see that Pynguin generated eight test cases:
     :linenos:
     :language: python
     :lines: 8-
+
+We can now run the generated test cases using ``pytest`` with coverage enabled
+to see that all code is covered:
+
+    $ pytest \
+        --cov=queue_example \
+        --cov-branch docs/source/_static/test_queue_example.py
 
 .. note::
   Generated test cases may contain a lot of superfluous statements.

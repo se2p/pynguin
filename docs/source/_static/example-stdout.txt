@@ -1,58 +1,67 @@
-[16:49:40] INFO     Start Pynguin Test Generation…                                                        generator.py:113
-           INFO     Collecting static constants from module under test                                    generator.py:215
-           INFO     No constants found                                                                    generator.py:218
-           INFO     Setting up runtime collection of constants                                            generator.py:227
-           INFO     Analyzed project to create test cluster                                                  module.py:888
-           INFO     Modules:       1                                                                         module.py:889
-           INFO     Functions:     1                                                                         module.py:890
-           INFO     Classes:       0                                                                         module.py:891
-           INFO     Using seed 1659019779632142080                                                        generator.py:201
-           INFO     Using strategy: Algorithm.DYNAMOSA                                   generationalgorithmfactory.py:267
-           INFO     Instantiated 11 fitness functions                                    generationalgorithmfactory.py:353
-           INFO     Using CoverageArchive                                                generationalgorithmfactory.py:311
-           INFO     Using selection function: Selection.TOURNAMENT_SELECTION             generationalgorithmfactory.py:286
-           INFO     No stopping condition configured!                                     generationalgorithmfactory.py:92
-           INFO     Using fallback timeout of 600 seconds                                 generationalgorithmfactory.py:93
-           INFO     Using crossover function: SinglePointRelativeCrossOver               generationalgorithmfactory.py:299
-           INFO     Using ranking function: RankBasedPreferenceSorting                   generationalgorithmfactory.py:319
-           INFO     Start generating test cases                                                           generator.py:399
-           INFO     Initial Population, Coverage: 1.000000                                            searchobserver.py:66
-           INFO     Algorithm stopped before using all resources.                                         generator.py:402
-           INFO     Stop generating test cases                                                            generator.py:407
-           INFO     Start generating assertions                                                           generator.py:470
-           INFO     Setup mutation controller                                                        mutationadapter.py:68
-           INFO     Build AST for example                                                            mutationadapter.py:54
-           INFO     Mutate module example                                                            mutationadapter.py:56
-[16:49:41] INFO     Generated 14 mutants                                                             mutationadapter.py:64
-           INFO     Running tests on mutant   1/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   2/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   3/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   4/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   5/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   6/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   7/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   8/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant   9/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant  10/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant  11/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant  12/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant  13/14                                               assertiongenerator.py:291
-           INFO     Running tests on mutant  14/14                                               assertiongenerator.py:291
-           INFO     Mutant 0 killed by Test(s): 0, 1, 2, 3, 4                                    assertiongenerator.py:369
-           INFO     Mutant 1 killed by Test(s): 1, 2, 3, 4                                       assertiongenerator.py:369
-           INFO     Mutant 2 killed by Test(s): 0, 2, 4                                          assertiongenerator.py:369
-           INFO     Mutant 3 killed by Test(s): 0, 2, 4                                          assertiongenerator.py:369
-           INFO     Mutant 4 killed by Test(s): 2, 3, 4                                          assertiongenerator.py:369
-           INFO     Mutant 5 killed by Test(s): 2, 3, 4                                          assertiongenerator.py:369
-           INFO     Mutant 6 killed by Test(s): 1, 2, 3, 4                                       assertiongenerator.py:369
-           INFO     Mutant 7 killed by Test(s): 1, 2, 3, 4                                       assertiongenerator.py:369
-           INFO     Mutant 8 killed by Test(s): 2, 3, 4                                          assertiongenerator.py:369
-           INFO     Mutant 9 killed by Test(s): 0, 2, 3, 4                                       assertiongenerator.py:369
-           INFO     Mutant 10 killed by Test(s): 0, 2, 4                                         assertiongenerator.py:369
-           INFO     Mutant 11 killed by Test(s): 1, 2, 3, 4                                      assertiongenerator.py:369
-           INFO     Mutant 12 killed by Test(s): 1, 2, 3, 4                                      assertiongenerator.py:369
-           INFO     Mutant 13 killed by Test(s): 1, 2, 3, 4                                      assertiongenerator.py:369
-           INFO     Number of Surviving Mutant(s): 0 (Mutants: )                                 assertiongenerator.py:381
-           INFO     Written 5 test cases to /tmp/pynguin-results/test_example.py                          generator.py:569
-           INFO     Writing statistics                                                                   statistics.py:354
-           INFO     Stop Pynguin Test Generation…                                                         generator.py:116
+[09:01:14] INFO     Starting Pynguin client with master-worker architecture                                                                                         client.py:40
+           INFO     [Worker-36230] Worker process started (PID: 36230)                                                                                              worker.py:97
+           INFO     [Worker-36230] Start Pynguin Test Generation…                                                                                               generator.py:141
+           INFO     [Worker-36230] Collecting static constants from module under test                                                                           generator.py:265
+           INFO     [Worker-36230] No constants found                                                                                                           generator.py:268
+           INFO     [Worker-36230] Setting up runtime collection of constants                                                                                   generator.py:275
+           INFO     [Worker-36230] Analyzed project to create test cluster                                                                                        module.py:1690
+           INFO     [Worker-36230] Modules:       1                                                                                                               module.py:1691
+           INFO     [Worker-36230] Functions:     1                                                                                                               module.py:1692
+           INFO     [Worker-36230] Classes:      11                                                                                                               module.py:1693
+           INFO     [Worker-36230] Using seed 1764316873425242000                                                                                               generator.py:245
+           INFO     [Worker-36230] Using strategy: Algorithm.DYNAMOSA                                                                          generationalgorithmfactory.py:297
+           INFO     [Worker-36230] Instantiated 9 fitness functions                                                                            generationalgorithmfactory.py:385
+           INFO     [Worker-36230] Using CoverageArchive                                                                                       generationalgorithmfactory.py:339
+           INFO     [Worker-36230] Using selection function: Selection.RANK_SELECTION                                                          generationalgorithmfactory.py:314
+           INFO     [Worker-36230] No stopping condition configured!                                                                           generationalgorithmfactory.py:113
+           INFO     [Worker-36230] Using fallback timeout of 600 seconds                                                                       generationalgorithmfactory.py:114
+           INFO     [Worker-36230] Using crossover function: SinglePointRelativeCrossOver                                                      generationalgorithmfactory.py:327
+           INFO     [Worker-36230] Using ranking function: RankBasedPreferenceSorting                                                          generationalgorithmfactory.py:347
+           INFO     [Worker-36230] Start generating test cases                                                                                                  generator.py:606
+           INFO     [Worker-36230] Initial Population, Coverage: 1.000000                                                                                   searchobserver.py:75
+           INFO     [Worker-36230] Algorithm stopped before using all resources.                                                                                generator.py:609
+           INFO     [Worker-36230] Stop generating test cases                                                                                                   generator.py:614
+           INFO     [Worker-36230] Minimizing test cases                                                                                                        generator.py:623
+           INFO     [Worker-36230] Removed 2 statement(s) from test casesusing CASE minimization                                                                generator.py:777
+           INFO     [Worker-36230] Coverage after minimization is the same as before: [1.0]                                                                     generator.py:716
+           INFO     [Worker-36230] Start generating assertions                                                                                                  generator.py:898
+           INFO     [Worker-36230] Setup mutation generator                                                                                                     generator.py:871
+           INFO     [Worker-36230] Import module example                                                                                                        generator.py:874
+           INFO     [Worker-36230] Build AST for example                                                                                                        generator.py:877
+           INFO     [Worker-36230] Mutate module example                                                                                                        generator.py:881
+           INFO     [Worker-36230] Generated 13 mutants                                                                                                         generator.py:891
+           INFO     [Worker-36230] Running tests on mutant   1/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   2/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   3/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   4/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   5/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   6/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   7/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   8/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant   9/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant  10/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant  11/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant  12/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Running tests on mutant  13/13                                                                                      assertiongenerator.py:276
+           INFO     [Worker-36230] Mutant 0 killed by Test(s): 0, 1, 2                                                                                 assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 1 killed by Test(s): 0, 1, 2                                                                                 assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 2 killed by Test(s): 0, 2                                                                                    assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 3 killed by Test(s): 1, 2                                                                                    assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 4 killed by Test(s): 1, 2                                                                                    assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 5 killed by Test(s): 0, 1, 2                                                                                 assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 6 killed by Test(s): 0, 1, 2                                                                                 assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 7 killed by Test(s): 2                                                                                       assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 8 killed by Test(s): 2                                                                                       assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 9 killed by Test(s): 0, 1, 2                                                                                 assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 10 killed by Test(s): 1, 2                                                                                   assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 11 killed by Test(s): 0, 1, 2                                                                                assertiongenerator.py:378
+           INFO     [Worker-36230] Mutant 12 killed by Test(s): 1, 2                                                                                   assertiongenerator.py:378
+           INFO     [Worker-36230] Number of Surviving Mutant(s): 0 (Mutants: )                                                                        assertiongenerator.py:390
+           INFO     [Worker-36230] Calculating resulting FinalBranchCoverage                                                                                    generator.py:534
+           INFO     [Worker-36230] Written 3 test cases to /private/tmp/pynguin-results/test_example.py                                                        generator.py:1007
+           INFO     [Worker-36230] Writing statistics                                                                                                               stats.py:368
+           INFO     [Worker-36230] Stop Pynguin Test Generation…                                                                                                generator.py:146
+           INFO     [Worker-36230] Worker completed task: test_gen_1764316874.5722592                                                                              worker.py:110
+           INFO     Received result for task test_gen_1764316874.5722592: WorkerReturnCode.OK                                                                      master.py:133
+           INFO     Stopping master-worker system                                                                                                                   client.py:44
+           INFO     Master-worker system stopped                                                                                                                    client.py:46
