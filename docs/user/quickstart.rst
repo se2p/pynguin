@@ -92,7 +92,7 @@ in case of unexpected errors. Then, we see that Pynguin tries collecting
 constants from the module under test, but none were found in this case.
 Pynguin analyzes the module and finds one function, namely ``triangle``,
 which it will try to cover with generated test cases.
-The ``11`` found classes are the built-in types that are always present.
+The eleven found classes are the built-in types that are always present.
 Pynguin has not gotten any seed for its (pseudo) random-number generator,
 so it generates one itself. We see some information about the
 (default) configuration options used. We use, for example, the *DYNAMOSA*
@@ -142,40 +142,31 @@ Similar to the ``triangle`` example, we start Pynguin with the following command
         --project-path ./docs/source/_static/ \
         --output-path /tmp/pynguin-results \
         --module-name queue_example \
-        -v \
-        --seed 1629381673714481067
-
-.. note::
-  We used a predefined seed here, because we know that Pynguin requires less iterations with this seed in this specific example and version.
-  This was done to get a clearer log.
+        -v
 
 The command yields the following output:
 
 .. literalinclude:: ../source/_static/queue-example-stdout.txt
 
-We can see that the *DYNAMOSA* algorithm had to perform eight iterations to fully cover
-the ``Queue`` example with the given seed.
-We can also see that Pynguin generated eight test cases:
+We can see that the *DYNAMOSA* algorithm had to perform four iterations to fully cover
+the ``Queue`` example.
+We can also see that Pynguin generated seven test cases:
 
 .. literalinclude:: ../source/_static/test_queue_example.py
     :linenos:
     :language: python
     :lines: 8-
 
-We can now run the generated test cases using ``pytest`` with coverage enabled
-to see that all code is covered:
+When running the generated test cases with coverage enabled, we see once more that
+all code is covered::
 
     $ pytest \
         --cov=queue_example \
         --cov-branch docs/source/_static/test_queue_example.py
 
 .. note::
-  Generated test cases may contain a lot of superfluous statements.
-  Future versions of Pynguin will try minimize test cases as much as possible
-  while retaining their coverage.
-
-  Also many generated assertions might be redundant.  Minimising these is open for a
-  future release of Pynguin, too.
+  Generated test cases may contain redundant assertions.  Minimising these is open for a
+  future release of Pynguin.
 
 Logging
 -------
