@@ -8,6 +8,7 @@
 
 import ast
 import dataclasses
+import importlib.util
 import logging
 import sys
 from pathlib import Path
@@ -17,6 +18,67 @@ import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _dotted_from_origin(origin: str) -> str | None:
+    """Return the dotted module path derived from ``spec.origin``.
+
+    Check the parent directory for __init__.py until none is found. Then get the path
+    based on the first __init__.py found.
+
+    Args:
+        origin: The origin of the module spec.
+
+    Returns:
+        The dotted module path or None if the origin is not a file.
+    """
+    if not origin or origin in {"built-in", "frozen"}:
+        return None
+
+    module = Path(origin)
+    if not module.is_file():
+        return None
+
+    # Walk upward while parent contains __init__.py
+    module_root = module
+    while (module_root.parent / "__init__.py").exists():
+        module_root = module_root.parent
+
+    if module_root.parent is None:
+        return None
+
+    rel = module.relative_to(module_root.parent)
+
+    return ".".join(rel.with_suffix("").parts)
+
+
+def _canonical_module_name(name: str) -> str:
+    """Return a fully qualified module name for use in import statements.
+
+    Strategy:
+    1) Try ``importlib.util.find_spec(name)`` and derive from ``spec.origin``.
+    2) Fall back to ``spec.name`` if available.
+    3) Otherwise, return ``name`` unchanged.
+
+    Args:
+        name: The module name.
+
+    Returns:
+        The fully qualified module name.
+    """
+    try:
+        spec = importlib.util.find_spec(name)
+    except Exception:  # noqa: BLE001
+        spec = None
+
+    if spec and getattr(spec, "origin", None):
+        dotted = _dotted_from_origin(spec.origin)  # type: ignore[arg-type]
+        if dotted:
+            return dotted
+    if spec and getattr(spec, "name", None):
+        return spec.name  # type: ignore[return-value]
+
+    return name
 
 
 @dataclasses.dataclass
@@ -101,7 +163,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 ast.Import(
                     names=[
                         ast.alias(
-                            name=module_name,
+                            name=_canonical_module_name(module_name),
                             asname=alias,
                         )
                     ]
