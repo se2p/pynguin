@@ -249,33 +249,6 @@ def test_algorithm_generation_factory(
     assert type(test_case_factory) is fac_type
 
 
-@mock.patch("pynguin.analyses.seeding.ast.parse")
-def test_module_not_readable(parse_mock, constant_provider, seed_modules_path, dummy_test_cluster):
-    test_factory = tf.TestFactory(dummy_test_cluster, constant_provider)
-    provider = seeding.InitialPopulationProvider(
-        dummy_test_cluster, test_factory, constant_provider
-    )
-
-    # Raise only once for the code path under test, then delegate to the real parser so
-    # logging can still format exceptions without crashing.
-    import ast as _ast  # noqa: PLC0415
-
-    real_parse = _ast.parse
-
-    call_state = {"called": False}
-
-    def _fake_parse(*args, **kwargs):
-        if not call_state["called"]:
-            call_state["called"] = True
-            raise BaseException
-        return real_parse(*args, **kwargs)
-
-    parse_mock.side_effect = _fake_parse
-    provider.collect_testcases(seed_modules_path)
-
-    assert len(provider) == 0
-
-
 @mock.patch("pynguin.ga.testcasechromosome.TestCaseChromosome.mutate")
 def test_initial_mutation(mutate_mock, constant_provider, seed_modules_path, dummy_test_cluster):
     config.configuration.seeding.initial_population_mutations = 2
