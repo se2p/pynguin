@@ -263,7 +263,14 @@ def _setup_constant_seeding() -> tuple[ConstantProvider, DynamicConstantProvider
     dynamic_constant_provider: DynamicConstantProvider | None = None
     if config.configuration.seeding.constant_seeding:
         _LOGGER.info("Collecting static constants from module under test")
-        constant_pool = collect_static_constants(config.configuration.project_path)
+        module_names = (
+            [config.configuration.module_name]
+            if getattr(config.configuration, "module_name", None)
+            else None
+        )
+        constant_pool = collect_static_constants(
+            config.configuration.project_path, module_names=module_names
+        )
         if len(constant_pool) == 0:
             _LOGGER.info("No constants found")
         else:

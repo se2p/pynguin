@@ -268,19 +268,25 @@ def _find_modules_with_constants(project_path: str | os.PathLike) -> OrderedSet[
     return modules
 
 
-def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
+def collect_static_constants(
+    project_path: str | os.PathLike, module_names: typing.Sequence[str] | None = None
+) -> ConstantPool:
     """Collect all constants for a given project.
 
     Args:
         project_path: The path to the project's root
+        module_names: Optional sequence of module names that shall be parsed in
+            addition to modules discovered via packages. Module names can be
+            dotted (e.g., "pkg.mod") or bare (e.g., "module"). They are
+            resolved relative to ``project_path``.
 
     Returns:
         A dict of type to set of constants
     """
     collector = _ConstantCollector()
     path = Path(project_path).resolve()
-    for module in _find_modules_with_constants(project_path):
-        module_path = path / module
+
+    def _parse_file(module_path: Path) -> None:
         with module_path.open(mode="r", encoding="utf-8") as module_file:
             try:
                 tree = ast.parse(module_file.read())
@@ -291,6 +297,16 @@ def collect_static_constants(project_path: str | os.PathLike) -> ConstantPool:
                     module,
                     exception,
                 )
+
+    # Check all modules discovered via packages
+    for module in _find_modules_with_constants(project_path):
+        _parse_file(path / module)
+
+    # Check all modules explicitly specified
+    for mod in module_names or ():
+        rel = Path(*mod.split("."))
+        _parse_file((path / rel).with_suffix(".py"))
+
     return collector.constants
 
 
