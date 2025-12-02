@@ -1146,14 +1146,11 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         )
 
         # Emit the auxiliary IN predicate before the original instruction.
-        node.basic_block[before(instr_index)] = (
-            self.instructions_generator.generate_instructions(
-                InstrumentationSetupAction.COPY_FIRST_TWO,
-                method_call_aux_in,
-                instr.lineno,
-            )
+        node.basic_block[before(instr_index)] = self.instructions_generator.generate_instructions(
+            InstrumentationSetupAction.COPY_FIRST_TWO,
+            method_call_aux_in,
+            instr.lineno,
         )
-
 
     def visit_cfg(  # noqa: D102
         self,
