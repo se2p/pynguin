@@ -1350,7 +1350,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             predicate: The predicate id to update.
         """
         with self.temporarily_disable():
-            # Might be necessary when using Proxies.
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
             distance_true, distance_false = _in(value1, value2), _nin(value1, value2)

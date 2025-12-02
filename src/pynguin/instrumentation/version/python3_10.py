@@ -883,8 +883,6 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             return
 
         # Wire auxiliary subscript predicates for BINARY_SUBSCR.
-        # This gives guidance even if the subscript raises before the jump.
-        # TODO: Extract logic to separate method
         for instr_original_index, (instr_index, instr) in enumerate(
             node.instrumentation_original_instructions
         ):
@@ -1147,19 +1145,15 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
         )
 
-        match instr.name:
-            case "BINARY_SUBSCR":
-                # Emit the auxiliary IN predicate before the original instruction.
-                node.basic_block[before(instr_index)] = (
-                    self.instructions_generator.generate_instructions(
-                        InstrumentationSetupAction.COPY_FIRST_TWO,
-                        method_call_aux_in,
-                        instr.lineno,
-                    )
-                )
-            case _:
-                # No action for STORE_SUBSCR / DELETE_SUBSCR in Branch instrumentation.
-                return
+        # Emit the auxiliary IN predicate before the original instruction.
+        node.basic_block[before(instr_index)] = (
+            self.instructions_generator.generate_instructions(
+                InstrumentationSetupAction.COPY_FIRST_TWO,
+                method_call_aux_in,
+                instr.lineno,
+            )
+        )
+
 
     def visit_cfg(  # noqa: D102
         self,
