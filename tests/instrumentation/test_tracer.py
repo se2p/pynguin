@@ -6,6 +6,7 @@
 #
 from __future__ import annotations
 
+import math
 import threading
 from decimal import Decimal
 from math import inf
@@ -647,51 +648,30 @@ def test_killed_by_thread_guard(method, inputs, subject_properties: SubjectPrope
         getattr(subject_properties.instrumentation_tracer, method)(*inputs)
 
 
-def _mk_tracer() -> ExecutionTracer:
+@pytest.mark.parametrize(
+    "key, dictionary, expected_true, expected_false",
+    [
+        ("a", {"a": 1, "b": 1}, 0.0, 1.0),
+        (1, {1: 1, 2: 1}, 0.0, 1.0),
+        ("1", {"1": "value"}, 0.0, 1.0),
+
+        ("a", {"b": 1}, 0.5, 0.0),
+        ("a", {"x": 1}, 0.9583333333333334, 0.0),
+        (1, {2: 1}, 1.0, 0.0),
+        ("a", {}, inf, 0.0),
+        (None, {"a": 1}, inf, 0.0),
+    ],
+)
+def test_aux_in_predicate_updates_distances(
+        key, dictionary, expected_true, expected_false
+):
     tracer = ExecutionTracer()
-    tracer.__enter__()  # noqa: PLC2801
-    try:
-        # Ensure a fresh trace
-        tracer.init_trace()
-    finally:
-        tracer.__exit__(None, None, None)
-    # Re-enter for usage in tests
-    tracer.__enter__()  # noqa: PLC2801
-    return tracer
-
-
-def _cleanup_tracer(tracer: ExecutionTracer) -> None:
-    tracer.__exit__(None, None, None)
-
-
-def test_aux_in_predicate_present_key_updates_distances() -> None:
-    tracer = _mk_tracer()
-    try:
-        d = {"k": 1}
-        predicate_id = 101
-        tracer.executed_in_presence_predicate("k", d, predicate_id)
-
-        trace = tracer.get_trace()
-        # Predicate should be updated
-        assert predicate_id in trace.executed_predicates
-        # For present key: true distance 0.0, false distance 1.0
-        assert trace.true_distances[predicate_id] == 0.0
-        assert trace.false_distances[predicate_id] == 1.0
-    finally:
-        _cleanup_tracer(tracer)
-
-
-def test_aux_in_predicate_missing_key_updates_distances() -> None:
-    tracer = _mk_tracer()
-    try:
-        d = {"k": 1}
-        predicate_id = 102
-        tracer.executed_in_presence_predicate("x", d, predicate_id)
+    predicate_id = 0
+    with tracer:
+        tracer.executed_in_presence_predicate(value1=key, value2=dictionary,
+                                              predicate=predicate_id)
 
         trace = tracer.get_trace()
         assert predicate_id in trace.executed_predicates
-        # For missing key: false distance 0.0, true distance > 0.0
-        assert trace.false_distances[predicate_id] == 0.0
-        assert trace.true_distances[predicate_id] > 0.0
-    finally:
-        _cleanup_tracer(tracer)
+        assert trace.true_distances[predicate_id] == pytest.approx(expected_true)
+        assert trace.false_distances[predicate_id] == pytest.approx(expected_false)
