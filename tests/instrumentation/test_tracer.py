@@ -671,7 +671,7 @@ def test_aux_in_predicate_present_key_updates_distances() -> None:
     try:
         d = {"k": 1}
         predicate_id = 101
-        tracer.executed_in_presence_predicate("k", d, predicate_id, max_container_size=10)
+        tracer.executed_in_presence_predicate("k", d, predicate_id)
 
         trace = tracer.get_trace()
         # Predicate should be updated
@@ -688,30 +688,13 @@ def test_aux_in_predicate_missing_key_updates_distances() -> None:
     try:
         d = {"k": 1}
         predicate_id = 102
-        tracer.executed_in_presence_predicate("x", d, predicate_id, max_container_size=10)
+        tracer.executed_in_presence_predicate("x", d, predicate_id)
 
         trace = tracer.get_trace()
         assert predicate_id in trace.executed_predicates
         # For missing key: false distance 0.0, true distance > 0.0
         assert trace.false_distances[predicate_id] == 0.0
         assert trace.true_distances[predicate_id] > 0.0
-    finally:
-        _cleanup_tracer(tracer)
-
-
-def test_aux_in_predicate_size_guard_skips_large_container() -> None:
-    tracer = _mk_tracer()
-    try:
-        # Create container larger than threshold
-        d = {str(i): i for i in range(300)}
-        predicate_id = 103
-        tracer.executed_in_presence_predicate("k", d, predicate_id, max_container_size=10)
-
-        trace = tracer.get_trace()
-        # Guard should prevent predicate update
-        assert predicate_id not in trace.executed_predicates
-        assert predicate_id not in trace.true_distances
-        assert predicate_id not in trace.false_distances
     finally:
         _cleanup_tracer(tracer)
 

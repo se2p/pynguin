@@ -784,9 +784,7 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def executed_in_presence_predicate(
-        self, value1, value2, predicate: int, max_container_size: int
-    ) -> None:
+    def executed_in_presence_predicate(self, value1, value2, predicate: int) -> None:
         """An auxiliary membership predicate was executed.
 
         Computes a guided branch distance for ``value1 in value2`` with an
@@ -796,8 +794,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             value1: The prospective key/index to check membership for.
             value2: The container to check membership in.
             predicate: The predicate identifier.
-            max_container_size: Maximum allowed size of ``value2`` to compute
-                the distance; otherwise this call is a no-op.
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -1453,9 +1449,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             self._update_metrics(distance_false, distance_true, predicate)
 
     @_early_return
-    def executed_in_presence_predicate(
-        self, value1, value2, predicate: int, max_container_size: int
-    ) -> None:
+    def executed_in_presence_predicate(self, value1, value2, predicate: int) -> None:
         """Conditionally compute an auxiliary 'IN' predicate distance.
 
         This helper provides guidance for subscripts like ``container[key]`` by
@@ -1467,24 +1461,11 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             value1: The prospective key/index to look up (e.g., ``key``).
             value2: The container to check membership in (e.g., ``container``).
             predicate: The predicate id to update.
-            max_container_size: Maximum container size to allow distance
-                computation; otherwise this call is a no-op.
         """
         with self.temporarily_disable():
             # Might be necessary when using Proxies.
             value1 = tt.unwrap(value1)
             value2 = tt.unwrap(value2)
-
-            # Guard: only compute when reasonably sized container
-            if not isinstance(value2, Sized):
-                return
-            try:
-                size = len(value2)
-            except Exception:  # noqa: BLE001
-                return
-            if size > max_container_size:
-                return
-
             distance_true, distance_false = _in(value1, value2), _nin(value1, value2)
             self._update_metrics(distance_false, distance_true, predicate)
 
@@ -2023,9 +2004,11 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         self._tracer.executed_bool_predicate(value, predicate)
 
     def executed_in_presence_predicate(  # noqa: D102
-        self, value1, value2, predicate: int, max_container_size: int
+        self, value1, value2, predicate: int
     ) -> None:
-        self._tracer.executed_in_presence_predicate(value1, value2, predicate, max_container_size)
+        self._tracer.executed_in_presence_predicate(
+            value1=value1, value2=value2, predicate=predicate
+        )
 
     def executed_subscript_result(  # noqa: D102, PLR0917
         self,

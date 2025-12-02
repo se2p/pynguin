@@ -86,7 +86,6 @@ __all__ = [
 ]
 
 
-
 # Fast opcodes
 LOAD_FAST_NAMES = ("LOAD_FAST",)
 MODIFY_FAST_NAMES = (
@@ -278,8 +277,6 @@ MEMORY_DEF_NAMES = (
 
 RETURN_NONE_SIZE: int = 2
 
-# Guard threshold for auxiliary membership predicate before subscripts.
-AUX_IN_PREDICATE_MAX_CONTAINER_SIZE = 256
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
     return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
@@ -1147,7 +1144,6 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
                 InstrumentationStackValue.FIRST,
                 InstrumentationStackValue.SECOND,
                 InstrumentationConstantLoad(value=predicate_id),
-                InstrumentationConstantLoad(value=AUX_IN_PREDICATE_MAX_CONTAINER_SIZE),
             ),
         )
 
