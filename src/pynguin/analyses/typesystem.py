@@ -44,7 +44,7 @@ from pynguin.utils.randomness import weighted_choice
 from pynguin.utils.type_utils import (
     COLLECTIONS,
     PRIMITIVES,
-    replace_non_python_constructor,
+    get_method_for_signature,
 )
 
 if typing.TYPE_CHECKING:
@@ -1749,7 +1749,7 @@ class TypeSystem:  # noqa: PLR0904
         Returns:
             The inference result
         """
-        method_for_signature = replace_non_python_constructor(method)
+        method_for_signature = get_method_for_signature(method)
         try:
             method_signature = inspect.signature(method_for_signature)
         except ValueError:

@@ -12,6 +12,7 @@ import pytest
 
 from pynguin.analyses.typesystem import InferredSignature
 from pynguin.utils.type_utils import (
+    get_method_for_signature,
     given_exception_matches,
     is_arg_or_kwarg,
     is_assertable,
@@ -140,6 +141,34 @@ def test_is_enum():
         pass
 
     assert is_enum(Foo)
+
+
+class HasInit:
+    def __init__(self):  # noqa: D107
+        pass
+
+
+class ExtendsHasInit(HasInit):
+    pass
+
+
+class HasNoInit:
+    pass
+
+
+@pytest.mark.parametrize(
+    "method,replaced",
+    [
+        (object.__init__, object),
+        (object.mro, object.mro),
+        (HasInit.__init__, HasInit.__init__),
+        (HasNoInit.__init__, object),
+        (ExtendsHasInit.__init__, ExtendsHasInit.__init__),
+    ],
+)
+def test_get_method_for_signature(method, replaced):
+    actual = get_method_for_signature(method)
+    assert actual == replaced
 
 
 @pytest.mark.parametrize(

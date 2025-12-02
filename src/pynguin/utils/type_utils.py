@@ -258,11 +258,20 @@ def get_class_that_defined_method(method: object) -> object | None:
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
 
 
-def replace_non_python_constructor(method: Callable) -> Callable:
-    """Replace the given method with the object if it is a non-Python __init__ method.
+def get_method_for_signature(method: Callable) -> Callable:
+    """Get the object of the given method if it is a non-Python __init__ method.
+
+    inspect.signature(object.__init__) returns <Signature (self, /, *args, **kwargs)>.
+    Thus, Pynguin will later try to create object with an *args parameter, which results
+    in a failing test. The object itself returns the correct signature <Signature ()>
+    (inspect.signature(object)). Thus we replace the method with the object if it is a
+    non-Python __init__ method.
+
+    When the class of the given method or a parent class does not define a __init__
+    method, the object.__init__ method is used as fallback.
 
     Args:
-         method: The method to potentially replace.
+         method: The method to check.
 
     Returns:
         The original method if it is not a non-Python __init__ method, otherwise the
