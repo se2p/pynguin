@@ -618,6 +618,32 @@ class BranchCoverageInstrumentationAdapter(InstrumentationAdapter):
             instr_index: The index of the instruction in the basic block.
         """
 
+    @abstractmethod
+    def visit_subscr_access(  # noqa: PLR0917
+        self,
+        ast_info: AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_original_index: int,
+    ) -> None:
+        """Instrument subscription accesses.
+
+        We add a call to the tracer which reports the values that will be used
+        in the following subscription operation.
+
+        Args:
+            ast_info: The AST info, if it exists.
+            cfg: The control flow graph.
+            code_object_id: The code object id of the containing code object.
+            node: The node in the control flow graph.
+            instr: The instruction that is the subscription operation.
+            instr_index: The index of the instruction in the basic block.
+            instr_original_index: The original index of the instruction in the basic block.
+        """
+
 
 class LineCoverageInstrumentationAdapter(InstrumentationAdapter):
     """Instruments code objects to enable tracking of executed lines.

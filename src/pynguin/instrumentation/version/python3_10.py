@@ -85,6 +85,8 @@ __all__ = [
     "stack_effects",
 ]
 
+
+
 # Fast opcodes
 LOAD_FAST_NAMES = ("LOAD_FAST",)
 MODIFY_FAST_NAMES = (
@@ -276,6 +278,8 @@ MEMORY_DEF_NAMES = (
 
 RETURN_NONE_SIZE: int = 2
 
+# Guard threshold for auxiliary membership predicate before subscripts.
+AUX_IN_PREDICATE_MAX_CONTAINER_SIZE = 256
 
 def is_conditional_jump(instruction: Instr) -> bool:  # noqa: D103
     return instruction.is_cond_jump() or instruction.name == "FOR_ITER"
@@ -822,7 +826,32 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
     def __init__(self, subject_properties: tracer.SubjectProperties) -> None:  # noqa: D107
         self._subject_properties = subject_properties
 
-    def visit_node(  # noqa: D102
+    def _get_or_register_predicate(
+        self,
+        *,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        lineno: int | _UNSET | None,
+    ) -> int:
+        """Return an existing predicate id for this (node, code_object_id) or create one.
+
+        Branch coverage enforces a single predicate per basic block node.
+        This helper reuses an existing id if present; otherwise, it registers
+        a new predicate for the given node.
+        """
+        for pid, meta in self._subject_properties.existing_predicates.items():
+            if meta.node is node and meta.code_object_id == code_object_id:
+                return pid
+
+        return self._subject_properties.register_predicate(
+            tracer.PredicateMetaData(
+                line_no=lineno,  # type: ignore[arg-type]
+                code_object_id=code_object_id,
+                node=node,
+            )
+        )
+
+    def visit_node(  # noqa: D102, C901
         self,
         ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
@@ -855,6 +884,29 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
 
         if not maybe_jump.is_cond_jump():
             return
+
+        # Wire auxiliary subscript predicates for BINARY_SUBSCR.
+        # This gives guidance even if the subscript raises before the jump.
+        # TODO: Extract logic to separate method
+        for instr_original_index, (instr_index, instr) in enumerate(
+            node.instrumentation_original_instructions
+        ):
+            if (
+                ast_info is not None
+                and isinstance(instr.lineno, int)
+                and not ast_info.should_cover_line(instr.lineno)
+            ):
+                continue
+            if instr.name in BINARY_SUBSCR_NAMES:
+                self.visit_subscr_access(
+                    ast_info,
+                    cfg,
+                    code_object_id,
+                    node,
+                    instr,
+                    instr_index,
+                    instr_original_index,
+                )
 
         try:
             maybe_compare_index, maybe_compare = node.find_instruction_by_original_index(
@@ -985,12 +1037,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        predicate_id = self._subject_properties.register_predicate(
-            tracer.PredicateMetaData(
-                line_no=instr.lineno,  # type: ignore[arg-type]
-                code_object_id=code_object_id,
-                node=node,
-            )
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
         )
 
         compare = self.extract_comparison(instr)
@@ -1022,12 +1070,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        predicate_id = self._subject_properties.register_predicate(
-            tracer.PredicateMetaData(
-                line_no=instr.lineno,  # type: ignore[arg-type]
-                code_object_id=code_object_id,
-                node=node,
-            )
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
         )
 
         # Insert instructions right before the conditional jump.
@@ -1056,12 +1100,8 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         instr: Instr,
         instr_index: int,
     ) -> None:
-        predicate_id = self._subject_properties.register_predicate(
-            tracer.PredicateMetaData(
-                line_no=instr.lineno,  # type: ignore[arg-type]
-                code_object_id=code_object_id,
-                node=node,
-            )
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
         )
 
         # Insert instructions right before the conditional jump.
@@ -1079,6 +1119,51 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
             ),
             instr.lineno,
         )
+
+    def visit_subscr_access(  # noqa: PLR0917
+        self,
+        ast_info: transformer.AstInfo | None,
+        cfg: cf.CFG,
+        code_object_id: int,
+        node: cf.BasicBlockNode,
+        instr: Instr,
+        instr_index: int,
+        instr_original_index: int,
+    ) -> None:
+        """Emit an auxiliary membership predicate before subscripts.
+
+        Even if the subscript raises (e.g., KeyError), we still get a meaningful
+        branch-distance signal for guiding the search.
+        """
+        predicate_id = self._get_or_register_predicate(
+            code_object_id=code_object_id, node=node, lineno=instr.lineno
+        )
+
+        # IN predicate: (key, container) taken from the stack (after COPY_FIRST_TWO)
+        method_call_aux_in = InstrumentationMethodCall(
+            self._subject_properties.instrumentation_tracer,
+            tracer.InstrumentationExecutionTracer.executed_in_presence_predicate.__name__,
+            (
+                InstrumentationStackValue.FIRST,
+                InstrumentationStackValue.SECOND,
+                InstrumentationConstantLoad(value=predicate_id),
+                InstrumentationConstantLoad(value=AUX_IN_PREDICATE_MAX_CONTAINER_SIZE),
+            ),
+        )
+
+        match instr.name:
+            case "BINARY_SUBSCR":
+                # Emit the auxiliary IN predicate before the original instruction.
+                node.basic_block[before(instr_index)] = (
+                    self.instructions_generator.generate_instructions(
+                        InstrumentationSetupAction.COPY_FIRST_TWO,
+                        method_call_aux_in,
+                        instr.lineno,
+                    )
+                )
+            case _:
+                # No action for STORE_SUBSCR / DELETE_SUBSCR in Branch instrumentation.
+                return
 
     def visit_cfg(  # noqa: D102
         self,

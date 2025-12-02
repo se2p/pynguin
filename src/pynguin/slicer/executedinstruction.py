@@ -102,6 +102,36 @@ class ExecutedAttributeInstruction(ExecutedInstruction):
 
 
 @dataclass(frozen=True)
+class ExecutedSubscriptInstruction(ExecutedInstruction):
+    """Represents an executed subscription (e.g., container[key]).
+
+    Records addresses of the container and the key, as well as a light-weight
+    snapshot of the key (primarily for immutable primitives) to aid analysis.
+    """
+
+    container_address: int
+    key_address: int
+    key_is_immutable: bool
+    key_repr: str | None
+    value_address: int | None = None
+    value_is_immutable: bool | None = None
+    value_repr: str | None = None
+
+    def __str__(self) -> str:
+        value_part = (
+            self.value_repr
+            if self.value_repr is not None
+            else (hex(self.value_address) if self.value_address is not None else "-")
+        )
+        return (
+            f"{'(subs)':<7} {self.file:<40} {opname[self.opcode]:<20} "
+            f"{hex(self.container_address)}[{self.key_repr or hex(self.key_address)}] -> "
+            f"{value_part:<20} "
+            f"{self.code_object_id:02d} @ line: {self.lineno:d}-{self.instr_original_index:d}"
+        )
+
+
+@dataclass(frozen=True)
 class ExecutedControlInstruction(ExecutedInstruction):
     """Represents an executed control flow instruction."""
 

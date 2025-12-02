@@ -4,9 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from __future__ import annotations
+
 import threading
 from decimal import Decimal
 from math import inf
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -22,6 +25,7 @@ from pynguin.instrumentation.tracer import (
     _le,  # noqa: PLC2701
     _lt,  # noqa: PLC2701
 )
+from pynguin.slicer.executedinstruction import ExecutedSubscriptInstruction
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
 
@@ -643,3 +647,199 @@ def test_compare_predicate_executed_other_thread(subject_properties: SubjectProp
 def test_killed_by_thread_guard(method, inputs, subject_properties: SubjectProperties):
     with pytest.raises(TracingAbortedException):
         getattr(subject_properties.instrumentation_tracer, method)(*inputs)
+
+
+def _mk_tracer() -> ExecutionTracer:
+    tracer = ExecutionTracer()
+    tracer.__enter__()  # noqa: PLC2801
+    try:
+        # Ensure a fresh trace
+        tracer.init_trace()
+    finally:
+        tracer.__exit__(None, None, None)
+    # Re-enter for usage in tests
+    tracer.__enter__()  # noqa: PLC2801
+    return tracer
+
+
+def _cleanup_tracer(tracer: ExecutionTracer) -> None:
+    tracer.__exit__(None, None, None)
+
+
+def test_aux_in_predicate_present_key_updates_distances() -> None:
+    tracer = _mk_tracer()
+    try:
+        d = {"k": 1}
+        predicate_id = 101
+        tracer.executed_in_presence_predicate("k", d, predicate_id, max_container_size=10)
+
+        trace = tracer.get_trace()
+        # Predicate should be updated
+        assert predicate_id in trace.executed_predicates
+        # For present key: true distance 0.0, false distance 1.0
+        assert trace.true_distances[predicate_id] == 0.0
+        assert trace.false_distances[predicate_id] == 1.0
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_aux_in_predicate_missing_key_updates_distances() -> None:
+    tracer = _mk_tracer()
+    try:
+        d = {"k": 1}
+        predicate_id = 102
+        tracer.executed_in_presence_predicate("x", d, predicate_id, max_container_size=10)
+
+        trace = tracer.get_trace()
+        assert predicate_id in trace.executed_predicates
+        # For missing key: false distance 0.0, true distance > 0.0
+        assert trace.false_distances[predicate_id] == 0.0
+        assert trace.true_distances[predicate_id] > 0.0
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_aux_in_predicate_size_guard_skips_large_container() -> None:
+    tracer = _mk_tracer()
+    try:
+        # Create container larger than threshold
+        d = {str(i): i for i in range(300)}
+        predicate_id = 103
+        tracer.executed_in_presence_predicate("k", d, predicate_id, max_container_size=10)
+
+        trace = tracer.get_trace()
+        # Guard should prevent predicate update
+        assert predicate_id not in trace.executed_predicates
+        assert predicate_id not in trace.true_distances
+        assert predicate_id not in trace.false_distances
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_track_subscript_access_immutable_key_records_snapshot() -> None:
+    tracer = _mk_tracer()
+    try:
+        d: dict[str, int] = {"k": 1}
+        key = "k"
+        tracer.track_subscript_access(
+            module=__file__,
+            code_object_id=0,
+            node_id=0,
+            opcode=0,  # opcode value not relevant for this unit test
+            lineno=1,
+            offset=0,
+            container=d,
+            key=key,
+        )
+
+        trace = tracer.get_trace()
+        assert trace.executed_instructions, "No instructions recorded"
+        instr = trace.executed_instructions[-1]
+        assert isinstance(instr, ExecutedSubscriptInstruction)
+        # Container and key addresses must match
+        assert instr.container_address == id(d)
+        assert instr.key_address == id(key)
+        # Immutable key should have a snapshot repr
+        assert instr.key_is_immutable is True
+        assert instr.key_repr == repr(key)
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_track_subscript_access_mutable_key_records_no_snapshot() -> None:
+    tracer = _mk_tracer()
+    try:
+        d: dict[Any, int] = {}
+        key = [1, 2]
+        tracer.track_subscript_access(
+            module=__file__,
+            code_object_id=0,
+            node_id=0,
+            opcode=0,
+            lineno=1,
+            offset=0,
+            container=d,
+            key=key,
+        )
+
+        trace = tracer.get_trace()
+        instr = trace.executed_instructions[-1]
+        assert isinstance(instr, ExecutedSubscriptInstruction)
+        assert instr.container_address == id(d)
+        assert instr.key_address == id(key)
+        # Mutable key: no snapshot
+        assert instr.key_is_immutable is False
+        assert instr.key_repr is None
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_executed_subscript_result_records_immutable_value_snapshot() -> None:
+    tracer = _mk_tracer()
+    try:
+        d = {"k": 42}
+        # Simulate instrumentation: first record access, then record result value
+        tracer.track_subscript_access(
+            module=__file__,
+            code_object_id=1,
+            node_id=2,
+            opcode=0,  # opcode not relevant for this unit test
+            lineno=10,
+            offset=0,
+            container=d,
+            key="k",
+        )
+        tracer.executed_subscript_result(
+            module=__file__,
+            code_object_id=1,
+            node_id=2,
+            opcode=0,
+            lineno=10,
+            offset=0,
+            value=d["k"],
+        )
+
+        trace = tracer.get_trace()
+        assert len(trace.executed_instructions) >= 2
+        last = trace.executed_instructions[-1]
+        assert isinstance(last, ExecutedSubscriptInstruction)
+        assert last.value_address == id(42)
+        assert last.value_is_immutable is True
+        assert last.value_repr == repr(42)
+    finally:
+        _cleanup_tracer(tracer)
+
+
+def test_executed_subscript_result_records_mutable_value_without_snapshot() -> None:
+    tracer = _mk_tracer()
+    try:
+        v = [1, 2]
+        d = {"k": v}
+        tracer.track_subscript_access(
+            module=__file__,
+            code_object_id=3,
+            node_id=4,
+            opcode=0,
+            lineno=20,
+            offset=0,
+            container=d,
+            key="k",
+        )
+        tracer.executed_subscript_result(
+            module=__file__,
+            code_object_id=3,
+            node_id=4,
+            opcode=0,
+            lineno=20,
+            offset=0,
+            value=v,
+        )
+
+        trace = tracer.get_trace()
+        last = trace.executed_instructions[-1]
+        assert isinstance(last, ExecutedSubscriptInstruction)
+        assert last.value_address == id(v)
+        assert last.value_is_immutable is False
+        assert last.value_repr is None
+    finally:
+        _cleanup_tracer(tracer)
