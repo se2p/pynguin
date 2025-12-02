@@ -20,7 +20,9 @@ def test_string_subtype_integration(tmp_path):
     project_path = project_path / "tests" / "fixtures" / "examples" / "type_tracing"
 
     configuration = config.Configuration(
-        seeding=config.SeedingConfiguration(seed=43),
+        seeding=config.SeedingConfiguration(
+            seed=43, constant_seeding=False, dynamic_constant_seeding=False
+        ),
         algorithm=config.Algorithm.DYNAMOSA,
         stopping=config.StoppingConfiguration(maximum_iterations=1),
         module_name="string_subtype",
