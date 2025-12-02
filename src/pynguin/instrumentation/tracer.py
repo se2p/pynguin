@@ -242,58 +242,6 @@ class ExecutionTrace:
 
         self.executed_instructions.append(executed_instr)
 
-    def add_subscript_instruction(  # noqa: PLR0917
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        container_address: int,
-        key_address: int,
-        key_is_immutable: bool,  # noqa: FBT001
-        key_repr: str | None,
-        value_address: int | None = None,
-        value_is_immutable: bool | None = None,  # noqa: FBT001
-        value_repr: str | None = None,
-    ) -> None:
-        """Creates a new ExecutedSubscriptInstruction object and adds it to the trace.
-
-        Args:
-            module: File name of the module containing the instruction
-            code_object_id: code object containing the instruction
-            node_id: the node of the code object containing the instruction
-            opcode: the opcode of the instruction
-            lineno: the line number of the instruction
-            offset: the offset of the instruction
-            container_address: memory address of the container object
-            key_address: memory address of the key object
-            key_is_immutable: whether the key is of an immutable primitive type
-            key_repr: optional compact textual representation of the key
-            value_address: memory address of the value object, if any
-            value_is_immutable: whether the value is of an immutable primitive type, if any
-            value_repr: optional compact textual representation of the value, if any
-        """
-        executed_instr = ei.ExecutedSubscriptInstruction(
-            module,
-            code_object_id,
-            node_id,
-            opcode,
-            None,
-            lineno,
-            offset,
-            container_address,
-            key_address,
-            key_is_immutable,
-            key_repr,
-            value_address,
-            value_is_immutable,
-            value_repr,
-        )
-
-        self.executed_instructions.append(executed_instr)
-
     def add_jump_instruction(  # noqa: PLR0917
         self,
         module: str,
@@ -800,36 +748,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
         """
 
     @abstractmethod
-    def executed_subscript_result(  # noqa: PLR0917
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        value: object,
-    ) -> None:
-        """Record the resulting value of a subscript operation.
-
-        Complements a previous ``track_subscript_access`` call at the same
-        bytecode position by providing the produced value (for ``BINARY_SUBSCR``)
-        or the value-to-be-stored (for ``STORE_SUBSCR``).
-
-        Args:
-            module: File name of the module containing the instruction
-            code_object_id: code object containing the instruction
-            node_id: the node of the code object containing the instruction
-            opcode: the opcode of the instruction
-            lineno: the line number of the instruction
-            offset: the offset of the instruction
-            value: the value to snapshot
-
-        Raises:
-            RuntimeError: raised when called from another thread
-        """
-
-    @abstractmethod
     def executed_exception_match(
         self,
         err: BaseException | type[BaseException],
@@ -934,34 +852,6 @@ class AbstractExecutionTracer(ABC):  # noqa: PLR0904
             offset: the offset of the instruction
             attr_name: the name of the accessed attribute
             obj: the object containing the accessed attribute
-
-        Raises:
-            RuntimeError: raised when called from another thread
-        """
-
-    @abstractmethod
-    def track_subscript_access(  # noqa: PLR0917
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        container: object,
-        key: object,
-    ) -> None:
-        """Track a subscription access (e.g., container[key]) in the trace.
-
-        Args:
-            module: File name of the module containing the instruction
-            code_object_id: code object containing the instruction
-            node_id: the node of the code object containing the instruction
-            opcode: the opcode of the instruction
-            lineno: the line number of the instruction
-            offset: the offset of the instruction
-            container: the container object being indexed
-            key: the key/index used for the subscription
 
         Raises:
             RuntimeError: raised when called from another thread
@@ -1264,9 +1154,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             super().__init__()
             self.enabled = True
             self.trace = ExecutionTrace()
-            # Pending contexts for subscript reads (BINARY_SUBSCR) recorded before execution.
-            # Each entry: (module, code_object_id, node_id, opcode, lineno, offset, container, key)
-            self.pending_subscripts: list[tuple[str, int, int, int, int, int, object, object]] = []
 
     def __init__(self) -> None:  # noqa: D107
         # Contains the trace information that is generated when a module is imported
@@ -1655,144 +1542,6 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
         )
 
     @_early_return
-    def track_subscript_access(  # noqa: PLR0917, D102
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        container: object,
-        key: object,
-    ) -> None:
-        # Capture addresses
-        container_address = id(container)
-        key_address = id(key)
-
-        # Determine if key is of an immutable primitive type
-        key_type = type(key)
-        key_is_immutable = key_type in immutable_types
-
-        # Create a compact representation for immutable keys, else None
-        key_repr: str | None = None
-        if key_is_immutable:
-            try:
-                text = repr(key)
-            except Exception:  # noqa: BLE001
-                text = key_type.__name__
-            # truncate to avoid huge traces
-            key_repr = text if len(text) <= 80 else text[:77] + "..."
-
-        self._thread_local_state.trace.add_subscript_instruction(
-            module,
-            code_object_id,
-            node_id,
-            opcode,
-            lineno,
-            offset,
-            container_address,
-            key_address,
-            key_is_immutable,
-            key_repr,
-        )
-
-        # Keep context for a subsequent result capture after BINARY_SUBSCR
-        self._thread_local_state.pending_subscripts.append((
-            module,
-            code_object_id,
-            node_id,
-            opcode,
-            lineno,
-            offset,
-            container,
-            key,
-        ))
-
-    @_early_return
-    def executed_subscript_result(  # noqa: PLR0917, PLR0914
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        value: object,
-    ) -> None:
-        """Record the resulting value of a subscript read (BINARY_SUBSCR).
-
-        TODO: Remove duplicates
-
-        This complements a prior call to ``track_subscript_access`` for the same
-        bytecode position by adding a second subscript entry that includes a
-        compact snapshot of the retrieved value.
-        """
-        with self.temporarily_disable():
-            # Find latest matching pending context
-            ctx_index = -1
-            for i in range(len(self._thread_local_state.pending_subscripts) - 1, -1, -1):
-                c = self._thread_local_state.pending_subscripts[i]
-                if (
-                    c[0] == module  # noqa: PLR0916
-                    and c[1] == code_object_id
-                    and c[2] == node_id
-                    and c[3] == opcode
-                    and c[4] == lineno
-                    and c[5] == offset
-                ):
-                    ctx_index = i
-                    break
-            if ctx_index == -1:
-                return
-
-            (
-                _m,
-                _cid,
-                _nid,
-                _op,
-                _ln,
-                _off,
-                container,
-                key,
-            ) = self._thread_local_state.pending_subscripts.pop(ctx_index)
-
-            container_address = id(container)
-            key_address = id(key)
-            key_is_immutable = type(key) in immutable_types
-            try:
-                key_repr = repr(key) if key_is_immutable else None
-            except Exception:  # noqa: BLE001
-                key_repr = None
-            if key_repr is not None and len(key_repr) > 80:
-                key_repr = key_repr[:77] + "..."
-
-            value_address = id(value)
-            value_is_immutable = type(value) in immutable_types
-            try:
-                value_repr = repr(value) if value_is_immutable else None
-            except Exception:  # noqa: BLE001
-                value_repr = None
-            if value_repr is not None and len(value_repr) > 80:
-                value_repr = value_repr[:77] + "..."
-
-            self._thread_local_state.trace.add_subscript_instruction(
-                module,
-                code_object_id,
-                node_id,
-                opcode,
-                lineno,
-                offset,
-                container_address,
-                key_address,
-                key_is_immutable,
-                key_repr,
-                value_address,
-                value_is_immutable,
-                value_repr,
-            )
-
-    @_early_return
     def track_jump(  # noqa: PLR0917, D102
         self,
         module: str,
@@ -2010,20 +1759,6 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             value1=value1, value2=value2, predicate=predicate
         )
 
-    def executed_subscript_result(  # noqa: D102, PLR0917
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        value: object,
-    ) -> None:
-        self._tracer.executed_subscript_result(
-            module, code_object_id, node_id, opcode, lineno, offset, value
-        )
-
     def executed_exception_match(  # noqa: D102
         self,
         err: BaseException | type[BaseException],
@@ -2088,28 +1823,6 @@ class InstrumentationExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
             offset,
             attr_name,
             obj,
-        )
-
-    def track_subscript_access(  # noqa: PLR0917, D102
-        self,
-        module: str,
-        code_object_id: int,
-        node_id: int,
-        opcode: int,
-        lineno: int,
-        offset: int,
-        container: object,
-        key: object,
-    ) -> None:
-        self._tracer.track_subscript_access(
-            module,
-            code_object_id,
-            node_id,
-            opcode,
-            lineno,
-            offset,
-            container,
-            key,
         )
 
     def track_jump(  # noqa: PLR0917, D102
