@@ -652,12 +652,13 @@ def test_killed_by_thread_guard(method, inputs, subject_properties: SubjectPrope
     "key, dictionary, expected_true, expected_false",
     [
         ("a", {"a": 1, "b": 1}, 0.0, 1.0),
-        (1, {1: 1, 2: 1}, 0.0, 1.0),
-        ("1", {"1": "value"}, 0.0, 1.0),
-
         ("a", {"b": 1}, 0.5, 0.0),
-        ("a", {"x": 1}, 0.9583333333333334, 0.0),
+        ("a", {"c": 1}, 0.6666666666666666, 0.0),
+
+        (1, {1: 1, 2: 1}, 0.0, 1.0),
         (1, {2: 1}, 1.0, 0.0),
+        (1, {3: 1}, 2.0, 0.0),
+
         ("a", {}, inf, 0.0),
         (None, {"a": 1}, inf, 0.0),
     ],
