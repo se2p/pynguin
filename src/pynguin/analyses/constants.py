@@ -303,9 +303,11 @@ def collect_static_constants(
         _parse_file(path / module)
 
     # Check all modules explicitly specified
-    for mod in module_names or ():
-        rel = Path(*mod.split("."))
-        _parse_file((path / rel).with_suffix(".py"))
+    for module_name in module_names or ():
+        rel_path = Path(*module_name.split("."))
+        module_path = (path / rel_path).with_suffix(".py")
+        if module_path.exists() and module_path.is_file():
+            _parse_file(module_path)
 
     return collector.constants
 
