@@ -76,7 +76,7 @@ def _canonical_module_name(name: str) -> str:
         if dotted:
             return dotted
     if spec and getattr(spec, "name", None):
-        return spec.name  # type: ignore[return-value]
+        return spec.name
 
     return name
 
