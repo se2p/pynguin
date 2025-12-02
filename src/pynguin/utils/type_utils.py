@@ -21,6 +21,8 @@ from typing_inspect import get_origin
 from pynguin.utils.orderedset import OrderedSet
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pynguin.analyses.typesystem import InferredSignature
 
 PRIMITIVES = OrderedSet([int, str, bytes, bool, float, complex])
@@ -254,6 +256,31 @@ def get_class_that_defined_method(method: object) -> object | None:
         if isinstance(cls, type):
             return cls
     return getattr(method, "__objclass__", None)  # handle special descriptor objs
+
+
+def replace_non_python_constructor(method: Callable) -> Callable:
+    """Replace the given method with the object if it is a non-Python __init__ method.
+
+    Args:
+         method: The method to potentially replace.
+
+    Returns:
+        The original method if it is not a non-Python __init__ method, otherwise the
+        object of the __init__ method.
+    """
+    method_for_signature = method
+    if method_for_signature.__name__.startswith("__init__"):
+        clazz = get_class_that_defined_method(method_for_signature)
+        is_python = True
+        try:
+            # Source is available => likely pure Python.
+            inspect.getsource(method_for_signature)
+        except Exception:  # noqa: BLE001
+            # No source => likely compiled or builtin.
+            is_python = False
+        if not is_python:
+            method_for_signature = clazz  # type: ignore[assignment]
+    return method_for_signature
 
 
 def is_optional_parameter(inf_sig: InferredSignature, parameter_name: str) -> bool:

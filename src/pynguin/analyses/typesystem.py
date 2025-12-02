@@ -41,7 +41,11 @@ from pynguin.analyses.type_inference import HintInference, InferenceProvider
 from pynguin.utils import randomness
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.randomness import weighted_choice
-from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES, get_class_that_defined_method
+from pynguin.utils.type_utils import (
+    COLLECTIONS,
+    PRIMITIVES,
+    replace_non_python_constructor,
+)
 
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -1745,20 +1749,9 @@ class TypeSystem:  # noqa: PLR0904
         Returns:
             The inference result
         """
-        # If the method is the __init__ method, get the signature from the class instead
-        if method.__name__.startswith("__init__"):
-            clazz = get_class_that_defined_method(method)
-            is_python = True
-            try:
-                # Source is available => likely pure Python.
-                inspect.getsource(method)
-            except Exception:  # noqa: BLE001
-                # No source => likely compiled or builtin.
-                is_python = False
-            if not is_python:
-                method = clazz  # type: ignore[assignment]
+        method_for_signature = replace_non_python_constructor(method)
         try:
-            method_signature = inspect.signature(method)
+            method_signature = inspect.signature(method_for_signature)
         except ValueError:
             method_signature = inspect.Signature(
                 parameters=[
