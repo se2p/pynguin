@@ -53,6 +53,17 @@ def exportable_test_case_with_expected_exception(function_mock):
 def exportable_test_case_with_unexpected_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
+    function_mock._raised_exceptions = {"ValueError"}
+    function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
+    test_case.add_statement(float_stmt)
+    test_case.add_statement(function_stmt)
+    return tcc.TestCaseChromosome(test_case)
+
+
+@pytest.fixture
+def exportable_test_case_with_unexpected_assertion(function_mock):
+    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
+    float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
     function_stmt.add_assertion(ass.ExceptionAssertion("builtins", "ValueError"))
     test_case.add_statement(float_stmt)

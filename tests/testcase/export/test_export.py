@@ -8,6 +8,8 @@
 
 from unittest import mock
 
+import pytest
+
 from pynguin.testcase import export
 
 
@@ -45,6 +47,10 @@ def test_case_1():
 
 
 def test_export_sequence_expected_exception(exportable_test_case_with_expected_exception, tmp_path):
+    """An expected exception is an exception that is expected to be raised.
+
+    This leads to a ``with pytest.raises(...):`` statement.
+    """
     path = tmp_path / "generated_with_expected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_expected_exception.accept(exporter)
@@ -67,6 +73,10 @@ def test_case_0():
 def test_export_sequence_unexpected_exception(
     exportable_test_case_with_unexpected_exception, tmp_path
 ):
+    """An unexpected exception is an exception not expected to be raised.
+
+    This leads to a test failure and thus the test case is marked with xfail.
+    """
     path = tmp_path / "generated_with_unexpected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_unexpected_exception.accept(exporter)
@@ -84,6 +94,16 @@ def test_case_0():
     float_1 = module_0.simple_function(float_0)
 """
     )
+
+
+def test_export_sequence_unexpected_assertion(exportable_test_case_with_unexpected_assertion):
+    """An unexpected assertion is an assertion not expected to be raised.
+
+    This indicates a bug in the assertion generation.
+    """
+    exporter = export.PyTestChromosomeToAstVisitor()
+    with pytest.raises(AssertionError, match="Unexpected assertion"):
+        exportable_test_case_with_unexpected_assertion.accept(exporter)
 
 
 def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
