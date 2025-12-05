@@ -9,6 +9,7 @@
 import ast
 import importlib
 import inspect
+import subprocess  # noqa: S404
 import types
 from pathlib import Path
 
@@ -185,3 +186,9 @@ def import_module_safe(module_name):
 
 def instrument_function(transformer: InstrumentationTransformer, function: types.FunctionType):
     function.__code__ = transformer.instrument_code(function.__code__, function.__module__)
+
+
+def execute_with_pytest(test_file: Path):
+    pytest_command = ["pytest", str(test_file)]
+    result = subprocess.run(pytest_command, capture_output=True, check=False)  # noqa: S603
+    return result.returncode

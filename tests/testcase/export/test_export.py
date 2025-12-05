@@ -4,13 +4,22 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-
-
+import importlib
+from logging import Logger
+from pathlib import Path
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
+import pynguin.ga.generationalgorithmfactory as gaf
+from pynguin.analyses.module import generate_test_cluster
+from pynguin.instrumentation.machinery import install_import_hook
+from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
+from pynguin.testcase.execution import TestCaseExecutor
+from testutils import execute_with_pytest
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
@@ -96,6 +105,36 @@ def test_case_0():
     )
 
 
+def test_export_sequence_expected_then_unexpected_exception(
+    exportable_test_case_expected_then_unexpected_exception, tmp_path
+):
+    """First call has expected exception, second call is unexpected.
+
+    The first call should be exported within a ``with pytest.raises(...)`` block, while
+    the second call should be emitted bare. As the second call is unexpected, the test
+    must be marked with ``xfail``.
+    """
+    path = tmp_path / "generated_with_expected_then_unexpected_exception.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case_expected_then_unexpected_exception.accept(exporter)
+    export.save_module_to_file(exporter.to_module(), path)
+    assert (
+        path.read_text()
+        == export._PYNGUIN_FILE_HEADER
+        + """import pytest
+import tests.fixtures.accessibles.accessible as module_0
+
+
+@pytest.mark.xfail(strict=True)
+def test_case_0():
+    float_0 = 42.23
+    with pytest.raises(ValueError):
+        float_1 = module_0.simple_function(float_0)
+    module_0.simple_function(float_0)
+"""
+    )
+
+
 def test_export_sequence_unexpected_assertion(exportable_test_case_with_unexpected_assertion):
     """An unexpected assertion is an assertion not expected to be raised.
 
@@ -169,3 +208,42 @@ def test_case_0():
     float_1 = module_0.simple_function(float_0)
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
     )
+
+
+def test_export_integration(subject_properties: SubjectProperties, tmp_path: Path):
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    config.configuration.module_name = module_name
+    config.configuration.algorithm = config.Algorithm.DYNAMOSA
+    config.configuration.stopping.maximum_iterations = 20
+    config.configuration.search_algorithm.min_initial_tests = 10
+    config.configuration.search_algorithm.max_initial_tests = 10
+    config.configuration.search_algorithm.population = 20
+    config.configuration.test_creation.none_weight = 1
+    config.configuration.test_creation.any_weight = 1
+    config.configuration.test_case_output.output_path = tmp_path
+
+    logger = MagicMock(Logger)
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+
+        executor = TestCaseExecutor(subject_properties)
+        cluster = generate_test_cluster(module_name)
+        search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
+            executor, cluster
+        ).get_search_algorithm()
+        search_algorithm._logger = logger
+        test_cases = search_algorithm.generate_tests()
+        assert test_cases.size() >= 0
+
+        target_file = Path(config.configuration.test_case_output.output_path).resolve() / "test.py"
+        export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=False)
+        test_cases.accept(export_visitor)
+        export.save_module_to_file(
+            export_visitor.to_module(),
+            target_file,
+            format_with_black=config.configuration.test_case_output.format_with_black,
+        )
+
+    assert execute_with_pytest(target_file) == 0

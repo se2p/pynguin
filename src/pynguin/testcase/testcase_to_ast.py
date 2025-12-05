@@ -23,6 +23,10 @@ if TYPE_CHECKING:
     import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.execution as ex
 
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 
 class TestCaseToAstVisitor(TestCaseVisitor):
     """Transforms an arbitrary number of test cases to AST statements.
@@ -72,6 +76,10 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 store_call_return = self._store_call_return
                 self._is_failing_test = True
                 self._common_modules.add("pytest")
+                _LOGGER.info(
+                    "Statement %s raises an unexpected exception during execution.",
+                    statement,
+                )
 
             # Only store the return value if it's used by subsequent statements or has assertions
             # If store_call_return is True, we always store the return value
@@ -93,6 +101,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 and not any(isinstance(a, ass.ExceptionAssertion) for a in statement.assertions)
             ):
                 store_call_return = self._store_call_return
+                _LOGGER.info(
+                    "Statement %s raises an unexpected exception during execution.", statement
+                )
                 self._is_failing_test = True
                 self._common_modules.add("pytest")
 
@@ -113,7 +124,14 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 else:
                     # Encountering an unexpected assertion indicates a bug in
                     # assertion generation and should fail fast.
-                    raise AssertionError("Unexpected assertion")
+                    _LOGGER.error(
+                        "Unexpected assertion %s encountered during test case %s",
+                        assertion,
+                        test_case,
+                    )
+                    self._common_modules.add("pytest")
+                    self._is_failing_test = True
+
             # The visitor might wrap the generated statement node,
             # so append the nodes provided by the assertion visitor
             self._test_case_ast.extend(assertion_visitor.nodes)
