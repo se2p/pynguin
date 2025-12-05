@@ -196,6 +196,8 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         Returns:
             An ast module containing all visited test cases.
         """
+        if any(result.exception_status for result in self._conversion_results):
+            self._common_modules.add("pytest")
         import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
             self._module_aliases, self._common_modules
         )

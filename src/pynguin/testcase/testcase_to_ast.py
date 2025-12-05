@@ -70,6 +70,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 and self._exec_result.get_first_position_of_thrown_exception() == idx
             ):
                 store_call_return = self._store_call_return
+                self._is_failing_test = True
+                self._common_modules.add("pytest")
 
             # Only store the return value if it's used by subsequent statements or has assertions
             # If store_call_return is True, we always store the return value
@@ -80,6 +82,19 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 and not statement.assertions  # No assertions
             ):
                 store_call_return = False
+
+            # If a parametrized statement declares raised exceptions but there is no
+            # matching ExceptionAssertion attached, we consider this an unexpected
+            # exception scenario during export time. Mark the test as failing so that
+            # the exporter decorates it with xfail and ensure pytest is imported.
+            if (
+                isinstance(statement, statmt.ParametrizedStatement)
+                and getattr(statement, "raised_exceptions", None)
+                and not any(isinstance(a, ass.ExceptionAssertion) for a in statement.assertions)
+            ):
+                store_call_return = self._store_call_return
+                self._is_failing_test = True
+                self._common_modules.add("pytest")
 
             statement_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases, variables, store_call_return=store_call_return
@@ -96,8 +111,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 if self.__should_assertion_be_generated(assertion, statement):
                     assertion.accept(assertion_visitor)
                 else:
-                    self._common_modules.add("pytest")
-                    self._is_failing_test = True
+                    # Encountering an unexpected assertion indicates a bug in
+                    # assertion generation and should fail fast.
+                    raise AssertionError("Unexpected assertion")
             # The visitor might wrap the generated statement node,
             # so append the nodes provided by the assertion visitor
             self._test_case_ast.extend(assertion_visitor.nodes)
