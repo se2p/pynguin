@@ -87,7 +87,7 @@ older version is not supported by Pynguin!
 
 ## Using Pynguin
 
-Before you continue, please read the [quick start guide](https://pynguin.readthedocs.io/en/latest/user/quickstart.html)
+Before you continue, please read the [quick start guide](https://pynguin.readthedocs.io/latest/user/quickstart.html)
 
 Pynguin is a command-line application.
 Once you installed it to a virtual environment, you can invoke the tool by typing
@@ -105,7 +105,7 @@ pynguin \
   --output-path /tmp/testgen \
   --module-name foo.bar
 ```
-Please find a more detailed example in the [quick start guide](https://pynguin.readthedocs.io/en/latest/user/quickstart.html).
+Please find a more detailed example in the [quick start guide](https://pynguin.readthedocs.io/latest/user/quickstart.html).
 
 
 ## Contributing to Pynguin
