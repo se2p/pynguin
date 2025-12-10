@@ -13,6 +13,8 @@ import subprocess  # noqa: S404
 import types
 from pathlib import Path
 
+import dill  # noqa: S403
+
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.typesystem import Instance, ProperType, TypeSystem
 from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
@@ -21,6 +23,7 @@ from pynguin.assertion.mutation_analysis.operators.arithmetic import (
 )
 from pynguin.assertion.mutation_analysis.operators.base import Mutation, MutationOperator
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer, create_module
+from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 
 
@@ -192,3 +195,13 @@ def execute_with_pytest(test_file: Path):
     pytest_command = ["pytest", str(test_file)]
     result = subprocess.run(pytest_command, capture_output=True, check=False)  # noqa: S603
     return result.returncode
+
+
+def dump_test_suite_chromosome(test_suite_chromosome: TestSuiteChromosome, target_file: Path):
+    with target_file.open("wb") as f:
+        dill.dump(test_suite_chromosome, f)
+
+
+def load_test_suite_chromosome(target_file: Path) -> TestSuiteChromosome:
+    with target_file.open("rb") as f:
+        return dill.load(f)  # noqa: S301

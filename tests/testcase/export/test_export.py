@@ -19,7 +19,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from testutils import execute_with_pytest
+from testutils import dump_test_suite_chromosome, execute_with_pytest, load_test_suite_chromosome
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
@@ -236,6 +236,12 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
         search_algorithm._logger = logger
         test_cases = search_algorithm.generate_tests()
         assert test_cases.size() >= 0
+
+        dump_file = Path() / "tc_dump.bin"
+        dump_test_suite_chromosome(test_suite_chromosome=test_cases, target_file=dump_file)
+        loaded_test_cases = load_test_suite_chromosome(target_file=dump_file)
+
+        assert loaded_test_cases == test_cases
 
         target_file = Path(config.configuration.test_case_output.output_path).resolve() / "test.py"
         export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=False)
