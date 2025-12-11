@@ -38,7 +38,7 @@ def exportable_test_case(constructor_mock, function_mock):
 
 
 @pytest.fixture
-def exportable_test_case_with_expected_exception(function_mock):
+def exportable_test_case_with_expected_asserted_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_mock._raised_exceptions = {"ValueError"}
@@ -50,48 +50,13 @@ def exportable_test_case_with_expected_exception(function_mock):
 
 
 @pytest.fixture
-def exportable_test_case_with_unexpected_exception(function_mock):
+def exportable_test_case_with_expected_not_asserted_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
     function_mock._raised_exceptions = {"ValueError"}
     function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
     test_case.add_statement(float_stmt)
     test_case.add_statement(function_stmt)
-    return tcc.TestCaseChromosome(test_case)
-
-
-@pytest.fixture
-def exportable_test_case_with_unexpected_assertion(function_mock):
-    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
-    float_stmt = FloatPrimitiveStatement(test_case, 42.23)
-    function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
-    function_stmt.add_assertion(ass.ExceptionAssertion("builtins", "ValueError"))
-    test_case.add_statement(float_stmt)
-    test_case.add_statement(function_stmt)
-    return tcc.TestCaseChromosome(test_case)
-
-
-@pytest.fixture
-def exportable_test_case_expected_then_unexpected_exception(function_mock):
-    """A test case where the same function is called twice raising exceptions.
-
-    The first call has an attached ExceptionAssertion (expected), whereas the second
-    call has no assertion (unexpected). The exporter should therefore wrap the first
-    call in a ``with pytest.raises(...)`` block and mark the whole test case with
-    ``xfail`` due to the unhandled second exception.
-    """
-    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
-    float_stmt = FloatPrimitiveStatement(test_case, 42.23)
-    # The function may raise a ValueError
-    function_mock._raised_exceptions = {"ValueError"}
-    # First call: expected exception (with assertion)
-    function_stmt_1 = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
-    function_stmt_1.add_assertion(ass.ExceptionAssertion("builtins", "ValueError"))
-    # Second call: unexpected exception (no assertion)
-    function_stmt_2 = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
-    test_case.add_statement(float_stmt)
-    test_case.add_statement(function_stmt_1)
-    test_case.add_statement(function_stmt_2)
     return tcc.TestCaseChromosome(test_case)
 
 

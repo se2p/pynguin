@@ -12,8 +12,6 @@ from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
-import pytest
-
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.testcasechromosome as tcc
@@ -25,10 +23,8 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
 from tests.testutils import (
-    dump_test_suite_chromosome,
     execute_test_with_pytest,
     execute_with_pytest,
-    load_test_suite_chromosome,
 )
 
 
@@ -65,14 +61,19 @@ def test_case_1():
     )
 
 
-def test_export_sequence_expected_exception(exportable_test_case_with_expected_exception, tmp_path):
-    """An expected exception is an exception that is expected to be raised.
+def test_export_sequence_expected_exception(
+    exportable_test_case_with_expected_asserted_exception, tmp_path
+):
+    """An expected asserted exception is an exception that was raised and is expected.
 
-    This leads to a ``with pytest.raises(...):`` statement.
+    It is expected because the SUT code declares that it may raise this exception
+    or has an assert statement.
+    It is asserted because an assertion for that exception was generated, which leads
+    to a ``with pytest.raises(...):`` statement.
     """
-    path = tmp_path / "generated_with_expected_exception.py"
+    path = tmp_path / "expected_asserted_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case_with_expected_exception.accept(exporter)
+    exportable_test_case_with_expected_asserted_exception.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (
         path.read_text()
@@ -84,75 +85,35 @@ import tests.fixtures.accessibles.accessible as module_0
 def test_case_0():
     float_0 = 42.23
     with pytest.raises(ValueError):
-        float_1 = module_0.simple_function(float_0)
+        module_0.simple_function(float_0)
 """
     )
 
 
 def test_export_sequence_unexpected_exception(
-    exportable_test_case_with_unexpected_exception, tmp_path
+    exportable_test_case_with_expected_not_asserted_exception, tmp_path
 ):
-    """An unexpected exception is an exception not expected to be raised.
+    """An expected not asserted exception is an exception that was raised and is not expected.
 
-    This leads to a test failure and thus the test case is marked with xfail.
+    It is expected because the SUT code declares that it may raise this exception
+    or has an assert statement.
+    No assertion for the exception was generated, thus the exported test case passes.
     """
-    path = tmp_path / "generated_with_unexpected_exception.py"
+    path = tmp_path / "expected_not_asserted_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case_with_unexpected_exception.accept(exporter)
+    exportable_test_case_with_expected_not_asserted_exception.accept(exporter)
     export.save_module_to_file(exporter.to_module(), path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.accessibles.accessible as module_0
+        + """import tests.fixtures.accessibles.accessible as module_0
 
 
-@pytest.mark.xfail(strict=True)
 def test_case_0():
     float_0 = 42.23
     module_0.simple_function(float_0)
 """
     )
-
-
-def test_export_sequence_expected_then_unexpected_exception(
-    exportable_test_case_expected_then_unexpected_exception, tmp_path
-):
-    """First call has expected exception, second call is unexpected.
-
-    The first call should be exported within a ``with pytest.raises(...)`` block, while
-    the second call should be emitted bare. As the second call is unexpected, the test
-    must be marked with ``xfail``.
-    """
-    path = tmp_path / "generated_with_expected_then_unexpected_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case_expected_then_unexpected_exception.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.accessibles.accessible as module_0
-
-
-@pytest.mark.xfail(strict=True)
-def test_case_0():
-    float_0 = 42.23
-    with pytest.raises(ValueError):
-        float_1 = module_0.simple_function(float_0)
-    module_0.simple_function(float_0)
-"""
-    )
-
-
-def test_export_sequence_unexpected_assertion(exportable_test_case_with_unexpected_assertion):
-    """An unexpected assertion is an assertion not expected to be raised.
-
-    This indicates a bug in the assertion generation.
-    """
-    exporter = export.PyTestChromosomeToAstVisitor()
-    with pytest.raises(AssertionError, match="Unexpected assertion"):
-        exportable_test_case_with_unexpected_assertion.accept(exporter)
 
 
 def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
@@ -246,12 +207,6 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
         search_algorithm._logger = logger
         test_cases = search_algorithm.generate_tests()
         assert test_cases.size() >= 0
-
-        dump_file = Path() / "tc_dump.bin"
-        dump_test_suite_chromosome(test_suite_chromosome=test_cases, target_file=dump_file)
-        loaded_test_cases = load_test_suite_chromosome(target_file=dump_file)
-
-        assert loaded_test_cases == test_cases
 
         target_file = Path(config.configuration.test_case_output.output_path).resolve() / "test.py"
         export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=False)

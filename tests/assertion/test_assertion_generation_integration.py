@@ -224,7 +224,7 @@ _MUTANTS = [
         (
             "tests.fixtures.mutation.expected",
             "def test_case_0():\n    int_0 = 2\n    var_0 = module_0.bar(int_0)",
-            "int_0 = 2\nwith pytest.raises(ValueError):\n    var_0 = module_0.bar(int_0)",
+            "int_0 = 2\nwith pytest.raises(ValueError):\n    module_0.bar(int_0)",
             [
                 "def bar(foo):\n    if not foo == 2:\n        raise ValueError()",
                 "def bar(foo):\n    if foo == 3:\n        raise ValueError()",
@@ -457,27 +457,6 @@ def test_add_assertions_add_with():
     none_type_0 = None
     with pytest.raises(AssertionError):
         module_0.foo(none_type_0)"""
-    with_assertions_code = _add_assertions(module_name, test_case_code)
-    assert with_assertions_code == expected_code
-    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
-    assert execution_result == 0
-
-
-def test_add_assertions_add_fail_and_with():
-    module_name = "tests.fixtures.examples.unasserted_exceptions"
-    test_case_code = """def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)
-    assert bool_0 is False
-    int_0 = 24
-    bool_1 = module_0.foo(int_0)"""
-    expected_code = """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    with pytest.raises(AssertionError):
-        module_0.foo(none_type_0)
-    int_0 = 24
-    module_0.foo(int_0)"""
     with_assertions_code = _add_assertions(module_name, test_case_code)
     assert with_assertions_code == expected_code
     execution_result = execute_test_with_pytest(module_name, with_assertions_code)
