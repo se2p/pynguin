@@ -39,6 +39,20 @@ def _used_in_future(statement: statmt.Statement, future_statements: list[statmt.
     return must_store_for_future_use
 
 
+def _classify_assertion_exceptions(idx: int, statement: statmt.Statement):
+    expected, unexpected = set(), set()
+    for assertion in statement.assertions:
+        if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
+            statement, statmt.ParametrizedStatement
+        ):
+            raised = statement.expected_exceptions
+            if assertion.exception_type_name in raised:
+                expected.add((idx, assertion.exception_type_name))
+            else:
+                unexpected.add((idx, assertion.exception_type_name))
+    return expected, unexpected
+
+
 class TestCaseToAstVisitor(TestCaseVisitor):
     """Transforms an arbitrary number of test cases to AST statements.
 
@@ -100,15 +114,9 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             stmt_node = stmt_visitor.ast_node
 
             # Detect unexpected exceptions
-            for assertion in statement.assertions:
-                if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
-                    statement, statmt.ParametrizedStatement
-                ):
-                    raised = statement.expected_exceptions
-                    if assertion.exception_type_name not in raised:
-                        self._unexpected_exceptions.add((idx, assertion.exception_type_name))
-                    else:
-                        self._expected_exceptions.add((idx, assertion.exception_type_name))
+            new_expected, new_unexpected = _classify_assertion_exceptions(idx, statement)
+            self._expected_exceptions |= new_expected
+            self._unexpected_exceptions |= new_unexpected
 
             # Transform assertions and collect nodes
             assertion_visitor = ata.PyTestAssertionToAstVisitor(
