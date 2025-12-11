@@ -120,12 +120,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
 
             self._add_assertions(idx, statement, stmt_node, variable_names)
 
-        # Determine failing status based on execution evidence
-        if self._exec_result is not None:
-            for idx, exception in self._exec_result.exceptions.items():
-                if (idx, exception.__class__.__name__) not in self._expected_exceptions:
-                    self._is_failing_test = True
-                    break
+        self._update_is_failing()
 
     def _add_assertions(
         self,
@@ -147,6 +142,13 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 assertion.accept(assertion_visitor)
 
         self._test_case_ast.extend(assertion_visitor.nodes)
+
+    def _update_is_failing(self):
+        if self._exec_result is not None:
+            for idx, exception in self._exec_result.exceptions.items():
+                if (idx, exception.__class__.__name__) not in self._expected_exceptions:
+                    self._is_failing_test = True
+                    break
 
     @property
     def test_case_ast(self) -> list[stmt]:
