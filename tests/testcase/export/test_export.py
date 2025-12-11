@@ -265,7 +265,42 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
     assert execute_with_pytest(target_file) == 0
 
 
-def _import_export(module_name: str, test_case_code: str) -> str:
+def _extract_test_case_0(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+
+    # Find the line number where the function starts
+    start = None
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("def test_case_0"):
+            start = i
+            break
+
+    if start is None:
+        return None
+
+    result = []
+
+    # Include decorators above it
+    decorator_line_idx = start - 1
+    while decorator_line_idx > 0 and lines[decorator_line_idx].lstrip().startswith("@"):
+        result.append(lines[decorator_line_idx])
+        decorator_line_idx -= 1
+
+    # Include the function header
+    result.append(lines[start])
+
+    # Collect the function body
+    for line in lines[start + 1 :]:
+        if line.startswith((" ", "\t")):
+            result.append(line)
+        else:
+            break
+
+    # Remove the final newline
+    return "".join(result).rstrip("\n")
+
+
+def _import_execute_export(module_name: str, test_case_code: str) -> str:
     """Import a test case, execute it and export it again.
 
     Args:
@@ -301,7 +336,7 @@ def _import_export(module_name: str, test_case_code: str) -> str:
 
             # Execute the imported test case
             executor = TestCaseExecutor(subject_properties)
-            executor.execute(test_case_chrom.test_case)
+            test_case_chrom.set_last_execution_result(executor.execute(test_case_chrom.test_case))
 
             # Export the augmented test with assertions
             export_path = tmp_path / "test_with_assertions.py"
@@ -314,7 +349,7 @@ def _import_export(module_name: str, test_case_code: str) -> str:
             )
 
         exported = export_path.read_text(encoding="utf-8")
-        return exported[exported.index("def test_case_0") : -1]
+        return _extract_test_case_0(exported)
 
 
 def test_import_export():
@@ -324,7 +359,7 @@ def test_import_export():
     some_type_0 = module_0.SomeType(int_0)
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)"""
-    exported = _import_export(module_name, test_case_code)
+    exported = _import_execute_export(module_name, test_case_code)
     assert exported == test_case_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0
@@ -339,7 +374,7 @@ def test_case_0():
     expected_code = """def test_case_0():
     bool_0 = True
     bool_1 = module_0.foo(bool_0)"""
-    exported = _import_export(module_name, test_case_code)
+    exported = _import_execute_export(module_name, test_case_code)
     assert exported == expected_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0
@@ -350,8 +385,8 @@ def test_import_export_3():
     test_case_code = """@pytest.mark.xfail(strict=True)
 def test_case_0():
     none_type_0 = None
-    module_0.foo(none_type_0)"""
-    exported = _import_export(module_name, test_case_code)
+    bool_0 = module_0.foo(none_type_0)"""
+    exported = _import_execute_export(module_name, test_case_code)
     assert exported == test_case_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0

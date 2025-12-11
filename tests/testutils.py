@@ -199,7 +199,7 @@ def execute_with_pytest(test_file: Path) -> int:
 
 
 def execute_test_with_pytest(module_name: str, test_case_code: str) -> int:
-    test_case_code = "import " + module_name + " as module_0\n\n" + test_case_code
+    test_case_code = "import pytest\nimport " + module_name + " as module_0\n\n" + test_case_code
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         test_file_path = tmp_path / "test.py"
