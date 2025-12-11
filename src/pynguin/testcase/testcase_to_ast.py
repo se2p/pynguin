@@ -118,20 +118,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             self._expected_exceptions |= new_expected
             self._unexpected_exceptions |= new_unexpected
 
-            # Transform assertions and collect nodes
-            assertion_visitor = ata.PyTestAssertionToAstVisitor(
-                variable_names=variable_names,
-                module_aliases=self._module_aliases,
-                common_modules=self._common_modules,
-                statement_node=stmt_node,
-            )
-            for assertion in statement.assertions:
-                if not isinstance(assertion, ass.ExceptionAssertion) or (
-                    (idx, assertion.exception_type_name) not in self._unexpected_exceptions
-                ):
-                    assertion.accept(assertion_visitor)
-
-            self._test_case_ast.extend(assertion_visitor.nodes)
+            self._add_assertions(idx, statement, stmt_node, variable_names)
 
         # Determine failing status based on execution evidence
         if self._exec_result is not None:
@@ -139,6 +126,27 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 if (idx, exception.__class__.__name__) not in self._expected_exceptions:
                     self._is_failing_test = True
                     break
+
+    def _add_assertions(
+        self,
+        idx: int,
+        statement: statmt.Statement,
+        stmt_node: stmt,
+        variable_names: ns.VariableTypeNamingScope,
+    ):
+        assertion_visitor = ata.PyTestAssertionToAstVisitor(
+            variable_names=variable_names,
+            module_aliases=self._module_aliases,
+            common_modules=self._common_modules,
+            statement_node=stmt_node,
+        )
+        for assertion in statement.assertions:
+            if not isinstance(assertion, ass.ExceptionAssertion) or (
+                (idx, assertion.exception_type_name) not in self._unexpected_exceptions
+            ):
+                assertion.accept(assertion_visitor)
+
+        self._test_case_ast.extend(assertion_visitor.nodes)
 
     @property
     def test_case_ast(self) -> list[stmt]:
