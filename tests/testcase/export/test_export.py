@@ -300,12 +300,15 @@ def extract_test_case_0(text: str) -> str:
     return "".join(result).rstrip("\n")
 
 
-def _import_execute_export(module_name: str, test_case_code: str) -> str:
+def _import_execute_export(
+    module_name: str, test_case_code: str, *, store_call_return: bool = True
+) -> str:
     """Import a test case, execute it and export it again.
 
     Args:
         module_name: The name of the SUT module.
         test_case_code: The test case code to add assertions for.
+        store_call_return: Whether to store the return value of each call.
 
     Returns:
         The exported test case.
@@ -341,7 +344,7 @@ def _import_execute_export(module_name: str, test_case_code: str) -> str:
 
             # Export the augmented test with assertions
             export_path = tmp_path / "test_with_assertions.py"
-            exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
+            exporter = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
             test_case_chrom.accept(exporter)
             export.save_module_to_file(
                 exporter.to_module(),
@@ -414,6 +417,72 @@ def test_case_0():
     none_type_0 = None
     bool_0 = module_0.foo(none_type_0)"""
     exported = _import_execute_export(module_name, test_case_code)
+    assert exported == expected_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_nocr():
+    module_name = "tests.fixtures.accessibles.accessible"
+    test_case_code = """def test_case_0():
+    int_0 = 5
+    module_0.SomeType(int_0)
+    float_0 = 42.23
+    module_0.simple_function(float_0)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_nocr_not_add_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_nocr_remove_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)"""
+    expected_code = """def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
+    assert exported == expected_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_nocr_keep_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    module_0.foo(none_type_0)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_nocr_add_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    none_type_0 = None
+    module_0.foo(none_type_0)"""
+    expected_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    module_0.foo(none_type_0)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
     assert exported == expected_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0
