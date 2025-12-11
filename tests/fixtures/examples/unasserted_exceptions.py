@@ -10,5 +10,5 @@ def foo(bar) -> bool:
         return True
     assert bar is not None
     if bar == 24:
-        return True
+        return 1/0
     return False

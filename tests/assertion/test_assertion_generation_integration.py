@@ -31,7 +31,8 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from testutils import execute_with_pytest
+from testcase.export.test_export import extract_test_case_0
+from testutils import execute_test_with_pytest
 
 
 @pytest.mark.parametrize(
@@ -378,6 +379,11 @@ def _add_assertions(module_name: str, test_case_code: str) -> str:
                 module = importlib.import_module(module_name)
                 importlib.reload(module)
 
+            # Execute the imported test case
+            executor = TestCaseExecutor(subject_properties)
+            execution_result = executor.execute(test_case_chrom.test_case)
+            test_case_chrom.set_last_execution_result(execution_result)
+
             # Generate assertions
             executor = TestCaseExecutor(subject_properties)
             ag.AssertionGenerator(executor).visit_test_case_chromosome(test_case_chrom)
@@ -392,13 +398,8 @@ def _add_assertions(module_name: str, test_case_code: str) -> str:
                 format_with_black=config.configuration.test_case_output.format_with_black,
             )
 
-        # Execute the exported test with pytest; it should pass
-        assert execute_with_pytest(export_path) == 0
-
-        with_assertions_code = export_path.read_text(encoding="utf-8")
-
-        # drop everything before def test_case_0() and remove last newline
-        return with_assertions_code[with_assertions_code.index("def test_case_0") : -1]
+        exported = export_path.read_text(encoding="utf-8")
+        return extract_test_case_0(exported)
 
 
 def test_add_assertions():
@@ -415,12 +416,69 @@ def test_add_assertions():
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
     with_assertions_code = _add_assertions(module_name, test_case_code)
     assert with_assertions_code == test_case_code
+    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
+    assert execution_result == 0
 
 
-def test_add_assertions_2():
+def test_add_assertions_not_add_fail():
     module_name = "tests.fixtures.examples.unasserted_exceptions"
     test_case_code = """def test_case_0():
     bool_0 = True
-    module_0.foo(bool_0)"""
+    bool_1 = module_0.foo(bool_0)
+    assert bool_1 is False"""
     with_assertions_code = _add_assertions(module_name, test_case_code)
     assert with_assertions_code == test_case_code
+    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
+    assert execution_result == 0
+
+
+def test_add_assertions_add_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    int_0 = 24
+    bool_0 = module_0.foo(int_0)"""
+    expected_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    int_0 = 24
+    module_0.foo(int_0)"""
+    with_assertions_code = _add_assertions(module_name, test_case_code)
+    assert with_assertions_code == expected_code
+    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
+    assert execution_result == 0
+
+
+def test_add_assertions_add_with():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)
+    assert bool_0 is False"""
+    expected_code = """def test_case_0():
+    none_type_0 = None
+    with pytest.raises(AssertionError):
+        module_0.foo(none_type_0)"""
+    with_assertions_code = _add_assertions(module_name, test_case_code)
+    assert with_assertions_code == expected_code
+    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
+    assert execution_result == 0
+
+
+def test_add_assertions_add_fail_and_with():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)
+    assert bool_0 is False
+    int_0 = 24
+    bool_1 = module_0.foo(int_0)"""
+    expected_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    with pytest.raises(AssertionError):
+        module_0.foo(none_type_0)
+    int_0 = 24
+    module_0.foo(int_0)"""
+    with_assertions_code = _add_assertions(module_name, test_case_code)
+    assert with_assertions_code == expected_code
+    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
+    assert execution_result == 0

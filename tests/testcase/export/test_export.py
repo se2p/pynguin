@@ -265,7 +265,7 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
     assert execute_with_pytest(target_file) == 0
 
 
-def _extract_test_case_0(text: str) -> str:
+def extract_test_case_0(text: str) -> str:
     lines = text.splitlines(keepends=True)
 
     # Find the line number where the function starts
@@ -350,7 +350,7 @@ def _import_execute_export(module_name: str, test_case_code: str) -> str:
             )
 
         exported = export_path.read_text(encoding="utf-8")
-        return _extract_test_case_0(exported)
+        return extract_test_case_0(exported)
 
 
 def test_import_export():
@@ -360,6 +360,17 @@ def test_import_export():
     some_type_0 = module_0.SomeType(int_0)
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)"""
+    exported = _import_execute_export(module_name, test_case_code)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_not_add_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    bool_0 = True
+    bool_1 = module_0.foo(bool_0)"""
     exported = _import_execute_export(module_name, test_case_code)
     assert exported == test_case_code
     execution_result = execute_test_with_pytest(module_name, exported)

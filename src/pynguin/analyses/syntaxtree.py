@@ -361,6 +361,19 @@ class _RaiseVisitor(ast.NodeVisitor):
         self.context.extend(context)
 
     def visit_Assert(self, node: ast.Assert) -> ast.AST:  # noqa: N802
+        # If we see an assert statement in the subject under test we expect that the
+        # assertion can also be failing, thus it is legitimate to raise an
+        # AssertionError.  Hence, we add the AssertionError to the set of raised
+        # exceptions.
+        self.visit_Raise(
+            ast.Raise(
+                exc=ast.Call(
+                    func=ast.Name(id="AssertionError", ctx=ast.Load()),
+                    args=[],
+                    keywords=[],
+                ),
+            )
+        )
         # Make sure that we also execute a visit_Assert method in another analysis
         # visitor class.
         return getattr(super(), "visit_Assert", super().generic_visit)(node)
