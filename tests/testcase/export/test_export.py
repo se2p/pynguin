@@ -441,3 +441,15 @@ def test_case_0():
     assert exported == expected_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0
+
+
+def test_import_export_multiple_method_calls():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    bool_0 = True
+    bool_1 = module_0.foo(bool_0)
+    module_0.foo(bool_1)"""
+    exported = _import_execute_export(module_name, test_case_code, store_call_return=False)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0

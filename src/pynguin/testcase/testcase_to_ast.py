@@ -59,7 +59,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._is_failing_test: bool = False
         self._store_call_return: bool = store_call_return
 
-    def visit_default_test_case(  # noqa: D102
+    def visit_default_test_case(  # noqa: D102, C901
         self, test_case: dtc.DefaultTestCase
     ) -> None:
         return_type_trace = (
@@ -76,10 +76,20 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             must_store_for_assertions = any(
                 not isinstance(a, ass.ExceptionAssertion) for a in statement.assertions
             )
+            must_store_for_future_use = False
+            if isinstance(statement, statmt.VariableCreatingStatement):
+                ret_val = statement.ret_val
+                for later_stmt in test_case.statements[idx + 1 :]:
+                    if later_stmt.references(ret_val):
+                        must_store_for_future_use = True
+                        break
+
             stmt_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases,
                 variable_names,
-                store_call_return=self._store_call_return or must_store_for_assertions,
+                store_call_return=self._store_call_return
+                or must_store_for_assertions
+                or must_store_for_future_use,
             )
             statement.accept(stmt_visitor)
             stmt_node = stmt_visitor.ast_node
