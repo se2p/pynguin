@@ -8,7 +8,9 @@
 import ast
 import importlib
 import inspect
+import tempfile
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -27,7 +29,9 @@ from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
+from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
+from testutils import execute_with_pytest
 
 
 @pytest.mark.parametrize(
@@ -336,3 +340,78 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
             if "_execute_test_case" in thread.name:
                 thread.join()
         assert len(threading.enumerate()) == 1  # Only main thread should be alive.
+
+
+def _add_assertions(module_name: str, test_case_code: str) -> str:
+    """Add assertions to a test case and return the test case with assertions.
+
+    Existing assertions in the given test case are ignored.
+
+    Args:
+        module_name: The name of the SUT module.
+        test_case_code: The test case code to add assertions for.
+
+    Returns:
+        A test case with assertions.
+    """
+    subject_properties = SubjectProperties()
+    config.configuration.module_name = module_name
+    test_case_code = "import " + module_name + " as module_0\n\n" + test_case_code
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+
+        # Parse seed into DefaultTestCase
+        test_cluster = generate_test_cluster(module_name)
+        transformer = AstToTestCaseTransformer(
+            test_cluster=test_cluster,
+            create_assertions=False,  # do not import existing assertions; we'll generate them
+            constant_provider=EmptyConstantProvider(),
+        )
+        transformer.visit(ast.parse(test_case_code))
+        assert transformer.testcases, "No test case parsed from seed source"
+        test_case_chrom = tcc.TestCaseChromosome(transformer.testcases[0])
+
+        # Instrument and import target module for assertion generation
+        with install_import_hook(module_name, subject_properties):
+            with subject_properties.instrumentation_tracer:
+                module = importlib.import_module(module_name)
+                importlib.reload(module)
+
+            # Generate assertions
+            executor = TestCaseExecutor(subject_properties)
+            ag.AssertionGenerator(executor).visit_test_case_chromosome(test_case_chrom)
+
+            # Export the augmented test with assertions
+            export_path = tmp_path / "test_with_assertions.py"
+            exporter = export.PyTestChromosomeToAstVisitor(store_call_return=False)
+            test_case_chrom.accept(exporter)
+            export.save_module_to_file(
+                exporter.to_module(),
+                export_path,
+                format_with_black=config.configuration.test_case_output.format_with_black,
+            )
+
+        # Execute the exported test with pytest; it should pass
+        assert execute_with_pytest(export_path) == 0
+
+        with_assertions_code = export_path.read_text(encoding="utf-8")
+
+        # drop everything before def test_case_0() and remove last newline
+        return with_assertions_code[with_assertions_code.index("def test_case_0") : -1]
+
+
+def test_add_assertions():
+    module_name = "tests.fixtures.accessibles.accessible"
+    test_case_code = """def test_case_0():
+    int_0 = 5
+    some_type_0 = module_0.SomeType(int_0)
+    assert (
+        f"{type(some_type_0).__module__}.{type(some_type_0).__qualname__}"
+        == "tests.fixtures.accessibles.accessible.SomeType"
+    )
+    float_0 = 42.23
+    float_1 = module_0.simple_function(float_0)
+    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
+    with_assertions_code = _add_assertions(module_name, test_case_code)
+    assert with_assertions_code == test_case_code
