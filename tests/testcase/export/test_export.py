@@ -4,7 +4,9 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import ast
 import importlib
+import tempfile
 from logging import Logger
 from pathlib import Path
 from unittest import mock
@@ -14,7 +16,10 @@ import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
+import pynguin.ga.testcasechromosome as tcc
+from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
+from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
@@ -253,3 +258,80 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
         )
 
     assert execute_with_pytest(target_file) == 0
+
+
+def _import_export(module_name: str, test_case_code: str) -> str:
+    """Import a test case, execute it and export it again.
+
+    Args:
+        module_name: The name of the SUT module.
+        test_case_code: The test case code to add assertions for.
+
+    Returns:
+        The exported test case.
+    """
+    subject_properties = SubjectProperties()
+    config.configuration.module_name = module_name
+    test_case_code = "import " + module_name + " as module_0\n\n" + test_case_code
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+
+        # Parse seed into DefaultTestCase
+        test_cluster = generate_test_cluster(module_name)
+        transformer = AstToTestCaseTransformer(
+            test_cluster=test_cluster,
+            create_assertions=False,  # do not import assertions
+            constant_provider=EmptyConstantProvider(),
+        )
+        transformer.visit(ast.parse(test_case_code))
+        assert transformer.testcases, "No test case parsed from seed source"
+        test_case_chrom = tcc.TestCaseChromosome(transformer.testcases[0])
+
+        # Instrument and import target module for assertion generation
+        with install_import_hook(module_name, subject_properties):
+            with subject_properties.instrumentation_tracer:
+                module = importlib.import_module(module_name)
+                importlib.reload(module)
+
+            # Execute the imported test case
+            executor = TestCaseExecutor(subject_properties)
+            executor.execute(test_case_chrom.test_case)
+
+            # Export the augmented test with assertions
+            export_path = tmp_path / "test_with_assertions.py"
+            exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
+            test_case_chrom.accept(exporter)
+            export.save_module_to_file(
+                exporter.to_module(),
+                export_path,
+                format_with_black=config.configuration.test_case_output.format_with_black,
+            )
+
+        # Execute the exported test with pytest; it should pass
+        assert execute_with_pytest(export_path) == 0
+
+        with_assertions_code = export_path.read_text(encoding="utf-8")
+
+        # drop everything before def test_case_0() and remove last newline
+        return with_assertions_code[with_assertions_code.index("def test_case_0") : -1]
+
+
+def test_import_export():
+    module_name = "tests.fixtures.accessibles.accessible"
+    test_case_code = """def test_case_0():
+    int_0 = 5
+    some_type_0 = module_0.SomeType(int_0)
+    float_0 = 42.23
+    float_1 = module_0.simple_function(float_0)"""
+    with_assertions_code = _import_export(module_name, test_case_code)
+    assert with_assertions_code == test_case_code
+
+
+def test_import_export_2():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)"""
+    exported = _import_export(module_name, test_case_code)
+    assert exported == test_case_code
