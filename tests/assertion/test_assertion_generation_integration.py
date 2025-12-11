@@ -415,3 +415,12 @@ def test_add_assertions():
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
     with_assertions_code = _add_assertions(module_name, test_case_code)
     assert with_assertions_code == test_case_code
+
+
+def test_add_assertions_2():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)"""
+    with_assertions_code = _add_assertions(module_name, test_case_code)
+    assert with_assertions_code == test_case_code
