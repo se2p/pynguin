@@ -24,7 +24,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from testutils import (
+from tests.testutils import (
     dump_test_suite_chromosome,
     execute_test_with_pytest,
     execute_with_pytest,
