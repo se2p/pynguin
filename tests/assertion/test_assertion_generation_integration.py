@@ -402,9 +402,13 @@ def _add_assertions(module_name: str, test_case_code: str) -> str:
         return extract_test_case_0(exported)
 
 
-def test_add_assertions():
-    module_name = "tests.fixtures.accessibles.accessible"
-    test_case_code = """def test_case_0():
+@pytest.mark.parametrize(
+    "module_name,test_case_code,expected_code",
+    [
+        # Simple case
+        (
+            "tests.fixtures.accessibles.accessible",
+            """def test_case_0():
     int_0 = 5
     some_type_0 = module_0.SomeType(int_0)
     assert (
@@ -413,51 +417,48 @@ def test_add_assertions():
     )
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)
-    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
-    with_assertions_code = _add_assertions(module_name, test_case_code)
-    assert with_assertions_code == test_case_code
-    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
-    assert execution_result == 0
-
-
-def test_add_assertions_not_add_fail():
-    module_name = "tests.fixtures.examples.unasserted_exceptions"
-    test_case_code = """def test_case_0():
+    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)""",
+            None,
+        ),
+        # No exceptions
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """def test_case_0():
     bool_0 = True
     bool_1 = module_0.foo(bool_0)
-    assert bool_1 is False"""
-    with_assertions_code = _add_assertions(module_name, test_case_code)
-    assert with_assertions_code == test_case_code
-    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
-    assert execution_result == 0
-
-
-def test_add_assertions_add_fail():
-    module_name = "tests.fixtures.examples.unasserted_exceptions"
-    test_case_code = """def test_case_0():
+    assert bool_1 is False""",
+            None,
+        ),
+        # Unexpected exception
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """def test_case_0():
     int_0 = 24
-    bool_0 = module_0.foo(int_0)"""
-    expected_code = """@pytest.mark.xfail(strict=True)
+    bool_0 = module_0.foo(int_0)""",
+            """@pytest.mark.xfail(strict=True)
 def test_case_0():
     int_0 = 24
-    module_0.foo(int_0)"""
-    with_assertions_code = _add_assertions(module_name, test_case_code)
-    assert with_assertions_code == expected_code
-    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
-    assert execution_result == 0
-
-
-def test_add_assertions_add_with():
-    module_name = "tests.fixtures.examples.unasserted_exceptions"
-    test_case_code = """def test_case_0():
+    module_0.foo(int_0)""",
+        ),
+        # Expected exception
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """def test_case_0():
     none_type_0 = None
     bool_0 = module_0.foo(none_type_0)
-    assert bool_0 is False"""
-    expected_code = """def test_case_0():
+    assert bool_0 is False""",
+            """def test_case_0():
     none_type_0 = None
     with pytest.raises(AssertionError):
-        module_0.foo(none_type_0)"""
+        module_0.foo(none_type_0)""",
+        ),
+    ],
+)
+def test_add_assertions(module_name: str, test_case_code: str, expected_code: str | None):
     with_assertions_code = _add_assertions(module_name, test_case_code)
-    assert with_assertions_code == expected_code
+    if expected_code is None:
+        assert with_assertions_code == test_case_code
+    else:
+        assert with_assertions_code == expected_code
     execution_result = execute_test_with_pytest(module_name, with_assertions_code)
     assert execution_result == 0
