@@ -16,12 +16,13 @@ from pynguin.testcase import export
 
 
 @pytest.mark.parametrize(
-    "testcase_seed",
+    ("testcase_seed", "store_call_return"),
     [
         (
             """    float_0 = 1.1
     var_0 = module_0.positional_only(float_0)
-"""
+""",
+            True,
         ),
         (
             """    float_0 = 1.1
@@ -32,11 +33,18 @@ from pynguin.testcase import export
     str_1 = "value"
     dict_0 = {bytes_0: str_1}
     var_0 = module_0.all_params(float_0, int_0, *list_0, param4=str_0, **dict_0)
-"""
+""",
+            True,
+        ),
+        (
+            """    float_0 = 1.1
+    module_0.positional_only(float_0)
+""",
+            False,
         ),
     ],
 )
-def test_parameter_mapping_roundtrip(testcase_seed, tmp_path):
+def test_parameter_mapping_roundtrip(testcase_seed, store_call_return, tmp_path):
     testcase_seed = (
         export._PYNGUIN_FILE_HEADER
         + """import tests.fixtures.grammar.parameters as module_0
@@ -55,7 +63,7 @@ def test_case_0():
     transformer.visit(ast.parse(testcase_seed))
     export_path = tmp_path / "export.py"
     chromosome = tcc.TestCaseChromosome(transformer.testcases[0])
-    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
+    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
     chromosome.accept(exporter)
     export.save_module_to_file(exporter.to_module(), export_path)
     content = export_path.read_text(encoding="locale")
