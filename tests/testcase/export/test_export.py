@@ -336,7 +336,8 @@ def _import_execute_export(module_name: str, test_case_code: str) -> str:
 
             # Execute the imported test case
             executor = TestCaseExecutor(subject_properties)
-            test_case_chrom.set_last_execution_result(executor.execute(test_case_chrom.test_case))
+            execution_result = executor.execute(test_case_chrom.test_case)
+            test_case_chrom.set_last_execution_result(execution_result)
 
             # Export the augmented test with assertions
             export_path = tmp_path / "test_with_assertions.py"
@@ -365,7 +366,7 @@ def test_import_export():
     assert execution_result == 0
 
 
-def test_import_export_2():
+def test_import_export_remove_fail():
     module_name = "tests.fixtures.examples.unasserted_exceptions"
     test_case_code = """@pytest.mark.xfail(strict=True)
 def test_case_0():
@@ -380,7 +381,7 @@ def test_case_0():
     assert execution_result == 0
 
 
-def test_import_export_3():
+def test_import_export_keep_fail():
     module_name = "tests.fixtures.examples.unasserted_exceptions"
     test_case_code = """@pytest.mark.xfail(strict=True)
 def test_case_0():
@@ -388,5 +389,20 @@ def test_case_0():
     bool_0 = module_0.foo(none_type_0)"""
     exported = _import_execute_export(module_name, test_case_code)
     assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_add_fail():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)"""
+    expected_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)"""
+    exported = _import_execute_export(module_name, test_case_code)
+    assert exported == expected_code
     execution_result = execute_test_with_pytest(module_name, exported)
     assert execution_result == 0
