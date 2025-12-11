@@ -28,6 +28,17 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 
+def _used_in_future(statement: statmt.Statement, future_statements: list[statmt.Statement]) -> bool:
+    must_store_for_future_use = False
+    if isinstance(statement, statmt.VariableCreatingStatement):
+        ret_val = statement.ret_val
+        for later_stmt in future_statements:
+            if later_stmt.references(ret_val):
+                must_store_for_future_use = True
+                break
+    return must_store_for_future_use
+
+
 class TestCaseToAstVisitor(TestCaseVisitor):
     """Transforms an arbitrary number of test cases to AST statements.
 
@@ -59,7 +70,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._is_failing_test: bool = False
         self._store_call_return: bool = store_call_return
 
-    def visit_default_test_case(  # noqa: D102, C901
+    def visit_default_test_case(  # noqa: D102
         self, test_case: dtc.DefaultTestCase
     ) -> None:
         return_type_trace = (
@@ -76,13 +87,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             must_store_for_assertions = any(
                 not isinstance(a, ass.ExceptionAssertion) for a in statement.assertions
             )
-            must_store_for_future_use = False
-            if isinstance(statement, statmt.VariableCreatingStatement):
-                ret_val = statement.ret_val
-                for later_stmt in test_case.statements[idx + 1 :]:
-                    if later_stmt.references(ret_val):
-                        must_store_for_future_use = True
-                        break
+            must_store_for_future_use = _used_in_future(statement, test_case.statements[idx + 1 :])
 
             stmt_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases,
