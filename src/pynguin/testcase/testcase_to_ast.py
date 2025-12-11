@@ -62,79 +62,60 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     def visit_default_test_case(  # noqa: D102
         self, test_case: dtc.DefaultTestCase
     ) -> None:
-        self._test_case_ast = []
         return_type_trace = (
             None if self._exec_result is None else self._exec_result.proper_return_type_trace
         )
-        variables = ns.VariableTypeNamingScope(return_type_trace=return_type_trace)
+        variable_names = ns.VariableTypeNamingScope(return_type_trace=return_type_trace)
+        self._test_case_ast = []
+        self._is_failing_test = False
+        self._unexpected_exceptions = set()
+        self._expected_exceptions = set()
+
         for idx, statement in enumerate(test_case.statements):
-            store_call_return = True
-            if (
-                self._exec_result is not None
-                and self._exec_result.get_first_position_of_thrown_exception() == idx
-            ):
-                store_call_return = self._store_call_return
-                self._is_failing_test = True
-                self._common_modules.add("pytest")
-                _LOGGER.info(
-                    "Statement %s raises an unexpected exception during execution.",
-                    statement,
-                )
-
-            # Only store the return value if it's used by subsequent statements or has assertions
-            # If store_call_return is True, we always store the return value
-            elif (
-                not self._store_call_return
-                and statement.ret_val is not None
-                and not test_case.get_forward_dependencies(statement.ret_val)
-                and not statement.assertions  # No assertions
-            ):
-                store_call_return = False
-
-            # If a parametrized statement declares raised exceptions but there is no
-            # matching ExceptionAssertion attached, we consider this an unexpected
-            # exception scenario during export time. Mark the test as failing so that
-            # the exporter decorates it with xfail and ensure pytest is imported.
-            if (
-                isinstance(statement, statmt.ParametrizedStatement)
-                and getattr(statement, "raised_exceptions", None)
-                and not any(isinstance(a, ass.ExceptionAssertion) for a in statement.assertions)
-            ):
-                store_call_return = self._store_call_return
-                _LOGGER.info(
-                    "Statement %s raises an unexpected exception during execution.", statement
-                )
-                self._is_failing_test = True
-                self._common_modules.add("pytest")
-
-            statement_visitor = stmt_to_ast.StatementToAstVisitor(
-                self._module_aliases, variables, store_call_return=store_call_return
+            # Transform the statement
+            must_store_for_assertions = any(
+                not isinstance(a, ass.ExceptionAssertion) for a in statement.assertions
             )
-            statement.accept(statement_visitor)
-            # TODO(fk) better way. Nest visitors?
-            assertion_visitor = ata.PyTestAssertionToAstVisitor(
-                variables,
+            stmt_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases,
-                self._common_modules,
-                statement_node=statement_visitor.ast_node,
+                variable_names,
+                store_call_return=self._store_call_return or must_store_for_assertions,
+            )
+            statement.accept(stmt_visitor)
+            stmt_node = stmt_visitor.ast_node
+
+            # Detect unexpected exceptions
+            for assertion in statement.assertions:
+                if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
+                    statement, statmt.ParametrizedStatement
+                ):
+                    raised = statement.raised_exceptions
+                    if assertion.exception_type_name not in raised:
+                        self._unexpected_exceptions.add((idx, assertion.exception_type_name))
+                    else:
+                        self._expected_exceptions.add((idx, assertion.exception_type_name))
+
+            # Transform assertions and collect nodes
+            assertion_visitor = ata.PyTestAssertionToAstVisitor(
+                variable_names=variable_names,
+                module_aliases=self._module_aliases,
+                common_modules=self._common_modules,
+                statement_node=stmt_node,
             )
             for assertion in statement.assertions:
-                if self.__should_assertion_be_generated(assertion, statement):
+                if not isinstance(assertion, ass.ExceptionAssertion) or (
+                    (idx, assertion.exception_type_name) not in self._unexpected_exceptions
+                ):
                     assertion.accept(assertion_visitor)
-                else:
-                    # Encountering an unexpected assertion indicates a bug in
-                    # assertion generation and should fail fast.
-                    _LOGGER.error(
-                        "Unexpected assertion %s encountered during test case %s",
-                        assertion,
-                        test_case,
-                    )
-                    self._common_modules.add("pytest")
-                    self._is_failing_test = True
 
-            # The visitor might wrap the generated statement node,
-            # so append the nodes provided by the assertion visitor
             self._test_case_ast.extend(assertion_visitor.nodes)
+
+        # Determine failing status based on execution evidence
+        if self._exec_result is not None:
+            for idx, exception in self._exec_result.exceptions.items():
+                if (idx, exception.__class__.__name__) not in self._expected_exceptions:
+                    self._is_failing_test = True
+                    break
 
     @property
     def test_case_ast(self) -> list[stmt]:
@@ -156,23 +137,3 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             Whether this test is a failing test
         """
         return self._is_failing_test
-
-    @staticmethod
-    def __should_assertion_be_generated(assertion, statement) -> bool:
-        """Decide whether the assertion shall be generated.
-
-        All assertion shall be generated, EXCEPT exception assertions that are not part
-        of the set of explicitly raised exceptions to the statement.
-
-        Args:
-            assertion: The current assertion
-            statement: The current statement
-
-        Returns:
-            Whether the assertion shall be generated for this statement
-        """
-        if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
-            statement, statmt.ParametrizedStatement
-        ):
-            return assertion.exception_type_name in statement.raised_exceptions
-        return True
