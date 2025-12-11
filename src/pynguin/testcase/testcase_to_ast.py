@@ -29,6 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _used_in_future(statement: statmt.Statement, future_statements: list[statmt.Statement]) -> bool:
+    """Checks if the return value of a statement is used in the given future statements."""
     must_store_for_future_use = False
     if isinstance(statement, statmt.VariableCreatingStatement):
         ret_val = statement.ret_val
@@ -40,6 +41,7 @@ def _used_in_future(statement: statmt.Statement, future_statements: list[statmt.
 
 
 def _classify_assertion_exceptions(idx: int, statement: statmt.Statement):
+    """Group assertions on exceptions into expected (asserted in SUT or comment) and unexpected."""
     expected, unexpected = set(), set()
     for assertion in statement.assertions:
         if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
