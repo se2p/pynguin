@@ -89,7 +89,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
                 if isinstance(assertion, ass.ExceptionAssertion) and isinstance(
                     statement, statmt.ParametrizedStatement
                 ):
-                    raised = statement.raised_exceptions
+                    raised = statement.expected_exceptions
                     if assertion.exception_type_name not in raised:
                         self._unexpected_exceptions.add((idx, assertion.exception_type_name))
                     else:

@@ -41,7 +41,7 @@ def exportable_test_case(constructor_mock, function_mock):
 def exportable_test_case_with_expected_asserted_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
-    function_mock._raised_exceptions = {"ValueError"}
+    function_mock._expected_exceptions = {"ValueError"}
     function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
     function_stmt.add_assertion(ass.ExceptionAssertion("builtins", "ValueError"))
     test_case.add_statement(float_stmt)
@@ -53,7 +53,7 @@ def exportable_test_case_with_expected_asserted_exception(function_mock):
 def exportable_test_case_with_expected_not_asserted_exception(function_mock):
     test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
     float_stmt = FloatPrimitiveStatement(test_case, 42.23)
-    function_mock._raised_exceptions = {"ValueError"}
+    function_mock._expected_exceptions = {"ValueError"}
     function_stmt = FunctionStatement(test_case, function_mock, {"z": float_stmt.ret_val})
     test_case.add_statement(float_stmt)
     test_case.add_statement(function_stmt)

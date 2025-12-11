@@ -201,7 +201,7 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
         owner: TypeInfo | None,
         callable_: TypesOfCallables,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
+        expected_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
     ) -> None:
         """Initializes the object.
 
@@ -209,12 +209,12 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
             owner: An optional owner of the callable
             callable_: The callable itself
             inferred_signature: The signature of the callable
-            raised_exceptions: A set of raised exceptions, if any exist
+            expected_exceptions: A set of raised exceptions, if any exist
         """
         super().__init__(owner)
         self._callable = callable_
         self._inferred_signature = inferred_signature
-        self._raised_exceptions = raised_exceptions
+        self._expected_exceptions = expected_exceptions
 
     def generated_type(self) -> ProperType:  # noqa: D102
         return self._inferred_signature.return_type
@@ -229,13 +229,13 @@ class GenericCallableAccessibleObject(GenericAccessibleObject, abc.ABC):
         return self._inferred_signature
 
     @property
-    def raised_exceptions(self) -> set[str]:
+    def expected_exceptions(self) -> set[str]:
         """Provides the set of exceptions that is expected to be raised by this.
 
         Returns:
             The set of exceptions that is expected to be raised by this callable
         """
-        return self._raised_exceptions
+        return self._expected_exceptions
 
     @property
     def callable(self) -> TypesOfCallables:
@@ -262,20 +262,20 @@ class GenericConstructor(GenericCallableAccessibleObject):
         self,
         owner: TypeInfo,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
+        expected_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
     ) -> None:
         """Initializes a constructor-representing object.
 
         Args:
             owner: The owning class type
             inferred_signature: The signature
-            raised_exceptions: A set of raised exceptions, if there are any
+            expected_exceptions: A set of raised exceptions, if there are any
         """
         super().__init__(
             owner,
             owner.raw_type.__init__,  # type: ignore[arg-type, misc]
             inferred_signature,
-            raised_exceptions,
+            expected_exceptions,
         )
         self._generated_type = Instance(owner)
 
@@ -314,7 +314,7 @@ class GenericMethod(GenericCallableAccessibleObject):
         owner: TypeInfo,
         method: TypesOfCallables,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
+        expected_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
         method_name: str | None = None,
     ) -> None:
         """Initializes a new method-representing object.
@@ -323,10 +323,10 @@ class GenericMethod(GenericCallableAccessibleObject):
             owner: The owning class type
             method: The type of the method
             inferred_signature: The signature of the method
-            raised_exceptions: A set of raised exceptions, if there are any
+            expected_exceptions: A set of raised exceptions, if there are any
             method_name: The optional name of the method
         """
-        super().__init__(owner, method, inferred_signature, raised_exceptions)
+        super().__init__(owner, method, inferred_signature, expected_exceptions)
         self._generated_type = inferred_signature.return_type
         self._method_name = method_name
 
@@ -385,7 +385,7 @@ class GenericFunction(GenericCallableAccessibleObject):
         self,
         function: FunctionType,
         inferred_signature: InferredSignature,
-        raised_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
+        expected_exceptions: set[str] = frozenset(),  # type: ignore[assignment]
         function_name: str | None = None,
     ) -> None:
         """Initializes the function-representing object.
@@ -393,12 +393,12 @@ class GenericFunction(GenericCallableAccessibleObject):
         Args:
             function: The type of the function
             inferred_signature: The function's signature
-            raised_exceptions: A set of raised exceptions, might be empty if there are
+            expected_exceptions: A set of raised exceptions, might be empty if there are
                                none
             function_name: The optional name of the function
         """
         self._function_name = function_name
-        super().__init__(None, function, inferred_signature, raised_exceptions)
+        super().__init__(None, function, inferred_signature, expected_exceptions)
 
     def is_function(self) -> bool:  # noqa: D102
         return True

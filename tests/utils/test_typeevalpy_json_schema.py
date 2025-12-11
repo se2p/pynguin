@@ -239,7 +239,7 @@ def test_provide_json_function(
     accessible = GenericFunction(
         function=Callable[[int, float | complex], str],
         inferred_signature=signature,
-        raised_exceptions=set(),
+        expected_exceptions=set(),
         function_name=function_name,
     )
     accessibles = OrderedSet([accessible])
@@ -286,7 +286,7 @@ def test_provide_json_constructor(file_name, function_node, signature, expected_
     mock_owner.name = "TestClass"
 
     accessible = GenericConstructor(
-        inferred_signature=signature, raised_exceptions=set(), owner=mock_owner
+        inferred_signature=signature, expected_exceptions=set(), owner=mock_owner
     )
     accessibles = OrderedSet([accessible])
     function_data = {
@@ -340,7 +340,7 @@ def test_provide_json_generic_method(file_name, function_node, signature, expect
 
     accessible = GenericMethod(
         inferred_signature=signature,
-        raised_exceptions=set(),
+        expected_exceptions=set(),
         owner=mock_owner,
         method_name="test_method",
         method=Callable[[int, float | complex], str],
@@ -389,7 +389,7 @@ def test_provide_json_parameter_conversion_exception(file_name, function_node, s
     accessible = GenericFunction(
         function=Callable[[int, float | complex], str],
         inferred_signature=signature,
-        raised_exceptions=set(),
+        expected_exceptions=set(),
         function_name="test_function",
     )
     accessibles = OrderedSet([accessible])

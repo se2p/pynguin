@@ -1358,7 +1358,7 @@ def __analyse_function(
     )
     func_ast = get_function_node_from_ast(module_tree, func_name)
     description = get_function_description(func_ast)
-    raised_exceptions = description.raises if description is not None else set()
+    expected_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(func_ast)
     if getattr(func, "__name__", None) == "<lambda>":
         if lambda_assigned_name := _get_lambda_assigned_name(
@@ -1371,7 +1371,7 @@ def __analyse_function(
             # or else it will cause an exception during test export.
             return
 
-    generic_function = GenericFunction(func, inferred_signature, raised_exceptions, func_name)
+    generic_function = GenericFunction(func, inferred_signature, expected_exceptions, func_name)
 
     if config.configuration.pynguinml.ml_testing_enabled and module_tree is not None:
         parameters: dict[str, MLParameter | None] = {}
@@ -1418,7 +1418,7 @@ def __analyse_class(
 
     constructor_ast = get_function_node_from_ast(class_ast, "__init__")
     description = get_function_description(constructor_ast)
-    raised_exceptions = description.raises if description is not None else set()
+    expected_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(constructor_ast)
 
     if issubclass(type_info.raw_type, enum.Enum):  # type: ignore[arg-type]
@@ -1436,7 +1436,7 @@ def __analyse_class(
                 type_info.raw_type.__init__,  # type: ignore[misc]
                 type_inference_provider=type_inference_provider,
             ),
-            raised_exceptions,
+            expected_exceptions,
         )
         generic.inferred_signature.return_type = test_cluster.type_system.convert_type_hint(
             type_info.raw_type
@@ -1562,10 +1562,10 @@ def __analyse_method(
     )
     method_ast = get_function_node_from_ast(class_tree, method_name)
     description = get_function_description(method_ast)
-    raised_exceptions = description.raises if description is not None else set()
+    expected_exceptions = description.raises if description is not None else set()
     cyclomatic_complexity = __get_mccabe_complexity(method_ast)
     generic_method = GenericMethod(
-        type_info, method, inferred_signature, raised_exceptions, method_name
+        type_info, method, inferred_signature, expected_exceptions, method_name
     )
 
     if config.configuration.pynguinml.ml_testing_enabled:
