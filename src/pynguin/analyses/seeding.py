@@ -885,6 +885,25 @@ class AstToTestCaseTransformer(ast.NodeVisitor):
                     var_ref.get_statement_position()
                 ).add_assertion(assertion)
 
+    def visit_Expr(self, node: ast.Expr) -> Any:  # noqa: D102, N802
+        if self._current_parsable and isinstance(node.value, ast.Call):
+            objs_under_test = {
+                o
+                for o in self._test_cluster.accessible_objects_under_test
+                if isinstance(o, GenericCallableAccessibleObject)
+            }
+            statement = create_stmt_from_call(
+                node.value,
+                self._current_testcase,
+                objs_under_test,
+                self._var_refs,
+                constant_provider=self._constant_provider,
+            )
+            if statement is None:
+                self._current_parsable = False
+                return
+            self._current_testcase.add_variable_creating_statement(statement)
+
     @property
     def testcases(self) -> list[dtc.DefaultTestCase]:
         """Provides the testcases that could be generated from the given AST.
