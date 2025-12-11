@@ -24,7 +24,12 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from testutils import dump_test_suite_chromosome, execute_with_pytest, load_test_suite_chromosome
+from testutils import (
+    dump_test_suite_chromosome,
+    execute_test_with_pytest,
+    execute_with_pytest,
+    load_test_suite_chromosome,
+)
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
@@ -308,13 +313,8 @@ def _import_export(module_name: str, test_case_code: str) -> str:
                 format_with_black=config.configuration.test_case_output.format_with_black,
             )
 
-        # Execute the exported test with pytest; it should pass
-        assert execute_with_pytest(export_path) == 0
-
-        with_assertions_code = export_path.read_text(encoding="utf-8")
-
-        # drop everything before def test_case_0() and remove last newline
-        return with_assertions_code[with_assertions_code.index("def test_case_0") : -1]
+        exported = export_path.read_text(encoding="utf-8")
+        return exported[exported.index("def test_case_0") : -1]
 
 
 def test_import_export():
@@ -324,14 +324,34 @@ def test_import_export():
     some_type_0 = module_0.SomeType(int_0)
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)"""
-    with_assertions_code = _import_export(module_name, test_case_code)
-    assert with_assertions_code == test_case_code
+    exported = _import_export(module_name, test_case_code)
+    assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
 
 
 def test_import_export_2():
     module_name = "tests.fixtures.examples.unasserted_exceptions"
-    test_case_code = """def test_case_0():
+    test_case_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
     bool_0 = True
-    module_0.foo(bool_0)"""
+    bool_1 = module_0.foo(bool_0)"""
+    expected_code = """def test_case_0():
+    bool_0 = True
+    bool_1 = module_0.foo(bool_0)"""
+    exported = _import_export(module_name, test_case_code)
+    assert exported == expected_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0
+
+
+def test_import_export_3():
+    module_name = "tests.fixtures.examples.unasserted_exceptions"
+    test_case_code = """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    module_0.foo(none_type_0)"""
     exported = _import_export(module_name, test_case_code)
     assert exported == test_case_code
+    execution_result = execute_test_with_pytest(module_name, exported)
+    assert execution_result == 0

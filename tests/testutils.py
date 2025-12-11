@@ -10,6 +10,7 @@ import ast
 import importlib
 import inspect
 import subprocess  # noqa: S404
+import tempfile
 import types
 from pathlib import Path
 
@@ -191,10 +192,19 @@ def instrument_function(transformer: InstrumentationTransformer, function: types
     function.__code__ = transformer.instrument_code(function.__code__, function.__module__)
 
 
-def execute_with_pytest(test_file: Path):
+def execute_with_pytest(test_file: Path) -> int:
     pytest_command = ["pytest", str(test_file)]
     result = subprocess.run(pytest_command, capture_output=True, check=False)  # noqa: S603
     return result.returncode
+
+
+def execute_test_with_pytest(module_name: str, test_case_code: str) -> int:
+    test_case_code = "import " + module_name + " as module_0\n\n" + test_case_code
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        test_file_path = tmp_path / "test.py"
+        test_file_path.write_text(test_case_code)
+        return execute_with_pytest(test_file_path)
 
 
 def dump_test_suite_chromosome(test_suite_chromosome: TestSuiteChromosome, target_file: Path):
