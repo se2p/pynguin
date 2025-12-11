@@ -80,9 +80,12 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = common_modules
         self._exec_result = exec_result
+        self._store_call_return: bool = store_call_return
+
         self._test_case_ast: list[stmt] = []
         self._is_failing_test: bool = False
-        self._store_call_return: bool = store_call_return
+        self._unexpected_exceptions: set[tuple[int, str]] = set()
+        self._expected_exceptions: set[tuple[int, str]] = set()
 
     def visit_default_test_case(  # noqa: D102
         self, test_case: dtc.DefaultTestCase
@@ -97,12 +100,13 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         self._expected_exceptions = set()
 
         for idx, statement in enumerate(test_case.statements):
-            # Transform the statement
+            # Check if the return value of the statement must be stored
             must_store_for_assertions = any(
                 not isinstance(a, ass.ExceptionAssertion) for a in statement.assertions
             )
             must_store_for_future_use = _used_in_future(statement, test_case.statements[idx + 1 :])
 
+            # Transform statement to AST
             stmt_visitor = stmt_to_ast.StatementToAstVisitor(
                 self._module_aliases,
                 variable_names,
@@ -113,7 +117,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             statement.accept(stmt_visitor)
             stmt_node = stmt_visitor.ast_node
 
-            # Detect unexpected exceptions
+            # Classify assertions on exceptions into expected (asserted in SUT or comment)
+            # and unexpected (ignored)
             new_expected, new_unexpected = _classify_assertion_exceptions(idx, statement)
             self._expected_exceptions |= new_expected
             self._unexpected_exceptions |= new_unexpected
@@ -128,7 +133,17 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         statement: statmt.Statement,
         stmt_node: stmt,
         variable_names: ns.VariableTypeNamingScope,
-    ):
+    ) -> None:
+        """Adds the assertions of a statement to the AST nodes.
+
+        Only adds assertions that are not unexpected exceptions.
+
+        Args:
+            idx: The index of the statement in the test case.
+            statement: The statement.
+            stmt_node: The AST node of the statement.
+            variable_names: The variable naming scope.
+        """
         assertion_visitor = ata.PyTestAssertionToAstVisitor(
             variable_names=variable_names,
             module_aliases=self._module_aliases,
@@ -143,7 +158,13 @@ class TestCaseToAstVisitor(TestCaseVisitor):
 
         self._test_case_ast.extend(assertion_visitor.nodes)
 
-    def _update_is_failing(self):
+    def _update_is_failing(self) -> None:
+        """Updates the is_failing_test property.
+
+        A test will fail if it raised an exception that was not expected (e.g., has
+        an assert statement or a comment on it), because such unexpected exceptions
+        are not guarded with ``with pytest.raises(...)``.
+        """
         if self._exec_result is not None:
             for idx, exception in self._exec_result.exceptions.items():
                 if (idx, exception.__class__.__name__) not in self._expected_exceptions:
