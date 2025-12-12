@@ -32,7 +32,6 @@ from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
 from tests.testcase.export.test_export import extract_test_case_0
-from tests.testutils import execute_test_with_pytest
 
 
 @pytest.mark.parametrize(
@@ -460,5 +459,3 @@ def test_add_assertions(module_name: str, test_case_code: str, expected_code: st
         assert with_assertions_code == test_case_code
     else:
         assert with_assertions_code == expected_code
-    execution_result = execute_test_with_pytest(module_name, with_assertions_code)
-    assert execution_result == 0

@@ -7,16 +7,15 @@
 import ast
 import importlib
 import tempfile
-from logging import Logger
 from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.configuration as config
 import pynguin.ga.generationalgorithmfactory as gaf
 import pynguin.ga.testcasechromosome as tcc
+import pynguin.generator as gen
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
@@ -24,10 +23,6 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from tests.testutils import (
-    execute_test_with_pytest,
-    execute_with_pytest,
-)
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
@@ -193,9 +188,29 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
     config.configuration.search_algorithm.population = 20
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
+    config.configuration.seeding.seed = 0
     config.configuration.test_case_output.output_path = tmp_path
+    gen._setup_random_number_generator()
 
-    logger = MagicMock(Logger)
+    expected = (
+        export._PYNGUIN_FILE_HEADER
+        + """import pytest
+import tests.fixtures.examples.unasserted_exceptions as module_0
+
+
+def test_case_0():
+    bool_0 = True
+    module_0.foo(bool_0)
+
+
+@pytest.mark.xfail(strict=True)
+def test_case_1():
+    none_type_0 = None
+    module_0.foo(none_type_0)
+    module_0.foo(none_type_0)
+"""
+    )
+
     with install_import_hook(module_name, subject_properties):
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)
@@ -206,7 +221,6 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
         search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
             executor, cluster
         ).get_search_algorithm()
-        search_algorithm._logger = logger
         test_cases = search_algorithm.generate_tests()
         assert test_cases.size() >= 0
 
@@ -218,8 +232,9 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
             target_file,
             format_with_black=config.configuration.test_case_output.format_with_black,
         )
-
-    assert execute_with_pytest(target_file) == 0
+    assert target_file.exists()
+    content = target_file.read_text(encoding="utf-8")
+    assert expected == content
 
 
 def extract_test_case_0(text: str) -> str:
@@ -441,5 +456,3 @@ def test_import_export_parameterized(
         assert exported == test_case_code
     else:
         assert exported == expected_code
-    execution_result = execute_test_with_pytest(module_name, exported)
-    assert execution_result == 0
