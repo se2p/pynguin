@@ -1066,8 +1066,13 @@ def _in(val1, val2) -> float:
     Returns:
         the distance
     """
-    if val1 in val2:
-        return 0.0
+    try:
+        if val1 in val2:
+            return 0.0
+    except TypeError:
+        # Fallback to checking the shortest distance to each element if `val2` is not iterable
+        pass
+
     # TODO(fk) maybe limit this to certain collections?
     #  Check only if collection size is within some range,
     #  otherwise the check might take very long.
@@ -1086,7 +1091,11 @@ def _nin(val1, val2) -> float:
     Returns:
         the distance
     """
-    if val1 not in val2:
+    try:
+        if val1 not in val2:
+            return 0.0
+    except TypeError:
+        # Fallback to assuming element is not in collection if `val2` is not iterable
         return 0.0
     return 1.0
 

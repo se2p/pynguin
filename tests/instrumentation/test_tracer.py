@@ -670,3 +670,18 @@ def test_aux_in_predicate_updates_distances(key, dictionary, expected_true, expe
         assert predicate_id in trace.executed_predicates
         assert trace.true_distances[predicate_id] == pytest.approx(expected_true)
         assert trace.false_distances[predicate_id] == pytest.approx(expected_false)
+
+
+def test_aux_in_predicate_slice_in_string_no_typeerror():
+    tracer = ExecutionTracer()
+    predicate_id = 1
+    with tracer:
+        tracer.executed_in_presence_predicate(
+            value1=slice(1, 3), value2="abcdef", predicate=predicate_id
+        )
+        trace = tracer.get_trace()
+        # Should record the predicate without raising; membership is undefined, so
+        # `_in` returns inf and `_nin` returns 0.0
+        assert predicate_id in trace.executed_predicates
+        assert trace.true_distances[predicate_id] == inf
+        assert trace.false_distances[predicate_id] == 0.0
