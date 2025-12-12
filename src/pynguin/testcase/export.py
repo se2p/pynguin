@@ -49,6 +49,12 @@ def _dotted_from_origin(origin: str) -> str | None:
 
     rel = module.relative_to(module_root.parent)
 
+    # If the resolved origin points to a package's __init__.py, use the directory
+    # name as the canonical module path (e.g., pathlib/__init__.py -> pathlib).
+    if rel.name == "__init__.py":
+        rel = rel.parent
+        return ".".join(rel.parts)
+
     return ".".join(rel.with_suffix("").parts)
 
 
