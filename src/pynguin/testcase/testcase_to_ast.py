@@ -23,10 +23,6 @@ if TYPE_CHECKING:
     import pynguin.testcase.defaulttestcase as dtc
     import pynguin.testcase.execution as ex
 
-import logging
-
-_LOGGER = logging.getLogger(__name__)
-
 
 def _used_in_future(statement: statmt.Statement, future_statements: list[statmt.Statement]) -> bool:
     """Checks if the return value of a statement is used in the given future statements."""
