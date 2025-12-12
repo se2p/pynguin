@@ -22,6 +22,7 @@ from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
+from pynguin.testcase.export import PyTestChromosomeToAstVisitor
 from pynguin.testcase.execution import TestCaseExecutor
 from tests.testutils import extract_test_case_0
 
@@ -177,6 +178,47 @@ def test_case_0():
     float_1 = module_0.simple_function(float_0)
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
     )
+
+
+def _imports_from_module(module: ast.Module) -> list[ast.Import]:
+    """Collect plain import statements from a module AST."""
+    return [node for node in module.body if isinstance(node, ast.Import)]
+
+
+@pytest.mark.parametrize(
+    ("module_name", "expected_canonical"),
+    [
+        # Single-file stdlib module
+        ("pathlib", "pathlib"),
+        # Dotted stdlib submodule that resolves to a file
+        ("importlib.util", "importlib.util"),
+        # Built-in module falls back to spec.name
+        ("builtins", "builtins"),
+        # Local package module from this project
+        ("src.pynguin.utils.namingscope", "pynguin.utils.namingscope"),
+        ("pynguin.utils.namingscope", "pynguin.utils.namingscope"),
+        # Non-existent name falls back to the provided name unchanged
+        ("_pynguin_this_does_not_exist_", "_pynguin_this_does_not_exist_"),
+    ],
+)
+def test_canonical_module_name(module_name: str, expected_canonical: str) -> None:
+    """Test that various module names are canonicalised as expected."""
+    visitor = PyTestChromosomeToAstVisitor()
+
+    # Register an alias for the module name to force creation of an import with alias.
+    alias_name = visitor.module_aliases.get_name(module_name)
+
+    module_ast = visitor.to_module()
+
+    imports = _imports_from_module(module_ast)
+
+    # Find the import that uses our alias and verify its name is canonicalised.
+    matched: list[str] = []
+    for imp in imports:
+        matched.extend(alias.name for alias in imp.names if alias.asname == alias_name)
+
+    # Exactly one import should match the alias we registered
+    assert matched == [expected_canonical]
 
 
 def test_export_integration(subject_properties: SubjectProperties, tmp_path: Path):
