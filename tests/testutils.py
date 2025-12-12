@@ -208,3 +208,38 @@ def execute_test_with_pytest(module_name: str, test_case_code: str) -> int:
         test_file_path = tmp_path / "test.py"
         test_file_path.write_text(test_case_code)
         return execute_with_pytest(test_file_path)
+
+
+def extract_test_case_0(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+
+    # Find the line number where the function starts
+    start = None
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("def test_case_0"):
+            start = i
+            break
+
+    if start is None:
+        return None
+
+    result = []
+
+    # Include decorators above it
+    decorator_line_idx = start - 1
+    while decorator_line_idx > 0 and lines[decorator_line_idx].lstrip().startswith("@"):
+        result.append(lines[decorator_line_idx])
+        decorator_line_idx -= 1
+
+    # Include the function header
+    result.append(lines[start])
+
+    # Collect the function body
+    for line in lines[start + 1 :]:
+        if line.startswith((" ", "\t")):
+            result.append(line)
+        else:
+            break
+
+    # Remove the final newline
+    return "".join(result).rstrip("\n")

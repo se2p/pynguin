@@ -23,6 +23,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
+from tests.testutils import extract_test_case_0
 
 
 def test_export_sequence(exportable_test_case, tmp_path):
@@ -235,41 +236,6 @@ def test_case_1():
     assert target_file.exists()
     content = target_file.read_text(encoding="utf-8")
     assert expected == content
-
-
-def extract_test_case_0(text: str) -> str:
-    lines = text.splitlines(keepends=True)
-
-    # Find the line number where the function starts
-    start = None
-    for i, line in enumerate(lines):
-        if line.lstrip().startswith("def test_case_0"):
-            start = i
-            break
-
-    if start is None:
-        return None
-
-    result = []
-
-    # Include decorators above it
-    decorator_line_idx = start - 1
-    while decorator_line_idx > 0 and lines[decorator_line_idx].lstrip().startswith("@"):
-        result.append(lines[decorator_line_idx])
-        decorator_line_idx -= 1
-
-    # Include the function header
-    result.append(lines[start])
-
-    # Collect the function body
-    for line in lines[start + 1 :]:
-        if line.startswith((" ", "\t")):
-            result.append(line)
-        else:
-            break
-
-    # Remove the final newline
-    return "".join(result).rstrip("\n")
 
 
 def _import_execute_export(

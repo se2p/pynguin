@@ -31,7 +31,7 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
 from pynguin.testcase.execution import TestCaseExecutor
-from tests.testcase.export.test_export import extract_test_case_0
+from tests.testutils import extract_test_case_0
 
 
 @pytest.mark.parametrize(
