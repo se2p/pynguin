@@ -122,3 +122,59 @@ clean_build:
 
 .PHONY: clean
 clean: clean_build clean_docker
+
+PYVERSIONS = 3.10 3.11 3.12 3.13 3.14
+
+.PHONY: setup-envs
+setup-envs:
+	@for v in $(PYVERSIONS); do \
+		echo "=== Setting up .venv-$$v ==="; \
+		pyenv local $$v; \
+		python -m venv .venv-$$v; \
+		. .venv-$$v/bin/activate; \
+		poetry install --extras "openai numpy fandango-faker"; \
+		deactivate; \
+	done
+	@echo "=== All environments created ==="
+
+define activate_template
+	@echo "Activating .venv-$(1)..."
+	@bash --rcfile <(echo "source .venv-$(1)/bin/activate") -i
+endef
+
+.PHONY: py310 py311 py312 py313 py314
+py310:
+	$(call activate_template,3.10)
+
+py311:
+	$(call activate_template,3.11)
+
+py312:
+	$(call activate_template,3.12)
+
+py313:
+	$(call activate_template,3.13)
+
+py314:
+	$(call activate_template,3.14)
+
+define test_template
+	@echo "Running tests in .venv-$(1)..."
+	@bash -c 'source .venv-$(1)/bin/activate && pytest'
+endef
+
+.PHONY: py310-test py311-test py312-test py313-test py314-test
+py310-test:
+	$(call test_template,3.10)
+
+py311-test:
+	$(call test_template,3.11)
+
+py312-test:
+	$(call test_template,3.12)
+
+py313-test:
+	$(call test_template,3.13)
+
+py314-test:
+	$(call test_template,3.14)
