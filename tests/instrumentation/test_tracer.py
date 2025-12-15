@@ -21,11 +21,17 @@ from pynguin.instrumentation.tracer import (
     InstrumentationExecutionTracer,
     LineMetaData,
     SubjectProperties,
+    _in,  # noqa: PLC2701
     _le,  # noqa: PLC2701
     _lt,  # noqa: PLC2701
 )
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.orderedset import OrderedSet
+
+
+def test__in_non_iterable_returns_inf():
+    """Ensure `_in` handles non-iterables for `val2` without raising errors."""
+    assert _in(1, 2) is inf
 
 
 def test_register_function(subject_properties: SubjectProperties):

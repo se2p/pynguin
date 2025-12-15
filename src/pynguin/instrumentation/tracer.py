@@ -1070,14 +1070,18 @@ def _in(val1, val2) -> float:
         if val1 in val2:
             return 0.0
     except TypeError:
-        # Fallback to checking the shortest distance to each element if `val2` is not iterable
+        # If `val2` does not support membership tests, we will handle it below.
         pass
 
     # TODO(fk) maybe limit this to certain collections?
     #  Check only if collection size is within some range,
     #  otherwise the check might take very long.
 
-    # Use the shortest distance to any element.
+    # If `val2` is not iterable, there is no element to compare against.
+    if not isinstance(val2, Iterable):
+        return inf
+
+    # Use the shortest distance to any element of the iterable.
     return min([_eq(val1, v) for v in val2] + [inf])
 
 
