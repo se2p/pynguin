@@ -691,3 +691,21 @@ def test_aux_in_predicate_slice_in_string_no_typeerror():
         assert predicate_id in trace.executed_predicates
         assert trace.true_distances[predicate_id] == inf
         assert trace.false_distances[predicate_id] == 0.0
+
+
+def test_aux_in_predicate_element_eq_raises_no_typeerror():
+    class Raiser:  # noqa: PLW1641
+        def __eq__(self, other):
+            raise TypeError("comparison not supported")
+
+    tracer = ExecutionTracer()
+    predicate_id = 2
+    with tracer:
+        tracer.executed_in_presence_predicate(value1=0, value2=[Raiser()], predicate=predicate_id)
+
+        trace = tracer.get_trace()
+        # Should not raise; since membership is undefined and per-element
+        # comparisons raise, `_in` returns inf and `_nin` returns 0.0
+        assert predicate_id in trace.executed_predicates
+        assert trace.true_distances[predicate_id] == inf
+        assert trace.false_distances[predicate_id] == 0.0

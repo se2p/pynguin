@@ -988,8 +988,11 @@ def _eq(val1, val2) -> float:
     Returns:
         the distance
     """
-    if val1 == val2:
-        return 0.0
+    try:
+        if val1 == val2:
+            return 0.0
+    except TypeError:
+        pass
     if is_numeric(val1) and is_numeric(val2):
         return float(abs(val1 - val2))
     if is_string(val1) and is_string(val2):
