@@ -1,0 +1,9 @@
+# Test configuration with LLM refinement enabled
+
+[llm_refinement]
+enabled = true
+llm_base_url = "http://rhaegal.dimis.fim.uni-passau.de:15343"
+llm_model = "deepseek-coder-v2:16b"
+max_repair_iterations = 3
+save_original = true
+save_refined = true

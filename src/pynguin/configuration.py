@@ -951,6 +951,36 @@ class ToCoverConfiguration:
 
 
 @dataclasses.dataclass
+class LLMRefinementConfiguration:
+    """Configuration for LLM-based test refinement.
+    
+    This enables post-processing of generated tests using a large language model
+    to improve readability and fix failing tests.
+    """
+
+    enabled: bool = False
+    """Enable LLM-based test refinement."""
+
+    llm_base_url: str = "http://rhaegal.dimis.fim.uni-passau.de:15343"
+    """Base URL for the Ollama LLM service."""
+
+    llm_model: str = "deepseek-coder-v2:16b"
+    """Name of the LLM model to use for refinement."""
+
+    max_repair_iterations: int = 3
+    """Maximum number of iterations to attempt test repair."""
+
+    max_tests: int | None = None
+    """Maximum number of tests to refine (None = all tests)."""
+
+    save_original: bool = True
+    """Save the original unrefined test file."""
+
+    save_refined: bool = True
+    """Save the refined test file with _refined suffix."""
+
+
+@dataclasses.dataclass
 class Configuration:
     """General configuration for the test generator."""
 
@@ -1015,6 +1045,11 @@ class Configuration:
 
     to_cover: ToCoverConfiguration = dataclasses.field(default_factory=ToCoverConfiguration)
     """Configuration of which code elements are included or excluded as coverage goals."""
+
+    llm_refinement: LLMRefinementConfiguration = dataclasses.field(
+        default_factory=LLMRefinementConfiguration
+    )
+    """LLM-based test refinement configuration."""
 
     ignore_modules: list[str] = dataclasses.field(default_factory=list)
     """Ignore the modules specified here from the module analysis."""

@@ -721,6 +721,32 @@ def _run() -> ReturnCode:  # noqa: C901
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
             _export_chromosome(generation_result, sut_uses_random=test_cluster.sut_uses_random)
+
+            # Apply LLM-based test refinement if enabled
+            if config.configuration.llm_refinement.enabled:
+                from pynguin.refinement.refiner import refine_generated_tests  # noqa: PLC0415
+
+                module_name = config.configuration.module_name.replace(".", "_")
+                test_file_path = (
+                    Path(config.configuration.test_case_output.output_path).resolve()
+                    / f"test_{module_name}.py"
+                )
+
+                try:
+                    _LOGGER.info("Starting LLM-based test refinement for %s", test_file_path)
+                    refinement_stats = refine_generated_tests(
+                        test_file_path=test_file_path,
+                        module_name=config.configuration.module_name,
+                        llm_base_url=config.configuration.llm_refinement.llm_base_url,
+                        llm_model=config.configuration.llm_refinement.llm_model,
+                        max_repair_iterations=config.configuration.llm_refinement.max_repair_iterations,
+                        max_tests=config.configuration.llm_refinement.max_tests,
+                    )
+                    _LOGGER.info("Refinement complete: %s", refinement_stats)
+
+                except Exception as refinement_ex:
+                    _LOGGER.exception("LLM refinement failed: %s", refinement_ex)
+
         except Exception as ex:
             _LOGGER.exception("Export to PyTest failed: %s", ex)
 
