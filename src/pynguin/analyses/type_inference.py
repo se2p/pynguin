@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 # SPDX-License-Identifier: MIT
 """Implements type inference strategies as providers."""
 
