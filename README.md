@@ -32,7 +32,6 @@ and allows the automated generation of unit tests for Python programs.
 </details>
 
 [![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![PyPI version](https://badge.fury.io/py/pynguin.svg)](https://badge.fury.io/py/pynguin)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/pynguin.svg)](https://github.com/se2p/pynguin)
@@ -68,7 +67,7 @@ please report your experiences in using Pynguin to us.
 Before you begin, ensure you have met the following requirements:
 - You have installed Python 3.10 (the support for 3.11, 3.12, 3.13 and 3.14 is experimental).
 
-  **Attention:** Pynguin now requires Python 3.10!  Older versions are no longer
+  **Attention:** Pynguin now requires at least Python 3.10!  Older versions are no longer
   supported!
 - You have a recent Linux/macOS/Windows machine.
 
