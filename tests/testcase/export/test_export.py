@@ -22,8 +22,8 @@ from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
-from pynguin.testcase.export import PyTestChromosomeToAstVisitor
 from pynguin.testcase.execution import TestCaseExecutor
+from pynguin.testcase.export import PyTestChromosomeToAstVisitor
 from tests.testutils import extract_test_case_0
 
 
