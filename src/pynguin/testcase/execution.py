@@ -1307,8 +1307,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                 try:
                     with self._subject_properties.instrumentation_tracer.temporarily_disable():
                         receiving_connection.recv()
-                except EOFError:
-                    _LOGGER.error("EOFError during receiving results from subprocess")
+                except (EOFError, OSError):
+                    _LOGGER.error("Error during receiving results from subprocess")
 
                 receiving_connection.close()
 
@@ -1476,8 +1476,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                         tuple[dict[int, vr.VariableReference] | None, ...],
                         tuple[Any, ...],
                     ] = context.receiving_connection.recv()
-            except EOFError:
-                _LOGGER.error("EOFError during receiving results from subprocess")
+            except (EOFError, OSError):
+                _LOGGER.error("Error during receiving results from subprocess")
                 context.receiving_connection.close()
                 results = self._fallback_on_failure(
                     context.test_cases_tuple, context.process, context.remote_observers
