@@ -206,8 +206,9 @@ def test_case_0():
 
 @pytest.mark.xfail(strict=True)
 def test_case_1():
+    bool_0 = True
+    module_0.foo(bool_0)
     none_type_0 = None
-    module_0.foo(none_type_0)
     module_0.foo(none_type_0)
 """
     )
