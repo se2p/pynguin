@@ -1796,7 +1796,7 @@ class TypeSystem:  # noqa: PLR0904
             The shortest path length between the two types or None if no path exists.
         """
         try:
-            return nx.shortest_path_length(self._graph, start, end)
+            return int(nx.shortest_path_length(self._graph, start, end))
         except nx.NetworkXNoPath:
             return None
 
@@ -1887,7 +1887,7 @@ class TypeSystem:  # noqa: PLR0904
             A dict mapping parameter names to type hints.
         """
         try:
-            hints = get_type_hints(method)
+            hints = typing.get_type_hints(method)
             # Sadly there is no guarantee that resolving the type hints actually works.
             # If the developers annotated something with an erroneous type hint we fall
             # back to no type hints, i.e., use Any.
