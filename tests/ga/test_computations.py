@@ -12,6 +12,7 @@ import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
+from pynguin.analyses.generator import HeuristicGeneratorFitnessFunction
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import Instance
 from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
@@ -181,7 +182,7 @@ def test_heuristic_generator_fitness_function(name, expected_fitness):
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
-    generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
+    generator_ff = HeuristicGeneratorFitnessFunction(type_system=type_system)
     generators = get_all_generators(cluster)
     assert generator_ff.compute_fitness(base_type, generators[name]) == expected_fitness
 
@@ -190,7 +191,7 @@ def test_heuristic_generator_fitness_function_not_connected():
     cluster = generate_test_cluster("tests.fixtures.examples.constructors")
     type_system = cluster.type_system
     base_type = Instance(type_system.find_type_info("tests.fixtures.examples.constructors.Base"))
-    generator_ff = ff.HeuristicGeneratorFitnessFunction(type_system=type_system)
+    generator_ff = HeuristicGeneratorFitnessFunction(type_system=type_system)
     generators = get_all_generators(cluster)
     assert generator_ff.compute_fitness(
         base_type, generators["tests.fixtures.examples.constructors.Base2"]
@@ -199,7 +200,7 @@ def test_heuristic_generator_fitness_function_not_connected():
 
 def test_heuristic_generator_fitness_function_is_minimisation():
     mock = MagicMock()
-    func = ff.HeuristicGeneratorFitnessFunction(mock)
+    func = HeuristicGeneratorFitnessFunction(mock)
     assert not func.is_maximisation_function()
 
 

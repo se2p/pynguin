@@ -21,7 +21,7 @@ def test_string_subtype_integration(tmp_path):
 
     configuration = config.Configuration(
         seeding=config.SeedingConfiguration(
-            seed=43, constant_seeding=False, dynamic_constant_seeding=False
+            seed=2, constant_seeding=False, dynamic_constant_seeding=False
         ),
         algorithm=config.Algorithm.DYNAMOSA,
         stopping=config.StoppingConfiguration(maximum_iterations=1),

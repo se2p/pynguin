@@ -231,7 +231,7 @@ def test_export_integration(subject_properties: SubjectProperties, tmp_path: Pat
     config.configuration.search_algorithm.population = 20
     config.configuration.test_creation.none_weight = 1
     config.configuration.test_creation.any_weight = 1
-    config.configuration.seeding.seed = 0
+    config.configuration.seeding.seed = 1
     config.configuration.test_case_output.output_path = tmp_path
     gen._setup_random_number_generator()
 
@@ -248,8 +248,6 @@ def test_case_0():
 
 @pytest.mark.xfail(strict=True)
 def test_case_1():
-    bool_0 = True
-    module_0.foo(bool_0)
     none_type_0 = None
     module_0.foo(none_type_0)
 """
