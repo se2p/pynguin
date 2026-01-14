@@ -6,14 +6,15 @@
 #
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import pynguin.configuration as config
 import pynguin.ga.computations as ff
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.typesystem import Instance
-from pynguin.instrumentation.tracer import ExecutionTrace
-, SubjectProperties
+from pynguin.instrumentation.tracer import ExecutionTrace, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult
 from tests.ga.test_generator import get_all_generators
 

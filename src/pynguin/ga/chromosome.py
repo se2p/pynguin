@@ -41,7 +41,7 @@ class Selectable(ABC):
         """
 
 
-class Chromosome(Selectable):
+class Chromosome(Selectable):  # noqa: PLR0904
     """An abstract base class for chromosomes."""
 
     def __init__(self, orig: Chromosome | None = None):

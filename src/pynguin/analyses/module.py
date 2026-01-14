@@ -21,7 +21,6 @@ import logging
 import queue
 import types
 import typing
-
 from collections import defaultdict
 from pathlib import Path
 from types import (
@@ -53,29 +52,30 @@ from pynguin.utils.llm import LLMProvider
 if config.configuration.pynguinml.ml_testing_enabled or typing.TYPE_CHECKING:
     import pynguin.utils.pynguinml.ml_testing_resources as tr
 
-from pynguin.analyses.generator import GeneratorProvider
-from pynguin.analyses.generator import RandomGeneratorProvider
+from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
 from pynguin.analyses.modulecomplexity import mccabe_complexity
-
-from pynguin.analyses.syntaxtree import FunctionDescription
-from pynguin.analyses.syntaxtree import astroid_to_ast
-from pynguin.analyses.syntaxtree import get_class_node_from_ast
-from pynguin.analyses.syntaxtree import get_function_description
-from pynguin.analyses.syntaxtree import get_function_node_from_ast
-from pynguin.analyses.typesystem import ANY
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TupleType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.analyses.typesystem import TypeVisitor
-from pynguin.analyses.typesystem import UnionType
-from pynguin.analyses.typesystem import Unsupported
+from pynguin.analyses.syntaxtree import (
+    FunctionDescription,
+    astroid_to_ast,
+    get_class_node_from_ast,
+    get_function_description,
+    get_function_node_from_ast,
+)
+from pynguin.analyses.typesystem import (
+    ANY,
+    AnyType,
+    Instance,
+    NoneType,
+    ProperType,
+    TupleType,
+    TypeInfo,
+    TypeSystem,
+    TypeVisitor,
+    UnionType,
+    Unsupported,
+)
 from pynguin.configuration import TypeInferenceStrategy
-from pynguin.ga.operators.selection import RandomSelection
-from pynguin.ga.operators.selection import RankSelection
+from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
     ConstraintValidationError,

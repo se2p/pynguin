@@ -10,24 +10,17 @@ Generators can be either GenericCallableAccessibleObjects or GenericEnum objects
 
 import functools
 import itertools
-
 from collections import defaultdict
 
-from pynguin.analyses.typesystem import AnyType
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import ProperType
-from pynguin.analyses.typesystem import TypeSystem
-from pynguin.analyses.typesystem import is_primitive_type
+from pynguin.analyses.typesystem import AnyType, NoneType, ProperType, TypeSystem, is_primitive_type
 from pynguin.ga.chromosome import Selectable
-from pynguin.ga.computations import GeneratorFitnessFunction
-from pynguin.ga.computations import HeuristicGeneratorFitnessFunction
+from pynguin.ga.computations import GeneratorFitnessFunction, HeuristicGeneratorFitnessFunction
 from pynguin.ga.operators.selection import SelectionFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
 from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.orderedset import FrozenOrderedSet
-from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.orderedset import FrozenOrderedSet, OrderedSet
 
 
 class _Generator(Selectable):

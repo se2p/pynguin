@@ -8,22 +8,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pynguin.analyses.generator import GeneratorProvider
-from pynguin.analyses.generator import RandomGeneratorProvider
-from pynguin.analyses.generator import _Generator  # noqa: PLC2701
+from pynguin.analyses.generator import (
+    GeneratorProvider,
+    RandomGeneratorProvider,
+    _Generator,  # noqa: PLC2701
+)
 from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.typesystem import Instance
-from pynguin.analyses.typesystem import NoneType
-from pynguin.analyses.typesystem import TypeInfo
-from pynguin.ga.operators.selection import RandomSelection
-from pynguin.ga.operators.selection import RankSelection
-from pynguin.ga.operators.selection import SelectionFunction
+from pynguin.analyses.typesystem import Instance, NoneType, TypeInfo
+from pynguin.ga.operators.selection import RandomSelection, RankSelection, SelectionFunction
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import FrozenOrderedSet
 
 

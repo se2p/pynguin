@@ -11,26 +11,20 @@ from __future__ import annotations
 import abc
 import dataclasses
 import functools
+import math
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import pynguin.configuration as config
-import math
-
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
-from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicerfrom
-
-pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
-from pynguin.slicer.dynamicslicer import AssertionSlicer
-from pynguin.slicer.dynamicslicer import DynamicSlicer
+from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pynguin.analyses.typesystem import ProperType
-    from pynguin.analyses.typesystem import TypeSystem
+    from pynguin.analyses.typesystem import ProperType, TypeSystem
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties

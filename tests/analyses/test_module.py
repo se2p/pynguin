@@ -12,12 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import astroid
 import pytest
-from pynguin.analyses.type_inference import HintInference
 
 import pynguin.configuration as config
 from pynguin.analyses import module
-from pynguin.analyses.generator import GeneratorProvider
-from pynguin.analyses.generator import RandomGeneratorProvider
+from pynguin.analyses.generator import GeneratorProvider, RandomGeneratorProvider
 from pynguin.analyses.module import (
     MODULE_BLACKLIST,
     ModuleTestCluster,
@@ -27,19 +25,18 @@ from pynguin.analyses.module import (
     generate_test_cluster,
     parse_module,
 )
+from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
-from pynguin.ga.operators.selection import RandomSelection
-from pynguin.ga.operators.selection import RankSelection
-from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.exceptions import CoroutineFoundException
-from pynguin.utils.generic.genericaccessibleobject import GenericAccessibleObject
+from pynguin.ga.operators.selection import RandomSelection, RankSelection
+from pynguin.utils.exceptions import ConstructionFailedException, CoroutineFoundException
 from pynguin.utils.generic.genericaccessibleobject import (
+    GenericAccessibleObject,
     GenericCallableAccessibleObject,
+    GenericConstructor,
+    GenericEnum,
+    GenericFunction,
+    GenericMethod,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericConstructor
-from pynguin.utils.generic.genericaccessibleobject import GenericEnum
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from pynguin.utils.generic.genericaccessibleobject import GenericMethod
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import COLLECTIONS, PRIMITIVES

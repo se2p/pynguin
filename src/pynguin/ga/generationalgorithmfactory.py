@@ -45,8 +45,12 @@ from pynguin.ga.algorithms.randomsearchalgorithm import (
 from pynguin.ga.algorithms.wholesuitealgorithm import WholeSuiteAlgorithm
 from pynguin.ga.operators.crossover import SinglePointRelativeCrossOver
 from pynguin.ga.operators.ranking import RankBasedPreferenceSorting
-from pynguin.ga.operators.selection import RandomSelection
-from pynguin.ga.operators.selection import RankSelection, SelectionFunction, TournamentSelection
+from pynguin.ga.operators.selection import (
+    RandomSelection,
+    RankSelection,
+    SelectionFunction,
+    TournamentSelection,
+)
 from pynguin.ga.stoppingcondition import (
     CoveragePlateauStoppingCondition,
     MaxCoverageStoppingCondition,
