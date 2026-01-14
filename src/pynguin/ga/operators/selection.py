@@ -8,15 +8,42 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from math import sqrt
 from typing import Generic, TypeVar
 
 import pynguin.configuration as config
-import pynguin.ga.chromosome as chrom
 from pynguin.utils import randomness
 
-T = TypeVar("T", bound=chrom.Selectable)
+
+class Selectable(ABC):
+    """An abstract base class for selectable objects.
+
+    Selectable objects are objects to which a SelectionFunction can be applied. In order
+    to apply a selection function, the object must provide a fitness value.
+    """
+
+    @abstractmethod
+    def get_fitness(self) -> float:
+        """Provide the fitness value of this selectable object.
+
+        Returns:
+            The fitness value of this selectable object.
+        """
+
+    @abstractmethod
+    def get_fitness_for(self, fitness_function) -> float:
+        """Provide the fitness value of this selectable object for a specific fitness function.
+
+        Args:
+            fitness_function: The fitness function to consider.
+
+        Returns:
+            The fitness value of this selectable object for the given fitness function.
+        """
+
+
+T = TypeVar("T", bound=Selectable)
 
 
 class SelectionFunction(Generic[T]):

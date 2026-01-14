@@ -10,13 +10,11 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import functools
 import math
 import statistics
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, TypeVar
 
-import pynguin.configuration as config
 from pynguin.instrumentation import version
 from pynguin.instrumentation.tracer import ExecutionTrace
 from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
@@ -24,16 +22,12 @@ from pynguin.slicer.dynamicslicer import AssertionSlicer, DynamicSlicer
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pynguin.analyses.typesystem import ProperType, TypeSystem
     from pynguin.ga.testcasechromosome import TestCaseChromosome
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
     from pynguin.testcase.statement import Statement
-    from pynguin.utils.generic.genericaccessibleobject import (
-        GenericCallableAccessibleObject,
-    )
 
 
 @dataclasses.dataclass(eq=False)
@@ -299,146 +293,6 @@ class StatementCheckedTestSuiteFitnessFunction(TestSuiteFitnessFunction):
             merged_trace,
             self._executor.subject_properties,
         )
-
-    def is_maximisation_function(self) -> bool:  # noqa: D102
-        return False
-
-
-class GeneratorFitnessFunction:
-    """Interface for a fitness function for type generators."""
-
-    @abstractmethod
-    def compute_fitness(
-        self,
-        to_generate: ProperType,
-        generator: GenericCallableAccessibleObject,
-        type_distance: int | None = None,
-    ) -> float:
-        """Compute the fitness score for a generator.
-
-        Args:
-            to_generate: The type to generate.
-            generator: The generator function.
-            type_distance: The distance between the type to generate and the return type
-                of the generator. If None, the distance must be computed.
-
-        Returns:
-            The computed fitness score or infinity if the generator is not suitable.
-        """
-
-    @abstractmethod
-    def is_maximisation_function(self) -> bool:
-        """Do we need to maximise or minimise this function?
-
-        Returns:
-             Whether this is a maximisation function
-        """
-
-
-class HeuristicGeneratorFitnessFunction(GeneratorFitnessFunction):
-    """A minimizing fitness function for type generators.
-
-    Some type generator functions are better suited to generate objects of a specific
-    type than others. For example, the constructor of the class we want to generate might
-    be a good choice. However, to allow for diversity in the generated test cases,
-    we also want to consider other generator functions, while still preferring the
-    constructor.
-
-    This fitness function allows for a ranking regarding the `suitability` of a generator
-    function for a certain type based on the following heuristics:
-
-    1. A constructor (__init__) is better than any other type generator function, as it
-        is often specifically designed to generate objects of the type.
-    2. The more parameters a generator function has, the worse it is, as we need to provide
-        values for these parameters as well.
-    3. The deeper the hierarchy distance between the type to generate and the return type
-        of the generator function, the worse it is, as the match is less direct.
-
-    A score of 0 is optimal and given for a constructor of the exact type with no
-    parameters. Everything else is penalized and thus gets a higher score (= bad).
-    """
-
-    def __init__(
-        self,
-        type_system: TypeSystem,
-        *,
-        not_constructor_penalty: float = config.configuration.generator_selection.generator_not_constructor_penalty,  # noqa: E501
-        param_penalty: float = config.configuration.generator_selection.generator_param_penalty,
-        hierarchy_penalty: float = config.configuration.generator_selection.generator_hierarchy_penalty,  # noqa: E501
-        any_type_penalty: float = config.configuration.generator_selection.generator_any_type_penalty,  # noqa: E501
-    ) -> None:
-        """Create a new fitness function."""
-        self._type_system = type_system
-        self._constructor_penalty = not_constructor_penalty
-        self._param_penalty = param_penalty
-        self._hierarchy_penalty = hierarchy_penalty
-        self._any_type_penalty = any_type_penalty
-
-    @functools.lru_cache(maxsize=16384)
-    def compute_fitness(
-        self,
-        to_generate: ProperType,
-        generator: GenericCallableAccessibleObject,
-        type_distance: int | None = None,
-    ) -> float:
-        """Compute the fitness score for a suitable generator. Lower is better.
-
-        Computes the fitness score for a generator function if it is suitable for the type
-        to generate. The generator is suitable if it may produce objects of the type to
-        generate or a subtype of it.
-
-        This method is performance-critical - even calling get_num_parameters() repeatedly
-        can be expensive. Therefore, we use a cache to store the results of this function.
-
-        Args:
-            to_generate: The type to generate.
-            generator: The generator function.
-            type_distance: The distance between the type to generate and the return type
-                of the generator. If None, the distance is computed.
-
-        Returns:
-            The computed fitness score or infinity if the generator is not suitable.
-        """
-        fitness: float = 0.0
-
-        # Penalize non-constructors
-        if not generator.is_constructor():
-            fitness += self._constructor_penalty
-
-        # Penalize for each parameter
-        param_count = generator.get_num_parameters()
-        fitness += self._param_penalty * param_count
-
-        # Penalize deeper hierarchy distances
-        if type_distance is None:
-            type_distance = self._compute_hierarchy_distance(to_generate, generator)
-
-        if type_distance is not None:
-            fitness += self._hierarchy_penalty * type_distance
-        else:
-            return float("inf")
-
-        return fitness
-
-    def _compute_hierarchy_distance(
-        self, to_generate: ProperType, generator: GenericCallableAccessibleObject
-    ) -> int | None:
-        """The distance between the type to generate and the return type of the generator.
-
-        The hierarchy distance is the number of subtypes between the type to generate and
-        the return type of the generator. If the return type is not a subtype of the type
-        to generate, None is returned.
-
-        Args:
-            to_generate: The type to generate.
-            generator: The generator function to check the return type of.
-
-        Returns:
-            The distance or None if the return type is not a subtype of the type.
-        """
-        return_type = generator.inferred_signature.return_type
-        assert return_type is not None, "Return type must not be None for a type generator"
-        return self._type_system.subtype_distance(to_generate, return_type)
 
     def is_maximisation_function(self) -> bool:  # noqa: D102
         return False

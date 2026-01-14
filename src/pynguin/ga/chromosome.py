@@ -8,37 +8,11 @@
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.computations as ff
-
-
-class Selectable(ABC):
-    """An abstract base class for selectable objects.
-
-    Selectable objects are objects to which a SelectionFunction can be applied. In order
-    to apply a selection function, the object must provide a fitness value.
-    """
-
-    @abstractmethod
-    def get_fitness(self) -> float:
-        """Provide the fitness value of this selectable object.
-
-        Returns:
-            The fitness value of this selectable object.
-        """
-
-    @abstractmethod
-    def get_fitness_for(self, fitness_function) -> float:
-        """Provide the fitness value of this selectable object for a specific fitness function.
-
-        Args:
-            fitness_function: The fitness function to consider.
-
-        Returns:
-            The fitness value of this selectable object for the given fitness function.
-        """
+from pynguin.analyses.generator import Selectable
 
 
 class Chromosome(Selectable):  # noqa: PLR0904
