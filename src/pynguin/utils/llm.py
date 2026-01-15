@@ -15,6 +15,8 @@ import os
 import re
 import typing
 
+from pynguin.utils.openai_key_resolver import set_api_key
+
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -134,6 +136,7 @@ if OPENAI_AVAILABLE:
             system_prompt: str = OPENAI_SYSTEM_PROMPT,
             model: str = "gpt-4.1-nano-2025-04-14",
         ) -> None:
+            set_api_key()
             if not api_key:
                 raise AssertionError(
                     "OpenAI API key not set, provide via the OPENAI_API_KEY environment variable."

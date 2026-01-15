@@ -17,10 +17,10 @@ from pynguin.large_language_model.llmagent import (
     get_module_source_code,
     get_part_of_source_code,
     save_prompt_info_to_file,
-    set_api_key,
     shorten_line_annotations,
 )
 from pynguin.large_language_model.prompts.prompt import Prompt
+from pynguin.utils.openai_key_resolver import set_api_key
 from pynguin.utils.report import CoverageEntry, LineAnnotation
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -81,7 +81,7 @@ def test_get_module_source_code(monkeypatch):
 def test_set_api_key_openai_not_available(monkeypatch):
     """Test set_api_key when OpenAI is not available."""
     # Mock OPENAI_AVAILABLE to be False
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.OPENAI_AVAILABLE", False)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.OPENAI_AVAILABLE", False)
 
     # Call the function and check that it raises the expected exception
     with pytest.raises(ValueError, match="OpenAI API library is not available"):
@@ -91,13 +91,13 @@ def test_set_api_key_openai_not_available(monkeypatch):
 def test_set_api_key_invalid(monkeypatch):
     """Test set_api_key with an invalid API key."""
     # Mock OPENAI_AVAILABLE to be True
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.OPENAI_AVAILABLE", True)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.OPENAI_AVAILABLE", True)
 
     # Mock is_api_key_present to return True
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_present", lambda: True)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_present", lambda: True)
 
     # Mock is_api_key_valid to return False
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_valid", lambda: False)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_valid", lambda: False)
 
     # Call the function and check that it raises the expected exception
     with pytest.raises(ValueError, match="OpenAI API key is invalid"):
@@ -107,10 +107,10 @@ def test_set_api_key_invalid(monkeypatch):
 def test_is_api_key_valid_exception(monkeypatch):
     """Test is_api_key_valid when an exception is raised."""
     # Mock is_api_key_present to return True
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_present", lambda: True)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_present", lambda: True)
 
     # Mock is_api_key_valid to return False
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_valid", lambda: False)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_valid", lambda: False)
 
     # Now we'll test that set_api_key raises an exception when is_api_key_valid returns False
     with pytest.raises(ValueError, match="OpenAI API key is invalid"):
@@ -186,10 +186,10 @@ def test_query_with_openai_error(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "test_api_key")
 
     # Mock set_api_key to avoid actual API calls
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.set_api_key", lambda: None)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.set_api_key", lambda: None)
 
     # Mock is_api_key_valid to return True
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_valid", lambda: True)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_valid", lambda: True)
 
     # Create a mock prompt
     mock_prompt = MagicMock(spec=Prompt)
@@ -225,10 +225,10 @@ def test_query_successful_response(monkeypatch):
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "test_api_key")
 
     # Mock set_api_key to avoid actual API calls
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.set_api_key", lambda: None)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.set_api_key", lambda: None)
 
     # Mock is_api_key_valid to return True
-    monkeypatch.setattr("pynguin.large_language_model.llmagent.is_api_key_valid", lambda: True)
+    monkeypatch.setattr("pynguin.utils.openai_key_resolver.is_api_key_valid", lambda: True)
 
     # Create a mock prompt
     mock_prompt = MagicMock(spec=Prompt)

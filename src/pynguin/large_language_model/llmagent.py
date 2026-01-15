@@ -9,7 +9,6 @@
 import datetime
 import inspect
 import logging
-import os
 import pathlib
 import re
 import time
@@ -49,6 +48,9 @@ from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
 )
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
+)
+from pynguin.utils.openai_key_resolver import (
+    set_api_key,
 )
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -152,6 +154,14 @@ def shorten_line_annotations(
 
 
 def _find_lines(name: str) -> tuple[list[str], int] | None:
+    """Find the source lines for a given object name.
+
+    Args:
+        name: The name of the object to find (can be nested like "Class.method").
+
+    Returns:
+        A tuple of (source_lines, start_line) if found, None otherwise.
+    """
     module = import_module(config.configuration.module_name)
     parts = name.split(".")
     obj = module
@@ -166,82 +176,6 @@ def _find_lines(name: str) -> tuple[list[str], int] | None:
     except (OSError, TypeError, AttributeError) as e:
         _logger.debug("Could not get source for %s: %s", name, e)
         return None
-
-
-def _get_api_key_from_env() -> str:
-    """Resolve OpenAI API key from environment variables.
-
-    Preference order:
-    1) PYNGUIN_OPENAI_API_KEY
-    2) OPENAI_API_KEY
-    """
-    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
-        value = os.environ.get(var, "")
-        if value and value.strip():
-            return value.strip()
-    return ""
-
-
-def _get_resolved_api_key() -> str:
-    """Return the effective OpenAI API key from config or environment.
-
-    Preference order:
-    1) configuration.large_language_model.api_key (if non-empty)
-    2) PYNGUIN_OPENAI_API_KEY
-    3) OPENAI_API_KEY
-    """
-    cfg_key = getattr(config.configuration.large_language_model, "api_key", "") or ""
-    cfg_key = cfg_key.strip()
-    if cfg_key:
-        return cfg_key
-    return _get_api_key_from_env()
-
-
-def is_api_key_present() -> bool:
-    """Checks if the OpenAI API key is present and not an empty string.
-
-    Returns:
-        bool: True if the API key is present and not empty, False otherwise.
-    """
-    return bool(_get_resolved_api_key())
-
-
-def set_api_key():
-    """Sets the OpenAI API key from config or environment if it is valid.
-
-    Raises:
-        ValueError: If the OpenAI API key is missing or invalid.
-    """
-    if not OPENAI_AVAILABLE:
-        raise ValueError(
-            "OpenAI API library is not available. You can install it with poetry "
-            "install --with openai."
-        )
-    if not is_api_key_present():
-        raise ValueError("OpenAI API key is missing.")
-
-    api_key = _get_resolved_api_key()
-    if is_api_key_valid():
-        openai.api_key = api_key
-    else:
-        raise ValueError("OpenAI API key is invalid.")
-
-
-def is_api_key_valid() -> bool:
-    """Checks if the provided OpenAI API key is valid.
-
-    Returns:
-        bool: True if the API key is valid, False otherwise.
-
-    Raises:
-        openai.OpenAIError: If the API key is invalid or another error occurs.
-    """
-    try:
-        openai.api_key = _get_resolved_api_key()
-        openai.models.list()  # This would raise an error if the API key is invalid
-        return True
-    except openai.OpenAIError:
-        return False
 
 
 class LLMAgent:
