@@ -35,6 +35,10 @@ except ImportError:
 
 import pynguin.configuration as config
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
+from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
+    TypeAndSubtypeInferencePrompt,
+    get_type_and_subtype_inference_system_prompt,
+)
 from pynguin.large_language_model.prompts.typeinferenceprompt import (
     TypeInferencePrompt,
     get_inference_system_prompt,
@@ -292,6 +296,192 @@ class LLMInference(InferenceProvider):
         access private members.
         """
         return deepcopy(self._prior_types(func))
+
+
+class LLMInferenceWithSubtypes(LLMInference):
+    """LLM-based type inference with support for string subtypes and Faker generators."""
+
+    def __init__(
+        self,
+        callables: Sequence[Callable[..., Any]],
+        provider: LLMProvider,
+        type_system: TypeSystem,
+        max_parallel_calls: int = LLMInference.DEFAULT_MAX_PARALLEL_CALLS,
+    ) -> None:
+        """Initializes the LLM-based type and subtype inference strategy.
+
+        Args:
+            callables: The callables for which we want to infer types.
+            provider: The LLM provider to use.
+            type_system: The type system to use for resolving types.
+            max_parallel_calls: The maximum number of parallel calls to the LLM.
+        """
+        self._type_system = type_system
+        self._subtype_info_by_callable: OrderedDict[Callable, dict[str, str]] = OrderedDict()
+        self._max_parallel_calls = max_parallel_calls
+        self._types = types
+
+        self._subtypes: OrderedSet[str] = OrderedSet([
+            t.name for t in type_system.get_subclasses(type_system.to_type_info(str))
+        ])
+        match provider:
+            case LLMProvider.OPENAI:
+                self._model = OpenAI(
+                    api_key=SecretStr(config.configuration.large_language_model.api_key),
+                    system_prompt=get_type_and_subtype_inference_system_prompt(),
+                    model=config.configuration.large_language_model.model_name,
+                )
+            case _:
+                raise NotImplementedError(f"Unknown provider {provider}")
+
+        self._callables: list[Callable[..., Any]] = list(callables)
+        self._inference_by_callable: OrderedDict[Callable, dict[str, str]] = OrderedDict()
+        self._type_string_parser = TypeStrParser(type_system)
+        InferenceProvider.__init__(self)
+        start = time.time_ns()
+        self._infer_all()
+        self._metrics["total_setup_time"] = time.time_ns() - start
+        _LOGGER.debug(
+            "Type and subtype inference completed in %.3fs",
+            self._metrics["total_setup_time"],
+        )
+
+    def provide(self, method: Callable) -> dict[str, Any]:
+        """Return the type inference for the given method, including subtypes."""
+        string_hints: dict[str, str] = self._inference_by_callable.get(method, {})
+        subtype_hints: dict[str, str] = self._subtype_info_by_callable.get(method, {})
+        result: dict[str, Any] = {}
+        for param, type_str in string_hints.items():
+            if param in {"*args", "**kwargs"}:
+                result[param] = Any
+            else:
+                resolved: Any = self._type_string_parser.parse(type_str)
+                if resolved is None or resolved is type(builtins.object):
+                    _LOGGER.debug(
+                        "Could not resolve type string '%s' for parameter '%s'",
+                        type_str,
+                        param,
+                    )
+                    self._metrics["failed_inferences"] += 1
+                    resolved = builtins.object
+                else:
+                    self._metrics["successful_inferences"] += 1
+
+                # If we have a subtype hint for this string parameter, incorporate it
+                if param in subtype_hints and resolved is str:
+                    subtype_str = subtype_hints[param]
+                    from pynguin.analyses.string_subtype_inference import (  # noqa: PLC0415
+                        StringSubtypeFromInference,
+                    )
+
+                    subtype = StringSubtypeFromInference.from_string(subtype_str)
+                    if subtype is not None:
+                        resolved = subtype
+
+                result[param] = resolved
+        return result
+
+    def _build_prompt_map(
+        self, funcs: Sequence[Callable[..., Any]]
+    ) -> OrderedDict[Callable[..., Any], str]:
+        """Build prompt map using the enhanced TypeAndSubtypeInferencePrompt."""
+        prompts: OrderedDict[Callable[..., Any], str] = OrderedDict()
+        for func in funcs:
+            try:
+                prompt = TypeAndSubtypeInferencePrompt(func, subtypes=self._subtypes)
+                prompts[func] = prompt.build_user_prompt()
+            except Exception as exc:  # noqa: BLE001, PERF203
+                _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
+        return prompts
+
+    @staticmethod
+    def _parse_json_response(response: str, prior: dict[str, str]) -> dict[str, str]:
+        """Parse enhanced LLM JSON with type and subtype information.
+
+        The expected format is:
+        {
+            "param1": {"type": "str", "subtype": "email"},
+            "param2": {"type": "int"},
+            "param3": "str"  # plain string is treated as type
+        }
+
+        This method only extracts the type information. Subtypes are extracted
+        separately by _parse_json_response_for_subtypes.
+        """
+        if not response:
+            return prior
+        try:
+            data = json.loads(response)
+            if not isinstance(data, dict):
+                return prior
+
+            merged: dict[str, str] = dict(prior)
+
+            for k in list(prior.keys()):
+                if k == "return":
+                    continue
+                if k in data:
+                    item = data[k]
+                    if isinstance(item, dict) and "type" in item:
+                        # Extract type from dict
+                        type_str = item["type"]
+                        if isinstance(type_str, str) and type_str.strip():
+                            merged[k] = type_str.strip()
+                    elif isinstance(item, str) and item.strip():
+                        # plain string is treated as type
+                        merged[k] = item.strip()
+
+            return merged
+        except json.JSONDecodeError as exc:
+            _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
+            return prior
+
+    def _infer_all(self) -> None:
+        """Infer types and subtypes for all callables in parallel at initialization time."""
+        prompts = self._build_prompt_map(self._callables)
+        _LOGGER.debug("Sending %d prompts to LLM for type and subtype inference", len(prompts))
+        raw = self._send_prompts(prompts)
+        _LOGGER.debug("Received %d responses from LLM", len(raw))
+        self._metrics["sent_requests"] = len(raw)
+        for func, response in raw.items():
+            prior = self._prior_types(func)
+            prior_subtypes = self._parse_json_response_for_subtypes(response)
+            parsed = self._parse_json_response(response, prior)
+            self._inference_by_callable[func] = parsed
+            if prior_subtypes:
+                self._subtype_info_by_callable[func] = prior_subtypes
+
+    def _parse_json_response_for_subtypes(self, response: str) -> dict[str, str]:
+        """Extract subtype information from the JSON response."""
+        if not response:
+            return {}
+        try:
+            data = json.loads(response)
+            if not isinstance(data, dict):
+                return {}
+
+            subtypes: dict[str, str] = {}
+            for k, item in data.items():
+                if isinstance(item, dict) and "subtype" in item:
+                    subtype_str = item["subtype"]
+                    if isinstance(subtype_str, str) and subtype_str.strip():
+                        subtypes[k] = subtype_str.strip()
+
+            return subtypes
+        except json.JSONDecodeError as exc:
+            _LOGGER.error("Failed to parse JSON response for subtypes: %s", exc)
+            return {}
+
+    def get_subtype_info(self, method: Callable[..., Any]) -> dict[str, str]:
+        """Return the subtype information for the given method.
+
+        Args:
+            method: The method for which to retrieve subtype info
+
+        Returns:
+            A dict mapping parameter names to subtype strings (faker generators or regex)
+        """
+        return deepcopy(self._subtype_info_by_callable.get(method, {}))
 
 
 class NoInference(InferenceProvider):
