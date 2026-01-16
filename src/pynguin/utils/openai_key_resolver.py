@@ -13,6 +13,7 @@ import pynguin.configuration as config
 
 try:
     import openai
+    from dotenv import load_dotenv
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -23,12 +24,13 @@ _logger = logging.getLogger(__name__)
 
 
 def get_api_key_from_env() -> str:
-    """Resolve OpenAI API key from environment variables.
+    """Resolve OpenAI API key from environment variables and .env file.
 
     Preference order:
     1) PYNGUIN_OPENAI_API_KEY
     2) OPENAI_API_KEY
     """
+    load_dotenv()
     for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
         value = os.environ.get(var, "")
         if value and value.strip():
