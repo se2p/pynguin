@@ -28,8 +28,10 @@ _LOGGER = logging.getLogger(__name__)
 def refine_generated_tests(
     test_file_path: Path, 
     module_name: str,
+    llm_provider: str = "ollama",
     llm_base_url: str = "http://rhaegal.dimis.fim.uni-passau.de:15343",
-    llm_model: str = "deepseek-coder-v2:16b",
+    llm_model: str = "codellama:7b",
+    llm_api_key: str | None = None,
     max_repair_iterations: int = 3,
     max_tests: int = 30,
 ) -> dict[str, any]:
@@ -40,15 +42,36 @@ def refine_generated_tests(
     Args:
         test_file_path: Path to the generated test file
         module_name: Name of the module under test
-        llm_base_url: Base URL for Ollama LLM service
-        llm_model: Model name to use
+        llm_provider: LLM provider to use ('ollama' or 'openai')
+        llm_base_url: Base URL for Ollama LLM service (used when provider='ollama')
+        llm_model: Model name to use (default: 'codellama:7b' for Ollama, 'gpt-4o-mini' for OpenAI)
+        llm_api_key: API key for OpenAI (required when provider='openai')
         max_repair_iterations: Maximum repair attempts per test
         max_tests: Maximum number of tests to refine
         
     Returns:
         Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.)
+        
+    Examples:
+        # Using Ollama (free, local)
+        refine_generated_tests(
+            test_file_path=Path("test_module.py"),
+            module_name="my_module",
+            llm_provider="ollama",
+            llm_model="codellama:7b"
+        )
+        
+        # Using OpenAI (paid, cloud)
+        refine_generated_tests(
+            test_file_path=Path("test_module.py"),
+            module_name="my_module",
+            llm_provider="openai",
+            llm_model="gpt-4o-mini",
+            llm_api_key="sk-..."
+        )
     """
-    _LOGGER.info("Starting LLM-based test refinement for %s", module_name)
+    _LOGGER.info("Starting LLM-based test refinement for %s (provider: %s, model: %s)", 
+                 module_name, llm_provider, llm_model)
     
     try:
         # Read generated test file
@@ -83,12 +106,12 @@ def refine_generated_tests(
                 "readability_delta": 0.0
             }
         
-        # Initialize refiner
-        # Note: api_key is None for Ollama, project_root is optional
+        # Initialize refiner with provider selection
         refiner = TestRefiner(
-            api_key=None,
+            api_key=llm_api_key,
             module_under_test=test_target_module,
             project_root=None,
+            llm_provider=llm_provider,
             llm_base_url=llm_base_url,
             llm_model=llm_model
         )

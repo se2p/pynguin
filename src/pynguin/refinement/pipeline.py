@@ -9,14 +9,43 @@ from pynguin.refinement.validator import run_test
 from pynguin.refinement.llm_client import LLMClient
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.sut_inspector import SUTInspector
+from pynguin.refinement.mutation_analyzer import filter_vacuous_assertions
+from pynguin.refinement.coverage_checker import check_coverage_preservation
 
 class TestRefiner:
-    def __init__(self, api_key=None, module_under_test=None, project_root=None, llm_base_url=None, llm_model=None):
-        # api_key is no longer needed for Ollama, but kept for backward compatibility
-        self.llm_client = LLMClient(
-            base_url=llm_base_url or "http://rhaegal.dimis.fim.uni-passau.de:15343",
-            model_name=llm_model or "deepseek-coder-v2:16b"
-        )
+    def __init__(
+        self, 
+        api_key=None, 
+        module_under_test=None, 
+        project_root=None, 
+        llm_base_url=None, 
+        llm_model=None,
+        llm_provider="ollama"  # "ollama" or "openai"
+    ):
+        """Initialize the test refinement pipeline.
+        
+        Args:
+            api_key: OpenAI API key (only needed if llm_provider="openai")
+            module_under_test: Module being tested
+            project_root: Project root directory
+            llm_base_url: Base URL for Ollama (only used if llm_provider="ollama")
+            llm_model: Model name (e.g., "codellama:7b" for Ollama, "gpt-4o" for OpenAI)
+            llm_provider: LLM provider - "ollama" (default, free) or "openai" (paid)
+        """
+        # Initialize LLM client with provider selection
+        if llm_provider == "openai":
+            self.llm_client = LLMClient(
+                provider="openai",
+                model_name=llm_model or "gpt-4o-mini",  # Default to cheaper model
+                api_key=api_key
+            )
+        else:  # ollama (default)
+            self.llm_client = LLMClient(
+                provider="ollama",
+                base_url=llm_base_url or "http://rhaegal.dimis.fim.uni-passau.de:15343",
+                model_name=llm_model or "codellama:7b"
+            )
+        
         self.module_under_test = module_under_test
         self.project_root = project_root or os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         self.sut_inspector = SUTInspector(project_root=self.project_root)
@@ -169,7 +198,7 @@ class TestRefiner:
 **CRITICAL - Preserve ALL import statements exactly as they appear in the original test.**
 
 **Requirements:**
-1. **Test Function Name:** Rename the test function to be descriptive of what it tests
+1. **Test Function Name:** Rename the test function to be descriptive of what it tests.If multiple tests exist, ensure each has a distinct name (e.g., test_equilateral_triangle, test_isosceles_with_negative, test_scalene_with_bytes)".
    - Use pattern: test_<behavior_being_tested>
    - Example: test_case_0() → test_triangle_with_equal_sides()
    - Example: test_case_1() → test_basket_adds_item_successfully()
@@ -519,8 +548,35 @@ Fix the test code to resolve the error. Common fixes include:
             print("\n[2.5] Stage 2.5: Semantic Assertion Generation")
             focal_method = analysis_result.get('focal_method_name', 'unknown')
             sut_context = analysis_result.get('sut_context', 'Documentation unavailable.')
-            current_code = self.generate_semantic_assertions(readable_code, focal_method, sut_context)
+            assertion_code = self.generate_semantic_assertions(readable_code, focal_method, sut_context)
             print("[OK] Generated semantic assertions")
+            
+            # Stage 2.6: Mutation-Based Assertion Filtering (Pynguin-Inspired)
+            print("\n[2.6] Stage 2.6: Mutation-Based Assertion Filtering")
+            try:
+                # Get module path for mutation testing
+                module_path = "unknown"
+                if self.module_under_test:
+                    module_path = getattr(self.module_under_test, '__file__', 'unknown')
+                
+                current_code, mutation_stats = filter_vacuous_assertions(
+                    original_test=readable_code,  # Test before assertion generation
+                    refined_test=assertion_code,   # Test after assertion generation
+                    focal_method=focal_method,
+                    module_under_test=self.module_under_test,
+                    module_path=module_path,
+                    max_mutants_per_assertion=10
+                )
+                
+                if mutation_stats['assertions_removed'] > 0:
+                    print(f"[FILTER] Removed {mutation_stats['assertions_removed']} vacuous assertions")
+                else:
+                    print(f"[OK] All {mutation_stats['assertions_kept']} assertions are non-vacuous")
+            except Exception as e:
+                print(f"[WARNING] Mutation filtering failed: {e}")
+                print("[FALLBACK] Using assertions without mutation validation")
+                current_code = assertion_code
+                mutation_stats = {'error': str(e)}
             
             # Stage 3: Repair Loop
             print("\n[3] Stage 3: Iterative Repair Loop")
@@ -535,11 +591,32 @@ Fix the test code to resolve the error. Common fixes include:
                 
                 if passed:
                     print(f"[PASS] Test PASSED after {iteration} repair iteration(s)")
+                    
+                    # Level 2: Coverage Preservation Check
+                    coverage_passed, coverage_details = check_coverage_preservation(
+                        original_test=original_code,  # Original Pynguin test
+                        refined_test=current_code,  # Final refined test
+                        module_under_test=self.module_under_test,
+                        tolerance=0.0  # No coverage decrease allowed
+                    )
+                    
+                    if not coverage_passed:
+                        print("[COVERAGE] ✗ Coverage preservation failed - reverting to original")
+                        print("="*80)
+                        return {
+                            'success': False,
+                            'error': 'Coverage preservation check failed',
+                            'coverage_details': coverage_details,
+                            'iterations': iteration
+                        }
+                    
                     print("="*80)
                     return {
                         'success': True,
                         'final_code': current_code,
-                        'iterations': iteration
+                        'iterations': iteration,
+                        'mutation_stats': mutation_stats if 'mutation_stats' in locals() else {},
+                        'coverage_details': coverage_details
                     }
                 else:
                     # Test failed - determine error type

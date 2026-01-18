@@ -737,8 +737,10 @@ def _run() -> ReturnCode:  # noqa: C901
                     refinement_stats = refine_generated_tests(
                         test_file_path=test_file_path,
                         module_name=config.configuration.module_name,
+                        llm_provider=config.configuration.llm_refinement.llm_provider,
                         llm_base_url=config.configuration.llm_refinement.llm_base_url,
                         llm_model=config.configuration.llm_refinement.llm_model,
+                        llm_api_key=config.configuration.llm_refinement.llm_api_key,
                         max_repair_iterations=config.configuration.llm_refinement.max_repair_iterations,
                         max_tests=config.configuration.llm_refinement.max_tests,
                     )
