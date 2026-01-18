@@ -12,6 +12,7 @@ import ast
 import logging
 import sys
 import os
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -72,6 +73,8 @@ def refine_generated_tests(
     """
     _LOGGER.info("Starting LLM-based test refinement for %s (provider: %s, model: %s)", 
                  module_name, llm_provider, llm_model)
+
+    start_wall = time.perf_counter()
     
     try:
         # Read generated test file
@@ -103,7 +106,11 @@ def refine_generated_tests(
                 "failed_tests": 0,
                 "readability_original": 0.0,
                 "readability_refined": 0.0,
-                "readability_delta": 0.0
+                "readability_delta": 0.0,
+                "llm_calls": 0,
+                "llm_input_tokens": 0,
+                "llm_output_tokens": 0,
+                "wall_time_seconds": 0.0,
             }
         
         # Initialize refiner with provider selection
@@ -115,6 +122,12 @@ def refine_generated_tests(
             llm_base_url=llm_base_url,
             llm_model=llm_model
         )
+
+        # Ensure usage is per-refinement-run, not per-process.
+        try:
+            refiner.llm_client.reset_usage()
+        except Exception:
+            pass
         
         # Track statistics
         stats = {
@@ -197,6 +210,16 @@ def refine_generated_tests(
             _LOGGER.info("Saved refined tests to %s", refined_path)
         
         _LOGGER.info("Refinement complete: %s", stats)
+
+        try:
+            usage = refiner.llm_client.get_usage()
+        except Exception:
+            usage = {}
+
+        stats["llm_calls"] = int(usage.get("calls", 0) or 0)
+        stats["llm_input_tokens"] = int(usage.get("input_tokens", 0) or 0)
+        stats["llm_output_tokens"] = int(usage.get("output_tokens", 0) or 0)
+        stats["wall_time_seconds"] = float(time.perf_counter() - start_wall)
         return stats
         
     except Exception as e:
@@ -207,4 +230,8 @@ def refine_generated_tests(
             "repair_iterations": 0,
             "failed_tests": 0,
             "error": str(e),
+            "llm_calls": 0,
+            "llm_input_tokens": 0,
+            "llm_output_tokens": 0,
+            "wall_time_seconds": float(time.perf_counter() - start_wall),
         }

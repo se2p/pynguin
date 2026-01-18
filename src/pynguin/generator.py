@@ -746,6 +746,54 @@ def _run() -> ReturnCode:  # noqa: C901
                     )
                     _LOGGER.info("Refinement complete: %s", refinement_stats)
 
+                    # Export refinement metrics to statistics.csv / results.csv
+                    stat.track_output_variable(
+                        RuntimeVariable.TestsProcessed,
+                        int(refinement_stats.get("tests_processed", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.TestsRefined,
+                        int(refinement_stats.get("tests_refined", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RepairIterations,
+                        int(refinement_stats.get("repair_iterations", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.FailedRefinements,
+                        int(refinement_stats.get("failed_tests", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.ReadabilityScoreOriginal,
+                        float(refinement_stats.get("readability_original", 0.0) or 0.0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.ReadabilityScoreRefined,
+                        float(refinement_stats.get("readability_refined", 0.0) or 0.0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.ReadabilityDelta,
+                        float(refinement_stats.get("readability_delta", 0.0) or 0.0),
+                    )
+
+                    # Refinement cost metrics
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementLLMCalls,
+                        int(refinement_stats.get("llm_calls", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementLLMInputTokens,
+                        int(refinement_stats.get("llm_input_tokens", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementLLMOutputTokens,
+                        int(refinement_stats.get("llm_output_tokens", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementWallTimeSeconds,
+                        float(refinement_stats.get("wall_time_seconds", 0.0) or 0.0),
+                    )
+
                 except Exception as refinement_ex:
                     _LOGGER.exception("LLM refinement failed: %s", refinement_ex)
 

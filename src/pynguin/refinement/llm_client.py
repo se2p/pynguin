@@ -51,6 +51,12 @@ class LLMClient:
         """
         self.provider = provider.lower()
         self.model = model_name
+
+        # Usage tracking (best-effort; OpenAI provides usage, Ollama does not)
+        self._calls: int = 0
+        self._input_tokens: int = 0
+        self._output_tokens: int = 0
+        self._time_seconds: float = 0.0
         
         if self.provider == "ollama":
             self.base_url = base_url.rstrip('/')
@@ -67,6 +73,20 @@ class LLMClient:
             self.openai_endpoint = "https://api.openai.com/v1/chat/completions"
         else:
             raise ValueError(f"Unknown provider: {provider}. Use 'ollama' or 'openai'.")
+
+    def reset_usage(self) -> None:
+        self._calls = 0
+        self._input_tokens = 0
+        self._output_tokens = 0
+        self._time_seconds = 0.0
+
+    def get_usage(self) -> dict:
+        return {
+            "calls": self._calls,
+            "input_tokens": self._input_tokens,
+            "output_tokens": self._output_tokens,
+            "time_seconds": self._time_seconds,
+        }
 
     def generate_code(self, prompt: str) -> str:
         """Generate text and return the Python code block (or plain text).
@@ -89,6 +109,8 @@ class LLMClient:
         
         while attempts < max_attempts:
             try:
+                start = time.perf_counter()
+                self._calls += 1
                 payload = {
                     "model": self.model,
                     "prompt": prompt,
@@ -108,6 +130,8 @@ class LLMClient:
                 
                 result = response.json()
                 text = result.get("response", "")
+
+                self._time_seconds += time.perf_counter() - start
                 
                 return self._extract_code(text)
             
@@ -159,6 +183,8 @@ class LLMClient:
         
         while attempts < max_attempts:
             try:
+                start = time.perf_counter()
+                self._calls += 1
                 headers = {
                     "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json"
@@ -199,7 +225,16 @@ class LLMClient:
                     )
                 
                 result = response.json()
+
+                # Best-effort token accounting (depends on API returning `usage`)
+                usage = result.get("usage") if isinstance(result, dict) else None
+                if isinstance(usage, dict):
+                    self._input_tokens += int(usage.get("prompt_tokens", 0) or 0)
+                    self._output_tokens += int(usage.get("completion_tokens", 0) or 0)
+
                 text = result["choices"][0]["message"]["content"]
+
+                self._time_seconds += time.perf_counter() - start
                 
                 return self._extract_code(text)
             

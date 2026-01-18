@@ -219,6 +219,35 @@ class RuntimeVariable(str, enum.Enum):
     # for final result grouping
     LLMStrategy = "LLMStrategy"
 
+    # ========= LLM refinement (test post-processing) =========
+
+    # Number of tests that were considered by the refinement step.
+    TestsProcessed = "TestsProcessed"
+
+    # Number of tests that were successfully refined.
+    TestsRefined = "TestsRefined"
+
+    # Total number of repair iterations performed across all processed tests.
+    RepairIterations = "RepairIterations"
+
+    # Number of tests where refinement failed (original test kept).
+    FailedRefinements = "FailedRefinements"
+
+    # Average readability score of original tests (aggregate).
+    ReadabilityScoreOriginal = "ReadabilityScoreOriginal"
+
+    # Average readability score of refined tests (aggregate).
+    ReadabilityScoreRefined = "ReadabilityScoreRefined"
+
+    # ReadabilityScoreRefined - ReadabilityScoreOriginal.
+    ReadabilityDelta = "ReadabilityDelta"
+
+    # Refinement cost metrics (aggregated per module/run)
+    RefinementLLMCalls = "RefinementLLMCalls"
+    RefinementLLMInputTokens = "RefinementLLMInputTokens"
+    RefinementLLMOutputTokens = "RefinementLLMOutputTokens"
+    RefinementWallTimeSeconds = "RefinementWallTimeSeconds"
+
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
