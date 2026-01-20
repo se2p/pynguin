@@ -136,7 +136,7 @@ if OPENAI_AVAILABLE:
             system_prompt: str = OPENAI_SYSTEM_PROMPT,
             model: str = "gpt-4.1-nano-2025-04-14",
         ) -> None:
-            if api_key is None:
+            if api_key is None or not api_key.get_secret_value():
                 api_key = get_api_key()
             if not api_key:
                 raise ValueError(

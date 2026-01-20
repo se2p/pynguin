@@ -65,7 +65,7 @@ def require_api_key() -> SecretStr:
         ValueError: If the API key is not found in config or environment.
     """
     api_key = get_api_key()
-    if api_key is None:
+    if api_key is None or not api_key.get_secret_value():
         _logger.error("OpenAI API key not found in configuration or environment.")
         raise ValueError(
             "OpenAI API key not found. Set it via:\n"
