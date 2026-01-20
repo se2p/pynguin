@@ -90,7 +90,7 @@ class TypeStrParser:
     def _resolve_type_by_name(self, type_str: str) -> type | None:
         simple_types = self._type_system.get_all_types()
         for t in simple_types:
-            if type_str.lower() in {t.qualname.lower(), t.name.lower()}:
+            if type_str.lower() in {t.qualname.lower(), t.name.lower(), t.full_name.lower()}:
                 return t.raw_type
         # Could not resolve the type
         return None
