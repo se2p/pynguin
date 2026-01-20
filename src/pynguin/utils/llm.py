@@ -11,11 +11,10 @@ from __future__ import annotations
 import abc
 import enum
 import logging
-import os
 import re
 import typing
 
-from pynguin.utils.openai_key_resolver import set_api_key
+from pynguin.utils.openai_key_resolver import get_api_key
 
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -31,7 +30,9 @@ try:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
-    from pydantic import SecretStr
+
+    if typing.TYPE_CHECKING:
+        from pydantic import SecretStr
 
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -115,7 +116,6 @@ if OPENAI_AVAILABLE:
     OPENAI_SYSTEM_PROMPT = """You are a senior level Python developer with a focus on testing
     with the pytest framework. Provide the generated tests in the style of the pytest framework.
     Provide the generated tests inside a Markdown-style code block."""
-    OPENAI_API_KEY = SecretStr(os.environ.get("OPENAI_API_KEY", ""))
 
     MessageTypes: typing.TypeAlias = (
         ChatCompletionDeveloperMessageParam
@@ -131,15 +131,19 @@ if OPENAI_AVAILABLE:
 
         def __init__(  # noqa: D107
             self,
-            api_key: SecretStr = OPENAI_API_KEY,
+            api_key: SecretStr | None = None,
             temperature: float = 0.2,
             system_prompt: str = OPENAI_SYSTEM_PROMPT,
             model: str = "gpt-4.1-nano-2025-04-14",
         ) -> None:
-            set_api_key()
+            if api_key is None:
+                api_key = get_api_key()
             if not api_key:
-                raise AssertionError(
-                    "OpenAI API key not set, provide via the OPENAI_API_KEY environment variable."
+                raise ValueError(
+                    "OpenAI API key not found. Set it via:\n"
+                    "  - configuration.large_language_model.api_key, or\n"
+                    "  - PYNGUIN_OPENAI_API_KEY environment variable, or\n"
+                    "  - OPENAI_API_KEY environment variable"
                 )
             super().__init__(api_key, temperature, system_prompt)
             self.__client = openai.OpenAI(api_key=api_key.get_secret_value())

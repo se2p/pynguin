@@ -49,9 +49,7 @@ from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.openai_key_resolver import (
-    set_api_key,
-)
+from pynguin.utils.openai_key_resolver import require_api_key
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -195,7 +193,8 @@ class LLMAgent:
         if config.configuration.large_language_model.enable_response_caching:
             self.cache = Cache()
 
-        set_api_key()
+        api_key = require_api_key()
+        self._client = openai.OpenAI(api_key=api_key.get_secret_value())
 
     @property
     def llm_calls_counter(self) -> int:
@@ -272,7 +271,7 @@ class LLMAgent:
         ]
 
         try:
-            response = openai.chat.completions.create(
+            response = self._client.chat.completions.create(
                 model=self._model_name,
                 messages=messages,
                 temperature=self._temperature,

@@ -23,9 +23,11 @@ from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 
 @pytest.fixture
-def mock_set_api_key():
-    """Mock the set_api_key function to avoid API key validation."""
-    with patch("pynguin.large_language_model.llmagent.set_api_key") as mock:
+def mock_require_api_key():
+    """Mock the require_api_key function to avoid API key validation."""
+    with patch("pynguin.large_language_model.llmagent.require_api_key") as mock:
+        mock.return_value = MagicMock()
+        mock.return_value.get_secret_value.return_value = "test-api-key"
         yield mock
 
 
@@ -33,9 +35,12 @@ def mock_set_api_key():
 def llmosa_algorithm():
     """Returns a LLMOSA algorithm instance with mocked components."""
     with (
-        patch("pynguin.large_language_model.llmagent.set_api_key"),
+        patch("pynguin.large_language_model.llmagent.require_api_key") as mock_key,
+        patch("pynguin.large_language_model.llmagent.openai.OpenAI"),
         patch("pynguin.large_language_model.llmagent.LLMAgent", autospec=True) as mock_llm_agent,
     ):
+        mock_key.return_value = MagicMock()
+        mock_key.return_value.get_secret_value.return_value = "test-api-key"
         mock_model = MagicMock()
         mock_model.llm_calls_counter = 0
         mock_model.llm_test_case_handler = MagicMock()
@@ -61,7 +66,7 @@ def llmosa_algorithm():
         return algorithm
 
 
-@pytest.mark.usefixtures("mock_set_api_key")
+@pytest.mark.usefixtures("mock_require_api_key")
 def test_initialization():
     """Tests the initialization of the LLMOSA algorithm."""
     # We need to patch the LLMAgent class to avoid API key validation

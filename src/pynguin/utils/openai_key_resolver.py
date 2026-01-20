@@ -4,97 +4,82 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Utilities for resolving and validating OpenAI API keys."""
+"""Utilities for resolving OpenAI API keys."""
+
+from __future__ import annotations
 
 import logging
 import os
 
+from pydantic import SecretStr
+
 import pynguin.configuration as config
 
 try:
-    import openai
     from dotenv import load_dotenv
 
-    OPENAI_AVAILABLE = True
+    DOTENV_AVAILABLE = True
 except ImportError:
-    OPENAI_AVAILABLE = False
-
+    DOTENV_AVAILABLE = False
 
 _logger = logging.getLogger(__name__)
 
 
-def get_api_key_from_env() -> str:
-    """Resolve OpenAI API key from environment variables and .env file.
-
-    Preference order:
-    1) PYNGUIN_OPENAI_API_KEY
-    2) OPENAI_API_KEY
-    """
-    load_dotenv()
-    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
-        value = os.environ.get(var, "")
-        if value and value.strip():
-            return value.strip()
-    return ""
-
-
-def get_resolved_api_key() -> str:
-    """Return the effective OpenAI API key from config or environment.
+def get_api_key() -> SecretStr | None:
+    """Get OpenAI API key with clear preference order.
 
     Preference order:
     1) configuration.large_language_model.api_key (if non-empty)
-    2) PYNGUIN_OPENAI_API_KEY
-    3) OPENAI_API_KEY
+    2) PYNGUIN_OPENAI_API_KEY environment variable
+    3) OPENAI_API_KEY environment variable
+
+    Returns:
+        SecretStr with the API key or None if not found.
     """
+    # Check config first
     cfg_key = getattr(config.configuration.large_language_model, "api_key", "") or ""
     cfg_key = cfg_key.strip()
     if cfg_key:
-        return cfg_key
-    return get_api_key_from_env()
+        return SecretStr(cfg_key)
+
+    # Load .env file if dotenv is available
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+
+    # Check environment variables
+    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
+        value = os.environ.get(var, "")
+        if value and value.strip():
+            return SecretStr(value.strip())
+
+    return None
+
+
+def require_api_key() -> SecretStr:
+    """Get OpenAI API key or raise ValueError if not found.
+
+    Returns:
+        SecretStr with the API key.
+
+    Raises:
+        ValueError: If the API key is not found in config or environment.
+    """
+    api_key = get_api_key()
+    if api_key is None:
+        _logger.error("OpenAI API key not found in configuration or environment.")
+        raise ValueError(
+            "OpenAI API key not found. Set it via:\n"
+            "  - configuration.large_language_model.api_key, or\n"
+            "  - PYNGUIN_OPENAI_API_KEY environment variable, or\n"
+            "  - OPENAI_API_KEY environment variable"
+        )
+    return api_key
 
 
 def is_api_key_present() -> bool:
-    """Checks if the OpenAI API key is present and not an empty string.
+    """Check if the OpenAI API key is available.
 
     Returns:
-        bool: True if the API key is present and not empty, False otherwise.
+        True if the API key is present and not empty, False otherwise.
     """
-    return bool(get_resolved_api_key())
-
-
-def is_api_key_valid() -> bool:
-    """Checks if the provided OpenAI API key is valid.
-
-    Returns:
-        bool: True if the API key is valid, False otherwise.
-
-    Raises:
-        openai.OpenAIError: If the API key is invalid or another error occurs.
-    """
-    try:
-        openai.api_key = get_resolved_api_key()
-        openai.models.list()  # This would raise an error if the API key is invalid
-        return True
-    except openai.OpenAIError:
-        return False
-
-
-def set_api_key():
-    """Sets the OpenAI API key from config or environment if it is valid.
-
-    Raises:
-        ValueError: If the OpenAI API key is missing or invalid.
-    """
-    if not OPENAI_AVAILABLE:
-        raise ValueError(
-            "OpenAI API library is not available. You can install it with poetry "
-            "install --with openai."
-        )
-    if not is_api_key_present():
-        raise ValueError("OpenAI API key is missing.")
-
-    api_key = get_resolved_api_key()
-    if is_api_key_valid():
-        openai.api_key = api_key
-    else:
-        raise ValueError("OpenAI API key is invalid.")
+    return get_api_key() is not None

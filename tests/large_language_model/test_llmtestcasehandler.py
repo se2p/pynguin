@@ -16,7 +16,7 @@ from pynguin.ga.computations import BranchDistanceTestSuiteFitnessFunction
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.large_language_model.llmtestcasehandler import LLMTestCaseHandler
 from pynguin.large_language_model.parsing.helpers import unparse_test_case
-from pynguin.utils.openai_key_resolver import is_api_key_present, is_api_key_valid
+from pynguin.utils.openai_key_resolver import is_api_key_present
 
 
 @pytest.fixture
@@ -188,7 +188,7 @@ EXPECTED_2 = """def test_generated_function():
 
 
 @pytest.mark.skipif(
-    not is_api_key_present() or not is_api_key_valid(),
+    not is_api_key_present(),
     reason="OpenAI API key is not provided in the configuration.",
 )
 @pytest.mark.parametrize(
