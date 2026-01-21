@@ -1918,7 +1918,7 @@ class TypeSystem:  # noqa: PLR0904
         method_for_signature = get_method_for_signature(method)
         try:
             method_signature = inspect.signature(method_for_signature)
-        except ValueError:
+        except (ValueError, TypeError):
             method_signature = inspect.Signature(
                 parameters=[
                     inspect.Parameter(
