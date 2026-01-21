@@ -10,8 +10,15 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
-from pydantic import SecretStr
+if TYPE_CHECKING:
+    from pydantic import SecretStr
+else:
+    try:
+        from pydantic import SecretStr
+    except ImportError:
+        SecretStr = str
 
 import pynguin.configuration as config
 
