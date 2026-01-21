@@ -138,13 +138,6 @@ if OPENAI_AVAILABLE:
         ) -> None:
             if api_key is None or not api_key.get_secret_value():
                 api_key = get_api_key()
-            if not api_key:
-                raise ValueError(
-                    "OpenAI API key not found. Set it via:\n"
-                    "  - configuration.large_language_model.api_key, or\n"
-                    "  - PYNGUIN_OPENAI_API_KEY environment variable, or\n"
-                    "  - OPENAI_API_KEY environment variable"
-                )
             super().__init__(api_key, temperature, system_prompt)
             self.__client = openai.OpenAI(api_key=api_key.get_secret_value())
             self.__model = model
