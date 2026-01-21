@@ -14,7 +14,7 @@ import logging
 import re
 import typing
 
-from pynguin.utils.openai_key_resolver import get_api_key
+from pynguin.utils.openai_key_resolver import require_api_key
 
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -137,7 +137,7 @@ if OPENAI_AVAILABLE:
             model: str = "gpt-4.1-nano-2025-04-14",
         ) -> None:
             if api_key is None or not api_key.get_secret_value():
-                api_key = get_api_key()
+                api_key = require_api_key()
             super().__init__(api_key, temperature, system_prompt)
             self.__client = openai.OpenAI(api_key=api_key.get_secret_value())
             self.__model = model
