@@ -207,7 +207,7 @@ class TestRefiner:
    - Study the docstring to understand what the method does
    - Choose names that reflect the test scenario (e.g., equal_sides, different_sides, invalid_input)
 
-3. **AAA Structure:** Add clear section markers:
+3. **AAA Structure:** CRITICAL - Preserve the Arrange-Act-Assert structure with clear section markers:
    ```python
    # Arrange
    # ... setup code ...
@@ -218,6 +218,9 @@ class TestRefiner:
    # Assert
    # ... verification code ...
    ```
+   - Each section must be clearly marked with its comment (# Arrange, # Act, # Assert)
+   - Do NOT skip sections even if they are empty
+   - Maintain logical separation between setup, execution, and verification
 
 4. **Preserve Behavior:** Keep the exact same logic, assertions, and control flow. Do NOT:
    - Change assertion conditions
@@ -225,7 +228,7 @@ class TestRefiner:
    - Remove existing code
    - Modify try/except blocks
 
-5. **Docstring:** Add a brief docstring explaining what this test verifies
+5. **Docstring:** Add a brief (1-2 line) docstring explaining what this test verifies. Do NOT add excessive comments within the test body.
 
 **Output Format:**
 Return the complete refactored test WITH ALL IMPORT STATEMENTS from the original test.
@@ -288,33 +291,9 @@ Analyze the method's documentation and add appropriate assertions to verify its 
    
    **For Negative Tests (expecting exceptions):**
    ```python
-   # DO NOT use try/except with pytest.fail()
-   # Instead, use pytest.raises() context manager
-   
-   # If documentation mentions specific exception (e.g., ValueError, TypeError):
-   with pytest.raises(ValueError):
-       method_under_test(invalid_input)
-   
-   # If no specific exception documented, use generic Exception:
+   # Use pytest.raises() context manager for negative tests
    with pytest.raises(Exception):
        method_under_test(invalid_input)
-   ```
-   
-   **Example - WRONG approach for negative test:**
-   ```python
-   # DON'T DO THIS for invalid inputs:
-   try:
-       triangle(None, None, None)
-   except Exception:
-       pytest.fail("Unexpected exception")
-   ```
-   
-   **Example - CORRECT approach for negative test:**
-   ```python
-   # DO THIS instead:
-   # Expecting failure due to invalid None inputs
-   with pytest.raises(Exception):
-       triangle(None, None, None)
    ```
    
    **For Positive Tests (expecting success):**
@@ -328,31 +307,24 @@ Analyze the method's documentation and add appropriate assertions to verify its 
    
    **For STRING returns:**
    ```python
-   # Always check return type
    assert isinstance(result, str), "Should return a string"
-   # Only add specific checks if the documentation clearly states them
-   assert len(result) > 0, "Result should not be empty"
-   # Avoid asserting exact values unless they are clearly documented
+   assert len(result) > 0
    ```
    
    **For INTEGER/FLOAT returns:**
    ```python
    assert isinstance(result, int), "Should return an integer"
-   # Only add range checks if documented
-   # assert result > 0, "Should be positive"  # only if doc explicitly says this
    ```
    
    **For BOOLEAN returns:**
    ```python
    assert isinstance(result, bool), "Should return a boolean"
-   # assert result is True  # or False based on input
    ```
    
    **For DICT/LIST returns:**
    ```python
    assert isinstance(result, dict)
-   assert "key" in result  # check documented keys
-   assert len(result) == expected_size
+   assert len(result) > 0
    ```
 
 4. **For the focal method '{focal_method}':**
@@ -361,11 +333,12 @@ Analyze the method's documentation and add appropriate assertions to verify its 
    - For positive tests: Store result and add assertions
    - For negative tests: Wrap in pytest.raises()
 
-5. **Preserve ALL existing code:**
-   - Keep the Arrange section unchanged
-   - Keep the Act section unchanged (unless converting try/except to pytest.raises)
+5. **Preserve ALL existing code and AAA Structure:**
+   - Keep the # Arrange section unchanged
+   - Keep the # Act section unchanged (unless converting try/except to pytest.raises)
    - Keep variable names unchanged
-   - Only add/modify assertions in the Assert section
+   - Only add/modify assertions in the # Assert section
+   - Never remove the AAA comment markers
 
 **Example Transformation for POSITIVE Test:**
 
@@ -384,7 +357,7 @@ def test_triangle_valid():
         pytest.fail("Unexpected exception")
 ```
 
-AFTER (if docstring says "returns string describing triangle type"):
+AFTER:
 ```python
 def test_triangle_valid():
     # Arrange
@@ -396,8 +369,8 @@ def test_triangle_valid():
     result = module_0.triangle(side_a, side_b, side_c)
     
     # Assert
-    assert isinstance(result, str), "Should return a string"
-    assert "triangle" in result.lower(), "Result should mention triangle type"
+    assert isinstance(result, str)
+    assert len(result) > 0
 ```
 
 **Example Transformation for NEGATIVE Test:**
@@ -424,7 +397,6 @@ def test_triangle_invalid():
     another_invalid = None
     
     # Act & Assert
-    # Expecting exception due to invalid None inputs
     with pytest.raises(Exception):
         module_0.triangle(invalid_side, invalid_side, another_invalid)
 ```
@@ -434,6 +406,7 @@ Return the complete test function with ALL import statements and ALL original co
 Start with import statements, then the test function.
 ONLY modify the Act/Assert sections to add proper assertions or pytest.raises() blocks.
 Do NOT change function names, variable names, or the Arrange section.
+Do NOT add inline comments or docstring with assertion explanations.
 No explanations, no markdown code blocks."""
         
         try:

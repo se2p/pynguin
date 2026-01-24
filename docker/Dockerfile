@@ -65,6 +65,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python-tk \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl[openai,numpy,typing]
+RUN pip install \
+    /pynguin/pynguin-${PYNGUIN_VERSION}-py3-none-any.whl[openai,numpy,typing] \
+    coverage \
+    cosmic-ray
 ENTRYPOINT ["/pynguin/pynguin-docker.sh"]
 CMD []
