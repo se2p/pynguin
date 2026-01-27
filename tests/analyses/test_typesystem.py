@@ -276,6 +276,9 @@ def test_unsupported_str():
 
 @pytest.fixture(scope="module")
 def subtyping_cluster():
+    config.configuration.generator_selection.generator_selection_algorithm = (
+        config.Selection.RANK_SELECTION
+    )
     config.configuration.pynguinml.ml_testing_enabled = False
     return generate_test_cluster("tests.fixtures.types.subtyping")
 
