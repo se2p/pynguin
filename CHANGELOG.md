@@ -11,6 +11,15 @@ for the source-code artifacts of each version.
 
 ## Unreleased
 
+## Pynguin 0.45.0
+
+- Improve logging with master-worker architecture (cf. GitHub PR #136, #139)
+- Improve the temporary activation/deactivation of the tracer (cf. GitHub PR #137)
+- Fix fitness computation (cf. GitHub PR #138)
+- Fix infinite mutation loop in EnumPrimitiveStatement and ClassPrimitiveStatement (cf. GitHub PR #140)
+- Fix crash due to OSError during subprocess result reception
+- Fixes for Local Search
+
 ## Pynguin 0.44.0
 
 - Remove unnecessary log messages in case of test execution timeouts (cf. GitHub PR #113)
