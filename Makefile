@@ -72,6 +72,10 @@ codestyle:
 test:
 	poetry run pytest --cov=src --cov=tests --cov-report=term-missing --cov-report html:cov_html tests/
 
+.PHONY: testp
+testp:
+	poetry run pytest -n auto --cov=src --cov=tests --cov-report=term-missing --cov-report html:cov_html tests/
+
 .PHONY: mypy
 mypy:
 	poetry run mypy

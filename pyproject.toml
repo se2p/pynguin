@@ -99,6 +99,7 @@ pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.0"
 pytest-picked = "^0.5.1"
 pytest-sugar = "^1.0.0"
+pytest-xdist = "^3.6.0"
 
 [tool.poetry.extras]
 openai = [ "openai", "python-dotenv" ]

@@ -613,6 +613,21 @@ typing-extensions = {version = ">=4.6.0", markers = "python_version < \"3.13\""}
 test = ["pytest (>=6)"]
 
 [[package]]
+name = "execnet"
+version = "2.1.2"
+description = "execnet: rapid multi-Python deployment"
+optional = false
+python-versions = ">=3.8"
+groups = ["test"]
+files = [
+    {file = "execnet-2.1.2-py3-none-any.whl", hash = "sha256:67fba928dd5a544b783f6056f449e5e3931a5c378b128bc18501f7ea79e296ec"},
+    {file = "execnet-2.1.2.tar.gz", hash = "sha256:63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd"},
+]
+
+[package.extras]
+testing = ["hatch", "pre-commit", "pytest", "tox"]
+
+[[package]]
 name = "exrex"
 version = "0.12.0"
 description = "Irregular methods for regular expressions"
@@ -1808,6 +1823,27 @@ termcolor = ">=2.1.0"
 dev = ["black", "flake8", "pre-commit"]
 
 [[package]]
+name = "pytest-xdist"
+version = "3.8.0"
+description = "pytest xdist plugin for distributed testing, most importantly across multiple CPUs"
+optional = false
+python-versions = ">=3.9"
+groups = ["test"]
+files = [
+    {file = "pytest_xdist-3.8.0-py3-none-any.whl", hash = "sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88"},
+    {file = "pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1"},
+]
+
+[package.dependencies]
+execnet = ">=2.1"
+pytest = ">=7.0.0"
+
+[package.extras]
+psutil = ["psutil (>=3.0)"]
+setproctitle = ["setproctitle"]
+testing = ["filelock"]
+
+[[package]]
 name = "python-dotenv"
 version = "1.2.1"
 description = "Read key-value pairs from a .env file and set them as environment variables"
@@ -2860,4 +2896,4 @@ typing = ["mypy", "typing-extensions"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10, <3.15"
-content-hash = "c0fb21cb4a0a2fc44f723f563f50be2cc56d8ce2d09c9e5a49ddaac34c2d192b"
+content-hash = "5b4591c5bd6eda5d5374866c559a640405633a9be47ef560f602c617c9554a80"
