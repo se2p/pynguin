@@ -67,5 +67,22 @@ for example, the ``else:`` label in line 14 does not contain anything executable
 By default, Pynguin will take into account the code annotations ``# pragma: no cover`` supported by Coverage.py
 and its own annotations ``# pynguin: no cover`` which only disable coverage for Pynguin. These annotations
 can be enabled/disabled using the arguments ``--enable-inline-pynguin-no-cover`` and ``--enable-inline-pragma-no-cover``.
+Furthermore, Pynguin automatically excludes certain code blocks from its coverage goals
+that are known to be unreachable during test generation:
+
+* ``if __name__ == "__main__":`` blocks
+* ``if TYPE_CHECKING:`` blocks (including ``typing.TYPE_CHECKING`` and ``types.TYPE_CHECKING``)
+
+This is because Pynguin generates tests by importing the module under test, and code
+within such blocks is only executed when the module is run as a script or during
+static type checking. Excluding them allows Pynguin to reach 100% coverage and
+terminate the search early once all reachable code is covered in some cases.
+In other cases (e.g. when there are unreachable code), Pynguin will nevertheless
+continue the search until the time budget is exhausted.
+
+Note that this automatic exclusion might result in Pynguin reporting a different coverage than
+other tools like ``pytest-cov`` (which uses ``Coverage.py``) if those tools are not configured
+to exclude these blocks as well.
+
 You can also disable some functions, methods or classes by specifying their qualified name in the ``--no-cover`` argument.
 It is also possible to do the opposite and cover only some functions, methods or classes with the ``--only-cover`` argument.

@@ -17,8 +17,11 @@ from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 from astroid.exceptions import AstroidError
 from astroid.nodes import (
+    Attribute,
     ClassDef,
+    Compare,
     ComprehensionScope,
+    Const,
     For,
     FunctionDef,
     If,
@@ -26,6 +29,7 @@ from astroid.nodes import (
     Match,
     MatchCase,
     Module,
+    Name,
     NodeNG,
     Try,
     TryStar,
@@ -53,6 +57,29 @@ PRAGMA_NO_COVER_PATTERN = re.compile(r"# +?pragma: +?no +?cover")
 
 
 ScopeNode: TypeAlias = Module | ClassDef | FunctionDef | Lambda | ComprehensionScope
+
+
+def _is_main(node: If) -> bool:
+    """Check for 'if __name__ == "__main__":' block."""
+    return (
+        isinstance(node.test, Compare)
+        and isinstance(node.test.left, Name)
+        and node.test.left.name == "__name__"
+        and len(node.test.ops) == 1
+        and node.test.ops[0][0] == "=="
+        and isinstance(node.test.ops[0][1], Const)
+        and node.test.ops[0][1].value == "__main__"
+    )
+
+
+def _is_type_checking(node: If) -> bool:
+    """Check for 'if TYPE_CHECKING:' or 'if typing.TYPE_CHECKING:' blocks."""
+    return (isinstance(node.test, Name) and node.test.name == "TYPE_CHECKING") or (
+        isinstance(node.test, Attribute)
+        and node.test.attrname == "TYPE_CHECKING"
+        and isinstance(node.test.expr, Name)
+        and node.test.expr.name in {"typing", "types"}
+    )
 
 
 @dataclass(frozen=True)
@@ -169,6 +196,28 @@ class ModuleAstInfo:
                 )
 
     @classmethod
+    def _find_excluded_block_lines(cls, ast: Module) -> Iterable[int]:
+        """Find the lines of blocks that should be excluded from coverage.
+
+        This includes:
+        - 'if __name__ == "__main__":' blocks
+        - 'if TYPE_CHECKING:' blocks (including 'typing.TYPE_CHECKING')
+
+        Args:
+            ast: The module AST.
+
+        Returns:
+            The iterable of lines in such blocks.
+        """
+        for node in ast.nodes_of_class(If):
+            if _is_main(node):
+                yield from range(node.fromlineno, node.tolineno + 1)
+                continue
+
+            if _is_type_checking(node):
+                yield from range(node.fromlineno, node.tolineno + 1)
+
+    @classmethod
     def from_path(
         cls,
         module_path: str,
@@ -197,6 +246,7 @@ class ModuleAstInfo:
 
         no_cover_lines = frozenset((
             *cls._find_lines_in_ast(module_ast, to_cover_config.no_cover),
+            *cls._find_excluded_block_lines(module_ast),
             *(
                 cls._find_lines_in_source_code(source_code, PYNGUIN_NO_COVER_PATTERN)
                 if to_cover_config.enable_inline_pynguin_no_cover

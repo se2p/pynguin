@@ -304,12 +304,165 @@ def test_ast_info_from_invalid():
     assert module_ast_info is None
 
 
-def test_ast_info_from_nonexistent():
-    module_name = "tests.fixtures.instrumentation.nonexistent"
+@pytest.mark.parametrize(
+    "config, expected_no_cover_lines",
+    [
+        # Default config: excludes __main__ and TYPE_CHECKING blocks
+        (
+            ToCoverConfiguration(),
+            {
+                18,
+                19,
+                20,
+                21,
+                24,
+                25,
+                26,
+                27,
+                30,
+                31,
+                32,
+                33,
+                36,
+                37,
+                38,
+                39,
+                44,
+                45,
+                46,
+                48,
+                49,
+                50,
+                58,
+                59,
+                60,
+                61,
+                65,
+                66,
+                67,
+            },
+        ),
+        # With inline pragma disabled: still excludes __main__ and TYPE_CHECKING blocks
+        (
+            ToCoverConfiguration(
+                enable_inline_pragma_no_cover=False,
+                enable_inline_pynguin_no_cover=False,
+            ),
+            {
+                18,
+                19,
+                20,
+                21,
+                24,
+                25,
+                26,
+                27,
+                30,
+                31,
+                32,
+                33,
+                36,
+                37,
+                38,
+                39,
+                44,
+                45,
+                46,
+                48,
+                49,
+                50,
+                58,
+                59,
+                60,
+                61,
+                65,
+                66,
+                67,
+            },
+        ),
+    ],
+)
+def test_ast_info_excluded_blocks(config, expected_no_cover_lines):
+    """Test that __main__ and TYPE_CHECKING blocks are automatically excluded."""
+    module_name = "tests.fixtures.instrumentation.excluded_blocks"
+    module_ast_info = ModuleAstInfo.from_path(
+        get_module_path(module_name),
+        module_name,
+        to_cover_config=config,
+    )
+
+    assert module_ast_info is not None
+    assert module_ast_info.no_cover_lines == expected_no_cover_lines
+
+
+def test_ast_info_excluded_blocks_all_patterns():
+    """Test that all variations of __main__ and TYPE_CHECKING patterns are detected."""
+    module_name = "tests.fixtures.instrumentation.excluded_blocks"
     module_ast_info = ModuleAstInfo.from_path(
         get_module_path(module_name),
         module_name,
         to_cover_config=ToCoverConfiguration(),
     )
 
-    assert module_ast_info is None
+    assert module_ast_info is not None
+
+    # Verify that regular functions are NOT in no_cover_lines
+    regular_func_scope = module_ast_info.get_scope(13)
+    assert regular_func_scope is not None
+    assert regular_func_scope.should_be_covered()
+    assert 13 not in module_ast_info.no_cover_lines
+    assert 14 not in module_ast_info.no_cover_lines
+    assert 15 not in module_ast_info.no_cover_lines
+
+    # Verify that another_function is NOT in no_cover_lines (except nested blocks)
+    another_func_scope = module_ast_info.get_scope(42)
+    assert another_func_scope is not None
+    assert another_func_scope.should_be_covered()
+    assert 42 not in module_ast_info.no_cover_lines
+    assert 52 not in module_ast_info.no_cover_lines  # return "not main"
+
+    # Verify that MyClass is NOT in no_cover_lines (except nested blocks)
+    class_scope = module_ast_info.get_scope(55)
+    assert class_scope is not None
+    assert class_scope.should_be_covered()
+    assert 55 not in module_ast_info.no_cover_lines
+
+    # Verify that all __main__ block lines are excluded
+    assert 18 in module_ast_info.no_cover_lines  # if __name__ == "__main__":
+    assert 19 in module_ast_info.no_cover_lines  # comment
+    assert 20 in module_ast_info.no_cover_lines  # print("Running as main")
+    assert 21 in module_ast_info.no_cover_lines  # regular_function()
+
+    # Verify that all TYPE_CHECKING variations are excluded
+    assert 24 in module_ast_info.no_cover_lines  # if TYPE_CHECKING:
+    assert 25 in module_ast_info.no_cover_lines  # comment
+    assert 26 in module_ast_info.no_cover_lines  # from typing import TypeAlias
+    assert 27 in module_ast_info.no_cover_lines  # MyType: TypeAlias = str
+
+    assert 30 in module_ast_info.no_cover_lines  # if typing.TYPE_CHECKING:
+    assert 31 in module_ast_info.no_cover_lines  # comment
+    assert 32 in module_ast_info.no_cover_lines  # from typing import Protocol
+    assert 33 in module_ast_info.no_cover_lines  # MyProtocol = Protocol
+
+    assert 36 in module_ast_info.no_cover_lines  # if types.TYPE_CHECKING:
+    assert 37 in module_ast_info.no_cover_lines  # comment
+    assert 38 in module_ast_info.no_cover_lines  # from typing import ClassVar
+    assert 39 in module_ast_info.no_cover_lines  # MyClassVar = ClassVar
+
+    # Verify nested blocks are also excluded
+    assert 44 in module_ast_info.no_cover_lines  # nested if __name__ in function
+    assert 45 in module_ast_info.no_cover_lines  # comment
+    assert 46 in module_ast_info.no_cover_lines  # return "main"
+
+    assert 48 in module_ast_info.no_cover_lines  # nested if TYPE_CHECKING in function
+    assert 49 in module_ast_info.no_cover_lines  # comment
+    assert 50 in module_ast_info.no_cover_lines  # x: int
+
+    assert 58 in module_ast_info.no_cover_lines  # if TYPE_CHECKING in class
+    assert 59 in module_ast_info.no_cover_lines  # comment
+    assert 60 in module_ast_info.no_cover_lines  # from typing import Self
+    assert 61 in module_ast_info.no_cover_lines  # instance: Self
+
+    assert 65 in module_ast_info.no_cover_lines  # if typing.TYPE_CHECKING in method
+    assert 66 in module_ast_info.no_cover_lines  # comment
+    assert 67 in module_ast_info.no_cover_lines  # y: str
