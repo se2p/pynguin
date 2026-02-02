@@ -119,3 +119,7 @@ docs/_build
 
 # sample code
 sample/
+
+# AI agent working directories
+.sisyphus/
+.omc/
