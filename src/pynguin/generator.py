@@ -913,6 +913,13 @@ def _generate_assertions(executor, generation_result, test_cluster):
             generator = ag.AssertionGenerator(executor)
         generation_result.accept(generator)
 
+        # Track total number of assertions after generation
+        total_assertions = sum(
+            len(test_case_chrom.test_case.get_assertions())
+            for test_case_chrom in generation_result.test_case_chromosomes
+        )
+        stat.track_output_variable(RuntimeVariable.Assertions, total_assertions)
+
 
 def _track_search_metrics(
     algorithm: GenerationAlgorithm,

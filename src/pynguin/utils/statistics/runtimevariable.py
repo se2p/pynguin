@@ -171,7 +171,8 @@ class RuntimeVariable(str, enum.Enum):
     # Obtained line coverage
     LineCoverage = "LineCoverage"
 
-    # Obtained checked coverage with no assertions
+    # Obtained checked coverage with no assertions.
+    # Requires CHECKED coverage to be enabled.
     StatementCheckedCoverage = "StatementCheckedCoverage"
 
     # ========= Values collected after post-processing and re-execution =========
@@ -179,7 +180,8 @@ class RuntimeVariable(str, enum.Enum):
     # produce a different execution trace or the test have been modified
     # during post-processing.
 
-    # Obtained checked coverage with assertions
+    # Obtained checked coverage with assertions.
+    # Requires CHECKED coverage to be enabled.
     AssertionCheckedCoverage = "AssertionCheckedCoverage"
 
     # Total number of statements in the resulting test suite
@@ -198,7 +200,8 @@ class RuntimeVariable(str, enum.Enum):
     Assertions = "Assertions"
 
     # The number of generated assertions that were removed, since
-    # they do not increase the resulting checked coverage
+    # they do not increase the resulting checked coverage.
+    # Only populated when using CHECKED_MINIMIZING.
     DeletedAssertions = "DeletedAssertions"
 
     # Which LLM strategy is applied. This is mainly
