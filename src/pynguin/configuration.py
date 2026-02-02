@@ -349,6 +349,11 @@ class TestCaseOutputConfiguration:
     format_with_black: bool = True
     """Format the generated test cases using black."""
 
+    no_xfail: bool = False
+    """If True, unexpected exceptions will be wrapped with pytest.raises() instead of
+    marking the test with @pytest.mark.xfail(strict=True). Use this for better mutation
+    scores."""
+
 
 @dataclasses.dataclass
 class SeedingConfiguration:

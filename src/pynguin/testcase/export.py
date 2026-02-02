@@ -106,18 +106,22 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         self,
         *,
         store_call_return: bool = False,
+        no_xfail: bool = False,
     ) -> None:
         """The module aliases are shared between test cases.
 
         Args:
             store_call_return: Whether to store the return value of function calls
                 when the references are not used by the following statements.
+            no_xfail: If True, unexpected exceptions will be wrapped with pytest.raises()
+                instead of marking the test with @pytest.mark.xfail(strict=True).
         """
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = set()
         self._conversion_results: list[_AstConversionResult] = []
         self._store_call_return: bool = store_call_return
+        self._no_xfail: bool = no_xfail
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -149,6 +153,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             common_modules=self._common_modules,
             exec_result=chromosome.get_last_execution_result(),
             store_call_return=self._store_call_return,
+            no_xfail=self._no_xfail,
         )
         chromosome.test_case.accept(visitor)
         self._conversion_results.append(

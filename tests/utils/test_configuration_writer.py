@@ -48,6 +48,7 @@ mutation_order = 1
 post_process = true
 float_precision = 0.01
 format_with_black = true
+no_xfail = false
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
@@ -249,7 +250,7 @@ def expected_txt(tmp_path):
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
- "'BACKWARD'>), float_precision=0.01, format_with_black=True), "
+ "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False), "
  "algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "
@@ -585,6 +586,8 @@ CASE
 1
 --test_case_output.mutation_strategy
 FIRST_ORDER_MUTANTS
+--test_case_output.no_xfail
+False
 --test_case_output.post_process
 True
 --test_creation.any_weight

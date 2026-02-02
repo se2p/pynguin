@@ -65,6 +65,7 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         exec_result: ex.ExecutionResult | None = None,
         *,
         store_call_return: bool = False,
+        no_xfail: bool = False,
     ) -> None:
         """The module aliases are shared between test cases.
 
@@ -73,12 +74,15 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             common_modules: The names of common modules that are not aliased
             exec_result: An optional execution result for the test case.
             store_call_return: Whether to store the call return.
+            no_xfail: If True, unexpected exceptions will be wrapped with pytest.raises()
+                instead of marking the test with @pytest.mark.xfail(strict=True).
         """
         self._module_aliases: ns.NamingScope = module_aliases
         # Common modules (e.g. math) are not aliased.
         self._common_modules: set[str] = common_modules
         self._exec_result = exec_result
         self._store_call_return: bool = store_call_return
+        self._no_xfail: bool = no_xfail
 
         self._test_case_ast: list[stmt] = []
         self._is_failing_test: bool = False
@@ -134,7 +138,8 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     ) -> None:
         """Adds the assertions of a statement to the AST nodes.
 
-        Only adds assertions that are not unexpected exceptions.
+        Only adds assertions that are not unexpected exceptions (unless no_xfail is True,
+        in which case all exceptions are wrapped with pytest.raises()).
 
         Args:
             idx: The index of the statement in the test case.
@@ -149,9 +154,10 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             statement_node=stmt_node,
         )
         for assertion in statement.assertions:
-            if not isinstance(assertion, ass.ExceptionAssertion) or (
-                (idx, assertion.exception_type_name) not in self._unexpected_exceptions
-            ):
+            is_unexpected_exception = isinstance(assertion, ass.ExceptionAssertion) and (
+                (idx, assertion.exception_type_name) in self._unexpected_exceptions
+            )
+            if not is_unexpected_exception or self._no_xfail:
                 assertion.accept(assertion_visitor)
 
         self._test_case_ast.extend(assertion_visitor.nodes)
@@ -162,7 +168,12 @@ class TestCaseToAstVisitor(TestCaseVisitor):
         A test will fail if it raised an exception that was not expected (e.g., has
         an assert statement or a comment on it), because such unexpected exceptions
         are not guarded with ``with pytest.raises(...)``.
+
+        When no_xfail is True, all exceptions are wrapped with pytest.raises(),
+        so the test is never marked as failing.
         """
+        if self._no_xfail:
+            return
         if self._exec_result is not None:
             for idx, exception in self._exec_result.exceptions.items():
                 if (idx, exception.__class__.__name__) not in self._expected_exceptions:

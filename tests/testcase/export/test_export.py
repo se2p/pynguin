@@ -19,6 +19,7 @@ import pynguin.generator as gen
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import generate_test_cluster
 from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.assertion.assertiongenerator import AssertionGenerator
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase import export
@@ -280,7 +281,11 @@ def test_case_1():
 
 
 def _import_execute_export(
-    module_name: str, test_case_code: str, *, store_call_return: bool = True
+    module_name: str,
+    test_case_code: str,
+    *,
+    store_call_return: bool = True,
+    no_xfail: bool = False,
 ) -> str:
     """Import a test case, execute it and export it again.
 
@@ -288,6 +293,8 @@ def _import_execute_export(
         module_name: The name of the SUT module.
         test_case_code: The test case code to add assertions for.
         store_call_return: Whether to store the return value of each call.
+        no_xfail: If True, unexpected exceptions will be wrapped with pytest.raises()
+            instead of marking the test with @pytest.mark.xfail(strict=True).
 
     Returns:
         The exported test case.
@@ -299,31 +306,33 @@ def _import_execute_export(
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
 
-        # Parse seed into DefaultTestCase
         test_cluster = generate_test_cluster(module_name)
         transformer = AstToTestCaseTransformer(
             test_cluster=test_cluster,
-            create_assertions=False,  # do not import assertions
+            create_assertions=False,
             constant_provider=EmptyConstantProvider(),
         )
         transformer.visit(ast.parse(test_case_code))
         assert transformer.testcases, "No test case parsed from seed source"
         test_case_chrom = tcc.TestCaseChromosome(transformer.testcases[0])
 
-        # Instrument and import target module for assertion generation
         with install_import_hook(module_name, subject_properties):
             with subject_properties.instrumentation_tracer:
                 module = importlib.import_module(module_name)
                 importlib.reload(module)
 
-            # Execute the imported test case
             executor = TestCaseExecutor(subject_properties)
             execution_result = executor.execute(test_case_chrom.test_case)
             test_case_chrom.set_last_execution_result(execution_result)
 
-            # Export the augmented test with assertions
+            if no_xfail:
+                assertion_generator = AssertionGenerator(executor, filtering_executions=0)
+                assertion_generator.visit_test_case_chromosome(test_case_chrom)
+
             export_path = tmp_path / "test_with_assertions.py"
-            exporter = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
+            exporter = export.PyTestChromosomeToAstVisitor(
+                store_call_return=store_call_return, no_xfail=no_xfail
+            )
             test_case_chrom.accept(exporter)
             export.save_module_to_file(
                 exporter.to_module(),
@@ -459,6 +468,52 @@ def test_import_export_parameterized(
     exported = _import_execute_export(
         module_name, test_case_code, store_call_return=store_call_return
     )
+    if expected_code is None:
+        assert exported == test_case_code
+    else:
+        assert exported == expected_code
+
+
+@pytest.mark.parametrize(
+    "module_name,test_case_code,expected_code",
+    [
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)""",
+            """def test_case_0():
+    none_type_0 = None
+    with pytest.raises(AssertionError):
+        bool_0 = module_0.foo(none_type_0)""",
+        ),
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """@pytest.mark.xfail(strict=True)
+def test_case_0():
+    none_type_0 = None
+    bool_0 = module_0.foo(none_type_0)""",
+            """def test_case_0():
+    none_type_0 = None
+    with pytest.raises(AssertionError):
+        bool_0 = module_0.foo(none_type_0)""",
+        ),
+        (
+            "tests.fixtures.examples.unasserted_exceptions",
+            """def test_case_0():
+    bool_0 = True
+    bool_1 = module_0.foo(bool_0)""",
+            """def test_case_0():
+    bool_0 = True
+    bool_1 = module_0.foo(bool_0)
+    assert bool_1 is False""",
+        ),
+    ],
+)
+def test_import_export_no_xfail(
+    module_name: str, test_case_code: str, expected_code: str | None
+) -> None:
+    exported = _import_execute_export(module_name, test_case_code, no_xfail=True)
     if expected_code is None:
         assert exported == test_case_code
     else:
