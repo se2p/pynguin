@@ -23,6 +23,7 @@ import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
+import pynguin.utils.typetracing as tt
 from pynguin.analyses.typesystem import ANY, TypeInfo
 from pynguin.utils.type_utils import (
     is_assertable,
@@ -120,7 +121,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         trace = self._assertion_local_state.trace
 
         if not statement.ret_val.is_none_type():
-            if is_primitive_type(type(exec_ctx.get_reference_value(statement.ret_val))):
+            ret_value = tt.unwrap(exec_ctx.get_reference_value(statement.ret_val))
+            if is_primitive_type(type(ret_value)):
                 # Primitives won't change, so we only check them once.
                 self._check_reference(module_provider, exec_ctx, statement.ret_val, position, trace)
             elif type(exec_ctx.get_reference_value(statement.ret_val)).__module__ != "builtins":
@@ -155,7 +157,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 
         # Check fields of classes whose constructors were used.
         for seen_type in [
-            type(exec_ctx.get_reference_value(ref))
+            type(tt.unwrap(exec_ctx.get_reference_value(ref)))
             for ref in self._assertion_local_state.watch_list
         ]:
             if (
@@ -208,6 +210,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             max_depth: The maximum recursion depth.
         """
         value = exec_ctx.get_reference_value(ref)
+        value = tt.unwrap(value)
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(ref, value))
             return
