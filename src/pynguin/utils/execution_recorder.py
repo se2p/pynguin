@@ -38,7 +38,8 @@ def store_pytest(test_case: tc.TestCase, target_file: Path) -> None:
         chromosome = TestCaseChromosome(test_case)
         exporter = PyTestChromosomeToAstVisitor()
         chromosome.accept(exporter)
-        export.save_module_to_file(exporter.to_module(), target_file, format_with_black=False)
+        module_ast, _ = exporter.to_module()
+        export.save_module_to_file(module_ast, target_file, format_with_black=False)
 
     except Exception as e:  # noqa: BLE001
         _LOGGER.warning("Failed to export test case to code: %s", e)

@@ -1013,12 +1013,15 @@ def _export_chromosome(
     export_visitor = export.PyTestChromosomeToAstVisitor(
         store_call_return=store_call_return,
         no_xfail=config.configuration.test_case_output.no_xfail,
+        sut_module_name=config.configuration.module_name,
     )
 
     chromosome.accept(export_visitor)
+    module_ast, coverage_by_import_only = export_visitor.to_module()
     export.save_module_to_file(
-        export_visitor.to_module(),
+        module_ast,
         target_file,
         format_with_black=config.configuration.test_case_output.format_with_black,
+        coverage_by_import_only=coverage_by_import_only,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)

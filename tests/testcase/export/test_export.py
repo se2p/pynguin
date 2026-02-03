@@ -33,7 +33,8 @@ def test_export_sequence(exportable_test_case, tmp_path):
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case.accept(exporter)
     exportable_test_case.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -74,7 +75,8 @@ def test_export_sequence_expected_exception(
     path = tmp_path / "expected_asserted_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_expected_asserted_exception.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -102,7 +104,8 @@ def test_export_sequence_unexpected_exception(
     path = tmp_path / "expected_not_asserted_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor()
     exportable_test_case_with_expected_not_asserted_exception.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -120,7 +123,8 @@ def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
     path = tmp_path / "generated_with_unexpected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
     exportable_test_case_with_lambda.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -138,7 +142,8 @@ def test_export_lambda_complex(exportable_test_case_with_lambda_complex, tmp_pat
     path = tmp_path / "generated_with_unexpected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
     exportable_test_case_with_lambda_complex.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
     assert (
         path.read_text()
         == export._PYNGUIN_FILE_HEADER
@@ -163,7 +168,8 @@ def test_invalid_export(exportable_test_case, tmp_path):
     from black.parsing import InvalidInput  # noqa: PLC0415
 
     with mock.patch("black.format_str", side_effect=InvalidInput("Invalid input")):
-        export.save_module_to_file(exporter.to_module(), path)
+        module_ast, _ = exporter.to_module()
+        export.save_module_to_file(module_ast, path)
 
     assert (
         path.read_text()
@@ -209,7 +215,7 @@ def test_canonical_module_name(module_name: str, expected_canonical: str) -> Non
     # Register an alias for the module name to force creation of an import with alias.
     alias_name = visitor.module_aliases.get_name(module_name)
 
-    module_ast = visitor.to_module()
+    module_ast, _ = visitor.to_module()
 
     imports = _imports_from_module(module_ast)
 
@@ -270,10 +276,12 @@ def test_case_1():
         target_file = Path(config.configuration.test_case_output.output_path).resolve() / "test.py"
         export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=False)
         test_cases.accept(export_visitor)
+        module_ast, coverage_by_import_only = export_visitor.to_module()
         export.save_module_to_file(
-            export_visitor.to_module(),
+            module_ast,
             target_file,
             format_with_black=config.configuration.test_case_output.format_with_black,
+            coverage_by_import_only=coverage_by_import_only,
         )
     assert target_file.exists()
     content = target_file.read_text(encoding="utf-8")
@@ -334,10 +342,12 @@ def _import_execute_export(
                 store_call_return=store_call_return, no_xfail=no_xfail
             )
             test_case_chrom.accept(exporter)
+            module_ast, coverage_by_import_only = exporter.to_module()
             export.save_module_to_file(
-                exporter.to_module(),
+                module_ast,
                 export_path,
                 format_with_black=config.configuration.test_case_output.format_with_black,
+                coverage_by_import_only=coverage_by_import_only,
             )
 
         exported = export_path.read_text(encoding="utf-8")
@@ -518,3 +528,27 @@ def test_import_export_no_xfail(
         assert exported == test_case_code
     else:
         assert exported == expected_code
+
+
+def test_coverage_by_import_only(tmp_path: Path) -> None:
+    """When no test cases exist, SUT is imported with coverage comment and noqa."""
+    sut_module_name = "tests.fixtures.accessibles.accessible"
+    visitor = export.PyTestChromosomeToAstVisitor(sut_module_name=sut_module_name)
+
+    module_ast, coverage_by_import_only = visitor.to_module()
+
+    assert coverage_by_import_only is True
+
+    target_file = tmp_path / "test_coverage_by_import.py"
+    export.save_module_to_file(
+        module_ast,
+        target_file,
+        format_with_black=False,
+        coverage_by_import_only=coverage_by_import_only,
+    )
+
+    content = target_file.read_text(encoding="utf-8")
+
+    assert "# Importing this module achieves coverage." in content
+    assert "# noqa: F401" in content
+    assert "import tests.fixtures.accessibles.accessible" in content

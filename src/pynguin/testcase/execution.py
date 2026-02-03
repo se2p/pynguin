@@ -1649,7 +1649,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             or config.configuration.test_case_output.output_path
         )
         target_file = Path(output_path).resolve() / f"crash_test_{hash_str}{postfix}.py"
-        export.save_module_to_file(exporter.to_module(), target_file)
+        module_ast, _ = exporter.to_module()
+        export.save_module_to_file(module_ast, target_file)
 
     @staticmethod
     def _create_variable_binding(

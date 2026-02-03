@@ -65,6 +65,7 @@ def test_case_0():
     chromosome = tcc.TestCaseChromosome(transformer.testcases[0])
     exporter = export.PyTestChromosomeToAstVisitor(store_call_return=store_call_return)
     chromosome.accept(exporter)
-    export.save_module_to_file(exporter.to_module(), export_path)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, export_path)
     content = export_path.read_text(encoding="locale")
     assert content == testcase_seed

@@ -391,8 +391,9 @@ def _add_assertions(module_name: str, test_case_code: str) -> str:
             export_path = tmp_path / "test_with_assertions.py"
             exporter = export.PyTestChromosomeToAstVisitor(store_call_return=False)
             test_case_chrom.accept(exporter)
+            module_ast, _ = exporter.to_module()
             export.save_module_to_file(
-                exporter.to_module(),
+                module_ast,
                 export_path,
                 format_with_black=config.configuration.test_case_output.format_with_black,
             )
