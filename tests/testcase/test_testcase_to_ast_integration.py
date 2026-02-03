@@ -94,3 +94,68 @@ def test_test_case_to_ast_with_exception_store_call_return_false(simple_test_cas
 
     # The test passes if no exception is raised and the AST is generated correctly
     assert visitor.test_case_ast is not None
+
+
+def test_test_case_to_ast_no_xfail_creates_exception_assertion(constructor_mock, default_test_case):
+    int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
+    constructor_stmt = stmt.ConstructorStatement(
+        default_test_case, constructor_mock, {"y": int_stmt.ret_val}
+    )
+    default_test_case.add_statement(int_stmt)
+    default_test_case.add_statement(constructor_stmt)
+
+    exec_result = ExecutionResult()
+    exec_result.report_new_thrown_exception(1, ValueError("Test exception"))
+
+    visitor = tc_to_ast.TestCaseToAstVisitor(
+        ns.NamingScope("module"), set(), exec_result, no_xfail=True
+    )
+
+    default_test_case.accept(visitor)
+
+    generated_code = ast.unparse(
+        ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[]))
+    )
+    assert "with pytest.raises(ValueError):" in generated_code
+
+
+def test_test_case_to_ast_no_xfail_no_duplicate_exception_assertion(
+    constructor_mock, default_test_case
+):
+    int_stmt = stmt.IntPrimitiveStatement(default_test_case, 5)
+    constructor_stmt = stmt.ConstructorStatement(
+        default_test_case, constructor_mock, {"y": int_stmt.ret_val}
+    )
+    constructor_stmt.add_assertion(ass.ExceptionAssertion("builtins", "ValueError"))
+    default_test_case.add_statement(int_stmt)
+    default_test_case.add_statement(constructor_stmt)
+
+    exec_result = ExecutionResult()
+    exec_result.report_new_thrown_exception(1, ValueError("Test exception"))
+
+    visitor = tc_to_ast.TestCaseToAstVisitor(
+        ns.NamingScope("module"), set(), exec_result, no_xfail=True
+    )
+
+    default_test_case.accept(visitor)
+
+    generated_code = ast.unparse(
+        ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[]))
+    )
+    assert generated_code.count("with pytest.raises(ValueError):") == 1
+
+
+def test_test_case_to_ast_no_xfail_false_no_wrapping(simple_test_case):
+    exec_result = ExecutionResult()
+    exec_result.report_new_thrown_exception(1, ValueError("Test exception"))
+
+    visitor = tc_to_ast.TestCaseToAstVisitor(
+        ns.NamingScope("module"), set(), exec_result, no_xfail=False
+    )
+
+    simple_test_case.accept(visitor)
+
+    generated_code = ast.unparse(
+        ast.fix_missing_locations(Module(body=visitor.test_case_ast, type_ignores=[]))
+    )
+    assert "pytest.raises" not in generated_code

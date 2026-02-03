@@ -138,8 +138,10 @@ class TestCaseToAstVisitor(TestCaseVisitor):
     ) -> None:
         """Adds the assertions of a statement to the AST nodes.
 
-        Only adds assertions that are not unexpected exceptions (unless no_xfail is True,
-        in which case all exceptions are wrapped with pytest.raises()).
+        If no_xfail is False, adds assertions that are not unexpected exceptions.
+        If no_xfail is True, adds all assertions and creates ExceptionAssertions for
+        exceptions that occurred during execution but are not part of
+        statement.assertions.
 
         Args:
             idx: The index of the statement in the test case.
@@ -159,6 +161,22 @@ class TestCaseToAstVisitor(TestCaseVisitor):
             )
             if not is_unexpected_exception or self._no_xfail:
                 assertion.accept(assertion_visitor)
+
+        if self._no_xfail and self._exec_result is not None:
+            exception = self._exec_result.exceptions.get(idx)
+            if exception is not None:
+                has_exception_assertion = any(
+                    isinstance(a, ass.ExceptionAssertion)
+                    and a.exception_type_name == type(exception).__name__
+                    for a in statement.assertions
+                )
+                if not has_exception_assertion:
+                    exc_type = type(exception)
+                    exc_assertion = ass.ExceptionAssertion(
+                        module=exc_type.__module__,
+                        exception_type_name=exc_type.__name__,
+                    )
+                    exc_assertion.accept(assertion_visitor)
 
         self._test_case_ast.extend(assertion_visitor.nodes)
 
