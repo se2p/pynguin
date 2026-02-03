@@ -804,7 +804,14 @@ class ModuleProvider:
 
 
 class OutputSuppressionContext:
-    """A context manager that suppress stdout and stderr."""
+    """A context manager that suppresses stdout and stderr.
+
+    Operates at two levels:
+    - Python level: redirects ``sys.stdout`` / ``sys.stderr`` to ``/dev/null``.
+    - OS level: saves file descriptors 0/1/2 via ``os.dup`` so that if the SUT
+      closes them (e.g. ``with open(1, 'w')`` where the int happens to be a
+      stdio fd), they are restored on exit.
+    """
 
     # Repeatedly opening/closing devnull caused problems.
     # This is closed when Pynguin terminates, since we don't need this output
@@ -815,17 +822,30 @@ class OutputSuppressionContext:
         """Create a new context manager that suppress stdout and stderr."""
         self._restored = False
         self._restored_lock = threading.Lock()
+        self._saved_fds: dict[int, int] = {}
 
     def restore(self) -> None:
-        """Restore stdout and stderr."""
+        """Restore stdout and stderr at both Python and OS level."""
         with self._restored_lock:
             if self._restored:
                 return
             self._restored = True
+            # Restore OS-level fds first so that sys.__stdout__ / sys.__stderr__
+            # point to live fds again before we reassign the Python objects.
+            for fd, saved_fd in self._saved_fds.items():
+                with contextlib.suppress(OSError):
+                    os.dup2(saved_fd, fd)
+                with contextlib.suppress(OSError):
+                    os.close(saved_fd)
+            self._saved_fds.clear()
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
 
     def __enter__(self) -> None:
+        # Save OS-level fds before the SUT has a chance to close them.
+        for fd in (0, 1, 2):
+            with contextlib.suppress(OSError):
+                self._saved_fds[fd] = os.dup(fd)
         sys.stdout = self._null_file
         sys.stderr = self._null_file
 
