@@ -371,10 +371,10 @@ class LLMInferenceWithSubtypes(LLMInference):
                 if param in subtype_hints and resolved is str:
                     subtype_str = subtype_hints[param]
                     from pynguin.analyses.string_subtype_inference import (  # noqa: PLC0415
-                        StringSubtypeFromInference,
+                        from_string,
                     )
 
-                    subtype = StringSubtypeFromInference.from_string(subtype_str)
+                    subtype = from_string(subtype_str)
                     if subtype is not None:
                         resolved = subtype
 

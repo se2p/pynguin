@@ -13,8 +13,13 @@ import re
 import pytest
 
 from pynguin.analyses.string_subtype_inference import (
-    FakerGeneratorRegistry,
-    StringSubtypeFromInference,
+    AVAILABLE_GENERATORS,
+    from_faker_generator,
+    from_string,
+    get_generator_for_subtype,
+    get_subtype_for_generator,
+    has_generator,
+    to_faker_generator,
 )
 from pynguin.analyses.typesystem import (
     EmailString,
@@ -39,7 +44,7 @@ from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt impo
 )
 def test_has_generator(generator_name: str, *, expected: bool) -> None:
     """Test checking if a generator is registered."""
-    assert FakerGeneratorRegistry.has_generator(generator_name) == expected
+    assert has_generator(generator_name) == expected
 
 
 @pytest.mark.parametrize(
@@ -51,14 +56,14 @@ def test_has_generator(generator_name: str, *, expected: bool) -> None:
 )
 def test_get_subtype_for_generator(generator_name: str, expected_type: type) -> None:
     """Test getting StringSubtype for a generator name."""
-    subtype = FakerGeneratorRegistry.get_subtype_for_generator(generator_name)
+    subtype = get_subtype_for_generator(generator_name)
     assert subtype is not None
     assert isinstance(subtype, expected_type)
 
 
 def test_get_subtype_for_unknown_generator() -> None:
     """Test getting StringSubtype for unknown generator returns None."""
-    subtype = FakerGeneratorRegistry.get_subtype_for_generator("unknown")
+    subtype = get_subtype_for_generator("unknown")
     assert subtype is None
 
 
@@ -71,13 +76,13 @@ def test_get_subtype_for_unknown_generator() -> None:
 )
 def test_get_generator_for_subtype(subtype: StringSubtype, expected_generator: str) -> None:
     """Test getting generator name for a StringSubtype."""
-    generator = FakerGeneratorRegistry.get_generator_for_subtype(subtype)
+    generator = get_generator_for_subtype(subtype)
     assert generator == expected_generator
 
 
 def test_available_generators() -> None:
     """Test the list of available generators."""
-    generators = FakerGeneratorRegistry.AVAILABLE_GENERATORS
+    generators = AVAILABLE_GENERATORS
     assert "email" in generators
     assert "ipv4" in generators
     assert "ipv6" in generators
@@ -89,10 +94,10 @@ def test_available_generators() -> None:
 
 def test_round_trip_conversion() -> None:
     """Test converting generator -> subtype -> generator."""
-    for generator_name in FakerGeneratorRegistry.AVAILABLE_GENERATORS:
-        subtype = FakerGeneratorRegistry.get_subtype_for_generator(generator_name)
+    for generator_name in AVAILABLE_GENERATORS:
+        subtype = get_subtype_for_generator(generator_name)
         assert subtype is not None
-        recovered = FakerGeneratorRegistry.get_generator_for_subtype(subtype)
+        recovered = get_generator_for_subtype(subtype)
         assert recovered == generator_name
 
 
@@ -105,7 +110,7 @@ def test_round_trip_conversion() -> None:
 )
 def test_from_faker_generator(input_string: str, expected_type: type) -> None:
     """Test converting Faker generator names to StringSubtype."""
-    subtype = StringSubtypeFromInference.from_string(input_string)
+    subtype = from_string(input_string)
     assert isinstance(subtype, expected_type)
 
 
@@ -118,32 +123,32 @@ def test_from_faker_generator(input_string: str, expected_type: type) -> None:
 )
 def test_from_custom_regex(pattern: str, expected_pattern: str) -> None:
     """Test converting custom regex patterns to StringSubtype."""
-    subtype = StringSubtypeFromInference.from_string(pattern)
+    subtype = from_string(pattern)
     assert isinstance(subtype, StringSubtype)
     assert subtype.regex.pattern == expected_pattern
 
 
 def test_invalid_regex() -> None:
     """Test that invalid regex patterns return None."""
-    subtype = StringSubtypeFromInference.from_string("^[invalid(regex")
+    subtype = from_string("^[invalid(regex")
     assert subtype is None
 
 
 @pytest.mark.parametrize("input_value", [None, ""])
 def test_none_input(input_value: str | None) -> None:
     """Test that None and empty strings return None."""
-    assert StringSubtypeFromInference.from_string(input_value) is None
+    assert from_string(input_value) is None
 
 
 def test_from_faker_generator_method_email() -> None:
     """Test the dedicated method for Faker generators with email."""
-    subtype = StringSubtypeFromInference.from_faker_generator("email")
+    subtype = from_faker_generator("email")
     assert isinstance(subtype, EmailString)
 
 
 def test_from_faker_generator_method_unknown() -> None:
     """Test the dedicated method for Faker generators with unknown generator."""
-    subtype = StringSubtypeFromInference.from_faker_generator("unknown")
+    subtype = from_faker_generator("unknown")
     assert subtype is None
 
 
@@ -156,7 +161,7 @@ def test_from_faker_generator_method_unknown() -> None:
 )
 def test_to_faker_generator(subtype: StringSubtype, expected_generator: str) -> None:
     """Test converting StringSubtype back to generator name."""
-    generator = StringSubtypeFromInference.to_faker_generator(subtype)
+    generator = to_faker_generator(subtype)
     assert generator == expected_generator
 
 
@@ -164,7 +169,7 @@ def test_unknown_subtype_to_generator() -> None:
     """Test that unknown subtypes return None."""
     # Create a custom StringSubtype not in the registry
     subtype = StringSubtype(re.compile(r"^custom$"))
-    generator = StringSubtypeFromInference.to_faker_generator(subtype)
+    generator = to_faker_generator(subtype)
     assert generator is None
 
 
@@ -215,11 +220,11 @@ def test_workflow_faker_generator() -> None:
     subtype_str = "email"
 
     # Step 2: Convert to StringSubtype
-    subtype = StringSubtypeFromInference.from_string(subtype_str)
+    subtype = from_string(subtype_str)
     assert isinstance(subtype, EmailString)
 
     # Step 3: Get generator back
-    generator = FakerGeneratorRegistry.get_generator_for_subtype(subtype)
+    generator = get_generator_for_subtype(subtype)
     assert generator == "email"
 
 
@@ -229,12 +234,12 @@ def test_workflow_custom_regex() -> None:
     subtype_str = "^[0-9]{3}-[0-9]{4}$"
 
     # Step 2: Convert to StringSubtype
-    subtype = StringSubtypeFromInference.from_string(subtype_str)
+    subtype = from_string(subtype_str)
     assert isinstance(subtype, StringSubtype)
     assert subtype.regex.pattern == subtype_str
 
     # Step 3: Try to get generator (should be None for custom)
-    generator = FakerGeneratorRegistry.get_generator_for_subtype(subtype)
+    generator = get_generator_for_subtype(subtype)
     assert generator is None
 
 
@@ -247,6 +252,6 @@ def test_all_generators_in_prompt() -> None:
     prompt = TypeAndSubtypeInferencePrompt(test_func)
     user_prompt = prompt.build_user_prompt()
 
-    for generator in FakerGeneratorRegistry.AVAILABLE_GENERATORS:
+    for generator in AVAILABLE_GENERATORS:
         # Generator names should be mentioned in the prompt
         assert generator in user_prompt

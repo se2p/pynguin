@@ -108,10 +108,10 @@ class TypeAndSubtypeInferencePrompt(BaseInferencePrompt):
     def _get_faker_generators() -> str:
         """Get a formatted list of available Faker generators."""
         from pynguin.analyses.string_subtype_inference import (  # noqa: PLC0415
-            FakerGeneratorRegistry,
+            AVAILABLE_GENERATORS,
         )
 
-        generators = FakerGeneratorRegistry.AVAILABLE_GENERATORS
+        generators = AVAILABLE_GENERATORS
         return ", ".join(generators) if generators else "(none)"
 
 
