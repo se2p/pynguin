@@ -15,6 +15,7 @@ import types
 import typing
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from dataclasses import dataclass
 from functools import reduce
 from operator import or_
 from pathlib import Path
@@ -160,8 +161,14 @@ class LLMInference(InferenceProvider):
         self._metrics["sent_requests"] = len(raw)
         for func, response in raw.items():
             prior = self._prior_types(func)
-            parsed = self._parse_json_response(response, prior)
-            self._inference_by_callable[func] = parsed
+            parsed = self._parse_response(response)
+
+            # Merge types: only update params present in prior, excluding "return"
+            merged: dict[str, str] = dict(prior)
+            for k in prior:
+                if k != "return" and k in parsed:
+                    merged[k] = parsed[k].type
+            self._inference_by_callable[func] = merged
 
     # ---- prompt building ----
     def _build_prompt_map(
@@ -255,27 +262,32 @@ class LLMInference(InferenceProvider):
             return ANY_STR
 
     @staticmethod
-    def _parse_json_response(response: str, prior: dict[str, str]) -> dict[str, str]:
-        """Parse LLM JSON; on failure, return `prior` untouched."""
+    def _extract_json_from_response(response: str) -> str:
+        """Extract JSON substring from LLM response."""
+        start = response.find("{")
+        end = response.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return response[start : end + 1]
+        return ""
+
+    @staticmethod
+    def _parse_response(response: str) -> dict[str, _ParamTypeInfo]:
+        """Parse the LLM JSON response into per-parameter type info."""
         if not response:
-            return prior
+            return {}
         try:
-            data = json.loads(response)
+            json_response = LLMInference._extract_json_from_response(response)
+            data = json.loads(json_response)
             if not isinstance(data, dict):
-                return prior
-
-            merged: dict[str, str] = dict(prior)
-
-            for k in list(prior.keys()):
-                if k == "return":
-                    continue
-                if k in data and isinstance(data[k], str) and data[k].strip():
-                    merged[k] = data[k].strip()
-
-            return merged
+                return {}
+            return {
+                k: info
+                for k, v in data.items()
+                if (info := _ParamTypeInfo.from_json_value(v)) is not None
+            }
         except json.JSONDecodeError as exc:
             _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
-            return prior
+            return {}
 
     # ---- metrics/collection ----
     def get_inference_map(self) -> OrderedDict[Callable[..., Any], dict[str, str]]:
@@ -296,6 +308,31 @@ class LLMInference(InferenceProvider):
         access private members.
         """
         return deepcopy(self._prior_types(func))
+
+
+@dataclass
+class _ParamTypeInfo:
+    """A single parameter's type and optional subtype from LLM inference."""
+
+    type: str
+    subtype: str | None = None
+
+    @classmethod
+    def from_json_value(cls, value: object) -> _ParamTypeInfo | None:
+        """Parse a parameter entry: plain type string or {"type": ..., "subtype": ...} dict."""
+        if isinstance(value, str) and value.strip():
+            return cls(type=value.strip())
+        if isinstance(value, dict) and "type" in value:
+            type_str = value["type"]
+            if isinstance(type_str, str) and type_str.strip():
+                subtype_str = value.get("subtype")
+                subtype = (
+                    subtype_str.strip()
+                    if isinstance(subtype_str, str) and subtype_str.strip()
+                    else None
+                )
+                return cls(type=type_str.strip(), subtype=subtype)
+        return None
 
 
 class LLMInferenceWithSubtypes(LLMInference):
@@ -394,48 +431,6 @@ class LLMInferenceWithSubtypes(LLMInference):
                 _LOGGER.error("Skipping callable %r due to prompt build failure: %s", func, exc)
         return prompts
 
-    @staticmethod
-    def _parse_json_response(response: str, prior: dict[str, str]) -> dict[str, str]:
-        """Parse enhanced LLM JSON with type and subtype information.
-
-        The expected format is:
-        {
-            "param1": {"type": "str", "subtype": "email"},
-            "param2": {"type": "int"},
-            "param3": "str"  # plain string is treated as type
-        }
-
-        This method only extracts the type information. Subtypes are extracted
-        separately by _parse_json_response_for_subtypes.
-        """
-        if not response:
-            return prior
-        try:
-            data = json.loads(response)
-            if not isinstance(data, dict):
-                return prior
-
-            merged: dict[str, str] = dict(prior)
-
-            for k in list(prior.keys()):
-                if k == "return":
-                    continue
-                if k in data:
-                    item = data[k]
-                    if isinstance(item, dict) and "type" in item:
-                        # Extract type from dict
-                        type_str = item["type"]
-                        if isinstance(type_str, str) and type_str.strip():
-                            merged[k] = type_str.strip()
-                    elif isinstance(item, str) and item.strip():
-                        # plain string is treated as type
-                        merged[k] = item.strip()
-
-            return merged
-        except json.JSONDecodeError as exc:
-            _LOGGER.error("Failed to parse JSON response from LLM: %s", exc)
-            return prior
-
     def _infer_all(self) -> None:
         """Infer types and subtypes for all callables in parallel at initialization time."""
         prompts = self._build_prompt_map(self._callables)
@@ -445,32 +440,19 @@ class LLMInferenceWithSubtypes(LLMInference):
         self._metrics["sent_requests"] = len(raw)
         for func, response in raw.items():
             prior = self._prior_types(func)
-            prior_subtypes = self._parse_json_response_for_subtypes(response)
-            parsed = self._parse_json_response(response, prior)
-            self._inference_by_callable[func] = parsed
-            if prior_subtypes:
-                self._subtype_info_by_callable[func] = prior_subtypes
+            parsed = self._parse_response(response)
 
-    def _parse_json_response_for_subtypes(self, response: str) -> dict[str, str]:
-        """Extract subtype information from the JSON response."""
-        if not response:
-            return {}
-        try:
-            data = json.loads(response)
-            if not isinstance(data, dict):
-                return {}
+            # Merge types: only update params present in prior, excluding "return"
+            merged: dict[str, str] = dict(prior)
+            for k in prior:
+                if k != "return" and k in parsed:
+                    merged[k] = parsed[k].type
+            self._inference_by_callable[func] = merged
 
-            subtypes: dict[str, str] = {}
-            for k, item in data.items():
-                if isinstance(item, dict) and "subtype" in item:
-                    subtype_str = item["subtype"]
-                    if isinstance(subtype_str, str) and subtype_str.strip():
-                        subtypes[k] = subtype_str.strip()
-
-            return subtypes
-        except json.JSONDecodeError as exc:
-            _LOGGER.error("Failed to parse JSON response for subtypes: %s", exc)
-            return {}
+            # Collect subtypes from all params in the response
+            subtypes = {k: info.subtype for k, info in parsed.items() if info.subtype is not None}
+            if subtypes:
+                self._subtype_info_by_callable[func] = subtypes
 
     def get_subtype_info(self, method: Callable[..., Any]) -> dict[str, str]:
         """Return the subtype information for the given method.
