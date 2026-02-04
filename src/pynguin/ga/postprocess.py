@@ -19,15 +19,51 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
 import pynguin.testcase.testcase as tc
 import pynguin.testcase.testcasevisitor as tcv
-from pynguin.assertion.assertion import Assertion, ExceptionAssertion
+from pynguin.assertion.assertion import (
+    Assertion,
+    ExceptionAssertion,
+    ReferenceAssertion,
+)
 from pynguin.testcase.statement import StatementVisitor
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
+    import pynguin.testcase.variablereference as vr
     from pynguin.testcase.execution import SubprocessTestCaseExecutor
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def get_assertion_protected_variables(test_case: tc.TestCase) -> set[vr.VariableReference]:
+    """Get all variables that should be protected due to assertions.
+
+    Variables are protected if they are:
+    - Directly referenced by a ReferenceAssertion's source, OR
+    - In the backward dependency chain of an asserted variable
+
+    ExceptionAssertions are skipped (no source variable).
+
+    Args:
+        test_case: Test case to analyze
+
+    Returns:
+        Set of variable references that should not be removed during minimization
+    """
+    protected: set[vr.VariableReference] = set()
+    for stmt in test_case.statements:
+        for assertion in stmt.assertions:
+            # Skip ExceptionAssertion - has no source
+            if isinstance(assertion, ExceptionAssertion):
+                continue
+            # Handle ReferenceAssertion
+            if isinstance(assertion, ReferenceAssertion):
+                var_ref = assertion.source.get_variable_reference()
+                if var_ref is not None:
+                    protected.add(var_ref)
+                    # Add all backward dependencies
+                    protected.update(test_case.get_dependencies(var_ref))
+    return protected
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -201,7 +237,9 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
     4. If fitness remains the same or improves, remove the statement from the original test case
     """
 
-    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+    def visit_default_test_case(  # noqa: D102, PLR0914
+        self, test_case: tc.TestCase
+    ) -> None:
         original_test_case = tcc.TestCaseChromosome(test_case=test_case)
         original_test_suite = tsc.TestSuiteChromosome()
         original_test_suite.add_test_case_chromosome(original_test_case)
@@ -235,13 +273,18 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                     for fitness_function in self._fitness_functions
                 ]
                 if all(map(math.isclose, original_coverages, minimized_coverages)):
-                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
-                    self._removed_statements += len(removed)
+                    protected_vars = get_assertion_protected_variables(test_case)
+                    is_statement_protected = stmt.ret_val in protected_vars
+                    if not is_statement_protected:
+                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
+                        self._removed_statements += len(removed)
 
-                    # Update the statements list to reflect the changes in the test case
-                    statements = list(test_case.statements)
-                    # Don't increment i since we've removed elements and the list has shifted
-                    statements_changed = True
+                        # Update the statements list to reflect the changes in the test case
+                        statements = list(test_case.statements)
+                        # Don't increment i since we've removed elements and the list has shifted
+                        statements_changed = True
+                    else:
+                        i += 1
                 else:
                     i += 1
 
@@ -295,11 +338,16 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
                     for fitness_function in self._fitness_functions
                 ]
                 if all(map(math.isclose, original_coverages, minimized_coverages)):
-                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
-                    self._removed_statements += len(removed)
-                    statements_changed = True
-                    break
-                i -= 1
+                    protected_vars = get_assertion_protected_variables(test_case)
+                    is_statement_protected = stmt.ret_val in protected_vars
+                    if not is_statement_protected:
+                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
+                        self._removed_statements += len(removed)
+                        statements_changed = True
+                        break
+                    i -= 1
+                else:
+                    i -= 1
 
         _LOGGER.debug(
             "Removed %s statement(s) from test case using backward iterative minimization",

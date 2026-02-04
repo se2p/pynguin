@@ -543,13 +543,6 @@ def _track_final_metrics(
             runtime_variable, generation_result.get_coverage_for(coverage_ff)
         )
 
-    ass_gen = config.configuration.test_case_output.assertion_generation
-    if (
-        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING
-        and RuntimeVariable.AssertionCheckedCoverage in output_variables
-    ):
-        _minimize_assertions(generation_result)
-
     # Collect other final stats on result
     stat.track_output_variable(RuntimeVariable.FinalLength, generation_result.length())
     stat.track_output_variable(RuntimeVariable.FinalSize, generation_result.size())
@@ -626,12 +619,27 @@ def _run() -> ReturnCode:  # noqa: C901
     executor.clear_remote_observers()
 
     _track_search_metrics(algorithm, generation_result, coverage_metrics)
+
+    # Generate assertions FIRST
+    _generate_assertions(executor, generation_result, test_cluster)
+
+    # Minimize assertions if configured (requires re-instrumentation for checked_instructions)
+    ass_gen = config.configuration.test_case_output.assertion_generation
+    if (
+        ass_gen == config.AssertionGenerator.CHECKED_MINIMIZING
+        and RuntimeVariable.AssertionCheckedCoverage
+        in config.configuration.statistics_output.output_variables
+    ):
+        _prepare_for_assertion_minimization(executor, generation_result, constant_provider)
+        _LOGGER.info("Minimizing assertions")
+        _minimize_assertions(generation_result)
+
+    # Statement minimization LAST (now assertion-aware)
     try:
         _LOGGER.info("Minimizing test cases")
         _minimize(generation_result, algorithm)
     except Exception as ex:
         _LOGGER.exception("Minimization failed: %s", ex)
-    _generate_assertions(executor, generation_result, test_cluster)
 
     if (
         tracked_metrics := _track_final_metrics(
@@ -839,6 +847,55 @@ def _minimize_assertions(generation_result: tsc.TestSuiteChromosome):
         RuntimeVariable.DeletedAssertions,
         len(assertion_minimizer.deleted_assertions),
     )
+
+
+def _prepare_for_assertion_minimization(
+    executor: TestCaseExecutor,
+    generation_result: tsc.TestSuiteChromosome,
+    constant_provider: ConstantProvider,
+) -> None:
+    """Prepare for assertion minimization by populating checked_instructions.
+
+    Re-instruments the module with RemoteAssertionExecutionObserver,
+    executes the test suite to populate checked_instructions on assertions,
+    then returns executor to non-instrumented state.
+
+    Args:
+        executor: Test case executor
+        generation_result: Test suite with assertions to minimize
+        constant_provider: Constant provider for re-instrumentation
+    """
+    # Add assertion execution observer
+    executor.set_instrument(True)
+    executor.add_remote_observer(RemoteAssertionExecutionObserver())
+
+    # Re-instrument with CHECKED metric
+    metrics_for_reinstrumentation = {config.CoverageMetric.CHECKED}
+    dynamic_constant_provider = None
+    if isinstance(constant_provider, DynamicConstantProvider):
+        dynamic_constant_provider = constant_provider
+
+    if not _reload_instrumentation_loader(
+        metrics_for_reinstrumentation,
+        dynamic_constant_provider,
+        executor.subject_properties,
+    ):
+        _LOGGER.warning("Failed to reload instrumentation for assertion minimization")
+        return
+
+    # Force re-execution to populate checked_instructions
+    _reset_cache_for_result(generation_result)
+
+    # Execute to populate checked_instructions
+    # This happens automatically when coverage is computed
+    assertion_checked_ff = ff.TestSuiteAssertionCheckedCoverageFunction(executor)
+    generation_result.add_coverage_function(assertion_checked_ff)
+    _ = generation_result.get_coverage_for(assertion_checked_ff)
+
+    # Return executor to non-instrumented state
+    executor.set_instrument(False)
+    executor.clear_observers()
+    executor.clear_remote_observers()
 
 
 _strategies: dict[config.MutationStrategy, Callable[[int], ms.HOMStrategy]] = {

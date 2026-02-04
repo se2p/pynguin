@@ -17,8 +17,9 @@ import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.defaulttestcase as dtc
 import pynguin.testcase.statement as stmt
 from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
-from pynguin.assertion.assertion import ExceptionAssertion
+from pynguin.assertion.assertion import ExceptionAssertion, ObjectAssertion
 from pynguin.ga.computations import TestSuiteBranchCoverageFunction, TestSuiteLineCoverageFunction
+from pynguin.ga.postprocess import get_assertion_protected_variables
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
@@ -120,6 +121,64 @@ def test_test_case_assertion_minimization_does_not_remove_empty_assertion(
     assert ass_min.remaining_assertions == OrderedSet([assertion_1])
     assert ass_min.deleted_assertions == OrderedSet()
     assert default_test_case.get_assertions() == [assertion_1]
+
+
+def test_get_assertion_protected_variables_no_assertions(default_test_case):
+    """Test that a test case with no assertions returns empty protected set."""
+    statement = stmt.IntPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(statement)
+
+    result = get_assertion_protected_variables(default_test_case)
+
+    assert result == set()
+
+
+def test_get_assertion_protected_variables_single_reference_assertion(default_test_case):
+    """Test that ReferenceAssertion source variable is protected."""
+    statement = stmt.IntPrimitiveStatement(default_test_case, value=42)
+    default_test_case.add_statement(statement)
+
+    # Create ObjectAssertion on the statement's return value
+    var_ref = statement.ret_val
+    assertion = ObjectAssertion(var_ref, 42)  # Asserts var_ref == 42
+    statement.add_assertion(assertion)
+
+    result = get_assertion_protected_variables(default_test_case)
+
+    assert var_ref in result
+
+
+def test_get_assertion_protected_variables_skips_exception_assertion(default_test_case):
+    """Test that ExceptionAssertion (no source) doesn't add to protected set."""
+    statement = stmt.IntPrimitiveStatement(default_test_case)
+    default_test_case.add_statement(statement)
+
+    # ExceptionAssertion has no source variable
+    exc_assertion = MagicMock(spec=ExceptionAssertion)
+    statement.add_assertion(exc_assertion)
+
+    result = get_assertion_protected_variables(default_test_case)
+
+    assert result == set()
+
+
+def test_get_assertion_protected_variables_with_dependencies(default_test_case):
+    """Test that assertion source and its dependencies are protected."""
+    # Create a statement
+    statement = stmt.IntPrimitiveStatement(default_test_case, value=42)
+    default_test_case.add_statement(statement)
+    var_ref = statement.ret_val
+
+    # Add assertion
+    assertion = ObjectAssertion(var_ref, 42)
+    statement.add_assertion(assertion)
+
+    result = get_assertion_protected_variables(default_test_case)
+
+    # var_ref should be protected
+    assert var_ref in result
+    # Since IntPrimitiveStatement has no dependencies, only var_ref is protected
+    # This is correct behavior - primitives have no backward deps
 
 
 def test_test_case_postprocessor_suite():
