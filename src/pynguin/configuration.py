@@ -170,6 +170,9 @@ class TypeInferenceStrategy(str, enum.Enum):
     LLM = "LLM"
     """Use an LLM to infer types for the module under test."""
 
+    LLM_WITH_SUBTYPES = "LLM_WITH_SUBTYPES"
+    """Use an LLM to infer types and subtypes for the module under test."""
+
     TYPEEVALPY = "TYPEEVALPY"
     """Use TypeEvalPy data only for type inference."""
 

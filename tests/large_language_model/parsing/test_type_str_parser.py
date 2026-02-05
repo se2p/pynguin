@@ -41,6 +41,18 @@ def test_parse_tuple():
     assert result is type((int, str))
 
 
+def test_parse_tuple_varargs_and_n_element():
+    """Test parsing varargs tuples and tuples with != 2 elements."""
+    parser = TypeStrParser(create_mock_type_system())
+    tuple_type = type(())
+
+    assert parser.parse("tuple[int, ...]") is tuple_type
+    assert parser.parse("Tuple[int, ...]") is tuple_type
+    assert parser.parse("typing.Tuple[int, ...]") is tuple_type
+    assert parser.parse("tuple[int, str, int]") is tuple_type
+    assert parser.parse("tuple[int]") is tuple_type
+
+
 def test_parse_list():
     """Test parsing list types."""
     parser = TypeStrParser(create_mock_type_system())
@@ -79,6 +91,22 @@ def test_parse_set():
     result = parser.parse("collections.abc.Set[int]")
     assert isinstance(result, type)
     assert result is type(set[int])  # type: ignore[comparison-overlap]
+
+
+def test_parse_set_rejects_multiple_args():
+    """set[T] takes exactly one type argument; multi-arg strings must not resolve."""
+    parser = TypeStrParser(create_mock_type_system())
+    assert parser.parse("set[int, str]") is None
+    assert parser.parse("Set[int, str]") is None
+    assert parser.parse("typing.Set[int, str]") is None
+
+
+def test_parse_list_rejects_multiple_args():
+    """list[T] takes exactly one type argument; multi-arg strings must not resolve."""
+    parser = TypeStrParser(create_mock_type_system())
+    assert parser.parse("list[int, str]") is None
+    assert parser.parse("List[int, str]") is None
+    assert parser.parse("typing.List[int, str]") is None
 
 
 def test_parse_simple_types():

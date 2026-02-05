@@ -44,6 +44,7 @@ from pynguin.analyses.type_inference import (
     HintInference,
     InferenceProvider,
     LLMInference,
+    LLMInferenceWithSubtypes,
     NoInference,
     TypeEvalPyInference,
 )
@@ -1890,6 +1891,9 @@ def get_type_provider(
         case TypeInferenceStrategy.LLM:
             callables = _collect_public_callables(module)
             return LLMInference(callables, LLMProvider.OPENAI, type_system)
+        case TypeInferenceStrategy.LLM_WITH_SUBTYPES:
+            callables = _collect_public_callables(module)
+            return LLMInferenceWithSubtypes(callables, LLMProvider.OPENAI, type_system)
         case TypeInferenceStrategy.TYPE_HINTS:
             return HintInference()
         case TypeInferenceStrategy.NONE:

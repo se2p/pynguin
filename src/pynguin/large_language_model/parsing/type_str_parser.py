@@ -44,8 +44,11 @@ class TypeStrParser:
         if self._is_tuple(type_str):
             # type_str could be e.g. "Tuple[int, str]", "tuple[int, str]", "typing.Tuple[int, str]"
             inner_types = self._get_inner_types(type_str)
-            resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
-            return type(tuple(resolved_inner))
+            # "..." is a length sentinel, not a type — strip it before resolving
+            inner_types = [t for t in inner_types if t != "..."]
+            if len(inner_types) >= 1:
+                resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
+                return type(tuple(resolved_inner))
         if self._is_dict(type_str):
             # type_str could be e.g. "Dict[str, int]", "dict[str, int]", "typing.Dict[str, int]"
             inner_types = self._get_inner_types(type_str)
@@ -56,41 +59,52 @@ class TypeStrParser:
             return type(dict[builtins.object, builtins.object])
         if self._is_set(type_str):
             # type_str could be e.g. "Set[int]", "set[int]", "typing.Set[int]"
-            inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
-            return type(set[resolved_inner] or type(builtins.object))  # type: ignore[truthy-function, valid-type]
+            inner_types = self._get_inner_types(type_str)
+            if len(inner_types) == 1:
+                inner_type = inner_types.pop()
+                resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+                return type(set[resolved_inner] or type(builtins.object))  # type: ignore[truthy-function, valid-type]
         if self._is_list(type_str):
             # type_str could be e.g. "List[int]", "list[int]", "typing.List[int]"
-            inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
-            return type(list[resolved_inner or type(builtins.object)])  # type: ignore[misc]
+            inner_types = self._get_inner_types(type_str)
+            if len(inner_types) == 1:
+                inner_type = inner_types.pop()
+                resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+                return type(list[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         if self._is_union(type_str):
             # type_str could be e.g. "Union[int, str]", "typing.Union[int, str]", or "int | str"
             inner_types = self._get_inner_types(type_str)
             resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
-            return type(typing.Union[tuple(resolved_inner)])  # noqa: UP007
+            if resolved_inner:
+                return type(typing.Union[tuple(resolved_inner)])  # noqa: UP007
         if self._is_optional(type_str):
             # type_str could be e.g. "Optional[int]", "typing.Optional[int]"
-            inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type)  # type: ignore[assignment]
-            return type(typing.Optional[resolved_inner])  # noqa: UP045
+            inner_types = self._get_inner_types(type_str)
+            if len(inner_types) == 1:
+                inner_type = inner_types.pop()
+                resolved_inner = self.parse(inner_type)  # type: ignore[assignment]
+                return type(typing.Optional[resolved_inner])  # noqa: UP045
         if self._is_deque(type_str):
             # type_str could be e.g. "Deque[int]", "deque[int]", "typing.Deque[int]"
-            inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
-            return type(collections.deque[resolved_inner or type(builtins.object)])  # type: ignore[misc]
+            inner_types = self._get_inner_types(type_str)
+            if len(inner_types) == 1:
+                inner_type = inner_types.pop()
+                resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+                return type(collections.deque[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         if self._is_iterable(type_str):
             # type_str could be e.g. "Iterable[int]", "iterable[int]", "typing.Iterable[int]"
-            inner_type = self._get_inner_types(type_str).pop()
-            resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
-            return type(typing.Iterable[resolved_inner or type(builtins.object)])  # type: ignore[misc]
+            inner_types = self._get_inner_types(type_str)
+            if len(inner_types) == 1:
+                inner_type = inner_types.pop()
+                resolved_inner = self.parse(inner_type) if inner_type else None  # type: ignore[assignment]
+                return type(typing.Iterable[resolved_inner or type(builtins.object)])  # type: ignore[misc]
         # Try to resolve the type directly
         return self._resolve_type_by_name(type_str)
 
     def _resolve_type_by_name(self, type_str: str) -> type | None:
         simple_types = self._type_system.get_all_types()
         for t in simple_types:
-            if type_str.lower() in {t.qualname.lower(), t.name.lower()}:
+            if type_str.lower() in {t.qualname.lower(), t.name.lower(), t.full_name.lower()}:
                 return t.raw_type
         # Could not resolve the type
         return None
