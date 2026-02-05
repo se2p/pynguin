@@ -531,7 +531,7 @@ def test_import_export_no_xfail(
 
 
 def test_coverage_by_import_only(tmp_path: Path) -> None:
-    """When no test cases exist, SUT is imported with coverage comment and noqa."""
+    """When no test cases exist, SUT is imported with coverage comment and an empty test."""
     sut_module_name = "tests.fixtures.accessibles.accessible"
     visitor = export.PyTestChromosomeToAstVisitor(sut_module_name=sut_module_name)
 
@@ -552,3 +552,5 @@ def test_coverage_by_import_only(tmp_path: Path) -> None:
     assert "# Importing this module achieves coverage." in content
     assert "# noqa: F401" in content
     assert "import tests.fixtures.accessibles.accessible" in content
+    assert "def test_empty():" in content
+    assert "    pass" in content

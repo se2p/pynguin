@@ -290,6 +290,15 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             )
             import_nodes.append(sut_import)
 
+            # Create a single empty test case to ensure pytest returns exit code 0
+            empty_test = PyTestChromosomeToAstVisitor.__create_function_node(
+                "empty",
+                [ast.Pass()],
+                with_self_arg=False,
+                is_failing=False,
+            )
+            functions.append(empty_test)
+
         return ast.Module(body=import_nodes + functions, type_ignores=[]), coverage_by_import_only
 
 
