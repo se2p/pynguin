@@ -44,7 +44,9 @@ class TypeStrParser:
         if self._is_tuple(type_str):
             # type_str could be e.g. "Tuple[int, str]", "tuple[int, str]", "typing.Tuple[int, str]"
             inner_types = self._get_inner_types(type_str)
-            if len(inner_types) == 2:
+            # "..." is a length sentinel, not a type — strip it before resolving
+            inner_types = [t for t in inner_types if t != "..."]
+            if len(inner_types) >= 1:
                 resolved_inner = [self.parse(t) or type(builtins.object) for t in inner_types]
                 return type(tuple(resolved_inner))
         if self._is_dict(type_str):

@@ -41,6 +41,18 @@ def test_parse_tuple():
     assert result is type((int, str))
 
 
+def test_parse_tuple_varargs_and_n_element():
+    """Test parsing varargs tuples and tuples with != 2 elements."""
+    parser = TypeStrParser(create_mock_type_system())
+    tuple_type = type(())
+
+    assert parser.parse("tuple[int, ...]") is tuple_type
+    assert parser.parse("Tuple[int, ...]") is tuple_type
+    assert parser.parse("typing.Tuple[int, ...]") is tuple_type
+    assert parser.parse("tuple[int, str, int]") is tuple_type
+    assert parser.parse("tuple[int]") is tuple_type
+
+
 def test_parse_list():
     """Test parsing list types."""
     parser = TypeStrParser(create_mock_type_system())
