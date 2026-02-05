@@ -54,19 +54,19 @@ class BaseInferencePrompt:
     @staticmethod
     def _get_all_function_signatures_in_class(func: Callable[..., Any]) -> str:
         """Return a comma-separated list of all function signatures in the same class as func."""
-        cls = getattr(func, "__qualname__", "").split(".<locals>", 1)[0].rsplit(".", 1)
-        if len(cls) < 2:
+        clazz = getattr(func, "__qualname__", "").split(".<locals>", 1)[0].rsplit(".", 1)
+        if len(clazz) < 2:
             return ""
-        cls_name = cls[0]
+        clazz_name = clazz[0]
         module = inspect.getmodule(func)
-        if module is None or not hasattr(module, cls_name):
+        if module is None or not hasattr(module, clazz_name):
             return ""
-        cls_obj = getattr(module, cls_name)
-        if not inspect.isclass(cls_obj):
+        clazz_obj = getattr(module, clazz_name)
+        if not inspect.isclass(clazz_obj):
             return ""
 
         signatures = []
-        for name, member in inspect.getmembers(cls_obj, predicate=inspect.isfunction):
+        for name, member in inspect.getmembers(clazz_obj, predicate=inspect.isfunction):
             if member is func:
                 continue
             try:
@@ -94,12 +94,12 @@ class BaseInferencePrompt:
 
         def collect_classes(obj, prefix=""):
             class_list = []
-            for name, cls in inspect.getmembers(obj, predicate=inspect.isclass):
-                if cls.__module__ != module.__name__:
+            for name, clazz in inspect.getmembers(obj, predicate=inspect.isclass):
+                if clazz.__module__ != module.__name__:
                     continue
                 full_name = f"{prefix}{name}" if not prefix else f"{prefix}.{name}"
                 class_list.append(full_name)
-                class_list.extend(collect_classes(cls, prefix=full_name))
+                class_list.extend(collect_classes(clazz, prefix=full_name))
             return class_list
 
         all_classes = collect_classes(module)
