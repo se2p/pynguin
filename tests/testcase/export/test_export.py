@@ -281,7 +281,7 @@ def test_case_1():
             module_ast,
             target_file,
             format_with_black=config.configuration.test_case_output.format_with_black,
-            coverage_by_import_only=coverage_by_import_only,
+            module_name_with_coverage=module_name if coverage_by_import_only else None,
         )
     assert target_file.exists()
     content = target_file.read_text(encoding="utf-8")
@@ -347,7 +347,7 @@ def _import_execute_export(
                 module_ast,
                 export_path,
                 format_with_black=config.configuration.test_case_output.format_with_black,
-                coverage_by_import_only=coverage_by_import_only,
+                module_name_with_coverage=module_name if coverage_by_import_only else None,
             )
 
         exported = export_path.read_text(encoding="utf-8")
@@ -532,8 +532,8 @@ def test_import_export_no_xfail(
 
 def test_coverage_by_import_only(tmp_path: Path) -> None:
     """When no test cases exist, SUT is imported with coverage comment and an empty test."""
-    sut_module_name = "tests.fixtures.accessibles.accessible"
-    visitor = export.PyTestChromosomeToAstVisitor(sut_module_name=sut_module_name)
+    module_name = "tests.fixtures.accessibles.accessible"
+    visitor = export.PyTestChromosomeToAstVisitor(sut_module_name=module_name)
 
     module_ast, coverage_by_import_only = visitor.to_module()
 
@@ -544,13 +544,12 @@ def test_coverage_by_import_only(tmp_path: Path) -> None:
         module_ast,
         target_file,
         format_with_black=False,
-        coverage_by_import_only=coverage_by_import_only,
+        module_name_with_coverage=module_name if coverage_by_import_only else None,
     )
 
     content = target_file.read_text(encoding="utf-8")
 
     assert "# Importing this module achieves coverage." in content
-    assert "# noqa: F401" in content
-    assert "import tests.fixtures.accessibles.accessible" in content
+    assert "import tests.fixtures.accessibles.accessible  # noqa: F401" in content
     assert "def test_empty():" in content
     assert "    pass" in content

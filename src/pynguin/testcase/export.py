@@ -10,6 +10,7 @@ import ast
 import dataclasses
 import importlib.util
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -315,7 +316,7 @@ def save_module_to_file(
     target: Path,
     *,
     format_with_black: bool = True,
-    coverage_by_import_only: bool = False,
+    module_name_with_coverage: str | None = None,
 ) -> None:
     """Saves an AST module to a file.
 
@@ -324,7 +325,7 @@ def save_module_to_file(
         module: The AST module
         format_with_black: ast.unparse is not PEP-8 compliant, so we apply black
             on the result.
-        coverage_by_import_only: If True, adds a comment explaining that importing
+        module_name_with_coverage: If provided, adds a comment explaining that importing
             the module achieves coverage, and appends '# noqa: F401' to the import
             statement to prevent it from being removed by linters.
     """
@@ -343,8 +344,10 @@ def save_module_to_file(
             except black.parsing.InvalidInput as e:
                 _LOGGER.warning("Could not format the module '%s' with black: %s", target, e)
 
-        if coverage_by_import_only:
+        if module_name_with_coverage:
             file.write(_COVERAGE_BY_IMPORT_COMMENT)
-            output = output.rstrip("\n") + "  # noqa: F401\n"
+            # Add
+            pattern = re.compile(rf"^import {re.escape(module_name_with_coverage)}\b", re.MULTILINE)
+            output = pattern.sub(rf"import {module_name_with_coverage}  # noqa: F401", output)
 
         file.write(output)

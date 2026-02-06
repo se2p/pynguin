@@ -1022,6 +1022,8 @@ def _export_chromosome(
         module_ast,
         target_file,
         format_with_black=config.configuration.test_case_output.format_with_black,
-        coverage_by_import_only=coverage_by_import_only,
+        module_name_with_coverage=config.configuration.module_name
+        if coverage_by_import_only
+        else None,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)
