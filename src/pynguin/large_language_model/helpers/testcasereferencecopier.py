@@ -138,7 +138,9 @@ def create_new_assertion(target_assertion, target_source):
     if isinstance(target_assertion, FloatAssertion):
         return FloatAssertion(target_source, target_assertion.value)
     if isinstance(target_assertion, IsInstanceAssertion):
-        return IsInstanceAssertion(target_source, target_assertion.expected_type)
+        return IsInstanceAssertion(
+            target_source, target_assertion.module, target_assertion.qualname
+        )
     if isinstance(target_assertion, ObjectAssertion):
         return ObjectAssertion(target_source, target_assertion.object)
     return target_assertion  # fallback if unknown type

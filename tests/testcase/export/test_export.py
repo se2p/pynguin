@@ -201,6 +201,8 @@ def _imports_from_module(module: ast.Module) -> list[ast.Import]:
         ("importlib.util", "importlib.util"),
         # Built-in module falls back to spec.name
         ("builtins", "builtins"),
+        # Compiled extension module (e.g., array.cpython-310-darwin.so) should strip suffix
+        ("array", "array"),
         # Local package module from this project
         ("src.pynguin.utils.namingscope", "pynguin.utils.namingscope"),
         ("pynguin.utils.namingscope", "pynguin.utils.namingscope"),

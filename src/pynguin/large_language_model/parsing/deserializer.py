@@ -161,6 +161,98 @@ class StatementDeserializer:  # noqa: PLR0904
         except ValueError:
             return None
 
+    def _handle_isinstance_assertion(
+        self, assert_node: ast.Assert
+    ) -> tuple[Assertion, Reference] | None:
+        """Handles isinstance assertion extraction.
+
+        Args:
+            assert_node: The AST assert node containing isinstance call.
+
+        Returns:
+            The assertion and source reference, or None if parsing fails.
+        """
+        source = self._get_source_reference(assert_node.test.args[0])  # type: ignore[attr-defined]
+        type_elem = assert_node.test.args[1]  # type: ignore[attr-defined]
+
+        # Extract module and qualname from the AST type node
+        if isinstance(type_elem, ast.Name):
+            # Built-in type like int, str, list
+            module = "builtins"
+            qualname = type_elem.id
+        elif isinstance(type_elem, ast.Attribute):
+            # Module type like module_0.MyClass
+            # Walk the attribute chain to get module and qualname
+            parts = []
+            node: ast.expr = type_elem
+            while isinstance(node, ast.Attribute):
+                parts.append(node.attr)
+                node = node.value
+            if isinstance(node, ast.Name):
+                module = config.configuration.module_name
+                qualname = ".".join(reversed(parts))
+            else:
+                # Fallback: cannot parse
+                logger.warning("Cannot parse isinstance type: %s", ast.unparse(type_elem))
+                return None
+        else:
+            logger.warning("Unsupported isinstance type node: %s", type(type_elem))
+            return None
+
+        assertion = ass.IsInstanceAssertion(source, module, qualname)
+        return assertion, source
+
+    def _extract_comparison_parts(
+        self, assert_node: ast.Assert
+    ) -> tuple[Reference, Any, Any] | None:
+        """Extracts source, value element, and operator from comparison assertions.
+
+        Handles three patterns:
+        - Direct comparison: assert x.attr == 5
+        - Function call: assert some_function() == expected_value
+        - Standard comparison: assert x == 5
+
+        Args:
+            assert_node: The AST assert node.
+
+        Returns:
+            Tuple of (source, val_elem, operator) or None if extraction fails.
+        """
+        # Pattern 1: Assertion on attribute access
+        # Example: assert x.attr == 5
+        if (
+            hasattr(assert_node, "left")
+            and hasattr(assert_node, "ops")
+            and hasattr(assert_node, "comparators")
+        ):
+            source = self._get_source_reference(assert_node.left)
+            val_elem = assert_node.comparators[0]
+            operator = assert_node.ops[0]
+            return source, val_elem, operator
+
+        # Pattern 2: Assertion with function call on the left side
+        # Example: assert some_function() == expected_value
+        if (
+            hasattr(assert_node, "test")
+            and hasattr(assert_node.test, "left")
+            and hasattr(assert_node.test, "comparators")
+            and hasattr(assert_node.test, "ops")
+            and hasattr(assert_node.test.left, "func")
+        ):
+            source = self._get_source_reference(assert_node.test.left.func)
+            val_elem = assert_node.test.comparators[0]
+            operator = assert_node.test.ops[0]
+            return source, val_elem, operator
+
+        # Pattern 3: Standard double-equals comparison
+        # Example: assert x == 5
+        source = self._get_source_reference(
+            assert_node.test.left  # type: ignore[attr-defined]
+        )
+        val_elem = assert_node.test.comparators[0]  # type: ignore[attr-defined]
+        operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
+        return source, val_elem, operator
+
     def create_assert_stmt(
         self, assert_node: ast.Assert
     ) -> tuple[Assertion | None, Reference] | tuple[Assertion, Reference] | None:
@@ -172,8 +264,6 @@ class StatementDeserializer:  # noqa: PLR0904
         Returns:
             The corresponding assert statement.
         """
-        assertion: ass.Assertion | None = None
-
         # E.g: assert var
         if (
             isinstance(assert_node, ast.Assert)
@@ -184,61 +274,33 @@ class StatementDeserializer:  # noqa: PLR0904
             return ass.ObjectAssertion(source, value=True), source
 
         try:
-            # Assertion on attribute access
-            # Example: assert x.attr == 5
-            if (
-                hasattr(assert_node, "left")
-                and hasattr(assert_node, "ops")
-                and hasattr(assert_node, "comparators")
-            ):
-                source = self._get_source_reference(
-                    assert_node.left
-                )  # Adjusted to handle ast.Attribute
-                val_elem = assert_node.comparators[0]
-                operator = assert_node.ops[0]
             # Isinstance assertion
-            # Example: assert isinstance(x, int)
-            elif (
+            # Example: assert isinstance(x, int) or assert isinstance(x, module_0.MyClass)
+            if (
                 hasattr(assert_node, "test")
                 and hasattr(assert_node.test, "func")
                 and assert_node.test.func.id == "isinstance"
             ):
-                source = self._get_source_reference(assert_node.test.args[0])  # type: ignore[attr-defined]
-                type_elem = assert_node.test.args[1]  # type: ignore[attr-defined]
-                assertion = ass.IsInstanceAssertion(source, type_elem)
+                return self._handle_isinstance_assertion(assert_node)
+
+            # Comparison assertions (attribute, function call, standard)
+            result = self._extract_comparison_parts(assert_node)
+            if result is None:
+                return None
+
+            source, val_elem, operator = result
+
+            assertion: ass.Assertion | None = None
+            if isinstance(operator, ast.Is | ast.Eq):
+                assertion = self.create_assertion(source, val_elem)  # type: ignore[arg-type]
+
+            if assertion is not None:
                 return assertion, source
-            # Assertion with function call on the left side
-            # Example: assert some_function() == expected_value
-            elif (
-                hasattr(assert_node, "test")
-                and hasattr(assert_node.test, "left")
-                and hasattr(assert_node.test, "comparators")
-                and hasattr(assert_node.test, "ops")
-                and hasattr(assert_node.test.left, "func")
-            ):
-                source = self._get_source_reference(
-                    assert_node.test.left.func
-                )  # Adjusted to handle ast.Attribute
-                val_elem = assert_node.test.comparators[0]
-                operator = assert_node.test.ops[0]
-            # Standard double-equals comparison
-            # Example: assert x == 5
-            else:
-                source = self._get_source_reference(
-                    assert_node.test.left  # type: ignore[attr-defined]
-                )  # Adjusted to handle ast.Attribute
-                val_elem = assert_node.test.comparators[0]  # type: ignore[attr-defined]
-                operator = assert_node.test.ops[0]  # type: ignore[attr-defined]
+
         # Invalid or not beneficial assert structure
         # Example: assert True
         except (KeyError, AttributeError):
-            return None
-
-        if isinstance(operator, ast.Is | ast.Eq):
-            assertion = self.create_assertion(source, val_elem)  # type: ignore[arg-type]
-
-        if assertion is not None:
-            return assertion, source
+            pass
 
         return None
 

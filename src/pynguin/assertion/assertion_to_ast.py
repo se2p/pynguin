@@ -207,9 +207,22 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
             self._variable_names, self._module_aliases, assertion.source, load=True
         )
 
+        # Create AST node for the type reference
+        type_node: ast.expr
+        if assertion.module == "builtins":
+            # For built-in types, just use the qualname
+            type_node = ast.Name(id=assertion.qualname, ctx=ast.Load())
+        else:
+            # For module types, create module_name.ClassName
+            module_alias = self._module_aliases.get_name(assertion.module)
+            type_node = ast.Name(id=module_alias, ctx=ast.Load())
+            # Add each part of the qualified name as attributes
+            for part in assertion.qualname.split("."):
+                type_node = ast.Attribute(value=type_node, attr=part, ctx=ast.Load())
+
         isinstance_call = ast.Call(
             func=ast.Name(id="isinstance", ctx=ast.Load()),
-            args=[var_name, assertion.expected_type],
+            args=[var_name, type_node],
             keywords=[],
         )
 

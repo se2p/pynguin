@@ -56,7 +56,15 @@ def _dotted_from_origin(origin: str) -> str | None:
         rel = rel.parent
         return ".".join(rel.parts)
 
-    return ".".join(rel.with_suffix("").parts)
+    # For compiled extensions get the clean module name
+    stem = rel.stem
+    if "." in stem and rel.suffix in {".so", ".pyd", ".dll"}:
+        # Take only the first part before any dots in the stem
+        # e.g., "array.cpython-310-darwin" -> "array"
+        stem = stem.split(".")[0]
+        if rel.parent == Path():
+            return stem
+    return ".".join([*rel.parent.parts, stem])
 
 
 def _canonical_module_name(name: str) -> str:
