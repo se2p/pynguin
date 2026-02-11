@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.statement as stmt
     import pynguin.testcase.testcasevisitor as tcv
     import pynguin.testcase.variablereference as vr
+    import pynguin.utils.typetracing as tt
     from pynguin.analyses.module import TestCluster
     from pynguin.analyses.typesystem import ProperType
     from pynguin.utils.orderedset import OrderedSet
@@ -263,6 +264,17 @@ class TestCase(ABC):  # noqa: PLR0904
         Returns:
             a set of variables that depend on var. # noqa: DAR202
         """
+
+    @property
+    @abstractmethod
+    def proxy_knowledge(self) -> dict[tuple[int, str], tt.UsageTraceNode]:
+        """Get the stored proxy knowledge from test generation."""
+
+    @abstractmethod
+    def set_proxy_knowledge(
+        self, proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode]
+    ) -> None:
+        """Store proxy knowledge after test generation."""
 
     def get_objects(self, parameter_type: ProperType, position: int) -> list[vr.VariableReference]:
         """Provides a list of variable references satisfying a certain type.

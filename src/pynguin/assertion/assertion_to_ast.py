@@ -230,6 +230,36 @@ class PyTestAssertionToAstVisitor(ass.AssertionVisitor):
 
         self._assertion_nodes.append(assert_stmt)
 
+    def visit_hasattr_assertion(self, assertion: ass.HasAttrAssertion) -> None:
+        """Visit a hasattr assertion.
+
+        Generates: assert hasattr(obj, "attr_name")
+
+        Args:
+            assertion: The hasattr assertion
+        """
+        source_name = au.create_full_name(
+            self._variable_names, self._module_aliases, assertion.source, load=True
+        )
+
+        # Create hasattr call: hasattr(obj, "attr_name")
+        hasattr_call = ast.Call(
+            func=ast.Name(id="hasattr", ctx=ast.Load()),
+            args=[
+                source_name,
+                ast.Constant(value=assertion.attribute_name),
+            ],
+            keywords=[],
+        )
+
+        # Create assert statement
+        assert_node = ast.Assert(
+            test=hasattr_call,
+            msg=None,
+        )
+
+        self._assertion_nodes.append(assert_node)
+
     def _create_assertable_object(self, value: Any):
         """Recursively constructs an assertable object.
 

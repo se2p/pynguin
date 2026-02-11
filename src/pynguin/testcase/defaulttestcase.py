@@ -8,11 +8,13 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from itertools import islice
 from typing import TYPE_CHECKING
 
 import pynguin.testcase.testcase as tc
+import pynguin.utils.typetracing as tt
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
@@ -26,6 +28,15 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
     """A default implementation of a test case."""
 
     _logger = logging.getLogger(__name__)
+
+    def __init__(self, test_cluster) -> None:
+        """Create a new default test case.
+
+        Args:
+            test_cluster: The used test cluster
+        """
+        super().__init__(test_cluster)
+        self._proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode] = {}
 
     def accept(self, visitor: tcv.TestCaseVisitor) -> None:  # noqa: D102
         visitor.visit_default_test_case(self)
@@ -123,6 +134,9 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
                 memo[statement.ret_val] = copy.ret_val  # type: ignore[assignment]
             test_case._statements.append(copy)
             copy.assertions = statement.copy_assertions(memo)
+        # Copy proxy knowledge to the cloned test case
+        if self._proxy_knowledge:
+            test_case.set_proxy_knowledge(self._proxy_knowledge)
         return test_case
 
     def get_dependencies(  # noqa: D102
@@ -173,6 +187,26 @@ class DefaultTestCase(tc.TestCase):  # noqa: PLR0904
         for statement in self._statements:
             assertions.extend(statement.assertions)
         return assertions
+
+    @property
+    def proxy_knowledge(self) -> dict[tuple[int, str], tt.UsageTraceNode]:
+        """Get the stored proxy knowledge from test generation.
+
+        Returns:
+            A dictionary mapping (parameter_index, parameter_name) to UsageTraceNode
+        """
+        return self._proxy_knowledge
+
+    def set_proxy_knowledge(
+        self, proxy_knowledge: dict[tuple[int, str], tt.UsageTraceNode]
+    ) -> None:
+        """Store proxy knowledge after test generation.
+
+        Args:
+            proxy_knowledge: A dictionary mapping (parameter_index, parameter_name)
+                to UsageTraceNode to store
+        """
+        self._proxy_knowledge = copy.deepcopy(proxy_knowledge)
 
     def size_with_assertions(self) -> int:  # noqa: D102
         return self.size() + len(self.get_assertions())

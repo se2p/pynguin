@@ -102,6 +102,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         result: ex.ExecutionResult,
     ):
         result.assertion_trace = self.get_trace()
+        self._add_proxy_knowledge_assertions(test_case, result, executor.module_provider)
 
     def _handle(  # noqa: C901
         self,
@@ -316,6 +317,122 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             or callable(attr_value)
             or isinstance(attr_value, ModuleType)
         )
+
+    def _add_proxy_knowledge_assertions(  # noqa: C901
+        self,
+        test_case: tc.TestCase,
+        result: ex.ExecutionResult,
+        module_provider: ex.ModuleProvider,
+    ) -> None:
+        """Add hasattr assertions based on proxy knowledge.
+
+        Args:
+            test_case: The test case being executed
+            result: The execution result containing proxy knowledge
+            module_provider: The module provider for imports
+        """
+        # Use proxy knowledge stored in test case from test generation phase
+        proxy_knowledge = test_case.proxy_knowledge
+
+        if not proxy_knowledge:
+            _LOGGER.debug("No proxy knowledge available (not stored from test generation)")
+            return
+
+        _LOGGER.debug("Using stored proxy knowledge: %d entries", len(proxy_knowledge))
+        for key, node in proxy_knowledge.items():
+            _LOGGER.debug("Key %s: children=%s", key, list(node.children.keys()))
+
+        trace = result.assertion_trace
+
+        # Build mapping: variable_reference -> proxy knowledge entries where it was used
+        var_to_proxy: dict[vr.VariableReference, list[tuple[int, str]]] = {}
+        _LOGGER.debug("Building variable-to-proxy mapping...")
+
+        # Scan all parametrized statements to find where variables were used as arguments
+        for statement in test_case.statements:
+            if isinstance(statement, st.ParametrizedStatement):
+                stmt_pos = statement.get_position()
+                for param_name, var_ref in statement.args.items():
+                    # Track that var_ref was used as param_name at stmt_pos
+                    if var_ref not in var_to_proxy:
+                        var_to_proxy[var_ref] = []
+                    var_to_proxy[var_ref].append((stmt_pos, param_name))
+                    _LOGGER.debug("Mapped var_ref to (%d, %s)", stmt_pos, param_name)
+
+        _LOGGER.debug("Variable-to-proxy mapping has %d entries", len(var_to_proxy))
+
+        # Now generate hasattr assertions for variables that have proxy knowledge
+        for statement in test_case.statements:
+            if not isinstance(statement, st.VariableCreatingStatement):
+                continue
+            if statement.ret_val.is_none_type():
+                continue
+
+            var_ref = statement.ret_val
+            position = statement.get_position()
+
+            # Check if this variable was used as an argument anywhere
+            if var_ref in var_to_proxy:
+                _LOGGER.debug(
+                    "Position %d: variable was used in %s", position, var_to_proxy[var_ref]
+                )
+                self._generate_hasattr_from_usages(
+                    var_ref, position, var_to_proxy[var_ref], proxy_knowledge, trace
+                )
+
+    def _generate_hasattr_from_usages(
+        self,
+        var_ref: vr.VariableReference,
+        position: int,
+        usages: list[tuple[int, str]],
+        proxy_knowledge: dict,
+        trace: at.AssertionTrace,
+    ) -> None:
+        """Generate hasattr assertions from variable usages.
+
+        Args:
+            var_ref: The variable reference
+            position: The position where assertions are added
+            usages: List of (usage_pos, param_name) tuples
+            proxy_knowledge: The proxy knowledge mapping
+            trace: The assertion trace
+        """
+        for usage_pos, param_name in usages:
+            # Look up proxy knowledge for where this variable was used
+            knowledge_key = (usage_pos, param_name)
+            if knowledge_key in proxy_knowledge:
+                node = proxy_knowledge[knowledge_key]
+                _LOGGER.debug(
+                    "Found proxy knowledge at %s, children: %s",
+                    knowledge_key,
+                    list(node.children.keys()),
+                )
+                # Generate hasattr assertions from children
+                for attr_name in node.children:
+                    if self._should_generate_hasattr(attr_name):
+                        _LOGGER.debug("Generating hasattr(%s, '%s')", var_ref, attr_name)
+                        trace.add_entry(
+                            position,
+                            ass.HasAttrAssertion(var_ref, attr_name),
+                        )
+            else:
+                _LOGGER.debug("No proxy knowledge found for key %s", knowledge_key)
+
+    @staticmethod
+    def _should_generate_hasattr(attr_name: str) -> bool:
+        """Check if we should generate hasattr assertion for this attribute.
+
+        Args:
+            attr_name: The attribute name
+
+        Returns:
+            True if we should generate the assertion
+        """
+        # Skip private/dunder attributes
+        if attr_name.startswith("_") or attr_name.endswith("__"):
+            return False
+        # Skip common magic methods that don't represent domain attributes
+        return attr_name not in {"__class__", "__dict__", "__module__", "__doc__"}
 
 
 class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
