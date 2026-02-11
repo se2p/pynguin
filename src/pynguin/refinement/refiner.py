@@ -10,18 +10,11 @@ from __future__ import annotations
 
 import ast
 import logging
-import sys
-import os
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pynguin.refinement.pipeline import TestRefiner
-from pynguin.refinement.llm_client import LLMClient
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
-
-if TYPE_CHECKING:
-    pass
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -13,8 +13,6 @@ Integration Point: Called during pipeline validation after repair loop succeeds.
 """
 
 import tempfile
-import subprocess
-import json
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 from dataclasses import dataclass

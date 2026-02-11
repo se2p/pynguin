@@ -18,34 +18,10 @@ from __future__ import annotations
 import ast
 import logging
 import types
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
-
-
-@dataclass
-class MutationResult:
-    """Result of running a test against mutants.
-    
-    Attributes:
-        mutants_killed: Number of mutants detected by the test
-        mutants_survived: Number of mutants that passed undetected
-        mutants_total: Total number of mutants generated
-        mutation_score: Percentage of mutants killed (0.0 to 1.0)
-        timeout: Whether mutation testing timed out
-        error: Error message if mutation testing failed
-    """
-    mutants_killed: int = 0
-    mutants_survived: int = 0
-    mutants_total: int = 0
-    mutation_score: float = 0.0
-    timeout: bool = False
-    error: str | None = None
 
 
 class AssertionTracker:
@@ -97,27 +73,6 @@ class AssertionTracker:
         new_assertions = refined_set - original_set
         return list(new_assertions)
     
-    def is_inferred_assertion(self, assertion_line: str) -> bool:
-        """
-        Check if a specific assertion was added by the LLM.
-        
-        Args:
-            assertion_line: The assertion statement to check
-            
-        Returns:
-            True if this is a new assertion, False if it was in original
-        """
-        try:
-            tree = ast.parse(assertion_line)
-            if tree.body and isinstance(tree.body[0], ast.Expr):
-                normalized = ast.unparse(tree.body[0].value)
-            else:
-                normalized = assertion_line.strip()
-            
-            return normalized in self.inferred_assertions
-        except Exception:
-            return assertion_line.strip() in self.inferred_assertions
-
 
 def filter_vacuous_assertions(
     original_test: str,

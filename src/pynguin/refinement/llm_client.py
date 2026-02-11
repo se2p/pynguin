@@ -2,7 +2,6 @@ import requests
 import re
 import time
 import random
-import json
 import os
 from pathlib import Path
 

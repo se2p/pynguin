@@ -196,9 +196,7 @@ Replace X with your score (1-5) for each dimension.'''
         self.model = model
         self.provider = provider
         
-        # Track token usage
-        self._total_input_tokens = 0
-        self._total_output_tokens = 0
+        # Track usage
         self._total_calls = 0
     
     def evaluate_test(self, test_code: str) -> JudgeScore:
@@ -349,8 +347,6 @@ Replace X with your score (1-5) for each dimension.'''
     def reset_usage(self) -> None:
         """Reset token usage counters."""
         self._total_calls = 0
-        self._total_input_tokens = 0
-        self._total_output_tokens = 0
         try:
             self.client.reset_usage()
         except Exception:

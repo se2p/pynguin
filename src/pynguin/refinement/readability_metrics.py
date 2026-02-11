@@ -1,6 +1,5 @@
 import ast
 import re
-import json
 from typing import Dict, Any
 
 _VAR_GENERIC_PATTERN = re.compile(r"^(var|list|dict|tuple|set)_\d+$")
@@ -42,53 +41,6 @@ def score_semantic_names(test_code: str) -> float:
         return 0.0
     generic = sum(1 for n in identifiers if _VAR_GENERIC_PATTERN.match(n))
     return (len(identifiers) - generic) / len(identifiers)
-
-def count_variable_renaming(original_code: str, refined_code: str) -> Dict[str, int]:
-    """
-    Count variables that were renamed from generic to semantic.
-    
-    Returns:
-        {
-            "total_variables_original": int,
-            "generic_variables_original": int,
-            "semantic_variables_original": int,
-            "total_variables_refined": int,
-            "generic_variables_refined": int,
-            "semantic_variables_refined": int,
-            "variables_renamed": int,  # generic -> semantic
-            "renaming_percentage": float  # % of generic vars that became semantic
-        }
-    """
-    def count_vars(code: str) -> tuple:
-        try:
-            tree = ast.parse(code)
-        except SyntaxError:
-            return 0, 0, 0
-        identifiers = _extract_identifiers(tree)
-        total = len(identifiers)
-        generic = sum(1 for n in identifiers if _VAR_GENERIC_PATTERN.match(n))
-        semantic = total - generic
-        return total, generic, semantic
-    
-    orig_total, orig_generic, orig_semantic = count_vars(original_code)
-    ref_total, ref_generic, ref_semantic = count_vars(refined_code)
-    
-    # Variables renamed = reduction in generic variables
-    renamed = max(0, orig_generic - ref_generic)
-    
-    # Percentage: how many generic variables were successfully renamed
-    renaming_pct = (renamed / orig_generic * 100) if orig_generic > 0 else 0.0
-    
-    return {
-        "total_variables_original": orig_total,
-        "generic_variables_original": orig_generic,
-        "semantic_variables_original": orig_semantic,
-        "total_variables_refined": ref_total,
-        "generic_variables_refined": ref_generic,
-        "semantic_variables_refined": ref_semantic,
-        "variables_renamed": renamed,
-        "renaming_percentage": renaming_pct
-    }
 
 def score_assertion_clarity(test_code: str) -> float:
     """Scores specificity of assertions: attribute/key/value presence vs trivial asserts.
@@ -144,7 +96,3 @@ def compute_all(test_code: str) -> Dict[str, Any]:
     scores["aggregate"] = sum(scores.values()) / len(scores) if scores else 0.0
     return scores
 
-if __name__ == "__main__":
-    import sys
-    code = sys.stdin.read()
-    print(json.dumps(compute_all(code), indent=2))
