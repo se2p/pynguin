@@ -9,8 +9,78 @@ from pynguin.refinement.validator import run_test
 from pynguin.refinement.llm_client import LLMClient
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.sut_inspector import SUTInspector
-from pynguin.refinement.mutation_analyzer import filter_vacuous_assertions
+from pynguin.refinement.mutation_analyzer import filter_vacuous_assertions, AssertionTracker
 from pynguin.refinement.coverage_checker import check_coverage_preservation
+
+
+def _remove_failing_inferred_assertion(
+    current_code: str, 
+    original_code: str, 
+    error_msg: str
+) -> tuple[str | None, str | None]:
+    """
+    Remove a failing inferred assertion from the test code.
+    
+    This implements the assertion-failure policy: if an LLM-inferred assertion
+    fails, we discard it rather than asking the LLM to "fix" it (which could
+    make the test vacuous).
+    
+    Args:
+        current_code: The current test code with the failing assertion
+        original_code: The original Pynguin-generated test (before LLM refinement)
+        error_msg: The assertion error message
+        
+    Returns:
+        Tuple of (modified_code, removed_assertion) or (None, None) if no 
+        inferred assertion could be identified/removed
+    """
+    # Track which assertions are inferred (added by LLM)
+    tracker = AssertionTracker(original_code, current_code)
+    
+    if not tracker.inferred_assertions:
+        # No inferred assertions to remove
+        return None, None
+    
+    try:
+        tree = ast.parse(current_code)
+    except SyntaxError:
+        return None, None
+    
+    # Find all assert statements in the current code
+    class AssertRemover(ast.NodeTransformer):
+        def __init__(self, inferred_assertions: list[str]):
+            self.inferred_assertions = set(inferred_assertions)
+            self.removed_assertion = None
+            self.found_failing = False
+            
+        def visit_Assert(self, node: ast.Assert) -> ast.AST | None:
+            if self.found_failing:
+                # Already removed one, keep the rest
+                return node
+                
+            # Check if this assertion is inferred
+            try:
+                assertion_str = ast.unparse(node.test)
+            except Exception:
+                return node
+            
+            if assertion_str in self.inferred_assertions:
+                # This is an inferred assertion - remove it
+                self.removed_assertion = assertion_str
+                self.found_failing = True
+                return None  # Remove this node
+            
+            return node
+    
+    remover = AssertRemover(tracker.inferred_assertions)
+    modified_tree = remover.visit(tree)
+    
+    if remover.removed_assertion:
+        ast.fix_missing_locations(modified_tree)
+        modified_code = ast.unparse(modified_tree)
+        return modified_code, remover.removed_assertion
+    
+    return None, None
 
 class TestRefiner:
     def __init__(
@@ -20,7 +90,7 @@ class TestRefiner:
         project_root=None, 
         llm_base_url=None, 
         llm_model=None,
-        llm_provider="ollama"  # "ollama" or "openai"
+        llm_provider="ollama",  # "ollama" or "openai"
     ):
         """Initialize the test refinement pipeline.
         
@@ -538,7 +608,7 @@ Fix the test code to resolve the error. Common fixes include:
                     focal_method=focal_method,
                     module_under_test=self.module_under_test,
                     module_path=module_path,
-                    max_mutants_per_assertion=10
+                    max_mutants=10,
                 )
                 
                 if mutation_stats['assertions_removed'] > 0:
@@ -583,6 +653,30 @@ Fix the test code to resolve the error. Common fixes include:
                             'iterations': iteration
                         }
                     
+                    # Stage 2.7: AAA Marker Insertion (Post-Repair - Final Step)
+                    # Re-parse to get updated focal line position after LLM changes
+                    print("\n[2.7] Stage 2.7: AAA Marker Insertion (Post-Repair)")
+                    try:
+                        from pynguin.refinement.aaa_inserter import insert_aaa_markers_simple
+                        
+                        # Re-analyze the final code to get current focal method position
+                        final_analyzer = FocalMethodAnalyzer(current_code, current_code)
+                        final_focal_info = final_analyzer.analyze()
+                        
+                        if final_focal_info and final_focal_info.focal_line_number > 0:
+                            focal_line = final_focal_info.focal_line_number
+                            print(f"[OK] Re-parsed focal line: {focal_line}")
+                        else:
+                            # Fallback to original analysis if re-parsing fails
+                            focal_line = analysis_result.get('focal_line_number', 0)
+                            print(f"[FALLBACK] Using original focal line: {focal_line}")
+                        
+                        current_code = insert_aaa_markers_simple(current_code, focal_line, verbose=False)
+                        print("[OK] Inserted AAA structure markers")
+                    except Exception as e:
+                        print(f"[WARNING] AAA marker insertion failed: {e}")
+                        print("[FALLBACK] Continuing without explicit AAA markers")
+                    
                     print("="*80)
                     return {
                         'success': True,
@@ -609,6 +703,20 @@ Fix the test code to resolve the error. Common fixes include:
                     
                     # If we have retries remaining, attempt repair
                     if iteration < max_retries:
+                        # Special handling for AssertionError: try to discard inferred assertion first
+                        if error_type == "Assertion Error":
+                            print("[POLICY] Assertion failure detected - checking if it's an inferred assertion...")
+                            modified_code, removed_assertion = _remove_failing_inferred_assertion(
+                                current_code, original_code, error_msg
+                            )
+                            if modified_code and removed_assertion:
+                                print(f"[DISCARD] Removed failing inferred assertion: {removed_assertion[:50]}...")
+                                current_code = modified_code
+                                # Don't count this as a repair iteration - it's automatic discard
+                                continue
+                            else:
+                                print("[POLICY] No inferred assertion to remove, falling back to LLM repair...")
+                        
                         print(f"[RETRY] Attempting repair ({iteration + 1}/{max_retries})...")
                         current_code = self.repair_test_code(current_code, error_msg)
                     else:
