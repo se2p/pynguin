@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import logging
-import sys
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -108,7 +107,8 @@ class CoverageArchive(Archive):
         In detail, when a solution manages to satisfy a previously uncovered target,
         it is stored in the archive.  If a target is already covered by one solution
         in the archive, and the given list contains another solution that covers the
-        same target, the shorter of the two solutions is retained.  Otherwise,
+        same target, the better of the two solutions is retained, preferring
+        error-free test cases over shorter ones with errors.  Otherwise,
         the solution is discarded.
 
         Args:
@@ -117,16 +117,16 @@ class CoverageArchive(Archive):
         updated = False
         for objective in self._objectives:
             best_solution = self._covered.get(objective, None)
-            best_size = sys.maxsize if best_solution is None else best_solution.size()
 
             for solution in solutions:
                 covers = solution.get_is_covered(objective)
-                size = solution.size()
 
-                if covers and size < best_size:
+                if covers and (
+                    best_solution is None or self._is_better_than_current(best_solution, solution)
+                ):
                     updated = True
                     self._covered[objective] = solution
-                    best_size = size
+                    best_solution = solution
                     if objective in self._uncovered:
                         self._uncovered.remove(objective)
                         self._on_target_covered(objective)
@@ -183,6 +183,41 @@ class CoverageArchive(Archive):
             chromosome.get_is_covered(fitness_function)
             for fitness_function, chromosome in self._covered.items()
         )
+
+    @staticmethod
+    def _is_better_than_current(
+        current: tcc.TestCaseChromosome, candidate: tcc.TestCaseChromosome
+    ) -> bool:
+        """Check if candidate is better than current solution.
+
+        A candidate is considered better if:
+        1. The current solution has errors (timeout/exceptions) but candidate doesn't
+        2. Both have same error status and candidate is shorter
+
+        Args:
+            current: The current solution
+            candidate: The candidate solution
+
+        Returns:
+            True if candidate is better, False otherwise
+        """
+        current_result = current.get_last_execution_result()
+        candidate_result = candidate.get_last_execution_result()
+
+        if current_result is not None and (  # noqa: SIM102
+            current_result.timeout or current_result.has_test_exceptions()
+        ):
+            # If the current solution has a timeout or throws an exception then a
+            # solution that does neither is considered better.
+            if (
+                candidate_result is not None
+                and not candidate_result.timeout
+                and not candidate_result.has_test_exceptions()
+            ):
+                return True
+
+        # Compare length otherwise
+        return candidate.size() < current.size()
 
 
 @dataclass(frozen=True)
