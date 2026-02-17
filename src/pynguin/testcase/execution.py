@@ -2202,6 +2202,3 @@ class TypeTracingObserver(ExecutionObserver):
                 arg_name,
                 knowledge,
             )
-        # Store proxy knowledge in test case for use during assertion generation
-        if result.proxy_knowledge:
-            test_case.set_proxy_knowledge(result.proxy_knowledge)

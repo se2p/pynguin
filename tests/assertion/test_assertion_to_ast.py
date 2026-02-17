@@ -118,13 +118,3 @@ def test_isinstance_assertion(assertion_to_ast_ref):
         __create_source_from_ast(assertion_to_ast.nodes)
         == "var_0 = 5\nassert isinstance(var_0, int)"
     )
-
-
-def test_hasattr_assertion(assertion_to_ast_ref):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.HasAttrAssertion(source=ref, attribute_name="name")
-    assertion.accept(assertion_to_ast)
-    assert (
-        __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert hasattr(var_0, 'name')"
-    )

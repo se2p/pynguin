@@ -285,70 +285,6 @@ class IsInstanceAssertion(ReferenceAssertion):
         return f"IsInstanceAssertion({self._source!r}, {self._module}, {self._qualname})"
 
 
-class HasAttrAssertion(ReferenceAssertion):
-    """An assertion that checks if an object has an attribute.
-
-    Example: assert hasattr(obj, "name")
-    """
-
-    def __init__(self, source: vr.Reference, attribute_name: str) -> None:
-        """Create hasattr assertion.
-
-        Args:
-            source: The reference to check
-            attribute_name: The name of the attribute
-        """
-        super().__init__(source)
-        self._attribute_name = attribute_name
-
-    @property
-    def attribute_name(self) -> str:
-        """The attribute name.
-
-        Returns:
-            The attribute name
-        """
-        return self._attribute_name
-
-    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> HasAttrAssertion:
-        """Clone this assertion.
-
-        Args:
-            memo: Mapping from old to new references
-
-        Returns:
-            The cloned assertion
-        """
-        return HasAttrAssertion(
-            self._source.clone(memo),
-            self._attribute_name,
-        )
-
-    def accept(self, visitor: AssertionVisitor) -> None:
-        """Accept a visitor.
-
-        Args:
-            visitor: The visitor to accept
-        """
-        visitor.visit_hasattr_assertion(self)
-
-    def __repr__(self) -> str:
-        return f"HasAttrAssertion({self._source!r}, {self._attribute_name!r})"
-
-    def __str__(self) -> str:
-        return f"hasattr({self._source}, '{self._attribute_name}')"
-
-    def __eq__(self, other: object) -> bool:
-        if self is other:
-            return True
-        if not isinstance(other, HasAttrAssertion):
-            return False
-        return self._source == other._source and self._attribute_name == other._attribute_name
-
-    def __hash__(self) -> int:
-        return hash((self._source, self._attribute_name))
-
-
 class CollectionLengthAssertion(ReferenceAssertion):
     """An assertion on the length of a reference.
 
@@ -489,14 +425,6 @@ class AssertionVisitor:
         Args:
             assertion: the visited assertion
 
-        """
-
-    @abstractmethod
-    def visit_hasattr_assertion(self, assertion: HasAttrAssertion) -> None:
-        """Visit a hasattr assertion.
-
-        Args:
-            assertion: The assertion to visit
         """
 
     @abstractmethod

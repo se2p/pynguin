@@ -20,7 +20,6 @@ import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.generator as gen
 import pynguin.testcase.testcase_to_ast as tc_to_ast
 import pynguin.utils.namingscope as ns
 from pynguin.analyses.constants import EmptyConstantProvider
@@ -458,78 +457,3 @@ def test_add_assertions(module_name: str, test_case_code: str, expected_code: st
         assert with_assertions_code == test_case_code
     else:
         assert with_assertions_code == expected_code
-
-
-def test_integration_hasattr_assertion_generation_with_type_tracing(tmp_path):
-    """Test that HasAttrAssertion objects are generated with type-tracing enabled."""
-    # Create test module
-    module_code = """class Person:
-    def __init__(self, name: str, age: int):
-        self.name = name
-        self.age = age
-
-def process_person(person: Person) -> str:
-    '''Access attributes to trigger proxy tracking.'''
-    return f"{person.name.upper()} - Age: {person.age}"
-
-def create_person() -> Person:
-    return Person("Alice", 30)
-"""
-
-    module_path = tmp_path / "test_hasattr_module.py"
-    module_path.write_text(module_code, encoding="utf-8")
-    output_path = tmp_path / "output"
-    output_path.mkdir()
-
-    # Create seed test that calls process_person to trigger parameter passing
-    seed_code = """import test_hasattr_module as module_0
-
-def test_seed():
-    person_0 = module_0.create_person()
-    result = module_0.process_person(person_0)
-"""
-    seed_path = tmp_path / "seed_test.py"
-    seed_path.write_text(seed_code, encoding="utf-8")
-
-    # Configure pynguin with type-tracing and seeding
-    configuration = config.Configuration(
-        algorithm=config.Algorithm.MOSA,
-        stopping=config.StoppingConfiguration(maximum_iterations=1),
-        module_name="test_hasattr_module",
-        project_path=str(tmp_path),
-        test_case_output=config.TestCaseOutputConfiguration(
-            output_path=str(output_path),
-            assertion_generation=config.AssertionGenerator.SIMPLE,
-        ),
-        statistics_output=config.StatisticsOutputConfiguration(
-            report_dir=str(output_path),
-            statistics_backend=config.StatisticsBackend.NONE,
-            create_coverage_report=False,
-        ),
-        type_inference=config.TypeInferenceConfiguration(type_tracing=1.0),
-        seeding=config.SeedingConfiguration(
-            seed=42,
-            initial_population_seeding=True,
-            initial_population_data=str(seed_path),
-        ),
-    )
-
-    # Run pynguin directly
-    gen.set_configuration(configuration)
-    result = gen.run_pynguin()
-
-    # Check pynguin ran successfully
-    assert result == gen.ReturnCode.OK, f"Pynguin failed with return code: {result}"
-
-    # Read generated test file
-    test_file = output_path / "test_test_hasattr_module.py"
-    assert test_file.exists(), f"Test file not generated at {test_file}"
-
-    content = test_file.read_text(encoding="utf-8")
-
-    # Verify hasattr assertions are present
-    assert "hasattr(" in content, f"No hasattr assertions found in generated test:\n{content}"
-
-    # Count hasattr assertions - with seeding we should get at least one
-    hasattr_count = content.count("hasattr(")
-    assert hasattr_count >= 1, f"Expected at least 1 hasattr assertion, got {hasattr_count}"

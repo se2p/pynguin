@@ -48,7 +48,6 @@ def test_reference_assertion_source_setter():
         (ass.TypeNameAssertion(MagicMock(), "", ""), "visit_type_name_assertion"),
         (ass.FloatAssertion(MagicMock(), 3.7), "visit_float_assertion"),
         (ass.ObjectAssertion(MagicMock(), [1]), "visit_object_assertion"),
-        (ass.HasAttrAssertion(MagicMock(), "attr"), "visit_hasattr_assertion"),
         (
             ass.IsInstanceAssertion(MagicMock(), "builtins", "int"),
             "visit_isinstance_assertion",
@@ -159,8 +158,3 @@ def test_isinstance_assertion_expected_type():
     assertion = ass.IsInstanceAssertion(MagicMock(), "builtins", "int")
     assert assertion.module == "builtins"
     assert assertion.qualname == "int"
-
-
-def test_hasattr_assertion_attribute_name():
-    assertion = ass.HasAttrAssertion(MagicMock(), "name")
-    assert assertion.attribute_name == "name"
