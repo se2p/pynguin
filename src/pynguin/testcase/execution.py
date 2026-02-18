@@ -18,6 +18,7 @@ import inspect
 import itertools
 import logging
 import os
+import random
 import signal
 import sys
 import threading
@@ -1085,6 +1086,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
+        random.seed(config.configuration.seeding.seed)
         self._subject_properties.instrumentation_tracer.init_trace()
         for observer in self._yield_remote_observers():
             observer.before_test_case_execution(test_case)

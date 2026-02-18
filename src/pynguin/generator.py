@@ -26,6 +26,7 @@ import inspect
 import json
 import logging
 import math
+import random
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -244,12 +245,11 @@ def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
     randomness.RNG.seed(config.configuration.seeding.seed)
+    random.seed(config.configuration.seeding.seed)
     if config.configuration.pynguinml.ml_testing_enabled:
         np_rng.init_rng(config.configuration.seeding.seed)
 
     if FANDANGO_FAKER_AVAILABLE:
-        # Seed Fandango
-        random.seed(config.configuration.seeding.seed)
         # Seed Faker
         Faker.seed(config.configuration.seeding.seed)
 
@@ -1071,6 +1071,7 @@ def _export_chromosome(
         store_call_return=store_call_return,
         no_xfail=config.configuration.test_case_output.no_xfail,
         sut_module_name=config.configuration.module_name,
+        pynguin_seed=config.configuration.seeding.seed,
     )
 
     chromosome.accept(export_visitor)

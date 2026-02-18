@@ -109,6 +109,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         store_call_return: bool = False,
         no_xfail: bool = False,
         sut_module_name: str | None = None,
+        pynguin_seed: int | None = None,
     ) -> None:
         """The module aliases are shared between test cases.
 
@@ -120,6 +121,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             sut_module_name: The name of the system under test module. If provided and
                 no test cases remain after empty test removal, the module will still be
                 imported to ensure coverage is achieved by import alone.
+            pynguin_seed: The seed used by Pynguin. If provided, an autouse pytest
+                fixture that reseeds Python's module-level random before each test
+                will be emitted into the generated module.
         """
         self._module_aliases = ns.NamingScope("module")
         # Common modules (e.g. math) are not aliased.
@@ -128,6 +132,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         self._store_call_return: bool = store_call_return
         self._no_xfail: bool = no_xfail
         self._sut_module_name: str | None = sut_module_name
+        self._pynguin_seed: int | None = pynguin_seed
 
     @property
     def module_aliases(self) -> ns.NamingScope:
@@ -278,6 +283,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
         """
         if any(result.exception_status for result in self._conversion_results):
             self._common_modules.add("pytest")
+        if self._pynguin_seed is not None:
+            self._common_modules.add("random")
+            self._common_modules.add("pytest")
         import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
             self._module_aliases, self._common_modules
         )
@@ -300,7 +308,57 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             )
             functions.append(empty_test)
 
-        return ast.Module(body=import_nodes + functions, type_ignores=[]), coverage_by_import_only
+        fixture_nodes: list[ast.stmt] = []
+        if self._pynguin_seed is not None:
+            # Emit after all imports:
+            #   @pytest.fixture(autouse=True)
+            #   def _pynguin_seed_random():
+            #       random.seed(<seed>)
+            #       yield
+            fixture_decorator = ast.Call(
+                func=ast.Attribute(
+                    value=ast.Name(id="pytest", ctx=ast.Load()),
+                    attr="fixture",
+                    ctx=ast.Load(),
+                ),
+                args=[],
+                keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
+            )
+            fixture_body: list[ast.stmt] = [
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(id="random", ctx=ast.Load()),
+                            attr="seed",
+                            ctx=ast.Load(),
+                        ),
+                        args=[ast.Constant(value=self._pynguin_seed)],
+                        keywords=[],
+                    )
+                ),
+                ast.Expr(value=ast.Yield(value=None)),
+            ]
+            fixture_func = ast.FunctionDef(
+                name="_pynguin_seed_random",
+                args=ast.arguments(
+                    posonlyargs=[],
+                    args=[],
+                    vararg=None,
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    kwarg=None,
+                    defaults=[],
+                ),
+                body=fixture_body,
+                decorator_list=[fixture_decorator],
+                returns=None,
+            )
+            fixture_nodes.append(fixture_func)
+
+        return (
+            ast.Module(body=import_nodes + fixture_nodes + functions, type_ignores=[]),
+            coverage_by_import_only,
+        )
 
 
 _PYNGUIN_FILE_HEADER = (
