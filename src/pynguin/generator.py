@@ -350,11 +350,19 @@ def _check_sut_uses_random(new_module_names: set[str]) -> bool:
     random_module = sys.modules.get("random")
     if random_module is None:
         return False
-    return "random" in new_module_names or any(
-        random_module in vars(sys.modules[n]).values()
-        for n in new_module_names
-        if n in sys.modules and isinstance(sys.modules[n], types.ModuleType)
-    )
+
+    if "random" in new_module_names:
+        return True
+
+    for n in new_module_names:
+        module = sys.modules.get(n)
+        if module is None or not isinstance(module, types.ModuleType):
+            continue
+        for value in vars(module).values():
+            if value is random_module:
+                return True
+
+    return False
 
 
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
