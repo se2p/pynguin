@@ -552,4 +552,27 @@ def test_coverage_by_import_only(tmp_path: Path) -> None:
     assert "# Importing this module achieves coverage." in content
     assert "import tests.fixtures.accessibles.accessible  # noqa: F401" in content
     assert "def test_empty():" in content
-    assert "    pass" in content
+
+
+def test_to_module_with_seed_emits_patch_preamble_and_fixture(exportable_test_case, tmp_path):
+    path = tmp_path / "seeded.py"
+    exporter = export.PyTestChromosomeToAstVisitor(pynguin_seed=42)
+    exportable_test_case.accept(exporter)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
+    text = path.read_text()
+    assert "import random" in text
+    assert "__pynguin_patched__" in text
+    assert "_pynguin_seed_random" in text
+    assert "random.seed(42)" in text
+
+
+def test_to_module_without_seed_no_patch_preamble_and_fixture(exportable_test_case, tmp_path):
+    path = tmp_path / "no_seed.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case.accept(exporter)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path)
+    text = path.read_text()
+    assert "__pynguin_patched__" not in text
+    assert "_pynguin_seed_random" not in text

@@ -4,6 +4,10 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+import random
+import random as _random
+import sys
+import types
 from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
@@ -380,3 +384,44 @@ def test_verify_config(tmp_path):
         match=r"DynaMosa currently only supports branch coverage as coverage criterion",
     ):
         gen._verify_config()
+
+
+def test_check_sut_uses_random_false_when_random_not_loaded():
+    with mock.patch.dict(sys.modules, {"random": None}):
+        assert gen._check_sut_uses_random({"some_module"}) is False
+
+
+def test_check_sut_uses_random_true_when_random_directly_imported():
+    assert gen._check_sut_uses_random({"random", "other_mod"}) is True
+
+
+def test_check_sut_uses_random_true_when_transitive():
+    fake_mod = types.ModuleType("fake_sut")
+    fake_mod.rand = _random
+    with mock.patch.dict(sys.modules, {"random": _random, "fake_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"fake_sut"}) is True
+
+
+def test_check_sut_uses_random_false_when_no_random_reference():
+    fake_mod = types.ModuleType("clean_sut")  # no random attribute
+    with mock.patch.dict(sys.modules, {"random": _random, "clean_sut": fake_mod}):
+        assert gen._check_sut_uses_random({"clean_sut"}) is False
+
+
+def test_patch_random_sets_patched_flag():
+    gen._patch_random()
+    assert getattr(random.Random.seed, "__pynguin_patched__", False) is True
+
+
+def test_patch_random_tracks_seeded_instance():
+    gen._patch_random()
+    r = random.Random()  # noqa: S311
+    r.seed(1)
+    assert r in random.Random.seed.__pynguin_instances__
+
+
+def test_patch_random_is_idempotent():
+    gen._patch_random()
+    fn_after_first = random.Random.seed
+    gen._patch_random()
+    assert random.Random.seed is fn_after_first
