@@ -1086,6 +1086,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
+        # Setting the seed has no effect on Pynguin's randomness, because
+        # Pynguin's own randomness.RNG is already created
         random.seed(config.configuration.seeding.seed)
         self._subject_properties.instrumentation_tracer.init_trace()
         for observer in self._yield_remote_observers():

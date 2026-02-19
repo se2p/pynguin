@@ -242,6 +242,24 @@ def _setup_report_dir() -> bool:
     return True
 
 
+def _patch_random() -> None:
+    """Patch random.Random.seed to use the Pynguin seed for determinism.
+
+    This must be called BEFORE the SUT is imported, because the SUT (or its
+    dependencies) may create random.Random instances at module level.
+    """
+    if not getattr(random.Random.seed, "__pynguin_patched__", False):
+        _orig_random_seed = random.Random.seed
+
+        def _deterministic_random_seed(self: random.Random, x=None) -> None:
+            if x is None:
+                x = config.configuration.seeding.seed
+            _orig_random_seed(self, x)
+
+        _deterministic_random_seed.__pynguin_patched__ = True  # type: ignore[attr-defined]
+        random.Random.seed = _deterministic_random_seed  # type: ignore[method-assign]
+
+
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
@@ -342,6 +360,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
     subject_properties = _setup_import_hook(dynamic_constant_provider)
+    _patch_random()
     modules_before_sut = set(sys.modules.keys())
     if not _load_sut(subject_properties):
         return None
