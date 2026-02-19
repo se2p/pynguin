@@ -959,9 +959,9 @@ def _make_deterministic():
     random.seed(seed)
     from pynguin.utils import randomness as _rnd  # noqa: PLC0415
 
-    _tracked = getattr(random.Random.seed, "__pynguin_instances__", None)
-    if _tracked is not None:
-        for _inst in list(_tracked):
+    tracked = getattr(random.Random.seed, "__pynguin_instances__", None)
+    if tracked is not None:
+        for _inst in list(tracked):
             if _inst is not _rnd.RNG:
                 _inst.seed(seed)
 

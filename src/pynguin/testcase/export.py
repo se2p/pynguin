@@ -295,7 +295,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 ast.Import(names=[ast.alias(name="pytest", asname=None)]),
             ]
 
-            _patch_source = (
+            patch_source = (
                 "import weakref as _pynguin_weakref\n"
                 "if not getattr(random.Random.seed, '__pynguin_patched__', False):\n"
                 "    _pynguin_orig_seed = random.Random.seed\n"
@@ -309,7 +309,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
                 "    random.Random.seed = _pynguin_deterministic_seed\n"
             )
-            patch_nodes = ast.parse(_patch_source).body
+            patch_nodes = ast.parse(patch_source).body
 
             # All remaining imports (SUT aliases + other common modules)
             remaining_common = self._common_modules - {"random", "pytest"}
@@ -343,15 +343,16 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 args=[],
                 keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
             )
-            _fixture_source = (
+            fixture_source = (
                 f"random.seed({self._pynguin_seed})\n"
                 "_pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
                 "if _pynguin_instances is not None:\n"
                 "    for _inst in list(_pynguin_instances):\n"
                 f"        _inst.seed({self._pynguin_seed})\n"
             )
-            fixture_body: list[ast.stmt] = ast.parse(_fixture_source).body + [
-                ast.Expr(value=ast.Yield(value=None))
+            fixture_body: list[ast.stmt] = [
+                *ast.parse(fixture_source).body,
+                ast.Expr(value=ast.Yield(value=None)),
             ]
             fixture_func = ast.FunctionDef(
                 name="_pynguin_seed_random",

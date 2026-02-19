@@ -19,7 +19,6 @@ import itertools
 import json
 import logging
 import queue
-import sys
 import types
 import typing
 from collections import defaultdict

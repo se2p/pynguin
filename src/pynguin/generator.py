@@ -41,6 +41,8 @@ try:
 except ImportError:
     FANDANGO_FAKER_AVAILABLE = False
 
+import weakref
+
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
@@ -253,20 +255,18 @@ def _patch_random() -> None:
     living SUT-related instance before each test-case execution.
     """
     if not getattr(random.Random.seed, "__pynguin_patched__", False):
-        import weakref
-
-        _orig_random_seed = random.Random.seed
-        _tracked: weakref.WeakSet[random.Random] = weakref.WeakSet()
+        orig_random_seed = random.Random.seed
+        tracked: weakref.WeakSet[random.Random] = weakref.WeakSet()
 
         def _deterministic_random_seed(self: random.Random, x=None) -> None:
             if x is None:
                 x = config.configuration.seeding.seed
-            _orig_random_seed(self, x)
-            _tracked.add(self)
+            orig_random_seed(self, x)
+            tracked.add(self)
 
         _deterministic_random_seed.__pynguin_patched__ = True  # type: ignore[attr-defined]
-        _deterministic_random_seed.__pynguin_instances__ = _tracked  # type: ignore[attr-defined]
-        random.Random.seed = _deterministic_random_seed  # type: ignore[method-assign]
+        _deterministic_random_seed.__pynguin_instances__ = tracked  # type: ignore[attr-defined]
+        random.Random.seed = _deterministic_random_seed  # type: ignore[assignment,method-assign]
 
 
 def _setup_random_number_generator() -> None:
