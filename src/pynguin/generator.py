@@ -28,6 +28,7 @@ import logging
 import math
 import random
 import sys
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -309,6 +310,26 @@ def _verify_config() -> None:
         )
 
 
+def _check_sut_uses_random(new_module_names: set[str]) -> bool:
+    """Return True if any module loaded by the SUT import references Python's random.
+
+    Args:
+        new_module_names: Module names that were added to sys.modules as a side
+            effect of importing the SUT.
+
+    Returns:
+        True if the SUT or any transitive dependency uses Python's random module.
+    """
+    random_module = sys.modules.get("random")
+    if random_module is None:
+        return False
+    return "random" in new_module_names or any(
+        random_module in vars(sys.modules[n]).values()
+        for n in new_module_names
+        if n in sys.modules and isinstance(sys.modules[n], types.ModuleType)
+    )
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -321,8 +342,10 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
     subject_properties = _setup_import_hook(dynamic_constant_provider)
+    modules_before_sut = set(sys.modules.keys())
     if not _load_sut(subject_properties):
         return None
+    new_sut_module_names = set(sys.modules.keys()) - modules_before_sut
     if not _setup_report_dir():
         return None
 
@@ -330,6 +353,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     with subject_properties.instrumentation_tracer.temporarily_disable():
         if (test_cluster := _setup_test_cluster()) is None:
             return None
+    test_cluster.sut_uses_random = _check_sut_uses_random(new_sut_module_names)
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
@@ -656,7 +680,7 @@ def _run() -> ReturnCode:  # noqa: C901
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
-            _export_chromosome(generation_result)
+            _export_chromosome(generation_result, sut_uses_random=test_cluster.sut_uses_random)
         except Exception as ex:
             _LOGGER.exception("Export to PyTest failed: %s", ex)
 
@@ -1048,6 +1072,8 @@ def _collect_miscellaneous_statistics(test_cluster: ModuleTestCluster) -> None:
 def _export_chromosome(
     chromosome: chrom.Chromosome,
     file_name_suffix: str = "",
+    *,
+    sut_uses_random: bool = False,
 ) -> None:
     """Export the given chromosome.
 
@@ -1055,6 +1081,8 @@ def _export_chromosome(
         chromosome: the chromosome to export.
         file_name_suffix: Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
+        sut_uses_random: Whether the SUT transitively uses Python's random module.
+            If True, an autouse fixture that reseeds random is emitted.
 
     Returns:
         The name of the target file
@@ -1071,7 +1099,7 @@ def _export_chromosome(
         store_call_return=store_call_return,
         no_xfail=config.configuration.test_case_output.no_xfail,
         sut_module_name=config.configuration.module_name,
-        pynguin_seed=config.configuration.seeding.seed,
+        pynguin_seed=config.configuration.seeding.seed if sut_uses_random else None,
     )
 
     chromosome.accept(export_visitor)
