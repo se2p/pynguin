@@ -247,16 +247,25 @@ def _patch_random() -> None:
 
     This must be called BEFORE the SUT is imported, because the SUT (or its
     dependencies) may create random.Random instances at module level.
+
+    All seeded instances are collected and stored as
+    ``random.Random.seed.__pynguin_instances__`` so callers can reseed every
+    living SUT-related instance before each test-case execution.
     """
     if not getattr(random.Random.seed, "__pynguin_patched__", False):
+        import weakref
+
         _orig_random_seed = random.Random.seed
+        _tracked: weakref.WeakSet[random.Random] = weakref.WeakSet()
 
         def _deterministic_random_seed(self: random.Random, x=None) -> None:
             if x is None:
                 x = config.configuration.seeding.seed
             _orig_random_seed(self, x)
+            _tracked.add(self)
 
         _deterministic_random_seed.__pynguin_patched__ = True  # type: ignore[attr-defined]
+        _deterministic_random_seed.__pynguin_instances__ = _tracked  # type: ignore[attr-defined]
         random.Random.seed = _deterministic_random_seed  # type: ignore[method-assign]
 
 

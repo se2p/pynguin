@@ -947,6 +947,25 @@ class AbstractTestCaseExecutor(abc.ABC):
             yield self.execute(test_case)
 
 
+def _make_deterministic():
+    """Make the execution deterministic.
+
+    Reseed the module-level random and every SUT-related random.Random
+    instance that was tracked by the _patch_random() hook.  Pynguin's own
+    randomness.RNG is excluded so that Pynguin's own decisions remain
+    unaffected.
+    """
+    seed = config.configuration.seeding.seed
+    random.seed(seed)
+    from pynguin.utils import randomness as _rnd  # noqa: PLC0415
+
+    _tracked = getattr(random.Random.seed, "__pynguin_instances__", None)
+    if _tracked is not None:
+        for _inst in list(_tracked):
+            if _inst is not _rnd.RNG:
+                _inst.seed(seed)
+
+
 class TestCaseExecutor(AbstractTestCaseExecutor):
     """An executor that executes the generated test cases."""
 
@@ -1086,9 +1105,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             return result
 
     def _before_test_case_execution(self, test_case: tc.TestCase) -> None:
-        # Setting the seed has no effect on Pynguin's randomness, because
-        # Pynguin's own randomness.RNG is already created
-        random.seed(config.configuration.seeding.seed)
+        _make_deterministic()
         self._subject_properties.instrumentation_tracer.init_trace()
         for observer in self._yield_remote_observers():
             observer.before_test_case_execution(test_case)

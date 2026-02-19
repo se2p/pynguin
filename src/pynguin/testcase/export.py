@@ -296,13 +296,17 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             ]
 
             _patch_source = (
+                "import weakref as _pynguin_weakref\n"
                 "if not getattr(random.Random.seed, '__pynguin_patched__', False):\n"
                 "    _pynguin_orig_seed = random.Random.seed\n"
+                "    _pynguin_tracked = _pynguin_weakref.WeakSet()\n"
                 "    def _pynguin_deterministic_seed(self, x=None):\n"
                 "        if x is None:\n"
                 f"            x = {self._pynguin_seed}\n"
                 "        _pynguin_orig_seed(self, x)\n"
+                "        _pynguin_tracked.add(self)\n"
                 "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
+                "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
                 "    random.Random.seed = _pynguin_deterministic_seed\n"
             )
             patch_nodes = ast.parse(_patch_source).body
@@ -339,19 +343,15 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 args=[],
                 keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
             )
-            fixture_body: list[ast.stmt] = [
-                ast.Expr(
-                    value=ast.Call(
-                        func=ast.Attribute(
-                            value=ast.Name(id="random", ctx=ast.Load()),
-                            attr="seed",
-                            ctx=ast.Load(),
-                        ),
-                        args=[ast.Constant(value=self._pynguin_seed)],
-                        keywords=[],
-                    )
-                ),
-                ast.Expr(value=ast.Yield(value=None)),
+            _fixture_source = (
+                f"random.seed({self._pynguin_seed})\n"
+                "_pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
+                "if _pynguin_instances is not None:\n"
+                "    for _inst in list(_pynguin_instances):\n"
+                f"        _inst.seed({self._pynguin_seed})\n"
+            )
+            fixture_body: list[ast.stmt] = ast.parse(_fixture_source).body + [
+                ast.Expr(value=ast.Yield(value=None))
             ]
             fixture_func = ast.FunctionDef(
                 name="_pynguin_seed_random",
