@@ -274,6 +274,115 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             ]
         return []
 
+    @staticmethod
+    def __create_patch_nodes(seed: int) -> list[ast.stmt]:
+        """Build AST nodes for the deterministic random-seed patch.
+
+        The patch is emitted at module level *before* any SUT imports so that
+        Random instances created during import are already tracked.
+
+        Args:
+            seed: The Pynguin seed used to replace calls with a default argument of
+                ``None``.
+
+        Returns:
+            A list of AST statements implementing the patch.
+        """
+        patch_source = (
+            "import weakref as _pynguin_weakref\n"
+            "if not getattr(random.Random.seed, '__pynguin_patched__', False):\n"
+            "    _pynguin_orig_seed = random.Random.seed\n"
+            "    _pynguin_tracked = _pynguin_weakref.WeakSet()\n"
+            "    def _pynguin_deterministic_seed(self, x=None):\n"
+            "        if x is None:\n"
+            f"            x = {seed}\n"
+            "        _pynguin_orig_seed(self, x)\n"
+            "        _pynguin_tracked.add(self)\n"
+            "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
+            "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
+            "    random.Random.seed = _pynguin_deterministic_seed\n"
+        )
+        return ast.parse(patch_source).body
+
+    @staticmethod
+    def __create_seed_fixture(seed: int) -> ast.FunctionDef:
+        """Build the autouse pytest fixture that reseeds random before each test.
+
+        Args:
+            seed: The Pynguin seed to use for reseeding.
+
+        Returns:
+            An AST FunctionDef for the ``_pynguin_seed_random`` fixture.
+        """
+        fixture_decorator = ast.Call(
+            func=ast.Attribute(
+                value=ast.Name(id="pytest", ctx=ast.Load()),
+                attr="fixture",
+                ctx=ast.Load(),
+            ),
+            args=[],
+            keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
+        )
+        fixture_source = (
+            f"random.seed({seed})\n"
+            "_pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
+            "if _pynguin_instances is not None:\n"
+            "    for _inst in list(_pynguin_instances):\n"
+            f"        _inst.seed({seed})\n"
+        )
+        fixture_body: list[ast.stmt] = [
+            *ast.parse(fixture_source).body,
+            ast.Expr(value=ast.Yield(value=None)),
+        ]
+        return ast.FunctionDef(
+            name="_pynguin_seed_random",
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            ),
+            body=fixture_body,
+            decorator_list=[fixture_decorator],
+            returns=None,
+        )
+
+    @staticmethod
+    def __maybe_add_sut_import_for_coverage(
+        import_nodes: list[ast.stmt],
+        functions: list[ast.stmt],
+        sut_module_name: str | None,
+    ) -> bool:
+        """Add a bare SUT import when no test functions exist.
+
+        When Pynguin cannot generate any test functions, importing the SUT still
+        provides coverage via side-effects at import time.  This helper mutates
+        *import_nodes* and *functions* in place and returns whether the
+        coverage-by-import path was taken.
+
+        Args:
+            import_nodes: The list of import statements to extend.
+            functions: The list of test functions to extend.
+            sut_module_name: The SUT module name, or ``None`` if not set.
+
+        Returns:
+            ``True`` if coverage-by-import was applied, ``False`` otherwise.
+        """
+        if functions or sut_module_name is None:
+            return False
+        import_nodes.append(
+            ast.Import(names=[ast.alias(name=_canonical_module_name(sut_module_name), asname=None)])
+        )
+        functions.append(
+            PyTestChromosomeToAstVisitor.__create_function_node(
+                "empty", [ast.Pass()], with_self_arg=False, is_failing=False
+            )
+        )
+        return True
+
     def to_module(self) -> tuple[ast.Module, bool]:
         """Provides a module in PyTest style that contains all visited test cases.
 
@@ -294,22 +403,7 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 ast.Import(names=[ast.alias(name="random", asname=None)]),
                 ast.Import(names=[ast.alias(name="pytest", asname=None)]),
             ]
-
-            patch_source = (
-                "import weakref as _pynguin_weakref\n"
-                "if not getattr(random.Random.seed, '__pynguin_patched__', False):\n"
-                "    _pynguin_orig_seed = random.Random.seed\n"
-                "    _pynguin_tracked = _pynguin_weakref.WeakSet()\n"
-                "    def _pynguin_deterministic_seed(self, x=None):\n"
-                "        if x is None:\n"
-                f"            x = {self._pynguin_seed}\n"
-                "        _pynguin_orig_seed(self, x)\n"
-                "        _pynguin_tracked.add(self)\n"
-                "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
-                "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
-                "    random.Random.seed = _pynguin_deterministic_seed\n"
-            )
-            patch_nodes = ast.parse(patch_source).body
+            patch_nodes = self.__create_patch_nodes(self._pynguin_seed)
 
             # All remaining imports (SUT aliases + other common modules)
             remaining_common = self._common_modules - {"random", "pytest"}
@@ -317,59 +411,11 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 self._module_aliases, remaining_common or None
             )
 
-            if len(functions) == 0 and self._sut_module_name is not None:
-                coverage_by_import_only = True
-                sut_import_nodes.append(
-                    ast.Import(
-                        names=[
-                            ast.alias(
-                                name=_canonical_module_name(self._sut_module_name), asname=None
-                            )
-                        ]
-                    )
-                )
-                functions.append(
-                    PyTestChromosomeToAstVisitor.__create_function_node(
-                        "empty", [ast.Pass()], with_self_arg=False, is_failing=False
-                    )
-                )
-
-            fixture_decorator = ast.Call(
-                func=ast.Attribute(
-                    value=ast.Name(id="pytest", ctx=ast.Load()),
-                    attr="fixture",
-                    ctx=ast.Load(),
-                ),
-                args=[],
-                keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
-            )
-            fixture_source = (
-                f"random.seed({self._pynguin_seed})\n"
-                "_pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
-                "if _pynguin_instances is not None:\n"
-                "    for _inst in list(_pynguin_instances):\n"
-                f"        _inst.seed({self._pynguin_seed})\n"
-            )
-            fixture_body: list[ast.stmt] = [
-                *ast.parse(fixture_source).body,
-                ast.Expr(value=ast.Yield(value=None)),
-            ]
-            fixture_func = ast.FunctionDef(
-                name="_pynguin_seed_random",
-                args=ast.arguments(
-                    posonlyargs=[],
-                    args=[],
-                    vararg=None,
-                    kwonlyargs=[],
-                    kw_defaults=[],
-                    kwarg=None,
-                    defaults=[],
-                ),
-                body=fixture_body,
-                decorator_list=[fixture_decorator],
-                returns=None,
+            coverage_by_import_only = self.__maybe_add_sut_import_for_coverage(
+                sut_import_nodes, functions, self._sut_module_name
             )
 
+            fixture_func = self.__create_seed_fixture(self._pynguin_seed)
             body = preamble_imports + patch_nodes + sut_import_nodes + [fixture_func] + functions
 
         else:
@@ -377,22 +423,9 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
                 self._module_aliases, self._common_modules
             )
 
-            if len(functions) == 0 and self._sut_module_name is not None:
-                coverage_by_import_only = True
-                import_nodes.append(
-                    ast.Import(
-                        names=[
-                            ast.alias(
-                                name=_canonical_module_name(self._sut_module_name), asname=None
-                            )
-                        ]
-                    )
-                )
-                functions.append(
-                    PyTestChromosomeToAstVisitor.__create_function_node(
-                        "empty", [ast.Pass()], with_self_arg=False, is_failing=False
-                    )
-                )
+            coverage_by_import_only = self.__maybe_add_sut_import_for_coverage(
+                import_nodes, functions, self._sut_module_name
+            )
 
             body = import_nodes + functions
 
