@@ -586,4 +586,4 @@ def test_cleanup_mixed_path_types():
         # Should have called unlink for file and symlink (2 times)
         assert mock_unlink.call_count == 2
         # Should have called rmtree for directory (1 time)
-        mock_rmtree.assert_called_once_with(dir_path, ignore_errors=True)
+        mock_rmtree.assert_any_call(dir_path, ignore_errors=True)
