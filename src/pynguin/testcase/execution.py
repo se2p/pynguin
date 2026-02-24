@@ -1267,6 +1267,27 @@ if hasattr(signal, "SIGSEGV"):
     SUPPORTED_EXIT_CODE_MESSAGES[-signal.SIGSEGV] = "Segmentation fault detected"
 
 
+class PatchRandomOnUnpickle:
+    """A hook that patches random when unpickled in a subprocess.
+
+    This ensures that random.Random.seed is patched before the SUT is unpickled
+    and potentially creates new random.Random instances (e.g., mimesis).
+    """
+
+    def __init__(self):
+        """Create a new hook."""
+        self._config = config.configuration
+
+    def __getstate__(self):
+        return {"config": self._config}
+
+    def __setstate__(self, state):
+        config.configuration = state["config"]
+        from pynguin.generator import _patch_random  # noqa: PLC0415
+
+        _patch_random()
+
+
 class SubprocessTestCaseExecutor(TestCaseExecutor):
     """An executor that executes the generated test cases in a subprocess."""
 
@@ -1472,6 +1493,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         remote_observers = tuple(self._yield_remote_observers())
 
         args = (
+            PatchRandomOnUnpickle(),
             self._subject_properties,
             self._module_provider,
             self._maximum_test_execution_timeout,
@@ -1723,6 +1745,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
 
     @staticmethod
     def _execute_test_cases_in_subprocess(  # noqa: PLR0917
+        _patch_random_hook: object,
         subject_properties: SubjectProperties,
         module_provider: ModuleProvider,
         maximum_test_execution_timeout: int,

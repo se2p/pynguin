@@ -261,6 +261,10 @@ def _patch_random() -> None:
         def _deterministic_random_seed(self: random.Random, x=None) -> None:
             if x is None:
                 x = config.configuration.seeding.seed
+            elif type(x).__hash__ is object.__hash__:
+                # If x is an object that uses the default id-based hash, we replace it with
+                # a deterministic string to avoid non-determinism from memory addresses.
+                x = f"{type(x).__module__}.{type(x).__name__}"
             orig_random_seed(self, x)
             tracked.add(self)
 

@@ -296,6 +296,8 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             "    def _pynguin_deterministic_seed(self, x=None):\n"
             "        if x is None:\n"
             f"            x = {seed}\n"
+            "        elif type(x).__hash__ is object.__hash__:\n"
+            "            x = f'{type(x).__module__}.{type(x).__name__}'\n"
             "        _pynguin_orig_seed(self, x)\n"
             "        _pynguin_tracked.add(self)\n"
             "    _pynguin_deterministic_seed.__pynguin_patched__ = True\n"
@@ -477,6 +479,7 @@ def save_module_to_file(
         output = output.replace(
             "random.Random.seed = _pynguin_deterministic_seed",
             "random.Random.seed = _pynguin_deterministic_seed\n",
+            1,
         )
 
         if module_name_with_coverage:
