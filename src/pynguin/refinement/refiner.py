@@ -16,6 +16,11 @@ from pathlib import Path
 from pynguin.refinement.pipeline import TestRefiner
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pynguin.instrumentation.tracer import SubjectProperties
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -28,7 +33,7 @@ def refine_generated_tests(
     llm_api_key: str | None = None,
     max_repair_iterations: int = 3,
     max_tests: int = 30,
-    llm_judge_enabled: bool = False,
+    subject_properties: SubjectProperties | None = None,
 ) -> dict[str, any]:
     """Refine generated tests using LLM-based refinement pipeline.
     
@@ -43,7 +48,6 @@ def refine_generated_tests(
         llm_api_key: API key for OpenAI (required when provider='openai')
         max_repair_iterations: Maximum repair attempts per test
         max_tests: Maximum number of tests to refine
-        llm_judge_enabled: Enable LLM-as-a-Judge evaluation for readability scoring
         
     Returns:
         Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.)
@@ -66,15 +70,6 @@ def refine_generated_tests(
             llm_api_key="sk-..."
         )
         
-        # With LLM-as-a-Judge evaluation
-        refine_generated_tests(
-            test_file_path=Path("test_module.py"),
-            module_name="my_module",
-            llm_provider="openai",
-            llm_model="gpt-4o-mini",
-            llm_api_key="sk-...",
-            llm_judge_enabled=True
-        )
     """
     _LOGGER.info("Starting LLM-based test refinement for %s (provider: %s, model: %s)", 
                  module_name, llm_provider, llm_model)
@@ -126,6 +121,7 @@ def refine_generated_tests(
             llm_provider=llm_provider,
             llm_base_url=llm_base_url,
             llm_model=llm_model,
+            subject_properties=subject_properties,
         )
 
         # Ensure usage is per-refinement-run, not per-process.
@@ -198,55 +194,6 @@ def refine_generated_tests(
             stats["readability_original"] /= stats["tests_processed"]
             stats["readability_refined"] /= max(stats["tests_refined"], 1)
             stats["readability_delta"] = stats["readability_refined"] - stats["readability_original"]
-        
-        # LLM-as-a-Judge evaluation (if enabled)
-        if llm_judge_enabled and stats["tests_refined"] > 0:
-            _LOGGER.info("Running LLM-as-a-Judge evaluation...")
-            try:
-                from pynguin.refinement.llm_judge import LLMJudge
-                
-                judge = LLMJudge(
-                    api_key=llm_api_key,
-                    model="gpt-4o-mini",
-                    provider="openai"
-                )
-                
-                # Evaluate a sample of refined tests (up to 10 for cost control)
-                judge_sample_size = min(stats["tests_refined"], 10)
-                judge_scores_original = []
-                judge_scores_refined = []
-                
-                for i, (orig_func, ref_func) in enumerate(zip(test_functions[:judge_sample_size], refined_tests[:judge_sample_size])):
-                    original_code = import_block + ast.unparse(orig_func)
-                    refined_code = import_block + ast.unparse(ref_func)
-                    
-                    result = judge.evaluate_test_pair(original_code, refined_code)
-                    
-                    if result.original_scores.success:
-                        judge_scores_original.append(result.original_scores.aggregate)
-                    if result.refined_scores.success:
-                        judge_scores_refined.append(result.refined_scores.aggregate)
-                
-                # Add LLM judge stats
-                if judge_scores_original:
-                    stats["llm_judge_original"] = sum(judge_scores_original) / len(judge_scores_original)
-                if judge_scores_refined:
-                    stats["llm_judge_refined"] = sum(judge_scores_refined) / len(judge_scores_refined)
-                if judge_scores_original and judge_scores_refined:
-                    stats["llm_judge_delta"] = stats["llm_judge_refined"] - stats["llm_judge_original"]
-                
-                judge_usage = judge.get_usage()
-                stats["llm_judge_calls"] = judge_usage.get("calls", 0)
-                stats["llm_judge_tokens"] = judge_usage.get("input_tokens", 0) + judge_usage.get("output_tokens", 0)
-                
-                _LOGGER.info("LLM Judge: original=%.2f, refined=%.2f, delta=%.2f",
-                            stats.get("llm_judge_original", 0), 
-                            stats.get("llm_judge_refined", 0),
-                            stats.get("llm_judge_delta", 0))
-                            
-            except Exception as e:
-                _LOGGER.warning("LLM-as-a-Judge evaluation failed: %s", e)
-                stats["llm_judge_error"] = str(e)
         
         # Save refined test file
         if stats["tests_refined"] > 0:

@@ -1,9 +1,5 @@
 import ast
-import sys
 import os
-
-# Add project root to path so we can import the target module
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from pynguin.refinement.validator import run_test
 from pynguin.refinement.llm_client import LLMClient
@@ -91,6 +87,7 @@ class TestRefiner:
         llm_base_url=None, 
         llm_model=None,
         llm_provider="ollama",  # "ollama" or "openai"
+        subject_properties=None,
     ):
         """Initialize the test refinement pipeline.
         
@@ -101,6 +98,9 @@ class TestRefiner:
             llm_base_url: Base URL for Ollama (only used if llm_provider="ollama")
             llm_model: Model name (e.g., "codellama:7b" for Ollama, "gpt-4o" for OpenAI)
             llm_provider: LLM provider - "ollama" (default, free) or "openai" (paid)
+            subject_properties: Pynguin's SubjectProperties for native coverage
+                measurement (optional; enables branch coverage instead of
+                line-coverage fallback).
         """
         # Initialize LLM client with provider selection
         if llm_provider == "openai":
@@ -119,6 +119,7 @@ class TestRefiner:
         self.module_under_test = module_under_test
         self.project_root = project_root or os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         self.sut_inspector = SUTInspector(project_root=self.project_root)
+        self.subject_properties = subject_properties
     
     
 
@@ -541,17 +542,19 @@ Fix the test code to resolve the error. Common fixes include:
             repaired_code = self.llm_client.generate_code(prompt)
             return repaired_code
         except Exception as e:
-            print(f"⚠️ Warning: Repair attempt failed: {e}")
+            print(f"[WARNING] Repair attempt failed: {e}")
             return broken_code  # Return original if repair fails
 
     def process_test_end_to_end(self, original_code: str, max_retries: int = 3) -> dict:
         """
         Complete end-to-end test refinement pipeline with iterative repair loop.
         
-        This method implements the full 3-stage process:
+        This method implements the full pipeline:
         - Stage 1: Structural Analysis (focal method detection + SUT context)
-        - Stage 2: Readability Refinement (AAA structure + semantic naming + function renaming)
-        - Stage 3: Repair Loop (iterative fixing until test passes or max retries)
+        - Stage 2: Readability Refinement (semantic naming + assertion improvement)
+        - Stage 3, Phase 1: Iterative Repair Loop (compilation/functional validation)
+        - Stage 3, Phase 2: Mutation-Based Assertion Filtering (per-assertion)
+        - Post-repair: Level 2 coverage preservation check + AAA marker insertion
         
         Args:
             original_code: The raw test code to refine
@@ -588,41 +591,19 @@ Fix the test code to resolve the error. Common fixes include:
             readable_code = self.refine_readability(analysis_result)
             print("[OK] Applied AAA structure and semantic naming")
             
-            print("\n[2.5] Stage 2.5: Semantic Assertion Generation")
+            print("\n[2C] Stage 2C: Semantic Assertion Generation")
             focal_method = analysis_result.get('focal_method_name', 'unknown')
             sut_context = analysis_result.get('sut_context', 'Documentation unavailable.')
             assertion_code = self.generate_semantic_assertions(readable_code, focal_method, sut_context)
             print("[OK] Generated semantic assertions")
             
-            # Stage 2.6: Mutation-Based Assertion Filtering (Pynguin-Inspired)
-            print("\n[2.6] Stage 2.6: Mutation-Based Assertion Filtering")
-            try:
-                # Get module path for mutation testing
-                module_path = "unknown"
-                if self.module_under_test:
-                    module_path = getattr(self.module_under_test, '__file__', 'unknown')
-                
-                current_code, mutation_stats = filter_vacuous_assertions(
-                    original_test=readable_code,  # Test before assertion generation
-                    refined_test=assertion_code,   # Test after assertion generation
-                    focal_method=focal_method,
-                    module_under_test=self.module_under_test,
-                    module_path=module_path,
-                    max_mutants=10,
-                )
-                
-                if mutation_stats['assertions_removed'] > 0:
-                    print(f"[FILTER] Removed {mutation_stats['assertions_removed']} vacuous assertions")
-                else:
-                    print(f"[OK] All {mutation_stats['assertions_kept']} assertions are non-vacuous")
-            except Exception as e:
-                print(f"[WARNING] Mutation filtering failed: {e}")
-                print("[FALLBACK] Using assertions without mutation validation")
-                current_code = assertion_code
-                mutation_stats = {'error': str(e)}
+            current_code = assertion_code
             
-            # Stage 3: Repair Loop
-            print("\n[3] Stage 3: Iterative Repair Loop")
+            # ============================================================
+            # Stage 3, Phase 1: Iterative Repair Loop
+            # ============================================================
+            print("\n[3.1] Stage 3, Phase 1: Iterative Repair Loop")
+            repair_iterations = 0
             for iteration in range(max_retries + 1):
                 if iteration == 0:
                     print(f"[INIT] Initial validation attempt...")
@@ -633,58 +614,9 @@ Fix the test code to resolve the error. Common fixes include:
                 passed, error_msg = run_test(current_code, self.module_under_test)
                 
                 if passed:
+                    repair_iterations = iteration
                     print(f"[PASS] Test PASSED after {iteration} repair iteration(s)")
-                    
-                    # Level 2: Coverage Preservation Check
-                    coverage_passed, coverage_details = check_coverage_preservation(
-                        original_test=original_code,  # Original Pynguin test
-                        refined_test=current_code,  # Final refined test
-                        module_under_test=self.module_under_test,
-                        tolerance=0.0  # No coverage decrease allowed
-                    )
-                    
-                    if not coverage_passed:
-                        print("[COVERAGE] ✗ Coverage preservation failed - reverting to original")
-                        print("="*80)
-                        return {
-                            'success': False,
-                            'error': 'Coverage preservation check failed',
-                            'coverage_details': coverage_details,
-                            'iterations': iteration
-                        }
-                    
-                    # Stage 2.7: AAA Marker Insertion (Post-Repair - Final Step)
-                    # Re-parse to get updated focal line position after LLM changes
-                    print("\n[2.7] Stage 2.7: AAA Marker Insertion (Post-Repair)")
-                    try:
-                        from pynguin.refinement.aaa_inserter import insert_aaa_markers_simple
-                        
-                        # Re-analyze the final code to get current focal method position
-                        final_analyzer = FocalMethodAnalyzer(current_code, current_code)
-                        final_focal_info = final_analyzer.analyze()
-                        
-                        if final_focal_info and final_focal_info.focal_line_number > 0:
-                            focal_line = final_focal_info.focal_line_number
-                            print(f"[OK] Re-parsed focal line: {focal_line}")
-                        else:
-                            # Fallback to original analysis if re-parsing fails
-                            focal_line = analysis_result.get('focal_line_number', 0)
-                            print(f"[FALLBACK] Using original focal line: {focal_line}")
-                        
-                        current_code = insert_aaa_markers_simple(current_code, focal_line, verbose=False)
-                        print("[OK] Inserted AAA structure markers")
-                    except Exception as e:
-                        print(f"[WARNING] AAA marker insertion failed: {e}")
-                        print("[FALLBACK] Continuing without explicit AAA markers")
-                    
-                    print("="*80)
-                    return {
-                        'success': True,
-                        'final_code': current_code,
-                        'iterations': iteration,
-                        'mutation_stats': mutation_stats if 'mutation_stats' in locals() else {},
-                        'coverage_details': coverage_details
-                    }
+                    break
                 else:
                     # Test failed - determine error type
                     error_type = "Unknown Error"
@@ -703,7 +635,7 @@ Fix the test code to resolve the error. Common fixes include:
                     
                     # If we have retries remaining, attempt repair
                     if iteration < max_retries:
-                        # Special handling for AssertionError: try to discard inferred assertion first
+                        # Assertion-failure policy: discard inferred assertion
                         if error_type == "Assertion Error":
                             print("[POLICY] Assertion failure detected - checking if it's an inferred assertion...")
                             modified_code, removed_assertion = _remove_failing_inferred_assertion(
@@ -717,7 +649,7 @@ Fix the test code to resolve the error. Common fixes include:
                             else:
                                 print("[POLICY] No inferred assertion to remove, falling back to LLM repair...")
                         
-                        print(f"[RETRY] Attempting repair ({iteration + 1}/{max_retries})...")
+                        print(f"[RETRY] Attempting LLM repair ({iteration + 1}/{max_retries})...")
                         current_code = self.repair_test_code(current_code, error_msg)
                     else:
                         # Out of retries
@@ -729,12 +661,101 @@ Fix the test code to resolve the error. Common fixes include:
                             'last_error_msg': error_msg,
                             'iterations': iteration
                         }
+            else:
+                # Loop completed without break (shouldn't happen, but handle)
+                return {
+                    'success': False,
+                    'error': 'Unexpected loop termination',
+                    'iterations': max_retries + 1
+                }
             
-            # Should not reach here, but handle edge case
+            # ============================================================
+            # Stage 3, Phase 2: Mutation-Based Assertion Filtering
+            # ============================================================
+            print("\n[3.2] Stage 3, Phase 2: Mutation-Based Assertion Filtering")
+            mutation_stats = {}
+            try:
+                # Get module path for mutation testing
+                module_path = "unknown"
+                if self.module_under_test:
+                    module_path = getattr(self.module_under_test, '__file__', 'unknown')
+                
+                current_code, mutation_stats = filter_vacuous_assertions(
+                    original_test=readable_code,  # Test before assertion generation
+                    refined_test=current_code,     # Test after repair loop
+                    focal_method=focal_method,
+                    module_under_test=self.module_under_test,
+                    module_path=module_path,
+                    max_mutants=10,
+                )
+                
+                if mutation_stats.get('assertions_removed', 0) > 0:
+                    print(f"[FILTER] Removed {mutation_stats['assertions_removed']} vacuous assertions")
+                else:
+                    print(f"[OK] All {mutation_stats.get('assertions_kept', 0)} inferred assertions are non-vacuous")
+            except Exception as e:
+                print(f"[WARNING] Mutation filtering failed: {e}")
+                print("[FALLBACK] Continuing without mutation validation")
+                mutation_stats = {'error': str(e)}
+            
+            # Re-validate after mutation filtering may have changed the test
+            passed_after_filter, _ = run_test(current_code, self.module_under_test)
+            if not passed_after_filter:
+                print("[WARNING] Test fails after mutation filtering — reverting to pre-filter version")
+                current_code = assertion_code  # Fall back to pre-filter code
+            
+            # ============================================================
+            # Level 2: Coverage Preservation Check
+            # ============================================================
+            coverage_passed, coverage_details = check_coverage_preservation(
+                original_test=original_code,
+                refined_test=current_code,
+                module_under_test=self.module_under_test,
+                tolerance=0.0,
+                subject_properties=self.subject_properties,
+            )
+            
+            if not coverage_passed:
+                print("[COVERAGE] ✗ Coverage preservation failed - reverting to original")
+                print("="*80)
+                return {
+                    'success': False,
+                    'error': 'Coverage preservation check failed',
+                    'coverage_details': coverage_details,
+                    'iterations': repair_iterations
+                }
+            
+            # ============================================================
+            # Post-repair: AAA Marker Insertion
+            # ============================================================
+            print("\n[AAA] Post-repair: AAA Marker Insertion")
+            try:
+                from pynguin.refinement.aaa_inserter import insert_aaa_markers_simple
+                
+                # Re-analyze the final code to get current focal method position
+                final_analyzer = FocalMethodAnalyzer(current_code, current_code)
+                final_focal_info = final_analyzer.analyze()
+                
+                if final_focal_info and final_focal_info.focal_line_number > 0:
+                    focal_line = final_focal_info.focal_line_number
+                    print(f"[OK] Re-parsed focal line: {focal_line}")
+                else:
+                    focal_line = analysis_result.get('focal_line_number', 0)
+                    print(f"[FALLBACK] Using original focal line: {focal_line}")
+                
+                current_code = insert_aaa_markers_simple(current_code, focal_line, verbose=False)
+                print("[OK] Inserted AAA structure markers")
+            except Exception as e:
+                print(f"[WARNING] AAA marker insertion failed: {e}")
+                print("[FALLBACK] Continuing without explicit AAA markers")
+            
+            print("="*80)
             return {
-                'success': False,
-                'error': 'Unexpected loop termination',
-                'iterations': max_retries + 1
+                'success': True,
+                'final_code': current_code,
+                'iterations': repair_iterations,
+                'mutation_stats': mutation_stats,
+                'coverage_details': coverage_details
             }
             
         except Exception as e:

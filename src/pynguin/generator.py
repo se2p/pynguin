@@ -743,6 +743,7 @@ def _run() -> ReturnCode:  # noqa: C901
                         llm_api_key=config.configuration.llm_refinement.llm_api_key,
                         max_repair_iterations=config.configuration.llm_refinement.max_repair_iterations,
                         max_tests=config.configuration.llm_refinement.max_tests,
+                        subject_properties=executor.subject_properties,
                     )
                     _LOGGER.info("Refinement complete: %s", refinement_stats)
 

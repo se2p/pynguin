@@ -1,8 +1,15 @@
 """
-LLM-as-a-Judge: Automated Readability Evaluation
+LLM-as-a-Judge: Automated Readability Evaluation (Standalone)
 
 This module provides LLM-based evaluation of test readability, using GPT-4o-mini
 (or another LLM) to score tests on dimensions aligned with human judgment.
+
+**This is NOT part of the refinement pipeline.** It is used only during the
+post-pipeline evaluation phase (RQ1) to independently score test readability.
+The refinement pipeline itself records only heuristic readability metrics
+(via ``readability_metrics.py``); the LLM Judge, Cosmic Ray mutation testing,
+and the developer survey are all run separately after the pipeline produces
+its output.
 
 The scoring rubric is designed to correlate with the user study dimensions
 from Daka & Fraser (2015):
@@ -11,9 +18,10 @@ from Daka & Fraser (2015):
 3. Assertion Clarity
 4. Overall Understandability
 
-Usage:
+Usage (post-pipeline evaluation script)::
+
     from pynguin.refinement.llm_judge import LLMJudge
-    
+
     judge = LLMJudge(api_key="sk-...")
     scores = judge.evaluate_test_pair(original_code, refined_code)
 """
@@ -24,12 +32,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pynguin.refinement.llm_client import LLMClient
-
-if TYPE_CHECKING:
-    pass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -351,50 +356,3 @@ Replace X with your score (1-5) for each dimension.'''
             self.client.reset_usage()
         except Exception:
             pass
-
-
-def evaluate_with_llm_judge(
-    original_code: str,
-    refined_code: str,
-    api_key: str | None = None,
-    model: str = "gpt-4o-mini"
-) -> dict[str, Any]:
-    """Convenience function to evaluate a test pair.
-    
-    Args:
-        original_code: Original test code
-        refined_code: Refined test code
-        api_key: OpenAI API key
-        model: Model to use (default: gpt-4o-mini)
-        
-    Returns:
-        Dict with evaluation results
-    """
-    judge = LLMJudge(api_key=api_key, model=model)
-    result = judge.evaluate_test_pair(original_code, refined_code)
-    
-    return {
-        "original_aggregate": result.original_scores.aggregate,
-        "refined_aggregate": result.refined_scores.aggregate,
-        "improvement_delta": result.delta,
-        "identifier_delta": result.identifier_delta,
-        "structure_delta": result.structure_delta,
-        "assertion_delta": result.assertion_delta,
-        "understandability_delta": result.understandability_delta,
-        "original_scores": {
-            "identifier_meaningfulness": result.original_scores.identifier_meaningfulness,
-            "structural_simplicity": result.original_scores.structural_simplicity,
-            "assertion_clarity": result.original_scores.assertion_clarity,
-            "overall_understandability": result.original_scores.overall_understandability
-        },
-        "refined_scores": {
-            "identifier_meaningfulness": result.refined_scores.identifier_meaningfulness,
-            "structural_simplicity": result.refined_scores.structural_simplicity,
-            "assertion_clarity": result.refined_scores.assertion_clarity,
-            "overall_understandability": result.refined_scores.overall_understandability
-        },
-        "token_usage": {
-            "input_tokens": result.input_tokens,
-            "output_tokens": result.output_tokens
-        }
-    }

@@ -7,8 +7,6 @@ by the AST analyzer. This ensures AAA structure is guaranteed in the output
 regardless of whether the LLM included the markers.
 """
 
-import ast
-
 
 def insert_aaa_markers_simple(
     test_code: str,

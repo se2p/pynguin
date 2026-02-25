@@ -995,11 +995,6 @@ class LLMRefinementConfiguration:
     save_refined: bool = True
     """Save the refined test file with _refined suffix."""
 
-    llm_judge_enabled: bool = False
-    """Enable LLM-as-a-Judge evaluation for readability scoring.
-    When enabled, sends test pairs to LLM for scoring on readability dimensions.
-    Requires OpenAI API key. Adds ~2 API calls per test.
-    """
 
 
 @dataclasses.dataclass
