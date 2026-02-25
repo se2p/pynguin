@@ -26,7 +26,9 @@ import inspect
 import json
 import logging
 import math
+import random
 import sys
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -38,6 +40,8 @@ try:
     FANDANGO_FAKER_AVAILABLE = True
 except ImportError:
     FANDANGO_FAKER_AVAILABLE = False
+
+import weakref
 
 import pynguin.assertion.assertiongenerator as ag
 import pynguin.assertion.llmassertiongenerator as lag
@@ -240,16 +244,44 @@ def _setup_report_dir() -> bool:
     return True
 
 
+def _patch_random() -> None:
+    """Patch random.Random.seed to use the Pynguin seed for determinism.
+
+    This must be called BEFORE the SUT is imported, because the SUT (or its
+    dependencies) may create random.Random instances at module level.
+
+    All seeded instances are collected and stored as
+    ``random.Random.seed.__pynguin_instances__`` so callers can reseed every
+    living SUT-related instance before each test-case execution.
+    """
+    if not getattr(random.Random.seed, "__pynguin_patched__", False):
+        orig_random_seed = random.Random.seed
+        tracked: weakref.WeakSet[random.Random] = weakref.WeakSet()
+
+        def _deterministic_random_seed(self: random.Random, x=None) -> None:
+            if x is None:
+                x = config.configuration.seeding.seed
+            elif type(x).__hash__ is object.__hash__:
+                # If x is an object that uses the default id-based hash, we replace it with
+                # a deterministic string to avoid non-determinism from memory addresses.
+                x = f"{type(x).__module__}.{type(x).__name__}"
+            orig_random_seed(self, x)
+            tracked.add(self)
+
+        _deterministic_random_seed.__pynguin_patched__ = True  # type: ignore[attr-defined]
+        _deterministic_random_seed.__pynguin_instances__ = tracked  # type: ignore[attr-defined]
+        random.Random.seed = _deterministic_random_seed  # type: ignore[assignment,method-assign]
+
+
 def _setup_random_number_generator() -> None:
     """Setup RNG."""
     _LOGGER.info("Using seed %d", config.configuration.seeding.seed)
     randomness.RNG.seed(config.configuration.seeding.seed)
+    random.seed(config.configuration.seeding.seed)
     if config.configuration.pynguinml.ml_testing_enabled:
         np_rng.init_rng(config.configuration.seeding.seed)
 
     if FANDANGO_FAKER_AVAILABLE:
-        # Seed Fandango
-        random.seed(config.configuration.seeding.seed)
         # Seed Faker
         Faker.seed(config.configuration.seeding.seed)
 
@@ -309,6 +341,34 @@ def _verify_config() -> None:
         )
 
 
+def _check_sut_uses_random(new_module_names: set[str]) -> bool:
+    """Return True if any module loaded by the SUT import references Python's random.
+
+    Args:
+        new_module_names: Module names that were added to sys.modules as a side
+            effect of importing the SUT.
+
+    Returns:
+        True if the SUT or any transitive dependency uses Python's random module.
+    """
+    random_module = sys.modules.get("random")
+    if random_module is None:
+        return False
+
+    if "random" in new_module_names:
+        return True
+
+    for n in new_module_names:
+        module = sys.modules.get(n)
+        if module is None or not isinstance(module, types.ModuleType):
+            continue
+        for value in vars(module).values():
+            if value is random_module:
+                return True
+
+    return False
+
+
 def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantProvider] | None:
     """Load the System Under Test (SUT) i.e. the module that is tested.
 
@@ -321,8 +381,11 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
         return None
     wrapped_constant_provider, dynamic_constant_provider = _setup_constant_seeding()
     subject_properties = _setup_import_hook(dynamic_constant_provider)
+    _patch_random()
+    modules_before_sut = set(sys.modules.keys())
     if not _load_sut(subject_properties):
         return None
+    new_sut_module_names = set(sys.modules.keys()) - modules_before_sut
     if not _setup_report_dir():
         return None
 
@@ -330,6 +393,7 @@ def _setup_and_check() -> tuple[TestCaseExecutor, ModuleTestCluster, ConstantPro
     with subject_properties.instrumentation_tracer.temporarily_disable():
         if (test_cluster := _setup_test_cluster()) is None:
             return None
+    test_cluster.sut_uses_random = _check_sut_uses_random(new_sut_module_names)
 
     # Make alias to make the following lines shorter...
     stop = config.configuration.stopping
@@ -656,7 +720,7 @@ def _run() -> ReturnCode:  # noqa: C901
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
-            _export_chromosome(generation_result)
+            _export_chromosome(generation_result, sut_uses_random=test_cluster.sut_uses_random)
         except Exception as ex:
             _LOGGER.exception("Export to PyTest failed: %s", ex)
 
@@ -1048,6 +1112,8 @@ def _collect_miscellaneous_statistics(test_cluster: ModuleTestCluster) -> None:
 def _export_chromosome(
     chromosome: chrom.Chromosome,
     file_name_suffix: str = "",
+    *,
+    sut_uses_random: bool = False,
 ) -> None:
     """Export the given chromosome.
 
@@ -1055,6 +1121,8 @@ def _export_chromosome(
         chromosome: the chromosome to export.
         file_name_suffix: Suffix that can be added to the file name to distinguish
             between different results e.g., failing and succeeding test cases.
+        sut_uses_random: Whether the SUT transitively uses Python's random module.
+            If True, an autouse fixture that reseeds random is emitted.
 
     Returns:
         The name of the target file
@@ -1071,6 +1139,7 @@ def _export_chromosome(
         store_call_return=store_call_return,
         no_xfail=config.configuration.test_case_output.no_xfail,
         sut_module_name=config.configuration.module_name,
+        pynguin_seed=config.configuration.seeding.seed if sut_uses_random else None,
     )
 
     chromosome.accept(export_visitor)

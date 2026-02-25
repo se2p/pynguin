@@ -25,7 +25,11 @@ from pynguin.analyses.module import ModuleTestCluster
 from pynguin.analyses.typesystem import InferredSignature, NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ModuleProvider, SubprocessTestCaseExecutor
+from pynguin.testcase.execution import (
+    ModuleProvider,
+    PatchRandomOnUnpickle,
+    SubprocessTestCaseExecutor,
+)
 from pynguin.utils.generic.genericaccessibleobject import GenericFunction
 from tests.fixtures.crash.seg_fault import cause_segmentation_fault
 
@@ -90,6 +94,7 @@ def test_subprocess_exception_suppression(subject_properties: SubjectProperties)
         # This should not raise an exception because the exception should be caught
         # and suppressed inside the method
         SubprocessTestCaseExecutor._execute_test_cases_in_subprocess(
+            PatchRandomOnUnpickle(),
             subject_properties,
             module_provider,
             maximum_test_execution_timeout,
@@ -141,6 +146,7 @@ def test_subprocess_exception_logging(caplog, subject_properties: SubjectPropert
 
         # Call the method directly
         SubprocessTestCaseExecutor._execute_test_cases_in_subprocess(
+            PatchRandomOnUnpickle(),
             subject_properties,
             module_provider,
             maximum_test_execution_timeout,

@@ -794,6 +794,9 @@ class ModuleTestCluster(TestCluster):  # noqa: PLR0904
         # Keep track of all callables, this is only for statistics purposes.
         self.__callables: OrderedSet[GenericCallableAccessibleObject] = OrderedSet()
 
+        # Whether the SUT or any of its transitive imports uses Python's random module.
+        self.sut_uses_random: bool = False
+
     def _setup_generator_selection(self) -> GeneratorProvider:
         if (
             config.configuration.generator_selection.generator_selection_algorithm
