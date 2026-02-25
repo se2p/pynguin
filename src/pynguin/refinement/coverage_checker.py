@@ -1,5 +1,10 @@
-"""
-Coverage Preservation Check (Level 2 Equivalence).
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+"""Coverage Preservation Check (Level 2 Equivalence).
 
 This module verifies that refactored tests maintain the same code coverage
 as the original tests.  Coverage is measured using Pynguin's own
@@ -28,12 +33,13 @@ import ast
 import sys
 import textwrap
 import threading
-import types
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    import types
+
     from pynguin.instrumentation.tracer import SubjectProperties
 
 
@@ -46,6 +52,7 @@ class CoverageResult:
         metric: Which coverage metric was used ('branch' or 'line').
         error: Error message if coverage measurement failed.
     """
+
     coverage_value: float = 0.0
     metric: str = "branch"
     error: str | None = None
@@ -54,6 +61,7 @@ class CoverageResult:
 # ---------------------------------------------------------------------------
 # Pynguin-native coverage measurement
 # ---------------------------------------------------------------------------
+
 
 def _measure_coverage_pynguin(
     test_code: str,
@@ -82,8 +90,11 @@ def _measure_coverage_pynguin(
     Returns:
         CoverageResult with the computed coverage.
     """
-    from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
-    import pynguin.configuration as config
+    import pynguin.configuration as config  # noqa: PLC0415
+    from pynguin.ga.computations import (  # noqa: PLC0415
+        compute_branch_coverage,
+        compute_line_coverage,
+    )
 
     tracer = subject_properties.instrumentation_tracer
 
@@ -95,7 +106,8 @@ def _measure_coverage_pynguin(
     tracer.init_trace()
 
     # Build execution scope
-    import pytest
+    import pytest  # noqa: PLC0415
+
     scope: dict[str, Any] = {
         "__builtins__": __builtins__,
         module_under_test.__name__: module_under_test,
@@ -117,11 +129,11 @@ def _measure_coverage_pynguin(
 
         # Enable tracer, execute, then disable
         with tracer.temporarily_enable():
-            exec(compiled, scope)
+            exec(compiled, scope)  # noqa: S102
             if func_name and func_name in scope and callable(scope[func_name]):
                 scope[func_name]()
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         # Even if the test crashes, we still have partial trace data
         msg = f"Test execution raised {type(exc).__name__}: {exc}"
         trace = tracer.get_trace()
@@ -145,6 +157,7 @@ def _measure_coverage_pynguin(
 # Fallback: sys.settrace-based line coverage (standalone mode)
 # ---------------------------------------------------------------------------
 
+
 def _executable_lines(source: str) -> set[int]:
     """Return the set of line numbers that contain executable statements."""
     try:
@@ -157,15 +170,14 @@ def _executable_lines(source: str) -> set[int]:
         if isinstance(node, ast.stmt) and hasattr(node, "lineno"):
             if isinstance(
                 node,
-                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
-                 ast.Import, ast.ImportFrom),
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom),
             ):
                 continue
             lines.add(node.lineno)
     return lines
 
 
-def _measure_coverage_settrace(
+def _measure_coverage_settrace(  # noqa: C901
     test_code: str,
     module_under_test: types.ModuleType,
 ) -> CoverageResult:
@@ -192,12 +204,12 @@ def _measure_coverage_settrace(
 
     sut_file_str = str(sut_path)
     executed_lines: set[int] = set()
-    _lock = threading.Lock()
+    lock = threading.Lock()
 
-    def _tracer(frame: types.FrameType, event: str, arg: Any) -> Any:
+    def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
         code_file = frame.f_code.co_filename
         if code_file == sut_file_str and event == "line":
-            with _lock:
+            with lock:
                 executed_lines.add(frame.f_lineno)
         return _tracer
 
@@ -219,13 +231,13 @@ def _measure_coverage_settrace(
         old_trace = sys.gettrace()
         sys.settrace(_tracer)
         try:
-            exec(compiled, scope)
+            exec(compiled, scope)  # noqa: S102
             if func_name and func_name in scope and callable(scope[func_name]):
                 scope[func_name]()
         finally:
             sys.settrace(old_trace)
 
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         sys.settrace(None)
         if not executed_lines:
             return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
@@ -239,6 +251,7 @@ def _measure_coverage_settrace(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def check_coverage_preservation(
     original_test: str,
@@ -270,8 +283,6 @@ def check_coverage_preservation(
     use_pynguin = subject_properties is not None
     metric_label = "branch" if use_pynguin else "line"
 
-    print(f"\n[COVERAGE] Level 2: Coverage Preservation Check ({metric_label} coverage)")
-
     # Choose measurement function
     def _measure(test_code: str) -> CoverageResult:
         if use_pynguin:
@@ -279,11 +290,9 @@ def check_coverage_preservation(
         return _measure_coverage_settrace(test_code, module_under_test)
 
     # Measure original
-    print("[COVERAGE] Measuring original test coverage...")
     original_cov = _measure(original_test)
 
     if original_cov.error:
-        print(f"[COVERAGE] Warning: Could not measure original coverage: {original_cov.error}")
         return True, {
             "status": "skipped",
             "reason": original_cov.error,
@@ -292,17 +301,10 @@ def check_coverage_preservation(
             "refined_coverage": 0.0,
         }
 
-    print(
-        f"[COVERAGE] Original: {original_cov.coverage_value * 100:.1f}% "
-        f"{original_cov.metric} coverage"
-    )
-
     # Measure refined
-    print("[COVERAGE] Measuring refined test coverage...")
     refined_cov = _measure(refined_test)
 
     if refined_cov.error:
-        print(f"[COVERAGE] Warning: Could not measure refined coverage: {refined_cov.error}")
         return True, {
             "status": "skipped",
             "reason": refined_cov.error,
@@ -310,11 +312,6 @@ def check_coverage_preservation(
             "original_coverage": original_cov.coverage_value,
             "refined_coverage": 0.0,
         }
-
-    print(
-        f"[COVERAGE] Refined:  {refined_cov.coverage_value * 100:.1f}% "
-        f"{refined_cov.metric} coverage"
-    )
 
     # Compare (both values are in [0.0, 1.0])
     delta = refined_cov.coverage_value - original_cov.coverage_value
@@ -327,15 +324,8 @@ def check_coverage_preservation(
     }
 
     if delta >= -tolerance:
-        tag = "improved" if delta > 0 else "preserved"
-        print(f"[COVERAGE] PASS: Coverage {tag} (delta: {delta * 100:+.1f}%)")
         details["status"] = "passed"
         return True, details
-    else:
-        print(f"[COVERAGE] FAIL: Coverage decreased by {abs(delta) * 100:.1f}%")
-        print(
-            f"[COVERAGE] Required: >= {original_cov.coverage_value * 100:.1f}%, "
-            f"Got: {refined_cov.coverage_value * 100:.1f}%"
-        )
-        details["status"] = "failed"
-        details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
+    details["status"] = "failed"
+    details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
+    return None

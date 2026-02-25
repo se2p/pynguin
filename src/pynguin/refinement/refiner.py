@@ -9,14 +9,14 @@
 from __future__ import annotations
 
 import ast
+import contextlib
 import logging
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pynguin.refinement.pipeline import TestRefiner
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def refine_generated_tests(
-    test_file_path: Path, 
+def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
+    test_file_path: Path,
     module_name: str,
     llm_provider: str = "ollama",
     llm_base_url: str = "http://rhaegal.dimis.fim.uni-passau.de:15343",
@@ -36,9 +36,9 @@ def refine_generated_tests(
     subject_properties: SubjectProperties | None = None,
 ) -> dict[str, any]:
     """Refine generated tests using LLM-based refinement pipeline.
-    
+
     This is the main entry point called from generator.py after tests are exported.
-    
+
     Args:
         test_file_path: Path to the generated test file
         module_name: Name of the module under test
@@ -48,10 +48,11 @@ def refine_generated_tests(
         llm_api_key: API key for OpenAI (required when provider='openai')
         max_repair_iterations: Maximum repair attempts per test
         max_tests: Maximum number of tests to refine
-        
+        subject_properties: Optional Pynguin subject properties for coverage checking
+
     Returns:
         Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.)
-        
+
     Examples:
         # Using Ollama (free, local)
         refine_generated_tests(
@@ -60,7 +61,7 @@ def refine_generated_tests(
             llm_provider="ollama",
             llm_model="codellama:7b"
         )
-        
+
         # Using OpenAI (paid, cloud)
         refine_generated_tests(
             test_file_path=Path("test_module.py"),
@@ -69,29 +70,34 @@ def refine_generated_tests(
             llm_model="gpt-4o-mini",
             llm_api_key="sk-..."
         )
-        
+
     """
-    _LOGGER.info("Starting LLM-based test refinement for %s (provider: %s, model: %s)", 
-                 module_name, llm_provider, llm_model)
+    _LOGGER.info(
+        "Starting LLM-based test refinement for %s (provider: %s, model: %s)",
+        module_name,
+        llm_provider,
+        llm_model,
+    )
 
     start_wall = time.perf_counter()
-    
+
     try:
         # Read generated test file
-        with open(test_file_path, "r", encoding="utf-8") as f:
-            raw_test = f.read()
-        
+        raw_test = Path(test_file_path).read_text(encoding="utf-8")
+
         # Parse test functions
         tree = ast.parse(raw_test)
-        import_nodes = [node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))]
+        import_nodes = [
+            node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))
+        ]
         test_functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
-        
+
         if import_nodes:
             module_wrapper = ast.Module(body=import_nodes, type_ignores=[])
-            import_block = ast.unparse(module_wrapper) + '\n'
+            import_block = ast.unparse(module_wrapper) + "\n"
         else:
             import_block = ""
-        
+
         # Import the module under test dynamically
         try:
             test_target_module = __import__(module_name)
@@ -112,7 +118,7 @@ def refine_generated_tests(
                 "llm_output_tokens": 0,
                 "wall_time_seconds": 0.0,
             }
-        
+
         # Initialize refiner with provider selection
         refiner = TestRefiner(
             api_key=llm_api_key,
@@ -125,11 +131,9 @@ def refine_generated_tests(
         )
 
         # Ensure usage is per-refinement-run, not per-process.
-        try:
+        with contextlib.suppress(Exception):
             refiner.llm_client.reset_usage()
-        except Exception:
-            pass
-        
+
         # Track statistics
         stats = {
             "tests_processed": 0,
@@ -139,82 +143,95 @@ def refine_generated_tests(
             "readability_original": 0.0,
             "readability_refined": 0.0,
         }
-        
+
         refined_tests = []
-        
+
         # Process each test function (up to max_tests)
         for idx, func in enumerate(test_functions[:max_tests], 1):
             _LOGGER.info("Processing test %d/%d: %s", idx, len(test_functions), func.name)
-            
+
             try:
                 # Extract original code
                 original_code = import_block + ast.unparse(func)
-                
+
                 # Compute original readability
                 original_metrics = compute_metrics(original_code)
                 stats["readability_original"] += original_metrics.get("aggregate", 0.0)
-                
+
                 # Run end-to-end refinement with repair loop
                 result = refiner.process_test_end_to_end(
-                    original_code=original_code,
-                    max_retries=max_repair_iterations
+                    original_code=original_code, max_retries=max_repair_iterations
                 )
-                
+
                 stats["tests_processed"] += 1
-                
+
                 if result["success"]:
                     refined_code = result["final_code"]
-                    
+
                     # Compute refined readability
                     refined_metrics = compute_metrics(refined_code)
                     stats["readability_refined"] += refined_metrics.get("aggregate", 0.0)
-                    
+
                     # Extract just the function (remove imports)
                     refined_tree = ast.parse(refined_code)
-                    refined_func = [n for n in refined_tree.body if isinstance(n, ast.FunctionDef)][0]
+                    refined_func = next(
+                        n for n in refined_tree.body if isinstance(n, ast.FunctionDef)
+                    )
                     refined_tests.append(refined_func)
-                    
+
                     stats["tests_refined"] += 1
                     stats["repair_iterations"] += result["iterations"]
-                    
-                    _LOGGER.info("Successfully refined %s (iterations: %d)", func.name, result["iterations"])
+
+                    _LOGGER.info(
+                        "Successfully refined %s (iterations: %d)",
+                        func.name,
+                        result["iterations"],
+                    )
                 else:
                     # Keep original if refinement failed
                     refined_tests.append(func)
                     stats["failed_tests"] += 1
-                    _LOGGER.warning("Failed to refine %s: %s", func.name, result.get("error", "Unknown"))
-                    
+                    _LOGGER.warning(
+                        "Failed to refine %s: %s",
+                        func.name,
+                        result.get("error", "Unknown"),
+                    )
+
             except Exception as e:
                 _LOGGER.exception("Error refining test %s: %s", func.name, e)
                 refined_tests.append(func)  # Keep original
                 stats["failed_tests"] += 1
-        
+
         # Calculate average readability scores
         if stats["tests_processed"] > 0:
             stats["readability_original"] /= stats["tests_processed"]
             stats["readability_refined"] /= max(stats["tests_refined"], 1)
-            stats["readability_delta"] = stats["readability_refined"] - stats["readability_original"]
-        
+            stats["readability_delta"] = (
+                stats["readability_refined"] - stats["readability_original"]
+            )
+
         # Save refined test file
         if stats["tests_refined"] > 0:
             # Create new AST module with refined tests
             refined_module = ast.Module(body=import_nodes + refined_tests, type_ignores=[])
             refined_code = ast.unparse(ast.fix_missing_locations(refined_module))
-            
+
             # Save to file (overwrite original or save as _refined)
             refined_path = test_file_path.parent / f"{test_file_path.stem}_refined.py"
-            with open(refined_path, "w", encoding="utf-8") as f:
-                f.write("# Test cases automatically generated by Pynguin (https://www.pynguin.eu).\n")
-                f.write("# Refined using LLM-based test refinement pipeline.\n")
-                f.write(refined_code)
-            
+            header = (
+                "# Test cases automatically generated by Pynguin"
+                " (https://www.pynguin.eu).\n"
+                "# Refined using LLM-based test refinement pipeline.\n"
+            )
+            Path(refined_path).write_text(header + refined_code, encoding="utf-8")
+
             _LOGGER.info("Saved refined tests to %s", refined_path)
-        
+
         _LOGGER.info("Refinement complete: %s", stats)
 
         try:
             usage = refiner.llm_client.get_usage()
-        except Exception:
+        except Exception:  # noqa: BLE001
             usage = {}
 
         stats["llm_calls"] = int(usage.get("calls", 0) or 0)
@@ -222,7 +239,7 @@ def refine_generated_tests(
         stats["llm_output_tokens"] = int(usage.get("output_tokens", 0) or 0)
         stats["wall_time_seconds"] = float(time.perf_counter() - start_wall)
         return stats
-        
+
     except Exception as e:
         _LOGGER.exception("Test refinement failed: %s", e)
         return {

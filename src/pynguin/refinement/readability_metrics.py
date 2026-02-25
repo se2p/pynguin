@@ -1,6 +1,14 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+"""Readability scoring metrics for refined tests."""
+
 import ast
 import re
-from typing import Dict, Any
+from typing import Any
 
 _VAR_GENERIC_PATTERN = re.compile(r"^(var|list|dict|tuple|set)_\d+$")
 
@@ -13,6 +21,7 @@ def _extract_identifiers(tree: ast.AST) -> set:
         elif isinstance(node, ast.arg):
             names.add(node.arg)
     return names
+
 
 def score_aaa(test_code: str) -> float:
     """Scores presence and ordering of AAA markers (0..1)."""
@@ -30,6 +39,7 @@ def score_aaa(test_code: str) -> float:
         base += 0.25  # small bonus for correct order
     return min(base, 1.0)
 
+
 def score_semantic_names(test_code: str) -> float:
     """Ratio of semantic (non-generic) identifiers to all identifiers (0..1)."""
     try:
@@ -42,8 +52,10 @@ def score_semantic_names(test_code: str) -> float:
     generic = sum(1 for n in identifiers if _VAR_GENERIC_PATTERN.match(n))
     return (len(identifiers) - generic) / len(identifiers)
 
+
 def score_assertion_clarity(test_code: str) -> float:
     """Scores specificity of assertions: attribute/key/value presence vs trivial asserts.
+
     Heuristic: counts asserts referencing attribute access, subscripts, comparisons.
     """
     try:
@@ -56,21 +68,21 @@ def score_assertion_clarity(test_code: str) -> float:
         if isinstance(node, ast.Assert):
             total += 1
             test = node.test
-            if isinstance(test, (ast.Compare, ast.Call)):
-                specific += 1
-            elif isinstance(test, ast.Attribute):
-                specific += 1
-            elif isinstance(test, ast.Subscript):
+            if isinstance(test, (ast.Compare, ast.Call, ast.Attribute, ast.Subscript)):
                 specific += 1
     if total == 0:
         return 0.0
     return specific / total
 
+
 def score_conciseness(test_code: str) -> float:
     """Simple conciseness: ideal length window. Penalize overly long or extremely short.
+
     Returns 0..1 where ~10-40 lines (excluding blanks/comments) maps to high score.
     """
-    lines = [l for l in test_code.splitlines() if l.strip() and not l.strip().startswith('#')]
+    lines = [
+        line for line in test_code.splitlines() if line.strip() and not line.strip().startswith("#")
+    ]
     n = len(lines)
     if n == 0:
         return 0.0
@@ -82,7 +94,9 @@ def score_conciseness(test_code: str) -> float:
     # n > 40
     return max(0.0, 1.0 - (n - 40) / 40.0)
 
-def aggregate_readability(test_code: str) -> Dict[str, float]:
+
+def aggregate_readability(test_code: str) -> dict[str, float]:
+    """Compute individual readability sub-scores for a test."""
     return {
         "aaa": score_aaa(test_code),
         "semantic_names": score_semantic_names(test_code),
@@ -90,9 +104,10 @@ def aggregate_readability(test_code: str) -> Dict[str, float]:
         "conciseness": score_conciseness(test_code),
     }
 
-def compute_all(test_code: str) -> Dict[str, Any]:
+
+def compute_all(test_code: str) -> dict[str, Any]:
+    """Compute all readability scores including an aggregate mean."""
     scores = aggregate_readability(test_code)
     # Simple aggregate: average
     scores["aggregate"] = sum(scores.values()) / len(scores) if scores else 0.0
     return scores
-
