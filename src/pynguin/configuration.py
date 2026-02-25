@@ -956,30 +956,19 @@ class LLMRefinementConfiguration:
 
     This enables post-processing of generated tests using a large language model
     to improve readability and fix failing tests.
-
-    Supports two providers:
-    - ollama: Free local/university Ollama instance (default)
-    - openai: OpenAI API (requires API key)
     """
 
     enabled: bool = False
     """Enable LLM-based test refinement."""
 
-    llm_provider: str = "ollama"
-    """LLM provider to use: 'ollama' (default) or 'openai'."""
-
-    llm_base_url: str = "http://rhaegal.dimis.fim.uni-passau.de:15343"
-    """Base URL for the Ollama LLM service (used when provider='ollama')."""
-
-    llm_model: str = "codellama:7b"
+    llm_model: str = "gpt-4o-mini"
     """Name of the LLM model to use for refinement.
-    Default: 'codellama:7b' for Ollama (fast, 9s response)
-    Recommended: 'gpt-4o-mini' for OpenAI (cheap, good quality)
-    Alternative: 'gpt-4o' for OpenAI (expensive, best quality)
+    Recommended: 'gpt-4o-mini' (cheap, good quality)
+    Alternative: 'gpt-4o' (expensive, best quality)
     """
 
     llm_api_key: str | None = None
-    """API key for OpenAI (required when provider='openai').
+    """API key for OpenAI (required).
     Can also be set via OPENAI_API_KEY environment variable.
     """
 

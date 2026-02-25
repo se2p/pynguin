@@ -179,33 +179,21 @@ Replace X with your score (1-5) for each dimension."""  # noqa: E501
         self,
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
-        provider: str = "openai",
-        base_url: str | None = None,
     ):
         """Initialize the LLM Judge.
 
         Args:
-            api_key: OpenAI API key (required for OpenAI provider)
+            api_key: OpenAI API key (required; can use OPENAI_API_KEY)
             model: Model name (default: gpt-4o-mini)
-            provider: LLM provider ("openai" or "ollama")
-            base_url: Base URL for Ollama (if using Ollama provider)
         """
-        if provider == "openai":
-            # api_key is required for OpenAI, LLMClient will check env var if None
-            self.client = LLMClient(
-                provider="openai",
-                model_name=model,
-                api_key=api_key,  # type: ignore[arg-type]  # LLMClient handles None via env var
-            )
-        else:
-            self.client = LLMClient(
-                provider="ollama",
-                model_name=model,
-                base_url=base_url or "http://rhaegal.dimis.fim.uni-passau.de:15343",
-            )
+        # OpenAI only; LLMClient will check env var if api_key is None.
+        self.client = LLMClient(
+            model_name=model,
+            api_key=api_key,  # type: ignore[arg-type]  # LLMClient handles None via env var
+        )
 
         self.model = model
-        self.provider = provider
+        self.provider = "openai"
 
         # Track usage
         self._total_calls = 0

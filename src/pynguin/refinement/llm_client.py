@@ -4,10 +4,9 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""LLM client wrapper for OpenAI and Ollama providers."""
+"""LLM client wrapper for the OpenAI provider."""
 
 import os
-import random
 import re
 import time
 from pathlib import Path
@@ -31,57 +30,39 @@ except ImportError:
 
 
 class LLMClient:
-    """A unified client to interact with LLM providers (Ollama or OpenAI).
+    """A client to interact with the OpenAI API.
 
     Simple wrapper that exposes a `generate_code(prompt)` method. It maps a
     text response to a Python code block (```python ... ```) when present.
-
-    Supports two providers:
-    - "ollama": University's local Ollama instance (free, requires VPN)
-    - "openai": OpenAI API (requires API key, costs money)
     """
 
     def __init__(
         self,
-        provider: str = "ollama",  # "ollama" or "openai"
-        base_url: str = "http://rhaegal.dimis.fim.uni-passau.de:15343",
-        model_name: str = "codellama:7b",
+        model_name: str = "gpt-4o-mini",
         api_key: str | None = None,
     ):
         """Initialize LLM client.
 
         Args:
-            provider: LLM provider - "ollama" or "openai"
-            base_url: Base URL (for Ollama only)
-            model_name: Model to use
-                - Ollama: "codellama:7b" (fast), "deepseek-coder-v2:16b" (better quality)
-                - OpenAI: "gpt-4o" (best), "gpt-4o-mini" (cheap)
-            api_key: OpenAI API key (only needed for provider="openai")
+            model_name: OpenAI model to use (e.g., "gpt-4o-mini", "gpt-4o")
+            api_key: OpenAI API key (required; can come from OPENAI_API_KEY)
         """
-        self.provider = provider.lower()
         self.model = model_name
 
-        # Usage tracking (best-effort; OpenAI provides usage, Ollama does not)
+        # Usage tracking (best-effort; OpenAI provides usage)
         self._calls: int = 0
         self._input_tokens: int = 0
         self._output_tokens: int = 0
         self._time_seconds: float = 0.0
 
-        if self.provider == "ollama":
-            self.base_url = base_url.rstrip("/")
-            self.generate_endpoint = f"{self.base_url}/api/generate"
-            self.api_key = None
-        elif self.provider == "openai":
-            # OpenAI setup
-            self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-            if not self.api_key:
-                raise ValueError(
-                    "OpenAI API key required. Set OPENAI_API_KEY environment variable "
-                    "or pass api_key parameter."
-                )
-            self.openai_endpoint = "https://api.openai.com/v1/chat/completions"
-        else:
-            raise ValueError(f"Unknown provider: {provider}. Use 'ollama' or 'openai'.")
+        # OpenAI setup
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "OpenAI API key required. Set OPENAI_API_KEY environment variable "
+                "or pass api_key parameter."
+            )
+        self.openai_endpoint = "https://api.openai.com/v1/chat/completions"
 
     def reset_usage(self) -> None:
         """Reset all usage counters to zero."""
@@ -105,63 +86,7 @@ class LLMClient:
         Retries on network/server errors with exponential backoff + jitter.
         Returns a sentinel string when retries are exhausted or on unrecoverable errors.
         """
-        if self.provider == "ollama":
-            return self._generate_ollama(prompt)
-        if self.provider == "openai":
-            return self._generate_openai(prompt)
-        return "# LLM error: unknown provider"
-
-    def _generate_ollama(self, prompt: str) -> str:
-        """Generate code using Ollama."""
-        attempts = 0
-        base_backoff = 2
-        max_attempts = 3
-
-        while attempts < max_attempts:
-            try:
-                start = time.perf_counter()
-                self._calls += 1
-                payload = {"model": self.model, "prompt": prompt, "stream": False}
-
-                response = requests.post(self.generate_endpoint, json=payload, timeout=120)
-
-                if response.status_code != 200:
-                    raise requests.HTTPError(f"HTTP {response.status_code}: {response.text}")
-
-                result = response.json()
-                text = result.get("response", "")
-
-                self._time_seconds += time.perf_counter() - start
-
-                return self._extract_code(text)
-
-            except requests.exceptions.Timeout:  # noqa: PERF203
-                attempts += 1
-                if attempts >= max_attempts:
-                    return "# LLM error: timeout"
-
-                exponential_wait = base_backoff * (2 ** (attempts - 1))
-                jitter = random.uniform(0, 1)  # noqa: S311
-                wait_time = min(exponential_wait + jitter, 30)
-
-                time.sleep(wait_time)
-
-            except requests.exceptions.RequestException:
-                attempts += 1
-
-                if attempts >= max_attempts:
-                    return "# LLM error: request failed"
-
-                exponential_wait = base_backoff * (2 ** (attempts - 1))
-                jitter = random.uniform(0, 1)  # noqa: S311
-                wait_time = min(exponential_wait + jitter, 30)
-
-                time.sleep(wait_time)
-
-            except Exception:  # noqa: BLE001
-                return "# LLM error: unable to generate code"
-
-        return "# LLM retries exhausted"
+        return self._generate_openai(prompt)
 
     def _generate_openai(self, prompt: str) -> str:
         """Generate code using OpenAI API."""

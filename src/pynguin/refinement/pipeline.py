@@ -92,37 +92,25 @@ class TestRefiner:
         api_key=None,
         module_under_test=None,
         project_root=None,
-        llm_base_url=None,
         llm_model=None,
-        llm_provider="ollama",  # "ollama" or "openai"
         subject_properties=None,
     ):
         """Initialize the test refinement pipeline.
 
         Args:
-            api_key: OpenAI API key (only needed if llm_provider="openai")
+            api_key: OpenAI API key (required; can also use OPENAI_API_KEY)
             module_under_test: Module being tested
             project_root: Project root directory
-            llm_base_url: Base URL for Ollama (only used if llm_provider="ollama")
-            llm_model: Model name (e.g., "codellama:7b" for Ollama, "gpt-4o" for OpenAI)
-            llm_provider: LLM provider - "ollama" (default, free) or "openai" (paid)
+            llm_model: Model name (e.g., "gpt-4o-mini", "gpt-4o")
             subject_properties: Pynguin's SubjectProperties for native coverage
                 measurement (optional; enables branch coverage instead of
                 line-coverage fallback).
         """
-        # Initialize LLM client with provider selection
-        if llm_provider == "openai":
-            self.llm_client = LLMClient(
-                provider="openai",
-                model_name=llm_model or "gpt-4o-mini",  # Default to cheaper model
-                api_key=api_key,
-            )
-        else:  # ollama (default)
-            self.llm_client = LLMClient(
-                provider="ollama",
-                base_url=llm_base_url or "http://rhaegal.dimis.fim.uni-passau.de:15343",
-                model_name=llm_model or "codellama:7b",
-            )
+        # Initialize LLM client (OpenAI only)
+        self.llm_client = LLMClient(
+            model_name=llm_model or "gpt-4o-mini",
+            api_key=api_key,
+        )
 
         self.module_under_test = module_under_test
         self.project_root = project_root or str(Path(__file__).resolve().parent.parent)
