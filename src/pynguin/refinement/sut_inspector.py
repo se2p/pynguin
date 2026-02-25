@@ -58,13 +58,14 @@ def time_limit(seconds: int):
         raise InspectionTimeoutError("Import operation timed out")
 
     # Check if signal.SIGALRM is available (not on Windows)
-    if hasattr(signal, "SIGALRM"):
+    alarm_fn = getattr(signal, "alarm", None)
+    if hasattr(signal, "SIGALRM") and alarm_fn is not None:
         old_handler = signal.signal(signal.SIGALRM, signal_handler)
-        signal.alarm(seconds)
+        alarm_fn(seconds)
         try:
             yield
         finally:
-            signal.alarm(0)
+            alarm_fn(0)
             signal.signal(signal.SIGALRM, old_handler)
     else:
         # On Windows, we can't use SIGALRM, so just proceed without timeout
@@ -187,7 +188,7 @@ class SUTInspector:
         try:
             # Check if it's a method (has __self__ or is defined in a class)
             if inspect.ismethod(obj):
-                parent_class = obj.__self__.__class__
+                parent_class: type[object] | None = obj.__self__.__class__
                 return inspect.getdoc(parent_class)
 
             # For unbound methods or classes, check __qualname__
@@ -199,8 +200,9 @@ class SUTInspector:
                 module = sys.modules.get(obj.__module__)
                 if module:
                     class_name = obj.__qualname__.rsplit(".", 1)[0]
-                    parent_class = getattr(module, class_name, None)
-                    if parent_class and inspect.isclass(parent_class):
+                    parent_candidate = getattr(module, class_name, None)
+                    if parent_candidate and inspect.isclass(parent_candidate):
+                        parent_class = parent_candidate
                         return inspect.getdoc(parent_class)
 
             return None

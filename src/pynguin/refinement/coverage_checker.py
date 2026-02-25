@@ -286,6 +286,7 @@ def check_coverage_preservation(
     # Choose measurement function
     def _measure(test_code: str) -> CoverageResult:
         if use_pynguin:
+            assert subject_properties is not None
             return _measure_coverage_pynguin(test_code, module_under_test, subject_properties)
         return _measure_coverage_settrace(test_code, module_under_test)
 
@@ -328,4 +329,4 @@ def check_coverage_preservation(
         return True, details
     details["status"] = "failed"
     details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
-    return None
+    return False, details

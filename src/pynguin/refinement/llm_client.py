@@ -11,7 +11,7 @@ import re
 import time
 from pathlib import Path
 
-import requests
+import requests  # type: ignore[import-untyped]
 
 try:
     from dotenv import load_dotenv

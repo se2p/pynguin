@@ -189,7 +189,7 @@ Replace X with your score (1-5) for each dimension."""  # noqa: E501
         # OpenAI only; LLMClient will check env var if api_key is None.
         self.client = LLMClient(
             model_name=model,
-            api_key=api_key,  # type: ignore[arg-type]  # LLMClient handles None via env var
+            api_key=api_key,
         )
 
         self.model = model

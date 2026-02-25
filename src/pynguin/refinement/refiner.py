@@ -13,7 +13,7 @@ import contextlib
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from pynguin.refinement.pipeline import TestRefiner
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
@@ -30,9 +30,9 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
     llm_model: str = "gpt-4o-mini",
     llm_api_key: str | None = None,
     max_repair_iterations: int = 3,
-    max_tests: int = 30,
+    max_tests: int | None = 30,
     subject_properties: SubjectProperties | None = None,
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """Refine generated tests using LLM-based refinement pipeline.
 
     This is the main entry point called from generator.py after tests are exported.
@@ -79,7 +79,10 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
         test_functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
 
         if import_nodes:
-            module_wrapper = ast.Module(body=import_nodes, type_ignores=[])
+            module_wrapper = ast.Module(
+                body=cast("list[ast.stmt]", import_nodes),
+                type_ignores=[],
+            )
             import_block = ast.unparse(module_wrapper) + "\n"
         else:
             import_block = ""
@@ -131,7 +134,8 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
         refined_tests = []
 
         # Process each test function (up to max_tests)
-        for idx, func in enumerate(test_functions[:max_tests], 1):
+        limit = max_tests if max_tests is not None else len(test_functions)
+        for idx, func in enumerate(test_functions[:limit], 1):
             _LOGGER.info("Processing test %d/%d: %s", idx, len(test_functions), func.name)
 
             try:
@@ -197,7 +201,10 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
         # Save refined test file
         if stats["tests_refined"] > 0:
             # Create new AST module with refined tests
-            refined_module = ast.Module(body=import_nodes + refined_tests, type_ignores=[])
+            refined_body = cast("list[ast.stmt]", import_nodes) + cast(
+                "list[ast.stmt]", refined_tests
+            )
+            refined_module = ast.Module(body=refined_body, type_ignores=[])
             refined_code = ast.unparse(ast.fix_missing_locations(refined_module))
 
             # Save to file (overwrite original or save as _refined)

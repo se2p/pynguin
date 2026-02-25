@@ -8,6 +8,7 @@
 
 import ast
 from pathlib import Path
+from typing import Any
 
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.coverage_checker import check_coverage_preservation
@@ -51,7 +52,7 @@ def _remove_failing_inferred_assertion(
     class AssertRemover(ast.NodeTransformer):
         def __init__(self, inferred_assertions: list[str]):
             self.inferred_assertions = set(inferred_assertions)
-            self.removed_assertion = None
+            self.removed_assertion: str | None = None
             self.found_failing = False
 
         def visit_Assert(self, node: ast.Assert) -> ast.AST | None:  # noqa: N802
@@ -87,7 +88,7 @@ def _remove_failing_inferred_assertion(
 class TestRefiner:
     """Orchestrates the end-to-end test refinement pipeline."""
 
-    def __init__(  # noqa: PLR0917
+    def __init__(
         self,
         api_key=None,
         module_under_test=None,
@@ -678,7 +679,7 @@ Fix the test code to resolve the error. Common fixes include:
             # ============================================================
             # Stage 3, Phase 2: Mutation-Based Assertion Filtering
             # ============================================================
-            mutation_stats = {}
+            mutation_stats: dict[str, Any] = {}
             try:
                 # Get module path for mutation testing
                 module_path = "unknown"

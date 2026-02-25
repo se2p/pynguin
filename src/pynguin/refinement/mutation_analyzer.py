@@ -138,12 +138,12 @@ def _killed_set(
     return killed
 
 
-def filter_vacuous_assertions(  # noqa: C901, PLR0915, PLR0914
+def filter_vacuous_assertions(  # noqa: C901, PLR0915, PLR0914, PLR0917
     original_test: str,
     refined_test: str,
-    _focal_method: str,
+    focal_method: str,  # noqa: ARG001
     module_under_test: types.ModuleType | None,
-    _module_path: str,
+    module_path: str,  # noqa: ARG001
     max_mutants: int = 10,
     other_tests_in_suite: list[str] | None = None,
 ) -> tuple[str, dict[str, Any]]:
