@@ -953,10 +953,10 @@ class ToCoverConfiguration:
 @dataclasses.dataclass
 class LLMRefinementConfiguration:
     """Configuration for LLM-based test refinement.
-    
+
     This enables post-processing of generated tests using a large language model
     to improve readability and fix failing tests.
-    
+
     Supports two providers:
     - ollama: Free local/university Ollama instance (default)
     - openai: OpenAI API (requires API key)
@@ -994,7 +994,6 @@ class LLMRefinementConfiguration:
 
     save_refined: bool = True
     """Save the refined test file with _refined suffix."""
-
 
 
 @dataclasses.dataclass

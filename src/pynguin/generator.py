@@ -654,7 +654,7 @@ def add_additional_metrics(  # noqa: D103
         ))
 
 
-def _run() -> ReturnCode:  # noqa: C901
+def _run() -> ReturnCode:  # noqa: C901, PLR0915
     _verify_config()
     if (setup_result := _setup_and_check()) is None:
         return ReturnCode.SETUP_FAILED
