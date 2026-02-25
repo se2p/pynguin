@@ -389,8 +389,13 @@ def test_process_end_to_end_success(refiner: TestRefiner):
         mock_run.return_value = (True, "Test passed.")
         mock_cov.return_value = (
             True,
-            {"status": "passed", "metric": "line", "original_coverage": 1.0,
-             "refined_coverage": 1.0, "coverage_delta": 0.0},
+            {
+                "status": "passed",
+                "metric": "line",
+                "original_coverage": 1.0,
+                "refined_coverage": 1.0,
+                "coverage_delta": 0.0,
+            },
         )
         mock_filter.return_value = (SIMPLE_TEST_CODE, {"assertions_removed": 0})
 
@@ -646,9 +651,7 @@ def test_process_end_to_end_aaa_markers_inserted(refiner: TestRefiner):
             "pynguin.refinement.pipeline.filter_vacuous_assertions",
             return_value=(SIMPLE_TEST_CODE, {}),
         ),
-        patch(
-            "pynguin.refinement.pipeline.FocalMethodAnalyzer"
-        ) as mock_analyzer_cls,
+        patch("pynguin.refinement.pipeline.FocalMethodAnalyzer") as mock_analyzer_cls,
         patch(
             "pynguin.refinement.aaa_inserter.insert_aaa_markers_simple",
             return_value="# Arrange\n# Act\n# Assert\n" + SIMPLE_TEST_CODE,
