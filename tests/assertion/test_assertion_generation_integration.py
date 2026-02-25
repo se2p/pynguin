@@ -42,7 +42,7 @@ from tests.testutils import extract_test_case_0
             """str_0 = 'foo bar'
 float_0 = 39.82
 human_0 = module_0.Human(str_0, float_0)
-assert f'{type(human_0).__module__}.{type(human_0).__qualname__}' == 'tests.fixtures.examples.assertions.Human'
+assert isinstance(human_0, module_0.Human)
 assert module_0.static_state == 0
 str_1 = human_0.get_name()
 assert str_1 == 'foo bar'""",
@@ -411,10 +411,7 @@ def _add_assertions(module_name: str, test_case_code: str) -> str:
             """def test_case_0():
     int_0 = 5
     some_type_0 = module_0.SomeType(int_0)
-    assert (
-        f"{type(some_type_0).__module__}.{type(some_type_0).__qualname__}"
-        == "tests.fixtures.accessibles.accessible.SomeType"
-    )
+    assert isinstance(some_type_0, module_0.SomeType)
     float_0 = 42.23
     float_1 = module_0.simple_function(float_0)
     assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)""",

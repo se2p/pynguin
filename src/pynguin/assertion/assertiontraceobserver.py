@@ -220,14 +220,27 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             # No precise assertion possible, so assert on type.
             typ = type(value)
             if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
-                trace.add_entry(
-                    position,
-                    ass.TypeNameAssertion(
-                        ref,
-                        module_provider.get_module(typ.__module__).__name__,
-                        typ.__qualname__,
-                    ),
-                )
+                # Check if the type is importable in the test context
+                if self._is_type_importable(typ, module_provider):
+                    # Use isinstance assertion for importable types
+                    trace.add_entry(
+                        position,
+                        ass.IsInstanceAssertion(
+                            ref,
+                            module_provider.get_module(typ.__module__).__name__,
+                            typ.__qualname__,
+                        ),
+                    )
+                else:
+                    # Fallback to TypeNameAssertion if type is not importable
+                    trace.add_entry(
+                        position,
+                        ass.TypeNameAssertion(
+                            ref,
+                            module_provider.get_module(typ.__module__).__name__,
+                            typ.__qualname__,
+                        ),
+                    )
             if isinstance(value, Sized):
                 try:
                     length = len(value)
@@ -253,6 +266,47 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                             trace,
                             depth=depth + 1,
                         )
+
+    @staticmethod
+    def _is_type_importable(
+        typ: type,
+        module_provider: ex.ModuleProvider,
+    ) -> bool:
+        """Check if a type can be imported in the test context.
+
+        Args:
+            typ: The type to check
+            module_provider: The module provider
+
+        Returns:
+            True if the type is importable, False otherwise
+        """
+        try:
+            if not hasattr(typ, "__module__") or not hasattr(typ, "__qualname__"):
+                return False
+
+            # Try to get the module
+            module_provider.get_module(typ.__module__)
+
+            # Check if it's a built-in type that doesn't need importing
+            if typ.__module__ == "builtins":
+                return True
+
+            # For user-defined types, verify they're accessible
+            # by checking if we can resolve the qualified name
+            module = module_provider.get_module(typ.__module__)
+            parts = typ.__qualname__.split(".")
+            obj = module
+            for part in parts:
+                if not hasattr(obj, part):
+                    return False
+                obj = getattr(obj, part)
+
+            return obj is typ
+
+        except Exception:  # noqa: BLE001
+            # If anything goes wrong, the type is not safely importable
+            return False
 
     @staticmethod
     def _should_ignore(field, attr_value):

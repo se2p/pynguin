@@ -6,7 +6,6 @@
 #
 """Tests for the TestCaseReferenceCopier class."""
 
-import ast
 import math
 from unittest.mock import MagicMock
 
@@ -161,17 +160,19 @@ def test_create_new_assertion_isinstance_assertion():
     # Create a mock source
     source = MagicMock(vr.VariableReference)
 
-    # Create an IsInstanceAssertion
-    expected_type = ast.Name(id="int", ctx=ast.Load())
-    original_assertion = IsInstanceAssertion(source, expected_type)
+    # Create an IsInstanceAssertion with module and qualname
+    module = "builtins"
+    qualname = "int"
+    original_assertion = IsInstanceAssertion(source, module, qualname)
 
     # Call create_new_assertion
     new_assertion = trc.create_new_assertion(original_assertion, source)
 
-    # Verify that a new IsInstanceAssertion was created with the same expected type
+    # Verify that a new IsInstanceAssertion was created with the same module and qualname
     assert isinstance(new_assertion, IsInstanceAssertion)
     assert new_assertion.source == source
-    assert new_assertion.expected_type == expected_type
+    assert new_assertion.module == module
+    assert new_assertion.qualname == qualname
 
 
 def test_create_new_assertion_fallback():

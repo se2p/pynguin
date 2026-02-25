@@ -12,8 +12,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import ast
-
     import pynguin.testcase.variablereference as vr
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
@@ -240,19 +238,29 @@ class IsInstanceAssertion(ReferenceAssertion):
     """An assertion that checks if a reference is an instance of a given type."""
 
     def __init__(  # noqa: D107
-        self, source: vr.Reference, expected_type: ast.Attribute | ast.Name
+        self, source: vr.Reference, module: str, qualname: str
     ):
         super().__init__(source)
-        self._expected_type = expected_type
+        self._module = module
+        self._qualname = qualname
 
     @property
-    def expected_type(self) -> ast.Attribute | ast.Name:
-        """Provides the expected type.
+    def module(self) -> str:
+        """Provides the module name.
 
         Returns:
-            The expected type
+            The module name
         """
-        return self._expected_type
+        return self._module
+
+    @property
+    def qualname(self) -> str:
+        """Provides the qualname.
+
+        Returns:
+            The qualname
+        """
+        return self._qualname
 
     def accept(self, visitor: AssertionVisitor) -> None:  # noqa: D102
         visitor.visit_isinstance_assertion(self)
@@ -260,20 +268,21 @@ class IsInstanceAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> IsInstanceAssertion:
-        return IsInstanceAssertion(self.source.clone(memo), self._expected_type)
+        return IsInstanceAssertion(self.source.clone(memo), self._module, self._qualname)
 
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, IsInstanceAssertion)
             and self._source == other._source
-            and self._expected_type == other._expected_type
+            and self._module == other._module
+            and self._qualname == other._qualname
         )
 
     def __hash__(self) -> int:
-        return hash((self._source, self._expected_type))
+        return hash((self._source, self._module, self._qualname))
 
     def __repr__(self):
-        return f"IsInstanceAssertion({self._source!r}, {self._expected_type!r})"
+        return f"IsInstanceAssertion({self._source!r}, {self._module}, {self._qualname})"
 
 
 class CollectionLengthAssertion(ReferenceAssertion):

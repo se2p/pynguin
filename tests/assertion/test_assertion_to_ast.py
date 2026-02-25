@@ -112,8 +112,7 @@ def test_raises_exception(assertion_to_ast_ref):
 
 def test_isinstance_assertion(assertion_to_ast_ref):
     assertion_to_ast, ref = assertion_to_ast_ref
-    expected_type = ast.Name(id="int", ctx=ast.Load())
-    assertion = ass.IsInstanceAssertion(source=ref, expected_type=expected_type)
+    assertion = ass.IsInstanceAssertion(source=ref, module="builtins", qualname="int")
     assertion.accept(assertion_to_ast)
     assert (
         __create_source_from_ast(assertion_to_ast.nodes)
