@@ -202,6 +202,13 @@ no_cover = []
 enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
 
+[llm_refinement]
+enabled = false
+llm_model = "gpt-4o-mini"
+max_repair_iterations = 3
+save_original = true
+save_refined = true
+
 [local_search]
 local_search = true
 local_search_same_datatype = true
@@ -326,7 +333,11 @@ def expected_txt(tmp_path):
  'random=RandomConfiguration(max_sequence_length=10, '
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
- 'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
+ 'enable_inline_pragma_no_cover=True), '
+ "llm_refinement=LLMRefinementConfiguration(enabled=False, llm_model='gpt-4o-mini', "
+ 'llm_api_key=None, max_repair_iterations=3, max_tests=None, '
+ 'save_original=True, save_refined=True), '
+ 'ignore_modules=[], ignore_methods=[], '
  'subprocess=False, subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
@@ -386,6 +397,20 @@ False
 gpt-4o-mini
 --large_language_model.temperature
 0.8
+--llm_refinement.enabled
+False
+--llm_refinement.llm_api_key
+None
+--llm_refinement.llm_model
+gpt-4o-mini
+--llm_refinement.max_repair_iterations
+3
+--llm_refinement.max_tests
+None
+--llm_refinement.save_original
+True
+--llm_refinement.save_refined
+True
 --local_search.local_search
 True
 --local_search.local_search_collections
