@@ -14,7 +14,7 @@ import logging
 import re
 import typing
 
-from pynguin.utils.openai_key_resolver import require_api_key
+from pynguin.utils.openai_key_resolver import get_llm_url, require_api_key
 
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -139,7 +139,11 @@ if OPENAI_AVAILABLE:
             if api_key is None or not api_key.get_secret_value():
                 api_key = require_api_key()
             super().__init__(api_key, temperature, system_prompt)
-            self.__client = openai.OpenAI(api_key=api_key.get_secret_value())
+            llm_url = get_llm_url()
+            kwargs: dict = {"api_key": api_key.get_secret_value()}
+            if llm_url:
+                kwargs["base_url"] = llm_url
+            self.__client = openai.OpenAI(**kwargs)
             self.__model = model
 
         def chat(self, prompt: str, system_prompt: str | None = None) -> str | None:  # noqa: D102
@@ -147,7 +151,7 @@ if OPENAI_AVAILABLE:
                 system_prompt = self._system_prompt
 
             messages: Iterable[MessageTypes] = [
-                ChatCompletionDeveloperMessageParam(content=system_prompt, role="developer"),
+                ChatCompletionSystemMessageParam(content=system_prompt, role="system"),
                 ChatCompletionUserMessageParam(content=prompt, role="user"),
             ]
             try:

@@ -54,7 +54,7 @@ def get_api_key() -> SecretStr | None:
         load_dotenv()
 
     # Check environment variables
-    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY"):
+    for var in ("PYNGUIN_OPENAI_API_KEY", "OPENAI_API_KEY", "LLM_API_KEY"):
         value = os.environ.get(var, "")
         if value and value.strip():
             return SecretStr(value.strip())
@@ -81,6 +81,29 @@ def require_api_key() -> SecretStr:
             "  - OPENAI_API_KEY environment variable"
         )
     return api_key
+
+
+def get_llm_url() -> str:
+    """Get the LLM base URL with clear preference order.
+
+    Preference order:
+    1) configuration.large_language_model.llm_url (if non-empty)
+    2) PYNGUIN_LLM_BASE_URL environment variable
+    3) Returns "" (empty = use OpenAI default)
+
+    Returns:
+        The base URL string, or empty string for OpenAI default.
+    """
+    cfg_url = getattr(config.configuration.large_language_model, "llm_url", "") or ""
+    cfg_url = cfg_url.strip()
+    if cfg_url:
+        return cfg_url
+
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+
+    value = os.environ.get("PYNGUIN_LLM_BASE_URL", "")
+    return value.strip()
 
 
 def is_api_key_present() -> bool:

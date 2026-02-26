@@ -819,6 +819,9 @@ class LLMConfiguration:
     model_name: str = "gpt-4o-mini"
     """The OpenAI Model to use for completions."""
 
+    llm_url: str = ""
+    """Base URL for the LLM API endpoint (leave empty for default OpenAI)."""
+
     temperature: float = 0.8
     """The temperature to use when querying the model.
     The value must be from [0.0, 1.0]."""
