@@ -6,7 +6,37 @@
 #
 """In-process test execution validator."""
 
+import sys
 import traceback
+from pathlib import Path
+
+
+def _ensure_module_package_on_path(module_under_test) -> str | None:
+    """Add the top-level package root to ``sys.path`` if not already present.
+
+    When the generated test contains ``import test_subject.string_utils as
+    module_0``, the **parent** of the ``test_subject`` package must be on
+    ``sys.path`` for the import to succeed inside ``exec()``.
+
+    Returns:
+        The path that was added, or *None* if nothing was added.
+    """
+    module_file = getattr(module_under_test, "__file__", None)
+    if not module_file:
+        return None
+
+    # Walk up from the module file through any __init__.py-bearing
+    # ancestors to find the top-level package root.
+    pkg_dir = Path(module_file).resolve().parent
+    while (pkg_dir.parent / "__init__.py").exists():
+        pkg_dir = pkg_dir.parent
+
+    # The directory *containing* the top-level package
+    root = str(pkg_dir.parent)
+    if root not in sys.path:
+        sys.path.insert(0, root)
+        return root
+    return None
 
 
 def run_test(test_code: str, module_under_test):
@@ -20,6 +50,7 @@ def run_test(test_code: str, module_under_test):
         A tuple (bool, str) for (pass/fail, message).
     """
     # Provide the tested module under its real name for introspection if needed
+    _ensure_module_package_on_path(module_under_test)
     scope = {module_under_test.__name__: module_under_test}
     import textwrap  # noqa: PLC0415
 

@@ -18,6 +18,43 @@ from pynguin.refinement.sut_inspector import SUTInspector
 from pynguin.refinement.validator import run_test
 
 
+def _restore_import_block(llm_code: str, original_code: str) -> str:
+    """Replace LLM-generated imports with the original import block.
+
+    The LLM often changes ``import test_subject.foo as module_0`` to
+    ``from test_subject.foo import func_a, func_b`` and then uses bare
+    ``func_a()`` calls.  If we let those modified imports through to
+    ``run_test``, the bare calls pass validation — but ``refiner.py``
+    later discards the LLM's imports and re-attaches the originals,
+    producing a broken file where ``module_0.`` prefixes are missing.
+
+    By restoring the original import block *before* validation, any
+    bare-call errors are caught in the repair loop.
+    """
+    try:
+        orig_tree = ast.parse(original_code)
+        llm_tree = ast.parse(llm_code)
+    except SyntaxError:
+        return llm_code  # can't parse → leave as-is for repair loop
+
+    # Collect original import nodes
+    orig_imports = [
+        n for n in orig_tree.body if isinstance(n, (ast.Import, ast.ImportFrom))
+    ]
+
+    # Collect non-import nodes from LLM output
+    llm_body = [
+        n for n in llm_tree.body if not isinstance(n, (ast.Import, ast.ImportFrom))
+    ]
+
+    if not llm_body:
+        return llm_code  # nothing useful from LLM
+
+    restored = ast.Module(body=orig_imports + llm_body, type_ignores=[])
+    ast.fix_missing_locations(restored)
+    return ast.unparse(restored)
+
+
 def _remove_failing_inferred_assertion(
     current_code: str, original_code: str, _error_msg: str
 ) -> tuple[str | None, str | None]:
@@ -281,6 +318,7 @@ to improve readability while preserving its exact behavior.
 **Task:** Refactor this test following the Arrange-Act-Assert (AAA) pattern.
 
 **CRITICAL - Preserve ALL import statements exactly as they appear in the original test.**
+**CRITICAL - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`). The test uses `import ... as module_0` style imports, and ALL SUT function/method calls MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()` — that will cause NameError.**
 
 **Requirements:**
 1. **Test Function Name:** Rename the test function
@@ -369,6 +407,7 @@ unit test based on the method's documented behavior.
 ```
 
 **CRITICAL: You MUST preserve ALL import statements from the input test code.**
+**CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`). Do NOT remove the `module_0.` prefix — that will cause NameError.**
 
 **Your Task:**
 Analyze the method's documentation and add appropriate assertions to verify its behavior.
@@ -565,6 +604,7 @@ Fix the test code to resolve the error. Common fixes include:
 - Keep the same test function name
 - Preserve the test's intent and behavior
 - Fix ONLY what's broken - don't change working parts
+- Preserve ALL module prefixes (e.g., `module_0.func()`) — do NOT convert to bare `func()` calls
 - Do NOT include explanations, just the fixed code
 
 **Corrected Test Code:**
@@ -580,12 +620,14 @@ Fix the test code to resolve the error. Common fixes include:
     ) -> dict:
         """Complete end-to-end test refinement pipeline with iterative repair loop.
 
-        This method implements the full pipeline:
+        This method implements the full pipeline (order matters!):
         - Stage 1: Structural Analysis (focal method detection + SUT context)
-        - Stage 2: Readability Refinement (semantic naming + assertion improvement)
-        - Stage 3, Phase 1: Iterative Repair Loop (compilation/functional validation)
-        - Stage 3, Phase 2: Mutation-Based Assertion Filtering (per-assertion)
-        - Post-repair: Level 2 coverage preservation check + AAA marker insertion
+        - Stage 2: Readability Refinement (semantic naming)
+        - Stage 2C: Semantic Assertion Generation (LLM-inferred assertions)
+        - Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
+        - Stage 3: Iterative Repair Loop (compilation/functional validation)
+        - Level 2: Coverage Preservation Check (inside repair success path)
+        - Post-repair: AAA Marker Insertion + final re-validation
 
         Args:
             original_code: The raw test code to refine
@@ -601,37 +643,114 @@ Fix the test code to resolve the error. Common fixes include:
         # Level 1 Check: Verify Original Test Baseline
         orig_passed, _orig_msg = run_test(original_code, self.module_under_test)
         if not orig_passed:
-            pass  # Print first line of error
+            pass  # Original already fails — refinement starts from unstable baseline
 
         try:
+            # ============================================================
             # Stage 1: Structural Analysis
+            # ============================================================
             analysis_result = self.structural_analysis(original_code)
 
+            # ============================================================
             # Stage 2: Readability Refinement
+            # ============================================================
             readable_code = self.refine_readability(analysis_result)
+            readable_code = _restore_import_block(readable_code, original_code)
 
+            # ============================================================
+            # Stage 2C: Semantic Assertion Generation
+            # ============================================================
             focal_method = analysis_result.get("focal_method_name", "unknown")
             sut_context = analysis_result.get("sut_context", "Documentation unavailable.")
             assertion_code = self.generate_semantic_assertions(
                 readable_code, focal_method, sut_context
             )
+            assertion_code = _restore_import_block(assertion_code, original_code)
 
             current_code = assertion_code
 
             # ============================================================
-            # Stage 3, Phase 1: Iterative Repair Loop
+            # Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
+            # ============================================================
+            mutation_stats: dict[str, Any] = {}
+            try:
+                module_path = "unknown"
+                if self.module_under_test:
+                    module_path = getattr(self.module_under_test, "__file__", "unknown")
+
+                current_code, mutation_stats = filter_vacuous_assertions(
+                    original_test=readable_code,
+                    refined_test=current_code,
+                    focal_method=focal_method,
+                    module_under_test=self.module_under_test,
+                    module_path=module_path,
+                    max_mutants=10,
+                )
+            except Exception as e:  # noqa: BLE001
+                mutation_stats = {"error": str(e)}
+
+            # ============================================================
+            # Stage 3: Iterative Repair Loop (on filtered code)
             # ============================================================
             repair_iterations = 0
             for iteration in range(max_retries + 1):
-                if iteration == 0:
-                    pass
-
                 # Validate current code
                 passed, error_msg = run_test(current_code, self.module_under_test)
 
                 if passed:
                     repair_iterations = iteration
-                    break
+
+                    # ----- Level 2: Coverage Preservation Check -----
+                    coverage_passed, coverage_details = check_coverage_preservation(
+                        original_test=original_code,
+                        refined_test=current_code,
+                        module_under_test=self.module_under_test,
+                        tolerance=0.0,
+                        subject_properties=self.subject_properties,
+                    )
+
+                    if not coverage_passed:
+                        return {
+                            "success": False,
+                            "error": "Coverage preservation check failed",
+                            "coverage_details": coverage_details,
+                            "iterations": repair_iterations,
+                        }
+
+                    # ----- Post-repair: AAA Marker Insertion -----
+                    try:
+                        from pynguin.refinement.aaa_inserter import (  # noqa: PLC0415
+                            insert_aaa_markers_simple,
+                        )
+
+                        final_analyzer = FocalMethodAnalyzer(current_code, current_code)
+                        final_focal_info = final_analyzer.analyze()
+
+                        if final_focal_info and final_focal_info.focal_line_number > 0:
+                            focal_line = final_focal_info.focal_line_number
+                        else:
+                            focal_line = analysis_result.get("focal_line_number", 0)
+
+                        marked_code = insert_aaa_markers_simple(
+                            current_code, focal_line, verbose=False
+                        )
+
+                        # Re-validate after AAA insertion
+                        aaa_passed, _ = run_test(marked_code, self.module_under_test)
+                        if aaa_passed:
+                            current_code = marked_code
+                        # else: keep current_code without markers
+                    except Exception:  # noqa: S110, BLE001
+                        pass  # AAA insertion is best-effort
+
+                    return {
+                        "success": True,
+                        "final_code": current_code,
+                        "iterations": repair_iterations,
+                        "mutation_stats": mutation_stats,
+                        "coverage_details": coverage_details,
+                    }
+
                 # Test failed - determine error type
                 error_type = "Unknown Error"
                 if "SyntaxError" in error_msg:
@@ -654,10 +773,11 @@ Fix the test code to resolve the error. Common fixes include:
                         )
                         if modified_code and removed_assertion:
                             current_code = modified_code
-                            # Don't count this as a repair iteration - it's automatic discard
+                            # Don't count this as a repair iteration
                             continue
 
                     current_code = self.repair_test_code(current_code, error_msg)
+                    current_code = _restore_import_block(current_code, original_code)
                 else:
                     # Out of retries
                     return {
@@ -668,89 +788,12 @@ Fix the test code to resolve the error. Common fixes include:
                         "last_error_msg": error_msg,
                         "iterations": iteration,
                     }
-            else:
-                # Loop completed without break (shouldn't happen, but handle)
-                return {
-                    "success": False,
-                    "error": "Unexpected loop termination",
-                    "iterations": max_retries + 1,
-                }
 
-            # ============================================================
-            # Stage 3, Phase 2: Mutation-Based Assertion Filtering
-            # ============================================================
-            mutation_stats: dict[str, Any] = {}
-            try:
-                # Get module path for mutation testing
-                module_path = "unknown"
-                if self.module_under_test:
-                    module_path = getattr(self.module_under_test, "__file__", "unknown")
-
-                current_code, mutation_stats = filter_vacuous_assertions(
-                    original_test=readable_code,  # Test before assertion generation
-                    refined_test=current_code,  # Test after repair loop
-                    focal_method=focal_method,
-                    module_under_test=self.module_under_test,
-                    module_path=module_path,
-                    max_mutants=10,
-                )
-
-                if mutation_stats.get("assertions_removed", 0) > 0:
-                    pass
-            except Exception as e:  # noqa: BLE001
-                mutation_stats = {"error": str(e)}
-
-            # Re-validate after mutation filtering may have changed the test
-            passed_after_filter, _ = run_test(current_code, self.module_under_test)
-            if not passed_after_filter:
-                current_code = assertion_code  # Fall back to pre-filter code
-
-            # ============================================================
-            # Level 2: Coverage Preservation Check
-            # ============================================================
-            coverage_passed, coverage_details = check_coverage_preservation(
-                original_test=original_code,
-                refined_test=current_code,
-                module_under_test=self.module_under_test,
-                tolerance=0.0,
-                subject_properties=self.subject_properties,
-            )
-
-            if not coverage_passed:
-                return {
-                    "success": False,
-                    "error": "Coverage preservation check failed",
-                    "coverage_details": coverage_details,
-                    "iterations": repair_iterations,
-                }
-
-            # ============================================================
-            # Post-repair: AAA Marker Insertion
-            # ============================================================
-            try:
-                from pynguin.refinement.aaa_inserter import (  # noqa: PLC0415
-                    insert_aaa_markers_simple,
-                )
-
-                # Re-analyze the final code to get current focal method position
-                final_analyzer = FocalMethodAnalyzer(current_code, current_code)
-                final_focal_info = final_analyzer.analyze()
-
-                if final_focal_info and final_focal_info.focal_line_number > 0:
-                    focal_line = final_focal_info.focal_line_number
-                else:
-                    focal_line = analysis_result.get("focal_line_number", 0)
-
-                current_code = insert_aaa_markers_simple(current_code, focal_line, verbose=False)
-            except Exception:  # noqa: S110, BLE001
-                pass
-
+            # Loop completed without break (shouldn't happen, but handle)
             return {
-                "success": True,
-                "final_code": current_code,
-                "iterations": repair_iterations,
-                "mutation_stats": mutation_stats,
-                "coverage_details": coverage_details,
+                "success": False,
+                "error": "Unexpected loop termination",
+                "iterations": max_retries + 1,
             }
 
         except Exception as e:  # noqa: BLE001

@@ -114,31 +114,37 @@ def _measure_coverage_pynguin(
         "pytest": pytest,
     }
 
-    try:
-        cleaned = textwrap.dedent(test_code.strip())
+    cleaned = textwrap.dedent(test_code.strip())
 
-        # Find the test function name
-        func_name = ""
-        for line in cleaned.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("def "):
-                func_name = stripped.split("(")[0].removeprefix("def ")
-                break
+    # Find the test function name
+    func_name = ""
+    for line in cleaned.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("def "):
+            func_name = stripped.split("(")[0].removeprefix("def ")
+            break
 
-        compiled = compile(cleaned, "<test>", "exec")
+    compiled = compile(cleaned, "<test>", "exec")
 
-        # Enable tracer, execute, then disable
-        with tracer.temporarily_enable():
+    # Enable tracer, execute, then disable.
+    # We must catch exceptions INSIDE the context manager so that
+    # ``temporarily_enable()`` can properly call ``disable()`` on exit.
+    # The tracer's thread-identity check requires the current thread to
+    # match ``_current_thread_identifier``.  After ``stop()`` is called
+    # during test generation, this is ``None``, so we re-register.
+    tracer._current_thread_identifier = threading.current_thread().ident  # noqa: SLF001
+    with tracer.temporarily_enable():
+        try:
             exec(compiled, scope)  # noqa: S102
             if func_name and func_name in scope and callable(scope[func_name]):
                 scope[func_name]()
-
-    except Exception as exc:  # noqa: BLE001
-        # Even if the test crashes, we still have partial trace data
-        msg = f"Test execution raised {type(exc).__name__}: {exc}"
-        trace = tracer.get_trace()
-        if not trace.executed_code_objects and not trace.covered_line_ids:
-            return CoverageResult(error=msg)
+        except BaseException as exc:  # noqa: BLE001
+            # Catch BaseException because Pynguin's
+            # TracingAbortedException inherits from BaseException.
+            msg = f"Test execution raised {type(exc).__name__}: {exc}"
+            trace = tracer.get_trace()
+            if not trace.executed_code_objects and not trace.covered_line_ids:
+                return CoverageResult(error=msg)
 
     # Compute coverage from the trace
     trace = tracer.get_trace()
