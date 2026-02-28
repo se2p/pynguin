@@ -132,7 +132,7 @@ def _measure_coverage_pynguin(
     # The tracer's thread-identity check requires the current thread to
     # match ``_current_thread_identifier``.  After ``stop()`` is called
     # during test generation, this is ``None``, so we re-register.
-    tracer._current_thread_identifier = threading.current_thread().ident  # noqa: SLF001
+    setattr(tracer, "_current_thread_identifier", threading.current_thread().ident)  # noqa: B010
     with tracer.temporarily_enable():
         try:
             exec(compiled, scope)  # noqa: S102
