@@ -38,14 +38,10 @@ def _restore_import_block(llm_code: str, original_code: str) -> str:
         return llm_code  # can't parse → leave as-is for repair loop
 
     # Collect original import nodes
-    orig_imports = [
-        n for n in orig_tree.body if isinstance(n, (ast.Import, ast.ImportFrom))
-    ]
+    orig_imports = [n for n in orig_tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
 
     # Collect non-import nodes from LLM output
-    llm_body = [
-        n for n in llm_tree.body if not isinstance(n, (ast.Import, ast.ImportFrom))
-    ]
+    llm_body = [n for n in llm_tree.body if not isinstance(n, (ast.Import, ast.ImportFrom))]
 
     if not llm_body:
         return llm_code  # nothing useful from LLM
@@ -318,7 +314,10 @@ to improve readability while preserving its exact behavior.
 **Task:** Refactor this test following the Arrange-Act-Assert (AAA) pattern.
 
 **CRITICAL - Preserve ALL import statements exactly as they appear in the original test.**
-**CRITICAL - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`). The test uses `import ... as module_0` style imports, and ALL SUT function/method calls MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()` — that will cause NameError.**
+**CRITICAL - Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+**The test uses `import ... as module_0` style imports, and ALL SUT function/method calls**
+**MUST keep the `module_0.` prefix. Do NOT convert `module_0.func()` to bare `func()`**
+**— that will cause NameError.**
 
 **Requirements:**
 1. **Test Function Name:** Rename the test function
@@ -407,7 +406,8 @@ unit test based on the method's documented behavior.
 ```
 
 **CRITICAL: You MUST preserve ALL import statements from the input test code.**
-**CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`). Do NOT remove the `module_0.` prefix — that will cause NameError.**
+**CRITICAL: Preserve ALL module prefixes in function calls (e.g., `module_0.function_name()`).**
+**Do NOT remove the `module_0.` prefix — that will cause NameError.**
 
 **Your Task:**
 Analyze the method's documentation and add appropriate assertions to verify its behavior.
