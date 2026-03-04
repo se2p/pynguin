@@ -47,7 +47,9 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
         subject_properties: Optional Pynguin subject properties for coverage checking
 
     Returns:
-        Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.)
+        Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.),
+        plus aggregated mutation-filtering metrics (inferred/removed/kept assertions,
+        mutants generated/killed, and per-test/suite-level contribution means).
 
     Examples:
         # Using OpenAI
@@ -129,7 +131,20 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
             "failed_tests": 0,
             "readability_original": 0.0,
             "readability_refined": 0.0,
+            "mutation_inferred_total": 0,
+            "mutation_removed_total": 0,
+            "mutation_kept_total": 0,
+            "mutation_mutants_generated_total": 0,
+            "mutation_mutants_killed_total": 0,
+            "mutation_suite_baseline_size_total": 0,
+            "mutation_per_test_contribution_mean": 0.0,
+            "mutation_suite_contribution_mean": 0.0,
         }
+
+        mutation_per_test_sum = 0
+        mutation_per_test_count = 0
+        mutation_suite_sum = 0
+        mutation_suite_count = 0
 
         refined_tests = []
 
@@ -170,6 +185,38 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
                     stats["tests_refined"] += 1
                     stats["repair_iterations"] += result["iterations"]
 
+                    mutation_stats = result.get("mutation_stats", {}) or {}
+                    stats["mutation_inferred_total"] += int(
+                        mutation_stats.get("inferred_assertions", 0) or 0
+                    )
+                    stats["mutation_removed_total"] += int(
+                        mutation_stats.get("assertions_removed", 0) or 0
+                    )
+                    stats["mutation_kept_total"] += int(
+                        mutation_stats.get("assertions_kept", 0) or 0
+                    )
+                    stats["mutation_mutants_generated_total"] += int(
+                        mutation_stats.get("mutants_generated", 0) or 0
+                    )
+                    stats["mutation_mutants_killed_total"] += int(
+                        mutation_stats.get("mutants_killed_total", 0) or 0
+                    )
+                    stats["mutation_suite_baseline_size_total"] += int(
+                        mutation_stats.get("suite_baseline_size", 0) or 0
+                    )
+
+                    per_test = mutation_stats.get("per_test_contributions", {})
+                    if isinstance(per_test, dict):
+                        for value in per_test.values():
+                            mutation_per_test_sum += int(value or 0)
+                            mutation_per_test_count += 1
+
+                    suite_level = mutation_stats.get("suite_level_contributions", {})
+                    if isinstance(suite_level, dict):
+                        for value in suite_level.values():
+                            mutation_suite_sum += int(value or 0)
+                            mutation_suite_count += 1
+
                     _LOGGER.info(
                         "Successfully refined %s (iterations: %d)",
                         func.name,
@@ -197,6 +244,13 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
             stats["readability_delta"] = (
                 stats["readability_refined"] - stats["readability_original"]
             )
+
+        if mutation_per_test_count > 0:
+            stats["mutation_per_test_contribution_mean"] = (
+                mutation_per_test_sum / mutation_per_test_count
+            )
+        if mutation_suite_count > 0:
+            stats["mutation_suite_contribution_mean"] = mutation_suite_sum / mutation_suite_count
 
         # Save refined test file
         if stats["tests_refined"] > 0:

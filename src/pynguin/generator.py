@@ -793,6 +793,46 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
                         float(refinement_stats.get("wall_time_seconds", 0.0) or 0.0),
                     )
 
+                    # Refinement mutation-filtering metrics
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementAssertionsInferred,
+                        int(refinement_stats.get("mutation_inferred_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementAssertionsRemoved,
+                        int(refinement_stats.get("mutation_removed_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementAssertionsKept,
+                        int(refinement_stats.get("mutation_kept_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementMutantsGenerated,
+                        int(refinement_stats.get("mutation_mutants_generated_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementMutantsKilledTotal,
+                        int(refinement_stats.get("mutation_mutants_killed_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementSuiteBaselineSize,
+                        int(refinement_stats.get("mutation_suite_baseline_size_total", 0) or 0),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementPerTestContributionMean,
+                        float(
+                            refinement_stats.get("mutation_per_test_contribution_mean", 0.0)
+                            or 0.0
+                        ),
+                    )
+                    stat.track_output_variable(
+                        RuntimeVariable.RefinementSuiteContributionMean,
+                        float(
+                            refinement_stats.get("mutation_suite_contribution_mean", 0.0)
+                            or 0.0
+                        ),
+                    )
+
                 except Exception as refinement_ex:
                     _LOGGER.exception("LLM refinement failed: %s", refinement_ex)
 

@@ -248,6 +248,16 @@ class RuntimeVariable(str, enum.Enum):
     RefinementLLMOutputTokens = "RefinementLLMOutputTokens"
     RefinementWallTimeSeconds = "RefinementWallTimeSeconds"
 
+    # Refinement mutation-filtering metrics (aggregated per module/run)
+    RefinementAssertionsInferred = "RefinementAssertionsInferred"
+    RefinementAssertionsRemoved = "RefinementAssertionsRemoved"
+    RefinementAssertionsKept = "RefinementAssertionsKept"
+    RefinementMutantsGenerated = "RefinementMutantsGenerated"
+    RefinementMutantsKilledTotal = "RefinementMutantsKilledTotal"
+    RefinementSuiteBaselineSize = "RefinementSuiteBaselineSize"
+    RefinementPerTestContributionMean = "RefinementPerTestContributionMean"
+    RefinementSuiteContributionMean = "RefinementSuiteContributionMean"
+
     # Number of total LLM calls
     TotalLLMCalls = "TotalLLMCalls"
 
