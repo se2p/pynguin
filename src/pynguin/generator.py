@@ -821,16 +821,12 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
                     stat.track_output_variable(
                         RuntimeVariable.RefinementPerTestContributionMean,
                         float(
-                            refinement_stats.get("mutation_per_test_contribution_mean", 0.0)
-                            or 0.0
+                            refinement_stats.get("mutation_per_test_contribution_mean", 0.0) or 0.0
                         ),
                     )
                     stat.track_output_variable(
                         RuntimeVariable.RefinementSuiteContributionMean,
-                        float(
-                            refinement_stats.get("mutation_suite_contribution_mean", 0.0)
-                            or 0.0
-                        ),
+                        float(refinement_stats.get("mutation_suite_contribution_mean", 0.0) or 0.0),
                     )
 
                 except Exception as refinement_ex:

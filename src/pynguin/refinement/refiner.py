@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
+def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914, C901
     test_file_path: Path,
     module_name: str,
     llm_model: str = "gpt-4o-mini",
@@ -69,7 +69,7 @@ def refine_generated_tests(  # noqa: PLR0917, PLR0915, PLR0914
 
     start_wall = time.perf_counter()
 
-    try:
+    try:  # noqa: PLR1702
         # Read generated test file
         raw_test = Path(test_file_path).read_text(encoding="utf-8")
 
