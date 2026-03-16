@@ -75,6 +75,139 @@ def test_update_solution(objectives, chromosomes):
     assert chromosomes[1].get_is_covered.call_count == 4
 
 
+def test_coverage_archive_prefers_error_free_over_shorter():
+    """Test that error-free test is preferred over shorter one with errors."""
+    objective = MagicMock(ff.TestCaseFitnessFunction)
+    archive = CoverageArchive(OrderedSet([objective]))
+
+    # Create shorter chromosome with exceptions
+    shorter_with_error = MagicMock(tcc.TestCaseChromosome)
+    shorter_with_error.size.return_value = 2
+    shorter_with_error.get_is_covered.return_value = True
+    error_result = MagicMock()
+    error_result.timeout = False
+    error_result.has_test_exceptions.return_value = True
+    shorter_with_error.get_last_execution_result.return_value = error_result
+
+    # Create longer chromosome without exceptions
+    longer_error_free = MagicMock(tcc.TestCaseChromosome)
+    longer_error_free.size.return_value = 5
+    longer_error_free.get_is_covered.return_value = True
+    ok_result = MagicMock()
+    ok_result.timeout = False
+    ok_result.has_test_exceptions.return_value = False
+    longer_error_free.get_last_execution_result.return_value = ok_result
+
+    # First add shorter with error
+    archive.update([shorter_with_error])
+    # Verify it was added
+    assert len(archive._covered) == 1
+    assert archive._covered[objective] == shorter_with_error
+
+    # Then add longer error-free, should replace
+    archive.update([longer_error_free])
+    # Verify it replaced the error-prone one
+    assert len(archive._covered) == 1
+    assert archive._covered[objective] == longer_error_free
+
+
+def test_coverage_archive_prefers_shorter_when_both_error_free():
+    """Test that shorter test is preferred when both are error-free."""
+    objective = MagicMock(ff.TestCaseFitnessFunction)
+    archive = CoverageArchive(OrderedSet([objective]))
+
+    # Create error-free result
+    ok_result = MagicMock()
+    ok_result.timeout = False
+    ok_result.has_test_exceptions.return_value = False
+
+    # Create longer chromosome
+    longer = MagicMock(tcc.TestCaseChromosome)
+    longer.size.return_value = 5
+    longer.get_is_covered.return_value = True
+    longer.get_last_execution_result.return_value = ok_result
+
+    # Create shorter chromosome
+    shorter = MagicMock(tcc.TestCaseChromosome)
+    shorter.size.return_value = 2
+    shorter.get_is_covered.return_value = True
+    shorter.get_last_execution_result.return_value = ok_result
+
+    # First add longer
+    archive.update([longer])
+    assert archive._covered[objective] == longer
+
+    # Then add shorter, should replace
+    archive.update([shorter])
+    assert archive._covered[objective] == shorter
+
+
+def test_coverage_archive_prefers_no_timeout():
+    """Test that test without timeout is preferred over one with timeout."""
+    objective = MagicMock(ff.TestCaseFitnessFunction)
+    archive = CoverageArchive(OrderedSet([objective]))
+
+    # Create chromosome with timeout
+    with_timeout = MagicMock(tcc.TestCaseChromosome)
+    with_timeout.size.return_value = 2
+    with_timeout.get_is_covered.return_value = True
+    timeout_result = MagicMock()
+    timeout_result.timeout = True
+    timeout_result.has_test_exceptions.return_value = False
+    with_timeout.get_last_execution_result.return_value = timeout_result
+
+    # Create chromosome without timeout
+    without_timeout = MagicMock(tcc.TestCaseChromosome)
+    without_timeout.size.return_value = 5
+    without_timeout.get_is_covered.return_value = True
+    ok_result = MagicMock()
+    ok_result.timeout = False
+    ok_result.has_test_exceptions.return_value = False
+    without_timeout.get_last_execution_result.return_value = ok_result
+
+    # First add with timeout
+    archive.update([with_timeout])
+    assert archive._covered[objective] == with_timeout
+
+    # Then add without timeout, should replace even though longer
+    archive.update([without_timeout])
+    assert archive._covered[objective] == without_timeout
+
+
+def test_coverage_archive_is_better_static_method():
+    """Test the _is_better_than_current static method directly."""
+    # Test: error-free candidate vs current with exception
+    current_with_error = MagicMock()
+    current_with_error.size.return_value = 2
+    error_result = MagicMock()
+    error_result.timeout = False
+    error_result.has_test_exceptions.return_value = True
+    current_with_error.get_last_execution_result.return_value = error_result
+
+    candidate_error_free = MagicMock()
+    candidate_error_free.size.return_value = 5
+    ok_result = MagicMock()
+    ok_result.timeout = False
+    ok_result.has_test_exceptions.return_value = False
+    candidate_error_free.get_last_execution_result.return_value = ok_result
+
+    assert CoverageArchive._is_better_than_current(current_with_error, candidate_error_free) is True
+
+    # Test: both error-free, shorter is better
+    current_longer = MagicMock()
+    current_longer.size.return_value = 5
+    current_longer.get_last_execution_result.return_value = ok_result
+
+    candidate_shorter = MagicMock()
+    candidate_shorter.size.return_value = 2
+    candidate_shorter.get_last_execution_result.return_value = ok_result
+
+    assert CoverageArchive._is_better_than_current(current_longer, candidate_shorter) is True
+
+    # Test: both error-free, longer is not better
+    assert CoverageArchive._is_better_than_current(candidate_shorter, current_longer) is False
+
+
 def test_population_pair():
     pair = MIOPopulationPair(0.5, MagicMock())
     assert pair == pair  # noqa: PLR0124
