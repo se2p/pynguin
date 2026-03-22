@@ -24,13 +24,22 @@ from typing import TYPE_CHECKING, Any, get_type_hints
 if TYPE_CHECKING:
     from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
 
+# ---- Safe imports for optional dependencies ----
+
+# Handle SecretStr safely
 try:
     from pydantic import SecretStr
+except ImportError:
+    class SecretStr:  # fallback dummy class
+        def __init__(self, value):
+            self._value = value
 
+# Handle OpenAI safely
+try:
     from pynguin.utils.llm import OpenAI
-
     OPENAI_AVAILABLE = True
 except ImportError:
+    OpenAI = None
     OPENAI_AVAILABLE = False
 
 
