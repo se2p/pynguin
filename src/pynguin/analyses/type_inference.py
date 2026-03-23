@@ -26,29 +26,34 @@ if TYPE_CHECKING:
 
 # ---- Safe imports for optional dependencies ----
 
+from typing import TYPE_CHECKING
+
 # Handle SecretStr safely
 try:
-    from pydantic import SecretStr
+    from pydantic import SecretStr as _SecretStr
 except ImportError:
 
-    class SecretStr:
-        """Fallback SecretStr implementation if pydantic is unavailable."""
+    class _SecretStr:
+        """Fallback SecretStr implementation."""
 
         def __init__(self, value: str) -> None:
-            """Initialize with a string value."""
-            self._value: str = value
+            self._value = value
 
         def get_secret_value(self) -> str:
-            """Return the stored secret value."""
             return self._value
+
+
+# Expose as SecretStr (single definition → fixes mypy)
+SecretStr = _SecretStr
 
 
 # Handle OpenAI safely
 try:
-    from pynguin.utils.llm import OpenAI
+    from pynguin.utils.llm import OpenAI as _OpenAI
 except ImportError:
-    OpenAI = None  # type: ignore[assignment]
+    _OpenAI = None
 
+OpenAI: Any = _OpenAI
 
 import pynguin.configuration as config
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
