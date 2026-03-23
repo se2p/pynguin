@@ -1,22 +1,23 @@
 #  This file is part of Pynguin.
 #
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
 #  SPDX-License-Identifier: MIT
+
+"""Provides the DynaMOSA test-generation strategy."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import networkx as nx
-from networkx.drawing.nx_pydot import to_pydot
 
 import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.algorithms.abstractmosaalgorithm import AbstractMOSAAlgorithm
 from pynguin.ga.operators.ranking import fast_epsilon_dominance_assignment
-from pynguin.testcase.localsearch import TestSuiteLocalSearch
-from pynguin.testcase.localsearchtimer import LocalSearchTimer
 from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
@@ -29,13 +30,17 @@ if TYPE_CHECKING:
 
 
 class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
+    """Implements the Dynamic Many-Objective Sorting Algorithm (DynaMOSA)."""
+
     _logger = logging.getLogger(__name__)
 
     def __init__(self) -> None:
+        """Initializes the DynaMOSA algorithm."""
         super().__init__()
         self._goals_manager: _GoalsManager
 
     def generate_tests(self) -> tsc.TestSuiteChromosome:
+        """Generates a test suite using the DynaMOSA algorithm."""
         self.before_search_start()
 
         self._goals_manager = _GoalsManager(
@@ -45,9 +50,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         )
 
         self._number_of_goals = len(self._test_case_fitness_functions)
-        stat.set_output_variable_for_runtime_variable(
-            RuntimeVariable.Goals, self._number_of_goals
-        )
+        stat.set_output_variable_for_runtime_variable(RuntimeVariable.Goals, self._number_of_goals)
 
         self._population = self._get_random_population()
         self._goals_manager.update(self._population)
@@ -67,6 +70,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         return self.create_test_suite(self._archive.solutions)
 
     def evolve(self) -> None:
+        """Performs one evolutionary step."""
         offspring_population = self._breed_next_generation()
 
         union = self._population + offspring_population
@@ -85,9 +89,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         front = fronts.get_sub_front(index)
 
         while remain > 0 and remain >= len(front):
-            fast_epsilon_dominance_assignment(
-                front, self._goals_manager.current_goals
-            )
+            fast_epsilon_dominance_assignment(front, self._goals_manager.current_goals)
             self._population.extend(front)
             remain -= len(front)
             index += 1
@@ -95,9 +97,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
                 front = fronts.get_sub_front(index)
 
         if remain > 0:
-            fast_epsilon_dominance_assignment(
-                front, self._goals_manager.current_goals
-            )
+            fast_epsilon_dominance_assignment(front, self._goals_manager.current_goals)
             front.sort(key=lambda t: t.distance, reverse=True)
             self._population.extend(front[:remain])
 
@@ -105,6 +105,8 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
 
 
 class _GoalsManager:
+    """Manages coverage goals for DynaMOSA."""
+
     _logger = logging.getLogger(__name__)
 
     def __init__(
@@ -113,26 +115,20 @@ class _GoalsManager:
         archive: CoverageArchive,
         subject_properties: SubjectProperties,
     ) -> None:
+        """Initializes the goals manager."""
         self._archive = archive
 
-        # ✅ IMPORTANT FIX: Do NOT break original behavior
-        branch_fitness_functions: OrderedSet[
-            bg.BranchCoverageTestFitness
-        ] = OrderedSet()
+        branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
 
         for fit in fitness_functions:
             if isinstance(fit, bg.BranchCoverageTestFitness):
                 branch_fitness_functions.add(fit)
 
-        self._graph = _BranchFitnessGraph(
-            branch_fitness_functions, subject_properties
-        )
+        self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
 
-        # ✅ IMPORTANT: include ALL fitness functions (line + branch)
         self._current_goals: OrderedSet[ff.FitnessFunction] = OrderedSet()
         self._current_goals.update(branch_fitness_functions)
 
-        # Add non-branch goals directly
         for fit in fitness_functions:
             if not isinstance(fit, bg.BranchCoverageTestFitness):
                 self._current_goals.add(fit)
@@ -141,24 +137,30 @@ class _GoalsManager:
 
     @property
     def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
+        """Returns the current set of goals."""
         return self._current_goals
 
     def update(self, solutions: list[tcc.TestCaseChromosome]) -> None:
+        """Updates goal coverage based on solutions."""
         self._archive.update(solutions)
 
 
 class _BranchFitnessGraph:
+    """Represents dependency graph between branch fitness functions."""
+
     def __init__(
         self,
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
         subject_properties,
     ):
+        """Initializes the branch fitness graph."""
         self._graph = nx.DiGraph()
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
 
         self._build_graph(fitness_functions, subject_properties)
 
     def _build_graph(self, fitness_functions, subject_properties):
+        """Builds dependency graph."""
         for fitness in fitness_functions:
             self._graph.add_node(fitness)
 
@@ -168,9 +170,7 @@ class _BranchFitnessGraph:
                 continue
 
             branch_goal = fitness.goal
-            predicate_meta_data = subject_properties.existing_predicates[
-                branch_goal.predicate_id
-            ]
+            predicate_meta_data = subject_properties.existing_predicates[branch_goal.predicate_id]
 
             code_object_meta_data = subject_properties.existing_code_objects[
                 predicate_meta_data.code_object_id
@@ -182,9 +182,7 @@ class _BranchFitnessGraph:
                 if meta_data.code_object_id == predicate_meta_data.code_object_id
             }
 
-            if code_object_meta_data.cdg.is_control_dependent_on_root(
-                predicate_meta_data.node
-            ):
+            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
                 self._root_branches.add(fitness)
 
             dependencies = code_object_meta_data.cdg.get_control_dependencies(
@@ -198,20 +196,21 @@ class _BranchFitnessGraph:
                     value=dependency.branch_value,
                 )
 
-                dependent_ff = self._goal_to_fitness_function(
-                    fitness_functions, goal
-                )
+                dependent_ff = self._goal_to_fitness_function(fitness_functions, goal)
                 self._graph.add_edge(dependent_ff, fitness)
 
     @property
     def root_branches(self):
+        """Returns root branches."""
         return OrderedSet(self._root_branches)
 
     def get_structural_children(self, fitness_function):
+        """Returns structural children of a fitness function."""
         return OrderedSet(self._graph.successors(fitness_function))
 
     @staticmethod
     def _goal_to_fitness_function(search_in, goal):
+        """Finds fitness function for a given goal."""
         for fitness in search_in:
             if fitness.goal == goal:
                 return fitness
