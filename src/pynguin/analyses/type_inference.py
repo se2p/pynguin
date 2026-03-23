@@ -15,18 +15,27 @@ import types
 import typing
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import dataclass
 from functools import reduce
 from operator import or_
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, get_type_hints
+from typing import Any, get_type_hints
 
-if TYPE_CHECKING:
-    from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
+import pynguin.configuration as config
+from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
+from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
+    TypeAndSubtypeInferencePrompt,
+    get_type_and_subtype_inference_system_prompt,
+)
+from pynguin.large_language_model.prompts.typeinferenceprompt import (
+    TypeInferencePrompt,
+    get_inference_system_prompt,
+)
+from pynguin.utils.llm import LLMProvider
+from pynguin.utils.orderedset import OrderedSet
 
 # ---- Safe imports for optional dependencies ----
-
-from typing import TYPE_CHECKING
 
 # Handle SecretStr safely
 try:
@@ -43,7 +52,6 @@ except ImportError:
             return self._value
 
 
-# Expose as SecretStr (single definition → fixes mypy)
 SecretStr = _SecretStr
 
 
@@ -55,27 +63,13 @@ except ImportError:
 
 OpenAI: Any = _OpenAI
 
-import pynguin.configuration as config
-from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
-from pynguin.large_language_model.prompts.type_and_subtype_inference_prompt import (
-    TypeAndSubtypeInferencePrompt,
-    get_type_and_subtype_inference_system_prompt,
-)
-from pynguin.large_language_model.prompts.typeinferenceprompt import (
-    TypeInferencePrompt,
-    get_inference_system_prompt,
-)
-from pynguin.utils.llm import LLMProvider
-from pynguin.utils.orderedset import OrderedSet
-
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from pynguin.analyses.typesystem import (
-        TypeSystem,
-    )
-
-from copy import deepcopy
+    from pynguin.analyses.typesystem import TypeSystem
+    from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
+else:
+    ParsedTypeEvalPyData = Any  # type: ignore[assignment]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -552,7 +546,6 @@ class TypeEvalPyInference(InferenceProvider):
     def __init__(
         self,
         typeevalpy_data: ParsedTypeEvalPyData,
-        *,
         name_resolver: Callable[[Callable[..., Any]], str] | None = None,
         file_resolver: Callable[[Callable[..., Any]], str] | None = None,
     ) -> None:

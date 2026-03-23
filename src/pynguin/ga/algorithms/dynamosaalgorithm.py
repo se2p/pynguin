@@ -1,15 +1,13 @@
-#  This file is part of Pynguin.
-#
-#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
-#
-#  SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+# SPDX-FileCopyrightText: 2026 Aditya Sinha
+# SPDX-License-Identifier: MIT
 
 """Provides the DynaMOSA test-generation strategy."""
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
@@ -22,7 +20,6 @@ from pynguin.utils.orderedset import OrderedSet
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
-    import pynguin.ga.computations as ff
     import pynguin.ga.testcasechromosome as tcc
     import pynguin.ga.testsuitechromosome as tsc
     from pynguin.ga.algorithms.archive import CoverageArchive
@@ -44,7 +41,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         self.before_search_start()
 
         self._goals_manager = _GoalsManager(
-            self._test_case_fitness_functions,
+            self._test_case_fitness_functions,  # type: ignore[arg-type]
             self._archive,
             self.executor.subject_properties,
         )
@@ -70,7 +67,7 @@ class DynaMOSAAlgorithm(AbstractMOSAAlgorithm):
         return self.create_test_suite(self._archive.solutions)
 
     def evolve(self) -> None:
-        """Performs one evolutionary step."""
+        """Evolve the population by generating the next generation."""
         offspring_population = self._breed_next_generation()
 
         union = self._population + offspring_population
@@ -111,7 +108,7 @@ class _GoalsManager:
 
     def __init__(
         self,
-        fitness_functions: OrderedSet[ff.FitnessFunction],
+        fitness_functions: OrderedSet[Any],
         archive: CoverageArchive,
         subject_properties: SubjectProperties,
     ) -> None:
@@ -124,19 +121,19 @@ class _GoalsManager:
             if isinstance(fit, bg.BranchCoverageTestFitness):
                 branch_fitness_functions.add(fit)
 
-        self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
+        self._graph: Any = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
 
-        self._current_goals: OrderedSet[ff.FitnessFunction] = OrderedSet()
+        self._current_goals: OrderedSet[Any] = OrderedSet()
         self._current_goals.update(branch_fitness_functions)
 
         for fit in fitness_functions:
             if not isinstance(fit, bg.BranchCoverageTestFitness):
                 self._current_goals.add(fit)
 
-        self._archive.add_goals(self._current_goals)
+        self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
-    def current_goals(self) -> OrderedSet[ff.FitnessFunction]:
+    def current_goals(self) -> OrderedSet[Any]:
         """Returns the current set of goals."""
         return self._current_goals
 
@@ -152,14 +149,14 @@ class _BranchFitnessGraph:
         self,
         fitness_functions: OrderedSet[bg.BranchCoverageTestFitness],
         subject_properties,
-    ):
+    ) -> None:
         """Initializes the branch fitness graph."""
         self._graph = nx.DiGraph()
         self._root_branches: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
 
         self._build_graph(fitness_functions, subject_properties)
 
-    def _build_graph(self, fitness_functions, subject_properties):
+    def _build_graph(self, fitness_functions, subject_properties) -> None:
         """Builds dependency graph."""
         for fitness in fitness_functions:
             self._graph.add_node(fitness)
