@@ -22,6 +22,7 @@ import random
 import signal
 import sys
 import threading
+import time
 from abc import abstractmethod
 from pathlib import Path
 from queue import Empty, Queue
@@ -2090,7 +2091,12 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
             ):
                 # TODO(fk) Do we record wrong stuff, i.e., type checks from observers?
                 #  Make use of type errors?
+                start = time.time_ns()
                 self._delegate.execute(test_case)
+                stat.add_to_runtime_variable(
+                    RuntimeVariable.TypeTracingTime, time.time_ns() - start
+                )
+                stat.add_to_runtime_variable(RuntimeVariable.TypeTracingExecutions, 1)
         return result
 
 

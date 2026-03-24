@@ -151,6 +151,12 @@ class RuntimeVariable(str, enum.Enum):
     # Number of executed test cases
     Executed = "Executed"
 
+    # Number of additional test case executions caused by type tracing
+    TypeTracingExecutions = "TypeTracingExecutions"
+
+    # Time overhead (ns) caused by type tracing executions
+    TypeTracingTime = "TypeTracingTime"
+
     # ========= Values collected at the end of the search =========
 
     # Total number of statements in the resulting test suite
