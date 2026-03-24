@@ -49,7 +49,7 @@ from pynguin.large_language_model.prompts.uncoveredtargetsprompt import (
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
 )
-from pynguin.utils.openai_key_resolver import require_api_key
+from pynguin.utils.openai_key_resolver import get_llm_url, get_model_name, require_api_key
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -181,7 +181,7 @@ class LLMAgent:
 
     def __init__(self):
         """Initializes the LLMAgent with configuration settings and cache."""
-        self._model_name = config.configuration.large_language_model.model_name
+        self._model_name = get_model_name()
         self._temperature = config.configuration.large_language_model.temperature
         self._llm_calls_counter = 0
         self._llm_calls_timer = 0
@@ -194,7 +194,11 @@ class LLMAgent:
             self.cache = Cache()
 
         api_key = require_api_key()
-        self._client = openai.OpenAI(api_key=api_key.get_secret_value())
+        llm_url = get_llm_url()
+        kwargs: dict = {"api_key": api_key.get_secret_value()}
+        if llm_url:
+            kwargs["base_url"] = llm_url
+        self._client = openai.OpenAI(**kwargs)
 
     @property
     def llm_calls_counter(self) -> int:

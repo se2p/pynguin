@@ -14,7 +14,7 @@ import logging
 import re
 import typing
 
-from pynguin.utils.openai_key_resolver import get_llm_url, require_api_key
+from pynguin.utils.openai_key_resolver import get_llm_url, get_model_name, require_api_key
 
 if typing.TYPE_CHECKING:
     from collections.abc import Iterable
@@ -134,7 +134,7 @@ if OPENAI_AVAILABLE:
             api_key: SecretStr | None = None,
             temperature: float = 0.2,
             system_prompt: str = OPENAI_SYSTEM_PROMPT,
-            model: str = "gpt-4.1-nano-2025-04-14",
+            model: str | None = None,
         ) -> None:
             if api_key is None or not api_key.get_secret_value():
                 api_key = require_api_key()
@@ -144,7 +144,7 @@ if OPENAI_AVAILABLE:
             if llm_url:
                 kwargs["base_url"] = llm_url
             self.__client = openai.OpenAI(**kwargs)
-            self.__model = model
+            self.__model = model or get_model_name()
 
         def chat(self, prompt: str, system_prompt: str | None = None) -> str | None:  # noqa: D102
             if not system_prompt:
