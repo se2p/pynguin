@@ -868,6 +868,12 @@ class BranchCoverageInstrumentation(transformer.BranchCoverageInstrumentationAda
         ):
             return
 
+        if ast_info is not None and not any(
+            not isinstance(instr.lineno, int) or ast_info.should_cover_line(instr.lineno)
+            for instr in node.original_instructions
+        ):
+            return
+
         if maybe_jump.name == "FOR_ITER":
             self.visit_for_loop(
                 ast_info,

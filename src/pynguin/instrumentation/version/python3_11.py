@@ -427,7 +427,7 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
         "POP_JUMP_BACKWARD_IF_NONE": PynguinCompare.IS,
     }
 
-    def visit_node(  # noqa: D102
+    def visit_node(  # noqa: D102, C901
         self,
         ast_info: transformer.AstInfo | None,
         cfg: cf.CFG,
@@ -444,6 +444,12 @@ class BranchCoverageInstrumentation(python3_10.BranchCoverageInstrumentation):
             ast_info is not None
             and isinstance(maybe_jump.lineno, int)
             and not ast_info.should_cover_conditional_statement(maybe_jump.lineno)
+        ):
+            return
+
+        if ast_info is not None and not any(
+            not isinstance(instr.lineno, int) or ast_info.should_cover_line(instr.lineno)
+            for instr in node.original_instructions
         ):
             return
 

@@ -184,7 +184,6 @@ class LLMOSAAlgorithm(MOSAAlgorithm):
             test_factory=self._test_factory,
             fitness_functions=self._test_case_fitness_functions,
             coverage_functions=self._test_suite_coverage_functions,
-            model=self.model,
         )
 
     def _get_random_population(self) -> list[tcc.TestCaseChromosome]:

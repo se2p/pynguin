@@ -206,8 +206,8 @@ def get_non_root_control_flow_distance(
                 executed_predicate_id, trace.true_distances
             ) + _predicate_fitness(executed_predicate_id, trace.false_distances)
             distance = min(distance, candidate)
-        except nx.NetworkXNoPath:
-            # No path from node to target.
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            # No path from node to target, or target node not in CDG.
             pass
 
     return distance
