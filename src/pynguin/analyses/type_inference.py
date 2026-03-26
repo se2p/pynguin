@@ -15,12 +15,24 @@ import types
 import typing
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from copy import deepcopy
 from dataclasses import dataclass
 from functools import reduce
 from operator import or_
 from pathlib import Path
-from typing import Any, get_type_hints
+from typing import TYPE_CHECKING, Any, get_type_hints
+
+if TYPE_CHECKING:
+    from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
+
+try:
+    from pydantic import SecretStr
+
+    from pynguin.utils.llm import OpenAI
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 
 import pynguin.configuration as config
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
@@ -35,41 +47,14 @@ from pynguin.large_language_model.prompts.typeinferenceprompt import (
 from pynguin.utils.llm import LLMProvider
 from pynguin.utils.orderedset import OrderedSet
 
-# ---- Safe imports for optional dependencies ----
-
-# Handle SecretStr safely
-try:
-    from pydantic import SecretStr as _SecretStr
-except ImportError:
-
-    class _SecretStr:
-        """Fallback SecretStr implementation."""
-
-        def __init__(self, value: str) -> None:
-            self._value = value
-
-        def get_secret_value(self) -> str:
-            return self._value
-
-
-SecretStr = _SecretStr
-
-
-# Handle OpenAI safely
-try:
-    from pynguin.utils.llm import OpenAI as _OpenAI
-except ImportError:
-    _OpenAI = None
-
-OpenAI: Any = _OpenAI
-
 if typing.TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
 
-    from pynguin.analyses.typesystem import TypeSystem
-    from pynguin.utils.typeevalpy_json_schema import ParsedTypeEvalPyData
-else:
-    ParsedTypeEvalPyData = Any  # type: ignore[assignment]
+    from pynguin.analyses.typesystem import (
+        TypeSystem,
+    )
+
+from copy import deepcopy
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -546,6 +531,7 @@ class TypeEvalPyInference(InferenceProvider):
     def __init__(
         self,
         typeevalpy_data: ParsedTypeEvalPyData,
+        *,
         name_resolver: Callable[[Callable[..., Any]], str] | None = None,
         file_resolver: Callable[[Callable[..., Any]], str] | None = None,
     ) -> None:
