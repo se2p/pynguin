@@ -167,11 +167,21 @@ class _GoalsManager:
     ) -> None:
         self._archive = archive
         branch_fitness_functions: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+        non_branch_fitness_functions: OrderedSet[ff.FitnessFunction] = OrderedSet()
+
         for fit in fitness_functions:
-            assert isinstance(fit, bg.BranchCoverageTestFitness)
-            branch_fitness_functions.add(fit)
+            if isinstance(fit, bg.BranchCoverageTestFitness):
+                branch_fitness_functions.add(fit)
+            else:
+                non_branch_fitness_functions.add(fit)
+
         self._graph = _BranchFitnessGraph(branch_fitness_functions, subject_properties)
-        self._current_goals: OrderedSet[bg.BranchCoverageTestFitness] = self._graph.root_branches
+
+        # Start with branch root goals
+        self._current_goals: OrderedSet[ff.FitnessFunction] = OrderedSet(self._graph.root_branches)
+
+        # Add non-branch goals directly (no dependency graph)
+        self._current_goals.update(non_branch_fitness_functions)
         self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
