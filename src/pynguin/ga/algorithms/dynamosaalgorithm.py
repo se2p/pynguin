@@ -180,8 +180,9 @@ class _GoalsManager:
         # Start with branch root goals
         self._current_goals: OrderedSet[ff.FitnessFunction] = OrderedSet(self._graph.root_branches)
 
-        # Add non-branch goals directly (no dependency graph)
-        self._current_goals.update(non_branch_fitness_functions)
+        # Store non-branch goals separately (DO NOT activate yet)
+        self._non_branch_goals: OrderedSet[ff.FitnessFunction] = non_branch_fitness_functions
+
         self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
     @property
@@ -218,6 +219,16 @@ class _GoalsManager:
             self._current_goals = new_goals
             self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
         self._logger.debug("current goals after update: %s", self._current_goals)
+        # Add non-branch goals ONLY after all branch goals are covered
+        if len(self._archive.uncovered_goals) == 0:
+            added = False
+            for goal in self._non_branch_goals:
+                if goal not in self._current_goals:
+                    self._current_goals.add(goal)
+                    added = True
+
+            if added:
+                self._archive.add_goals(self._current_goals)  # type: ignore[arg-type]
 
 
 class _BranchFitnessGraph:
