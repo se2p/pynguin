@@ -33,11 +33,6 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-    SecretStr = str  # fallback
-
-    class OpenAI:  # fallback so tests can patch it
-        """Fallback OpenAI class for environments without LLM support."""
-
 
 import pynguin.configuration as config
 from pynguin.large_language_model.parsing.type_str_parser import TypeStrParser
