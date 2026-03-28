@@ -29,6 +29,11 @@ try:
 except ImportError:
     DOTENV_AVAILABLE = False
 
+    def load_dotenv() -> None:
+        """Fallback load_dotenv when dotenv is not installed."""
+        return
+
+
 _logger = logging.getLogger(__name__)
 
 
@@ -104,6 +109,32 @@ def get_llm_url() -> str:
 
     value = os.environ.get("PYNGUIN_LLM_BASE_URL", "")
     return value.strip()
+
+
+def get_model_name() -> str:
+    """Get the LLM model name with clear preference order.
+
+    Preference order:
+    1) configuration.large_language_model.model_name (if non-empty)
+    2) PYNGUIN_LLM_MODEL environment variable
+    3) Returns "gpt-4o-mini" (default)
+
+    Returns:
+        The model name string.
+    """
+    cfg_model = getattr(config.configuration.large_language_model, "model_name", "") or ""
+    cfg_model = cfg_model.strip()
+    if cfg_model:
+        return cfg_model
+
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+
+    value = os.environ.get("PYNGUIN_LLM_MODEL", "")
+    if value and value.strip():
+        return value.strip()
+
+    return "gpt-4o-mini"
 
 
 def is_api_key_present() -> bool:
