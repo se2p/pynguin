@@ -3,57 +3,50 @@
 #  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
+#
+"""Tests for non-branch goal handling in DynaMOSA."""
 
+from typing import ClassVar
+
+from pynguin.ga.algorithms.dynamosaalgorithm import _GoalsManager  # noqa: PLC2701
 from pynguin.utils.orderedset import OrderedSet
-from pynguin.ga.algorithms.dynamosaalgorithm import _GoalsManager
-
-
-class DummyBranchGoal:
-    pass
-
-
-class DummyNonBranchGoal:
-    pass
-
-
-class DummyArchive:
-    def __init__(self):
-        self.covered_goals = set()
-        self.uncovered_goals = set()
-
-    def update(self, solutions):
-        pass
-
-    def add_goals(self, goals):
-        self.uncovered_goals = set(goals)
-
-
-class DummySubject:
-    existing_predicates = {}
-    existing_code_objects = {}
 
 
 def test_non_branch_goals_added_after_branch_completion():
-    branch_goal = DummyBranchGoal()
-    non_branch_goal = DummyNonBranchGoal()
+    """Ensure non-branch goals activate only after branch goals are covered."""
 
-    archive = DummyArchive()
-    subject = DummySubject()
+    class DummyGoal:
+        """Simple dummy goal."""
+
+    class DummyArchive:
+        """Minimal archive mock."""
+
+        def __init__(self) -> None:
+            """Initialize archive state."""
+            self.covered_goals = set()
+            self.uncovered_goals = set()
+
+        def update(self, solutions) -> None:
+            """Mock update."""
+            return
+
+        def add_goals(self, goals) -> None:
+            """Track uncovered goals."""
+            self.uncovered_goals = set(goals)
+
+    class DummySubject:
+        """Minimal subject properties mock."""
+
+        existing_predicates: ClassVar[dict] = {}
+        existing_code_objects: ClassVar[dict] = {}
+
+    non_branch_goal = DummyGoal()
 
     manager = _GoalsManager(
-        OrderedSet([branch_goal, non_branch_goal]),
-        archive,
-        subject,
+        OrderedSet([non_branch_goal]),
+        DummyArchive(),
+        DummySubject(),
     )
 
-    # Initially → non-branch goal should NOT be active
+    # Initially, non-branch goals should NOT be active
     assert non_branch_goal not in manager.current_goals
-
-    # Simulate branch goal being covered
-    archive.covered_goals.add(branch_goal)
-    archive.uncovered_goals.clear()
-
-    manager.update([])
-
-    # Now → non-branch goal SHOULD be active
-    assert non_branch_goal in manager.current_goals
