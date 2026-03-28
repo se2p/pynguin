@@ -205,7 +205,7 @@ class _GoalsManager:
         while new_goals_added:
             self._archive.update(solutions)
             covered = self._archive.covered_goals
-            new_goals: OrderedSet[bg.BranchCoverageTestFitness] = OrderedSet()
+            new_goals: OrderedSet[ff.FitnessFunction] = OrderedSet()
             new_goals_added = False
             for old_goal in self._current_goals:
                 if old_goal in covered:
