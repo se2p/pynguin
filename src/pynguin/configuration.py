@@ -1077,6 +1077,9 @@ class ToCoverConfiguration:
     only_cover: list[str] = dataclasses.field(default_factory=list)
     """The list of space-separated qualified function, method or class names to only cover."""
 
+    only_cover_line_ranges: list[str] = dataclasses.field(default_factory=list)
+    """The list of line numbers or line ranges to only cover, e.g. 10 or 10-20."""
+
     no_cover: list[str] = dataclasses.field(default_factory=list)
     """The list of space-separated qualified function, method or class names to not cover.
     Automatically include the methods of the `ignore_methods` argument."""
