@@ -107,15 +107,22 @@ class ModuleAstInfo:
 
     # Metadata
     only_cover_lines: frozenset[int]
+    only_cover_line_ranges: frozenset[int] # MOD
     no_cover_lines: frozenset[int]
 
     def __post_init__(self) -> None:
         overlap = self.only_cover_lines & self.no_cover_lines
-
         if overlap:
             raise ValueError(
                 f"Conflicting cover lines {sorted(overlap)} "
                 f"are present in both only_cover and no_cover sets"
+            )
+
+        overlap_ranges = self.only_cover_line_ranges & self.no_cover_lines
+        if overlap_ranges:
+            raise ValueError(
+                f"Conflicting cover lines {sorted(overlap_ranges)} "
+                f"are present in both only_cover_line_ranges and no_cover sets"
             )
 
     def get_scope(self, lineno: int) -> AstInfo | None:
@@ -212,6 +219,43 @@ class ModuleAstInfo:
                 )
 
     @classmethod
+    def _parse_line_ranges(cls, line_ranges: Collection[str]) -> Iterable[int]:
+        """Parse line range strings into individual line numbers.
+
+        Accepts single lines (e.g. '42') and inclusive ranges (e.g. '10-20').
+
+        Args:
+            line_ranges: The collection of line range strings.
+
+        Returns:
+            The iterable of individual line numbers.
+        """
+        for entry in line_ranges:
+            parts = entry.split("-")
+            try:
+                if len(parts) == 1:
+                    yield int(parts[0])
+                elif len(parts) == 2:
+                    start, end = int(parts[0]), int(parts[1])
+                    if start > end:
+                        _LOGGER.warning(
+                            "Invalid line range '%s': start must be <= end. Skipping.",
+                            entry,
+                        )
+                        continue
+                    yield from range(start, end + 1)
+                else:
+                    _LOGGER.warning(
+                        "Invalid line range format '%s'. Expected 'N' or 'N-M'. Skipping.",
+                        entry,
+                    )
+            except ValueError:
+                _LOGGER.warning(
+                    "Invalid line range '%s': values must be integers. Skipping.",
+                    entry,
+                )
+
+    @classmethod
     def _find_excluded_block_lines(cls, ast_node: ast.Module) -> Iterable[int]:
         """Find the lines of blocks that should be excluded from coverage.
 
@@ -259,6 +303,7 @@ class ModuleAstInfo:
             return None
 
         only_cover_lines = frozenset(cls._find_lines_in_ast(module_ast, to_cover_config.only_cover))
+        only_cover_line_ranges = frozenset(cls._parse_line_ranges(to_cover_config.only_cover_line_ranges))
 
         no_cover_lines = frozenset((
             *cls._find_lines_in_ast(module_ast, to_cover_config.no_cover),
@@ -278,6 +323,7 @@ class ModuleAstInfo:
         return cls(
             module_ast=module_ast,
             only_cover_lines=only_cover_lines,
+            only_cover_line_ranges=only_cover_line_ranges,
             no_cover_lines=no_cover_lines,
         )
 
@@ -300,6 +346,7 @@ class AstInfo:
 
         1. Not in `no_cover_lines`
         2. In `only_cover_lines`, `only_cover_lines` is empty or a parent is in `only_cover_lines`
+        3. Exactly in `only_cover_line_ranges` (no child propagation)
 
         If a line is in both `no_cover_lines` and `only_cover_lines`, it is not being covered.
 
@@ -313,7 +360,8 @@ class AstInfo:
             return False
 
         return (
-            not self.module.only_cover_lines
+            (not self.module.only_cover_lines and not self.module.only_cover_line_ranges)
+            or lineno in self.module.only_cover_line_ranges
             or lineno in self.module.only_cover_lines
             or any(
                 child_lineno in self.module.only_cover_lines
@@ -380,10 +428,19 @@ class AstInfo:
         This means that self must be in the cover lines,
         as well as the potential functions and classes that contains it.
 
+        A scope is also covered if any of its lines fall within `only_cover_line_ranges`,
+        regardless of whether the scope's own start line is a named target.
+
         Returns:
             True if self should be covered, False otherwise.
         """
-        start_line = scope_line_range(self.ast)[0]
+        start_line, end_line = scope_line_range(self.ast)
+        if self.module.only_cover_line_ranges and any(
+            lineno in self.module.only_cover_line_ranges
+            for lineno in range(start_line, end_line + 1)
+        ):
+            return True
+
         return self._in_cover(start_line) and all(
             self._in_cover(scope_line_range(definition_node)[0])
             for definition_node in nodes_of_class(
@@ -486,6 +543,29 @@ class AstInfo:
                 return False
 
         return True
+
+    def should_seed_line(self, lineno: int) -> bool:
+        """Check if a line should be dynamically seeded.
+
+        More permissive than `should_cover_line`: when `only_cover_line_ranges` is
+        active, all lines within the scope are seeded regardless of whether they are
+        in the target range.  This ensures that runtime comparisons guarding the path
+        to the target line are still observed and
+        their values added to the constant pool.
+
+        Args:
+            lineno: The line number.
+
+        Returns:
+            True if the line should be seeded, False otherwise.
+        """
+        if lineno in self.module.no_cover_lines:
+            return False
+
+        if self.module.only_cover_line_ranges:
+            return True
+
+        return self.should_cover_line(lineno)
 
     def should_cover_conditional_statement(self, lineno: int) -> bool:
         """Check if the conditional statement at the line number should be covered.
@@ -1434,9 +1514,13 @@ class InstrumentationTransformer:
                 ):
                     continue
 
-                assert ast_info.module.only_cover_lines or ast_info.module.no_cover_lines, (
-                    f"Node {node} should not be removed as only_cover_lines and no_cover_lines "
-                    "are both empty."
+                assert (
+                    ast_info.module.only_cover_lines
+                    or ast_info.module.only_cover_line_ranges
+                    or ast_info.module.no_cover_lines
+                ), (
+                    f"Node {node} should not be removed as only_cover_lines, "
+                    "only_cover_line_ranges, and no_cover_lines are all empty."
                 )
 
                 predecessors = cdg.get_predecessors(node)
