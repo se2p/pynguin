@@ -107,7 +107,7 @@ class ModuleAstInfo:
 
     # Metadata
     only_cover_lines: frozenset[int]
-    only_cover_line_ranges: frozenset[int] # MOD
+    only_cover_line_ranges: frozenset[int]
     no_cover_lines: frozenset[int]
 
     def __post_init__(self) -> None:
@@ -567,6 +567,41 @@ class AstInfo:
 
         return self.should_cover_line(lineno)
 
+    def should_track_line(self, lineno: int) -> bool:
+        """Check if a line should be tracked for branch distance computation.
+
+        More permissive than should_cover_line: when only_cover_line_ranges is
+        active, all lines in the covered scope are tracked so that intermediate
+        branches contribute branch distances to the fitness function, giving the
+        search algorithm a gradient toward the target line.
+
+        Args:
+            lineno: The line number.
+
+        Returns:
+            True if the line should be tracked, False otherwise.
+        """
+        if self.module.only_cover_line_ranges:
+            return lineno not in self.module.no_cover_lines
+        return self.should_cover_line(lineno)
+
+    def should_track_conditional_statement(self, lineno: int) -> bool:
+        """Check if a conditional statement should be tracked for branch distance computation.
+
+        More permissive than should_cover_conditional_statement: when
+        only_cover_line_ranges is active, all branches in the covered scope are
+        tracked so the search has a gradient toward the target line.
+
+        Args:
+            lineno: The line number of the conditional statement.
+
+        Returns:
+            True if the branch should be tracked, False otherwise.
+        """
+        if self.module.only_cover_line_ranges:
+            return lineno not in self.module.no_cover_lines
+        return self.should_cover_conditional_statement(lineno)
+
     def should_cover_conditional_statement(self, lineno: int) -> bool:
         """Check if the conditional statement at the line number should be covered.
 
@@ -599,7 +634,6 @@ class AstInfo:
                 )
 
         return True
-
 
 class InstrumentationAdapter(Protocol):
     """Protocol for byte-code instrumentation adapters.
@@ -1497,18 +1531,19 @@ class InstrumentationTransformer:
                 ):
                     continue
 
-                # Skip nodes that have at least one instruction that should be covered and
+                # Skip nodes that have at least one instruction that should be tracked and
                 # whose last instruction is either not a conditional statement or a conditional
-                # statement that should be covered. `should_cover_conditional_statement`
-                # defaults to True if there is no conditional statement at the line.
+                # statement that should be tracked. Using should_track_* (rather than
+                # should_cover_*) keeps tracking-only predicate nodes in the CDG so that
+                # approach-level computation can navigate through them toward line-range targets.
                 if (
                     (last_instr := node.try_get_instruction(-1)) is None
                     or not isinstance(last_instr.lineno, int)
-                    or ast_info.should_cover_conditional_statement(last_instr.lineno)
+                    or ast_info.should_track_conditional_statement(last_instr.lineno)
                 ) and (
                     any(
                         not isinstance(instr.lineno, int)
-                        or ast_info.should_cover_line(instr.lineno)
+                        or ast_info.should_track_line(instr.lineno)
                         for instr in node.original_instructions
                     )
                 ):

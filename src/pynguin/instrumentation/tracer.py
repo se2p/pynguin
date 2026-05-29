@@ -452,6 +452,11 @@ class SubjectProperties:
     # Maps all known ids of predicates to meta information
     existing_predicates: dict[int, PredicateMetaData] = field(default_factory=dict)
 
+    # Subset of existing_predicates that are actual search goals.
+    # Tracking-only predicates (registered to provide branch-distance gradient
+    # toward a line-range target) are in existing_predicates but not here.
+    coverage_predicates: set[int] = field(default_factory=set)
+
     # Stores which line id represents which line in which file
     existing_lines: dict[int, LineMetaData] = field(default_factory=dict)
 
@@ -484,6 +489,7 @@ class SubjectProperties:
         self.code_object_counter = count()
         self.existing_code_objects.clear()
         self.existing_predicates.clear()
+        self.coverage_predicates.clear()
         self.existing_lines.clear()
         self._line_control_dependencies.clear()
         self.instrumentation_tracer.reset()
@@ -536,11 +542,15 @@ class SubjectProperties:
 
         self.existing_code_objects[code_object_id] = meta
 
-    def register_predicate(self, meta: PredicateMetaData) -> int:
+    def register_predicate(self, meta: PredicateMetaData, *, is_goal: bool = True) -> int:
         """Declare that a predicate exists.
 
         Args:
             meta: Metadata about the predicates
+            is_goal: If True (default), the predicate is a search objective and
+                is added to coverage_predicates. If False, the predicate is
+                registered only for branch-distance tracking (to provide a
+                gradient toward a line-range target) but is not a search goal.
 
         Returns:
             the id of the predicate, which can be used to identify the predicate
@@ -551,6 +561,8 @@ class SubjectProperties:
         }, "Predicate with the same node already registered"
         predicate_id = len(self.existing_predicates)
         self.existing_predicates[predicate_id] = meta
+        if is_goal:
+            self.coverage_predicates.add(predicate_id)
         return predicate_id
 
     def register_line(self, meta: LineMetaData) -> int:

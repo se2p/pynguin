@@ -384,7 +384,8 @@ class BranchGoalPool:
         subject_properties: SubjectProperties,
     ) -> dict[int, list[BranchGoal]]:
         goal_map: dict[int, list[BranchGoal]] = {}
-        for predicate_id, meta in subject_properties.existing_predicates.items():
+        for predicate_id in subject_properties.coverage_predicates:
+            meta = subject_properties.existing_predicates[predicate_id]
             entry: list[BranchGoal] = []
             goal_map[predicate_id] = entry
             entry.extend((
