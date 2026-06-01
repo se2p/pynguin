@@ -68,6 +68,7 @@ def test_fitness_function_diff(trace_mock, subject_properties_mock):
 
 def test_fitness_covered(trace_mock, subject_properties_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     trace_mock.executed_predicates[0] = 1
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
@@ -76,11 +77,13 @@ def test_fitness_covered(trace_mock, subject_properties_mock):
 
 def test_fitness_neither_covered(trace_mock, subject_properties_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     assert ff.compute_branch_distance_fitness(trace_mock, subject_properties_mock) == 2.0
 
 
 def test_fitness_covered_twice(trace_mock, subject_properties_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 1
     trace_mock.true_distances[0] = 0
@@ -97,6 +100,7 @@ def test_fitness_covered_both(trace_mock, subject_properties_mock):
 
 def test_fitness_normalized(trace_mock, subject_properties_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     trace_mock.executed_predicates[0] = 2
     trace_mock.false_distances[0] = 0
     trace_mock.true_distances[0] = 7.0
@@ -112,12 +116,14 @@ def test_branch_coverage_none(subject_properties_mock, trace_mock):
 
 def test_branch_coverage_half_branch(subject_properties_mock, trace_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     trace_mock.true_distances[0] = 0.0
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.5
 
 
 def test_branch_coverage_no_branch(subject_properties_mock, trace_mock):
     subject_properties_mock.existing_predicates[0] = MagicMock(PredicateMetaData)
+    subject_properties_mock.coverage_predicates.add(0)
     assert ff.compute_branch_coverage(trace_mock, subject_properties_mock) == 0.0
 
 
