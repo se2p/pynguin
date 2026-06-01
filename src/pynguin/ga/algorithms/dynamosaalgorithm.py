@@ -273,7 +273,8 @@ class _ControlDependencyGraph:
             if isinstance(n, bg.BranchCoverageTestFitness) and n.goal.is_branchless_code_object
         ), "Branchless code objects cannot depend on other goals."
 
-        # Sanity check: all root branch goals must be control-dependent on root.
+        # Sanity check: all root branch goals must be control-dependent on root
+        # or have no covered dependencies (e.g. tracking-only or pragma no cover).
         for node in self.root_goals:
             if (
                 isinstance(node, bg.BranchCoverageTestFitness)
@@ -282,8 +283,24 @@ class _ControlDependencyGraph:
                 branch_goal = cast("bg.BranchGoal", node.goal)
                 pred_meta = subject_properties.existing_predicates[branch_goal.predicate_id]
                 co_meta = subject_properties.existing_code_objects[pred_meta.code_object_id]
-                assert co_meta.cdg.is_control_dependent_on_root(pred_meta.node), (
-                    f"Root branch {node} must be control-dependent on root."
+                deps = co_meta.cdg.get_control_dependencies(pred_meta.node)
+                nodes_predicates = self._get_nodes_predicates(
+                    subject_properties, pred_meta.code_object_id, nodes_predicates_cache
+                )
+                valid_deps = [
+                    dep
+                    for dep in deps
+                    if dep.node in nodes_predicates
+                    and bg.BranchGoal(
+                        pred_meta.code_object_id,
+                        nodes_predicates[dep.node],
+                        value=dep.branch_value,
+                    )
+                    in branch_fitness_by_goal
+                ]
+                assert co_meta.cdg.is_control_dependent_on_root(pred_meta.node) or not valid_deps, (
+                    f"Root branch {node} must be control-dependent on root "
+                    "or have no covered dependencies."
                 )
 
     @staticmethod
@@ -326,7 +343,24 @@ class _ControlDependencyGraph:
                 nodes_predicates_cache,
             )
 
-            if code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node):
+            dependencies = code_object_meta_data.cdg.get_control_dependencies(
+                predicate_meta_data.node,
+            )
+            has_goal_dependency = any(
+                dep.node in nodes_predicates
+                and bg.BranchGoal(
+                    predicate_meta_data.code_object_id,
+                    nodes_predicates[dep.node],
+                    value=dep.branch_value,
+                )
+                in branch_fitness_by_goal
+                for dep in dependencies
+            )
+
+            if (
+                code_object_meta_data.cdg.is_control_dependent_on_root(predicate_meta_data.node)
+                or not has_goal_dependency
+            ):
                 self._root_goals.add(fitness)
 
             self._connect_dependencies(
