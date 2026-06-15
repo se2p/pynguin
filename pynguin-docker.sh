@@ -73,7 +73,10 @@ then
   exit 1
 fi
 
-# Install dependencies by installing the package
+# Install the project from source (resolves all its dependencies automatically)
+pip install /input
+
+# Install additional pinned dependencies if specified in package.txt
 pip install -r "${PACKAGE_DIR}/package.txt"
 
 # While the version of the main application should be fixed in the package.txt via PyPi
