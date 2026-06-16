@@ -73,8 +73,11 @@ then
   exit 1
 fi
 
+# Copy read-only source to a writable temp directory so pip can write .egg-info
+cp -a /input /tmp/input
+
 # Install the project from source (resolves all its dependencies automatically)
-pip install /input
+pip install /tmp/input
 
 # Install additional pinned dependencies if specified in package.txt
 pip install -r "${PACKAGE_DIR}/package.txt"
