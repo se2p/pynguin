@@ -1,12 +1,13 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """In-process test execution validator."""
 
 import sys
+import textwrap
 import traceback
 from pathlib import Path
 
@@ -52,7 +53,6 @@ def run_test(test_code: str, module_under_test):
     # Provide the tested module under its real name for introspection if needed
     _ensure_module_package_on_path(module_under_test)
     scope = {module_under_test.__name__: module_under_test}
-    import textwrap  # noqa: PLC0415
 
     try:
         # Extract the function name
@@ -67,7 +67,7 @@ def run_test(test_code: str, module_under_test):
 
         # Clean up code indentation before execution
         cleaned_code = textwrap.dedent(test_code.strip())
-        # Execute the code and the function
+        # Executing the generated test code is the core purpose of this validator.
         exec(cleaned_code, scope)  # noqa: S102
         scope[function_name]()  # Call the test function
 

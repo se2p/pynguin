@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -131,7 +131,8 @@ class LLMJudge:
     """
 
     # Evaluation prompt template
-    EVALUATION_PROMPT = """You are an expert software engineer evaluating the readability of Python unit tests.
+    EVALUATION_PROMPT = """\
+You are an expert software engineer evaluating the readability of Python unit tests.
 
 **Test Code to Evaluate:**
 ```python
@@ -171,9 +172,14 @@ Rate the test on each dimension using a 1-5 scale:
 
 **Response Format:**
 Respond with ONLY a JSON object (no markdown, no explanation):
-{{"identifier_meaningfulness": X, "structural_simplicity": X, "assertion_clarity": X, "overall_understandability": X}}  # noqa: E501
+{{
+    "identifier_meaningfulness": X,
+    "structural_simplicity": X,
+    "assertion_clarity": X,
+    "overall_understandability": X
+}}
 
-Replace X with your score (1-5) for each dimension."""  # noqa: E501
+Replace X with your score (1-5) for each dimension."""
 
     def __init__(
         self,

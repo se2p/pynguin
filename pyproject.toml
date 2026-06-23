@@ -276,6 +276,7 @@ convention = "google"
   "D103", # Missing docstring in public function
   "D104", # Missing docstring in public package
   "PT006", # Wrong name(s) type in `@pytest.mark.parameterize`, expected `tuple`
+  "PLC2701", # Private name import (white-box unit testing of internal helpers)
   "S101", # Use of `assert` detected
   "SLF001", # Private member accessed
 ]

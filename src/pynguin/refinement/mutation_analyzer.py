@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -11,9 +11,12 @@ from __future__ import annotations
 import ast
 import copy
 import logging
+import sys
 import textwrap
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
+
+import pytest
 
 if TYPE_CHECKING:
     import types
@@ -52,7 +55,7 @@ class AssertionTracker:
                     # Normalize the assertion by unparsing it
                     assertion_str = ast.unparse(node.test)
                     assertions.append(assertion_str)
-        except Exception as e:  # noqa: BLE001
+        except (SyntaxError, ValueError) as e:
             _LOGGER.warning("Could not parse test for assertions: %s", e)
         return assertions
 
@@ -77,14 +80,16 @@ def _run_test_against_mutant(
     Returns ``True`` if the mutant was **killed** (test raised an exception),
     ``False`` if the mutant **survived** (test passed).
     """
-    import pytest  # noqa: PLC0415
-
     test_globals: dict[str, Any] = {
         "__builtins__": __builtins__,
         module_name: mutant_module,
         "pytest": pytest,
     }
 
+    # Temporarily patch sys.modules so that `import <module_name> as module_0`
+    # inside exec() resolves to the mutant, not the real module.
+    old_module = sys.modules.get(module_name)
+    sys.modules[module_name] = mutant_module
     try:
         cleaned = textwrap.dedent(test_code.strip())
         compiled = compile(ast.parse(cleaned), "<test>", "exec")
@@ -97,8 +102,14 @@ def _run_test_against_mutant(
                 break
 
         return False  # Test passed → mutant survived
-    except Exception:  # noqa: BLE001
-        return True  # Any exception → mutant killed
+    except BaseException:  # noqa: BLE001
+        return True  # Any exception → mutant killed (incl. pytest.fail)
+    finally:
+        # Restore the original module (or remove if it wasn't there)
+        if old_module is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = old_module
 
 
 def _remove_assertion_by_index(tree: ast.Module, target_idx: int) -> ast.Module:
@@ -138,12 +149,208 @@ def _killed_set(
     return killed
 
 
-def filter_vacuous_assertions(  # noqa: C901, PLR0915, PLR0914, PLR0917
+def _vacuous_stats(
+    inferred: int,
+    *,
+    mutants_generated: int = 0,
+    mutants_killed_total: int = 0,
+    assertions_kept: int | None = None,
+    assertions_removed: int = 0,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """Build the standard statistics dict for an early/terminal filtering result."""
+    stats: dict[str, Any] = {
+        "inferred_assertions": inferred,
+        "mutants_generated": mutants_generated,
+        "mutants_killed_total": mutants_killed_total,
+        "assertions_kept": inferred if assertions_kept is None else assertions_kept,
+        "assertions_removed": assertions_removed,
+    }
+    if error is not None:
+        stats["error"] = error
+    return stats
+
+
+def _create_mutants(
+    module_under_test: types.ModuleType,
+    max_mutants: int,
+) -> tuple[list[tuple[types.ModuleType, Any]], str | None]:
+    """Generate up to *max_mutants* mutant modules for the SUT.
+
+    Returns ``(mutants, error)`` where *error* is a non-None message on failure.
+    """
+    try:
+        from pynguin.assertion.mutation_analysis.controller import (  # noqa: PLC0415
+            MutationController,
+        )
+        from pynguin.assertion.mutation_analysis.mutators import (  # noqa: PLC0415
+            FirstOrderMutator,
+        )
+        from pynguin.assertion.mutation_analysis.operators import (  # noqa: PLC0415
+            ArithmeticOperatorReplacement,
+            ConstantReplacement,
+            LogicalOperatorReplacement,
+            RelationalOperatorReplacement,
+        )
+        from pynguin.assertion.mutation_analysis.transformer import (  # noqa: PLC0415
+            ParentNodeTransformer,
+        )
+    except ImportError as e:
+        return [], str(e)
+
+    try:
+        sut_file = module_under_test.__file__
+        if sut_file is None:
+            raise FileNotFoundError("Module has no __file__ attribute")
+        sut_path = Path(sut_file)
+        if not sut_path.exists():
+            raise FileNotFoundError(f"SUT file not found: {sut_path}")
+        sut_source = sut_path.read_text(encoding="utf-8")
+        sut_ast = ParentNodeTransformer.create_ast(sut_source)
+    except (OSError, SyntaxError, ValueError) as e:
+        return [], str(e)
+
+    mutator = FirstOrderMutator(
+        operators=[
+            ArithmeticOperatorReplacement,
+            RelationalOperatorReplacement,
+            LogicalOperatorReplacement,
+            ConstantReplacement,
+        ]
+    )
+    controller = MutationController(
+        mutant_generator=mutator,
+        module_ast=sut_ast,
+        module=module_under_test,
+    )
+
+    # MutationController.create_mutants() deterministically re-derives the mutant
+    # set from the AST, so a fresh controller with the same operators/AST
+    # reproduces the set used during Pynguin's assertion-generation phase.
+    mutants: list[tuple[types.ModuleType, Any]] = []
+    for mutant_module, mutations in controller.create_mutants():
+        if len(mutants) >= max_mutants:
+            break
+        if mutant_module is not None:
+            mutants.append((mutant_module, mutations))
+    return mutants, None
+
+
+def _index_all_assertions(tree: ast.Module) -> list[str]:
+    """Return the unparsed test expression of every ``Assert`` node in DFS order.
+
+    DFS (NodeVisitor) order matches :func:`_remove_assertion_by_index` so that
+    assertion indices stay consistent between mapping and removal, including for
+    assertions nested inside ``pytest.raises`` / ``try`` / ``if`` blocks.
+    """
+    found: list[str] = []
+
+    class _AssertIndexer(ast.NodeVisitor):
+        def visit_Assert(self, node: ast.Assert) -> None:  # noqa: N802
+            try:
+                found.append(ast.unparse(node.test))
+            except (ValueError, AttributeError, TypeError):
+                found.append("")
+            self.generic_visit(node)
+
+    _AssertIndexer().visit(tree)
+    return found
+
+
+def _assertion_removal_lines(tree: ast.Module, remove_set: set[int]) -> tuple[set[int], set[int]]:
+    """Return ``(all_lines, start_lines)`` for the asserts whose index is removed."""
+    all_lines: set[int] = set()
+    start_lines: set[int] = set()
+    counter = [0]
+
+    class _LineCollector(ast.NodeVisitor):
+        def visit_Assert(self, node: ast.Assert) -> None:  # noqa: N802
+            if counter[0] in remove_set:
+                end = node.end_lineno or node.lineno
+                all_lines.update(range(node.lineno, end + 1))
+                start_lines.add(node.lineno)
+            counter[0] += 1
+            self.generic_visit(node)
+
+    _LineCollector().visit(tree)
+    return all_lines, start_lines
+
+
+def _build_filtered_test(
+    refined_test: str, tree: ast.Module, assertions_to_remove: list[int]
+) -> str:
+    """Return *refined_test* with the removed assertions replaced by ``pass``."""
+    lines_to_remove, start_lines = _assertion_removal_lines(tree, set(assertions_to_remove))
+    result_lines: list[str] = []
+    for i, line in enumerate(refined_test.split("\n"), 1):
+        if i not in lines_to_remove:
+            result_lines.append(line)
+        elif i in start_lines:
+            indent = len(line) - len(line.lstrip())
+            result_lines.append(" " * indent + "pass")
+        # else: a continuation line of a multi-line assert -> drop it
+    return "\n".join(result_lines)
+
+
+class _AssertionAnalysis(NamedTuple):
+    """Aggregated result of per-assertion mutation analysis."""
+
+    to_remove: list[int]
+    per_test: dict[int, int]
+    suite_level: dict[int, int]
+    baseline_killed: set[int]
+    suite_baseline_killed: set[int]
+
+
+def _evaluate_inferred(
+    refined_test: str,
+    refined_tree: ast.Module,
+    inferred_indices: list[int],
+    mutants: list[tuple[types.ModuleType, Any]],
+    *,
+    module_name: str,
+    other_tests_in_suite: list[str] | None,
+) -> _AssertionAnalysis:
+    """Run per-assertion mutation analysis and return the aggregated result."""
+    baseline_killed = _killed_set(refined_test, mutants, module_name)
+
+    suite_baseline_killed: set[int] = set()
+    if other_tests_in_suite:
+        for other_test in other_tests_in_suite:
+            suite_baseline_killed |= _killed_set(other_test, mutants, module_name)
+
+    assertions_to_remove: list[int] = []
+    per_test_contributions: dict[int, int] = {}
+    suite_level_contributions: dict[int, int] = {}
+
+    for assert_idx in inferred_indices:
+        without_tree = _remove_assertion_by_index(refined_tree, assert_idx)
+        without_killed = _killed_set(ast.unparse(without_tree), mutants, module_name)
+
+        additional_kills = baseline_killed - without_killed
+        per_test_contributions[assert_idx] = len(additional_kills)
+
+        if other_tests_in_suite:
+            suite_level_contributions[assert_idx] = len(additional_kills - suite_baseline_killed)
+        else:
+            suite_level_contributions[assert_idx] = len(additional_kills)
+
+        if not additional_kills:
+            assertions_to_remove.append(assert_idx)
+
+    return _AssertionAnalysis(
+        to_remove=assertions_to_remove,
+        per_test=per_test_contributions,
+        suite_level=suite_level_contributions,
+        baseline_killed=baseline_killed,
+        suite_baseline_killed=suite_baseline_killed,
+    )
+
+
+def filter_vacuous_assertions(
     original_test: str,
     refined_test: str,
-    focal_method: str,  # noqa: ARG001
     module_under_test: types.ModuleType | None,
-    module_path: str,  # noqa: ARG001
     max_mutants: int = 10,
     other_tests_in_suite: list[str] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -162,9 +369,7 @@ def filter_vacuous_assertions(  # noqa: C901, PLR0915, PLR0914, PLR0917
     Args:
         original_test: Original Pynguin-generated test.
         refined_test: Test after LLM assertion generation.
-        focal_method: Name of the method being tested.
         module_under_test: The module object to mutate.
-        module_path: Path to the module source file.
         max_mutants: Maximum mutants to generate (default: 10).
         other_tests_in_suite: Optional list of other test code strings in the suite
             for computing suite-level redundancy metrics.
@@ -173,251 +378,72 @@ def filter_vacuous_assertions(  # noqa: C901, PLR0915, PLR0914, PLR0917
         Tuple of ``(filtered_test_code, statistics_dict)``.
         Statistics include both per_test_contributions and suite_level_contributions.
     """
-    # ------------------------------------------------------------------
-    # Import Pynguin's mutation infrastructure
-    # ------------------------------------------------------------------
-    try:
-        from pynguin.assertion.mutation_analysis.controller import (  # noqa: PLC0415
-            MutationController,
-        )
-        from pynguin.assertion.mutation_analysis.mutators import (  # noqa: PLC0415
-            FirstOrderMutator,
-        )
-        from pynguin.assertion.mutation_analysis.operators import (  # noqa: PLC0415
-            ArithmeticOperatorReplacement,
-            ConstantReplacement,
-            LogicalOperatorReplacement,
-            RelationalOperatorReplacement,
-        )
-        from pynguin.assertion.mutation_analysis.transformer import (  # noqa: PLC0415
-            ParentNodeTransformer,
-        )
-    except ImportError as e:
-        return refined_test, {
-            "inferred_assertions": 0,
-            "mutants_generated": 0,
-            "mutants_killed_total": 0,
-            "assertions_kept": 0,
-            "assertions_removed": 0,
-            "error": str(e),
-        }
-
-    # ------------------------------------------------------------------
-    # Step 1: Identify inferred (LLM-added) assertions
-    # ------------------------------------------------------------------
+    # Step 1: Identify inferred (LLM-added) assertions.
     tracker = AssertionTracker(original_test, refined_test)
+    inferred = tracker.inferred_assertions
+    if not inferred:
+        return refined_test, _vacuous_stats(0)
 
-    if not tracker.inferred_assertions:
-        return refined_test, {
-            "inferred_assertions": 0,
-            "mutants_generated": 0,
-            "mutants_killed_total": 0,
-            "assertions_kept": 0,
-            "assertions_removed": 0,
-        }
-
-    # ------------------------------------------------------------------
-    # Step 2: Parse SUT source and generate mutants
-    # ------------------------------------------------------------------
+    # Step 2: Parse SUT source and generate mutants.
     if not module_under_test or not hasattr(module_under_test, "__file__"):
-        return refined_test, {
-            "inferred_assertions": len(tracker.inferred_assertions),
-            "mutants_generated": 0,
-            "mutants_killed_total": 0,
-            "assertions_kept": len(tracker.inferred_assertions),
-            "assertions_removed": 0,
-            "error": "module source not available",
-        }
+        return refined_test, _vacuous_stats(len(inferred), error="module source not available")
 
-    try:
-        sut_file = module_under_test.__file__
-        if sut_file is None:
-            raise FileNotFoundError("Module has no __file__ attribute")
-        sut_path = Path(sut_file)
-        if not sut_path.exists():
-            raise FileNotFoundError(f"SUT file not found: {sut_path}")
-
-        sut_source = sut_path.read_text(encoding="utf-8")
-        sut_ast = ParentNodeTransformer.create_ast(sut_source)
-    except Exception as e:  # noqa: BLE001
-        return refined_test, {
-            "inferred_assertions": len(tracker.inferred_assertions),
-            "mutants_generated": 0,
-            "mutants_killed_total": 0,
-            "assertions_kept": len(tracker.inferred_assertions),
-            "assertions_removed": 0,
-            "error": str(e),
-        }
-
-    selected_operators = [
-        ArithmeticOperatorReplacement,
-        RelationalOperatorReplacement,
-        LogicalOperatorReplacement,
-        ConstantReplacement,
-    ]
-
-    mutator = FirstOrderMutator(operators=selected_operators)
-    controller = MutationController(
-        mutant_generator=mutator,
-        module_ast=sut_ast,
-        module=module_under_test,
-    )
-
-    # Materialise mutants so we can re-run them per assertion.
-    # NOTE: The proposal says "reuse mutants from Pynguin's assertion-
-    # generation phase".  Pynguin's MutationController does not cache
-    # mutants — create_mutants() is a deterministic generator that
-    # re-derives mutants from the AST each call.  Constructing a fresh
-    # controller with the *same* operators and module AST therefore
-    # produces the identical mutant set, making this functionally
-    # equivalent to reuse without requiring cross-phase plumbing.
-    mutants: list[tuple[types.ModuleType, Any]] = []
-    for mutant_module, mutations in controller.create_mutants():
-        if len(mutants) >= max_mutants:
-            break
-        if mutant_module is not None:
-            mutants.append((mutant_module, mutations))
-
+    mutants, mutant_error = _create_mutants(module_under_test, max_mutants)
+    if mutant_error is not None:
+        return refined_test, _vacuous_stats(len(inferred), error=mutant_error)
     if not mutants:
-        return refined_test, {
-            "inferred_assertions": len(tracker.inferred_assertions),
-            "mutants_generated": 0,
-            "mutants_killed_total": 0,
-            "assertions_kept": len(tracker.inferred_assertions),
-            "assertions_removed": 0,
-        }
+        return refined_test, _vacuous_stats(len(inferred))
 
-    # ------------------------------------------------------------------
-    # Step 3: Per-assertion filtering
-    # ------------------------------------------------------------------
     module_name = module_under_test.__name__
 
-    # Parse the refined test AST once
+    # Step 3: Map inferred assertions to their indices in the refined test.
     try:
         refined_tree = ast.parse(refined_test)
     except SyntaxError as e:
-        return refined_test, {
-            "inferred_assertions": len(tracker.inferred_assertions),
-            "mutants_generated": len(mutants),
-            "mutants_killed_total": 0,
-            "assertions_kept": len(tracker.inferred_assertions),
-            "assertions_removed": 0,
-            "error": str(e),
-        }
+        return refined_test, _vacuous_stats(
+            len(inferred), mutants_generated=len(mutants), error=str(e)
+        )
 
-    # Map assertion index → assertion string for all Assert nodes
-    all_asserts: list[str] = [
-        ast.unparse(node.test) for node in ast.walk(refined_tree) if isinstance(node, ast.Assert)
-    ]
-
-    # Identify which indices correspond to inferred assertions
-    inferred_set = set(tracker.inferred_assertions)
-    inferred_indices: list[int] = [i for i, a in enumerate(all_asserts) if a in inferred_set]
-
+    all_asserts = _index_all_assertions(refined_tree)
+    inferred_set = set(inferred)
+    inferred_indices = [i for i, a in enumerate(all_asserts) if a in inferred_set]
     if not inferred_indices:
-        return refined_test, {
-            "inferred_assertions": len(tracker.inferred_assertions),
-            "mutants_generated": len(mutants),
-            "mutants_killed_total": 0,
-            "assertions_kept": len(tracker.inferred_assertions),
-            "assertions_removed": 0,
-        }
+        return refined_test, _vacuous_stats(len(inferred), mutants_generated=len(mutants))
 
-    # Baseline: killed set with ALL assertions present
-    baseline_killed = _killed_set(refined_test, mutants, module_name)
+    # Step 4: Per-assertion mutation analysis.
+    analysis = _evaluate_inferred(
+        refined_test,
+        refined_tree,
+        inferred_indices,
+        mutants,
+        module_name=module_name,
+        other_tests_in_suite=other_tests_in_suite,
+    )
 
-    # Compute suite-level baseline if other tests provided
-    suite_baseline_killed: set[int] = set()
-    if other_tests_in_suite:
-        for other_test in other_tests_in_suite:
-            suite_baseline_killed |= _killed_set(other_test, mutants, module_name)
-
-    # For each inferred assertion, check if removing it changes the killed set
-    assertions_to_remove: list[int] = []
-    per_test_contributions: dict[int, int] = {}  # assert_idx -> num additional mutants killed
-    suite_level_contributions: dict[int, int] = {}  # assert_idx -> num unique kills vs suite
-
-    for assert_idx in inferred_indices:
-        # Build test code WITHOUT this assertion
-        without_tree = _remove_assertion_by_index(refined_tree, assert_idx)
-        without_code = ast.unparse(without_tree)
-        without_killed = _killed_set(without_code, mutants, module_name)
-
-        # Per-test contribution: mutants killed by THIS test only
-        additional_kills = baseline_killed - without_killed
-        per_test_contributions[assert_idx] = len(additional_kills)
-
-        # Suite-level contribution: unique kills not covered by other tests
-        if other_tests_in_suite:
-            # Mutants killed by this assertion that NO other test kills
-            unique_to_assertion = additional_kills - suite_baseline_killed
-            suite_level_contributions[assert_idx] = len(unique_to_assertion)
-        else:
-            suite_level_contributions[assert_idx] = len(additional_kills)  # fallback to per-test
-
-        all_asserts[assert_idx][:60]
-
-        # Filtering decision: use per-test criterion (current behavior)
-        if len(additional_kills) == 0:
-            # This assertion kills zero additional mutants in this test → vacuous
-            (
-                f" (suite-level: {suite_level_contributions[assert_idx]})"
-                if other_tests_in_suite
-                else ""
-            )
-            assertions_to_remove.append(assert_idx)
-        else:
-            (
-                f", suite-level: {suite_level_contributions[assert_idx]}"
-                if other_tests_in_suite
-                else ""
-            )
-
-    # ------------------------------------------------------------------
-    # Step 4: Build filtered test
-    # ------------------------------------------------------------------
-    if assertions_to_remove:
-        filtered_tree = copy.deepcopy(refined_tree)
-        remove_set = set(assertions_to_remove)
-        counter = 0
-
-        class _BulkRemover(ast.NodeTransformer):
-            def visit_Assert(self, node: ast.Assert) -> ast.AST:  # noqa: N802
-                nonlocal counter
-                current = counter
-                counter += 1
-                if current in remove_set:
-                    return ast.Pass()
-                return node
-
-        _BulkRemover().visit(filtered_tree)
-        ast.fix_missing_locations(filtered_tree)
-        filtered_test = ast.unparse(filtered_tree)
-    else:
-        filtered_test = refined_test
-
-    kept = len(inferred_indices) - len(assertions_to_remove)
-    removed = len(assertions_to_remove)
+    # Step 5: Build the filtered test (text-based to preserve comments).
+    filtered_test = (
+        _build_filtered_test(refined_test, refined_tree, analysis.to_remove)
+        if analysis.to_remove
+        else refined_test
+    )
 
     stats: dict[str, Any] = {
-        "inferred_assertions": len(tracker.inferred_assertions),
+        "inferred_assertions": len(inferred),
         "mutants_generated": len(mutants),
-        "mutants_killed_total": len(baseline_killed),
-        "assertions_kept": kept,
-        "assertions_removed": removed,
-        "per_test_contributions": per_test_contributions,  # dict[assert_idx -> num kills]
-        "suite_level_contributions": suite_level_contributions,  # dict[assert_idx -> unique kills]
-        "suite_baseline_size": len(suite_baseline_killed) if other_tests_in_suite else 0,
+        "mutants_killed_total": len(analysis.baseline_killed),
+        "assertions_kept": len(inferred_indices) - len(analysis.to_remove),
+        "assertions_removed": len(analysis.to_remove),
+        "per_test_contributions": analysis.per_test,
+        "suite_level_contributions": analysis.suite_level,
+        "suite_baseline_size": len(analysis.suite_baseline_killed) if other_tests_in_suite else 0,
     }
 
-    # Compute summary metrics
-    if per_test_contributions:
-        avg_per_test = sum(per_test_contributions.values()) / len(per_test_contributions)
-        avg_suite_level = sum(suite_level_contributions.values()) / len(suite_level_contributions)
-        stats["avg_per_test_contribution"] = avg_per_test
-        stats["avg_suite_level_contribution"] = avg_suite_level
-
-    if other_tests_in_suite and per_test_contributions:
-        pass
+    if analysis.per_test:
+        stats["avg_per_test_contribution"] = sum(analysis.per_test.values()) / len(
+            analysis.per_test
+        )
+        stats["avg_suite_level_contribution"] = sum(analysis.suite_level.values()) / len(
+            analysis.suite_level
+        )
 
     return filtered_test, stats

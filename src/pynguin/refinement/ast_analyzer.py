@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -175,7 +175,7 @@ class FocalMethodAnalyzer:
         try:
             full_name = ast.unparse(call_node.func) if hasattr(ast, "unparse") else "unknown_call"
             return full_name, None
-        except Exception:  # noqa: BLE001
+        except (ValueError, AttributeError, TypeError):
             return "unknown_call", None
 
     def _resolve_module_name(self, alias: str | None) -> str | None:
@@ -239,7 +239,7 @@ class FocalMethodAnalyzer:
         # Try to get the full call signature
         try:
             full_signature = ast.unparse(focal_call) if hasattr(ast, "unparse") else method_name
-        except Exception:  # noqa: BLE001
+        except (ValueError, AttributeError, TypeError):
             full_signature = method_name
 
         return FocalMethodInfo(

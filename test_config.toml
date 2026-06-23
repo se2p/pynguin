@@ -6,7 +6,7 @@
 
 [llm_refinement]
 enabled = true
-llm_model = "gpt-4o-mini"
+llm_model = "gpt-5.1-codex-mini"
 max_repair_iterations = 3
 save_original = true
 save_refined = true

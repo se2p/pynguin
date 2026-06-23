@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -119,6 +119,8 @@ class SUTInspector:
         except ImportError:
             return None
         except Exception:  # noqa: BLE001
+            # Importing a SUT module runs its top-level code, which may raise
+            # arbitrary exceptions; degrade gracefully instead of crashing.
             return None
 
     def _traverse_object_path(self, module: Any, object_path: str) -> Any | None:
@@ -136,11 +138,11 @@ class SUTInspector:
 
         parts = object_path.split(".")
         current = module
+        missing = object()
 
         for part in parts:
-            try:
-                current = getattr(current, part)
-            except AttributeError:  # noqa: PERF203
+            current = getattr(current, part, missing)
+            if current is missing:
                 return None
 
         return current
@@ -174,6 +176,8 @@ class SUTInspector:
             doc = inspect.getdoc(obj)
             return doc or None
         except Exception:  # noqa: BLE001
+            # ``getdoc`` may touch a custom ``__doc__`` descriptor on the SUT
+            # object that raises arbitrarily; treat any failure as "no docstring".
             return None
 
     def _extract_parent_context(self, obj: Any) -> str | None:
@@ -207,6 +211,8 @@ class SUTInspector:
 
             return None
         except Exception:  # noqa: BLE001
+            # Reflection over arbitrary SUT objects may raise anything; the
+            # parent-class context is best-effort, so fall back to None.
             return None
 
     def inspect_method(

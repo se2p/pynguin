@@ -1,123 +1,140 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """AAA (Arrange-Act-Assert) marker insertion for test functions."""
 
+_MARKERS = {"# Arrange", "# Act", "# Assert"}
 
-def insert_aaa_markers_simple(  # noqa: C901
-    test_code: str,
-    _focal_line_number: int,
-    verbose: bool = True,  # noqa: FBT001, FBT002
+
+def _strip_existing_markers(lines: list[str]) -> list[str]:
+    """Drop any pre-existing AAA marker lines so insertion stays idempotent."""
+    return [line for line in lines if line.strip() not in _MARKERS]
+
+
+def _find_function_start(lines: list[str]) -> int | None:
+    """Return the index of the ``def test_...`` line, or ``None`` if absent."""
+    for index, line in enumerate(lines):
+        if line.strip().startswith("def test_"):
+            return index
+    return None
+
+
+def _find_body_start(lines: list[str], func_start: int) -> int:
+    """Return the index of the first executable line after signature/docstring."""
+    body_start = func_start + 1
+    in_docstring = False
+    while body_start < len(lines):
+        stripped = lines[body_start].strip()
+        if not stripped:
+            body_start += 1
+            continue
+        if stripped.startswith('"""'):
+            # A line that both opens and closes (>= 2 quotes) or that closes an
+            # open docstring terminates it; otherwise it opens one.
+            in_docstring = not (in_docstring or stripped.count('"""') >= 2)
+            body_start += 1
+            continue
+        if in_docstring:
+            if '"""' in stripped:
+                in_docstring = False
+            body_start += 1
+            continue
+        break
+    return body_start
+
+
+def _find_first_assert(lines: list[str], body_start: int) -> int | None:
+    """Return the index of the first ``assert`` line at or after *body_start*."""
+    for index in range(body_start, len(lines)):
+        if lines[index].strip().lower().startswith("assert"):
+            return index
+    return None
+
+
+def _resolve_focal_index(
+    lines: list[str],
+    body_start: int,
+    first_assert_idx: int | None,
+    focal_line_number: int,
+) -> int:
+    """Pick the focal (Act) line index, honouring the caller hint when valid."""
+    candidate = focal_line_number - 1  # convert 1-based hint to 0-based index
+    if (
+        focal_line_number > 0
+        and body_start <= candidate < len(lines)
+        and lines[candidate].strip()
+        and (first_assert_idx is None or candidate < first_assert_idx)
+    ):
+        return candidate
+
+    # Fallback heuristic: last non-blank line before the first assert.
+    focal_idx = first_assert_idx - 1 if first_assert_idx is not None else len(lines) - 1
+    while focal_idx > body_start and not lines[focal_idx].strip():
+        focal_idx -= 1
+    return focal_idx
+
+
+def _build_with_markers(
+    lines: list[str],
+    body_start: int,
+    focal_idx: int,
+    first_assert_idx: int | None,
 ) -> str:
-    """Simpler version: Just insert AAA comments at appropriate positions.
+    """Reassemble the test body with ``# Arrange``/``# Act``/``# Assert`` markers."""
+    new_lines = lines[:body_start]
 
-    This version doesn't try to reparse with AST, just inserts comments
-    at strategic points based on line numbers.
+    new_lines.append("    # Arrange")
+    new_lines.extend(lines[body_start:focal_idx])
+
+    if body_start <= focal_idx < len(lines):
+        new_lines.append("    # Act")
+        new_lines.append(lines[focal_idx])
+
+    if first_assert_idx is not None and first_assert_idx < len(lines):
+        # Preserve lines between the Act line and the first assertion
+        # (e.g. capturing a return value into a variable).
+        new_lines.extend(lines[focal_idx + 1 : first_assert_idx])
+        new_lines.append("    # Assert")
+        new_lines.extend(lines[first_assert_idx:])
+    else:
+        new_lines.extend(line for line in lines[focal_idx + 1 :] if line.strip())
+
+    return "\n".join(new_lines)
+
+
+def insert_aaa_markers_simple(
+    test_code: str,
+    focal_line_number: int,
+) -> str:
+    """Insert deterministic AAA markers into a test function.
+
+    Uses *focal_line_number* (1-based, relative to the code snippet) when
+    it points to a valid line; otherwise falls back to the heuristic
+    "last non-blank line before the first assert".
 
     Args:
-        test_code: The refined test code
-        focal_line_number: Line number of the focal method call
-        verbose: Whether to print debug information
+        test_code: The refined test code.
+        focal_line_number: 1-based line number of the focal method call.
 
     Returns:
-        Test code with AAA markers inserted
+        Test code with ``# Arrange``, ``# Act``, ``# Assert`` markers.
     """
     try:
-        lines = test_code.split("\n")
+        lines = _strip_existing_markers(test_code.split("\n"))
 
-        # Remove existing AAA markers first
-        lines = [line for line in lines if line.strip() not in {"# Arrange", "# Act", "# Assert"}]
-
-        # Find function body start
-        func_start = None
-        for i, line in enumerate(lines):
-            if line.strip().startswith("def test_"):
-                func_start = i
-                break
-
+        func_start = _find_function_start(lines)
         if func_start is None:
             return test_code
 
-        # Find actual body start (after def line)
-        body_start = func_start + 1
-        while body_start < len(lines) and (
-            not lines[body_start].strip() or lines[body_start].strip().startswith('"""')
-        ):
-            body_start += 1
-
+        body_start = _find_body_start(lines, func_start)
         if body_start >= len(lines):
             return test_code
 
-        if verbose:
-            pass
-
-        # Find indices in the modified lines list
-        # We need to find where the focal method call is
-        focal_idx = None
-        first_assert_idx = None
-
-        for i in range(body_start, len(lines)):
-            line_lower = lines[i].lower()
-
-            # Look for assert statements
-            if line_lower.strip().startswith("assert") and first_assert_idx is None:
-                first_assert_idx = i
-
-            # Approximate: if line is roughly at focal_line_number, mark as focal
-            # (This is approximate since we removed markers and counts may shift)
-            # For now, use: focal is between arrange and first assert
-
-        # If we found an assert, focal should be before it
-        if first_assert_idx is not None:
-            focal_idx = first_assert_idx - 1
-            while focal_idx > body_start and not lines[focal_idx].strip():
-                focal_idx -= 1
-        else:
-            # No assertion found - use all lines as act section
-            # Find the last meaningful line
-            focal_idx = len(lines) - 1
-            while focal_idx > body_start and not lines[focal_idx].strip():
-                focal_idx -= 1
-
-        if verbose:
-            pass
-
-        # Build new lines with markers
-        new_lines = lines[:body_start]  # Imports + function signature + docstring
-
-        # Always add arrange marker
-        new_lines.append("    # Arrange")
-
-        # Add arrange section (everything before focal)
-        for i in range(body_start, focal_idx):
-            new_lines.append(lines[i])
-
-        # Add act marker and focal call
-        if focal_idx < len(lines) and focal_idx >= body_start:
-            new_lines.append("    # Act")
-            new_lines.append(lines[focal_idx])
-
-        # Add assert marker and assertions (if any)
-        if first_assert_idx is not None and first_assert_idx < len(lines):
-            # Only add Assert marker if there are actual assertions
-            new_lines.append("    # Assert")
-            for i in range(first_assert_idx, len(lines)):
-                new_lines.append(lines[i])
-        else:
-            # No assertions - just add any remaining lines (shouldn't happen normally)
-            for i in range(focal_idx + 1, len(lines)):
-                if lines[i].strip():
-                    new_lines.append(lines[i])
-
-        result = "\n".join(new_lines)
-
-        if verbose:
-            pass
-
-        return result
-
-    except Exception:  # noqa: BLE001
+        first_assert_idx = _find_first_assert(lines, body_start)
+        focal_idx = _resolve_focal_index(lines, body_start, first_assert_idx, focal_line_number)
+        return _build_with_markers(lines, body_start, focal_idx, first_assert_idx)
+    except (IndexError, ValueError):
         return test_code

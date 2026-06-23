@@ -1,15 +1,17 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
 """Test refinement pipeline orchestrator."""
 
 import ast
+import re
 from pathlib import Path
 from typing import Any
 
+from pynguin.refinement.aaa_inserter import insert_aaa_markers_simple
 from pynguin.refinement.ast_analyzer import FocalMethodAnalyzer
 from pynguin.refinement.coverage_checker import check_coverage_preservation
 from pynguin.refinement.llm_client import LLMClient
@@ -30,6 +32,11 @@ def _restore_import_block(llm_code: str, original_code: str) -> str:
 
     By restoring the original import block *before* validation, any
     bare-call errors are caught in the repair loop.
+
+    This implementation preserves comments (including AAA markers) and
+    formatting in the non-import portion of the LLM output by only
+    removing top-level import *lines* identified via the AST while
+    keeping the rest of the text intact.
     """
     try:
         orig_tree = ast.parse(original_code)
@@ -37,22 +44,69 @@ def _restore_import_block(llm_code: str, original_code: str) -> str:
     except SyntaxError:
         return llm_code  # can't parse → leave as-is for repair loop
 
-    # Collect original import nodes
+    # Build the original import text
     orig_imports = [n for n in orig_tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    if not orig_imports:
+        return llm_code
 
-    # Collect non-import nodes from LLM output
-    llm_body = [n for n in llm_tree.body if not isinstance(n, (ast.Import, ast.ImportFrom))]
+    orig_import_mod = ast.Module(body=list(orig_imports), type_ignores=[])
+    orig_import_text = ast.unparse(orig_import_mod)
 
-    if not llm_body:
+    # Find line numbers occupied by top-level imports in the LLM output
+    import_lines: set[int] = set()
+    for node in llm_tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            import_lines.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+
+    if not import_lines:
+        return llm_code  # no imports to replace
+
+    # Keep every non-import line (preserves comments, AAA markers, etc.)
+    llm_lines = llm_code.split("\n")
+    remaining = [line for i, line in enumerate(llm_lines, 1) if i not in import_lines]
+
+    # Trim leading blank lines
+    while remaining and not remaining[0].strip():
+        remaining.pop(0)
+
+    if not remaining:
         return llm_code  # nothing useful from LLM
 
-    restored = ast.Module(body=orig_imports + llm_body, type_ignores=[])
-    ast.fix_missing_locations(restored)
-    return ast.unparse(restored)
+    return orig_import_text + "\n" + "\n".join(remaining)
+
+
+def _safe_unparse(node: ast.expr) -> str | None:
+    """Unparse an AST expression, returning ``None`` if it cannot be rendered."""
+    try:
+        return ast.unparse(node)
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
+def _locate_inferred_assertion(
+    tree: ast.Module, inferred_set: set[str], failing_line: int | None
+) -> ast.Assert | None:
+    """Find the inferred assertion to remove.
+
+    Prefers the assertion at ``failing_line``; otherwise falls back to the
+    first inferred assertion encountered.
+    """
+    first_inferred: ast.Assert | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assert):
+            continue
+        assertion_str = _safe_unparse(node.test)
+        if assertion_str is None or assertion_str not in inferred_set:
+            continue
+        if first_inferred is None:
+            first_inferred = node
+        if failing_line is not None and node.lineno == failing_line:
+            return node
+    return first_inferred
 
 
 def _remove_failing_inferred_assertion(
-    current_code: str, original_code: str, _error_msg: str
+    current_code: str, original_code: str, error_msg: str
 ) -> tuple[str | None, str | None]:
     """Remove a failing inferred assertion from the test code.
 
@@ -60,20 +114,22 @@ def _remove_failing_inferred_assertion(
     fails, we discard it rather than asking the LLM to "fix" it (which could
     make the test vacuous).
 
+    Uses the traceback in error_msg to identify the specific failing assertion
+    by line number.  Falls back to the first inferred assertion if the line
+    number cannot be matched.
+
     Args:
         current_code: The current test code with the failing assertion
         original_code: The original Pynguin-generated test (before LLM refinement)
-        error_msg: The assertion error message
+        error_msg: The assertion error message / traceback from run_test
 
     Returns:
         Tuple of (modified_code, removed_assertion) or (None, None) if no
         inferred assertion could be identified/removed
     """
-    # Track which assertions are inferred (added by LLM)
     tracker = AssertionTracker(original_code, current_code)
 
     if not tracker.inferred_assertions:
-        # No inferred assertions to remove
         return None, None
 
     try:
@@ -81,41 +137,48 @@ def _remove_failing_inferred_assertion(
     except SyntaxError:
         return None, None
 
-    # Find all assert statements in the current code
-    class AssertRemover(ast.NodeTransformer):
-        def __init__(self, inferred_assertions: list[str]):
-            self.inferred_assertions = set(inferred_assertions)
-            self.removed_assertion: str | None = None
-            self.found_failing = False
+    inferred_set = set(tracker.inferred_assertions)
 
-        def visit_Assert(self, node: ast.Assert) -> ast.AST | None:  # noqa: N802
-            if self.found_failing:
-                # Already removed one, keep the rest
-                return node
+    # Try to extract the failing line number from the traceback.
+    # exec() uses "<string>" as the filename, so lines look like:
+    #   File "<string>", line N, in test_func_name
+    failing_line: int | None = None
+    for m in re.finditer(r'File "<string>", line (\d+)', error_msg):
+        failing_line = int(m.group(1))  # keep the last (innermost) match
 
-            # Check if this assertion is inferred
-            try:
-                assertion_str = ast.unparse(node.test)
-            except Exception:  # noqa: BLE001
-                return node
+    target_node = _locate_inferred_assertion(tree, inferred_set, failing_line)
+    if target_node is None:
+        return None, None
 
-            if assertion_str in self.inferred_assertions:
-                # This is an inferred assertion - remove it
-                self.removed_assertion = assertion_str
-                self.found_failing = True
-                return None  # Remove this node
+    assertion_str = _safe_unparse(target_node.test)
+    if assertion_str is None:
+        return None, None
 
-            return node
+    start_line = target_node.lineno  # 1-based
+    end_line = target_node.end_lineno or target_node.lineno
+    lines = current_code.split("\n")
+    indent = len(lines[start_line - 1]) - len(lines[start_line - 1].lstrip())
+    new_lines = [
+        *lines[: start_line - 1],
+        " " * indent + "pass",
+        *lines[end_line:],
+    ]
+    return "\n".join(new_lines), assertion_str
 
-    remover = AssertRemover(tracker.inferred_assertions)
-    modified_tree = remover.visit(tree)
 
-    if remover.removed_assertion:
-        ast.fix_missing_locations(modified_tree)
-        modified_code = ast.unparse(modified_tree)
-        return modified_code, remover.removed_assertion
-
-    return None, None
+def _classify_error(error_msg: str) -> str:
+    """Classify a validation error message into a coarse error type."""
+    if "SyntaxError" in error_msg:
+        return "SyntaxError"
+    if "ImportError" in error_msg or "ModuleNotFoundError" in error_msg:
+        return "Import Error"
+    if "NameError" in error_msg:
+        return "Name Error"
+    if "AssertionError" in error_msg:
+        return "Assertion Error"
+    if "TypeError" in error_msg:
+        return "Type Error"
+    return "Unknown Error"
 
 
 class TestRefiner:
@@ -615,9 +678,146 @@ Fix the test code to resolve the error. Common fixes include:
         except Exception:  # noqa: BLE001
             return broken_code  # Return original if repair fails
 
-    def process_test_end_to_end(  # noqa: C901, PLR0915, PLR0914
-        self, original_code: str, max_retries: int = 3
+    def _prepare_refined_code(self, original_code: str) -> tuple[str, dict[str, Any], dict | None]:
+        """Run Stages 1-2.6 of the pipeline.
+
+        Returns ``(current_code, mutation_stats, error_result)``.  When
+        ``error_result`` is not ``None`` the caller should return it directly.
+        """
+        # Stage 1: Structural Analysis
+        analysis_result = self.structural_analysis(original_code)
+
+        # Stage 2: Readability Refinement
+        readable_code = self.refine_readability(analysis_result)
+        if isinstance(readable_code, str) and readable_code.startswith("# LLM error"):
+            return "", {}, {"success": False, "error": readable_code, "iterations": 0}
+        readable_code = _restore_import_block(readable_code, original_code)
+
+        # Stage 2C: Semantic Assertion Generation
+        focal_method = analysis_result.get("focal_method_name", "unknown")
+        sut_context = analysis_result.get("sut_context", "Documentation unavailable.")
+        assertion_code = self.generate_semantic_assertions(readable_code, focal_method, sut_context)
+        if isinstance(assertion_code, str) and assertion_code.startswith("# LLM error"):
+            assertion_code = readable_code  # fall back to Stage 2 output
+        assertion_code = _restore_import_block(assertion_code, original_code)
+
+        # Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
+        current_code = assertion_code
+        mutation_stats: dict[str, Any] = {}
+        try:
+            current_code, mutation_stats = filter_vacuous_assertions(
+                original_test=original_code,
+                refined_test=current_code,
+                module_under_test=self.module_under_test,
+                max_mutants=10,
+            )
+        except Exception as e:  # noqa: BLE001
+            mutation_stats = {"error": str(e)}
+
+        return current_code, mutation_stats, None
+
+    def _apply_aaa_markers(self, current_code: str) -> str:
+        """Insert AAA markers (best-effort), keeping them only if the test still passes."""
+        try:
+            final_focal_info = FocalMethodAnalyzer(current_code, current_code).analyze()
+            # Re-analysis may fail; fall back to 0 rather than a stale Stage-1
+            # line number (which referred to the original pre-LLM code).
+            focal_line = (
+                final_focal_info.focal_line_number
+                if final_focal_info and final_focal_info.focal_line_number > 0
+                else 0
+            )
+            marked_code = insert_aaa_markers_simple(current_code, focal_line)
+            aaa_passed, _ = run_test(marked_code, self.module_under_test)
+            if aaa_passed:
+                return marked_code
+        except Exception:  # noqa: S110, BLE001
+            pass  # AAA insertion is best-effort
+        return current_code
+
+    def _finalize_on_pass(
+        self,
+        original_code: str,
+        current_code: str,
+        repair_iterations: int,
+        mutation_stats: dict[str, Any],
     ) -> dict:
+        """Run the coverage check and AAA insertion after a passing test."""
+        coverage_passed, coverage_details = check_coverage_preservation(
+            original_test=original_code,
+            refined_test=current_code,
+            module_under_test=self.module_under_test,
+            tolerance=0.0,
+            subject_properties=self.subject_properties,
+        )
+
+        if not coverage_passed:
+            return {
+                "success": False,
+                "error": "Coverage preservation check failed",
+                "coverage_details": coverage_details,
+                "iterations": repair_iterations,
+            }
+
+        current_code = self._apply_aaa_markers(current_code)
+
+        return {
+            "success": True,
+            "final_code": current_code,
+            "iterations": repair_iterations,
+            "mutation_stats": mutation_stats,
+            "coverage_details": coverage_details,
+        }
+
+    def _run_repair_loop(
+        self,
+        original_code: str,
+        current_code: str,
+        mutation_stats: dict[str, Any],
+        max_retries: int,
+    ) -> dict:
+        """Iteratively validate and repair ``current_code``."""
+        for iteration in range(max_retries + 1):
+            passed, error_msg = run_test(current_code, self.module_under_test)
+
+            if passed:
+                return self._finalize_on_pass(
+                    original_code, current_code, iteration, mutation_stats
+                )
+
+            error_type = _classify_error(error_msg)
+
+            if iteration >= max_retries:
+                return {
+                    "success": False,
+                    "error": (
+                        f"Failed after {max_retries} repair attempts. Last error: {error_type}"
+                    ),
+                    "last_error_msg": error_msg,
+                    "iterations": iteration,
+                }
+
+            # Assertion-failure policy: discard the inferred assertion rather
+            # than asking the LLM to "fix" it (which could make it vacuous).
+            if error_type == "Assertion Error":
+                modified_code, removed_assertion = _remove_failing_inferred_assertion(
+                    current_code, original_code, error_msg
+                )
+                if modified_code and removed_assertion:
+                    current_code = modified_code
+                    continue  # Don't count this as a repair iteration
+
+            current_code = self.repair_test_code(current_code, error_msg)
+            current_code = _restore_import_block(current_code, original_code)
+
+        # Loop completed without returning (shouldn't happen, but handle).
+        return {
+            "success": False,
+            "error": "Unexpected loop termination",
+            "iterations": max_retries + 1,
+        }
+
+    def process_test_end_to_end(self, original_code: str, max_retries: int = 3) -> dict:
         """Complete end-to-end test refinement pipeline with iterative repair loop.
 
         This method implements the full pipeline (order matters!):
@@ -640,161 +840,13 @@ Fix the test code to resolve the error. Common fixes include:
                 - iterations (int): Number of repair iterations needed
                 - error (str): Error message (if failed)
         """
-        # Level 1 Check: Verify Original Test Baseline
-        orig_passed, _orig_msg = run_test(original_code, self.module_under_test)
-        if not orig_passed:
-            pass  # Original already fails — refinement starts from unstable baseline
+        # Level 1 baseline check (best-effort; refinement proceeds regardless).
+        run_test(original_code, self.module_under_test)
 
         try:
-            # ============================================================
-            # Stage 1: Structural Analysis
-            # ============================================================
-            analysis_result = self.structural_analysis(original_code)
-
-            # ============================================================
-            # Stage 2: Readability Refinement
-            # ============================================================
-            readable_code = self.refine_readability(analysis_result)
-            readable_code = _restore_import_block(readable_code, original_code)
-
-            # ============================================================
-            # Stage 2C: Semantic Assertion Generation
-            # ============================================================
-            focal_method = analysis_result.get("focal_method_name", "unknown")
-            sut_context = analysis_result.get("sut_context", "Documentation unavailable.")
-            assertion_code = self.generate_semantic_assertions(
-                readable_code, focal_method, sut_context
-            )
-            assertion_code = _restore_import_block(assertion_code, original_code)
-
-            current_code = assertion_code
-
-            # ============================================================
-            # Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
-            # ============================================================
-            mutation_stats: dict[str, Any] = {}
-            try:
-                module_path = "unknown"
-                if self.module_under_test:
-                    module_path = getattr(self.module_under_test, "__file__", "unknown")
-
-                current_code, mutation_stats = filter_vacuous_assertions(
-                    original_test=readable_code,
-                    refined_test=current_code,
-                    focal_method=focal_method,
-                    module_under_test=self.module_under_test,
-                    module_path=module_path,
-                    max_mutants=10,
-                )
-            except Exception as e:  # noqa: BLE001
-                mutation_stats = {"error": str(e)}
-
-            # ============================================================
-            # Stage 3: Iterative Repair Loop (on filtered code)
-            # ============================================================
-            repair_iterations = 0
-            for iteration in range(max_retries + 1):
-                # Validate current code
-                passed, error_msg = run_test(current_code, self.module_under_test)
-
-                if passed:
-                    repair_iterations = iteration
-
-                    # ----- Level 2: Coverage Preservation Check -----
-                    coverage_passed, coverage_details = check_coverage_preservation(
-                        original_test=original_code,
-                        refined_test=current_code,
-                        module_under_test=self.module_under_test,
-                        tolerance=0.0,
-                        subject_properties=self.subject_properties,
-                    )
-
-                    if not coverage_passed:
-                        return {
-                            "success": False,
-                            "error": "Coverage preservation check failed",
-                            "coverage_details": coverage_details,
-                            "iterations": repair_iterations,
-                        }
-
-                    # ----- Post-repair: AAA Marker Insertion -----
-                    try:
-                        from pynguin.refinement.aaa_inserter import (  # noqa: PLC0415
-                            insert_aaa_markers_simple,
-                        )
-
-                        final_analyzer = FocalMethodAnalyzer(current_code, current_code)
-                        final_focal_info = final_analyzer.analyze()
-
-                        if final_focal_info and final_focal_info.focal_line_number > 0:
-                            focal_line = final_focal_info.focal_line_number
-                        else:
-                            focal_line = analysis_result.get("focal_line_number", 0)
-
-                        marked_code = insert_aaa_markers_simple(
-                            current_code, focal_line, verbose=False
-                        )
-
-                        # Re-validate after AAA insertion
-                        aaa_passed, _ = run_test(marked_code, self.module_under_test)
-                        if aaa_passed:
-                            current_code = marked_code
-                        # else: keep current_code without markers
-                    except Exception:  # noqa: S110, BLE001
-                        pass  # AAA insertion is best-effort
-
-                    return {
-                        "success": True,
-                        "final_code": current_code,
-                        "iterations": repair_iterations,
-                        "mutation_stats": mutation_stats,
-                        "coverage_details": coverage_details,
-                    }
-
-                # Test failed - determine error type
-                error_type = "Unknown Error"
-                if "SyntaxError" in error_msg:
-                    error_type = "SyntaxError"
-                elif "ImportError" in error_msg or "ModuleNotFoundError" in error_msg:
-                    error_type = "Import Error"
-                elif "NameError" in error_msg:
-                    error_type = "Name Error"
-                elif "AssertionError" in error_msg:
-                    error_type = "Assertion Error"
-                elif "TypeError" in error_msg:
-                    error_type = "Type Error"
-
-                # If we have retries remaining, attempt repair
-                if iteration < max_retries:
-                    # Assertion-failure policy: discard inferred assertion
-                    if error_type == "Assertion Error":
-                        modified_code, removed_assertion = _remove_failing_inferred_assertion(
-                            current_code, original_code, error_msg
-                        )
-                        if modified_code and removed_assertion:
-                            current_code = modified_code
-                            # Don't count this as a repair iteration
-                            continue
-
-                    current_code = self.repair_test_code(current_code, error_msg)
-                    current_code = _restore_import_block(current_code, original_code)
-                else:
-                    # Out of retries
-                    return {
-                        "success": False,
-                        "error": (
-                            f"Failed after {max_retries} repair attempts. Last error: {error_type}"
-                        ),
-                        "last_error_msg": error_msg,
-                        "iterations": iteration,
-                    }
-
-            # Loop completed without break (shouldn't happen, but handle)
-            return {
-                "success": False,
-                "error": "Unexpected loop termination",
-                "iterations": max_retries + 1,
-            }
-
+            current_code, mutation_stats, error_result = self._prepare_refined_code(original_code)
+            if error_result is not None:
+                return error_result
+            return self._run_repair_loop(original_code, current_code, mutation_stats, max_retries)
         except Exception as e:  # noqa: BLE001
             return {"success": False, "error": f"Pipeline exception: {e!s}", "iterations": 0}

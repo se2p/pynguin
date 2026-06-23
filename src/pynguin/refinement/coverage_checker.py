@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -36,6 +36,11 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import pytest
+
+import pynguin.configuration as config
+from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
 
 if TYPE_CHECKING:
     import types
@@ -90,12 +95,6 @@ def _measure_coverage_pynguin(
     Returns:
         CoverageResult with the computed coverage.
     """
-    import pynguin.configuration as config  # noqa: PLC0415
-    from pynguin.ga.computations import (  # noqa: PLC0415
-        compute_branch_coverage,
-        compute_line_coverage,
-    )
-
     tracer = subject_properties.instrumentation_tracer
 
     # Determine which coverage metric to compute
@@ -106,8 +105,6 @@ def _measure_coverage_pynguin(
     tracer.init_trace()
 
     # Build execution scope
-    import pytest  # noqa: PLC0415
-
     scope: dict[str, Any] = {
         "__builtins__": __builtins__,
         module_under_test.__name__: module_under_test,
@@ -115,15 +112,7 @@ def _measure_coverage_pynguin(
     }
 
     cleaned = textwrap.dedent(test_code.strip())
-
-    # Find the test function name
-    func_name = ""
-    for line in cleaned.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("def "):
-            func_name = stripped.split("(")[0].removeprefix("def ")
-            break
-
+    func_name = _find_test_function_name(cleaned)
     compiled = compile(cleaned, "<test>", "exec")
 
     # Enable tracer, execute, then disable.
@@ -131,8 +120,9 @@ def _measure_coverage_pynguin(
     # ``temporarily_enable()`` can properly call ``disable()`` on exit.
     # The tracer's thread-identity check requires the current thread to
     # match ``_current_thread_identifier``.  After ``stop()`` is called
-    # during test generation, this is ``None``, so we re-register.
-    setattr(tracer, "_current_thread_identifier", threading.current_thread().ident)  # noqa: B010
+    # during test generation, this is ``None``, so we re-register.  Pynguin
+    # exposes no public setter for this field, so private access is required.
+    tracer._current_thread_identifier = threading.current_thread().ident  # noqa: SLF001
     with tracer.temporarily_enable():
         try:
             exec(compiled, scope)  # noqa: S102
@@ -183,7 +173,34 @@ def _executable_lines(source: str) -> set[int]:
     return lines
 
 
-def _measure_coverage_settrace(  # noqa: C901
+def _find_test_function_name(cleaned: str) -> str:
+    """Return the name of the first ``def`` in *cleaned*, or an empty string."""
+    for line in cleaned.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("def "):
+            return stripped.split("(")[0].removeprefix("def ")
+    return ""
+
+
+def _load_sut_source(
+    module_under_test: types.ModuleType,
+) -> tuple[Path | None, str | None, str | None]:
+    """Return ``(path, source, error)`` for the SUT module's source file."""
+    sut_file: str | None = getattr(module_under_test, "__file__", None)
+    if not sut_file:
+        return None, None, "Module has no __file__ attribute"
+
+    sut_path = Path(sut_file).resolve()
+    if not sut_path.exists():
+        return None, None, f"SUT file not found: {sut_path}"
+
+    try:
+        return sut_path, sut_path.read_text(encoding="utf-8"), None
+    except OSError as exc:
+        return None, None, f"Could not read SUT source: {exc}"
+
+
+def _measure_coverage_settrace(
     test_code: str,
     module_under_test: types.ModuleType,
 ) -> CoverageResult:
@@ -191,18 +208,9 @@ def _measure_coverage_settrace(  # noqa: C901
 
     Used only when ``SubjectProperties`` are not available (standalone mode).
     """
-    sut_file: str | None = getattr(module_under_test, "__file__", None)
-    if not sut_file:
-        return CoverageResult(error="Module has no __file__ attribute", metric="line")
-
-    sut_path = Path(sut_file).resolve()
-    if not sut_path.exists():
-        return CoverageResult(error=f"SUT file not found: {sut_path}", metric="line")
-
-    try:
-        sut_source = sut_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        return CoverageResult(error=f"Could not read SUT source: {exc}", metric="line")
+    sut_path, sut_source, error = _load_sut_source(module_under_test)
+    if error is not None or sut_path is None or sut_source is None:
+        return CoverageResult(error=error, metric="line")
 
     total_executable = _executable_lines(sut_source)
     if not total_executable:
@@ -222,18 +230,11 @@ def _measure_coverage_settrace(  # noqa: C901
     scope: dict[str, Any] = {
         module_under_test.__name__: module_under_test,
     }
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
 
     try:
-        cleaned = textwrap.dedent(test_code.strip())
-        func_name = ""
-        for line in cleaned.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("def "):
-                func_name = stripped.split("(")[0].removeprefix("def ")
-                break
-
         compiled = compile(cleaned, "<test>", "exec")
-
         old_trace = sys.gettrace()
         sys.settrace(_tracer)
         try:
@@ -242,8 +243,8 @@ def _measure_coverage_settrace(  # noqa: C901
                 scope[func_name]()
         finally:
             sys.settrace(old_trace)
-
     except Exception as exc:  # noqa: BLE001
+        # Executing generated test code may raise anything; degrade gracefully.
         sys.settrace(None)
         if not executed_lines:
             return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")

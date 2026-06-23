@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2025 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -10,13 +10,17 @@ import ast
 import re
 from typing import Any
 
-_VAR_GENERIC_PATTERN = re.compile(r"^(var|list|dict|tuple|set)_\d+$")
+_VAR_GENERIC_PATTERN = re.compile(
+    r"^(var|list|dict|tuple|set|str|int|bool|bytes|float|none_type|module|object|obj|complex|frozenset|bytearray|range|memoryview|type)_\d+$"
+)
 
 
 def _extract_identifiers(tree: ast.AST) -> set:
-    names = set()
+    """Extract local variable and parameter names, excluding imports."""
+    # Collect names that appear as Store targets (assignments) or function args
+    names: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             names.add(node.id)
         elif isinstance(node, ast.arg):
             names.add(node.arg)
@@ -33,7 +37,7 @@ def score_aaa(test_code: str) -> float:
     arrange_pos = lower.find("# arrange")
     act_pos = lower.find("# act")
     assert_pos = lower.find("# assert")
-    order_ok = arrange_pos <= act_pos <= assert_pos and act_pos != -1 and assert_pos != -1
+    order_ok = all(present) and arrange_pos < act_pos < assert_pos
     base = sum(present) / 3.0
     if order_ok:
         base += 0.25  # small bonus for correct order
