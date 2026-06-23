@@ -12,7 +12,10 @@ import math
 import sys
 import types
 
-from pynguin.refinement.validator import _ensure_module_package_on_path, run_test
+from pynguin.refinement.validator import (
+    _ensure_module_package_on_path,  # noqa: PLC2701
+    run_test,
+)
 
 
 def test_run_test_passing():

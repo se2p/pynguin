@@ -8,7 +8,10 @@
 
 from __future__ import annotations
 
-from pynguin.refinement.refiner import _extract_function_text, refine_generated_tests
+from pynguin.refinement.refiner import (
+    _extract_function_text,  # noqa: PLC2701
+    refine_generated_tests,
+)
 
 
 def test_extract_function_text_strips_imports():

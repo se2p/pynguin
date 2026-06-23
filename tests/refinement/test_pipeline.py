@@ -17,7 +17,7 @@ import pytest
 
 from pynguin.refinement.pipeline import (
     TestRefiner,
-    _remove_failing_inferred_assertion,
+    _remove_failing_inferred_assertion,  # noqa: PLC2701
 )
 
 # ---------------------------------------------------------------------------

@@ -13,9 +13,9 @@ import types
 
 from pynguin.refinement.mutation_analyzer import (
     AssertionTracker,
-    _killed_set,
-    _remove_assertion_by_index,
-    _run_test_against_mutant,
+    _killed_set,  # noqa: PLC2701
+    _remove_assertion_by_index,  # noqa: PLC2701
+    _run_test_against_mutant,  # noqa: PLC2701
 )
 
 

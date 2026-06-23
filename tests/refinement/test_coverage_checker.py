@@ -14,8 +14,8 @@ import types
 import pytest
 
 from pynguin.refinement.coverage_checker import (
-    _executable_lines,
-    _measure_coverage_settrace,
+    _executable_lines,  # noqa: PLC2701
+    _measure_coverage_settrace,  # noqa: PLC2701
     check_coverage_preservation,
 )
 
