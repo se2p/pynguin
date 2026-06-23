@@ -120,9 +120,13 @@ def _measure_coverage_pynguin(
     # ``temporarily_enable()`` can properly call ``disable()`` on exit.
     # The tracer's thread-identity check requires the current thread to
     # match ``_current_thread_identifier``.  After ``stop()`` is called
-    # during test generation, this is ``None``, so we re-register.  Pynguin
-    # exposes no public setter for this field, so private access is required.
-    tracer._current_thread_identifier = threading.current_thread().ident  # noqa: SLF001
+    # during test generation, this is ``None``, so we re-register.  The field
+    # lives on the wrapped ``ExecutionTracer`` (reached via the proxy's public
+    # ``tracer`` property); Pynguin exposes no public setter, so private access
+    # is required.
+    tracer.tracer._current_thread_identifier = (  # noqa: SLF001
+        threading.current_thread().ident
+    )
     with tracer.temporarily_enable():
         try:
             exec(compiled, scope)  # noqa: S102
