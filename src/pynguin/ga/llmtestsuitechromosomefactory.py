@@ -84,7 +84,7 @@ class LLMTestSuiteChromosomeFactory(cf.ChromosomeFactory[tsc.TestSuiteChromosome
 
         if len(llm_test_cases) > number_of_llm_test_cases:
             llm_test_cases = llm_test_cases[:number_of_llm_test_cases]
-        elif len(llm_test_cases) < number_of_llm_test_cases:
+        elif len(llm_test_cases) < number_of_llm_test_cases and total_llm_test_cases > 0:
             additional_cases_needed = number_of_llm_test_cases - total_llm_test_cases
             llm_test_case_cycle = cycle(llm_test_cases)
             for _ in range(additional_cases_needed):
