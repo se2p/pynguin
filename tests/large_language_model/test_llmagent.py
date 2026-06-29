@@ -40,6 +40,7 @@ def test_extract_python_code_multiple_blocks():
 def test_require_api_key_missing(monkeypatch):
     monkeypatch.delenv("PYNGUIN_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")
     monkeypatch.setattr("pynguin.utils.openai_key_resolver.load_dotenv", lambda: None)
     with pytest.raises(ValueError, match="OpenAI API key not found"):
@@ -50,6 +51,7 @@ def test_is_api_key_present(monkeypatch):
     # Ensure env is cleared for initial checks
     monkeypatch.delenv("PYNGUIN_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.setattr("pynguin.utils.openai_key_resolver.load_dotenv", lambda: None)
 
     monkeypatch.setattr(config.configuration.large_language_model, "api_key", "")

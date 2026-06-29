@@ -376,16 +376,20 @@ class VariableRefAST:
 
     def structural_eq(  # noqa:C901
         self,
+        other: Any,
         memo: dict[vr.VariableReference, vr.VariableReference],
     ) -> bool:
         """Compares whether the two AST nodes are equal w.r.t. memo.
 
         Args:
+            other: the other AST node to compare to
             memo: the varref mapping
 
         Returns:
             whether second is structurally equal to self w.r.t. memo
         """
+        if not isinstance(other, VariableRefAST):
+            return False
 
         def value_equal_helper(first: Any, second: Any) -> bool:
             if type(first) is not type(second):
@@ -417,7 +421,7 @@ class VariableRefAST:
                     return False
             return True
 
-        return True
+        return value_equal_helper(self._node, other._node)  # noqa: SLF001
 
     def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> "VariableRefAST":
         """Clone the node as an ast, doing any replacement given in memo.

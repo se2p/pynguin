@@ -211,37 +211,39 @@ def test_ast_assign_statement_structural_eq(default_test_case):
     # Add the ret_val mappings for both statements
     memo[statement1.ret_val] = statement2.ret_val
 
-    # Patch the structural_eq method of VariableRefAST to always return True
-    # when comparing the same constants
-    original_structural_eq = VariableRefAST.structural_eq
+    # Test equality - statements should be structurally equal
+    assert statement1.structural_eq(statement2, memo)
 
-    def mock_structural_eq(_, other, __):
-        return isinstance(other, VariableRefAST)
+    # Create a different statement for inequality test
+    constant3 = ast.Constant(value=99)
+    statement3 = stmt.ASTAssignStatement(default_test_case, constant3, {})
+    default_test_case.add_statement(statement3)
+    memo[statement3.ret_val] = statement3.ret_val
 
-    # Apply the patch
-    VariableRefAST.structural_eq = mock_structural_eq
+    # Test inequality
+    assert not statement1.structural_eq(statement3, memo)
 
-    try:
-        # Test equality - statements should be structurally equal with our mock
-        assert statement1.structural_eq(statement2, memo)
 
-        # Create a different statement for inequality test
-        constant3 = ast.Constant(value=99)
-        statement3 = stmt.ASTAssignStatement(default_test_case, constant3, {})
-        default_test_case.add_statement(statement3)
-        memo[statement3.ret_val] = statement3.ret_val
+def test_default_test_case_equality_regression_llm_assignments():
+    """Regression test: DefaultTestCase.__eq__ with ASTAssignStatements does not raise TypeError."""
+    tc1 = DefaultTestCase(MagicMock())
+    tc1.get_all_objects = MagicMock(return_value=set())
 
-        # Now make the mock return False for different values
-        def mock_structural_eq_with_check(_, other, __):
-            return isinstance(other, VariableRefAST)
+    tc2 = DefaultTestCase(MagicMock())
+    tc2.get_all_objects = MagicMock(return_value=set())
 
-        VariableRefAST.structural_eq = mock_structural_eq_with_check
+    constant1 = ast.Constant(value=42)
+    constant2 = ast.Constant(value=42)
 
-        # Test inequality
-        assert not statement1.structural_eq(statement3, memo)
-    finally:
-        # Restore the original method
-        VariableRefAST.structural_eq = original_structural_eq
+    stmt1 = stmt.ASTAssignStatement(tc1, constant1, {})
+    stmt2 = stmt.ASTAssignStatement(tc2, constant2, {})
+
+    tc1.add_statement(stmt1)
+    tc2.add_statement(stmt2)
+
+    # This should compare statement1 and statement2, calling VariableRefAST.structural_eq
+    # with the correct 3-parameter protocol (self, other, memo) without raising TypeError.
+    assert tc1 == tc2
 
 
 def test_ast_assign_statement_get_rhs_as_normal_ast(default_test_case, variable_ref):
