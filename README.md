@@ -18,7 +18,7 @@ is a tool that allows developers to generate unit tests automatically.
 Testing software is often considered to be a tedious task.
 Thus, automated generation techniques have been proposed and mature tools exist—for
 statically typed languages, such as Java.
-There is, however, no fully-automated tool available that produces unit tests for
+There is, however, no fully automated tool available that produces unit tests for
 general-purpose programs in a dynamically typed language.
 Pynguin is, to the best of our knowledge, the first tool that fills this gap
 and allows the automated generation of unit tests for Python programs.
@@ -65,7 +65,7 @@ please report your experiences in using Pynguin to us.
 ## Prerequisites
 
 Before you begin, ensure you have met the following requirements:
-- You have installed Python 3.10 (the support for 3.11, 3.12, 3.13 and 3.14 is experimental).
+- You have installed Python 3.10 (the support for 3.11, 3.12, 3.13, and 3.14 is experimental).
 
   **Attention:** Pynguin now requires at least Python 3.10!  Older versions are no longer
   supported!
@@ -153,9 +153,9 @@ Contributors:
 
 ### Development using PyCharm.
 
-If you want to use the PyCharm IDE you have to set up a few things:
+If you want to use the PyCharm IDE, you have to set up a few things:
 1. Import `pynguin` into PyCharm.
-2. Let PyCharm configure configure a virtual environment using `poetry`.
+2. Let PyCharm configure a virtual environment using `poetry`.
 3. Set the default test runner to `pytest`
 4. Set the DocString format to `Google`
 
@@ -164,7 +164,7 @@ If you want to use the PyCharm IDE you have to set up a few things:
 
 This project is licensed under the terms of the [MIT License](LICENSE.rst).
 Pynguin was using the GNU Lesser General Public License (LGPL) until version 0.29.0,
-its licence was changed with version 0.30.0.
+its license was changed with version 0.30.0.
 
 ## Star History
 
