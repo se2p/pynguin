@@ -34,6 +34,38 @@ from pynguin.testcase.execution import TestCaseExecutor
 from tests.testutils import extract_test_case_0
 
 
+class OriginalConstantReplacement(mo.ConstantReplacement):
+    def mutate_Constant_num_zero(self, node):  # noqa: N802
+        return None
+
+    def mutate_Constant_num_neg(self, node):  # noqa: N802
+        return None
+
+
+test_operators = [
+    mo.ArithmeticOperatorDeletion,
+    mo.ArithmeticOperatorReplacement,
+    mo.AssignmentOperatorReplacement,
+    mo.BreakContinueReplacement,
+    mo.ConditionalOperatorDeletion,
+    mo.ConditionalOperatorInsertion,
+    OriginalConstantReplacement,
+    mo.DecoratorDeletion,
+    mo.ExceptionHandlerDeletion,
+    mo.ExceptionSwallowing,
+    mo.HidingVariableDeletion,
+    mo.LogicalConnectorReplacement,
+    mo.LogicalOperatorDeletion,
+    mo.LogicalOperatorReplacement,
+    mo.OverriddenMethodCallingPositionChange,
+    mo.OverridingMethodDeletion,
+    mo.RelationalOperatorReplacement,
+    mo.SliceIndexRemove,
+    mo.SuperCallingDeletion,
+    mo.SuperCallingInsert,
+]
+
+
 @pytest.mark.parametrize(
     "generator,expected_result",
     [
@@ -90,7 +122,7 @@ def test_generate_mutation_assertions(
 
         if generator is ag.MutationAnalysisAssertionGenerator:
             mutant_generator = mu.FirstOrderMutator([
-                *mo.standard_operators,
+                *test_operators,
                 *mo.experimental_operators,
             ])
             module_source_code = inspect.getsource(module)
@@ -305,7 +337,7 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         suite.add_test_case_chromosome(chromosome)
 
         mutant_generator = mu.FirstOrderMutator([
-            *mo.standard_operators,
+            *test_operators,
             *mo.experimental_operators,
         ])
         module_source_code = inspect.getsource(module_type)

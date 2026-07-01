@@ -17,7 +17,7 @@ from tests.testutils import import_module_safe
 @pytest.mark.parametrize(
     "module_name, expected_mutants",
     [
-        ("tests.fixtures.examples.triangle", 14),
+        ("tests.fixtures.examples.triangle", 17),
         ("tests.fixtures.regression.argparse_sys_exit", 6),
         ("tests.fixtures.regression.not_main", 7),
         ("tests.fixtures.regression.custom_error", 2),
@@ -45,7 +45,7 @@ def test_create_mutants(module_name, expected_mutants):
 @pytest.mark.parametrize(
     "module_name, expected_mutants",
     [
-        ("tests.fixtures.examples.triangle", 14),
+        ("tests.fixtures.examples.triangle", 17),
         ("tests.fixtures.regression.argparse_sys_exit", 6),
         ("tests.fixtures.regression.not_main", 7),
         ("tests.fixtures.regression.custom_error", 2),
