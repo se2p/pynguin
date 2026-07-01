@@ -81,6 +81,9 @@ class ModuleResult:
     duration_s: float
     exit_code: int
     error: str | None = None
+    mutation_score: float | None = None
+    mutation_killed: int | None = None
+    mutation_total: int | None = None
 
 
 @dataclass
@@ -91,6 +94,8 @@ class _DeltaEntry:
     b_lc: float | None
     c_lc: float | None
     d_bc: float | None
+    b_ms: float | None
+    c_ms: float | None
     status: str
 
 
@@ -157,36 +162,56 @@ def xml_tasks(
     return tasks
 
 
-def _parse_statistics_csv(report_dir: str) -> tuple[float | None, float | None]:
-    """Return (branch_coverage, line_coverage) from statistics.csv, or (None, None).
+def _parse_statistics_csv(
+    report_dir: str,
+) -> tuple[float | None, float | None, float | None, int | None, int | None]:
+    """Return (branch_cov, line_cov, mutation_score, killed, total) from statistics.csv.
 
     Tries BranchCoverage first, falls back to Coverage (Pynguin's default column).
-    LineCoverage is only populated when the LINE coverage metric is enabled.
+    Mutation fields are only present when --mutation is active (i.e., MutationScore was
+    added to --output-variables).
     """
     csv_path = Path(report_dir) / "statistics.csv"
     if not csv_path.exists():
-        return None, None
+        return None, None, None, None, None
     branch_cov: float | None = None
     line_cov: float | None = None
+    mutation_score: float | None = None
+    killed: int | None = None
+    total: int | None = None
     try:
         with csv_path.open(encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                for key in ("BranchCoverage", "Coverage"):
-                    if row.get(key):
-                        branch_cov = float(row[key])
-                        break
-                for key in ("LineCoverage",):
-                    if row.get(key):
-                        line_cov = float(row[key])
-                        break
+                bc_str = row.get("BranchCoverage") or row.get("Coverage")
+                if bc_str:
+                    branch_cov = float(bc_str)
+                lc_str = row.get("LineCoverage")
+                if lc_str:
+                    line_cov = float(lc_str)
+                ms_str = row.get("MutationScore")
+                if ms_str:
+                    mutation_score = float(ms_str)
+                k_str = row.get("NumberOfKilledMutants")
+                if k_str:
+                    killed = int(k_str)
+                t_str = row.get("NumberOfCreatedMutants")
+                if t_str:
+                    total = int(t_str)
     except Exception as exc:  # noqa: BLE001
         _LOG.debug("Failed to parse statistics CSV in %s: %s", report_dir, exc)
-    return branch_cov, line_cov
+    return branch_cov, line_cov, mutation_score, killed, total
 
 
-def run_module(task: ModuleTask, budget: int, seed: int, python_exe: str) -> ModuleResult:
-    """Run Pynguin on one module and return its coverage result."""
+def run_module(
+    task: ModuleTask,
+    budget: int,
+    seed: int,
+    python_exe: str,
+    *,
+    include_mutation: bool = False,
+) -> ModuleResult:
+    """Run Pynguin on one module and return its coverage (and optionally mutation) result."""
     if not Path(task.project_path).exists():
         return ModuleResult(
             project=task.project,
@@ -197,6 +222,9 @@ def run_module(task: ModuleTask, budget: int, seed: int, python_exe: str) -> Mod
             exit_code=-1,
             error=f"project-path does not exist: {task.project_path}",
         )
+    output_vars = "TargetModule,BranchCoverage"
+    if include_mutation:
+        output_vars += ",MutationScore,NumberOfKilledMutants,NumberOfCreatedMutants"
     with tempfile.TemporaryDirectory(prefix="pynguin_eval_") as tmpdir:
         start = time.monotonic()
         cmd = [
@@ -218,7 +246,7 @@ def run_module(task: ModuleTask, budget: int, seed: int, python_exe: str) -> Mod
             "--statistics-backend",
             "CSV",
             "--output-variables",
-            "TargetModule,BranchCoverage",
+            output_vars,
         ]
         try:
             proc = subprocess.run(  # noqa: S603
@@ -234,7 +262,7 @@ def run_module(task: ModuleTask, budget: int, seed: int, python_exe: str) -> Mod
             exit_code = -1
             error = "timeout"
         duration = time.monotonic() - start
-        branch_cov, line_cov = _parse_statistics_csv(tmpdir)
+        branch_cov, line_cov, mut_score, mut_killed, mut_total = _parse_statistics_csv(tmpdir)
         return ModuleResult(
             project=task.project,
             module=task.module,
@@ -243,6 +271,9 @@ def run_module(task: ModuleTask, budget: int, seed: int, python_exe: str) -> Mod
             duration_s=duration,
             exit_code=exit_code,
             error=error,
+            mutation_score=mut_score,
+            mutation_killed=mut_killed,
+            mutation_total=mut_total,
         )
 
 
@@ -251,12 +282,19 @@ def run_eval(
     budget: int,
     seed: int,
     jobs: int,
+    *,
     python_exe: str = sys.executable,
+    include_mutation: bool = False,
 ) -> list[ModuleResult]:
     """Run Pynguin on all tasks in parallel and return results."""
     results: list[ModuleResult] = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=jobs) as pool:
-        futures = {pool.submit(run_module, task, budget, seed, python_exe): task for task in tasks}
+        futures = {
+            pool.submit(
+                run_module, task, budget, seed, python_exe, include_mutation=include_mutation
+            ): task
+            for task in tasks
+        }
         for future in concurrent.futures.as_completed(futures):
             task = futures[future]
             try:
@@ -272,10 +310,17 @@ def run_eval(
                     error=str(exc),
                 )
             results.append(result)
+            mut_info = (
+                f" mut={_fmt_pct(result.mutation_score)}"
+                f" ({result.mutation_killed}/{result.mutation_total})"
+                if result.mutation_score is not None
+                else ""
+            )
             _console.print(
                 f"  [{result.project}] {result.module}: "
                 f"branch={_fmt_pct(result.branch_coverage)} "
-                f"line={_fmt_pct(result.line_coverage)} "
+                f"line={_fmt_pct(result.line_coverage)}"
+                f"{mut_info} "
                 f"({result.duration_s:.0f}s, exit={result.exit_code})"
             )
     return results
@@ -296,6 +341,9 @@ def results_to_json(results: list[ModuleResult], git_ref: str, budget: int, seed
                 "module": r.module,
                 "branch_coverage": r.branch_coverage,
                 "line_coverage": r.line_coverage,
+                "mutation_score": r.mutation_score,
+                "mutation_killed": r.mutation_killed,
+                "mutation_total": r.mutation_total,
                 "duration_s": round(r.duration_s, 1),
                 "exit_code": r.exit_code,
                 "error": r.error,
@@ -317,22 +365,31 @@ def _git_ref() -> str:
 
 def print_results_table(results: list[ModuleResult]) -> None:
     """Print a Rich table of coverage results."""
+    show_mutation = any(r.mutation_score is not None for r in results)
     table = Table(title="Quick Eval Results")
     table.add_column("Project")
     table.add_column("Module")
     table.add_column("Branch Cov", justify="right")
     table.add_column("Line Cov", justify="right")
+    if show_mutation:
+        table.add_column("Mut Score", justify="right")
+        table.add_column("Killed/Total", justify="right")
     table.add_column("Time (s)", justify="right")
     table.add_column("Exit")
     for r in sorted(results, key=lambda x: x.module):
-        table.add_row(
+        row = [
             r.project,
             r.module,
             _fmt_pct(r.branch_coverage),
             _fmt_pct(r.line_coverage),
-            f"{r.duration_s:.0f}",
-            str(r.exit_code),
-        )
+        ]
+        if show_mutation:
+            row.append(_fmt_pct(r.mutation_score))
+            killed = r.mutation_killed if r.mutation_killed is not None else "?"
+            total = r.mutation_total if r.mutation_total is not None else "?"
+            row.append(f"{killed}/{total}")
+        row += [f"{r.duration_s:.0f}", str(r.exit_code)]
+        table.add_row(*row)
     _console.print(table)
 
 
@@ -348,24 +405,36 @@ def _compute_deltas(baseline: list[dict], current: list[dict]) -> list[_DeltaEnt
         c_bc: float | None = c["branch_coverage"] if c else None
         b_lc: float | None = b["line_coverage"] if b else None
         c_lc: float | None = c["line_coverage"] if c else None
+        b_ms: float | None = b.get("mutation_score") if b else None
+        c_ms: float | None = c.get("mutation_score") if c else None
         d_bc = (c_bc - b_bc) if (b_bc is not None and c_bc is not None) else None
-        if d_bc is not None and d_bc < -0.001:
+        d_ms = (c_ms - b_ms) if (b_ms is not None and c_ms is not None) else None
+        if (d_bc is not None and d_bc < -0.001) or (d_ms is not None and d_ms < -0.001):
             status = "REGRESSED"
-        elif d_bc is not None and d_bc > 0.001:
+        elif (d_bc is not None and d_bc > 0.001) or (d_ms is not None and d_ms > 0.001):
             status = "IMPROVED"
         else:
             status = "unchanged"
         entries.append(
             _DeltaEntry(
-                module=mod, b_bc=b_bc, c_bc=c_bc, b_lc=b_lc, c_lc=c_lc, d_bc=d_bc, status=status
+                module=mod,
+                b_bc=b_bc,
+                c_bc=c_bc,
+                b_lc=b_lc,
+                c_lc=c_lc,
+                d_bc=d_bc,
+                b_ms=b_ms,
+                c_ms=c_ms,
+                status=status,
             )
         )
     return entries
 
 
 def print_delta_table(baseline: list[dict], current: list[dict]) -> int:
-    """Print a coverage delta table and return 1 if any module regressed, else 0."""
+    """Print a coverage/mutation delta table and return 1 if any module regressed, else 0."""
     entries = _compute_deltas(baseline, current)
+    show_mutation = any(e.b_ms is not None or e.c_ms is not None for e in entries)
     table = Table(title="Coverage Delta: baseline → current")
     table.add_column("Module")
     table.add_column("Branch (base)", justify="right")
@@ -374,10 +443,14 @@ def print_delta_table(baseline: list[dict], current: list[dict]) -> int:
     table.add_column("Line (base)", justify="right")
     table.add_column("Line (new)", justify="right")
     table.add_column("Δ Line", justify="right")
+    if show_mutation:
+        table.add_column("Mut (base)", justify="right")
+        table.add_column("Mut (new)", justify="right")
+        table.add_column("Δ Mut", justify="right")
     table.add_column("Status")
     status_markup = {"REGRESSED": "[red]REGRESSED[/red]", "IMPROVED": "[green]IMPROVED[/green]"}
     for e in entries:
-        table.add_row(
+        row = [
             e.module,
             _fmt_pct(e.b_bc),
             _fmt_pct(e.c_bc),
@@ -385,8 +458,11 @@ def print_delta_table(baseline: list[dict], current: list[dict]) -> int:
             _fmt_pct(e.b_lc),
             _fmt_pct(e.c_lc),
             _fmt_delta(e.b_lc, e.c_lc),
-            status_markup.get(e.status, e.status),
-        )
+        ]
+        if show_mutation:
+            row += [_fmt_pct(e.b_ms), _fmt_pct(e.c_ms), _fmt_delta(e.b_ms, e.c_ms)]
+        row.append(status_markup.get(e.status, e.status))
+        table.add_row(*row)
     _console.print(table)
     improved = sum(1 for e in entries if e.status == "IMPROVED")
     regressed = sum(1 for e in entries if e.status == "REGRESSED")
@@ -470,7 +546,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     _console.print(
         f"Running {len(tasks)} module(s) with budget={args.budget}s, jobs={jobs}, seed={args.seed}"
     )
-    results = run_eval(tasks, args.budget, args.seed, jobs)
+    results = run_eval(tasks, args.budget, args.seed, jobs, include_mutation=args.mutation)
     _console.print()
     print_results_table(results)
     if args.save:
@@ -511,9 +587,16 @@ def cmd_compare_branch(args: argparse.Namespace) -> int:
         _console.print(
             f"\nRunning baseline ({args.ref}) with budget={args.budget}s, jobs={jobs} ..."
         )
-        base_results = run_eval(tasks, args.budget, args.seed, jobs, python_exe=base_python)
+        base_results = run_eval(
+            tasks,
+            args.budget,
+            args.seed,
+            jobs,
+            python_exe=base_python,
+            include_mutation=args.mutation,
+        )
         _console.print(f"\nRunning current branch with budget={args.budget}s, jobs={jobs} ...")
-        curr_results = run_eval(tasks, args.budget, args.seed, jobs)
+        curr_results = run_eval(tasks, args.budget, args.seed, jobs, include_mutation=args.mutation)
     finally:
         _remove_worktree(worktree_dir)
     base_data = results_to_json(base_results, args.ref, args.budget, args.seed)
@@ -549,6 +632,11 @@ def main() -> int:
     p_run.add_argument("--jobs", type=int, default=None, help="Parallel workers (default: cpu/2)")
     p_run.add_argument("--save", metavar="FILE", help="Save results as JSON to FILE")
     p_run.add_argument("--output", choices=["table", "json"], default="table")
+    p_run.add_argument(
+        "--mutation",
+        action="store_true",
+        help="Capture mutation score (uses Pynguin's built-in mutation analysis)",
+    )
 
     p_cmp = sub.add_parser("compare", help="Compare two saved result JSON files")
     p_cmp.add_argument("baseline", help="Baseline results JSON file")
@@ -567,6 +655,11 @@ def main() -> int:
     p_cb.add_argument("--jobs", type=int, default=None)
     p_cb.add_argument("--save-baseline", metavar="FILE")
     p_cb.add_argument("--save-current", metavar="FILE")
+    p_cb.add_argument(
+        "--mutation",
+        action="store_true",
+        help="Capture mutation score (uses Pynguin's built-in mutation analysis)",
+    )
 
     args = parser.parse_args()
     if args.command == "run":
