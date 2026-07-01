@@ -45,3 +45,41 @@ class AssertionRemoval(MutationOperator):
             The mutated statement.
         """
         return ast.Pass(lineno=node.lineno)
+
+
+class MatchCaseDeletion(MutationOperator):
+    """A class that mutates match statements by removing cases."""
+
+    def mutate_Match_remove_first(  # noqa: N802
+        self, node: ast.Match
+    ) -> ast.Match | None:
+        """Mutate a match statement by removing the first case.
+
+        Args:
+            node: The match statement to mutate.
+
+        Returns:
+            The mutated statement, or None if fewer than 2 cases exist.
+        """
+        if not hasattr(ast, "Match") or len(node.cases) < 2:
+            return None
+        mutated = copy_node(node)
+        mutated.cases = list(node.cases[1:])
+        return mutated
+
+    def mutate_Match_remove_last(  # noqa: N802
+        self, node: ast.Match
+    ) -> ast.Match | None:
+        """Mutate a match statement by removing the last case.
+
+        Args:
+            node: The match statement to mutate.
+
+        Returns:
+            The mutated statement, or None if fewer than 2 cases exist.
+        """
+        if not hasattr(ast, "Match") or len(node.cases) < 2:
+            return None
+        mutated = copy_node(node)
+        mutated.cases = list(node.cases[:-1])
+        return mutated

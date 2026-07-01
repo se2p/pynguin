@@ -17,7 +17,7 @@ import sys
 from pynguin.assertion.mutation_analysis.operators.arithmetic import (
     AbstractArithmeticOperatorReplacement,
 )
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
 
 
 def is_docstring(node: ast.AST) -> bool:
@@ -71,6 +71,17 @@ class BreakContinueReplacement(MutationOperator):
             The mutated statement.
         """
         return ast.Continue()
+
+    def mutate_Break_to_return(self, node: ast.Break) -> ast.Return:  # noqa: N802
+        """Mutate a Break statement to a Return statement.
+
+        Args:
+            node: The Break statement to mutate.
+
+        Returns:
+            The mutated statement.
+        """
+        return ast.Return(value=None)
 
     def mutate_Continue(self, node: ast.Continue) -> ast.Break:  # noqa: N802
         """Mutate a Continue statement to a Break statement.
@@ -288,3 +299,41 @@ class BooleanLiteralReplacement(MutationOperator):
         if not isinstance(node.value, bool):
             return None
         return ast.Constant(not node.value)
+
+
+class LambdaReplacement(MutationOperator):
+    """A class that mutates lambda expressions by replacing their body with None."""
+
+    def mutate_Lambda(self, node: ast.Lambda) -> ast.Lambda | None:  # noqa: N802
+        """Mutate a lambda expression by replacing its body with None.
+
+        Args:
+            node: The lambda expression to mutate.
+
+        Returns:
+            The mutated expression, or None if the body is already None.
+        """
+        if isinstance(node.body, ast.Constant) and node.body.value is None:
+            return None
+        mutated = copy_node(node)
+        mutated.body = ast.Constant(value=None)
+        return mutated
+
+
+class AssignmentValueReplacement(MutationOperator):
+    """A class that mutates assignments by replacing their value with None."""
+
+    def mutate_Assign(self, node: ast.Assign) -> ast.Assign | None:  # noqa: N802
+        """Mutate an assignment by replacing its value with None.
+
+        Args:
+            node: The assignment to mutate.
+
+        Returns:
+            The mutated assignment, or None if the value is already None.
+        """
+        if isinstance(node.value, ast.Constant) and node.value.value is None:
+            return None
+        mutated = copy_node(node)
+        mutated.value = ast.Constant(value=None)
+        return mutated

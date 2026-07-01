@@ -11,9 +11,11 @@ import pytest
 
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
+    AssignmentValueReplacement,
     BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
+    LambdaReplacement,
     SliceIndexRemove,
     is_docstring,
 )
@@ -122,6 +124,14 @@ def test_break_to_continue_replacement():
                     continue
                 """
             ): ("mutate_Break", ast.Break, ast.Continue),
+            inspect.cleandoc(
+                """
+                i = 0
+                while i < 10:
+                    i += 1
+                    return
+                """
+            ): ("mutate_Break_to_return", ast.Break, ast.Return),
         },
     )
 
@@ -428,4 +438,90 @@ def test_boolean_false_to_true():
                 """
             ): ("mutate_Constant_bool", ast.Constant, ast.Constant),
         },
+    )
+
+
+def test_break_to_return_replacement():
+    assert_mutation(
+        BreakContinueReplacement,
+        inspect.cleandoc(
+            """
+            for x in [1, 2, 3]:
+                break
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                for x in [1, 2, 3]:
+                    continue
+                """
+            ): ("mutate_Break", ast.Break, ast.Continue),
+            inspect.cleandoc(
+                """
+                for x in [1, 2, 3]:
+                    return
+                """
+            ): ("mutate_Break_to_return", ast.Break, ast.Return),
+        },
+    )
+
+
+def test_lambda_body_replaced_with_none():
+    assert_mutation(
+        LambdaReplacement,
+        inspect.cleandoc(
+            """
+            f = lambda x: x + 1
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                f = lambda x: None
+                """
+            ): ("mutate_Lambda", ast.Lambda, ast.Lambda),
+        },
+    )
+
+
+def test_lambda_already_none_skipped():
+    assert_mutation(
+        LambdaReplacement,
+        inspect.cleandoc(
+            """
+            f = lambda x: None
+            """
+        ),
+        {},
+    )
+
+
+def test_assignment_value_replaced_with_none():
+    assert_mutation(
+        AssignmentValueReplacement,
+        inspect.cleandoc(
+            """
+            x = 42
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = None
+                """
+            ): ("mutate_Assign", ast.Assign, ast.Assign),
+        },
+    )
+
+
+def test_assignment_already_none_skipped():
+    assert_mutation(
+        AssignmentValueReplacement,
+        inspect.cleandoc(
+            """
+            x = None
+            """
+        ),
+        {},
     )

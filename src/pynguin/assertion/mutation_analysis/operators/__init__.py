@@ -49,6 +49,7 @@ from pynguin.assertion.mutation_analysis.operators.misc import (
 )
 from pynguin.assertion.mutation_analysis.operators.statement import (
     AssertionRemoval,
+    MatchCaseDeletion,
     ReturnValueReplacement,
 )
 
@@ -69,6 +70,7 @@ standard_operators: list[type[MutationOperator]] = [
     LogicalConnectorReplacement,
     LogicalOperatorDeletion,
     LogicalOperatorReplacement,
+    MatchCaseDeletion,
     OverriddenMethodCallingPositionChange,
     OverridingMethodDeletion,
     RelationalOperatorReplacement,

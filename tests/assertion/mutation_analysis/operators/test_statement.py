@@ -6,9 +6,13 @@
 #
 import ast
 import inspect
+import sys
+
+import pytest
 
 from pynguin.assertion.mutation_analysis.operators.statement import (
     AssertionRemoval,
+    MatchCaseDeletion,
     ReturnValueReplacement,
 )
 from tests.testutils import assert_mutation
@@ -137,4 +141,61 @@ def test_assert_with_message_replaced_with_pass():
                 """
             ): ("mutate_Assert", ast.Assert, ast.Pass),
         },
+    )
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="match statement requires Python 3.10+")
+def test_match_case_remove_first_and_last():
+    assert_mutation(
+        MatchCaseDeletion,
+        inspect.cleandoc(
+            """
+            x = 0
+            match x:
+                case 1:
+                    pass
+                case 2:
+                    pass
+                case _:
+                    pass
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 0
+                match x:
+                    case 2:
+                        pass
+                    case _:
+                        pass
+                """
+            ): ("mutate_Match_remove_first", ast.Match, ast.Match),
+            inspect.cleandoc(
+                """
+                x = 0
+                match x:
+                    case 1:
+                        pass
+                    case 2:
+                        pass
+                """
+            ): ("mutate_Match_remove_last", ast.Match, ast.Match),
+        },
+    )
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="match statement requires Python 3.10+")
+def test_match_single_case_no_mutation():
+    assert_mutation(
+        MatchCaseDeletion,
+        inspect.cleandoc(
+            """
+            x = 0
+            match x:
+                case _:
+                    pass
+            """
+        ),
+        {},
     )

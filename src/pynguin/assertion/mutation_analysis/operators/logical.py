@@ -309,3 +309,25 @@ class RelationalOperatorReplacement(MutationOperator):
             The mutated operator.
         """
         return ast.Eq()
+
+    def mutate_Is(self, node: ast.Is) -> ast.IsNot:  # noqa: N802
+        """Mutate an Is operator to an IsNot operator.
+
+        Args:
+            node: The Is operator to mutate.
+
+        Returns:
+            The mutated operator.
+        """
+        return ast.IsNot()
+
+    def mutate_IsNot(self, node: ast.IsNot) -> ast.Is:  # noqa: N802
+        """Mutate an IsNot operator to an Is operator.
+
+        Args:
+            node: The IsNot operator to mutate.
+
+        Returns:
+            The mutated operator.
+        """
+        return ast.Is()

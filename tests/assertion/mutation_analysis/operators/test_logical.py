@@ -521,3 +521,47 @@ def test_bitxor_to_bitor_replacement():
             ): ("mutate_BitXor_to_BitOr", ast.BitXor, ast.BitOr),
         },
     )
+
+
+def test_is_to_is_not_replacement():
+    assert_mutation(
+        RelationalOperatorReplacement,
+        inspect.cleandoc(
+            """
+            a = None
+            b = None
+            x = a is b
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                a = None
+                b = None
+                x = a is not b
+                """
+            ): ("mutate_Is", ast.Is, ast.IsNot),
+        },
+    )
+
+
+def test_is_not_to_is_replacement():
+    assert_mutation(
+        RelationalOperatorReplacement,
+        inspect.cleandoc(
+            """
+            a = None
+            b = None
+            x = a is not b
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                a = None
+                b = None
+                x = a is b
+                """
+            ): ("mutate_IsNot", ast.IsNot, ast.Is),
+        },
+    )
