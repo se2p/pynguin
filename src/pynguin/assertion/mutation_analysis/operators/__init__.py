@@ -42,15 +42,22 @@ from pynguin.assertion.mutation_analysis.operators.loop import (
 )
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
+    BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
     SliceIndexRemove,
+)
+from pynguin.assertion.mutation_analysis.operators.statement import (
+    AssertionRemoval,
+    ReturnValueReplacement,
 )
 
 standard_operators: list[type[MutationOperator]] = [
     ArithmeticOperatorDeletion,
     ArithmeticOperatorReplacement,
+    AssertionRemoval,
     AssignmentOperatorReplacement,
+    BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConditionalOperatorDeletion,
     ConditionalOperatorInsertion,
@@ -65,6 +72,7 @@ standard_operators: list[type[MutationOperator]] = [
     OverriddenMethodCallingPositionChange,
     OverridingMethodDeletion,
     RelationalOperatorReplacement,
+    ReturnValueReplacement,
     SliceIndexRemove,
     SuperCallingDeletion,
     SuperCallingInsert,

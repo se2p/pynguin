@@ -279,6 +279,13 @@ def test_bin_xor_to_bin_and_replacement():
                 z = x & y
                 """
             ): ("mutate_BitXor", ast.BitXor, ast.BitAnd),
+            inspect.cleandoc(
+                """
+                x = 1
+                y = 2
+                z = x | y
+                """
+            ): ("mutate_BitXor_to_BitOr", ast.BitXor, ast.BitOr),
         },
     )
 
@@ -483,5 +490,34 @@ def test_not_eq_replacement():
                 z = x == y
                 """
             ): ("mutate_NotEq", ast.NotEq, ast.Eq),
+        },
+    )
+
+
+def test_bitxor_to_bitor_replacement():
+    assert_mutation(
+        LogicalOperatorReplacement,
+        inspect.cleandoc(
+            """
+            x = 1
+            y = 2
+            z = x ^ y
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 1
+                y = 2
+                z = x & y
+                """
+            ): ("mutate_BitXor", ast.BitXor, ast.BitAnd),
+            inspect.cleandoc(
+                """
+                x = 1
+                y = 2
+                z = x | y
+                """
+            ): ("mutate_BitXor_to_BitOr", ast.BitXor, ast.BitOr),
         },
     )

@@ -11,6 +11,7 @@ import pytest
 
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
+    BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
     SliceIndexRemove,
@@ -173,6 +174,36 @@ def test_numbers_increase():
                 x = 1 - 2 + 100
                 """
             ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 0 - 2 + 99
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - 0 + 99
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - 2 + 0
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = -1 - 2 + 99
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - -2 + 99
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - 2 + -99
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
         },
     )
 
@@ -286,5 +317,115 @@ def test_slice_index_replacement():
                 y = x[:2]
                 """
             ): ("mutate_Slice_remove_lower", ast.Slice, ast.Slice),
+        },
+    )
+
+
+def test_constant_replacement_num_zero():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            x = 5
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 6
+                """
+            ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 0
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = -5
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+        },
+    )
+
+
+def test_constant_replacement_num_neg():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            x = 3
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 4
+                """
+            ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 0
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = -3
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+        },
+    )
+
+
+def test_constant_replacement_num_zero_skip():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            x = 0
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 1
+                """
+            ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+        },
+    )
+
+
+def test_boolean_true_to_false():
+    assert_mutation(
+        BooleanLiteralReplacement,
+        inspect.cleandoc(
+            """
+            x = True
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = False
+                """
+            ): ("mutate_Constant_bool", ast.Constant, ast.Constant),
+        },
+    )
+
+
+def test_boolean_false_to_true():
+    assert_mutation(
+        BooleanLiteralReplacement,
+        inspect.cleandoc(
+            """
+            x = False
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = True
+                """
+            ): ("mutate_Constant_bool", ast.Constant, ast.Constant),
         },
     )

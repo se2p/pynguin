@@ -182,6 +182,42 @@ class ConstantReplacement(MutationOperator):
 
         return ast.Constant(new_value)
 
+    def mutate_Constant_num_zero(  # noqa: N802
+        self, node: ast.Constant
+    ) -> ast.Constant | None:
+        """Mutate a numeric constant by replacing it with zero.
+
+        Args:
+            node: The constant to mutate.
+
+        Returns:
+            The mutated constant, or None if the constant should not be mutated.
+        """
+        value = node.value
+        if not isinstance(value, int | float) or isinstance(value, bool):
+            return None
+        if value == 0:
+            return None
+        return ast.Constant(0)
+
+    def mutate_Constant_num_neg(  # noqa: N802
+        self, node: ast.Constant
+    ) -> ast.Constant | None:
+        """Mutate a numeric constant by negating it.
+
+        Args:
+            node: The constant to mutate.
+
+        Returns:
+            The mutated constant, or None if the constant should not be mutated.
+        """
+        value = node.value
+        if not isinstance(value, int | float) or isinstance(value, bool):
+            return None
+        if value == 0:
+            return None
+        return ast.Constant(-value)
+
 
 class SliceIndexRemove(MutationOperator):
     """A class that mutates slice indices by removing them."""
@@ -233,3 +269,22 @@ class SliceIndexRemove(MutationOperator):
             return None
 
         return ast.Slice(lower=node.lower, upper=node.upper, step=None)
+
+
+class BooleanLiteralReplacement(MutationOperator):
+    """A class that mutates boolean literals by replacing them."""
+
+    def mutate_Constant_bool(  # noqa: N802
+        self, node: ast.Constant
+    ) -> ast.Constant | None:
+        """Mutate a boolean literal by negating it.
+
+        Args:
+            node: The constant to mutate.
+
+        Returns:
+            The mutated constant, or None if the constant should not be mutated.
+        """
+        if not isinstance(node.value, bool):
+            return None
+        return ast.Constant(not node.value)

@@ -163,6 +163,17 @@ class LogicalOperatorReplacement(MutationOperator):
         """
         return ast.BitAnd()
 
+    def mutate_BitXor_to_BitOr(self, node: ast.BitXor) -> ast.BitOr:  # noqa: N802
+        """Mutate a BitXor operator to a BitOr operator.
+
+        Args:
+            node: The BitXor operator to mutate.
+
+        Returns:
+            The mutated operator.
+        """
+        return ast.BitOr()
+
     def mutate_LShift(self, node: ast.LShift) -> ast.RShift:  # noqa: N802
         """Mutate a LShift operator to a RShift operator.
 
