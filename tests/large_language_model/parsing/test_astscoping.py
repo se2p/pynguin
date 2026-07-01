@@ -682,3 +682,45 @@ def test_variable_ref_ast_is_call():
 
     # Verify the result is False
     assert result is False
+
+
+def test_variable_ref_ast_structural_eq():
+    """Test VariableRefAST.structural_eq returns True for equal nodes.
+
+    It should also return False for differing ones.
+    """
+    node1 = ast.Constant(value=42)
+    node2 = ast.Constant(value=42)
+    node3 = ast.Constant(value=99)
+
+    var_ref_ast1 = VariableRefAST(node1, {})
+    var_ref_ast2 = VariableRefAST(node2, {})
+    var_ref_ast3 = VariableRefAST(node3, {})
+
+    memo = {}
+
+    # Equal nodes
+    assert var_ref_ast1.structural_eq(var_ref_ast2, memo) is True
+    # Differing nodes
+    assert var_ref_ast1.structural_eq(var_ref_ast3, memo) is False
+    # Differing types
+    assert var_ref_ast1.structural_eq("not a VariableRefAST", memo) is False
+
+    # AST with VariableReference instances
+    mock_tc = MagicMock()
+    var_ref_a = vr.VariableReference(mock_tc, int)
+    var_ref_b = vr.VariableReference(mock_tc, int)
+
+    node_a = ast.Name(id="x", ctx=ast.Load())
+    node_b = ast.Name(id="y", ctx=ast.Load())
+
+    vr_ast_a = VariableRefAST(node_a, {"x": var_ref_a})
+    vr_ast_b = VariableRefAST(node_b, {"y": var_ref_b})
+
+    # When memo maps var_ref_a to var_ref_b and they are equal
+    memo = {var_ref_a: var_ref_b}
+    assert vr_ast_a.structural_eq(vr_ast_b, memo) is True
+
+    # When memo maps them differently (e.g. to a different reference)
+    memo = {var_ref_a: var_ref_a}
+    assert vr_ast_a.structural_eq(vr_ast_b, memo) is False

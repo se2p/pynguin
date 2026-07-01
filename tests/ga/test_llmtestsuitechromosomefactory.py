@@ -147,6 +147,24 @@ def test_get_chromosome_no_llm_tests(llm_factory, patch_llm_agent):
     assert len(chromosome.test_case_chromosomes) == 3
 
 
+def test_get_chromosome_empty_llm_tests_with_hybrid_percentage(llm_factory, patch_llm_agent):
+    """Test when hybrid population is enabled (percentage > 0) but no LLM tests are returned."""
+    config.configuration.large_language_model.llm_test_case_percentage = 0.5
+    config.configuration.search_algorithm.population = 4
+
+    # LLM returns empty list of test cases
+    patch_llm_agent.generate_tests_for_module_under_test.return_value = "results"
+    (
+        patch_llm_agent.llm_test_case_handler.get_test_case_chromosomes_from_llm_results
+    ).return_value = []
+
+    chromosome = llm_factory.get_chromosome()
+
+    # Should fall back to generating random test cases, population is 4
+    assert isinstance(chromosome, TestSuiteChromosome)
+    assert len(chromosome.test_case_chromosomes) == 4
+
+
 def test_get_chromosome_more_llm_tests_than_needed(llm_factory, patch_llm_agent):
     """Test when there are more LLM test cases than needed."""
     # Configure to use 50% LLM test cases in a population of 2

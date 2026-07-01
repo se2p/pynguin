@@ -89,7 +89,8 @@ def get_llm_url() -> str:
     Preference order:
     1) configuration.large_language_model.llm_url (if non-empty)
     2) PYNGUIN_LLM_BASE_URL environment variable
-    3) Returns "" (empty = use OpenAI default)
+    3) LLM_BASE_URL environment variable
+    4) Returns "" (empty = use OpenAI default)
 
     Returns:
         The base URL string, or empty string for OpenAI default.
@@ -102,8 +103,11 @@ def get_llm_url() -> str:
     if DOTENV_AVAILABLE:
         load_dotenv()
 
-    value = os.environ.get("PYNGUIN_LLM_BASE_URL", "")
-    return value.strip()
+    for var in ("PYNGUIN_LLM_BASE_URL", "LLM_BASE_URL"):
+        value = os.environ.get(var, "")
+        if value and value.strip():
+            return value.strip()
+    return ""
 
 
 def get_model_name() -> str:
@@ -112,7 +116,8 @@ def get_model_name() -> str:
     Preference order:
     1) configuration.large_language_model.model_name (if non-empty)
     2) PYNGUIN_LLM_MODEL environment variable
-    3) Returns "gpt-4o-mini" (default)
+    3) LLM_MODEL environment variable
+    4) Returns "gpt-4o-mini" (default)
 
     Returns:
         The model name string.
@@ -125,9 +130,10 @@ def get_model_name() -> str:
     if DOTENV_AVAILABLE:
         load_dotenv()
 
-    value = os.environ.get("PYNGUIN_LLM_MODEL", "")
-    if value and value.strip():
-        return value.strip()
+    for var in ("PYNGUIN_LLM_MODEL", "LLM_MODEL"):
+        value = os.environ.get(var, "")
+        if value and value.strip():
+            return value.strip()
 
     return "gpt-4o-mini"
 
