@@ -68,6 +68,14 @@ check-style:
 codestyle:
 	poetry run pre-commit run --all-files
 
+.PHONY: quick-eval
+quick-eval:
+	poetry run python utils/quick_eval.py run --use-bundled-examples --budget 60 --jobs 4
+
+.PHONY: quick-eval-compare
+quick-eval-compare:
+	poetry run python utils/quick_eval.py compare-branch main --use-bundled-examples --budget 60 --jobs 4
+
 .PHONY: test
 test:
 	poetry run pytest --cov=src --cov=tests --cov-report=term-missing --cov-report html:cov_html tests/
