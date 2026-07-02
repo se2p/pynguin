@@ -48,7 +48,6 @@ from pynguin.assertion.mutation_analysis.operators.misc import (
     SliceIndexRemove,
 )
 from pynguin.assertion.mutation_analysis.operators.statement import (
-    AssertionRemoval,
     MatchCaseDeletion,
     ReturnValueReplacement,
 )
@@ -56,7 +55,6 @@ from pynguin.assertion.mutation_analysis.operators.statement import (
 standard_operators: list[type[MutationOperator]] = [
     ArithmeticOperatorDeletion,
     ArithmeticOperatorReplacement,
-    AssertionRemoval,
     AssignmentOperatorReplacement,
     BooleanLiteralReplacement,
     BreakContinueReplacement,

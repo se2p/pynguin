@@ -4,7 +4,6 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-# ruff: noqa: E501
 import ast
 import importlib
 import inspect

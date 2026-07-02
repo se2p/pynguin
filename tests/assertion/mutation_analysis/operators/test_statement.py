@@ -11,7 +11,6 @@ import sys
 import pytest
 
 from pynguin.assertion.mutation_analysis.operators.statement import (
-    AssertionRemoval,
     MatchCaseDeletion,
     ReturnValueReplacement,
 )
@@ -101,46 +100,6 @@ def test_return_none_no_mutation():
             """
         ),
         {},
-    )
-
-
-def test_assert_replaced_with_pass():
-    assert_mutation(
-        AssertionRemoval,
-        inspect.cleandoc(
-            """
-            x = 1
-            assert x == 1
-            """
-        ),
-        {
-            inspect.cleandoc(
-                """
-                x = 1
-                pass
-                """
-            ): ("mutate_Assert", ast.Assert, ast.Pass),
-        },
-    )
-
-
-def test_assert_with_message_replaced_with_pass():
-    assert_mutation(
-        AssertionRemoval,
-        inspect.cleandoc(
-            """
-            x = 1
-            assert x > 0, "msg"
-            """
-        ),
-        {
-            inspect.cleandoc(
-                """
-                x = 1
-                pass
-                """
-            ): ("mutate_Assert", ast.Assert, ast.Pass),
-        },
     )
 
 

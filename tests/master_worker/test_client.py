@@ -5,7 +5,6 @@
 #  SPDX-License-Identifier: MIT
 #
 """Tests for the client module."""
-# ruff: noqa: FBT001, FBT002
 
 import threading
 from unittest.mock import MagicMock, patch

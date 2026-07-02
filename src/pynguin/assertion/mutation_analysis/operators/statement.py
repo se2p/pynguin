@@ -32,21 +32,6 @@ class ReturnValueReplacement(MutationOperator):
         return mutated
 
 
-class AssertionRemoval(MutationOperator):
-    """A class that mutates assert statements by removing them."""
-
-    def mutate_Assert(self, node: ast.Assert) -> ast.Pass:  # noqa: N802
-        """Mutate an Assert statement by replacing it with a Pass statement.
-
-        Args:
-            node: The Assert statement to mutate.
-
-        Returns:
-            The mutated statement.
-        """
-        return ast.Pass(lineno=node.lineno)
-
-
 class MatchCaseDeletion(MutationOperator):
     """A class that mutates match statements by removing cases."""
 
