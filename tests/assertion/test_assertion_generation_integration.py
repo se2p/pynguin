@@ -40,6 +40,9 @@ class OriginalConstantReplacement(mo.ConstantReplacement):
     def mutate_Constant_num_neg(self, node):  # noqa: N802
         return None
 
+    def mutate_Constant_num_decrement(self, node):  # noqa: N802
+        return None
+
 
 test_operators = [
     mo.ArithmeticOperatorDeletion,
@@ -122,7 +125,9 @@ def test_generate_mutation_assertions(
         if generator is ag.MutationAnalysisAssertionGenerator:
             mutant_generator = mu.FirstOrderMutator([
                 *test_operators,
-                *mo.experimental_operators,
+                mo.OneIterationLoop,
+                mo.ReverseIterationLoop,
+                mo.ZeroIterationLoop,
             ])
             module_source_code = inspect.getsource(module)
             module_ast = ParentNodeTransformer.create_ast(module_source_code)
@@ -337,7 +342,9 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
 
         mutant_generator = mu.FirstOrderMutator([
             *test_operators,
-            *mo.experimental_operators,
+            mo.OneIterationLoop,
+            mo.ReverseIterationLoop,
+            mo.ZeroIterationLoop,
         ])
         module_source_code = inspect.getsource(module_type)
         module_ast = ParentNodeTransformer.create_ast(module_source_code)

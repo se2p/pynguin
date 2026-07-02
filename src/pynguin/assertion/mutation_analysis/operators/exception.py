@@ -12,7 +12,7 @@ and integrated in Pynguin.
 
 import ast
 
-from pynguin.assertion.mutation_analysis.operators.base import MutationOperator
+from pynguin.assertion.mutation_analysis.operators.base import MutationOperator, copy_node
 
 
 def replace_exception_handler(
@@ -59,6 +59,48 @@ class ExceptionHandlerDeletion(MutationOperator):
             return None
 
         return replace_exception_handler(node, [ast.Raise(lineno=first_statement.lineno)])
+
+
+class ExceptionTypeReplacement(MutationOperator):
+    """A class that mutates raise statements by replacing the raised exception type."""
+
+    DEFAULT_EXCEPTION_NAME = "RuntimeError"
+    FALLBACK_EXCEPTION_NAME = "ValueError"
+
+    def mutate_Raise(self, node: ast.Raise) -> ast.Raise | None:  # noqa: N802
+        """Mutate a raise statement by replacing the raised exception type.
+
+        Args:
+            node: The raise statement to mutate.
+
+        Returns:
+            The mutated statement, or None if the statement should not be mutated.
+        """
+        exc = node.exc
+
+        if isinstance(exc, ast.Call) and isinstance(exc.func, ast.Name):
+            name = exc.func.id
+        elif isinstance(exc, ast.Name):
+            name = exc.id
+        else:
+            return None
+
+        new_name = (
+            self.FALLBACK_EXCEPTION_NAME
+            if name == self.DEFAULT_EXCEPTION_NAME
+            else self.DEFAULT_EXCEPTION_NAME
+        )
+
+        mutated = copy_node(node)
+
+        if isinstance(mutated.exc, ast.Call) and isinstance(mutated.exc.func, ast.Name):
+            mutated.exc.func.id = new_name
+        elif isinstance(mutated.exc, ast.Name):
+            mutated.exc.id = new_name
+        else:
+            return None
+
+        return mutated
 
 
 class ExceptionSwallowing(MutationOperator):

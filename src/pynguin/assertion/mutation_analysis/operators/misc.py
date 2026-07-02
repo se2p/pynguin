@@ -151,6 +151,28 @@ class ConstantReplacement(MutationOperator):
 
         return ast.Constant(value + 1)
 
+    def mutate_Constant_num_decrement(  # noqa: N802
+        self, node: ast.Constant
+    ) -> ast.Constant | None:
+        """Mutate a numeric constant by subtracting 1.
+
+        Args:
+            node: The constant to mutate.
+
+        Returns:
+            The mutated constant, or None if the constant should not be mutated
+            or the result would duplicate the zero replacement.
+        """
+        value = node.value
+
+        if not isinstance(value, int | float) or isinstance(value, bool):
+            return None
+
+        if value == 1:
+            return None
+
+        return ast.Constant(value - 1)
+
     def mutate_Constant_str(  # noqa: N802
         self, node: ast.Constant
     ) -> ast.Constant | None:
@@ -318,6 +340,31 @@ class LambdaReplacement(MutationOperator):
         mutated = copy_node(node)
         mutated.body = ast.Constant(value=None)
         return mutated
+
+
+class FStringReplacement(MutationOperator):
+    """A class that mutates f-strings by replacing them with a plain string."""
+
+    REPLACEMENT_STRING = "mutpy"
+
+    def mutate_JoinedStr(  # noqa: N802
+        self, node: ast.JoinedStr
+    ) -> ast.Constant | None:
+        """Mutate an f-string by replacing it with a plain string constant.
+
+        Args:
+            node: The f-string to mutate.
+
+        Returns:
+            The mutated node, or None if the f-string is a format specification
+            of another f-string.
+        """
+        parent = node.parent  # type: ignore[attr-defined]
+
+        if isinstance(parent, ast.FormattedValue):
+            return None
+
+        return ast.Constant(value=self.REPLACEMENT_STRING)
 
 
 class AssignmentValueReplacement(MutationOperator):

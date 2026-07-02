@@ -10,8 +10,100 @@ import inspect
 from pynguin.assertion.mutation_analysis.operators.exception import (
     ExceptionHandlerDeletion,
     ExceptionSwallowing,
+    ExceptionTypeReplacement,
 )
 from tests.testutils import assert_mutation
+
+
+def test_exception_type_replacement_call():
+    assert_mutation(
+        ExceptionTypeReplacement,
+        inspect.cleandoc(
+            """
+            def foo():
+                raise ValueError('message')
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                def foo():
+                    raise RuntimeError('message')
+                """
+            ): ("mutate_Raise", ast.Raise, ast.Raise),
+        },
+    )
+
+
+def test_exception_type_replacement_default_to_fallback():
+    assert_mutation(
+        ExceptionTypeReplacement,
+        inspect.cleandoc(
+            """
+            def foo():
+                raise RuntimeError('message')
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                def foo():
+                    raise ValueError('message')
+                """
+            ): ("mutate_Raise", ast.Raise, ast.Raise),
+        },
+    )
+
+
+def test_exception_type_replacement_name():
+    assert_mutation(
+        ExceptionTypeReplacement,
+        inspect.cleandoc(
+            """
+            def foo(error):
+                raise error
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                def foo(error):
+                    raise RuntimeError
+                """
+            ): ("mutate_Raise", ast.Raise, ast.Raise),
+        },
+    )
+
+
+def test_exception_type_replacement_bare_raise_not_mutated():
+    assert_mutation(
+        ExceptionTypeReplacement,
+        inspect.cleandoc(
+            """
+            def foo():
+                try:
+                    pass
+                except ValueError:
+                    raise
+            """
+        ),
+        {},
+    )
+
+
+def test_exception_type_replacement_attribute_not_mutated():
+    assert_mutation(
+        ExceptionTypeReplacement,
+        inspect.cleandoc(
+            """
+            import builtins
+
+            def foo():
+                raise builtins.ValueError('message')
+            """
+        ),
+        {},
+    )
 
 
 def test_exception_handler_deletion():

@@ -15,6 +15,7 @@ from pynguin.assertion.mutation_analysis.operators.misc import (
     BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
+    FStringReplacement,
     LambdaReplacement,
     SliceIndexRemove,
     is_docstring,
@@ -214,6 +215,16 @@ def test_numbers_increase():
                 x = 1 - 2 + -99
                 """
             ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - 1 + 99
+                """
+            ): ("mutate_Constant_num_decrement", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 1 - 2 + 98
+                """
+            ): ("mutate_Constant_num_decrement", ast.Constant, ast.Constant),
         },
     )
 
@@ -355,6 +366,11 @@ def test_constant_replacement_num_zero():
                 x = -5
                 """
             ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 4
+                """
+            ): ("mutate_Constant_num_decrement", ast.Constant, ast.Constant),
         },
     )
 
@@ -383,6 +399,11 @@ def test_constant_replacement_num_neg():
                 x = -3
                 """
             ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 2
+                """
+            ): ("mutate_Constant_num_decrement", ast.Constant, ast.Constant),
         },
     )
 
@@ -401,6 +422,39 @@ def test_constant_replacement_num_zero_skip():
                 x = 1
                 """
             ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = -1
+                """
+            ): ("mutate_Constant_num_decrement", ast.Constant, ast.Constant),
+        },
+    )
+
+
+def test_constant_replacement_num_decrement_skip_one():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            x = 1
+            """
+        ),
+        {
+            inspect.cleandoc(
+                """
+                x = 2
+                """
+            ): ("mutate_Constant_num", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = 0
+                """
+            ): ("mutate_Constant_num_zero", ast.Constant, ast.Constant),
+            inspect.cleandoc(
+                """
+                x = -1
+                """
+            ): ("mutate_Constant_num_neg", ast.Constant, ast.Constant),
         },
     )
 
@@ -524,4 +578,64 @@ def test_assignment_already_none_skipped():
             """
         ),
         {},
+    )
+
+
+def test_fstring_replaced_with_constant():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            name = 'world'
+            x = f'hello {name}'
+            """
+        ),
+        {
+            inspect.cleandoc(
+                f"""
+                name = 'world'
+                x = '{FStringReplacement.REPLACEMENT_STRING}'
+                """
+            ): ("mutate_JoinedStr", ast.JoinedStr, ast.Constant),
+        },
+    )
+
+
+def test_fstring_without_interpolation_replaced_with_constant():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            x = f'hello'
+            """
+        ),
+        {
+            inspect.cleandoc(
+                f"""
+                x = '{FStringReplacement.REPLACEMENT_STRING}'
+                """
+            ): ("mutate_JoinedStr", ast.JoinedStr, ast.Constant),
+        },
+    )
+
+
+def test_fstring_format_spec_not_replaced():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            value = 3.14159
+            width = 10
+            x = f'{value:{width}}'
+            """
+        ),
+        {
+            inspect.cleandoc(
+                f"""
+                value = 3.14159
+                width = 10
+                x = '{FStringReplacement.REPLACEMENT_STRING}'
+                """
+            ): ("mutate_JoinedStr", ast.JoinedStr, ast.Constant),
+        },
     )

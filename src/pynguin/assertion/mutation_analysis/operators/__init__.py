@@ -19,6 +19,7 @@ from pynguin.assertion.mutation_analysis.operators.decorator import DecoratorDel
 from pynguin.assertion.mutation_analysis.operators.exception import (
     ExceptionHandlerDeletion,
     ExceptionSwallowing,
+    ExceptionTypeReplacement,
 )
 from pynguin.assertion.mutation_analysis.operators.inheritance import (
     HidingVariableDeletion,
@@ -42,9 +43,12 @@ from pynguin.assertion.mutation_analysis.operators.loop import (
 )
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
+    AssignmentValueReplacement,
     BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
+    FStringReplacement,
+    LambdaReplacement,
     SliceIndexRemove,
 )
 from pynguin.assertion.mutation_analysis.operators.statement import (
@@ -64,6 +68,8 @@ standard_operators: list[type[MutationOperator]] = [
     DecoratorDeletion,
     ExceptionHandlerDeletion,
     ExceptionSwallowing,
+    ExceptionTypeReplacement,
+    FStringReplacement,
     HidingVariableDeletion,
     LogicalConnectorReplacement,
     LogicalOperatorDeletion,
@@ -79,6 +85,8 @@ standard_operators: list[type[MutationOperator]] = [
 ]
 
 experimental_operators: list[type[MutationOperator]] = [
+    AssignmentValueReplacement,
+    LambdaReplacement,
     OneIterationLoop,
     ReverseIterationLoop,
     ZeroIterationLoop,
