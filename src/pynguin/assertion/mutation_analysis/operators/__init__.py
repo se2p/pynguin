@@ -43,12 +43,10 @@ from pynguin.assertion.mutation_analysis.operators.loop import (
 )
 from pynguin.assertion.mutation_analysis.operators.misc import (
     AssignmentOperatorReplacement,
-    AssignmentValueReplacement,
     BooleanLiteralReplacement,
     BreakContinueReplacement,
     ConstantReplacement,
     FStringReplacement,
-    LambdaReplacement,
     SliceIndexRemove,
 )
 from pynguin.assertion.mutation_analysis.operators.statement import (
@@ -84,9 +82,11 @@ standard_operators: list[type[MutationOperator]] = [
     SuperCallingInsert,
 ]
 
+# Note: AssignmentValueReplacement and LambdaReplacement are deliberately not
+# registered here: experimental operators are part of every mutation-analysis
+# run, and both operators only produce noise mutants (trivially killed as
+# incompetent mutants in covered code, unkillable in uncovered code).
 experimental_operators: list[type[MutationOperator]] = [
-    AssignmentValueReplacement,
-    LambdaReplacement,
     OneIterationLoop,
     ReverseIterationLoop,
     ZeroIterationLoop,

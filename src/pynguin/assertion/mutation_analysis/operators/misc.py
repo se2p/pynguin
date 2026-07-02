@@ -50,6 +50,49 @@ def is_docstring(node: ast.AST) -> bool:
     )
 
 
+_UNOBSERVABLE_CALL_NAMES = frozenset({
+    "print",
+    "debug",
+    "info",
+    "warning",
+    "warn",
+    "error",
+    "exception",
+    "critical",
+    "log",
+})
+
+
+def is_unobservable_string_context(node: ast.AST) -> bool:
+    """Check if a string-valued node can never be observed by an assertion.
+
+    Strings that only serve as exception messages or as arguments to logging
+    or printing calls cannot be checked by the generated assertions: exception
+    assertions only record the exception type, and log or print output is not
+    captured at all. Mutants in such positions are unkillable and only dilute
+    the mutation score.
+
+    Args:
+        node: The node to check.
+
+    Returns:
+        True if the node's value is unobservable, False otherwise.
+    """
+    current: ast.AST | None = getattr(node, "parent", None)
+    while current is not None and not isinstance(current, ast.stmt):
+        if isinstance(current, ast.Call):
+            func = current.func
+            name: str | None = None
+            if isinstance(func, ast.Name):
+                name = func.id
+            elif isinstance(func, ast.Attribute):
+                name = func.attr
+            if name in _UNOBSERVABLE_CALL_NAMES:
+                return True
+        current = getattr(current, "parent", None)
+    return isinstance(current, ast.Raise)
+
+
 class AssignmentOperatorReplacement(AbstractArithmeticOperatorReplacement):
     """A class that mutates assignment operators by replacing them."""
 
@@ -110,7 +153,7 @@ class ConstantReplacement(MutationOperator):
         Returns:
             The mutated string, or None if the string should not be mutated.
         """
-        if is_docstring(node):
+        if is_docstring(node) or is_unobservable_string_context(node):
             return None
 
         if node.value == self.FIRST_CONST_STRING:
@@ -128,7 +171,7 @@ class ConstantReplacement(MutationOperator):
         Returns:
             The mutated string, or None if the string should not be mutated.
         """
-        if not node.value or is_docstring(node):
+        if not node.value or is_docstring(node) or is_unobservable_string_context(node):
             return None
 
         return ""
@@ -357,11 +400,14 @@ class FStringReplacement(MutationOperator):
 
         Returns:
             The mutated node, or None if the f-string is a format specification
-            of another f-string.
+            of another f-string or its value cannot be observed by an assertion.
         """
         parent = node.parent  # type: ignore[attr-defined]
 
         if isinstance(parent, ast.FormattedValue):
+            return None
+
+        if is_unobservable_string_context(node):
             return None
 
         return ast.Constant(value=self.REPLACEMENT_STRING)

@@ -18,9 +18,9 @@ from tests.testutils import import_module_safe
     "module_name, expected_mutants",
     [
         ("tests.fixtures.examples.triangle", 17),
-        ("tests.fixtures.regression.argparse_sys_exit", 8),
-        ("tests.fixtures.regression.not_main", 9),
-        ("tests.fixtures.regression.custom_error", 3),
+        ("tests.fixtures.regression.argparse_sys_exit", 6),
+        ("tests.fixtures.regression.not_main", 7),
+        ("tests.fixtures.regression.custom_error", 1),
     ],
 )
 def test_create_mutants(module_name, expected_mutants):
@@ -46,9 +46,9 @@ def test_create_mutants(module_name, expected_mutants):
     "module_name, expected_mutants",
     [
         ("tests.fixtures.examples.triangle", 17),
-        ("tests.fixtures.regression.argparse_sys_exit", 8),
-        ("tests.fixtures.regression.not_main", 9),
-        ("tests.fixtures.regression.custom_error", 3),
+        ("tests.fixtures.regression.argparse_sys_exit", 6),
+        ("tests.fixtures.regression.not_main", 7),
+        ("tests.fixtures.regression.custom_error", 1),
     ],
 )
 def test_create_mutants_instrumented(module_name, expected_mutants):

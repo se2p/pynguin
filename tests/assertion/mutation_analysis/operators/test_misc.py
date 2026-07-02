@@ -639,3 +639,68 @@ def test_fstring_format_spec_not_replaced():
             ): ("mutate_JoinedStr", ast.JoinedStr, ast.Constant),
         },
     )
+
+
+def test_fstring_in_raise_message_not_replaced():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            def foo(x):
+                raise ValueError(f'bad value {x}')
+            """
+        ),
+        {},
+    )
+
+
+def test_fstring_in_print_call_not_replaced():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            def foo(x):
+                print(f'value is {x}')
+            """
+        ),
+        {},
+    )
+
+
+def test_fstring_in_logging_call_not_replaced():
+    assert_mutation(
+        FStringReplacement,
+        inspect.cleandoc(
+            """
+            def foo(logger, x):
+                logger.warning(f'value is {x}')
+            """
+        ),
+        {},
+    )
+
+
+def test_string_in_raise_message_not_replaced():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            def foo():
+                raise ValueError('bad value')
+            """
+        ),
+        {},
+    )
+
+
+def test_string_in_logging_call_not_replaced():
+    assert_mutation(
+        ConstantReplacement,
+        inspect.cleandoc(
+            """
+            def foo(logger):
+                logger.info('message')
+            """
+        ),
+        {},
+    )
