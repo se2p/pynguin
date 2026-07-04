@@ -40,6 +40,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+import pynguin.configuration as config
 from pynguin.refinement.llm_client import LLMClient
 
 _LOGGER = logging.getLogger(__name__)
@@ -189,14 +190,17 @@ Replace X with your score (1-5) for each dimension."""
         """Initialize the LLM Judge.
 
         Args:
-            api_key: OpenAI API key (required; can use OPENAI_API_KEY)
+            api_key: Optional OpenAI API key.  When given it is written to the
+                shared ``large_language_model`` configuration; otherwise the key
+                is resolved from configuration or the ``OPENAI_API_KEY``
+                environment variable.
             model: Model name (default: gpt-4o-mini)
         """
-        # OpenAI only; LLMClient will check env var if api_key is None.
-        self.client = LLMClient(
-            model_name=model,
-            api_key=api_key,
-        )
+        # Route an explicitly provided key through the shared LLM configuration
+        # so that LLMClient (which reuses Pynguin's key handling) picks it up.
+        if api_key is not None:
+            config.configuration.large_language_model.api_key = api_key
+        self.client = LLMClient(model_name=model)
 
         self.model = model
         self.provider = "openai"

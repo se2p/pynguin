@@ -18,6 +18,16 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 import pytest
 
+from pynguin.assertion.mutation_analysis.controller import MutationController
+from pynguin.assertion.mutation_analysis.mutators import FirstOrderMutator
+from pynguin.assertion.mutation_analysis.operators import (
+    ArithmeticOperatorReplacement,
+    ConstantReplacement,
+    LogicalOperatorReplacement,
+    RelationalOperatorReplacement,
+)
+from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
+
 if TYPE_CHECKING:
     import types
 
@@ -179,25 +189,6 @@ def _create_mutants(
 
     Returns ``(mutants, error)`` where *error* is a non-None message on failure.
     """
-    try:
-        from pynguin.assertion.mutation_analysis.controller import (  # noqa: PLC0415
-            MutationController,
-        )
-        from pynguin.assertion.mutation_analysis.mutators import (  # noqa: PLC0415
-            FirstOrderMutator,
-        )
-        from pynguin.assertion.mutation_analysis.operators import (  # noqa: PLC0415
-            ArithmeticOperatorReplacement,
-            ConstantReplacement,
-            LogicalOperatorReplacement,
-            RelationalOperatorReplacement,
-        )
-        from pynguin.assertion.mutation_analysis.transformer import (  # noqa: PLC0415
-            ParentNodeTransformer,
-        )
-    except ImportError as e:
-        return [], str(e)
-
     try:
         sut_file = module_under_test.__file__
         if sut_file is None:

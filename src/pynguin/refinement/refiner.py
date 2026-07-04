@@ -17,8 +17,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
+import pynguin.utils.statistics.stats as stat
 from pynguin.refinement.pipeline import TestRefiner
 from pynguin.refinement.readability_metrics import compute_all as compute_metrics
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
     import types
@@ -259,12 +261,81 @@ def _attach_usage(stats: dict[str, Any], refiner: TestRefiner, start_wall: float
     stats["wall_time_seconds"] = float(time.perf_counter() - start_wall)
 
 
+def _track_statistics(stats: dict[str, Any]) -> None:
+    """Export refinement metrics to the statistics output (statistics.csv/results.csv)."""
+    stat.track_output_variable(
+        RuntimeVariable.TestsProcessed, int(stats.get("tests_processed", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.TestsRefined, int(stats.get("tests_refined", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RepairIterations, int(stats.get("repair_iterations", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.FailedRefinements, int(stats.get("failed_tests", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.ReadabilityScoreOriginal,
+        float(stats.get("readability_original", 0.0) or 0.0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.ReadabilityScoreRefined,
+        float(stats.get("readability_refined", 0.0) or 0.0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.ReadabilityDelta, float(stats.get("readability_delta", 0.0) or 0.0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementLLMCalls, int(stats.get("llm_calls", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementLLMInputTokens, int(stats.get("llm_input_tokens", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementLLMOutputTokens, int(stats.get("llm_output_tokens", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementWallTimeSeconds,
+        float(stats.get("wall_time_seconds", 0.0) or 0.0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementAssertionsInferred,
+        int(stats.get("mutation_inferred_total", 0) or 0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementAssertionsRemoved,
+        int(stats.get("mutation_removed_total", 0) or 0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementAssertionsKept, int(stats.get("mutation_kept_total", 0) or 0)
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementMutantsGenerated,
+        int(stats.get("mutation_mutants_generated_total", 0) or 0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementMutantsKilledTotal,
+        int(stats.get("mutation_mutants_killed_total", 0) or 0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementSuiteBaselineSize,
+        int(stats.get("mutation_suite_baseline_size_total", 0) or 0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementPerTestContributionMean,
+        float(stats.get("mutation_per_test_contribution_mean", 0.0) or 0.0),
+    )
+    stat.track_output_variable(
+        RuntimeVariable.RefinementSuiteContributionMean,
+        float(stats.get("mutation_suite_contribution_mean", 0.0) or 0.0),
+    )
+
+
 def refine_generated_tests(
     test_file_path: Path,
     module_name: str,
     *,
-    llm_model: str = "gpt-4o-mini",
-    llm_api_key: str | None = None,
     max_repair_iterations: int = 3,
     max_tests: int | None = 30,
     subject_properties: SubjectProperties | None = None,
@@ -272,12 +343,12 @@ def refine_generated_tests(
     """Refine generated tests using LLM-based refinement pipeline.
 
     This is the main entry point called from generator.py after tests are exported.
+    The LLM model name and API key are taken from the shared
+    ``large_language_model`` configuration.
 
     Args:
         test_file_path: Path to the generated test file
         module_name: Name of the module under test
-        llm_model: Model name to use (default: 'gpt-4o-mini')
-        llm_api_key: OpenAI API key (required; can use OPENAI_API_KEY)
         max_repair_iterations: Maximum repair attempts per test
         max_tests: Maximum number of tests to refine
         subject_properties: Optional Pynguin subject properties for coverage checking
@@ -286,22 +357,8 @@ def refine_generated_tests(
         Dict with refinement statistics (tests_processed, tests_refined, repair_iterations, etc.),
         plus aggregated mutation-filtering metrics (inferred/removed/kept assertions,
         mutants generated/killed, and per-test/suite-level contribution means).
-
-    Examples:
-        # Using OpenAI
-        refine_generated_tests(
-            test_file_path=Path("test_module.py"),
-            module_name="my_module",
-            llm_model="gpt-4o-mini",
-            llm_api_key="sk-..."
-        )
-
     """
-    _LOGGER.info(
-        "Starting LLM-based test refinement for %s (model: %s)",
-        module_name,
-        llm_model,
-    )
+    _LOGGER.info("Starting LLM-based test refinement for %s", module_name)
 
     start_wall = time.perf_counter()
 
@@ -311,13 +368,13 @@ def refine_generated_tests(
         module_under_test = _import_module_under_test(module_name)
         if module_under_test is None:
             # Return empty stats if module can't be imported.
-            return _failure_stats()
+            stats = _failure_stats()
+            _track_statistics(stats)
+            return stats
 
         refiner = TestRefiner(
-            api_key=llm_api_key,
             module_under_test=module_under_test,
             project_root=None,
-            llm_model=llm_model,
             subject_properties=subject_properties,
         )
 
@@ -354,8 +411,11 @@ def refine_generated_tests(
 
         _LOGGER.info("Refinement complete: %s", stats)
         _attach_usage(stats, refiner, start_wall)
+        _track_statistics(stats)
         return stats
 
     except Exception as e:
         _LOGGER.exception("Test refinement failed: %s", e)
-        return _failure_stats(error=str(e), wall_time=time.perf_counter() - start_wall)
+        stats = _failure_stats(error=str(e), wall_time=time.perf_counter() - start_wall)
+        _track_statistics(stats)
+        return stats

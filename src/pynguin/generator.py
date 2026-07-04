@@ -734,100 +734,17 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
 
                 try:
                     _LOGGER.info("Starting LLM-based test refinement for %s", test_file_path)
+                    # refine_generated_tests reads the LLM model and API key from
+                    # the shared large_language_model configuration and records its
+                    # own statistics via the statistics tracker.
                     refinement_stats = refine_generated_tests(
                         test_file_path=test_file_path,
                         module_name=config.configuration.module_name,
-                        llm_model=config.configuration.llm_refinement.llm_model,
-                        llm_api_key=config.configuration.llm_refinement.llm_api_key,
                         max_repair_iterations=config.configuration.llm_refinement.max_repair_iterations,
                         max_tests=config.configuration.llm_refinement.max_tests,
                         subject_properties=executor.subject_properties,
                     )
                     _LOGGER.info("Refinement complete: %s", refinement_stats)
-
-                    # Export refinement metrics to statistics.csv / results.csv
-                    stat.track_output_variable(
-                        RuntimeVariable.TestsProcessed,
-                        int(refinement_stats.get("tests_processed", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.TestsRefined,
-                        int(refinement_stats.get("tests_refined", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RepairIterations,
-                        int(refinement_stats.get("repair_iterations", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.FailedRefinements,
-                        int(refinement_stats.get("failed_tests", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.ReadabilityScoreOriginal,
-                        float(refinement_stats.get("readability_original", 0.0) or 0.0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.ReadabilityScoreRefined,
-                        float(refinement_stats.get("readability_refined", 0.0) or 0.0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.ReadabilityDelta,
-                        float(refinement_stats.get("readability_delta", 0.0) or 0.0),
-                    )
-
-                    # Refinement cost metrics
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementLLMCalls,
-                        int(refinement_stats.get("llm_calls", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementLLMInputTokens,
-                        int(refinement_stats.get("llm_input_tokens", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementLLMOutputTokens,
-                        int(refinement_stats.get("llm_output_tokens", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementWallTimeSeconds,
-                        float(refinement_stats.get("wall_time_seconds", 0.0) or 0.0),
-                    )
-
-                    # Refinement mutation-filtering metrics
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementAssertionsInferred,
-                        int(refinement_stats.get("mutation_inferred_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementAssertionsRemoved,
-                        int(refinement_stats.get("mutation_removed_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementAssertionsKept,
-                        int(refinement_stats.get("mutation_kept_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementMutantsGenerated,
-                        int(refinement_stats.get("mutation_mutants_generated_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementMutantsKilledTotal,
-                        int(refinement_stats.get("mutation_mutants_killed_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementSuiteBaselineSize,
-                        int(refinement_stats.get("mutation_suite_baseline_size_total", 0) or 0),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementPerTestContributionMean,
-                        float(
-                            refinement_stats.get("mutation_per_test_contribution_mean", 0.0) or 0.0
-                        ),
-                    )
-                    stat.track_output_variable(
-                        RuntimeVariable.RefinementSuiteContributionMean,
-                        float(refinement_stats.get("mutation_suite_contribution_mean", 0.0) or 0.0),
-                    )
 
                 except Exception as refinement_ex:
                     _LOGGER.exception("LLM refinement failed: %s", refinement_ex)

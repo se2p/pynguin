@@ -4,72 +4,87 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""LLM client wrapper for the OpenAI provider."""
+"""LLM client wrapper for the OpenAI provider.
+
+Reuses Pynguin's existing OpenAI infrastructure instead of duplicating it:
+API-key resolution and validation come from
+``pynguin.large_language_model.llmagent`` and Markdown code-block extraction
+from ``pynguin.utils.llm``.  The model name is taken from the shared
+``large_language_model`` configuration.
+"""
+
+from __future__ import annotations
 
 import logging
-import os
 import random
-import re
 import time
-from pathlib import Path
 
-import requests  # type: ignore[import-untyped]
+import pynguin.configuration as config
+from pynguin.large_language_model.llmagent import set_api_key
+from pynguin.utils.llm import extract_code
+
+try:
+    import openai
+    from openai.types.chat import (
+        ChatCompletionMessageParam,
+        ChatCompletionSystemMessageParam,
+        ChatCompletionUserMessageParam,
+    )
+
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 _logger = logging.getLogger(__name__)
 
-_HTTP_OK = 200
-_HTTP_TOO_MANY_REQUESTS = 429
+# A low temperature keeps code generation deterministic and consistent, which
+# matters for refinement where we want reproducible edits.
+_TEMPERATURE = 0.2
+_MAX_TOKENS = 2000
+_MAX_ATTEMPTS = 8
+_BASE_BACKOFF = 2
 
-try:
-    from dotenv import load_dotenv
+_SYSTEM_PROMPT = (
+    "You are an expert Python developer. "
+    "Generate clean, correct Python code based on the user's request."
+)
 
-    # Look for .env file in project root (up to 5 levels from this file)
-    env_path = Path(__file__).resolve()
-    for _ in range(5):
-        env_path = env_path.parent
-        env_file = env_path / ".env"
-        if env_file.exists():
-            load_dotenv(env_file)
-            break
-except ImportError:
-    # python-dotenv not installed, will rely on system environment variables
-    pass
+if OPENAI_AVAILABLE:
+    _RATE_LIMIT_ERRORS: tuple[type[Exception], ...] = (openai.RateLimitError,)
+    _TIMEOUT_ERRORS: tuple[type[Exception], ...] = (openai.APITimeoutError,)
+    _API_ERRORS: tuple[type[Exception], ...] = (openai.OpenAIError,)
+else:  # pragma: no cover - exercised only without the optional openai extra
+    _RATE_LIMIT_ERRORS = ()
+    _TIMEOUT_ERRORS = ()
+    _API_ERRORS = ()
 
 
 class LLMClient:
     """A client to interact with the OpenAI API.
 
-    Simple wrapper that exposes a `generate_code(prompt)` method. It maps a
-    text response to a Python code block (```python ... ```) when present.
+    Thin wrapper that exposes a ``generate_code(prompt)`` method and reuses
+    Pynguin's shared OpenAI key handling and code-extraction helpers.  The
+    response is mapped to a Python code block (```python ... ```) when present,
+    otherwise the raw text is returned.
     """
 
-    def __init__(
-        self,
-        model_name: str = "gpt-4o-mini",
-        api_key: str | None = None,
-    ):
-        """Initialize LLM client.
+    def __init__(self, model_name: str | None = None) -> None:
+        """Initialize the LLM client.
 
         Args:
-            model_name: OpenAI model to use (e.g., "gpt-4o-mini", "gpt-4o")
-            api_key: OpenAI API key (required; can come from OPENAI_API_KEY)
+            model_name: OpenAI model to use.  Defaults to the shared
+                ``large_language_model.model_name`` configuration.
         """
-        self.model = model_name
+        self.model = model_name or config.configuration.large_language_model.model_name
 
-        # Usage tracking (best-effort; OpenAI provides usage)
+        # Usage tracking (best-effort; OpenAI reports usage in the response).
         self._calls: int = 0
         self._input_tokens: int = 0
         self._output_tokens: int = 0
         self._time_seconds: float = 0.0
 
-        # OpenAI setup
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "OpenAI API key required. Set OPENAI_API_KEY environment variable "
-                "or pass api_key parameter."
-            )
-        self.openai_endpoint = "https://api.openai.com/v1/chat/completions"
+        # Reuse Pynguin's shared key resolution + validation (config or env).
+        set_api_key()
 
     def reset_usage(self) -> None:
         """Reset all usage counters to zero."""
@@ -79,7 +94,12 @@ class LLMClient:
         self._time_seconds = 0.0
 
     def get_usage(self) -> dict:
-        """Return a dict of cumulative usage statistics."""
+        """Return a dict of cumulative usage statistics.
+
+        Returns:
+            A mapping with ``calls``, ``input_tokens``, ``output_tokens`` and
+            ``time_seconds`` keys.
+        """
         return {
             "calls": self._calls,
             "input_tokens": self._input_tokens,
@@ -90,149 +110,93 @@ class LLMClient:
     def generate_code(self, prompt: str) -> str:
         """Generate text and return the Python code block (or plain text).
 
-        Retries on network/server errors with exponential backoff + jitter.
-        Returns a sentinel string when retries are exhausted or on unrecoverable errors.
+        Retries on rate-limit/timeout/API errors with exponential backoff and
+        jitter.  Returns a sentinel string (``"# LLM error: ..."``) when
+        retries are exhausted or on unrecoverable errors so that callers can
+        degrade gracefully instead of crashing.
+
+        Args:
+            prompt: The user prompt to send to the model.
+
+        Returns:
+            The extracted code, or a ``"# LLM ..."`` sentinel on failure.
         """
-        return self._generate_openai(prompt)
-
-    def _generate_openai(self, prompt: str) -> str:
-        """Generate code using OpenAI API with retry + exponential backoff."""
-        base_backoff = 2
-        max_attempts = 8
-
-        for attempt in range(1, max_attempts + 1):
-            outcome = self._attempt_with_handling(prompt, attempt, max_attempts, base_backoff)
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            outcome = self._attempt_with_handling(prompt, attempt)
             if outcome is not None:
                 return outcome
-
         return "# LLM retries exhausted"
 
-    def _attempt_with_handling(
-        self, prompt: str, attempt: int, max_attempts: int, base_backoff: int
-    ) -> str | None:
+    def _attempt_with_handling(self, prompt: str, attempt: int) -> str | None:
         """Run one request attempt; return result/sentinel, or ``None`` to retry."""
         try:
             return self._request_once(prompt)
-        except _RateLimitError as rle:
+        except _RATE_LIMIT_ERRORS:
             # ``random`` jitter is for backoff spreading, not cryptographic use.
-            jitter = random.uniform(0, 3)  # noqa: S311
-            wait = (rle.retry_after or base_backoff * (2 ** min(attempt - 1, 6))) + jitter
+            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 3)  # noqa: S311
+            return self._sleep_or_giveup(attempt, wait, "Rate-limited", "# LLM error: rate limited")
+        except _TIMEOUT_ERRORS:
+            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
+            return self._sleep_or_giveup(attempt, wait, "Timeout", "# LLM error: timeout")
+        except _API_ERRORS as exc:
+            wait = _BASE_BACKOFF * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
             return self._sleep_or_giveup(
-                attempt, max_attempts, wait, "Rate-limited (429)", "# LLM error: rate limited"
-            )
-        except requests.exceptions.Timeout:
-            wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
-            return self._sleep_or_giveup(
-                attempt, max_attempts, wait, "Timeout", "# LLM error: timeout"
-            )
-        except requests.exceptions.RequestException as exc:
-            wait = base_backoff * (2 ** min(attempt - 1, 6)) + random.uniform(0, 2)  # noqa: S311
-            return self._sleep_or_giveup(
-                attempt, max_attempts, wait, f"Request error ({exc})", "# LLM error: request failed"
+                attempt, wait, f"API error ({exc})", "# LLM error: request failed"
             )
         except Exception:  # noqa: BLE001
             # Any unforeseen failure should degrade to a sentinel, never crash refinement.
             return "# LLM error: unable to generate code"
 
     def _sleep_or_giveup(
-        self, attempt: int, max_attempts: int, wait: float, reason: str, exhausted_msg: str
+        self, attempt: int, wait: float, reason: str, exhausted_msg: str
     ) -> str | None:
         """Log the retry, sleep, and return ``None``; or the sentinel when exhausted."""
-        _logger.warning("%s, retry %d/%d in %.1fs", reason, attempt, max_attempts, wait)
-        if attempt >= max_attempts:
+        _logger.warning("%s, retry %d/%d in %.1fs", reason, attempt, _MAX_ATTEMPTS, wait)
+        if attempt >= _MAX_ATTEMPTS:
             return exhausted_msg
         time.sleep(wait)
         return None
 
     def _request_once(self, prompt: str) -> str:
-        """Perform a single OpenAI request and return the extracted code.
-
-        Raises:
-            _RateLimitError: On an HTTP 429 response.
-            requests.HTTPError: On any other non-200 response.
-            requests.exceptions.RequestException: On network/transport errors.
-        """
+        """Perform a single OpenAI request and return the extracted code."""
         start = time.perf_counter()
         self._calls += 1
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        response = requests.post(
-            self.openai_endpoint, headers=headers, json=self._build_payload(prompt), timeout=90
+        messages: list[ChatCompletionMessageParam] = [
+            ChatCompletionSystemMessageParam(role="system", content=_SYSTEM_PROMPT),
+            ChatCompletionUserMessageParam(role="user", content=prompt),
+        ]
+        response = openai.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=_TEMPERATURE,
+            max_tokens=_MAX_TOKENS,
         )
-        code = self._parse_response(response)
+        self._account_tokens(response)
+        text = response.choices[0].message.content or ""
         self._time_seconds += time.perf_counter() - start
-        return code
+        return _extract_code(text)
 
-    def _build_payload(self, prompt: str) -> dict:
-        """Build the chat-completions request payload."""
-        return {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an expert Python developer. "
-                        "Generate clean, correct Python code "
-                        "based on the user's request."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.2,  # Low temperature for more consistent code generation
-            "max_tokens": 2000,
-        }
-
-    def _parse_response(self, response) -> str:
-        """Validate the response, account tokens, and return the extracted code."""
-        if response.status_code == _HTTP_TOO_MANY_REQUESTS:
-            retry_after = response.headers.get("Retry-After")
-            raise _RateLimitError(float(retry_after) if retry_after else None)
-
-        if response.status_code != _HTTP_OK:
-            raise requests.HTTPError(
-                f"HTTP {response.status_code}: {self._error_message(response)}"
-            )
-
-        result = response.json()
-        self._account_tokens(result)
-        text = result["choices"][0]["message"]["content"]
-        return self._extract_code(text)
-
-    @staticmethod
-    def _error_message(response) -> str:
-        """Extract a human-readable error message from a failed response."""
-        try:
-            return response.json().get("error", {}).get("message", response.text)
-        except (ValueError, AttributeError):
-            return response.text
-
-    def _account_tokens(self, result) -> None:
+    def _account_tokens(self, response) -> None:
         """Best-effort token accounting from the API ``usage`` field."""
-        usage = result.get("usage") if isinstance(result, dict) else None
-        if isinstance(usage, dict):
-            self._input_tokens += int(usage.get("prompt_tokens", 0) or 0)
-            self._output_tokens += int(usage.get("completion_tokens", 0) or 0)
-
-    def _extract_code(self, text: str) -> str:
-        """Extract Python code block from text, or return text as-is."""
-        # Try with language specifier first
-        match = re.search(r"```python\s*\n([\s\S]*?)```", text)
-        if match:
-            return match.group(1).strip()
-
-        # Try without language specifier
-        match = re.search(r"```\s*\n([\s\S]*?)```", text)
-        if match:
-            return match.group(1).strip()
-
-        # No code blocks found, return as-is
-        return text.strip()
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            self._input_tokens += int(getattr(usage, "prompt_tokens", 0) or 0)
+            self._output_tokens += int(getattr(usage, "completion_tokens", 0) or 0)
 
 
-class _RateLimitError(Exception):
-    """Internal sentinel for HTTP 429 responses."""
+def _extract_code(text: str) -> str:
+    """Return the Python code block from ``text``, or the stripped text.
 
-    def __init__(self, retry_after: float | None = None) -> None:
-        self.retry_after = retry_after
+    Reuses :func:`pynguin.utils.llm.extract_code`; falls back to the raw
+    (stripped) text when the model returns code without Markdown fences, which
+    the refinement prompts explicitly request.
+
+    Args:
+        text: The raw text returned by the model.
+
+    Returns:
+        The extracted code block, or the stripped text when no fenced block is
+        present.
+    """
+    extracted = extract_code(text).strip()
+    return extracted or text.strip()

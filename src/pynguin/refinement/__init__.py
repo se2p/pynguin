@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""TEST-LLM-REFINE: refine Pynguin-generated tests using Large Language Models.
+"""Refine Pynguin-generated tests using Large Language Models.
 
 This package provides functionality to analyse, refine, and validate
 Pynguin-generated unit tests for improved readability.

@@ -85,10 +85,8 @@ def refiner(dummy_module: types.ModuleType) -> TestRefiner:
             "time_seconds": 0.0,
         }
         r = TestRefiner(
-            api_key="test-key",
             module_under_test=dummy_module,
             project_root="project_root",
-            llm_model="gpt-4o-mini",
         )
         # In case the mock was already consumed by __init__, re-attach it
         r.llm_client = instance
@@ -111,7 +109,7 @@ def test_init_stores_project_root(refiner: TestRefiner):
 def test_init_default_project_root(dummy_module):
     """When project_root is None the refiner falls back to a computed default."""
     with patch("pynguin.refinement.pipeline.LLMClient"):
-        r = TestRefiner(api_key="k", module_under_test=dummy_module)
+        r = TestRefiner(module_under_test=dummy_module)
     assert r.project_root is not None
     assert len(r.project_root) > 0
 

@@ -204,7 +204,6 @@ enable_inline_pragma_no_cover = true
 
 [llm_refinement]
 enabled = false
-llm_model = "gpt-4o-mini"
 max_repair_iterations = 3
 save_original = true
 save_refined = true
@@ -336,9 +335,9 @@ def expected_txt(tmp_path):
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), '
  'llm_refinement=LLMRefinementConfiguration(enabled=False, '
- "llm_model='gpt-4o-mini', llm_api_key=None, max_repair_iterations=3, "
- 'max_tests=None, save_original=True, save_refined=True), ignore_modules=[], '
- 'ignore_methods=[], subprocess=False, subprocess_if_recommended=True, '
+ 'max_repair_iterations=3, max_tests=None, save_original=True, '
+ 'save_refined=True), ignore_modules=[], ignore_methods=[], subprocess=False, '
+ 'subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
  'local_search_llm=False, local_search_primitives=True, '
@@ -402,10 +401,6 @@ gpt-4o-mini
 0.8
 --llm_refinement.enabled
 False
---llm_refinement.llm_api_key
-None
---llm_refinement.llm_model
-gpt-4o-mini
 --llm_refinement.max_repair_iterations
 3
 --llm_refinement.max_tests

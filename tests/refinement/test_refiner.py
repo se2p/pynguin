@@ -57,7 +57,6 @@ def test_refine_returns_empty_stats_for_unimportable_module(tmp_path):
     stats = refine_generated_tests(
         test_file_path=test_file,
         module_name="totally_nonexistent_module_xyz",
-        llm_api_key="test-key",
     )
     assert stats["tests_processed"] == 0
     assert stats["tests_refined"] == 0
@@ -69,7 +68,6 @@ def test_refine_returns_error_for_missing_file(tmp_path):
     stats = refine_generated_tests(
         test_file_path=missing,
         module_name="json",
-        llm_api_key="test-key",
     )
     assert stats["tests_processed"] == 0
     assert "error" in stats

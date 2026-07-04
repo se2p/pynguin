@@ -186,28 +186,22 @@ class TestRefiner:
 
     def __init__(
         self,
-        api_key=None,
         module_under_test=None,
         project_root=None,
-        llm_model=None,
         subject_properties=None,
     ):
         """Initialize the test refinement pipeline.
 
         Args:
-            api_key: OpenAI API key (required; can also use OPENAI_API_KEY)
             module_under_test: Module being tested
             project_root: Project root directory
-            llm_model: Model name (e.g., "gpt-4o-mini", "gpt-4o")
             subject_properties: Pynguin's SubjectProperties for native coverage
                 measurement (optional; enables branch coverage instead of
                 line-coverage fallback).
         """
-        # Initialize LLM client (OpenAI only)
-        self.llm_client = LLMClient(
-            model_name=llm_model or "gpt-4o-mini",
-            api_key=api_key,
-        )
+        # Initialize the LLM client (OpenAI).  The model name and API key come
+        # from the shared large_language_model configuration.
+        self.llm_client = LLMClient()
 
         self.module_under_test = module_under_test
         self.project_root = project_root or str(Path(__file__).resolve().parent.parent)
@@ -215,7 +209,7 @@ class TestRefiner:
         self.subject_properties = subject_properties
 
     def structural_analysis(self, test_code: str):
-        """Stage 1: Structural Analysis.
+        """Structural analysis of a test.
 
         Uses AST-based focal method detection and SUT introspection
         for rich context extraction.
@@ -355,7 +349,7 @@ class TestRefiner:
             raise ValueError(f"AST Parsing failed: {e}") from e
 
     def refine_readability(self, analysis: dict):
-        """Stage 2 & 3: Semantic Naming and Refactoring with SUT Context.
+        """Improve readability via semantic naming and AAA restructuring.
 
         Uses the rich SUT context (docstrings, signatures) to guide the LLM
         in generating meaningful variable names and test structure.
@@ -439,7 +433,7 @@ No explanations, no markdown formatting."""
         focal_method: str,
         sut_context: str,
     ) -> str:
-        """Stage 2C: Generate strong, behavior-based assertions using LLM inference.
+        """Generate strong, behavior-based assertions using LLM inference.
 
         Instead of executing code to capture runtime state (which risks locking in bugs),
         this method uses the LLM to infer expected behavior from the SUT documentation
@@ -630,7 +624,7 @@ No explanations, no markdown code blocks."""
             return test_code
 
     def repair_test_code(self, broken_code: str, error_message: str) -> str:
-        """Stage 3: Repair Loop - Attempts to fix broken test code.
+        """Attempt to fix broken test code.
 
         Uses LLM to analyze the error and generate a corrected version.
         This method handles syntax errors, import errors, and failing assertions.
@@ -679,29 +673,29 @@ Fix the test code to resolve the error. Common fixes include:
             return broken_code  # Return original if repair fails
 
     def _prepare_refined_code(self, original_code: str) -> tuple[str, dict[str, Any], dict | None]:
-        """Run Stages 1-2.6 of the pipeline.
+        """Run structural analysis, readability refinement, and assertion filtering.
 
         Returns ``(current_code, mutation_stats, error_result)``.  When
         ``error_result`` is not ``None`` the caller should return it directly.
         """
-        # Stage 1: Structural Analysis
+        # Structural analysis
         analysis_result = self.structural_analysis(original_code)
 
-        # Stage 2: Readability Refinement
+        # Readability refinement
         readable_code = self.refine_readability(analysis_result)
         if isinstance(readable_code, str) and readable_code.startswith("# LLM error"):
             return "", {}, {"success": False, "error": readable_code, "iterations": 0}
         readable_code = _restore_import_block(readable_code, original_code)
 
-        # Stage 2C: Semantic Assertion Generation
+        # Semantic assertion generation
         focal_method = analysis_result.get("focal_method_name", "unknown")
         sut_context = analysis_result.get("sut_context", "Documentation unavailable.")
         assertion_code = self.generate_semantic_assertions(readable_code, focal_method, sut_context)
         if isinstance(assertion_code, str) and assertion_code.startswith("# LLM error"):
-            assertion_code = readable_code  # fall back to Stage 2 output
+            assertion_code = readable_code  # fall back to readability output
         assertion_code = _restore_import_block(assertion_code, original_code)
 
-        # Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
+        # Mutation-based assertion filtering (before repair)
         current_code = assertion_code
         mutation_stats: dict[str, Any] = {}
         try:
@@ -821,13 +815,13 @@ Fix the test code to resolve the error. Common fixes include:
         """Complete end-to-end test refinement pipeline with iterative repair loop.
 
         This method implements the full pipeline (order matters!):
-        - Stage 1: Structural Analysis (focal method detection + SUT context)
-        - Stage 2: Readability Refinement (semantic naming)
-        - Stage 2C: Semantic Assertion Generation (LLM-inferred assertions)
-        - Stage 2.6: Mutation-Based Assertion Filtering (BEFORE repair)
-        - Stage 3: Iterative Repair Loop (compilation/functional validation)
-        - Level 2: Coverage Preservation Check (inside repair success path)
-        - Post-repair: AAA Marker Insertion + final re-validation
+        - Structural analysis (focal method detection + SUT context)
+        - Readability refinement (semantic naming)
+        - Semantic assertion generation (LLM-inferred assertions)
+        - Mutation-based assertion filtering (before repair)
+        - Iterative repair loop (compilation/functional validation)
+        - Coverage preservation check (inside repair success path)
+        - Post-repair: AAA marker insertion + final re-validation
 
         Args:
             original_code: The raw test code to refine
@@ -840,7 +834,8 @@ Fix the test code to resolve the error. Common fixes include:
                 - iterations (int): Number of repair iterations needed
                 - error (str): Error message (if failed)
         """
-        # Level 1 baseline check (best-effort; refinement proceeds regardless).
+        # Baseline check that the original test passes
+        # (best-effort; refinement proceeds regardless).
         run_test(original_code, self.module_under_test)
 
         try:

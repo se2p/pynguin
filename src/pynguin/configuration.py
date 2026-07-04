@@ -955,22 +955,14 @@ class LLMRefinementConfiguration:
     """Configuration for LLM-based test refinement.
 
     This enables post-processing of generated tests using a large language model
-    to improve readability and fix failing tests.
+    to improve readability and fix failing tests.  The model name and API key
+    are taken from :class:`LLMConfiguration` (``large_language_model.model_name``
+    and ``large_language_model.api_key``) so that all LLM features share a single
+    provider setup.
     """
 
     enabled: bool = False
     """Enable LLM-based test refinement."""
-
-    llm_model: str = "gpt-4o-mini"
-    """Name of the LLM model to use for refinement.
-    Recommended: 'gpt-4o-mini' (cheap, good quality)
-    Alternative: 'gpt-4o' (expensive, best quality)
-    """
-
-    llm_api_key: str | None = None
-    """API key for OpenAI (required).
-    Can also be set via OPENAI_API_KEY environment variable.
-    """
 
     max_repair_iterations: int = 3
     """Maximum number of iterations to attempt test repair."""

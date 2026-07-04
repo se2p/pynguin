@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Coverage Preservation Check (Level 2 Equivalence).
+"""Coverage preservation check.
 
 This module verifies that refactored tests maintain the same code coverage
 as the original tests.  Coverage is measured using Pynguin's own
@@ -17,14 +17,17 @@ When Pynguin's ``SubjectProperties`` are available (i.e. when the
 refinement pipeline is invoked from within Pynguin after test generation),
 we reuse the already-instrumented module and tracer directly.  When
 ``SubjectProperties`` are not available (e.g. standalone invocation), a
-lightweight ``sys.settrace``-based fallback provides line coverage.
+lightweight ``sys.settrace``-based fallback provides line coverage.  The
+fallback exists only for standalone/prototype use; in Pynguin-integrated
+runs ``SubjectProperties`` is always present, so the fallback is never
+exercised.
 
 Key Function:
 - check_coverage_preservation(): Compares coverage between original and
   refined test versions using Pynguin's configured metric.
 
-Integration Point: Called during pipeline validation after Stage 3 (repair
-loop + mutation filtering) succeeds.
+Integration Point: Called during pipeline validation after the repair
+loop and mutation filtering succeed.
 """
 
 from __future__ import annotations
@@ -273,7 +276,6 @@ def check_coverage_preservation(
 ) -> tuple[bool, dict[str, Any]]:
     """Check if the refined test preserves coverage of the original test.
 
-    Level 2 Equivalence Check — Coverage Preservation.
     Requirement: ``refined_coverage >= original_coverage`` (within *tolerance*).
 
     When ``subject_properties`` is provided, Pynguin's own instrumentation
