@@ -180,3 +180,20 @@ def test_generate_code_exhausts_retries_on_api_error(client, monkeypatch):
 
     result = client.generate_code("write something")
     assert result == "# LLM error: request failed"
+
+
+def test_generate_code_exhausts_retries_on_rate_limit(client, monkeypatch):
+    monkeypatch.setattr(llm_client_module.time, "sleep", lambda _seconds: None)
+
+    class _AlwaysRateLimitError(Exception):
+        pass
+
+    monkeypatch.setattr(llm_client_module, "_RATE_LIMIT_ERRORS", (_AlwaysRateLimitError,))
+
+    def fake_create(**_kwargs):
+        raise _AlwaysRateLimitError("slow down")
+
+    _patch_create(monkeypatch, fake_create)
+
+    result = client.generate_code("write something")
+    assert result == "# LLM error: rate limited"
