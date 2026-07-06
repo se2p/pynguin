@@ -97,6 +97,11 @@ class RuntimeVariable(str, enum.Enum):
     # The number of created mutants
     NumberOfCreatedMutants = "NumberOfCreatedMutants"
 
+    # The number of mutants actually checked (executed against the test suite).
+    # May be smaller than NumberOfCreatedMutants when the mutation-analysis phase
+    # is truncated by a time budget or a mutant-count cap.
+    NumberOfCheckedMutants = "NumberOfCheckedMutants"
+
     # The number of killed mutants
     NumberOfKilledMutants = "NumberOfKilledMutants"
 

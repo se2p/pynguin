@@ -84,7 +84,11 @@ class MutationController:
     def mutant_count(self) -> int:
         """Calculates the number of mutants that can be created.
 
+        This is the pre-truncation total: if the mutant generator is configured
+        to sample a subset (e.g. via a mutant-count cap), this still reports the
+        full number of mutations the module yields.
+
         Returns:
             The number of mutants that can be created.
         """
-        return sum(1 for _ in self._mutant_generator.mutate(self._module_ast, self._module))
+        return self._mutant_generator.mutation_count(self._module_ast, self._module)

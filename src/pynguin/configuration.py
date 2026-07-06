@@ -334,6 +334,16 @@ class TestCaseOutputConfiguration:
     """The order of the generated higher order mutants in the mutation analysis
     assertion generation method."""
 
+    maximum_mutation_time: int = -1
+    """Maximum wall-clock time in seconds for executing tests against mutants
+    during assertion generation (-1 = unlimited). When the budget is exceeded the
+    current mutant finishes, then no further mutants are checked."""
+
+    maximum_mutants: int = -1
+    """Maximum number of mutants checked during assertion generation. If the
+    module yields more mutants, a seeded random sample of this size is used
+    (-1 = unlimited)."""
+
     post_process: bool = True
     """Should the results be post processed? For example, truncate test cases after
     statements that raise an exception."""

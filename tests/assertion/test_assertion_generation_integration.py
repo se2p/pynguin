@@ -380,6 +380,116 @@ def test_mutation_analysis_integration_full(  # noqa: PLR0914, PLR0917
         assert len(threading.enumerate()) == 1  # Only main thread should be alive.
 
 
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_truncated_by_mutant_cap(  # noqa: PLR0914
+    subject_properties: SubjectProperties,
+):
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    config.configuration.seeding.seed = 42
+    module_name = config.configuration.module_name
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module_name)
+            importlib.reload(module_type)
+        cluster = generate_test_cluster(module_name)
+        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())  # noqa: FBT003
+        transformer.visit(
+            ast.parse(
+                "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+                "    int_3 = 1\n    float_0 = module_0.foo(int_3)"
+            )
+        )
+        test_case = transformer.testcases[0]
+
+        chromosome = tcc.TestCaseChromosome(test_case)
+        suite = tsc.TestSuiteChromosome()
+        suite.add_test_case_chromosome(chromosome)
+
+        cap = 2
+        mutant_generator = mu.FirstOrderMutator(
+            [*mo.standard_operators, *mo.experimental_operators],
+            maximum_mutants=cap,
+            sampling_seed=config.configuration.seeding.seed,
+            reorder=True,
+        )
+        module_source_code = inspect.getsource(module_type)
+        module_ast = ParentNodeTransformer.create_ast(module_source_code)
+        mutation_controller = MutationController(mutant_generator, module_ast, module_type)
+
+        # The module yields more mutants than the cap.
+        num_created = mutation_controller.mutant_count()
+        assert num_created > cap
+
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), mutation_controller, testing=True
+        )
+        suite.accept(gen)
+
+        summary = gen._testing_mutation_summary
+        num_checked = len(summary.mutant_information)
+
+        # Only the sampled mutants are checked, and they form the score denominator.
+        assert num_checked == cap
+        assert num_checked < num_created
+
+        for thread in threading.enumerate():
+            if "_execute_test_case" in thread.name:
+                thread.join()
+        assert len(threading.enumerate()) == 1
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_mutation_analysis_truncated_by_time_budget(subject_properties: SubjectProperties):
+    module = "tests.fixtures.mutation.mutation"
+    config.configuration.module_name = module
+    config.configuration.seeding.seed = 42
+    # A zero-second budget stops before the first mutant is checked.
+    config.configuration.test_case_output.maximum_mutation_time = 0
+    module_name = config.configuration.module_name
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module_type = importlib.import_module(module_name)
+            importlib.reload(module_type)
+        cluster = generate_test_cluster(module_name)
+        transformer = AstToTestCaseTransformer(cluster, False, EmptyConstantProvider())  # noqa: FBT003
+        transformer.visit(
+            ast.parse(
+                "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+                "    int_3 = 1\n    float_0 = module_0.foo(int_3)"
+            )
+        )
+        test_case = transformer.testcases[0]
+
+        chromosome = tcc.TestCaseChromosome(test_case)
+        suite = tsc.TestSuiteChromosome()
+        suite.add_test_case_chromosome(chromosome)
+
+        mutant_generator = mu.FirstOrderMutator([
+            *mo.standard_operators,
+            *mo.experimental_operators,
+        ])
+        module_source_code = inspect.getsource(module_type)
+        module_ast = ParentNodeTransformer.create_ast(module_source_code)
+        mutation_controller = MutationController(mutant_generator, module_ast, module_type)
+
+        num_created = mutation_controller.mutant_count()
+        assert num_created > 0
+
+        gen = ag.MutationAnalysisAssertionGenerator(
+            TestCaseExecutor(subject_properties), mutation_controller, testing=True
+        )
+        suite.accept(gen)
+
+        # The budget cut every mutant; the run still completes cleanly.
+        assert len(gen._testing_mutation_summary.mutant_information) == 0
+
+        for thread in threading.enumerate():
+            if "_execute_test_case" in thread.name:
+                thread.join()
+        assert len(threading.enumerate()) == 1
+
+
 def _add_assertions(module_name: str, test_case_code: str) -> str:
     """Add assertions to a test case and return the test case with assertions.
 

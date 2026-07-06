@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import time
 from typing import TYPE_CHECKING
 
 import pynguin.assertion.assertion as ass
@@ -264,14 +265,14 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         mutated_module: types.ModuleType | None,
         idx: int,
         mutant_count: int,
-    ) -> Iterable[ex.ExecutionResult | None]:
+    ) -> Iterable[ex.ExecutionResult | None] | None:
         if mutated_module is None:
             self._logger.info(
                 "Skipping mutant %3i/%i because it created an invalid module",
                 idx,
                 mutant_count,
             )
-            return (None for _ in range(len(test_cases)))
+            return None
 
         self._logger.info(
             "Running tests on mutant %3i/%i",
@@ -283,16 +284,66 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             mutated_module=mutated_module,
         )
 
-        return self._mutation_executor.execute_multiple(test_cases)
+        results = self._mutation_executor.execute_multiple(test_cases)
+
+        # The subprocess executor materializes and runs all tests before returning,
+        # so aborting early there saves nothing; only the in-process executor is a
+        # lazy generator we can stop consuming.
+        if isinstance(self._mutation_executor, ex.SubprocessTestCaseExecutor):
+            return results
+        return self._abort_after_first_timeout(results, len(test_cases))
+
+    @staticmethod
+    def _abort_after_first_timeout(
+        results: Iterable[ex.ExecutionResult | None],
+        num_tests: int,
+    ) -> Generator[ex.ExecutionResult | None, None, None]:
+        """Stop executing a mutant once one of its tests times out.
+
+        A mutant that turns a terminating loop into a non-terminating one times
+        out on every remaining test, each costing the full execution timeout.
+        Since a timed-out mutant is discarded from both the score and the
+        assertion filtering, everything after the first timeout is wasted. Pad the
+        remaining test slots with ``None`` so the result shape is preserved.
+
+        Args:
+            results: The lazily produced per-test execution results.
+            num_tests: The total number of tests for this mutant.
+
+        Yields:
+            The execution results, padded with ``None`` after the first timeout.
+        """
+        consumed = 0
+        aborted = False
+        for result in results:
+            consumed += 1
+            yield result
+            if result is not None and result.timeout:
+                aborted = True
+                break
+        if aborted:
+            for _ in range(num_tests - consumed):
+                yield None
 
     def _execute_test_case_on_mutants(
         self,
         test_cases: list[tc.TestCase],
         mutant_count: int,
-    ) -> Generator[Iterable[ex.ExecutionResult | None], None, None]:
+    ) -> Generator[Iterable[ex.ExecutionResult | None] | None, None, None]:
+        maximum_time = config.configuration.test_case_output.maximum_mutation_time
+        start_time = time.monotonic()
+
         for idx, (mutated_module, _) in enumerate(
             self._mutation_controller.create_mutants(), start=1
         ):
+            if maximum_time >= 0 and time.monotonic() - start_time >= maximum_time:
+                self._logger.info(
+                    "Mutation time budget of %ss exceeded; checked %i of %i mutant(s).",
+                    maximum_time,
+                    idx - 1,
+                    mutant_count,
+                )
+                break
             yield self._execute_test_case_on_mutant(
                 test_cases,
                 mutated_module,
@@ -307,14 +358,21 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
     def _handle_add_assertions(self, test_cases: list[tc.TestCase]):
         tests_mutants_results: list[list[ex.ExecutionResult | None]] = [[] for _ in test_cases]
 
-        mutant_count = self._mutation_controller.mutant_count()
+        # Pre-truncation total number of mutants the module yields.
+        num_created = self._mutation_controller.mutant_count()
 
-        for tests_mutant_results in self._execute_test_case_on_mutants(test_cases, mutant_count):
+        # Only fully-checked mutants (valid module, executed within the budget)
+        # get a column; unchecked mutants must not enter the score as survivors.
+        num_checked = 0
+        for tests_mutant_results in self._execute_test_case_on_mutants(test_cases, num_created):
+            if tests_mutant_results is None:
+                continue
+            num_checked += 1
             for i, test_mutant_results in enumerate(tests_mutant_results):
                 tests_mutants_results[i].append(test_mutant_results)
 
-        summary = self.__compute_mutation_summary(mutant_count, tests_mutants_results)
-        self.__report_mutation_summary(summary)
+        summary = self.__compute_mutation_summary(num_checked, tests_mutants_results)
+        self.__report_mutation_summary(summary, num_created)
         self.__remove_non_relevant_assertions(test_cases, tests_mutants_results, summary)
 
     @staticmethod
@@ -358,7 +416,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                     info.killed_by.append(test_num)
         return _MutationSummary(mutation_info)
 
-    def __report_mutation_summary(self, mutation_summary: _MutationSummary):
+    def __report_mutation_summary(self, mutation_summary: _MutationSummary, num_created: int):
         if self._testing:
             self._testing_mutation_summary = mutation_summary
         metrics = mutation_summary.get_metrics()
@@ -368,9 +426,18 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         stat.track_output_variable(
             RuntimeVariable.NumberOfTimedOutMutants, metrics.num_timeout_mutants
         )
+        # NumberOfCreatedMutants stays the pre-truncation total; NumberOfCheckedMutants
+        # is how many were actually executed. The score is computed over the latter.
+        stat.track_output_variable(RuntimeVariable.NumberOfCreatedMutants, num_created)
         stat.track_output_variable(
-            RuntimeVariable.NumberOfCreatedMutants, metrics.num_created_mutants
+            RuntimeVariable.NumberOfCheckedMutants, metrics.num_created_mutants
         )
+        if num_created != metrics.num_created_mutants:
+            _LOGGER.info(
+                "Mutation analysis truncated: created %i mutant(s), checked %i.",
+                num_created,
+                metrics.num_created_mutants,
+            )
         stat.track_output_variable(RuntimeVariable.MutationScore, metrics.get_score())
 
         for info in mutation_summary.mutant_information:

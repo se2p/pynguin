@@ -976,10 +976,19 @@ def _setup_mutant_generator() -> mu.Mutator:
         *mo.experimental_operators,
     ]
 
-    mutation_strategy = config.configuration.test_case_output.mutation_strategy
+    output = config.configuration.test_case_output
+    mutation_strategy = output.mutation_strategy
 
     if mutation_strategy == config.MutationStrategy.FIRST_ORDER_MUTANTS:
-        return mu.FirstOrderMutator(operators)
+        # Reorder (interleave + defer timeout-prone operators) whenever a bound on
+        # the mutation-analysis phase is active, so truncation stays fair.
+        reorder = output.maximum_mutants >= 0 or output.maximum_mutation_time >= 0
+        return mu.FirstOrderMutator(
+            operators,
+            maximum_mutants=output.maximum_mutants,
+            sampling_seed=config.configuration.seeding.seed,
+            reorder=reorder,
+        )
 
     order = config.configuration.test_case_output.mutation_order
 

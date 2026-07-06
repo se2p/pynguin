@@ -45,6 +45,8 @@ assertion_generation = "MUTATION_ANALYSIS"
 allow_stale_assertions = false
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
+maximum_mutation_time = -1
+maximum_mutants = -1
 post_process = true
 float_precision = 0.01
 format_with_black = true
@@ -248,7 +250,8 @@ def expected_txt(tmp_path):
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
- "'FIRST_ORDER_MUTANTS'>, mutation_order=1, post_process=True, "
+ "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_mutation_time=-1, "
+ 'maximum_mutants=-1, post_process=True, '
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
  "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False), "
@@ -579,6 +582,10 @@ PY_TEST
 True
 --test_case_output.max_length_test_case
 2500
+--test_case_output.maximum_mutants
+-1
+--test_case_output.maximum_mutation_time
+-1
 --test_case_output.minimization.test_case_minimization_direction
 BACKWARD
 --test_case_output.minimization.test_case_minimization_strategy
