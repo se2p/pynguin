@@ -367,6 +367,10 @@ class TestCaseOutputConfiguration:
     marking the test with @pytest.mark.xfail(strict=True). Use this for better mutation
     scores."""
 
+    assertion_minimization: bool = True
+    """If enabled, remove redundant assertions after mutation analysis, keeping a
+    minimal subset that preserves the set of killed mutants (greedy set cover)."""
+
 
 @dataclasses.dataclass
 class SeedingConfiguration:

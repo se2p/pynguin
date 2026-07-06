@@ -5,6 +5,8 @@
 #  SPDX-License-Identifier: MIT
 #
 import pytest
+from hypothesis import given
+from hypothesis import strategies as st
 
 import pynguin.assertion.assertiongenerator as ag
 
@@ -77,3 +79,78 @@ def test_score_excludes_unchecked_mutants():
 )
 def test_compute_metrics(inp, result):
     assert ag._MutationSummary(inp).get_metrics() == result
+
+
+def test_select_minimal_assertions_empty():
+    assert ag._select_minimal_assertions({}) == set()
+
+
+def test_select_minimal_assertions_drops_assertion_killing_nothing():
+    kill_map = {(0, 0): {1, 2}, (0, 1): set()}
+    assert ag._select_minimal_assertions(kill_map) == {(0, 0)}
+
+
+def test_select_minimal_assertions_identical_kills_keeps_one():
+    # Two assertions killing exactly the same mutants -> keep exactly one.
+    kill_map = {(0, 0): {1, 2}, (0, 1): {1, 2}}
+    assert ag._select_minimal_assertions(kill_map) == {(0, 0)}
+
+
+def test_select_minimal_assertions_subset_dropped():
+    # (0, 1) kills a subset of what (0, 0) kills -> only the superset is kept.
+    kill_map = {(0, 0): {1, 2, 3}, (0, 1): {2}}
+    assert ag._select_minimal_assertions(kill_map) == {(0, 0)}
+
+
+def test_select_minimal_assertions_disjoint_keeps_both():
+    kill_map = {(0, 0): {1}, (0, 1): {2}}
+    assert ag._select_minimal_assertions(kill_map) == {(0, 0), (0, 1)}
+
+
+def test_select_minimal_assertions_tie_break_lowest_index():
+    # Both cover the whole universe -> the lowest key is chosen deterministically.
+    kill_map = {(1, 0): {1, 2}, (0, 0): {1, 2}}
+    assert ag._select_minimal_assertions(kill_map) == {(0, 0)}
+
+
+def test_select_minimal_assertions_covers_universe():
+    kill_map = {(0, 0): {1, 2}, (0, 1): {2, 3}, (0, 2): {4}}
+    keep = ag._select_minimal_assertions(kill_map)
+    covered: set[int] = set()
+    for key in keep:
+        covered |= kill_map[key]
+    assert covered == {1, 2, 3, 4}
+
+
+@given(
+    st.dictionaries(
+        keys=st.tuples(
+            st.integers(min_value=0, max_value=5), st.integers(min_value=0, max_value=5)
+        ),
+        values=st.sets(st.integers(min_value=0, max_value=20), max_size=8),
+        max_size=12,
+    )
+)
+def test_select_minimal_assertions_invariants(kill_map):
+    keep = ag._select_minimal_assertions(kill_map)
+
+    universe: set[int] = set()
+    for kills in kill_map.values():
+        universe |= kills
+
+    # Mutation score preserved: the kept assertions cover the whole universe.
+    covered: set[int] = set()
+    for key in keep:
+        covered |= kill_map[key]
+    assert covered == universe
+
+    # Only kill-bearing assertions are ever kept.
+    assert all(kill_map[key] for key in keep)
+
+    # Minimality: dropping any kept assertion loses coverage.
+    for key in keep:
+        others: set[int] = set()
+        for other in keep:
+            if other != key:
+                others |= kill_map[other]
+        assert not kill_map[key] <= others

@@ -51,6 +51,7 @@ post_process = true
 float_precision = 0.01
 format_with_black = true
 no_xfail = false
+assertion_minimization = true
 
 [statistics_output]
 report_dir = "{REPORT_DIR}"
@@ -254,8 +255,8 @@ def expected_txt(tmp_path):
  'maximum_mutants=-1, post_process=True, '
  'minimization=Minimization(test_case_minimization_strategy=<MinimizationStrategy.CASE: '
  "'CASE'>, test_case_minimization_direction=<MinimizationDirection.BACKWARD: "
- "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False), "
- "algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
+ "'BACKWARD'>), float_precision=0.01, format_with_black=True, no_xfail=False, "
+ "assertion_minimization=True), algorithm=<Algorithm.RANDOM: 'RANDOM'>, "
  "statistics_output=StatisticsOutputConfiguration(report_dir='{REPORT_DIR}', "
  "statistics_backend=<StatisticsBackend.CSV: 'CSV'>, "
  'timeline_interval=1000000000, timeline_interpolation=True, '
@@ -574,6 +575,8 @@ True
 False
 --test_case_output.assertion_generation
 MUTATION_ANALYSIS
+--test_case_output.assertion_minimization
+True
 --test_case_output.export_strategy
 PY_TEST
 --test_case_output.float_precision

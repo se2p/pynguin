@@ -223,6 +223,59 @@ class _MutationMetrics:
         return self.num_killed_mutants / divisor
 
 
+def _select_minimal_assertions(
+    kill_map: dict[tuple[int, int], set[int]],
+) -> set[tuple[int, int]]:
+    """Greedy set-cover selection of a minimal assertion subset.
+
+    Given a mapping from assertion key ``(stmt_idx, assertion_idx)`` to the set of
+    mutant indices that assertion kills, return the subset of keys that together
+    cover every killed mutant (the union of all kill sets). Assertions with an empty
+    kill set are never selected. Ties are broken by ascending key (insertion order)
+    for deterministic output.
+
+    Args:
+        kill_map: Mapping from assertion key to the set of mutants it kills.
+
+    Returns:
+        The set of assertion keys to keep.
+    """
+    universe: set[int] = set()
+    for kills in kill_map.values():
+        universe |= kills
+
+    # Only assertions that kill at least one mutant can ever be selected.
+    candidates = {key: kills for key, kills in kill_map.items() if kills}
+
+    uncovered = set(universe)
+    keep: set[tuple[int, int]] = set()
+    while uncovered:
+        best_key: tuple[int, int] | None = None
+        best_cover = 0
+        for key in sorted(candidates):
+            cover = len(candidates[key] & uncovered)
+            if cover > best_cover:
+                best_cover = cover
+                best_key = key
+        if best_key is None:
+            break
+        keep.add(best_key)
+        uncovered -= candidates[best_key]
+        del candidates[best_key]
+
+    # Greedy may leave a selection whose kills are fully covered by the others it
+    # later picked. Prune such redundant assertions, dropping higher keys first so
+    # lower (earlier) assertions are preferred, keeping coverage unchanged.
+    for key in sorted(keep, reverse=True):
+        others: set[int] = set()
+        for other in keep:
+            if other != key:
+                others |= kill_map[other]
+        if kill_map[key] <= others:
+            keep.discard(key)
+    return keep
+
+
 class MutationAnalysisAssertionGenerator(AssertionGenerator):
     """Uses mutation analysis to filter out less relevant assertions."""
 
@@ -381,6 +434,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         tests_mutants_results: list[list[ex.ExecutionResult | None]],
         mutation_summary: _MutationSummary,
     ) -> None:
+        if config.configuration.test_case_output.assertion_minimization:
+            MutationAnalysisAssertionGenerator.__minimize_assertions(
+                test_cases, tests_mutants_results, mutation_summary
+            )
+            return
         for test, results in zip(test_cases, tests_mutants_results, strict=True):
             merged = at.AssertionVerificationTrace()
             for result, mut in zip(results, mutation_summary.mutant_information, strict=True):
@@ -391,6 +449,77 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 for assertion_idx, assertion in reversed(list(enumerate(statement.assertions))):
                     if not merged.was_violated(stmt_idx, assertion_idx):
                         statement.assertions.remove(assertion)
+
+    @staticmethod
+    def __minimize_assertions(
+        test_cases: list[tc.TestCase],
+        tests_mutants_results: list[list[ex.ExecutionResult | None]],
+        mutation_summary: _MutationSummary,
+    ) -> None:
+        """Keep a minimal subset of assertions preserving the killed mutants.
+
+        For each test case, a greedy set-cover selection keeps only enough
+        assertions to preserve the full set of assertion-attributable mutant kills.
+        Assertions that kill nothing are dropped (subsuming the plain
+        non-relevant-assertion removal); redundant assertions that only re-kill
+        mutants already covered by kept assertions are removed as well.
+
+        Statements carrying only an exception assertion are left untouched to
+        avoid the fragility of mixing exception and value assertions.
+
+        Args:
+            test_cases: The test cases whose assertions are minimized.
+            tests_mutants_results: Per-test, per-mutant execution results.
+            mutation_summary: Summary with per-mutant timeout information.
+        """
+        for test, results in zip(test_cases, tests_mutants_results, strict=True):
+            kill_map = MutationAnalysisAssertionGenerator.__build_kill_map(
+                test, results, mutation_summary
+            )
+            keep = _select_minimal_assertions(kill_map)
+
+            for stmt_idx, statement in enumerate(test.statements):
+                if statement.has_only_exception_assertion():
+                    continue
+                for assertion_idx, assertion in reversed(list(enumerate(statement.assertions))):
+                    if (stmt_idx, assertion_idx) not in keep:
+                        statement.assertions.remove(assertion)
+
+    @staticmethod
+    def __build_kill_map(
+        test: tc.TestCase,
+        results: list[ex.ExecutionResult | None],
+        mutation_summary: _MutationSummary,
+    ) -> dict[tuple[int, int], set[int]]:
+        """Map each assertion to the set of mutants it kills via violation.
+
+        Statements carrying only an exception assertion are skipped. Only
+        assertion-attributable kills on non-timed-out mutants are counted.
+
+        Args:
+            test: The test case whose assertions are inspected.
+            results: Per-mutant execution results for this test.
+            mutation_summary: Summary with per-mutant timeout information.
+
+        Returns:
+            Mapping from ``(stmt_idx, assertion_idx)`` to the killed mutant indices.
+        """
+        kill_map: dict[tuple[int, int], set[int]] = {}
+        for stmt_idx, statement in enumerate(test.statements):
+            if statement.has_only_exception_assertion():
+                continue
+            for assertion_idx in range(len(statement.assertions)):
+                kills = {
+                    mutant_idx
+                    for mutant_idx, (result, mut) in enumerate(
+                        zip(results, mutation_summary.mutant_information, strict=True)
+                    )
+                    if result is not None
+                    and len(mut.timed_out_by) == 0
+                    and result.assertion_verification_trace.was_violated(stmt_idx, assertion_idx)
+                }
+                kill_map[stmt_idx, assertion_idx] = kills
+        return kill_map
 
     @staticmethod
     def __compute_mutation_summary(

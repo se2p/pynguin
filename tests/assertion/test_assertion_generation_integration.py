@@ -490,6 +490,114 @@ def test_mutation_analysis_truncated_by_time_budget(subject_properties: SubjectP
         assert len(threading.enumerate()) == 1
 
 
+@pytest.mark.parametrize(
+    "module,test_case_str,test_case_str_with_assertions,killed,timeout",
+    [
+        # Value assertion that kills mutants is kept.
+        (
+            "tests.fixtures.mutation.mutation",
+            "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+            "    int_3 = 1\n    float_0 = module_0.foo(int_3)",
+            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 1\nfloat_0 = "
+            "module_0.foo(int_3)\n"
+            "assert float_0 == pytest.approx(2.0, abs=0.01, rel=0.01)",
+            {0, 1, 3, 4},
+            set(),
+        ),
+        # Assertion that kills nothing is dropped (subsumes kills-nothing removal).
+        (
+            "tests.fixtures.mutation.mutation",
+            "def test_case_0():\n    int_0 = 0\n    int_1 = 0\n    int_2 = 0\n"
+            "    int_3 = 0\n    float_0 = module_0.foo(int_3)",
+            "int_0 = 0\nint_1 = 0\nint_2 = 0\nint_3 = 0\nmodule_0.foo(int_3)",
+            set(),
+            set(),
+        ),
+        # Statement with only an exception assertion is left untouched.
+        (
+            "tests.fixtures.mutation.exception",
+            "def test_case_0():\n    float_0 = module_0.foo()",
+            "module_0.foo()",
+            {0, 3, 4},
+            set(),
+        ),
+        # Expected-exception (pytest.raises) case is preserved.
+        (
+            "tests.fixtures.mutation.expected",
+            "def test_case_0():\n    int_0 = 2\n    var_0 = module_0.bar(int_0)",
+            "int_0 = 2\nwith pytest.raises(ValueError):\n    module_0.bar(int_0)",
+            {0, 1, 2},
+            set(),
+        ),
+    ],
+)
+def test_mutation_analysis_minimization_preserves_output(  # noqa: PLR0914, PLR0917
+    module,
+    test_case_str,
+    test_case_str_with_assertions,
+    killed,
+    timeout,
+    subject_properties: SubjectProperties,
+):
+    """With minimization on, already-minimal outputs are reproduced exactly.
+
+    These fixtures produce assertions that are either uniquely required or kill
+    nothing, so greedy set cover must keep exactly the same assertions as the
+    default path while preserving the killed mutants.
+    """
+    original_minimization = config.configuration.test_case_output.assertion_minimization
+    config.configuration.test_case_output.assertion_minimization = True
+    try:
+        config.configuration.module_name = module
+        module_name = config.configuration.module_name
+        with install_import_hook(module_name, subject_properties):
+            with subject_properties.instrumentation_tracer:
+                module_type = importlib.import_module(module_name)
+                importlib.reload(module_type)
+            cluster = generate_test_cluster(module_name)
+            transformer = AstToTestCaseTransformer(
+                cluster,
+                False,  # noqa: FBT003
+                EmptyConstantProvider(),
+            )
+            transformer.visit(ast.parse(test_case_str))
+            test_case = transformer.testcases[0]
+
+            chromosome = tcc.TestCaseChromosome(test_case)
+            suite = tsc.TestSuiteChromosome()
+            suite.add_test_case_chromosome(chromosome)
+
+            mutant_generator = mu.FirstOrderMutator([
+                *test_operators,
+                mo.OneIterationLoop,
+                mo.ReverseIterationLoop,
+                mo.ZeroIterationLoop,
+            ])
+            module_source_code = inspect.getsource(module_type)
+            module_ast = ParentNodeTransformer.create_ast(module_source_code)
+            mutation_controller = MutationController(mutant_generator, module_ast, module_type)
+            gen = ag.MutationAnalysisAssertionGenerator(
+                TestCaseExecutor(subject_properties), mutation_controller, testing=True
+            )
+            suite.accept(gen)
+
+            summary = gen._testing_mutation_summary
+            assert {k.mut_num for k in summary.get_killed()} == killed
+            assert {k.mut_num for k in summary.get_timeout()} == timeout
+
+            visitor = tc_to_ast.TestCaseToAstVisitor(ns.NamingScope(prefix="module"), set())
+            test_case.accept(visitor)
+            source = ast.unparse(
+                ast.fix_missing_locations(ast.Module(body=visitor.test_case_ast, type_ignores=[]))
+            )
+            assert source == test_case_str_with_assertions
+            for thread in threading.enumerate():
+                if "_execute_test_case" in thread.name:
+                    thread.join()
+    finally:
+        config.configuration.test_case_output.assertion_minimization = original_minimization
+
+
 def _add_assertions(module_name: str, test_case_code: str) -> str:
     """Add assertions to a test case and return the test case with assertions.
 
