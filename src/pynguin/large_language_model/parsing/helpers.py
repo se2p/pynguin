@@ -11,7 +11,6 @@ import logging
 import sys
 
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.testcase_to_ast as tta
 import pynguin.utils.namingscope as ns
 
 logger = logging.getLogger(__name__)
@@ -129,6 +128,8 @@ def unparse_test_case(test_case: tc.TestCase) -> str | None:
         str | None: The Python code as a string, or None if an error occurs.
     """
     naming = ns.NamingScope("module")
+
+    import pynguin.testcase.testcase_to_ast as tta  # noqa: PLC0415
 
     visitor = tta.TestCaseToAstVisitor(
         module_aliases=naming, common_modules=set(), store_call_return=True

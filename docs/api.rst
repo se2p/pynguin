@@ -48,11 +48,6 @@ pynguin.testcase.testcase
     :members:
 
 
-pynguin.testcase.defaulttestcase
------------------------------------
-
-.. automodule:: pynguin.testcase.defaulttestcase
-    :members:
 
 
 pynguin.ga.testcasefactory

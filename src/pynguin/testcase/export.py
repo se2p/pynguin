@@ -4,379 +4,251 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides capabilities to export chromosomes."""
+"""Writes generated test suites to pytest files."""
 
-import ast
-import dataclasses
-import importlib.util
+from __future__ import annotations
+
+import importlib
 import logging
-import re
 import sys
+import threading
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
-import pynguin.ga.chromosomevisitor as cv
-import pynguin.testcase.testcase_to_ast as tc_to_ast
-import pynguin.utils.namingscope as ns
+import libcst as cst
+
+from pynguin.assertion.assertion_to_ast import assertion_to_cst
+from pynguin.testcase.execution import OutputSuppressionContext, _suppress_logging
+from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.fs_isolation import FilesystemIsolation
+from pynguin.utils.naming import get_module_alias
+
+if TYPE_CHECKING:
+    from pynguin.ga.testsuitechromosome import TestSuiteChromosome
+    from pynguin.instrumentation.tracer import SubjectProperties
+    from pynguin.testcase.testcase import TestCase
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def _dotted_from_origin(origin: str) -> str | None:
-    """Return the dotted module path derived from ``spec.origin``.
-
-    Check the parent directory for __init__.py until none is found. Then get the path
-    based on the first __init__.py found.
-
-    Args:
-        origin: The origin of the module spec.
-
-    Returns:
-        The dotted module path or None if the origin is not a file.
-    """
-    if not origin or origin in {"built-in", "frozen"}:
-        return None
-
-    module = Path(origin)
-    if not module.is_file():
-        return None
-
-    # Walk upward while parent contains __init__.py
-    module_root = module
-    while (module_root.parent / "__init__.py").exists():
-        module_root = module_root.parent
-
-    if module_root.parent is None:
-        return None
-
-    rel = module.relative_to(module_root.parent)
-
-    # If the resolved origin points to a package's __init__.py, use the directory
-    # name as the canonical module path (e.g., pathlib/__init__.py -> pathlib).
-    if rel.name == "__init__.py":
-        rel = rel.parent
-        return ".".join(rel.parts)
-
-    # For compiled extensions get the clean module name
-    stem = rel.stem
-    if "." in stem and rel.suffix in {".so", ".pyd", ".dll"}:
-        # Take only the first part before any dots in the stem
-        # e.g., "array.cpython-310-darwin" -> "array"
-        stem = stem.split(".")[0]
-        if rel.parent == Path():
-            return stem
-    return ".".join([*rel.parent.parts, stem])
+# Wall-clock limit for re-executing a single statement during export.  Without
+# it a generated statement containing an unbounded loop hangs the whole run.
+_STATEMENT_EXECUTION_TIMEOUT: float = 5.0
 
 
-def _resolves_to_same_origin(dotted: str, origin: str) -> bool:
-    """Check whether importing ``dotted`` resolves to the file at ``origin``.
+def _exec_statement_guarded(
+    code_str: str,
+    namespace: dict,
+    tracer: object | None,
+) -> tuple[bool, type[BaseException] | None]:
+    """Execute one rendered statement in a watchdog thread.
+
+    The statement runs with output suppression and filesystem isolation.  All
+    ``BaseException``s are captured — including ``SystemExit``, which SUTs like
+    setuptools commands raise routinely and which must not escape and abort the
+    export of the entire suite.
 
     Args:
-        dotted: The candidate dotted module name.
-        origin: The origin (file path) the name must resolve to.
+        code_str: The rendered source of the statement.
+        namespace: The namespace shared by the test case's statements.
+        tracer: Optional instrumentation tracer to disable during execution.
 
     Returns:
-        True iff ``dotted`` is importable and points to the same file as ``origin``.
+        A tuple ``(finished, exception_type)``: *finished* is False when the
+        watchdog timeout expired; *exception_type* is the type of the raised
+        exception, or ``None`` if the statement executed without error.
     """
-    try:
-        other = importlib.util.find_spec(dotted)
-    except (ImportError, AttributeError, ValueError):
-        return False
-    other_origin = getattr(other, "origin", None)
-    if not other_origin:
-        return False
-    return Path(other_origin).resolve() == Path(origin).resolve()
+    outcome: list[type[BaseException] | None] = [None]
+    aborted = [False]
+
+    def _target() -> None:
+        try:
+            with (
+                OutputSuppressionContext(),
+                _suppress_logging(),
+                FilesystemIsolation(),
+            ):
+                if tracer is not None:
+                    # This re-execution only exists to discover which statements raise
+                    # a *real* SUT exception (so the exporter can wrap them in
+                    # ``pytest.raises``). The SUT is still instrumented, and the shared
+                    # tracer's thread-identity guard (``ExecutionTracer.check``) is bound
+                    # to a thread from the generation phase. Since this runs in a fresh
+                    # watchdog thread, the first instrumented line would otherwise raise
+                    # ``TracingAbortedException`` and be misrecorded as the statement's
+                    # exception (yielding bogus ``pytest.raises(TracingAbortedException)``
+                    # wrappers). Rebind the guard to this thread (``with tracer``) and
+                    # suppress trace recording for the duration.
+                    with tracer, tracer.temporarily_disable():  # type: ignore[attr-defined]
+                        exec(compile(code_str, "<stmt>", "exec"), namespace)  # noqa: S102
+                else:
+                    exec(compile(code_str, "<stmt>", "exec"), namespace)  # noqa: S102
+        except TracingAbortedException:
+            # Pynguin-internal thread-identity control signal raised by instrumented
+            # SUT code running on this watchdog thread — never a real SUT exception.
+            # Once it fires the namespace is left partially populated, so exception
+            # detection is unreliable from here on; treat the pass as inconclusive
+            # rather than misrecording it as the statement's exception.
+            aborted[0] = True
+        except BaseException as exc:  # noqa: BLE001
+            outcome[0] = type(exc)
+
+    thread = threading.Thread(target=_target, daemon=True)
+    thread.start()
+    thread.join(_STATEMENT_EXECUTION_TIMEOUT)
+    if thread.is_alive() or aborted[0]:
+        # Either the watchdog timeout expired or tracing aborted the re-execution;
+        # in both cases the namespace state is unknown, so detection is inconclusive.
+        return False, None
+    return True, outcome[0]
 
 
-def _canonical_module_name(name: str) -> str:
-    """Return a fully qualified module name for use in import statements.
-
-    Strategy:
-    1) Try ``importlib.util.find_spec(name)`` and derive from ``spec.origin`` -- but
-       only trust that origin-derived name when it actually imports back to the same
-       file. The filesystem derivation climbs while ``__init__.py`` files exist, which
-       drops a leading PEP 420 namespace-package segment (a directory without an
-       ``__init__.py`` that is nonetheless importable, e.g. ``google`` in
-       ``google.auth._helpers``); the resulting ``auth._helpers`` would emit an
-       unimportable ``import auth._helpers``. Stripping a genuinely non-canonical
-       prefix such as ``src`` is kept because the shortened name still resolves.
-    2) Fall back to ``spec.name`` if available.
-    3) Otherwise, return ``name`` unchanged.
-
-    Args:
-        name: The module name.
-
-    Returns:
-        The fully qualified module name.
-    """
-    try:
-        spec = importlib.util.find_spec(name)
-    except Exception:  # noqa: BLE001
-        spec = None
-
-    if spec and getattr(spec, "origin", None):
-        dotted = _dotted_from_origin(spec.origin)  # type: ignore[arg-type]
-        if dotted and _resolves_to_same_origin(dotted, spec.origin):  # type: ignore[arg-type]
-            return dotted
-    if spec and getattr(spec, "name", None):
-        return spec.name
-
-    return name
+_LICENSE_HEADER = """\
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+#  This file was automatically generated using Pynguin.
+"""
 
 
-def _is_shadowed_submodule(dotted: str) -> bool:
-    """Whether ``import <dotted> as x`` would bind something other than the submodule.
+class TestSuiteWriter:
+    """Writes a suite of test cases as a single pytest-compatible Python file."""
 
-    ``import a.b as x`` binds ``x`` to ``getattr(a, "b")``, not to
-    ``sys.modules["a.b"]``. If package ``a``'s ``__init__`` binds the name ``b`` to
-    something else (commonly a function with the same name as the submodule, e.g.
-    tenacity's ``retry`` decorator shadowing the ``tenacity.retry`` submodule), the
-    plain import binds that shadowing object and every ``x.<attr>`` access fails on
-    the unmutated code. Such modules must instead be imported via
-    ``importlib.import_module`` which always returns the real module.
+    def __init__(self, *, filesystem_isolation: bool = True) -> None:
+        """Initializes the test suite writer.
 
-    Args:
-        dotted: The fully qualified module name to be imported.
+        Args:
+            filesystem_isolation: Whether to use filesystem isolation during execution.
+        """
+        self._filesystem_isolation = filesystem_isolation
 
-    Returns:
-        True iff a parent-package attribute shadows the submodule.
-    """
-    if "." not in dotted:
-        return False
-    parent, _, child = dotted.rpartition(".")
-    try:
-        package = importlib.import_module(parent)
-        submodule = importlib.import_module(dotted)
-    except Exception:  # noqa: BLE001
-        return False
-    return getattr(package, child, None) is not submodule
-
-
-@dataclasses.dataclass
-class _AstConversionResult:
-    """Result of converting a test case and its assertions to AST."""
-
-    test_case_ast_stmts: list[ast.stmt]
-    """List of AST statement representing the converted test case"""
-
-    exception_status: bool
-    """Does the test case fail by default, i.e., raises an undeclared exception
-    on execution?"""
-
-
-class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
-    """Visits chromosomes and builds a module AST containing all visited test cases."""
-
-    def __init__(
+    def _per_statement_exceptions(
         self,
-        *,
-        store_call_return: bool = False,
-        no_xfail: bool = False,
-        sut_module_name: str | None = None,
-        pynguin_seed: int | None = None,
-    ) -> None:
-        """The module aliases are shared between test cases.
+        tc: TestCase,
+        module_name: str,
+        project_path: str | None,
+        subject_properties: SubjectProperties | None = None,
+    ) -> list[type[BaseException] | None]:
+        """Execute each statement individually; return per-statement exception types.
 
         Args:
-            store_call_return: Whether to store the return value of function calls
-                when the references are not used by the following statements.
-            no_xfail: If True, unexpected exceptions will be wrapped with pytest.raises()
-                instead of marking the test with @pytest.mark.xfail(strict=True).
-            sut_module_name: The name of the system under test module. If provided and
-                no test cases remain after empty test removal, the module will still be
-                imported to ensure coverage is achieved by import alone.
-            pynguin_seed: The seed used by Pynguin. If provided, an autouse pytest
-                fixture that reseeds Python's module-level random before each test
-                will be emitted into the generated module.
-        """
-        self._module_aliases = ns.NamingScope("module")
-        # Common modules (e.g. math) are not aliased.
-        self._common_modules: set[str] = set()
-        self._conversion_results: list[_AstConversionResult] = []
-        self._store_call_return: bool = store_call_return
-        self._no_xfail: bool = no_xfail
-        self._sut_module_name: str | None = sut_module_name
-        self._pynguin_seed: int | None = pynguin_seed
-
-    @property
-    def module_aliases(self) -> ns.NamingScope:
-        """Provides the module aliases that were used when transforming all test cases.
+            tc: The test case whose statements are executed.
+            module_name: The module under test.
+            project_path: Optional path prepended to ``sys.path``.
+            subject_properties: Optional subject properties used to disable tracing.
 
         Returns:
-            The module aliases
+            A list with one entry per statement: the exception type raised by that
+            statement, or ``None`` if it executed without error.
         """
-        return self._module_aliases
+        effective_path = project_path if project_path is not None else ""
+        if effective_path and effective_path not in sys.path:
+            sys.path.insert(0, effective_path)
 
-    @property
-    def common_modules(self) -> set[str]:
-        """Provides the common modules that were used when transforming all test cases.
+        module_alias = get_module_alias(module_name)
 
-        This is used, because common modules (e.g., math) should not be aliased.
+        try:
+            module = importlib.import_module(module_name)
+        except Exception:  # noqa: BLE001
+            return [None] * tc.size()
+
+        import pytest  # noqa: PLC0415
+
+        namespace: dict = {
+            module_alias: module,
+            "__builtins__": __builtins__,
+            "pytest": pytest,
+        }
+        results: list[type[BaseException] | None] = []
+
+        tracer = subject_properties.instrumentation_tracer if subject_properties else None
+
+        for stmt in tc.statements():
+            body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [stmt.node]
+            code_str = cst.Module(body=body).code
+            finished, exc_type = _exec_statement_guarded(code_str, namespace, tracer)
+            if not finished:
+                # The statement did not terminate within the watchdog timeout, or
+                # tracing aborted the re-execution. Either way the namespace state is
+                # unknown after an abandoned statement, so stop executing and mark the
+                # remaining statements clean (no bogus pytest.raises wrappers).
+                results.extend([None] * (tc.size() - len(results)))
+                break
+            results.append(exc_type)
+
+        return results
+
+    def _build_test_function(
+        self,
+        idx: int,
+        tc: TestCase,
+        exc_types: list[type[BaseException] | None],
+    ) -> cst.FunctionDef:
+        """Build a test function, wrapping failing statements with pytest.raises.
+
+        Args:
+            idx: The index used to name the test function.
+            tc: The test case to render.
+            exc_types: Per-statement exception types (parallel to tc.statements()).
 
         Returns:
-            A set of the modules names
+            The CST function definition for this test case.
         """
-        return self._common_modules
+        body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
 
-    def visit_test_suite_chromosome(self, chromosome) -> None:  # noqa: D102
-        for test_case_chromosome in chromosome.test_case_chromosomes:
-            test_case_chromosome.accept(self)
-
-    def visit_test_case_chromosome(self, chromosome) -> None:  # noqa: D102
-        exec_result = chromosome.get_last_execution_result()
-        if exec_result is not None and exec_result.timeout:
-            # A generation-time execution timeout yields an empty ExecutionResult
-            # with no per-statement exceptions. The assertion/is_failing logic only
-            # guards a statement (with pytest.raises or @xfail) when its exception is
-            # recorded in the execution result, so a deterministically raising
-            # statement whose generating run timed out would be exported unguarded and
-            # then fail on the unmutated SUT under plain pytest. The oracle is
-            # unreliable, so drop the test from the exported suite.
-            return
-        visitor = tc_to_ast.TestCaseToAstVisitor(
-            module_aliases=self._module_aliases,
-            common_modules=self._common_modules,
-            exec_result=exec_result,
-            store_call_return=self._store_call_return,
-            no_xfail=self._no_xfail,
-        )
-        chromosome.test_case.accept(visitor)
-        self._conversion_results.append(
-            _AstConversionResult(visitor.test_case_ast, visitor.is_failing_test)
-        )
-
-    @staticmethod
-    def __create_ast_imports(
-        module_aliases: ns.NamingScope, common_modules: set[str] | None = None
-    ) -> list[ast.stmt]:
-        imports: list[ast.stmt] = []
-        if common_modules is not None:
-            imports.extend(
-                ast.Import(names=[ast.alias(name=module, asname=None)]) for module in common_modules
-            )
-        alias_stmts: list[ast.stmt] = []
-        needs_importlib = False
-        for module_name, alias in module_aliases:
-            canonical = _canonical_module_name(module_name)
-            if _is_shadowed_submodule(canonical):
-                # A same-named parent-package attribute shadows this submodule, so
-                # ``import canonical as alias`` would bind the shadow. Bind the real
-                # module via ``importlib.import_module`` instead.
-                needs_importlib = True
-                alias_stmts.append(
-                    ast.Assign(
-                        targets=[ast.Name(id=alias, ctx=ast.Store())],
-                        value=ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id="importlib", ctx=ast.Load()),
-                                attr="import_module",
-                                ctx=ast.Load(),
-                            ),
-                            args=[ast.Constant(value=canonical)],
-                            keywords=[],
-                        ),
-                    )
-                )
+        for stmt, exc_type in zip(tc.statements(), exc_types, strict=False):
+            if exc_type is None:
+                body.append(stmt.node)
             else:
-                alias_stmts.append(ast.Import(names=[ast.alias(name=canonical, asname=alias)]))
-        if needs_importlib:
-            imports.append(ast.Import(names=[ast.alias(name="importlib", asname=None)]))
-        imports.extend(alias_stmts)
-        return imports
-
-    @staticmethod
-    def __create_functions(
-        results: list[_AstConversionResult], *, with_self_arg: bool
-    ) -> list[ast.stmt]:
-        functions: list[ast.stmt] = []
-        for i, result in enumerate(results):
-            nodes = result.test_case_ast_stmts
-            function_name = f"case_{i}"
-            if len(nodes) == 0:
-                nodes = [ast.Pass()]
-            function_node = PyTestChromosomeToAstVisitor.__create_function_node(
-                function_name,
-                nodes,
-                with_self_arg=with_self_arg,
-                is_failing=result.exception_status,
-            )
-            functions.append(function_node)
-        return functions
-
-    @staticmethod
-    def __create_function_node(
-        function_name: str,
-        nodes: list[ast.stmt],
-        *,
-        with_self_arg: bool,
-        is_failing: bool,
-    ) -> ast.FunctionDef:
-        name = f"test_{function_name}"
-        args = ast.arguments(
-            args=[ast.Name(id="self", ctx="Param")] if with_self_arg else [],  # type: ignore[arg-type, list-item]
-            defaults=[],
-            vararg=None,
-            kwarg=None,
-            posonlyargs=[],
-            kwonlyargs=[],
-            kw_defaults=[],
-        )
-        decorator_list = PyTestChromosomeToAstVisitor.__create_decorator_list(is_failing)
-        returns = None
-        type_comment = None
-
-        if sys.version_info >= (3, 12):
-            return ast.FunctionDef(
-                name=name,
-                args=args,
-                body=nodes,
-                decorator_list=decorator_list,
-                returns=returns,
-                type_comment=type_comment,
-                type_params=[],
-            )
-
-        return ast.FunctionDef(
-            name=name,
-            args=args,
-            body=nodes,
-            decorator_list=decorator_list,
-            returns=returns,
-            type_comment=type_comment,
-        )
-
-    @staticmethod
-    def __create_decorator_list(is_failing: bool) -> list[ast.expr]:  # noqa: FBT001
-        if is_failing:
-            return [
-                ast.Call(
-                    func=ast.Attribute(
-                        value=ast.Attribute(
-                            value=ast.Name(id="pytest", ctx=ast.Load()),
-                            attr="mark",
-                            ctx=ast.Load(),
-                        ),
-                        attr="xfail",
-                        ctx=ast.Load(),
-                    ),
-                    args=[],
-                    keywords=[ast.keyword(arg="strict", value=ast.Constant(value=True))],
+                wrapped = cst.With(
+                    items=[
+                        cst.WithItem(
+                            item=cst.Call(
+                                func=cst.Attribute(
+                                    value=cst.Name("pytest"),
+                                    attr=cst.Name("raises"),
+                                ),
+                                args=[cst.Arg(value=cst.Name(exc_type.__name__))],
+                            )
+                        )
+                    ],
+                    body=cst.IndentedBlock(body=[stmt.node]),
                 )
-            ]
-        return []
+                body.append(wrapped)
+            # Append assertion nodes for this statement
+            for assertion in stmt.assertions:
+                cst_node = assertion_to_cst(assertion)
+                if cst_node is not None:
+                    body.append(cst_node)
+
+        if not body:
+            # No Statement objects — check if this is a seed with raw code.
+            raw_code = tc.to_code().strip()
+            if raw_code and raw_code != "pass":
+                import contextlib  # noqa: PLC0415
+
+                with contextlib.suppress(Exception):
+                    body = list(cst.parse_module(raw_code).body)
+        if not body:
+            body = [cst.SimpleStatementLine(body=[cst.Pass()])]
+
+        return cst.FunctionDef(
+            name=cst.Name(f"test_{idx}"),
+            params=cst.Parameters(),
+            body=cst.IndentedBlock(body=body),
+        )
 
     @staticmethod
-    def __create_patch_nodes(seed: int) -> list[ast.stmt]:
-        """Build AST nodes for the deterministic random-seed patch.
-
-        The patch is emitted at module level *before* any SUT imports so that
-        Random instances created during import are already tracked.
+    def _create_patch_nodes(seed: int) -> list[cst.SimpleStatementLine | cst.BaseCompoundStatement]:
+        """Return module-level CST statements that patch random.Random.seed.
 
         Args:
-            seed: The Pynguin seed used to replace calls with a default argument of
-                ``None``.
+            seed: The seed value to embed in the generated patch.
 
         Returns:
-            A list of AST statements implementing the patch.
+            The CST statements that install the deterministic seed patch.
         """
         patch_source = (
             "import weakref as _pynguin_weakref\n"
@@ -394,166 +266,153 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             "    _pynguin_deterministic_seed.__pynguin_instances__ = _pynguin_tracked\n"
             "    random.Random.seed = _pynguin_deterministic_seed\n"
         )
-        return ast.parse(patch_source).body
+        return list(cst.parse_module(patch_source).body)
 
     @staticmethod
-    def __create_seed_fixture(seed: int) -> ast.FunctionDef:
-        """Build the autouse pytest fixture that reseeds random before each test.
+    def _create_seed_fixture(seed: int) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
+        """Return the autouse pytest fixture that reseeds before each test.
 
         Args:
-            seed: The Pynguin seed to use for reseeding.
+            seed: The seed value to embed in the generated fixture.
 
         Returns:
-            An AST FunctionDef for the ``_pynguin_seed_random`` fixture.
+            The CST statement defining the autouse reseed fixture.
         """
-        fixture_decorator = ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="pytest", ctx=ast.Load()),
-                attr="fixture",
-                ctx=ast.Load(),
-            ),
-            args=[],
-            keywords=[ast.keyword(arg="autouse", value=ast.Constant(value=True))],
-        )
         fixture_source = (
-            f"random.seed({seed})\n"
-            "_pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
-            "if _pynguin_instances is not None:\n"
-            "    for _inst in list(_pynguin_instances):\n"
-            f"        _inst.seed({seed})\n"
+            "@pytest.fixture(autouse=True)\n"
+            "def _pynguin_seed_random():\n"
+            f"    random.seed({seed})\n"
+            "    _pynguin_instances = getattr(random.Random.seed, '__pynguin_instances__', None)\n"
+            "    if _pynguin_instances is not None:\n"
+            "        for _inst in list(_pynguin_instances):\n"
+            f"            _inst.seed({seed})\n"
+            "    yield\n"
         )
-        fixture_body: list[ast.stmt] = [
-            *ast.parse(fixture_source).body,
-            ast.Expr(value=ast.Yield(value=None)),
-        ]
-        return ast.FunctionDef(
-            name="_pynguin_seed_random",
-            args=ast.arguments(
-                posonlyargs=[],
-                args=[],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[],
-            ),
-            body=fixture_body,
-            decorator_list=[fixture_decorator],
-            returns=None,
-        )
+        return cst.parse_statement(fixture_source)
 
-    @staticmethod
-    def __maybe_add_sut_import_for_coverage(
-        import_nodes: list[ast.stmt],
-        functions: list[ast.stmt],
-        sut_module_name: str | None,
-    ) -> bool:
-        """Add a bare SUT import when no test functions exist.
-
-        When Pynguin cannot generate any test functions, importing the SUT still
-        provides coverage via side-effects at import time.  This helper mutates
-        *import_nodes* and *functions* in place and returns whether the
-        coverage-by-import path was taken.
+    def write(  # noqa: C901, PLR0915, PLR0914
+        self,
+        suite: TestSuiteChromosome,
+        module_name: str,
+        output_path: Path,
+        project_path: str | None = None,
+        *,
+        format_with_black: bool = True,
+        seed: int | None = None,
+        subject_properties: SubjectProperties | None = None,
+    ) -> Path:
+        """Write all TestCase objects as a single pytest file.
 
         Args:
-            import_nodes: The list of import statements to extend.
-            functions: The list of test functions to extend.
-            sut_module_name: The SUT module name, or ``None`` if not set.
+            suite: The test suite chromosome whose test cases are written.
+            module_name: The module under test (used for the import statement).
+            output_path: Directory in which to write the file.
+            project_path: Optional path to prepend to ``sys.path`` so the
+                generated file is importable when run from any working directory.
+            format_with_black: Whether to format the generated tests with black.
+            seed: Optional seed value for deterministic test execution.
+            subject_properties: Optional subject properties used to disable
+                instrumentation tracing during statement exception detection.
 
         Returns:
-            ``True`` if coverage-by-import was applied, ``False`` otherwise.
+            The path of the written file.
         """
-        if functions or sut_module_name is None:
-            return False
-        import_nodes.append(
-            ast.Import(names=[ast.alias(name=_canonical_module_name(sut_module_name), asname=None)])
-        )
-        functions.append(
-            PyTestChromosomeToAstVisitor.__create_function_node(
-                "empty", [ast.Pass()], with_self_arg=False, is_failing=False
+        output_path = Path(output_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        module_alias = get_module_alias(module_name)
+        module_name_part = module_name.rsplit(".", 1)[-1]
+        out_file = output_path / f"test_{module_name_part}.py"
+
+        functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        needs_pytest = False
+        all_exc_types: set[type] = set()
+
+        # Build one test function per test case chromosome in the suite
+        for idx, individual in enumerate(suite.test_case_chromosomes):
+            tc = individual.test_case
+            tc.remove_unused_variables()
+            exc_types = self._per_statement_exceptions(
+                tc, module_name, project_path, subject_properties
             )
-        )
-        return True
+            all_exc_types.update(e for e in exc_types if e is not None)
+            if any(e is not None for e in exc_types):
+                needs_pytest = True
+            functions.append(self._build_test_function(idx, tc, exc_types))
 
-    def to_module(self) -> tuple[ast.Module, bool]:
-        """Provides a module in PyTest style that contains all visited test cases.
+        if not functions:
+            # Empty suite: write a placeholder
+            functions = [cst.parse_statement("def test_placeholder():\n    pass\n")]
 
-        Returns:
-            A tuple of (ast module containing all visited test cases, bool indicating
-            whether coverage is achieved by import alone - i.e., no test cases remain).
-        """
-        if any(result.exception_status for result in self._conversion_results):
-            self._common_modules.add("pytest")
-        functions = self.__create_functions(self._conversion_results, with_self_arg=False)
+        preamble: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
 
-        coverage_by_import_only = False
+        # Build exception imports for non-builtin exception types
+        exc_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        by_module: dict[str, list[str]] = {}
+        for exc_type in all_exc_types:
+            if exc_type.__module__ != "builtins":
+                by_module.setdefault(exc_type.__module__, []).append(exc_type.__name__)
+        for mod in sorted(by_module):
+            names = ", ".join(sorted(set(by_module[mod])))
+            exc_import_stmts.append(cst.parse_statement(f"from {mod} import {names}\n"))
 
-        if self._pynguin_seed is not None:
-            # The patch must be applied before any SUT imports, because importing
-            # the SUT may create random.Random instances at module level.
-            preamble_imports: list[ast.stmt] = [
-                ast.Import(names=[ast.alias(name="random", asname=None)]),
-                ast.Import(names=[ast.alias(name="pytest", asname=None)]),
-            ]
-            patch_nodes = self.__create_patch_nodes(self._pynguin_seed)
-
-            # All remaining imports (SUT aliases + other common modules)
-            remaining_common = self._common_modules - {"random", "pytest"}
-            sut_import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
-                self._module_aliases, remaining_common or None
+        # Build the full module: [sys.path preamble +] import(s) + test functions
+        # Use explicit import of all public names instead of `import *` so that
+        # names excluded from __all__ (e.g. AbstractConstraint, error submodule)
+        # are still available in the generated test namespace.
+        try:
+            sut_mod = importlib.import_module(module_name)
+            # Exclude any name that equals module_alias to avoid shadowing
+            # e.g. `from first import first` would overwrite `import first as first`
+            public_names = sorted(
+                n for n in dir(sut_mod) if not n.startswith("_") and n != module_alias
             )
-
-            coverage_by_import_only = self.__maybe_add_sut_import_for_coverage(
-                sut_import_nodes, functions, self._sut_module_name
-            )
-
-            fixture_func = self.__create_seed_fixture(self._pynguin_seed)
-            body = preamble_imports + patch_nodes + sut_import_nodes + [fixture_func] + functions
-
+        except Exception:  # noqa: BLE001
+            public_names = []
+        if public_names:
+            names_str = ", ".join(public_names)
+            star_stmt = cst.parse_statement(f"from {module_name} import {names_str}\n")
         else:
-            import_nodes = PyTestChromosomeToAstVisitor.__create_ast_imports(
-                self._module_aliases, self._common_modules
+            star_stmt = None
+        sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
+            cst.parse_statement("import sys\n"),
+        ]
+        module_alias = get_module_alias(module_name)
+        sut_import_stmts.extend([
+            cst.parse_statement(f"import {module_name}\n"),
+            cst.parse_statement(f"{module_alias} = sys.modules['{module_name}']\n"),
+        ])
+        if star_stmt is not None:
+            sut_import_stmts.append(star_stmt)
+        if seed is not None:
+            needs_pytest = True
+            seed_preamble: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
+                cast("cst.SimpleStatementLine", cst.parse_statement("import random\n")),
+                cast("cst.SimpleStatementLine", cst.parse_statement("import pytest\n")),
+            ]
+            patch_nodes = TestSuiteWriter._create_patch_nodes(seed)
+            fixture = TestSuiteWriter._create_seed_fixture(seed)
+            module = cst.Module(
+                body=[
+                    *preamble,
+                    *seed_preamble,
+                    *patch_nodes,
+                    *exc_import_stmts,
+                    *sut_import_stmts,
+                    fixture,
+                    *functions,
+                ]
             )
+        else:
+            import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+            if needs_pytest:
+                import_stmts.append(
+                    cast("cst.SimpleStatementLine", cst.parse_statement("import pytest\n"))
+                )
+            import_stmts.extend(sut_import_stmts)
+            module = cst.Module(body=[*preamble, *import_stmts, *exc_import_stmts, *functions])
 
-            coverage_by_import_only = self.__maybe_add_sut_import_for_coverage(
-                import_nodes, functions, self._sut_module_name
-            )
-
-            body = import_nodes + functions
-
-        return ast.Module(body=body, type_ignores=[]), coverage_by_import_only
-
-
-_PYNGUIN_FILE_HEADER = (
-    "# Test cases automatically generated by Pynguin (https://www.pynguin.eu).\n"
-    "# Please check them before you use them.\n"
-)
-
-_COVERAGE_BY_IMPORT_COMMENT = "# Importing this module achieves coverage.\n"
-
-
-def save_module_to_file(
-    module: ast.Module,
-    target: Path,
-    *,
-    format_with_black: bool = True,
-    module_name_with_coverage: str | None = None,
-) -> None:
-    """Saves an AST module to a file.
-
-    Args:
-        target: Destination file
-        module: The AST module
-        format_with_black: ast.unparse is not PEP-8 compliant, so we apply black
-            on the result.
-        module_name_with_coverage: If provided, adds a comment explaining that importing
-            the module achieves coverage, and appends '# noqa: F401' to the import
-            statement to prevent it from being removed by linters.
-    """
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with target.open(mode="w", encoding="UTF-8") as file:
-        file.write(_PYNGUIN_FILE_HEADER)
-        output = ast.unparse(ast.fix_missing_locations(module))
+        output = module.code
         if format_with_black:
             # Import of black might cause problems if it is a SUT dependency, so we
             # only import it if we need it. Importing black must never discard the
@@ -564,24 +423,16 @@ def save_module_to_file(
                 import black  # noqa: PLC0415
                 import black.parsing  # noqa: PLC0415
             except Exception as e:  # noqa: BLE001
-                _LOGGER.warning("Could not import black to format the module '%s': %s", target, e)
+                _LOGGER.warning(
+                    "Could not import black to format the module '%s': %s", module_name, e
+                )
             else:
                 try:
                     output = black.format_str(output, mode=black.FileMode())
                 except black.parsing.InvalidInput as e:
-                    _LOGGER.warning("Could not format the module '%s' with black: %s", target, e)
+                    _LOGGER.warning(
+                        "Could not format the module '%s' with black: %s", module_name, e
+                    )
 
-        # Add a newline after the seed patch
-        output = output.replace(
-            "random.Random.seed = _pynguin_deterministic_seed",
-            "random.Random.seed = _pynguin_deterministic_seed\n",
-            1,
-        )
-
-        if module_name_with_coverage:
-            file.write(_COVERAGE_BY_IMPORT_COMMENT)
-            # Add
-            pattern = re.compile(rf"^import {re.escape(module_name_with_coverage)}\b", re.MULTILINE)
-            output = pattern.sub(rf"import {module_name_with_coverage}  # noqa: F401", output)
-
-        file.write(output)
+        out_file.write_text(_LICENSE_HEADER + "\n" + output)
+        return out_file

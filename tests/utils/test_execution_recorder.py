@@ -17,6 +17,7 @@ def test_file_created_and_deleted(tmp_path):
     config.configuration.test_case_output.output_path = str(tmp_path)
 
     test_case = MagicMock(tc.TestCase)
+    test_case.to_code.return_value = "var_0 = 1\n"
     target_file = Path(tmp_path) / "last_executed_test.py"
 
     # Ensure file does not exist before
@@ -35,6 +36,7 @@ def test_file_persists_on_crash(tmp_path):
     config.configuration.test_case_output.output_path = str(tmp_path)
 
     test_case = MagicMock(tc.TestCase)
+    test_case.to_code.return_value = "var_0 = 1\n"
     target_file = Path(tmp_path) / "last_executed_test.py"
 
     class CrashExecutionRecorder(ExecutionRecorder):

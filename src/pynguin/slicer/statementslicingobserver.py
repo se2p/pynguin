@@ -6,21 +6,29 @@
 #
 """Provides an observer that can be used to calculate the checked lines of a test."""
 
-import ast
+from __future__ import annotations
+
 import threading
+from typing import TYPE_CHECKING
 
 import pynguin.testcase.execution as ex
-import pynguin.testcase.statement as st
 import pynguin.testcase.testcase as tc
-from pynguin.ga.computations import compute_statement_checked_lines
-from pynguin.slicer.dynamicslicer import SlicingCriterion
+
+if TYPE_CHECKING:
+    from pynguin.slicer.dynamicslicer import SlicingCriterion
+
+# Note: checked-coverage / slicing per-statement instrumentation was not yet ported
+# to the per-statement libcst execution model (see Stage 3 of the per-statement
+# execution refactor). The statement hooks below are therefore inert no-ops; only
+# the (already empty) checked-lines trace is populated so downstream consumers keep
+# working.
 
 
 class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
     """Remote observer that updates the checked lines of a testcase.
 
-    Observes the execution of a test case and calculates the
-    slices of its statements.
+    Currently inert: real per-statement slicing has not been restored yet
+    under the libcst-based per-statement execution model.
     """
 
     _STORE_INSTRUCTION_OFFSET = 2
@@ -44,35 +52,16 @@ class RemoteStatementSlicingObserver(ex.RemoteExecutionObserver):
             test_case: Not used
         """
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
-    ) -> ast.stmt:
-        return node
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: st.Statement,
-        executor: ex.TestCaseExecutor,
-        exec_ctx: ex.ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        if exception is None:
-            assert isinstance(statement, st.VariableCreatingStatement)
-            trace = executor.subject_properties.instrumentation_tracer.get_trace()
-            self._slicing_local_state.slicing_criteria[statement.get_position()] = SlicingCriterion(
-                len(trace.executed_instructions) - self._STORE_INSTRUCTION_OFFSET
-            )
-
-    def after_test_case_execution(  # noqa: D102
+    def after_test_case_execution(
         self,
         executor: ex.TestCaseExecutor,
         test_case: tc.TestCase,
         result: ex.ExecutionResult,
     ) -> None:
-        checked_lines = compute_statement_checked_lines(
-            test_case.statements,
-            result.execution_trace,
-            executor.subject_properties,
-            self._slicing_local_state.slicing_criteria,
-        )
-        result.execution_trace.checked_lines.update(checked_lines)
+        """Not used.
+
+        Args:
+            executor: Not used
+            test_case: Not used
+            result: Not used
+        """

@@ -23,19 +23,15 @@ import psutil
 
 import pynguin.ga.searchobserver as so
 from pynguin.testcase.execution import (
-    ExecutionContext,
     ExecutionObserver,
     ExecutionResult,
     RemoteExecutionObserver,
 )
 
 if TYPE_CHECKING:
-    import ast
-
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
-    from pynguin.testcase.execution import ExecutionContext, ExecutionResult, TestCaseExecutor
-    from pynguin.testcase.statement import Statement
+    from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
     from pynguin.testcase.testcase import TestCase
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,27 +59,6 @@ class RemoteStoppingConditionObserver(RemoteExecutionObserver):
             executor: Not used
             test_case: Not used
             result: Not used
-        """
-
-    def before_statement_execution(  # noqa: D102
-        self, statement: Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        return node
-
-    def after_statement_execution(
-        self,
-        statement: Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        """Not used.
-
-        Args:
-            statement: Not used
-            executor: Not used
-            exec_ctx: Not used
-            exception: Not used
         """
 
 
@@ -452,13 +427,9 @@ class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
         ]
 
     def before_statement_execution(  # noqa: D102
-        self,
-        statement: Statement,
-        node: ast.stmt,
-        exec_ctx: ExecutionContext,
-    ) -> ast.stmt:
+        self, statement: tc.Statement, namespace: dict[str, Any]
+    ) -> None:
         self._state._num_executed_statements += 1  # noqa: SLF001
-        return node
 
     def after_test_case_execution(  # noqa: D102
         self,

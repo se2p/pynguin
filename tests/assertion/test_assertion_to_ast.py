@@ -4,117 +4,203 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import ast
-import enum
-from unittest.mock import MagicMock
+"""Tests for the libcst-based assertion renderer ``assertion_to_cst``.
 
+The old AST-visitor representation (``PyTestAssertionToAstVisitor``) was removed
+with the libcst test-case rewrite.  Assertions now carry plain variable-name
+strings as their ``source`` and are rendered by :func:`assertion_to_cst`, which
+returns a ``libcst.SimpleStatementLine`` (or ``None`` for exception assertions,
+which the writer handles structurally via ``pytest.raises``).
+"""
+
+from __future__ import annotations
+
+import enum
+import math
+
+import libcst as cst
 import pytest
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_to_ast as ata
-import pynguin.testcase.variablereference as vr
-import pynguin.utils.ast_util as au
-from pynguin.utils.namingscope import NamingScope
 
 
-@pytest.fixture
-def assertion_to_ast_ref() -> tuple[ata.PyTestAssertionToAstVisitor, vr.VariableReference]:
-    scope = NamingScope()
-    module_aliases = NamingScope(prefix="module")
-    var = vr.VariableReference(MagicMock(), None)
-    return (
-        ata.PyTestAssertionToAstVisitor(
-            scope,
-            module_aliases,
-            set(),
-            statement_node=au.create_ast_assign(
-                au.create_ast_name(scope.get_name(var)), au.create_ast_constant(5)
-            ),
-        ),
-        var,
-    )
+def render(assertion: ass.Assertion, **kwargs) -> str | None:
+    """Render an assertion to its source string, or ``None`` if not rendered."""
+    node = ata.assertion_to_cst(assertion, **kwargs)
+    if node is None:
+        return None
+    return cst.Module(body=[node]).code.rstrip("\n")
 
 
-def __create_source_from_ast(module_body: list[ast.stmt]) -> str:
-    return ast.unparse(ast.fix_missing_locations(ast.Module(body=module_body, type_ignores=[])))
-
-
-def test_type_name(assertion_to_ast_ref):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.TypeNameAssertion(source=ref, module="foo", qualname="bar")
-    assertion.accept(assertion_to_ast)
-    assert (
-        __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert f'{type(var_0).__module__}.{type(var_0).__qualname__}' "
-        "== 'foo.bar'"
-    )
+# --- FloatAssertion -----------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    "obj,output",
+    "value, precision, expected",
     [
-        (True, "assert var_0 is True"),
-        (False, "assert var_0 is False"),
-        ((True, False), "assert var_0 == (True, False)"),
-        ([3, 8], "assert var_0 == [3, 8]"),
-        ([[3, 8], {"foo"}], "assert var_0 == [[3, 8], {'foo'}]"),
+        (1.5, 0.01, "assert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"),
+        (-2.0, 0.01, "assert var_0 == pytest.approx(-2.0, abs=0.01, rel=0.01)"),
+        (0.0, 0.01, "assert var_0 == pytest.approx(0.0, abs=0.01, rel=0.01)"),
+        (1.5, 0.001, "assert var_0 == pytest.approx(1.5, abs=0.001, rel=0.001)"),
         (
-            {"foo": ["nope", 1, False, None]},
-            "assert var_0 == {'foo': ['nope', 1, False, None]}",
+            float("nan"),
+            0.01,
+            "assert var_0 == pytest.approx(float('nan'), abs=0.01, rel=0.01)",
         ),
         (
-            {"foo": "bar", "baz": "argh"},
-            "assert var_0 == {'foo': 'bar', 'baz': 'argh'}",
+            float("inf"),
+            0.01,
+            "assert var_0 == pytest.approx(float('inf'), abs=0.01, rel=0.01)",
         ),
         (
-            {enum.Enum("Dummy", "a").a: False},
-            "assert var_0 == {module_0.Dummy.a: False}",
+            float("-inf"),
+            0.01,
+            "assert var_0 == pytest.approx(float('-inf'), abs=0.01, rel=0.01)",
         ),
     ],
 )
-def test_object_assertion(assertion_to_ast_ref, obj, output):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.ObjectAssertion(source=ref, value=obj)
-    assertion.accept(assertion_to_ast)
-    assert __create_source_from_ast(assertion_to_ast.nodes) == "var_0 = 5\n" + output
+def test_float_assertion(value, precision, expected):
+    assertion = ass.FloatAssertion("var_0", value)
+    assert render(assertion, float_precision=precision) == expected
 
 
-def test_float_assertion(assertion_to_ast_ref):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.FloatAssertion(source=ref, value=1.5)
-    assertion.accept(assertion_to_ast)
-    assert (
-        __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert var_0 == pytest.approx(1.5, abs=0.01, rel=0.01)"
-    )
+def test_float_assertion_default_precision():
+    assertion = ass.FloatAssertion("var_0", 3.25)
+    assert render(assertion) == "assert var_0 == pytest.approx(3.25, abs=0.01, rel=0.01)"
+
+
+# --- ObjectAssertion ----------------------------------------------------------
+
+Dummy = enum.Enum("Dummy", "a")
 
 
 @pytest.mark.parametrize(
-    "length, output",
-    [(0, "assert len(var_0) == 0"), (42, "assert len(var_0) == 42")],
+    "value, expected",
+    [
+        # `is` comparison for bool / None
+        (True, "assert var_0 is True"),
+        (False, "assert var_0 is False"),
+        (None, "assert var_0 is None"),
+        # `==` comparison for everything else
+        (46, "assert var_0 == 46"),
+        (-5, "assert var_0 == -5"),
+        ("hi", "assert var_0 == 'hi'"),
+        (b"by", "assert var_0 == b'by'"),
+        ([3, 8], "assert var_0 == [3, 8]"),
+        ([1.5], "assert var_0 == [1.5]"),  # nested float goes through _make_float_literal
+        ([[3, 8], {"foo"}], "assert var_0 == [[3, 8], {'foo'}]"),
+        ((1,), "assert var_0 == (1, )"),
+        ((1, 2), "assert var_0 == (1, 2)"),
+        (set(), "assert var_0 == set()"),
+        ({1}, "assert var_0 == {1}"),
+        ({"foo": ["nope", 1, False, None]}, "assert var_0 == {'foo': ['nope', 1, False, None]}"),
+        ({"a": 1}, "assert var_0 == {'a': 1}"),
+        (Dummy.a, "assert var_0 == Dummy.a"),
+        ({Dummy.a: False}, "assert var_0 == {Dummy.a: False}"),
+    ],
 )
-def test_collection_length(assertion_to_ast_ref, length, output):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.CollectionLengthAssertion(source=ref, length=length)
-    assertion.accept(assertion_to_ast)
-    assert __create_source_from_ast(assertion_to_ast.nodes) == "var_0 = 5\n" + output
+def test_object_assertion(value, expected):
+    assertion = ass.ObjectAssertion("var_0", value)
+    assert render(assertion) == expected
 
 
-def test_raises_exception(assertion_to_ast_ref):
-    assertion_to_ast, _ref = assertion_to_ast_ref
-    assertion = ass.ExceptionAssertion(module="builtins", exception_type_name="AssertionError")
-    assertion.accept(assertion_to_ast)
-    assert (
-        __create_source_from_ast(assertion_to_ast.nodes)
-        == "with pytest.raises(AssertionError):\n    var_0 = 5"
-    )
+# --- TypeNameAssertion --------------------------------------------------------
 
 
-def test_isinstance_assertion(assertion_to_ast_ref):
-    assertion_to_ast, ref = assertion_to_ast_ref
-    assertion = ass.IsInstanceAssertion(source=ref, module="builtins", qualname="int")
-    assertion.accept(assertion_to_ast)
-    assert (
-        __create_source_from_ast(assertion_to_ast.nodes)
-        == "var_0 = 5\nassert isinstance(var_0, int)"
-    )
+@pytest.mark.parametrize(
+    "module, qualname, expected",
+    [
+        (
+            "foo",
+            "bar",
+            "assert f\"{type(var_0).__module__}.{type(var_0).__qualname__}\" == 'foo.bar'",
+        ),
+        (
+            "builtins",
+            "int",
+            "assert f\"{type(var_0).__module__}.{type(var_0).__qualname__}\" == 'builtins.int'",
+        ),
+    ],
+)
+def test_type_name_assertion(module, qualname, expected):
+    assertion = ass.TypeNameAssertion("var_0", module, qualname)
+    assert render(assertion) == expected
+
+
+# --- IsInstanceAssertion ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "module, qualname, expected",
+    [
+        ("builtins", "int", "assert isinstance(var_0, int)"),
+        ("builtins", "str", "assert isinstance(var_0, str)"),
+        ("foo.bar", "Baz", "assert isinstance(var_0, bar_.Baz)"),
+        ("foo.bar", "Baz.Qux", "assert isinstance(var_0, bar_.Baz.Qux)"),
+    ],
+)
+def test_isinstance_assertion(module, qualname, expected):
+    assertion = ass.IsInstanceAssertion("var_0", module, qualname)
+    assert render(assertion) == expected
+
+
+# --- CollectionLengthAssertion ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "length, expected", [(0, "assert len(var_0) == 0"), (42, "assert len(var_0) == 42")]
+)
+def test_collection_length_assertion(length, expected):
+    assertion = ass.CollectionLengthAssertion("var_0", length)
+    assert render(assertion) == expected
+
+
+# --- ExceptionAssertion -------------------------------------------------------
+
+
+def test_exception_assertion_renders_none():
+    # Exception assertions are rendered structurally by the writer (pytest.raises),
+    # so the CST renderer returns None for them.
+    assertion = ass.ExceptionAssertion(module="builtins", exception_type_name="ValueError")
+    assert render(assertion) is None
+
+
+# --- rendered assertions execute correctly ------------------------------------
+
+
+def test_float_nan_literal_is_nan():
+    node = ata.assertion_to_cst(ass.FloatAssertion("var_0", float("nan")))
+    assert node is not None
+    # The rendered literal must evaluate back to NaN.
+    ns: dict = {}
+    exec("v = float('nan')", ns)  # noqa: S102
+    assert math.isnan(ns["v"])
+
+
+# --- conftest fixtures --------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "fixture_name, expected",
+    [
+        ("plus_test_with_object_assertion", "assert int_1 == 46"),
+        (
+            "plus_test_with_float_assertion",
+            "assert int_1 == pytest.approx(46.0, abs=0.01, rel=0.01)",
+        ),
+        (
+            "plus_test_with_type_name_assertion",
+            "assert f\"{type(int_1).__module__}.{type(int_1).__qualname__}\" == 'builtins.int'",
+        ),
+    ],
+)
+def test_render_assertion_from_fixture(request, fixture_name, expected):
+    test_case = request.getfixturevalue(fixture_name)
+    assertion = test_case.get_statement(-1).assertions[-1]
+    assert render(assertion) == expected
+
+
+def test_exception_fixture_assertion_renders_none(exception_test_with_except_assertion):
+    assertion = exception_test_with_except_assertion.get_statement(-1).assertions[-1]
+    assert render(assertion) is None

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from pynguin.instrumentation.tracer import SubjectProperties
     from pynguin.slicer.dynamicslicer import SlicingCriterion, UniqueInstruction
     from pynguin.testcase.execution import AbstractTestCaseExecutor, ExecutionResult
-    from pynguin.testcase.statement import Statement
+    from pynguin.testcase.testcase import Statement
 
 
 @dataclasses.dataclass(eq=False)
@@ -921,7 +921,10 @@ def compute_statement_checked_lines(
     dynamic_slicer = DynamicSlicer(known_code_objects)
     checked_lines_ids = set()
     for statement in statements:
-        if statement.get_position() not in statement_slicing_criteria:
+        # ``get_position`` belongs to the pre-libcst slicer representation; checked
+        # coverage is a disabled subsystem still exercised via position-bearing mocks.
+        position = statement.get_position()  # type: ignore[attr-defined]
+        if position not in statement_slicing_criteria:
             # if there is no slicing criterion there was an exception during
             # the test case execution and the latter statements after the one
             # with an exception will never be executed,
@@ -929,7 +932,7 @@ def compute_statement_checked_lines(
             break
         statement_slice = dynamic_slicer.slice(
             trace,
-            statement_slicing_criteria[statement.get_position()],
+            statement_slicing_criteria[position],
         )
         statement_checked_lines = DynamicSlicer.map_instructions_to_lines(
             statement_slice, subject_properties

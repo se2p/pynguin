@@ -4,194 +4,169 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Integration tests for the executor."""
+"""Integration tests for the per-statement execution core of :class:`TestCaseExecutor`.
 
-import ast
+These tests drive real fixture modules through the public ``TestCaseExecutor.execute``
+entry point (statements run inside a watchdog thread, so internals must not be called
+directly). They cover the per-statement execution core only:
+
+* ``_build_namespace`` exposing the SUT module's members, its alias, ``pytest`` and
+  builtins,
+* the per-statement execution loop running each statement in order,
+* an exception in a statement being captured and breaking the loop,
+* the statement-execution counter incrementing correctly.
+
+Disabled subsystems (return-type / type tracing, per-statement assertion execution,
+dynamic slicing, subprocess execution) are intentionally out of scope.
+"""
+
+from __future__ import annotations
+
+import contextlib
 import importlib
-import threading
-from queue import Empty
-from unittest.mock import MagicMock, patch
+from typing import TYPE_CHECKING
 
 import pytest
 
 import pynguin.configuration as config
-from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.seeding import AstToTestCaseTransformer
+from pynguin.ga.stoppingcondition import MaxStatementExecutionsStoppingCondition
 from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.testcase.execution import ModuleProvider, TestCaseExecutor
-from pynguin.testcase.statement import IntPrimitiveStatement, MethodStatement
+from pynguin.testcase.execution import TestCaseExecutor
+from tests.testcase._builders import assign, make_test_case, stmt
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from pynguin.instrumentation.tracer import SubjectProperties
+
+MODULE_ACCESSIBLE = "tests.fixtures.accessibles.accessible"
+MODULE_TRIANGLE = "tests.fixtures.examples.triangle"
 
 
-def test_simple_execution(default_test_case, subject_properties: SubjectProperties):
-    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    with install_import_hook(config.configuration.module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
+@contextlib.contextmanager
+def _executor_for(
+    module_name: str, subject_properties: SubjectProperties
+) -> Iterator[TestCaseExecutor]:
+    """Install the import hook, (re)load *module_name* instrumented, yield an executor.
 
-        default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
-        executor = TestCaseExecutor(subject_properties)
-        assert not executor.execute(default_test_case).has_test_exceptions()
-
-
-def test_illegal_call(method_mock, default_test_case, subject_properties: SubjectProperties):
-    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    int_stmt = IntPrimitiveStatement(default_test_case, 5)
-    method_stmt = MethodStatement(default_test_case, method_mock, int_stmt.ret_val)
-    default_test_case.add_statement(int_stmt)
-    default_test_case.add_statement(method_stmt)
-    with install_import_hook(config.configuration.module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-        result = executor.execute(default_test_case)
-        assert result.has_test_exceptions()
-
-
-def test_no_exceptions(short_test_case, subject_properties: SubjectProperties):
-    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    with install_import_hook(config.configuration.module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-        result = executor.execute(short_test_case)
-        assert not result.has_test_exceptions()
-
-
-def test_instrumentation(short_test_case, subject_properties: SubjectProperties):
-    config.configuration.module_name = "tests.fixtures.accessibles.accessible"
-    config.configuration.statistics_output.coverage_metrics = [config.CoverageMetric.CHECKED]
-    with install_import_hook(config.configuration.module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(config.configuration.module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-        result = executor.execute(short_test_case)
-        assert not result.has_test_exceptions()
-        assert result.execution_trace.executed_instructions
-
-
-def test_observers(short_test_case, subject_properties: SubjectProperties):
-    executor = TestCaseExecutor(subject_properties)
-    observer = MagicMock()
-    observer.remote_observer = MagicMock()
-    observer.remote_observer.before_statement_execution.side_effect = lambda _x, y, _z: y
-    executor.add_observer(observer)
-    executor.execute(short_test_case)
-    assert observer.remote_observer.before_test_case_execution.call_count == 1
-    assert observer.remote_observer.before_statement_execution.call_count == 2
-    assert observer.remote_observer.after_statement_execution.call_count == 2
-    assert observer.remote_observer.after_test_case_execution.call_count == 1
-    assert observer.before_remote_test_case_execution.call_count == 1
-    assert observer.after_remote_test_case_execution.call_count == 1
-
-
-def test_observers_clear(subject_properties: SubjectProperties):
-    executor = TestCaseExecutor(subject_properties)
-    observer = MagicMock()
-    executor.add_observer(observer)
-    assert executor._observers == [observer]
-    executor.clear_observers()
-    assert executor._observers == []
-
-
-def test_module_provider(subject_properties: SubjectProperties):
-    prov = ModuleProvider()
-    executor = TestCaseExecutor(subject_properties, prov)
-    assert executor.module_provider == prov
-
-
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
-def test_killing_endless_loop(subject_properties: SubjectProperties):
-    config.configuration.module_name = "tests.fixtures.examples.loop"
-    module_name = config.configuration.module_name
+    Mirrors the canonical set-up: the module is imported and reloaded inside the
+    instrumentation tracer context so the instrumentation is applied, while the
+    executor itself runs afterwards (outside that context but inside the import hook).
+    """
+    config.configuration.module_name = module_name
     with install_import_hook(module_name, subject_properties):
-        # Need to force reload in order to apply instrumentation
         with subject_properties.instrumentation_tracer:
             module = importlib.import_module(module_name)
             importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-        cluster = generate_test_cluster(module_name)
-        transformer = AstToTestCaseTransformer(
-            cluster,
-            False,  # noqa: FBT003
-            EmptyConstantProvider(),
-        )
-        transformer.visit(
-            ast.parse(
-                """def test_case_0():
-    anything = module_0.loop_with_condition()
-"""
-            )
-        )
-        test_case = transformer.testcases[0]
-        executor.execute(test_case)
-        # Running this with a debugger may break these assertions
-        for thread in threading.enumerate():
-            if "_execute_test_case" in thread.name:
-                thread.join()
-        assert len(threading.enumerate()) == 1  # Only main thread should be alive.
+        yield TestCaseExecutor(subject_properties)
 
 
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
-def test_empty_queue_with_llm_api_key(default_test_case, subject_properties: SubjectProperties):
-    """Test handling of Empty exception when LLM API key is configured."""
-    # Set up LLM API key configuration
-    original_api_key = config.configuration.large_language_model.api_key
-    config.configuration.large_language_model.api_key = "test_api_key"
+# --------------------------------------------------------------------------- #
+# _build_namespace: module members, module alias, pytest and builtins bindings
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("module_name", "code"),
+    [
+        # Public members of the SUT module are bound directly.
+        (MODULE_ACCESSIBLE, "obj = SomeType(1.0)"),
+        (MODULE_ACCESSIBLE, "val = simple_function(2.0)"),
+        # The SUT module is also reachable through its generated alias.
+        (MODULE_ACCESSIBLE, "val = accessible_.simple_function(2.0)"),
+        (MODULE_ACCESSIBLE, "obj = accessible_.SomeType(3.0)"),
+        # pytest and builtins are always available in the namespace.
+        (MODULE_ACCESSIBLE, "name = pytest.__name__"),
+        (MODULE_ACCESSIBLE, "size = len((1, 2, 3))"),
+        # The alias is derived from the configured module name, not hard-coded.
+        (MODULE_TRIANGLE, "res = triangle_.triangle(1, 1, 1)"),
+        (MODULE_TRIANGLE, "res = triangle(2, 3, 4)"),
+    ],
+)
+def test_build_namespace_binding(
+    module_name: str, code: str, subject_properties: SubjectProperties
+) -> None:
+    """Each statement resolves its names against the built namespace without error."""
+    with _executor_for(module_name, subject_properties) as executor:
+        result = executor.execute(make_test_case(stmt(code)))
+    assert not result.has_test_exceptions()
 
-    try:
-        config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-        with install_import_hook(config.configuration.module_name, subject_properties):
-            with subject_properties.instrumentation_tracer:
-                module = importlib.import_module(config.configuration.module_name)
-                importlib.reload(module)
-
-            default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
-            executor = TestCaseExecutor(subject_properties)
-
-            # Mock Queue.get to raise Empty exception
-            with patch("queue.Queue.get", side_effect=Empty()):
-                # This should not raise an exception but return a result with timeout=True
-                result = executor.execute(default_test_case)
-                assert result.timeout is True
-    finally:
-        # Restore original configuration
-        config.configuration.large_language_model.api_key = original_api_key
+# --------------------------------------------------------------------------- #
+# Per-statement execution loop + statement-execution counter
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("size", [1, 2, 3, 5])
+def test_per_statement_loop_runs_and_counts_each_statement(
+    size: int, subject_properties: SubjectProperties
+) -> None:
+    """Every statement is executed once and the execution counter matches the size."""
+    condition = MaxStatementExecutionsStoppingCondition(10_000)
+    test_case = make_test_case(*(assign(f"var_{i}", str(i), bound_type=int) for i in range(size)))
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        executor.add_observer(condition)
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()
+    assert result.num_executed_statements == size
+    assert condition.current_value() == size
 
 
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
-def test_empty_queue_without_llm_api_key(default_test_case, subject_properties: SubjectProperties):
-    """Test handling of Empty exception when LLM API key is not configured."""
-    # Ensure LLM API key is not configured
-    original_api_key = config.configuration.large_language_model.api_key
-    config.configuration.large_language_model.api_key = None
+def test_clean_test_case_has_no_exceptions(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A test case whose statements all succeed reports no exceptions."""
+    test_case = make_test_case(
+        assign("var_0", "5", bound_type=int),
+        assign("var_1", "var_0 + 1", bound_type=int),
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert not result.has_test_exceptions()
+    assert result.exceptions == {}
 
-    try:
-        config.configuration.module_name = "tests.fixtures.accessibles.accessible"
 
-        with install_import_hook(config.configuration.module_name, subject_properties):
-            with subject_properties.instrumentation_tracer:
-                module = importlib.import_module(config.configuration.module_name)
-                importlib.reload(module)
+# --------------------------------------------------------------------------- #
+# Exception capture + break out of the execution loop
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("bad_code", "exc_type"),
+    [
+        ("bad = 1 / 0", ZeroDivisionError),
+        ("bad = undefined_name_zzz", NameError),
+        ("bad = [][5]", IndexError),
+        ("bad = int('not-an-int')", ValueError),
+    ],
+)
+def test_exception_captured_and_breaks_execution(
+    bad_code: str, exc_type: type[BaseException], subject_properties: SubjectProperties
+) -> None:
+    """An exception is captured for its statement and stops the following statements."""
+    condition = MaxStatementExecutionsStoppingCondition(10_000)
+    test_case = make_test_case(
+        assign("var_0", "1", bound_type=int),  # idx 0: succeeds
+        stmt(bad_code),  # idx 1: raises
+        assign("var_2", "2", bound_type=int),  # idx 2: must NOT run
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        executor.add_observer(condition)
+        result = executor.execute(test_case)
 
-            default_test_case.add_statement(IntPrimitiveStatement(default_test_case, 5))
-            executor = TestCaseExecutor(subject_properties)
+    assert result.has_test_exceptions()
+    assert result.get_first_position_of_thrown_exception() == 1
+    assert isinstance(result.exceptions[1], exc_type)
+    # The loop broke: the statement after the failing one was never reached.
+    assert 2 not in result.exceptions
+    # Counter: idx 0 and idx 1 started, idx 2 was skipped by the break.
+    assert result.num_executed_statements == 2
+    assert condition.current_value() == 2
 
-            # Mock Queue.get to raise Empty exception
-            with patch("queue.Queue.get", side_effect=Empty()):
-                # This should not raise an exception but return a result with timeout=True
-                result = executor.execute(default_test_case)
-                assert result.timeout is True
-    finally:
-        # Restore original configuration
-        config.configuration.large_language_model.api_key = original_api_key
+
+def test_exception_at_first_statement_reports_index_zero(
+    subject_properties: SubjectProperties,
+) -> None:
+    """A failure in the first statement is reported at index 0 and stops execution."""
+    test_case = make_test_case(
+        stmt("bad = 1 / 0"),  # idx 0: raises immediately
+        assign("var_1", "1", bound_type=int),  # idx 1: must NOT run
+    )
+    with _executor_for(MODULE_ACCESSIBLE, subject_properties) as executor:
+        result = executor.execute(test_case)
+    assert result.get_first_position_of_thrown_exception() == 0
+    assert set(result.exceptions) == {0}

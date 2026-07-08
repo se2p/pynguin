@@ -12,11 +12,10 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
-import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.testcase as tc
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
-    import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
     from pynguin.analyses.module import TestCluster
     from pynguin.analyses.seeding import InitialPopulationProvider
@@ -52,7 +51,7 @@ class RandomLengthTestCaseFactory(TestCaseFactory):
         self._test_cluster = test_cluster
 
     def get_test_case(self) -> tc.TestCase:  # noqa: D102
-        test_case = dtc.DefaultTestCase(self._test_cluster)
+        test_case = tc.TestCase()
         attempts = 0
         size = randomness.next_int(1, config.configuration.search_algorithm.chromosome_length + 1)
 

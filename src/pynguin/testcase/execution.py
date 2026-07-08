@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import abc
-import ast
 import contextlib
 import copy
 import dataclasses
@@ -27,36 +26,29 @@ from abc import abstractmethod
 from pathlib import Path
 from queue import Empty, Queue
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import dill  # noqa: S403
+import libcst as cst
 import multiprocess as mp
 import multiprocess.connection as mp_conn
 
 # Needs to be loaded, i.e., in sys.modules for the execution of assertions to work.
-import pytest  # noqa: F401
+import pytest
 
 import pynguin.assertion.assertion as ass
-import pynguin.assertion.assertion_to_ast as ass_to_ast
 import pynguin.assertion.assertion_trace as at
 import pynguin.configuration as config
 import pynguin.ga.postprocess as pp
-import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.statement as stmt
-import pynguin.testcase.statement_to_ast as stmt_to_ast
-import pynguin.testcase.variablereference as vr
 import pynguin.utils.execution_recorder as ter
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.namingscope as ns
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
-from pynguin.instrumentation import AST_FILENAME
+from pynguin.analyses.typesystem import Instance, ProperType, TupleType
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion, ExecutionTrace, ExecutionTracer
 from pynguin.instrumentation.transformer import InstrumentationTransformer
 from pynguin.instrumentation.version import CheckedCoverageInstrumentation
-from pynguin.testcase import export
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
     MinimizationFailureError,
@@ -64,7 +56,7 @@ from pynguin.utils.exceptions import (
     TracingAbortedException,
 )
 from pynguin.utils.fs_isolation import FilesystemIsolation
-from pynguin.utils.mirror import Mirror
+from pynguin.utils.naming import get_module_alias
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -80,185 +72,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-
-class ExecutionContext:
-    """Contains information required in the context of an execution.
-
-    The context contains, e.g., the used variables, modules, and the AST representation
-    of the statements that should be executed.
-    """
-
-    def __init__(self, module_provider: ModuleProvider) -> None:
-        """Create a new execution context.
-
-        Args:
-            module_provider: The used module provider
-        """
-        self._module_provider = module_provider
-        self._local_namespace: dict[str, Any] = {}
-        self._variable_names = ns.NamingScope()
-        self._module_aliases = ns.NamingScope(
-            prefix="module", new_name_callback=self.add_new_module_alias
-        )
-        self._global_namespace: dict[str, ModuleType] = {}
-
-    @property
-    def local_namespace(self) -> dict[str, Any]:
-        """The local namespace.
-
-        Returns:
-            The local namespace
-        """
-        return self._local_namespace
-
-    def replace_variable_value(self, variable: vr.VariableReference, new_value: Any) -> None:
-        """Replace the value of the variable with the new value.
-
-        Args:
-            variable: The variable for which we want to replace the value
-            new_value: The replacement value.
-        """
-        self._local_namespace[self._variable_names.get_name(variable)] = new_value
-
-    @property
-    def module_aliases(self) -> ns.NamingScope:
-        """The module aliases.
-
-        Returns:
-            A naming scope that maps the used modules to their alias.
-        """
-        return self._module_aliases
-
-    @property
-    def variable_names(self) -> ns.NamingScope:
-        """The variable names.
-
-        Returns:
-            A naming scope that maps the used variables to their names.
-        """
-        return self._variable_names
-
-    def get_reference_value(self, reference: vr.Reference) -> Any:
-        """Resolve the given reference in this execution context.
-
-        Args:
-            reference: The reference to resolve.
-
-        Raises:
-            ValueError: If the root of the reference can not be resolved.
-
-        Returns:
-            The value that is resolved.
-        """
-        root, *attrs = reference.get_names(self._variable_names, self._module_aliases)
-        if root in self._local_namespace:
-            # Check local namespace first
-            res = self._local_namespace[root]
-        elif root in self._global_namespace:
-            # Check global namespace after
-            res = self._global_namespace[root]
-        else:
-            # Root name is not defined?
-            raise ValueError("Root not found in this context: " + root)
-        for attr in attrs:
-            res = getattr(res, attr)
-        return res
-
-    @property
-    def global_namespace(self) -> dict[str, ModuleType]:
-        """The global namespace.
-
-        Returns:
-            The global namespace
-        """
-        return self._global_namespace
-
-    def node_for_statement(
-        self,
-        statement: stmt.Statement,
-    ) -> ast.stmt:
-        """Transforms the given statement in an executable ast node.
-
-        Args:
-            statement: The statement that should be converted.
-
-        Returns:
-            An ast node.
-        """
-        stmt_visitor = stmt_to_ast.StatementToAstVisitor(self._module_aliases, self._variable_names)
-        statement.accept(stmt_visitor)
-        return stmt_visitor.ast_node
-
-    def node_for_assertion(self, assertion: ass.Assertion, statement_node: ast.stmt) -> ast.stmt:
-        """Transforms the given assertion in an executable ast node.
-
-        Args:
-            assertion: The assertion that should be converted.
-            statement_node: The ast node of the statement for the assertion.
-
-        Returns:
-            An ast node.
-        """
-        common_modules: set[str] = set()
-        ass_visitor = ass_to_ast.PyTestAssertionToAstVisitor(
-            self._variable_names, self._module_aliases, common_modules, statement_node
-        )
-        assertion.accept(ass_visitor)
-        for common in common_modules:
-            if common not in self.global_namespace:
-                self.add_new_module_alias(common, common)
-
-        if isinstance(assertion, ass.ExceptionAssertion):
-            assert len(ass_visitor.nodes) == 1
-            return ass_visitor.nodes[0]
-        assert len(ass_visitor.assertion_nodes) == 1
-        return ass_visitor.assertion_nodes[0]
-
-    @staticmethod
-    def wrap_node_in_module(node: ast.stmt) -> ast.Module:
-        """Wraps the given node in a module, such that it can be executed.
-
-        Args:
-            node: The node to wrap
-
-        Returns:
-            The module wrapping the nodes
-        """
-        ast.fix_missing_locations(node)
-        return ast.Module(body=[node], type_ignores=[])
-
-    def add_new_module_alias(self, module_name: str, alias: str) -> None:
-        """Add a new module alias.
-
-        Args:
-            module_name: The name of the module
-            alias: The alias
-        """
-        self._global_namespace[alias] = self._module_provider.get_module(module_name)
-
-    def __getstate__(self):
-        new_global_namespace = self._global_namespace.copy()
-        # Sometimes the `__builtins__` module appears in global_namespace and this
-        # module cannot be serialized. Therefore, it must be deleted manually to prevent
-        # the application from crashing.
-        new_global_namespace.pop("__builtins__", None)
-        return {
-            "module_provider": self._module_provider,
-            "local_namespace": self._local_namespace,
-            "variable_names": self._variable_names,
-            "module_aliases": self._module_aliases,
-            "global_namespace": new_global_namespace,
-            "original_has_builtins": "__builtins__" in self._global_namespace,
-        }
-
-    def __setstate__(self, state: dict):
-        self._module_provider = state["module_provider"]
-        self._local_namespace = state["local_namespace"]
-        self._variable_names = state["variable_names"]
-        self._module_aliases = state["module_aliases"]
-        self._global_namespace = state["global_namespace"]
-        if state["original_has_builtins"]:
-            self.add_new_module_alias("builtins", "__builtins__")
+_GENERATED_TEST_FILENAME = "<generated_test>"
 
 
 class RemoteExecutionObserver(abc.ABC):
@@ -312,6 +126,36 @@ class RemoteExecutionObserver(abc.ABC):
             test_case: The test cases that will be executed.
         """
 
+    def before_statement_execution(  # noqa: B027
+        self, statement: tc.Statement, namespace: dict[str, Any]
+    ) -> None:
+        """Called before a single statement is executed.
+
+        No-op by default; observers that need per-statement observation should
+        override this.
+
+        Args:
+            statement: The statement that is about to be executed.
+            namespace: The shared namespace the statement will execute in.
+        """
+
+    def after_statement_execution(  # noqa: B027
+        self,
+        statement: tc.Statement,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        """Called after a single statement is executed.
+
+        No-op by default; observers that need per-statement observation should
+        override this.
+
+        Args:
+            statement: The statement that was executed.
+            namespace: The shared namespace the statement executed in.
+            exception: The exception raised by the statement, if any.
+        """
+
     @abstractmethod
     def after_test_case_execution(
         self,
@@ -331,38 +175,6 @@ class RemoteExecutionObserver(abc.ABC):
             executor: The executor that executed the test case
             test_case: The test cases that was executed
             result: The execution result
-        """
-
-    @abstractmethod
-    def before_statement_execution(
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        """Called before a statement is executed.
-
-        Args:
-            statement: the statement about to be executed.
-            node: the ast node representing the statement.
-            exec_ctx: the current execution context.
-
-        Returns:
-            An ast node. You may choose to modify this node to change what is executed.
-        """
-
-    @abstractmethod
-    def after_statement_execution(
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        """Called after a statement was executed.
-
-        Args:
-            statement: the statement that was executed.
-            executor: the executor, in case you want to execute something.
-            exec_ctx: the current execution context.
-            exception: the exception that was thrown, if any.
         """
 
     def __getstate__(self) -> dict[str, Any]:
@@ -441,34 +253,6 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
             result: Not used
         """
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        return node
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        # This is a bit cumbersome, because the tracer is disabled by default.
-        tracer = executor.subject_properties.instrumentation_tracer
-        with tracer.temporarily_enable():
-            if statement.has_only_exception_assertion():
-                if exception is not None:
-                    tracer.track_exception_assertion(statement)
-                return
-
-            for assertion in statement.assertions:
-                assertion_node = exec_ctx.wrap_node_in_module(
-                    exec_ctx.node_for_assertion(assertion, ast.stmt())  # Dummy node
-                )
-                executor.execute_ast(assertion_node, exec_ctx)
-
-                tracer.track_assertion_position(assertion)
-
 
 class RemoteReturnTypeObserver(RemoteExecutionObserver):
     """An observer which observes the runtime types seen during execution."""
@@ -516,40 +300,6 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
             self._return_type_local_state.return_type_generic_args
         )
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        return node  # not relevant
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        if exception is None and (ret_val := statement.ret_val) is not None:
-            value = exec_ctx.get_reference_value(ret_val)
-            position = statement.get_position()
-            self._return_type_local_state.return_type_trace[position] = type(value)
-            # TODO(fk) Hardcoded support for generics.
-            # Try to guess generic arguments from elements.
-
-            if type(value) in {set, list} and len(value) > 0:
-                self._return_type_local_state.return_type_generic_args[position] = (
-                    type(next(iter(value))),
-                )
-            elif isinstance(value, dict) and len(value) > 0:
-                first_item = next(iter(value.items()))
-                self._return_type_local_state.return_type_generic_args[position] = (
-                    type(first_item[0]),
-                    type(first_item[1]),
-                )
-            elif type(value) is tuple:
-                self._return_type_local_state.return_type_generic_args[position] = tuple(
-                    type(v) for v in value
-                )
-
 
 class ReturnTypeObserver(ExecutionObserver):
     """Observes the runtime types seen during execution.
@@ -594,9 +344,8 @@ class ReturnTypeObserver(ExecutionObserver):
             proper_type = self.__infer_known_generics(result, idx, proper_type)
             result.proper_return_type_trace[idx] = proper_type
             statement = test_case.get_statement(idx)
-            if isinstance(statement, stmt.ParametrizedStatement):
-                call_acc = statement.accessible_object()
-                assert isinstance(call_acc, gao.GenericCallableAccessibleObject)
+            call_acc = getattr(statement, "accessible", None)
+            if isinstance(call_acc, gao.GenericCallableAccessibleObject):
                 self._test_cluster.update_return_type(call_acc, proper_type)
 
     def __infer_known_generics(
@@ -805,10 +554,25 @@ class ModuleProvider:
         self._mutated_module_aliases.clear()
 
 
+@contextlib.contextmanager
+def _suppress_logging():
+    """Suppress all log messages during SUT execution.
+
+    Yields:
+        Nothing; restores logging on exit.
+    """
+    logging.disable(logging.CRITICAL)
+    try:
+        yield
+    finally:
+        logging.disable(logging.NOTSET)
+
+
 class OutputSuppressionContext:
     """A context manager that suppresses stdout and stderr.
 
     Operates at two levels:
+
     - Python level: redirects ``sys.stdout`` / ``sys.stderr`` to ``/dev/null``.
     - OS level: saves file descriptors 0/1/2 via ``os.dup`` so that if the SUT
       closes them (e.g. ``with open(1, 'w')`` where the int happens to be a
@@ -1075,7 +839,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             thread.join(
                 timeout=min(
                     self._maximum_test_execution_timeout,
-                    self._test_execution_time_per_statement * len(test_case.statements),
+                    self._test_execution_time_per_statement * test_case.size(),
                 )
             )
             if thread.is_alive():
@@ -1120,16 +884,16 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         try:
             self._before_test_case_execution(test_case)
             result = ExecutionResult()
-            exec_ctx = ExecutionContext(self._module_provider)
             with (
                 FilesystemIsolation(),
                 output_suppression_context,
                 self._subject_properties.instrumentation_tracer,
             ):
-                for idx, statement in enumerate(test_case.statements):
-                    ast_node = self._before_statement_execution(statement, exec_ctx)
-                    exception = self.execute_ast(ast_node, exec_ctx)
-                    self._after_statement_execution(statement, exec_ctx, exception)
+                namespace = self._build_namespace()
+                for idx, statement in enumerate(test_case.statements()):
+                    self._before_statement_execution(statement, namespace)
+                    exception = self._exec_statement(statement, namespace)
+                    self._after_statement_execution(statement, namespace, exception)
                     if exception is not None:
                         result.report_new_thrown_exception(idx, exception)
                         break
@@ -1147,6 +911,79 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             return
 
         result_queue.put(result)
+
+    def _build_namespace(self) -> dict[str, Any]:
+        """Build the shared namespace used to execute a test case's statements.
+
+        The namespace is used as both globals and locals for every statement's
+        ``exec`` call, so that name resolution inside comprehensions and lambdas
+        behaves the same way it would at module scope.
+
+        Returns:
+            The namespace, pre-populated with builtins, pytest, the SUT
+            module's public members, and the SUT module under its alias.
+        """
+        module_name = config.configuration.module_name
+        module = self._module_provider.get_module(module_name)
+        module_alias = get_module_alias(module_name)
+        namespace: dict[str, Any] = {
+            "__builtins__": __builtins__,
+            "pytest": pytest,
+        }
+        namespace.update(vars(module))
+        namespace[module_alias] = module
+        return namespace
+
+    def _exec_statement(
+        self, statement: tc.Statement, namespace: dict[str, Any]
+    ) -> BaseException | None:
+        """Render and execute a single statement against the shared namespace.
+
+        Args:
+            statement: The statement to execute.
+            namespace: The shared namespace (used as both globals and locals).
+
+        Returns:
+            The raised exception, if any, otherwise ``None``.
+        """
+        code_str = cst.Module(body=[statement.node]).code
+        try:
+            exec(  # noqa: S102
+                compile(code_str, _GENERATED_TEST_FILENAME, "exec"), namespace
+            )
+        except TracingAbortedException:
+            # Must always propagate, so the watchdog thread can be killed.
+            raise
+        except BaseException as exc:  # noqa: BLE001
+            return exc
+        return None
+
+    def _before_statement_execution(
+        self, statement: tc.Statement, namespace: dict[str, Any]
+    ) -> None:
+        # Check if the current thread is still the one that should be executing
+        # Otherwise raise an exception to kill it.
+        self._subject_properties.instrumentation_tracer.check()
+
+        # We need to disable the tracer, because an observer might interact with an
+        # object of the SUT and trigger code execution, which is not caused by the
+        # test case and should therefore not be in the trace.
+        with self._subject_properties.instrumentation_tracer.temporarily_disable():
+            for observer in self._yield_remote_observers():
+                observer.before_statement_execution(statement, namespace)
+
+    def _after_statement_execution(
+        self,
+        statement: tc.Statement,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        # See comments in _before_statement_execution
+        self._subject_properties.instrumentation_tracer.check()
+
+        with self._subject_properties.instrumentation_tracer.temporarily_disable():
+            for observer in reversed(tuple(self._yield_remote_observers())):
+                observer.after_statement_execution(statement, namespace, exception)
 
     def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
         """Collect the trace data after each executed test case.
@@ -1179,70 +1016,6 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         """
         for observer in self._observers:
             observer.after_remote_test_case_execution(test_case, result)
-
-    def _before_statement_execution(
-        self, statement: stmt.Statement, exec_ctx: ExecutionContext
-    ) -> ast.Module:
-        # Check if the current thread is still the one that should be executing
-        # Otherwise raise an exception to kill it.
-        self._subject_properties.instrumentation_tracer.check()
-
-        # We need to disable the tracer, because an observer might interact with an
-        # object of the SUT via the ExecutionContext and trigger code execution, which
-        # is not caused by the test case and should therefore not be in the trace.
-        with self._subject_properties.instrumentation_tracer.temporarily_disable():
-            ast_node = exec_ctx.node_for_statement(statement)
-            for observer in self._yield_remote_observers():
-                ast_node = observer.before_statement_execution(statement, ast_node, exec_ctx)
-
-        return ExecutionContext.wrap_node_in_module(ast_node)
-
-    def execute_ast(
-        self,
-        ast_node: ast.Module,
-        exec_ctx: ExecutionContext,
-    ) -> BaseException | None:
-        """Execute the given ast_node in the given context.
-
-        You can use this in an observer if you also need to execute an AST Node.
-
-        Args:
-            ast_node: The node to execute.
-            exec_ctx: The execution context
-
-        Returns:
-            The raised exception, if any.
-        """
-        if _LOGGER.isEnabledFor(logging.DEBUG):
-            _LOGGER.debug("Executing %s", ast.unparse(ast_node))
-
-        code = compile(ast_node, AST_FILENAME, "exec")
-        if self._instrument:
-            code = self._checked_transformer.instrument_code(code)
-
-        try:
-            exec(  # noqa: S102
-                code, exec_ctx.global_namespace, exec_ctx.local_namespace
-            )
-        except BaseException as err:  # noqa: BLE001
-            failed_stmt = ast.unparse(ast_node)
-            _LOGGER.debug("Failed to execute statement:\n%s%s", failed_stmt, err.args)
-            return err
-
-        return None
-
-    def _after_statement_execution(
-        self,
-        statement: stmt.Statement,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None,
-    ):
-        # See comments in _before_statement_execution
-        self.subject_properties.instrumentation_tracer.check()
-
-        with self._subject_properties.instrumentation_tracer.temporarily_disable():
-            for observer in reversed(tuple(self._yield_remote_observers())):
-                observer.after_statement_execution(statement, self, exec_ctx, exception)
 
 
 SUPPORTED_EXIT_CODE_MESSAGES = {}
@@ -1303,7 +1076,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         """Context for processing subprocess results."""
 
         test_cases_tuple: tuple[tc.TestCase, ...]
-        references_bindings: tuple[dict[int, vr.VariableReference], ...]
+        references_bindings: tuple[dict[int, str], ...]
         process: mp.Process
         receiving_connection: mp_conn.Connection
         connection_status: SubprocessTestCaseExecutor.ConnectionStatus
@@ -1407,7 +1180,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         """
         return min(
             self._maximum_test_execution_timeout,
-            self._test_execution_time_per_statement * len(test_case.statements),
+            self._test_execution_time_per_statement * test_case.size(),
         )
 
     def _calculate_timeout_for_multiple(self, test_cases: tuple[tc.TestCase, ...]) -> float:
@@ -1422,7 +1195,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         return min(
             self._maximum_test_execution_timeout * len(test_cases),
             sum(
-                self._test_execution_time_per_statement * len(test_case.statements)
+                self._test_execution_time_per_statement * test_case.size()
                 for test_case in test_cases
             ),
         )
@@ -1478,7 +1251,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _setup_subprocess_execution(
         self,
         test_cases_tuple: tuple[tc.TestCase, ...],
-        references_bindings: tuple[dict[int, vr.VariableReference], ...],
+        references_bindings: tuple[dict[int, str], ...],
     ) -> tuple[mp.Process, mp_conn.Connection]:
         """Set up subprocess execution for test cases.
 
@@ -1542,7 +1315,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
                         ExecutionTracer,
                         ModuleProvider,
                         tuple[ExecutionResult, ...],
-                        tuple[dict[int, vr.VariableReference] | None, ...],
+                        tuple[dict[int, str] | None, ...],
                         tuple[Any, ...],
                     ] = context.receiving_connection.recv()
             except (EOFError, OSError):
@@ -1663,7 +1436,9 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _minimize(self, test_case: tc.TestCase, exit_code: int | None) -> tc.TestCase:
         test_case_to_minimize = test_case.clone()
         minimizer = pp.CrashPreservingMinimizationVisitor(self)
-        test_case_to_minimize.accept(minimizer)
+        # Under the libcst representation test cases no longer implement ``accept``;
+        # the per-test-case minimisation visitors are invoked directly.
+        minimizer.visit_default_test_case(test_case_to_minimize)
 
         # Verify that the minimized test case still crashes
         new_exit_code = self.execute_with_exit_code(test_case_to_minimize)
@@ -1685,21 +1460,18 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         postfix = "_minimized" if minimized else ""
         if hash_str is None:
             hash_str = str(hash(test_case))
-        chromosome = tcc.TestCaseChromosome(test_case)
-        exporter = export.PyTestChromosomeToAstVisitor()
-        chromosome.accept(exporter)
         output_path = (
             config.configuration.test_case_output.crash_path
             or config.configuration.test_case_output.output_path
         )
         target_file = Path(output_path).resolve() / f"crash_test_{hash_str}{postfix}.py"
-        module_ast, _ = exporter.to_module()
-        export.save_module_to_file(module_ast, target_file)
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_file.write_text(test_case.to_code())
 
     @staticmethod
     def _create_variable_binding(
         test_case: TestCase,
-    ) -> dict[int, vr.VariableReference]:
+    ) -> dict[int, str]:
         """Create binding between statement positions and variable references.
 
         This is important because the `Assertion`s added to the `AssertionTrace` use
@@ -1712,17 +1484,19 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
             test_case: The test case
         """
         _LOGGER.debug("Creating variable bindings for test case of size %d", test_case.size())
+        # In the libcst representation variables are referenced by name; bind each
+        # statement position to the name of the variable it binds (if any).
         return {
-            position: reference
-            for position, statement in enumerate(test_case.statements)
-            if (reference := statement.ret_val) is not None and not reference.is_none_type()
+            position: statement.bound_variable
+            for position, statement in enumerate(test_case.statements())
+            if statement.bound_variable is not None
         }
 
     @staticmethod
     def _fix_assertion_trace(
         assertion_trace: at.AssertionTrace,
-        old_reference_bindings: dict[int, vr.VariableReference],
-        new_reference_bindings: dict[int, vr.VariableReference],
+        old_reference_bindings: dict[int, str],
+        new_reference_bindings: dict[int, str],
     ) -> None:
         """Fix the assertion trace after the test case execution.
 
@@ -1753,7 +1527,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
         test_execution_time_per_statement: int,
         remote_observers: tuple[RemoteExecutionObserver, ...],
         test_cases: tuple[tc.TestCase, ...],
-        references_bindings: tuple[dict[int, vr.VariableReference], ...],
+        references_bindings: tuple[dict[int, str], ...],
         sending_connection: mp_conn.Connection,
     ) -> None:
         try:
@@ -1806,8 +1580,8 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     @staticmethod
     def _create_new_reference_bindings(
         result: ExecutionResult,
-        reference_bindings: dict[int, vr.VariableReference],
-    ) -> dict[int, vr.VariableReference] | None:
+        reference_bindings: dict[int, str],
+    ) -> dict[int, str] | None:
         """Create new reference bindings.
 
         See the docstring of `_create_variable_binding` for more information.
@@ -2144,76 +1918,6 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
                 tt.UsageTraceNode.from_proxy(proxy)
             )
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: stmt.Statement, node: ast.stmt, exec_ctx: ExecutionContext
-    ) -> ast.stmt:
-        if isinstance(statement, stmt.ParametrizedStatement):
-            modified_args = {}
-            real_params = {}
-            for name, param in statement.args.items():
-                mod_param = vr.VariableReference(statement.test_case, ANY)
-                modified_args[name] = mod_param
-                real_params[name, mod_param] = param
-
-            # We must rewrite calls as follows:
-            # `foo(arg1, arg2, arg2) -> foo(n_arg1, n_arg2, n_arg3)`
-            # where
-            #   `n_arg1 = Proxy(arg1)`
-            #   `n_arg2 = Proxy(arg2)`
-            #   `n_arg3 = Proxy(arg2)`
-            # In other words, each argument is wrapped in its own proxy, even if they
-            # point to the same variable.
-            modified = cast(
-                "stmt.ParametrizedStatement",
-                statement.clone(statement.test_case, Mirror()),
-            )
-            signature = cast(
-                "gao.GenericCallableAccessibleObject", modified.accessible_object()
-            ).inferred_signature
-            modified.args = modified_args
-            modified.ret_val = statement.ret_val
-            visitor = stmt_to_ast.StatementToAstVisitor(
-                exec_ctx.module_aliases, exec_ctx.variable_names
-            )
-            modified.accept(visitor)
-            # Now we know the names.
-            for (name, modified_param), original_param in real_params.items():
-                old = exec_ctx.get_reference_value(original_param)
-                # TODO(fk) use proxy only with some chance?
-                #  May be necessary for functions that don't like proxies, e.g.,
-                #  open(...).
-                #  Record how often we get type errors to find out how often
-                #  native function are a problem?
-                #  can't really do that, because we use proxies as markers for
-                #  interactions we don't want to record.
-                proxy = tt.ObjectProxy(
-                    old,
-                    usage_trace=tt.UsageTraceNode(name=name),
-                    is_kwargs=signature.signature.parameters[name].kind
-                    == inspect.Parameter.VAR_KEYWORD,
-                )
-                self._local_state.proxies[statement.get_position(), name] = proxy
-                exec_ctx.replace_variable_value(modified_param, proxy)
-
-            return visitor.ast_node
-        return node
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: stmt.Statement,
-        executor: TestCaseExecutor,
-        exec_ctx: ExecutionContext,
-        exception: BaseException | None = None,
-    ) -> None:
-        if exception is None:
-            # It may be possible that the returned value is a proxy, but we don't
-            # want to create nested proxies, so we unwrap it.
-            # This does not solve all problems, e.g., a list containing proxies, so
-            # that's a limitation.
-            assert statement.ret_val
-            value = exec_ctx.get_reference_value(statement.ret_val)
-            exec_ctx.replace_variable_value(statement.ret_val, tt.unwrap(value))
-
 
 class TypeTracingObserver(ExecutionObserver):
     """An execution observer used for type tracing.
@@ -2246,9 +1950,10 @@ class TypeTracingObserver(ExecutionObserver):
     ) -> None:
         for (stmt_pos, arg_name), knowledge in result.proxy_knowledge.items():
             statement = test_case.get_statement(stmt_pos)
-            assert isinstance(statement, stmt.ParametrizedStatement)
-            self._cluster.update_parameter_knowledge(
-                cast("gao.GenericCallableAccessibleObject", statement.accessible_object()),
-                arg_name,
-                knowledge,
-            )
+            call_acc = getattr(statement, "accessible", None)
+            if isinstance(call_acc, gao.GenericCallableAccessibleObject):
+                self._cluster.update_parameter_knowledge(
+                    call_acc,
+                    arg_name,
+                    knowledge,
+                )

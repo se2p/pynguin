@@ -16,7 +16,6 @@ from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.assertion.assertion as ass
-    import pynguin.testcase.statement as stmt
 
 
 class AssertionTrace:
@@ -37,17 +36,16 @@ class AssertionTrace:
         """
         self.trace[position].add(assertion)
 
-    def get_assertions(self, statement: stmt.Statement) -> OrderedSet[ass.Assertion]:
-        """Get all assertions contained within this trace for the given statement.
+    def get_assertions(self, position: int) -> OrderedSet[ass.Assertion]:
+        """Get all assertions contained within this trace for the given position.
 
         Args:
-            statement: the statement for which all recorded assertions
+            position: the statement position for which all recorded assertions
                 should be generated.
 
         Returns:
-            All assertions in this trace for the given statement.
+            All assertions in this trace for the given position.
         """
-        position = statement.get_position()
         if position in self.trace:
             return OrderedSet(self.trace[position])
         return OrderedSet()

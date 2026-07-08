@@ -126,7 +126,7 @@ class TypeNameAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> TypeNameAssertion:
-        return TypeNameAssertion(self._source.clone(memo), self._module, self._qualname)
+        return TypeNameAssertion(memo.get(self._source, self._source), self._module, self._qualname)
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -169,7 +169,7 @@ class FloatAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> FloatAssertion:
-        return FloatAssertion(self.source.clone(memo), self._value)
+        return FloatAssertion(memo.get(self._source, self._source), self._value)
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -216,7 +216,7 @@ class ObjectAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> ObjectAssertion:
-        return ObjectAssertion(self.source.clone(memo), self._object)
+        return ObjectAssertion(memo.get(self._source, self._source), self._object)
 
     def __eq__(self, other: Any) -> bool:  # noqa: PYI032
         return (
@@ -268,7 +268,9 @@ class IsInstanceAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> IsInstanceAssertion:
-        return IsInstanceAssertion(self.source.clone(memo), self._module, self._qualname)
+        return IsInstanceAssertion(
+            memo.get(self._source, self._source), self._module, self._qualname
+        )
 
     def __eq__(self, other: object) -> bool:
         return (
@@ -315,7 +317,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
     def clone(  # noqa: D102
         self, memo: dict[vr.VariableReference, vr.VariableReference]
     ) -> CollectionLengthAssertion:
-        return CollectionLengthAssertion(self.source.clone(memo), self._length)
+        return CollectionLengthAssertion(memo.get(self._source, self._source), self._length)
 
     def __eq__(self, other: object) -> bool:
         return (

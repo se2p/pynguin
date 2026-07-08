@@ -14,14 +14,13 @@ from typing import TYPE_CHECKING
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.testcase as tc
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.ga.algorithms.generationalgorithm import GenerationAlgorithm
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import ConstructionFailedException, GenerationException
 
 if TYPE_CHECKING:
-    import pynguin.testcase.testcase as tc
     from pynguin.utils.orderedset import OrderedSet
 
 
@@ -92,7 +91,7 @@ class RandomAlgorithm(GenerationAlgorithm):
         tests = self._random_test_cases([
             chromosome.test_case for chromosome in test_chromosome.test_case_chromosomes
         ])
-        new_test = tcc.TestCaseChromosome(dtc.DefaultTestCase(self.test_cluster))
+        new_test = tcc.TestCaseChromosome(tc.TestCase(), self.test_factory)
         for test in tests:
             new_test.test_case.append_test_case(test)
 
@@ -148,7 +147,7 @@ class RandomAlgorithm(GenerationAlgorithm):
             selectables = [
                 test_case
                 for test_case in test_cases
-                if len(test_case.statements) < config.configuration.random.max_sequence_length
+                if test_case.size() < config.configuration.random.max_sequence_length
             ]
         if config.configuration.random.max_sequences_combined == 0:
             upper_bound = len(selectables)

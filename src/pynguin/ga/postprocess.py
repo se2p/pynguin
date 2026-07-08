@@ -4,7 +4,12 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides chromosome visitors to perform post-processing."""
+"""Provides chromosome visitors to perform post-processing.
+
+These visitors are adapted to the libcst-based test case representation. Statements
+are referenced by their index in the test case and inter-statement dependencies are
+computed name-based via ``Statement.bound_variable`` / ``Statement.used_variables``.
+"""
 
 from __future__ import annotations
 
@@ -17,53 +22,82 @@ from typing import TYPE_CHECKING
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.testcasevisitor as tcv
 from pynguin.assertion.assertion import (
     Assertion,
     ExceptionAssertion,
     ReferenceAssertion,
 )
-from pynguin.testcase.statement import StatementVisitor
 from pynguin.utils.orderedset import OrderedSet
 
 if TYPE_CHECKING:
     import pynguin.ga.computations as ff
-    import pynguin.testcase.variablereference as vr
+    import pynguin.testcase.testcase as tc
     from pynguin.testcase.execution import SubprocessTestCaseExecutor
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_assertion_protected_variables(test_case: tc.TestCase) -> set[vr.VariableReference]:
-    """Get all variables that should be protected due to assertions.
+def get_assertion_protected_variables(test_case: tc.TestCase) -> set[str]:
+    """Get the names of all variables that should be protected due to assertions.
 
-    Variables are protected if they are:
-    - Directly referenced by a ReferenceAssertion's source, OR
-    - In the backward dependency chain of an asserted variable
+    A variable name is protected if it is the source of a ``ReferenceAssertion`` or if
+    it is in the (backward) dependency chain of such a variable.
 
-    ExceptionAssertions are skipped (no source variable).
+    ``ExceptionAssertion`` are skipped (they have no source variable).
 
     Args:
         test_case: Test case to analyze
 
     Returns:
-        Set of variable references that should not be removed during minimization
+        Set of variable names that should not be removed during minimization.
     """
-    protected: set[vr.VariableReference] = set()
-    for stmt in test_case.statements:
-        for assertion in stmt.assertions:
-            # Skip ExceptionAssertion - has no source
+    protected = _directly_asserted_variables(test_case)
+    if not protected:
+        return protected
+    _add_backward_dependencies(test_case, protected)
+    return protected
+
+
+def _directly_asserted_variables(test_case: tc.TestCase) -> set[str]:
+    """Collect variable names that are the direct source of a reference assertion.
+
+    Args:
+        test_case: Test case to analyze.
+
+    Returns:
+        The set of directly asserted variable names.
+    """
+    protected: set[str] = set()
+    for statement in test_case.statements():
+        for assertion in statement.assertions:
             if isinstance(assertion, ExceptionAssertion):
                 continue
-            # Handle ReferenceAssertion
             if isinstance(assertion, ReferenceAssertion):
-                var_ref = assertion.source.get_variable_reference()
-                if var_ref is not None:
-                    protected.add(var_ref)
-                    # Add all backward dependencies
-                    protected.update(test_case.get_dependencies(var_ref))
+                source = assertion.source
+                # In the libcst representation the source is the variable name.
+                if isinstance(source, str):
+                    protected.add(source)
     return protected
+
+
+def _add_backward_dependencies(test_case: tc.TestCase, protected: set[str]) -> None:
+    """Extend *protected* with any variable used to compute a protected variable.
+
+    Args:
+        test_case: Test case to analyze.
+        protected: The set of protected variable names, mutated in place.
+    """
+    statements = test_case.statements()
+    changed = True
+    while changed:
+        changed = False
+        for statement in statements:
+            bv = statement.bound_variable
+            if bv is not None and bv in protected:
+                for used in statement.used_variables():
+                    if used not in protected:
+                        protected.add(used)
+                        changed = True
 
 
 class ExceptionTruncation(cv.ChromosomeVisitor):
@@ -128,9 +162,9 @@ class AssertionMinimization(cv.ChromosomeVisitor):
     def visit_test_case_chromosome(  # noqa: D102
         self, chromosome: tcc.TestCaseChromosome
     ) -> None:
-        for stmt in chromosome.test_case.statements:
+        for statement in chromosome.test_case.statements():
             to_remove: OrderedSet[Assertion] = OrderedSet()
-            for assertion in stmt.assertions:
+            for assertion in statement.assertions:
                 new_checked_lines: OrderedSet[int] = OrderedSet()
                 for instr in assertion.checked_instructions:
                     new_checked_lines.add(instr.lineno)  # type: ignore[arg-type]
@@ -149,7 +183,7 @@ class AssertionMinimization(cv.ChromosomeVisitor):
                 else:
                     to_remove.add(assertion)
             for assertion in to_remove:
-                stmt.assertions.remove(assertion)
+                statement.assertions.remove(assertion)
                 self._deleted_assertions.add(assertion)
 
 
@@ -171,13 +205,13 @@ class TestCasePostProcessor(cv.ChromosomeVisitor):
         self, chromosome: tcc.TestCaseChromosome
     ) -> None:
         for visitor in self._test_case_visitors:
-            chromosome.test_case.accept(visitor)
+            visitor.visit_default_test_case(chromosome.test_case)
             # Remove the last execution result to force re-execution of the test case
             chromosome.remove_last_execution_result()
 
 
-class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
-    """Visitor that keep information on modifications."""
+class ModificationAwareTestCaseVisitor(ABC):
+    """Visitor that keeps information on modifications."""
 
     def __init__(self):  # noqa: D107
         self._deleted_statement_indexes: set[int] = set()
@@ -191,6 +225,14 @@ class ModificationAwareTestCaseVisitor(tcv.TestCaseVisitor, ABC):
         """
         return self._deleted_statement_indexes
 
+    @abc.abstractmethod
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:
+        """Visits and possibly modifies a test case.
+
+        Args:
+            test_case: The test case to process
+        """
+
 
 class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     """Iteratively tries to remove statements while preserving fitness.
@@ -199,7 +241,7 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
     1. Create a clone of the test case
     2. Remove the statement from the clone and all dependent statements
     3. Execute the clone and calculate its fitness
-    4. If fitness remains the same or improves, remove the statement from the original test case
+    4. If fitness remains the same or improves, remove the statement from the original
     """
 
     def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
@@ -216,80 +258,42 @@ class IterativeMinimizationVisitor(ModificationAwareTestCaseVisitor):
         """
         return self._removed_statements
 
-    @abc.abstractmethod
-    def visit_default_test_case(self, test_case: tc.TestCase) -> None:
-        """Visits a test case and tries to minimize it.
 
-        Args:
-            test_case: The test case to minimize
-        """
+def _coverages(
+    fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction],
+    test_case: tc.TestCase,
+) -> list[float]:
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case=test_case))
+    return [ff_.compute_coverage(suite) for ff_ in fitness_functions]
 
 
 class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
-    """Iteratively tries to remove statements while preserving fitness.
+    """Iteratively tries to remove statements (front to back) while preserving fitness."""
 
-    Iterates front to back (forward) and uses forward dependencies when removing statements.
-
-    For each statement in the test case:
-    1. Create a clone of the test case
-    2. Remove the statement from the clone and all forward dependent statements
-    3. Execute the clone and calculate its fitness
-    4. If fitness remains the same or improves, remove the statement from the original test case
-    """
-
-    def visit_default_test_case(  # noqa: D102, PLR0914
-        self, test_case: tc.TestCase
-    ) -> None:
-        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
-        original_test_suite = tsc.TestSuiteChromosome()
-        original_test_suite.add_test_case_chromosome(original_test_case)
-
-        original_coverages: list[float] = [
-            fitness_function.compute_coverage(original_test_suite)
-            for fitness_function in self._fitness_functions
-        ]
-
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
+        original_coverages = _coverages(self._fitness_functions, test_case)
         original_size = test_case.size()
-        statements_changed = True
+        protected = get_assertion_protected_variables(test_case)
 
+        statements_changed = True
         while statements_changed:
             statements_changed = False
-            statements = list(test_case.statements)
-
             i = 0
-            while i < len(statements):
-                stmt = statements[i]
-                if stmt.get_position() >= test_case.size():
-                    break
-
+            while i < test_case.size():
+                statement = test_case.get_statement(i)
+                if statement.bound_variable in protected:
+                    i += 1
+                    continue
                 test_clone = test_case.clone()
-                clone_stmt = test_clone.get_statement(stmt.get_position())
-                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
-                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
-                minimized_test_suite = tsc.TestSuiteChromosome()
-                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
-                minimized_coverages = [
-                    fitness_function.compute_coverage(minimized_test_suite)
-                    for fitness_function in self._fitness_functions
-                ]
+                test_clone.remove_statement_with_forward_dependencies(i)
+                minimized_coverages = _coverages(self._fitness_functions, test_clone)
                 if all(map(math.isclose, original_coverages, minimized_coverages)):
-                    protected_vars = get_assertion_protected_variables(test_case)
-                    is_statement_protected = stmt.ret_val in protected_vars
-                    if not is_statement_protected:
-                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
-                        self._removed_statements += len(removed)
-
-                        # Update the statements list to reflect the changes in the test case
-                        statements = list(test_case.statements)
-                        # Don't increment i since we've removed elements and the list has shifted
-                        statements_changed = True
-                    else:
-                        i += 1
+                    removed = test_case.remove_statement_with_forward_dependencies(i)
+                    self._removed_statements += len(removed)
+                    statements_changed = True
                 else:
                     i += 1
-
-            if not statements_changed:
-                break
 
         _LOGGER.debug(
             "Removed %s statement(s) from test case using forward iterative minimization",
@@ -298,56 +302,31 @@ class ForwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
 
 
 class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
-    """Iteratively tries to remove statements while preserving fitness.
-
-    Iterates back to front (backward) and uses backward dependencies when removing statements.
-
-    For each statement in the test case:
-    1. Create a clone of the test case
-    2. Remove the statement from the clone and all backward dependent statements
-    3. Execute the clone and calculate its fitness
-    4. If fitness remains the same or improves, remove the statement from the original test case
-    """
+    """Iteratively tries to remove statements (back to front) while preserving fitness."""
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
-        original_test_case = tcc.TestCaseChromosome(test_case=test_case)
-        original_test_suite = tsc.TestSuiteChromosome()
-        original_test_suite.add_test_case_chromosome(original_test_case)
-        original_coverages = [
-            fitness_function.compute_coverage(original_test_suite)
-            for fitness_function in self._fitness_functions
-        ]
-
+        original_coverages = _coverages(self._fitness_functions, test_case)
         original_size = test_case.size()
-        statements_changed = True
+        protected = get_assertion_protected_variables(test_case)
 
+        statements_changed = True
         while statements_changed and test_case.size() > 0:
             statements_changed = False
-
             i = test_case.size() - 1
-            while 0 <= i < test_case.size():
-                stmt = test_case.get_statement(i)
+            while i >= 0:
+                statement = test_case.get_statement(i)
+                if statement.bound_variable in protected:
+                    i -= 1
+                    continue
                 test_clone = test_case.clone()
-                clone_stmt = test_clone.get_statement(i)
-                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
-                minimized_test_case = tcc.TestCaseChromosome(test_case=test_clone)
-                minimized_test_suite = tsc.TestSuiteChromosome()
-                minimized_test_suite.add_test_case_chromosome(minimized_test_case)
-                minimized_coverages = [
-                    fitness_function.compute_coverage(minimized_test_suite)
-                    for fitness_function in self._fitness_functions
-                ]
+                test_clone.remove_statement_with_forward_dependencies(i)
+                minimized_coverages = _coverages(self._fitness_functions, test_clone)
                 if all(map(math.isclose, original_coverages, minimized_coverages)):
-                    protected_vars = get_assertion_protected_variables(test_case)
-                    is_statement_protected = stmt.ret_val in protected_vars
-                    if not is_statement_protected:
-                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
-                        self._removed_statements += len(removed)
-                        statements_changed = True
-                        break
-                    i -= 1
-                else:
-                    i -= 1
+                    removed = test_case.remove_statement_with_forward_dependencies(i)
+                    self._removed_statements += len(removed)
+                    statements_changed = True
+                    break
+                i -= 1
 
         _LOGGER.debug(
             "Removed %s statement(s) from test case using backward iterative minimization",
@@ -356,126 +335,20 @@ class BackwardIterativeMinimizationVisitor(IterativeMinimizationVisitor):
 
 
 class UnusedStatementsTestCaseVisitor(ModificationAwareTestCaseVisitor):
-    """Removes unused primitive and collection statements."""
+    """Removes unused primitive and collection statements (name-based)."""
 
-    def visit_default_test_case(self, test_case) -> None:  # noqa: D102
+    def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         self._deleted_statement_indexes.clear()
-        primitive_remover = UnusedPrimitiveOrCollectionStatementVisitor()
         size_before = test_case.size()
-        # Iterate over copy, to be able to modify original.
-        for stmt in reversed(list(test_case.statements)):
-            stmt.accept(primitive_remover)
+        test_case.remove_unused_variables()
         _LOGGER.debug(
             "Removed %s unused primitives/collections from test case",
             size_before - test_case.size(),
         )
-        self._deleted_statement_indexes.update(primitive_remover.deleted_statement_indexes)
-
-
-class UnusedPrimitiveOrCollectionStatementVisitor(StatementVisitor):  # noqa: PLR0904
-    """Visits all statements and removes the unused primitives and collections.
-
-    Has to visit the statements in reverse order.
-    """
-
-    def __init__(self):  # noqa: D107
-        self._used_references = set()
-        self._deleted_statement_indexes: set[int] = set()
-
-    @property
-    def deleted_statement_indexes(self) -> set[int]:
-        """Provides a set of deleted statement indexes.
-
-        Returns:
-            The deleted statement indexes
-        """
-        return self._deleted_statement_indexes
-
-    def _handle_collection_or_primitive(self, stmt) -> None:
-        if stmt.ret_val in self._used_references:
-            self._handle_remaining(stmt)
-        else:
-            self._deleted_statement_indexes.add(stmt.get_position())
-            stmt.test_case.remove_statement(stmt)
-
-    def _handle_remaining(self, stmt) -> None:
-        used = stmt.get_variable_references()
-        used.discard(stmt.ret_val)
-        self._used_references.update(used)
-
-    def visit_int_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_float_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_complex_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_string_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_bytes_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_boolean_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_enum_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_class_primitive_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_none_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_constructor_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_remaining(stmt)
-
-    def visit_method_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_remaining(stmt)
-
-    def visit_function_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_remaining(stmt)
-
-    def visit_field_statement(self, stmt) -> None:  # noqa: D102
-        raise NotImplementedError("No field support yet.")
-
-    def visit_assignment_statement(self, stmt) -> None:  # noqa: D102
-        raise NotImplementedError("No field support yet.")
-
-    def visit_list_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_ndarray_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_allowed_values_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_set_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_tuple_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_dict_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_collection_or_primitive(stmt)
-
-    def visit_ast_assign_statement(self, stmt) -> None:  # noqa: D102
-        self._handle_remaining(stmt)
 
 
 class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
-    """Minimizes a test suite by removing test cases that don't affect coverage.
-
-    For each test case in the test suite:
-    1. Create a clone of the test suite
-    2. Remove the test case from the clone
-    3. Execute the clone and calculate its fitness
-    4. If fitness remains the same, remove the test case from the original test suite
-    """
+    """Minimizes a test suite by removing test cases that don't affect coverage."""
 
     def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
         self._fitness_functions = fitness_functions
@@ -494,7 +367,6 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
         self, chromosome: tsc.TestSuiteChromosome
     ) -> None:
         if chromosome.size() <= 1:
-            # Nothing to minimize if there's only one or zero test cases
             return
 
         original_coverage = [
@@ -504,9 +376,7 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
 
         test_cases = list(chromosome.test_case_chromosomes)
         i = 0
-
         while i < len(test_cases):
-            # Always keep at least one test case
             if len(test_cases) == 1:
                 break
 
@@ -519,13 +389,10 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
                 for fitness_function in self._fitness_functions
             ]
 
-            # If coverage is not affected, remove the test case from the original test suite
             if all(map(math.isclose, original_coverage, minimized_coverage)):
                 chromosome.delete_test_case_chromosome(test_cases[i])
-                # Update our working list
                 test_cases.pop(i)
                 self._removed_test_cases += 1
-                # Don't increment i since we've removed an element and the list has shifted
             else:
                 i += 1
 
@@ -540,14 +407,7 @@ class TestSuiteMinimizationVisitor(cv.ChromosomeVisitor):
 
 
 class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
-    """Iteratively tries to remove statements while preserving crash behavior.
-
-    For each statement in the test case:
-    1. Create a clone of the test case
-    2. Remove the statement from the clone and all forward dependent statements
-    3. Execute the clone and check if it still crashes
-    4. If it still crashes, remove the statement from the original test case
-    """
+    """Iteratively tries to remove statements while preserving crash behavior."""
 
     def __init__(self, executor: SubprocessTestCaseExecutor):  # noqa: D107
         super().__init__()
@@ -565,44 +425,24 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
     def visit_default_test_case(self, test_case: tc.TestCase) -> None:  # noqa: D102
         original_size = test_case.size()
-
-        # Skip if the test case is empty
         if test_case.size() == 0:
             return
 
         statements_changed = True
-
         while statements_changed:
             statements_changed = False
-            statements = list(test_case.statements)
-
             i = 0
-            while i < len(statements):
-                stmt = statements[i]
-                if stmt.get_position() >= test_case.size():
-                    break
-
+            while i < test_case.size():
                 test_clone = test_case.clone()
-                clone_stmt = test_clone.get_statement(stmt.get_position())
-                test_clone.remove_statement_with_forward_dependencies(clone_stmt)
+                test_clone.remove_statement_with_forward_dependencies(i)
 
-                # Execute the clone and check if it still crashes
                 exit_code = self._executor.execute_with_exit_code(test_clone)
-
                 if exit_code != 0:
-                    # If the clone still crashes, remove the statement from the original test case
-                    removed = test_case.remove_statement_with_forward_dependencies(stmt)
+                    removed = test_case.remove_statement_with_forward_dependencies(i)
                     self._removed_statements += len(removed)
-
-                    # Update the statements list to reflect the changes in the test case
-                    statements = list(test_case.statements)
-                    # Don't increment i since we've removed elements and the list has shifted
                     statements_changed = True
                 else:
                     i += 1
-
-            if not statements_changed:
-                break
 
         _LOGGER.debug(
             "Removed %s statement(s) from crashed test case using crash-preserving minimization",
@@ -611,17 +451,7 @@ class CrashPreservingMinimizationVisitor(ModificationAwareTestCaseVisitor):
 
 
 class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
-    """Combines test suite and test case minimization for optimal results.
-
-    This visitor applies a combined approach that minimizes both test cases and the test suite
-    by checking statements against the entire test suite coverage:
-
-    For each statement in each test case:
-       a. Create a clone of the entire test suite
-       b. Remove the statement from the clone
-       c. Compute the coverage of the modified test suite
-       d. If the coverage doesn't decrease, remove the statement from the original test case
-    """
+    """Combines test suite and test case minimization for optimal results."""
 
     def __init__(self, fitness_functions: OrderedSet[ff.TestSuiteCoverageFunction]):  # noqa: D107
         self._fitness_functions = fitness_functions
@@ -656,75 +486,44 @@ class CombinedMinimizationVisitor(cv.ChromosomeVisitor):
     def _minimize_statements_across_test_suite(
         self, chromosome: tsc.TestSuiteChromosome, original_coverage: list[float]
     ) -> None:
-        """Minimize statements across the entire test suite.
-
-        Args:
-            chromosome: The test suite to minimize
-            original_coverage: The original coverage to preserve
-        """
         statements_changed = True
-
         while statements_changed:
             statements_changed = False
-
-            # Iterate through each test case in the test suite
             for test_case_idx, test_case_chrom in enumerate(chromosome.test_case_chromosomes):
                 test_case = test_case_chrom.test_case
-                statements = list(test_case.statements)
-
                 i = 0
-                while i < len(statements):
-                    stmt = statements[i]
-                    if stmt.get_position() >= test_case.size():
-                        break
-
-                    # Create a clone of the entire test suite
+                while i < test_case.size():
                     test_suite_clone = chromosome.clone()
-                    # Get the corresponding test case and statement in the clone
                     clone_test_case_chrom: tcc.TestCaseChromosome = (
                         test_suite_clone.get_test_case_chromosome(test_case_idx)
                     )
                     clone_test_case = clone_test_case_chrom.test_case
-                    clone_stmt = clone_test_case.get_statement(stmt.get_position())
-
-                    # Remove the statement from the clone
-                    clone_test_case.remove_statement_with_forward_dependencies(clone_stmt)
+                    clone_test_case.remove_statement_with_forward_dependencies(i)
                     test_suite_clone.set_test_case_chromosome(
                         test_case_idx, tcc.TestCaseChromosome(clone_test_case)
                     )
 
-                    # Compute the coverage of the modified test suite
                     minimized_coverages = [
                         fitness_function.compute_coverage(test_suite_clone)
                         for fitness_function in self._fitness_functions
                     ]
 
-                    # If coverage is not affected, remove the statement from the original test case
                     if all(map(math.isclose, original_coverage, minimized_coverages)):
-                        removed = test_case.remove_statement_with_forward_dependencies(stmt)
+                        removed = test_case.remove_statement_with_forward_dependencies(i)
                         self._removed_statements += len(removed)
-
-                        # Update the statements list to reflect the changes in the test case
-                        statements = list(test_case.statements)
-                        # Update the test suite
                         chromosome.set_test_case_chromosome(
                             test_case_idx, tcc.TestCaseChromosome(test_case)
                         )
-                        # Don't increment i since we've removed elements and the list has shifted
                         statements_changed = True
                     else:
                         i += 1
 
-            # If no statements were changed in this iteration, we're done
             if not statements_changed:
                 break
 
 
 class EmptyTestCaseRemover(cv.ChromosomeVisitor):
-    """Removes empty test cases from a test suite.
-
-    If a test case is empty after minimization, it should be removed entirely.
-    """
+    """Removes empty test cases from a test suite."""
 
     def __init__(self):  # noqa: D107
         self._removed_test_cases = 0

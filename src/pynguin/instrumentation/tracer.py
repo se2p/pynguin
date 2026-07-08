@@ -26,7 +26,6 @@ from bytecode.instr import CellVar, FreeVar
 
 import pynguin.assertion.assertion as ass
 import pynguin.slicer.executedinstruction as ei
-import pynguin.testcase.statement as stmt
 import pynguin.utils.typetracing as tt
 from pynguin.instrumentation import PynguinCompare, version
 from pynguin.utils.exceptions import TracingAbortedException
@@ -46,6 +45,7 @@ if TYPE_CHECKING:
 
     from typing_extensions import Self
 
+    import pynguin.testcase.testcase as stmt
     from pynguin.instrumentation.controlflow import CFG, BasicBlockNode, ControlDependenceGraph
 
 immutable_types = (int, float, complex, str, tuple, frozenset, bytes)
@@ -78,6 +78,18 @@ class ExecutionTrace:
     object_addresses: OrderedSet[int] = field(default_factory=OrderedSet)
     executed_assertions: list[ExecutedAssertion] = field(default_factory=list)
     checked_lines: OrderedSet[int] = field(default_factory=OrderedSet)
+
+    @property
+    def covered_code_objects(self) -> OrderedSet[int]:
+        """Alias for the set of executed (i.e. covered) code objects.
+
+        The libcst-based test case representation refers to covered code
+        objects under this name; it maps onto :attr:`executed_code_objects`.
+
+        Returns:
+            The set of code object ids that were executed.
+        """
+        return self.executed_code_objects
 
     def merge(self, other: ExecutionTrace) -> None:
         """Merge the values from the other execution trace.
@@ -1628,7 +1640,12 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        assert statement.has_only_exception_assertion()
+        # Under the libcst representation ``Statement`` exposes its assertions as a
+        # plain list; the former ``has_only_exception_assertion`` helper is recomputed
+        # here: the statement must carry exactly one assertion and it must be an
+        # ``ExceptionAssertion``.
+        assert len(statement.assertions) == 1
+        assert isinstance(next(iter(statement.assertions)), ass.ExceptionAssertion)
         trace = self._thread_local_state.trace
         error_call_position = len(trace.executed_instructions) - 1
         trace.executed_assertions.append(

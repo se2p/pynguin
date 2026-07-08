@@ -125,3 +125,4 @@ sample/
 .omc/
 DIFF.md
 *.code-workspace
+.claude/

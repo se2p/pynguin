@@ -4,734 +4,528 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import ast
-import importlib
-import tempfile
-from pathlib import Path
+"""Tests for the libcst-based test-suite exporter (``pynguin.testcase.export``).
+
+These tests target the current architecture: ``TestSuiteWriter`` renders a
+``TestSuiteChromosome`` (a list of ``TestCaseChromosome``, each wrapping a
+``pynguin.testcase.testcase.TestCase`` of libcst-backed ``Statement`` objects)
+to a single pytest file. Failing statements are wrapped individually in
+``with pytest.raises(...):`` rather than marking the whole test ``xfail``, and
+an empty suite is rendered as a ``test_placeholder`` function.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess  # noqa: S404
+import sys
+from typing import TYPE_CHECKING
 from unittest import mock
 
-import pytest
+import libcst as cst
 
-import pynguin.configuration as config
-import pynguin.ga.generationalgorithmfactory as gaf
+import pynguin.assertion.assertion as ass
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.generator as gen
-from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import generate_test_cluster
-from pynguin.analyses.seeding import AstToTestCaseTransformer
-from pynguin.assertion.assertiongenerator import AssertionGenerator
-from pynguin.instrumentation.machinery import install_import_hook
-from pynguin.instrumentation.tracer import SubjectProperties
+import pynguin.ga.testsuitechromosome as tsc
+import pynguin.testcase.testcase as tc
 from pynguin.testcase import export
-from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.testcase.export import PyTestChromosomeToAstVisitor
-from tests.testutils import extract_test_case_0
+from pynguin.testcase.export import TestSuiteWriter
+from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.naming import get_module_alias
+from tests.testcase._builders import assign, int_stmt, make_test_case, stmt
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def test_export_sequence(exportable_test_case, tmp_path):
-    path = tmp_path / "generated.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(exporter)
-    exportable_test_case.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.accessibles.accessible as module_0
+    import pytest
 
 
-def test_case_0():
-    int_0 = 5
-    some_type_0 = module_0.SomeType(int_0)
-    assert some_type_0 == 5
-    float_0 = 42.23
-    float_1 = module_0.simple_function(float_0)
-    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)
+class _CustomExportError(Exception):
+    """A non-builtins exception used to test the exception-import rendering."""
 
 
-def test_case_1():
-    int_0 = 5
-    some_type_0 = module_0.SomeType(int_0)
-    assert some_type_0 == 5
-    float_0 = 42.23
-    float_1 = module_0.simple_function(float_0)
-    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)
-"""
-    )
-
-
-def test_export_survives_black_import_failure(exportable_test_case, tmp_path, monkeypatch):
-    """A failing ``import black`` must not discard the generated tests.
-
-    Regression test: black is imported lazily to format the output. If importing
-    black raises (e.g. the SUT on sys.path shadows one of black's dependencies and
-    black's module-level code crashes), the exporter must still write the full,
-    unformatted test module -- not just the two-line header.
-    """
-    import sys  # noqa: PLC0415
-
-    # ``import black`` raises ImportError when its sys.modules entry is None,
-    # simulating black's import blowing up.
-    monkeypatch.setitem(sys.modules, "black", None)
-    monkeypatch.setitem(sys.modules, "black.parsing", None)
-
-    path = tmp_path / "generated.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path, format_with_black=True)
-
-    content = path.read_text()
-    assert content.startswith(export._PYNGUIN_FILE_HEADER)
-    # The test body survived: the file is more than the bare header.
-    assert content != export._PYNGUIN_FILE_HEADER
-    assert "def test_case_0():" in content
-    assert "module_0.simple_function" in content
-
-
-def test_export_sequence_expected_exception(
-    exportable_test_case_with_expected_asserted_exception, tmp_path
-):
-    """An expected asserted exception is an exception that was raised and is expected.
-
-    It is expected because the SUT code declares that it may raise this exception
-    or has an assert statement.
-    It is asserted because an assertion for that exception was generated, which leads
-    to a ``with pytest.raises(...):`` statement.
-    """
-    path = tmp_path / "expected_asserted_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case_with_expected_asserted_exception.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.accessibles.accessible as module_0
-
-
-def test_case_0():
-    float_0 = 42.23
-    with pytest.raises(ValueError):
-        module_0.simple_function(float_0)
-"""
-    )
-
-
-def test_export_sequence_unexpected_exception(
-    exportable_test_case_with_expected_not_asserted_exception, tmp_path
-):
-    """An expected not asserted exception is an exception that was raised and is not expected.
-
-    It is expected because the SUT code declares that it may raise this exception
-    or has an assert statement.
-    No assertion for the exception was generated, thus the exported test case passes.
-    """
-    path = tmp_path / "expected_not_asserted_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case_with_expected_not_asserted_exception.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import tests.fixtures.accessibles.accessible as module_0
-
-
-def test_case_0():
-    float_0 = 42.23
-    module_0.simple_function(float_0)
-"""
-    )
-
-
-def test_export_drops_test_case_with_timeout_result(exportable_test_case, tmp_path):
-    """A test whose generating execution timed out is dropped from export.
-
-    On a generation-time execution timeout, Pynguin records an empty
-    ExecutionResult with no per-statement exceptions. Because assertion guards and
-    the is_failing flag are derived only from those exceptions, a deterministically
-    raising statement would otherwise be exported unguarded and fail on the
-    unmutated SUT under plain pytest. Such a test is dropped instead.
-    """
-    from pynguin.testcase.execution import ExecutionResult  # noqa: PLC0415
-
-    # Without a timeout, the chromosome is exported normally.
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    normal_path = tmp_path / "normal.py"
-    export.save_module_to_file(module_ast, normal_path)
-    assert "def test_case_0" in normal_path.read_text()
-
-    # With a timed-out (empty) execution result, the test is dropped.
-    exportable_test_case.set_last_execution_result(ExecutionResult(timeout=True))
-    timeout_exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(timeout_exporter)
-    timeout_module_ast, coverage_by_import_only = timeout_exporter.to_module()
-
-    timeout_path = tmp_path / "timeout.py"
-    export.save_module_to_file(timeout_module_ast, timeout_path)
-    content = timeout_path.read_text()
-    assert "def test_case_0" not in content
-    assert coverage_by_import_only is False
-
-
-def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
-    path = tmp_path / "generated_with_unexpected_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
-    exportable_test_case_with_lambda.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import tests.conftest as module_0
-
-
-def test_case_0():
-    int_0 = 1
-    int_1 = module_0.just_z(int_0)
-"""
-    )
-
-
-def test_export_lambda_complex(exportable_test_case_with_lambda_complex, tmp_path):
-    path = tmp_path / "generated_with_unexpected_exception.py"
-    exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
-    exportable_test_case_with_lambda_complex.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import tests.conftest as module_0
-
-
-def test_case_0():
-    complex_0 = 3 + 4j
-    complex_1 = 1 + 0j
-    float_0 = 0.1
-    float_1 = 0.3
-    complex_2 = module_0.weighted_avg(complex_0, complex_1, float_0, float_1)
-"""
-    )
-
-
-def test_invalid_export(exportable_test_case, tmp_path):
-    path = tmp_path / "invalid.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(exporter)
-
-    from black.parsing import InvalidInput  # noqa: PLC0415
-
-    with mock.patch("black.format_str", side_effect=InvalidInput("Invalid input")):
-        module_ast, _ = exporter.to_module()
-        export.save_module_to_file(module_ast, path)
-
-    assert (
-        path.read_text()
-        == export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.accessibles.accessible as module_0
-
-def test_case_0():
-    int_0 = 5
-    some_type_0 = module_0.SomeType(int_0)
-    assert some_type_0 == 5
-    float_0 = 42.23
-    float_1 = module_0.simple_function(float_0)
-    assert float_1 == pytest.approx(42.23, abs=0.01, rel=0.01)"""
-    )
-
-
-def _imports_from_module(module: ast.Module) -> list[ast.Import]:
-    """Collect plain import statements from a module AST."""
-    return [node for node in module.body if isinstance(node, ast.Import)]
-
-
-@pytest.mark.parametrize(
-    ("module_name", "expected_canonical"),
-    [
-        # Single-file stdlib module
-        ("pathlib", "pathlib"),
-        # Dotted stdlib submodule that resolves to a file
-        ("importlib.util", "importlib.util"),
-        # Built-in module falls back to spec.name
-        ("builtins", "builtins"),
-        # Compiled extension module (e.g., array.cpython-310-darwin.so) should strip suffix
-        ("array", "array"),
-        # Local package module from this project
-        ("src.pynguin.utils.namingscope", "pynguin.utils.namingscope"),
-        ("pynguin.utils.namingscope", "pynguin.utils.namingscope"),
-        # Non-existent name falls back to the provided name unchanged
-        ("_pynguin_this_does_not_exist_", "_pynguin_this_does_not_exist_"),
-    ],
-)
-def test_canonical_module_name(module_name: str, expected_canonical: str) -> None:
-    """Test that various module names are canonicalised as expected."""
-    visitor = PyTestChromosomeToAstVisitor()
-
-    # Register an alias for the module name to force creation of an import with alias.
-    alias_name = visitor.module_aliases.get_name(module_name)
-
-    module_ast, _ = visitor.to_module()
-
-    imports = _imports_from_module(module_ast)
-
-    # Find the import that uses our alias and verify its name is canonicalised.
-    matched: list[str] = []
-    for imp in imports:
-        matched.extend(alias.name for alias in imp.names if alias.asname == alias_name)
-
-    # Exactly one import should match the alias we registered
-    assert matched == [expected_canonical]
-
-
-def _install_shadow_pkg(tmp_path: Path, monkeypatch) -> None:
-    """Install ``shadowpkg`` where a ``retry`` function shadows the ``retry`` submodule."""
-    import sys  # noqa: PLC0415
-
-    pkg = tmp_path / "shadowpkg"
-    pkg.mkdir()
-    (pkg / "__init__.py").write_text(
-        "from shadowpkg.retry import Retryer\n\n\ndef retry(*a, **k):\n    return Retryer()\n"
-    )
-    (pkg / "retry.py").write_text("class Retryer:\n    pass\n\n\ndef retry_all(x):\n    return x\n")
-    monkeypatch.syspath_prepend(str(tmp_path))
-    for name in ("shadowpkg", "shadowpkg.retry"):
-        monkeypatch.delitem(sys.modules, name, raising=False)
-
-
-def test_is_shadowed_submodule(tmp_path: Path, monkeypatch) -> None:
-    _install_shadow_pkg(tmp_path, monkeypatch)
-    # The submodule is shadowed by a same-named function on the package.
-    assert export._is_shadowed_submodule("shadowpkg.retry") is True
-    # A dotless name and a genuine (non-shadowed) module are not shadowed.
-    assert export._is_shadowed_submodule("shadowpkg") is False
-    assert export._is_shadowed_submodule("importlib.util") is False
-
-
-def test_shadowed_submodule_uses_importlib_import(tmp_path: Path, monkeypatch) -> None:
-    _install_shadow_pkg(tmp_path, monkeypatch)
-
-    visitor = PyTestChromosomeToAstVisitor()
-    alias_name = visitor.module_aliases.get_name("shadowpkg.retry")
-    module_ast, _ = visitor.to_module()
-
-    # The alias must be bound via importlib.import_module, not a plain `import ... as`,
-    # and a plain top-level `import importlib` must be present to support it.
-    assert any(
-        isinstance(node, ast.Import) and any(a.name == "importlib" for a in node.names)
-        for node in module_ast.body
-    )
-    assigns = [
-        node
-        for node in module_ast.body
-        if isinstance(node, ast.Assign)
-        and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id == alias_name
-    ]
-    assert len(assigns) == 1
-    call = assigns[0].value
-    assert isinstance(call, ast.Call)
-    assert isinstance(call.func, ast.Attribute)
-    assert call.func.attr == "import_module"
-    assert isinstance(call.args[0], ast.Constant)
-    assert call.args[0].value == "shadowpkg.retry"
-
-    # Executing the generated import block binds the real module (exposes Retryer),
-    # whereas a plain `import shadowpkg.retry as x` would bind the shadowing function.
-    import_block = ast.Module(
-        body=[n for n in module_ast.body if isinstance(n, ast.Import | ast.Assign)],
-        type_ignores=[],
-    )
-    namespace: dict = {}
-    exec(compile(ast.fix_missing_locations(import_block), "<gen>", "exec"), namespace)  # noqa: S102
-    assert hasattr(namespace[alias_name], "Retryer")
-
-
-def _make_namespace_package(tmp_path: Path) -> Path:
-    """Create ``google/auth/_helpers.py`` with ``google`` a PEP 420 namespace package."""
-    auth = tmp_path / "google" / "auth"
-    auth.mkdir(parents=True)
-    (auth / "__init__.py").write_text("")
-    helpers = auth / "_helpers.py"
-    helpers.write_text("")
-    # Intentionally no ``google/__init__.py`` -> ``google`` is a namespace package.
-    return helpers
-
-
-def test_dotted_from_origin_drops_namespace_prefix(tmp_path: Path) -> None:
-    # Documents the raw filesystem derivation the canonical-name guard compensates
-    # for: climbing while __init__.py exists stops at the namespace boundary.
-    helpers = _make_namespace_package(tmp_path)
-    assert export._dotted_from_origin(str(helpers)) == "auth._helpers"
-
-
-def test_canonical_module_name_keeps_namespace_package_prefix(tmp_path: Path, monkeypatch) -> None:
-    # `google.auth._helpers` must not collapse to the unimportable `auth._helpers`.
-    helpers = _make_namespace_package(tmp_path)
-
-    def fake_find_spec(name: str):
-        if name == "google.auth._helpers":
-            return importlib.util.spec_from_file_location(name, str(helpers))
-        # The namespace-stripped name does not import.
-        return None
-
-    monkeypatch.setattr(export.importlib.util, "find_spec", fake_find_spec)
-
-    assert export._canonical_module_name("google.auth._helpers") == "google.auth._helpers"
-
-
-def test_export_integration(subject_properties: SubjectProperties, tmp_path: Path):
-    module_name = "tests.fixtures.examples.unasserted_exceptions"
-    config.configuration.module_name = module_name
-    config.configuration.algorithm = config.Algorithm.DYNAMOSA
-    config.configuration.stopping.maximum_iterations = 20
-    config.configuration.search_algorithm.min_initial_tests = 10
-    config.configuration.search_algorithm.max_initial_tests = 10
-    config.configuration.search_algorithm.population = 20
-    config.configuration.test_creation.none_weight = 1
-    config.configuration.test_creation.any_weight = 1
-    config.configuration.seeding.seed = 1
-    config.configuration.test_case_output.output_path = tmp_path
-    gen._setup_random_number_generator()
-
-    expected = (
-        export._PYNGUIN_FILE_HEADER
-        + """import pytest
-import tests.fixtures.examples.unasserted_exceptions as module_0
-
-
-def test_case_0():
-    bool_0 = True
-    module_0.foo(bool_0)
-
-
-@pytest.mark.xfail(strict=True)
-def test_case_1():
-    none_type_0 = None
-    module_0.foo(none_type_0)
-"""
-    )
-
-    with install_import_hook(module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-        cluster = generate_test_cluster(module_name)
-        search_algorithm = gaf.TestSuiteGenerationAlgorithmFactory(
-            executor, cluster
-        ).get_search_algorithm()
-        test_cases = search_algorithm.generate_tests()
-        assert test_cases.size() >= 0
-
-        target_file = Path(config.configuration.test_case_output.output_path).resolve() / "test.py"
-        export_visitor = export.PyTestChromosomeToAstVisitor(store_call_return=False)
-        test_cases.accept(export_visitor)
-        module_ast, coverage_by_import_only = export_visitor.to_module()
-        export.save_module_to_file(
-            module_ast,
-            target_file,
-            format_with_black=config.configuration.test_case_output.format_with_black,
-            module_name_with_coverage=module_name if coverage_by_import_only else None,
-        )
-    assert target_file.exists()
-    content = target_file.read_text(encoding="utf-8")
-    assert expected == content
-
-
-def _import_execute_export(
-    module_name: str,
-    test_case_code: str,
-    *,
-    store_call_return: bool = True,
-    no_xfail: bool = False,
-) -> str:
-    """Import a test case, execute it and export it again.
+def _code_of(node: cst.SimpleStatementLine | cst.BaseCompoundStatement) -> str:
+    """Render a single CST node's source via a throwaway module.
 
     Args:
-        module_name: The name of the SUT module.
-        test_case_code: The test case code to add assertions for.
-        store_call_return: Whether to store the return value of each call.
-        no_xfail: If True, unexpected exceptions will be wrapped with pytest.raises()
-            instead of marking the test with @pytest.mark.xfail(strict=True).
+        node: The node to render.
 
     Returns:
-        The exported test case.
+        The rendered source string.
     """
-    subject_properties = SubjectProperties()
-    config.configuration.module_name = module_name
-    test_case_code = "import " + module_name + " as module_0\n\n" + test_case_code
-
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-
-        test_cluster = generate_test_cluster(module_name)
-        transformer = AstToTestCaseTransformer(
-            test_cluster=test_cluster,
-            create_assertions=False,
-            constant_provider=EmptyConstantProvider(),
-        )
-        transformer.visit(ast.parse(test_case_code))
-        assert transformer.testcases, "No test case parsed from seed source"
-        test_case_chrom = tcc.TestCaseChromosome(transformer.testcases[0])
-
-        with install_import_hook(module_name, subject_properties):
-            with subject_properties.instrumentation_tracer:
-                module = importlib.import_module(module_name)
-                importlib.reload(module)
-
-            executor = TestCaseExecutor(subject_properties)
-            execution_result = executor.execute(test_case_chrom.test_case)
-            test_case_chrom.set_last_execution_result(execution_result)
-
-            if no_xfail:
-                assertion_generator = AssertionGenerator(executor, filtering_executions=0)
-                assertion_generator.visit_test_case_chromosome(test_case_chrom)
-
-            export_path = tmp_path / "test_with_assertions.py"
-            exporter = export.PyTestChromosomeToAstVisitor(
-                store_call_return=store_call_return, no_xfail=no_xfail
-            )
-            test_case_chrom.accept(exporter)
-            module_ast, coverage_by_import_only = exporter.to_module()
-            export.save_module_to_file(
-                module_ast,
-                export_path,
-                format_with_black=config.configuration.test_case_output.format_with_black,
-                module_name_with_coverage=module_name if coverage_by_import_only else None,
-            )
-
-        exported = export_path.read_text(encoding="utf-8")
-        return extract_test_case_0(exported)
+    return cst.Module(body=[node]).code
 
 
-@pytest.mark.parametrize(
-    "module_name,test_case_code,expected_code,store_call_return",
-    [
-        # Simple example
-        (
-            "tests.fixtures.accessibles.accessible",
-            """def test_case_0():
-    int_0 = 5
-    some_type_0 = module_0.SomeType(int_0)
-    float_0 = 42.23
-    float_1 = module_0.simple_function(float_0)""",
-            None,
-            True,
-        ),
-        # Don't add @pytest.mark.xfail(strict=True) for a non-failing test
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)""",
-            None,
-            True,
-        ),
-        # Remove @pytest.mark.xfail(strict=True) for a non-failing test
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)""",
-            """def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)""",
-            True,
-        ),
-        # Keep @pytest.mark.xfail(strict=True) for a failing test
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)""",
-            None,
-            True,
-        ),
-        # Add @pytest.mark.xfail(strict=True) for a failing test
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)""",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)""",
-            True,
-        ),
-        # The same cases with store_call_return=False
-        (
-            "tests.fixtures.accessibles.accessible",
-            """def test_case_0():
-    int_0 = 5
-    module_0.SomeType(int_0)
-    float_0 = 42.23
-    module_0.simple_function(float_0)""",
-            None,
-            False,
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    bool_0 = True
-    module_0.foo(bool_0)""",
-            None,
-            False,
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    bool_0 = True
-    module_0.foo(bool_0)""",
-            """def test_case_0():
-    bool_0 = True
-    module_0.foo(bool_0)""",
-            False,
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    module_0.foo(none_type_0)""",
-            None,
-            False,
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    none_type_0 = None
-    module_0.foo(none_type_0)""",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    module_0.foo(none_type_0)""",
-            False,
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)
-    module_0.foo(bool_1)""",
-            None,
-            False,
-        ),
-    ],
-)
-def test_import_export_parameterized(
-    module_name: str, test_case_code: str, expected_code: str | None, *, store_call_return: bool
-) -> None:
-    exported = _import_execute_export(
-        module_name, test_case_code, store_call_return=store_call_return
+# ---------------------------------------------------------------------------
+# _build_test_function: statement-kind -> expected exported source
+# ---------------------------------------------------------------------------
+
+
+def test_build_test_function_plain_statement():
+    """A statement with no exception and no assertions is rendered as-is."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+
+    func = writer._build_test_function(0, test_case, [None])
+
+    assert func.name.value == "test_0"
+    assert _code_of(func) == "def test_0():\n    int_0 = 5\n"
+
+
+def test_build_test_function_with_object_assertion():
+    """An assertion on a statement is rendered right after that statement."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    test_case.get_statement(-1).assertions.append(ass.ObjectAssertion("int_0", 5))
+
+    func = writer._build_test_function(0, test_case, [None])
+
+    assert _code_of(func) == "def test_0():\n    int_0 = 5\n    assert int_0 == 5\n"
+
+
+def test_build_test_function_exception_statement_wraps_pytest_raises():
+    """A statement whose exc type is not None is wrapped in pytest.raises."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt("simple_function(float_0)"),
     )
-    if expected_code is None:
-        assert exported == test_case_code
-    else:
-        assert exported == expected_code
+
+    func = writer._build_test_function(0, test_case, [None, ValueError])
+
+    assert _code_of(func) == (
+        "def test_0():\n"
+        "    float_0 = 42.23\n"
+        "    with pytest.raises(ValueError):\n"
+        "        simple_function(float_0)\n"
+    )
 
 
-@pytest.mark.parametrize(
-    "module_name,test_case_code,expected_code",
-    [
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)""",
-            """def test_case_0():
-    none_type_0 = None
-    with pytest.raises(AssertionError):
-        bool_0 = module_0.foo(none_type_0)""",
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """@pytest.mark.xfail(strict=True)
-def test_case_0():
-    none_type_0 = None
-    bool_0 = module_0.foo(none_type_0)""",
-            """def test_case_0():
-    none_type_0 = None
-    with pytest.raises(AssertionError):
-        bool_0 = module_0.foo(none_type_0)""",
-        ),
-        (
-            "tests.fixtures.examples.unasserted_exceptions",
-            """def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)""",
-            """def test_case_0():
-    bool_0 = True
-    bool_1 = module_0.foo(bool_0)
-    assert bool_1 is False""",
-        ),
-    ],
-)
-def test_import_export_no_xfail(
-    module_name: str, test_case_code: str, expected_code: str | None
-) -> None:
-    exported = _import_execute_export(module_name, test_case_code, no_xfail=True)
-    if expected_code is None:
-        assert exported == test_case_code
-    else:
-        assert exported == expected_code
+def test_build_test_function_exception_statement_with_trailing_assertion():
+    """An assertion attached to a raising statement is appended after the with-block.
+
+    It is a sibling statement (not nested inside the ``with``), mirroring how
+    ``ExceptionAssertion`` renders to nothing while other assertion kinds would
+    still be emitted at the outer indentation level.
+    """
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    test_case.get_statement(-1).assertions.append(ass.ObjectAssertion("var_0", 1))
+
+    func = writer._build_test_function(0, test_case, [RuntimeError])
+
+    assert _code_of(func) == (
+        "def test_0():\n"
+        "    with pytest.raises(RuntimeError):\n"
+        "        some_call()\n"
+        "    assert var_0 == 1\n"
+    )
 
 
-def test_coverage_by_import_only(tmp_path: Path) -> None:
-    """When no test cases exist, SUT is imported with coverage comment and an empty test."""
+def test_build_test_function_exception_assertion_produces_no_extra_code():
+    """ExceptionAssertion renders to no CST node, so only the with-block remains."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    test_case.get_statement(-1).assertions.append(ass.ExceptionAssertion("builtins", "ValueError"))
+
+    func = writer._build_test_function(0, test_case, [ValueError])
+
+    assert _code_of(func) == (
+        "def test_0():\n    with pytest.raises(ValueError):\n        some_call()\n"
+    )
+
+
+def test_build_test_function_empty_statements_uses_placeholder_pass():
+    """A TestCase with zero statements renders as a lone ``pass``."""
+    writer = TestSuiteWriter()
+    test_case = tc.TestCase()
+
+    func = writer._build_test_function(0, test_case, [])
+
+    assert _code_of(func) == "def test_0():\n    pass\n"
+
+
+def test_build_test_function_raw_code_fallback_success(monkeypatch):
+    """When statements() is empty but to_code() yields real source, it is parsed in."""
+    writer = TestSuiteWriter()
+    test_case = tc.TestCase()
+    monkeypatch.setattr(test_case, "to_code", lambda: "x = 1\ny = 2\n")
+
+    func = writer._build_test_function(0, test_case, [])
+
+    assert _code_of(func) == "def test_0():\n    x = 1\n    y = 2\n"
+
+
+def test_build_test_function_raw_code_fallback_invalid_syntax_suppressed(monkeypatch):
+    """Invalid raw code is suppressed and falls back to a bare ``pass``."""
+    writer = TestSuiteWriter()
+    test_case = tc.TestCase()
+    monkeypatch.setattr(test_case, "to_code", lambda: "def(:::not valid python")
+
+    func = writer._build_test_function(0, test_case, [])
+
+    assert _code_of(func) == "def test_0():\n    pass\n"
+
+
+# ---------------------------------------------------------------------------
+# to_code / to_test_function sanity (used throughout as the rendering oracle)
+# ---------------------------------------------------------------------------
+
+
+def test_to_code_renders_statements_in_order():
+    test_case = make_test_case(int_stmt("int_0", 5), assign("int_1", "int_0 + 1"))
+
+    assert test_case.to_code() == "int_0 = 5\nint_1 = int_0 + 1\n"
+
+
+def test_to_code_empty_test_case_is_pass():
+    assert tc.TestCase().to_code() == "pass\n"
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): empty-suite placeholder
+# ---------------------------------------------------------------------------
+
+
+def test_write_empty_suite_emits_placeholder(tmp_path: Path):
     module_name = "tests.fixtures.accessibles.accessible"
-    visitor = export.PyTestChromosomeToAstVisitor(sut_module_name=module_name)
+    writer = TestSuiteWriter()
+    suite = tsc.TestSuiteChromosome()
 
-    module_ast, coverage_by_import_only = visitor.to_module()
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
 
-    assert coverage_by_import_only is True
+    content = out_file.read_text(encoding="utf-8")
+    assert "def test_placeholder():" in content
+    assert "pass" in content
+    assert "import pytest" not in content
 
-    target_file = tmp_path / "test_coverage_by_import.py"
-    export.save_module_to_file(
-        module_ast,
-        target_file,
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): exception rendering + non-builtins exception import
+# ---------------------------------------------------------------------------
+
+
+def test_write_wraps_raising_statement_and_imports_pytest(tmp_path: Path):
+    module_name = "tests.fixtures.accessibles.accessible"
+    module_alias = get_module_alias(module_name)
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        int_stmt("int_0", 5),
+        assign("some_type_0", f"{module_alias}.SomeType(int_0)"),
+    )
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[None, ValueError],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pytest" in content
+    assert "with pytest.raises(ValueError):" in content
+
+
+def test_write_imports_non_builtins_exception_type(tmp_path: Path):
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[_CustomExportError],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert f"from {__name__} import _CustomExportError" in content
+    assert "with pytest.raises(_CustomExportError):" in content
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): nonexistent module (import failures, both call sites)
+# ---------------------------------------------------------------------------
+
+
+def test_write_nonexistent_module_falls_back_gracefully(tmp_path: Path):
+    """Neither _per_statement_exceptions nor the public-names lookup can import.
+
+    Exercises the ``sys.path`` insertion (via ``project_path``), the
+    ``ImportError`` branch inside ``_per_statement_exceptions`` (which yields
+    ``[None] * size``), and the writer's own failed ``importlib.import_module``
+    (which leaves ``public_names`` empty and ``star_stmt`` as ``None``).
+    """
+    bogus_module = "pynguin_this_module_does_not_exist_at_all"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(
+        suite,
+        bogus_module,
+        tmp_path,
+        project_path=str(tmp_path),
         format_with_black=False,
-        module_name_with_coverage=module_name if coverage_by_import_only else None,
     )
 
-    content = target_file.read_text(encoding="utf-8")
-
-    assert "# Importing this module achieves coverage." in content
-    assert "import tests.fixtures.accessibles.accessible  # noqa: F401" in content
-    assert "def test_empty():" in content
-
-
-def test_to_module_with_seed_emits_patch_preamble_and_fixture(exportable_test_case, tmp_path):
-    path = tmp_path / "seeded.py"
-    exporter = export.PyTestChromosomeToAstVisitor(pynguin_seed=42)
-    exportable_test_case.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    text = path.read_text()
-    assert "import random" in text
-    assert "__pynguin_patched__" in text
-    assert "_pynguin_seed_random" in text
-    assert "random.seed(42)" in text
+    content = out_file.read_text(encoding="utf-8")
+    assert f"import {bogus_module}" in content
+    # No public names could be resolved, so no `from <module> import ...` line.
+    assert f"from {bogus_module} import" not in content
+    assert str(tmp_path) in sys.path
 
 
-def test_to_module_without_seed_no_patch_preamble_and_fixture(exportable_test_case, tmp_path):
-    path = tmp_path / "no_seed.py"
-    exporter = export.PyTestChromosomeToAstVisitor()
-    exportable_test_case.accept(exporter)
-    module_ast, _ = exporter.to_module()
-    export.save_module_to_file(module_ast, path)
-    text = path.read_text()
-    assert "__pynguin_patched__" not in text
-    assert "_pynguin_seed_random" not in text
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): seeded output (patch preamble + reseed fixture)
+# ---------------------------------------------------------------------------
+
+
+def test_write_with_seed_emits_patch_preamble_and_fixture(tmp_path: Path):
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False, seed=42)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import random" in content
+    assert "__pynguin_patched__" in content
+    assert "_pynguin_seed_random" in content
+    assert "random.seed(42)" in content
+    assert "import pytest" in content
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): black formatting failure is tolerated
+# ---------------------------------------------------------------------------
+
+
+def test_write_tolerates_black_invalid_input(tmp_path: Path, caplog: pytest.LogCaptureFixture):
+    from black.parsing import InvalidInput  # noqa: PLC0415
+
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with (
+        mock.patch("black.format_str", side_effect=InvalidInput("nope")),
+        caplog.at_level("WARNING"),
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=True)
+
+    content = out_file.read_text(encoding="utf-8")
+    # Falls back to the unformatted (but still valid/parseable) source.
+    assert "def test_0" in content
+    compile(content, str(out_file), "exec")
+    assert "Could not format the module" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Integration: export a real test case to a file and run it under pytest
+# ---------------------------------------------------------------------------
+
+
+def test_export_integration_generated_file_passes_under_pytest(tmp_path: Path):
+    # Use a self-contained SUT written into tmp_path. A freshly created module in a
+    # temporary directory cannot have been left globally instrumented by another test
+    # in the suite. That matters because ``TestSuiteWriter.write`` re-executes each
+    # statement (in a watchdog thread) to detect real SUT exceptions; when the SUT
+    # module happens to be globally instrumented, the re-execution trips the tracer's
+    # thread-identity guard and the statement is mis-wrapped in a bogus
+    # ``pytest.raises(TracingAbortedException)`` (the guarded path only protects this
+    # when ``subject_properties`` is supplied). See the product-bug note in the handoff.
+    module_name = "export_integration_sut"
+    (tmp_path / f"{module_name}.py").write_text(
+        "class SomeType:\n"
+        "    def __init__(self, value):\n"
+        "        self.value = value\n"
+        "\n"
+        "    def simple_method(self, factor):\n"
+        "        return float(self.value * factor * 5)\n",
+        encoding="utf-8",
+    )
+    module_alias = get_module_alias(module_name)
+    writer = TestSuiteWriter()
+
+    test_case = make_test_case(
+        int_stmt("int_0", 5),
+        assign("some_type_0", f"{module_alias}.SomeType(int_0)"),
+        int_stmt("int_1", 3),
+        assign("float_0", "some_type_0.simple_method(int_1)"),
+    )
+    # simple_method multiplies value by factor by five, so the result is 75.0
+    test_case.get_statement(-1).assertions.append(ass.FloatAssertion("float_0", 75.0))
+
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(
+        suite,
+        module_name,
+        tmp_path,
+        project_path=str(tmp_path),
+        format_with_black=False,
+    )
+
+    assert out_file.exists()
+
+    # Strip pytest-cov / coverage env vars so the child pytest does not hook coverage:
+    # otherwise it writes statement-mode data that the parent (branch mode) cannot
+    # combine ("Can't combine statement coverage data with branch data").
+    child_env = {k: v for k, v in os.environ.items() if not k.startswith(("COV_CORE", "COVERAGE"))}
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, "-m", "pytest", "-p", "no:randomly", "-q", str(out_file)],
+        cwd=str(tmp_path),
+        env=child_env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+    assert result.returncode == 0, (
+        f"generated test file failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    )
+    assert "1 passed" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# _exec_statement_guarded / _per_statement_exceptions internals
+# ---------------------------------------------------------------------------
+
+
+def test_exec_statement_guarded_without_tracer_runs_statement():
+    namespace: dict = {"__builtins__": __builtins__}
+
+    finished, exc_type = export._exec_statement_guarded("x = 1 + 1\n", namespace, None)
+
+    assert finished is True
+    assert exc_type is None
+    assert namespace["x"] == 2
+
+
+def test_exec_statement_guarded_captures_exception():
+    namespace: dict = {"__builtins__": __builtins__}
+
+    finished, exc_type = export._exec_statement_guarded(
+        "raise ValueError('boom')\n", namespace, None
+    )
+
+    assert finished is True
+    assert exc_type is ValueError
+
+
+def test_exec_statement_guarded_tracing_aborted_is_inconclusive():
+    """A TracingAbortedException during detection is treated as inconclusive.
+
+    It must not be recorded as the statement's exception (which would emit a bogus
+    pytest.raises wrapper). This reproduces the condition where the SUT is globally
+    instrumented: the injected tracer guard raises TracingAbortedException on the
+    watchdog thread, and the guarded exec must return (finished=False, exc=None).
+    """
+
+    def _boom():
+        raise TracingAbortedException("thread-identity guard")
+
+    namespace: dict = {"__builtins__": __builtins__, "boom": _boom}
+
+    finished, exc_type = export._exec_statement_guarded("x = boom()\n", namespace, None)
+
+    assert finished is False
+    assert exc_type is None
+
+
+def test_exec_statement_guarded_timeout(monkeypatch):
+    monkeypatch.setattr(export, "_STATEMENT_EXECUTION_TIMEOUT", 0.05)
+    namespace: dict = {"__builtins__": __builtins__}
+
+    finished, exc_type = export._exec_statement_guarded(
+        "import time\ntime.sleep(2)\n", namespace, None
+    )
+
+    assert finished is False
+    assert exc_type is None
+
+
+def test_per_statement_exceptions_inserts_project_path(tmp_path: Path):
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    project_path = str(tmp_path / "nonexistent_sys_path_dir")
+
+    writer._per_statement_exceptions(
+        test_case, "tests.fixtures.accessibles.accessible", project_path
+    )
+
+    assert project_path in sys.path
+
+
+def test_per_statement_exceptions_unimportable_module_returns_all_none():
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5), int_stmt("int_1", 6))
+
+    result = writer._per_statement_exceptions(
+        test_case, "pynguin_definitely_not_a_real_module", None
+    )
+
+    assert result == [None, None]
+
+
+def test_per_statement_exceptions_records_real_exception():
+    module_name = "tests.fixtures.accessibles.accessible"
+    module_alias = get_module_alias(module_name)
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt(f"{module_alias}.simple_function(float_0, extra_bad_arg=1)"),
+    )
+
+    result = writer._per_statement_exceptions(test_case, module_name, None)
+
+    assert result[0] is None
+    assert result[1] is TypeError
+
+
+def test_per_statement_exceptions_timeout_marks_remaining_clean(monkeypatch):
+    monkeypatch.setattr(export, "_STATEMENT_EXECUTION_TIMEOUT", 0.05)
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        stmt("import time"),
+        stmt("time.sleep(2)"),
+        int_stmt("int_0", 5),
+    )
+
+    result = writer._per_statement_exceptions(
+        test_case, "tests.fixtures.accessibles.accessible", None
+    )
+
+    assert result == [None, None, None]
+
+
+def test_per_statement_exceptions_rebinds_tracer_thread_guard(subject_properties):
+    """When subject_properties is given, the tracer is rebound to the watchdog thread.
+
+    Covers the ``with tracer, tracer.temporarily_disable():`` branch, which exists so
+    the statement is re-executed without the shared tracer's thread-identity guard
+    aborting it (it would otherwise misreport a ``TracingAbortedException``).
+    """
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+
+    result = writer._per_statement_exceptions(
+        test_case,
+        "tests.fixtures.accessibles.accessible",
+        None,
+        subject_properties=subject_properties,
+    )
+
+    assert result == [None]

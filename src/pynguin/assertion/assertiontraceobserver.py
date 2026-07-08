@@ -6,31 +6,27 @@
 #
 """Provides an abstract observer that can be used to generate assertions."""
 
-import ast
+from __future__ import annotations
+
 import copy
 import logging
 import threading
 from collections.abc import Sized
-from types import ModuleType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any
 
-from _pytest.outcomes import Failed  # noqa: PLC2701
+import libcst as cst
 
 import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertion_trace as at
+import pynguin.configuration as config
 import pynguin.testcase.execution as ex
-import pynguin.testcase.statement as st
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variablereference as vr
-import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.typetracing as tt
-from pynguin.analyses.typesystem import ANY, TypeInfo
-from pynguin.utils.type_utils import (
-    is_assertable,
-    is_collection_type,
-    is_ignorable_type,
-    is_primitive_type,
-)
+from pynguin.assertion.assertion_to_ast import assertion_to_cst
+from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.type_utils import is_assertable, is_primitive_type
+
+if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +34,8 @@ _LOGGER = logging.getLogger(__name__)
 class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     """Remote observer that creates assertions.
 
-    Observes the execution of a test case and generates assertions from it.
+    Observes the per-statement execution of a test case and generates
+    assertions from it.
     """
 
     class RemoteAssertionLocalState(threading.local):
@@ -47,7 +44,16 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         def __init__(self):  # noqa: D107
             super().__init__()
             self.trace: at.AssertionTrace = at.AssertionTrace()
-            self.watch_list: list[vr.VariableReference] = []
+            # Variables (by name) whose value is continually re-checked after
+            # every subsequent statement, mirroring main's watch_list of
+            # VariableReferences.
+            self.watch_list: list[str] = []
+            # Statements are executed in a simple loop (see
+            # TestCaseExecutor._execute_test_case), so unlike the old AST-based
+            # ExecutionContext there is no Statement.get_position(); track the
+            # position ourselves, incremented once per after_statement_execution
+            # call.
+            self.position: int = 0
 
     def __init__(self) -> None:  # noqa: D107
         super().__init__()
@@ -58,7 +64,6 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 
         Returns:
             A copy of the gathered trace.
-
         """
         return self._assertion_local_state.trace.clone()
 
@@ -69,31 +74,27 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             test_case: Not used
         """
 
-    def before_statement_execution(  # noqa: D102
-        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
-    ) -> ast.stmt:
-        # Nothing to do before statement.
-        return node
-
     def after_statement_execution(  # noqa: D102
         self,
-        statement: st.Statement,
-        executor: ex.TestCaseExecutor,
-        exec_ctx: ex.ExecutionContext,
+        statement: tc.Statement,
+        namespace: dict[str, Any],
         exception: BaseException | None,
     ) -> None:
+        position = self._assertion_local_state.position
+        self._assertion_local_state.position = position + 1
+
         if exception is not None:
             self._assertion_local_state.trace.add_entry(
-                statement.get_position(),
+                position,
                 ass.ExceptionAssertion(
-                    module=executor.module_provider.get_module(type(exception).__module__).__name__,
+                    module=type(exception).__module__,
                     exception_type_name=type(exception).__name__,
                 ),
             )
             return
-        if statement.affects_assertions:
-            stmt = cast("st.VariableCreatingStatement", statement)
-            self._handle(stmt, executor.module_provider, exec_ctx)
+
+        if statement.bound_variable is not None:
+            self._handle(statement.bound_variable, namespace, position)
 
     def after_test_case_execution(  # noqa: D102
         self,
@@ -103,223 +104,123 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     ):
         result.assertion_trace = self.get_trace()
 
-    def _handle(  # noqa: C901
+    def _handle(
         self,
-        statement: st.VariableCreatingStatement,
-        module_provider: ex.ModuleProvider,
-        exec_ctx: ex.ExecutionContext,
+        bound_variable: str,
+        namespace: dict[str, Any],
+        position: int,
     ) -> None:
-        """Actually handle the statement.
+        """Generate assertions for the variable a statement just bound.
+
+        Mirrors main's ``RemoteAssertionTraceObserver._handle``, adapted to the
+        libcst representation: references are plain variable names looked up in
+        the shared execution namespace instead of ``VariableReference``s
+        resolved through an ``ExecutionContext``.
 
         Args:
-            exec_ctx: the execution context.
-            module_provider: the module provider.
-            statement: the statement that is visited.
+            bound_variable: The name of the variable the statement bound.
+            namespace: The shared execution namespace.
+            position: The position of the statement after whose execution the
+                state is observed.
         """
-        position = statement.get_position()
-
         trace = self._assertion_local_state.trace
+        watch_list = self._assertion_local_state.watch_list
 
-        if not statement.ret_val.is_none_type():
-            ret_value = tt.unwrap(exec_ctx.get_reference_value(statement.ret_val))
-            if is_primitive_type(type(ret_value)):
-                # Primitives won't change, so we only check them once.
-                self._check_reference(module_provider, exec_ctx, statement.ret_val, position, trace)
-            elif type(exec_ctx.get_reference_value(statement.ret_val)).__module__ != "builtins":
-                # Everything else is continually checked, unless it is from builtins.
-                self._assertion_local_state.watch_list.append(statement.ret_val)
+        value = tt.unwrap(namespace.get(bound_variable))
+        if is_primitive_type(type(value)):
+            # Primitives won't change, so we only check them once.
+            self._check_reference(namespace, bound_variable, position, trace)
+        elif type(value).__module__ != "builtins":
+            # Everything else is continually checked, unless it is from builtins.
+            watch_list.append(bound_variable)
 
-        for var in self._assertion_local_state.watch_list:
-            self._check_reference(module_provider, exec_ctx, var, position, trace)
-
-        # Check all used modules.
-        for module_name, alias in exec_ctx.module_aliases:
-            if module_name == "builtins":
-                # Don't assert stuff on builtins
-                continue
-
-            module = exec_ctx.global_namespace[alias]
-
-            # Check all static fields.
-            for field, value in vars(module).items():
-                if self._should_ignore(field, value):
-                    continue
-                self._check_reference(
-                    module_provider,
-                    exec_ctx,
-                    vr.StaticModuleFieldReference(
-                        # Type information is not used here, so use Any.
-                        gao.GenericStaticModuleField(module_name, field, ANY)
-                    ),
-                    position,
-                    trace,
-                )
-
-        # Check fields of classes whose constructors were used.
-        for seen_type in [
-            type(tt.unwrap(exec_ctx.get_reference_value(ref)))
-            for ref in self._assertion_local_state.watch_list
-        ]:
-            if (
-                is_primitive_type(seen_type)
-                or is_collection_type(seen_type)
-                or is_ignorable_type(seen_type)
-            ):
-                continue
-
-            if not hasattr(seen_type, "__dict__"):
-                continue
-
-            for field, value in vars(seen_type).items():
-                if self._should_ignore(field, value):
-                    continue
-                self._check_reference(
-                    module_provider,
-                    exec_ctx,
-                    vr.StaticFieldReference(
-                        # Type information is not used here, so use Any.
-                        gao.GenericStaticField(TypeInfo(seen_type), field, ANY)
-                    ),
-                    position,
-                    trace,
-                )
+        for var_name in watch_list:
+            self._check_reference(namespace, var_name, position, trace)
 
     def _check_reference(
         self,
-        module_provider: ex.ModuleProvider,
-        exec_ctx: ex.ExecutionContext,
-        ref: vr.Reference,
+        namespace: dict[str, Any],
+        var_name: str,
         position: int,
         trace: at.AssertionTrace,
-        *,
-        depth: int = 0,
-        max_depth: int = 1,
-    ):
-        """Check if we can generate an assertion for the given reference.
-
-        For complex types, we do one recursion step, i.e., try to assert anything
-        on the attributes of the given object.
+    ) -> None:
+        """Check if we can generate an assertion for the given variable.
 
         Args:
-            module_provider: The module provider.
-            exec_ctx: The execution context.
-            ref: The reference that should be checked.
-            position: The position of the test case after which the assertions are made.
+            namespace: The shared execution namespace.
+            var_name: The name of the variable that should be checked.
+            position: The position of the test case after which the assertions
+                are made.
             trace: The assertion trace where the observed assertions are stored.
-            depth: The current recursion depth
-            max_depth: The maximum recursion depth.
         """
-        value = exec_ctx.get_reference_value(ref)
-        value = tt.unwrap(value)
+        value = tt.unwrap(namespace.get(var_name))
         if isinstance(value, float):
-            trace.add_entry(position, ass.FloatAssertion(ref, value))
+            trace.add_entry(position, ass.FloatAssertion(var_name, value))
             return
         if is_assertable(value):
-            trace.add_entry(position, ass.ObjectAssertion(ref, copy.deepcopy(value)))
-        else:
-            # No precise assertion possible, so assert on type.
-            typ = type(value)
-            if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
-                # Check if the type is importable in the test context
-                if self._is_type_importable(typ, module_provider):
-                    # Use isinstance assertion for importable types
-                    trace.add_entry(
-                        position,
-                        ass.IsInstanceAssertion(
-                            ref,
-                            module_provider.get_module(typ.__module__).__name__,
-                            typ.__qualname__,
-                        ),
-                    )
-                else:
-                    # Fallback to TypeNameAssertion if type is not importable
-                    trace.add_entry(
-                        position,
-                        ass.TypeNameAssertion(
-                            ref,
-                            module_provider.get_module(typ.__module__).__name__,
-                            typ.__qualname__,
-                        ),
-                    )
-            if isinstance(value, Sized):
-                try:
-                    length = len(value)
-                    trace.add_entry(position, ass.CollectionLengthAssertion(ref, length))
-                    return
-                except BaseException as err:  # noqa: BLE001
-                    # Could not get len, so continue down.
-                    _LOGGER.debug(err)
-            if depth < max_depth and hasattr(value, "__dict__"):
-                # Reference is a complex object.
-                # Try to assert something on its fields.
-                for field, field_value in vars(value).items():
-                    if not self._should_ignore(field, field_value):
-                        self._check_reference(
-                            module_provider,
-                            exec_ctx,
-                            vr.FieldReference(
-                                ref,
-                                # Type information is not used here, so use Any.
-                                gao.GenericField(TypeInfo(type(value)), field, ANY),
-                            ),
-                            position,
-                            trace,
-                            depth=depth + 1,
-                        )
+            trace.add_entry(position, ass.ObjectAssertion(var_name, copy.deepcopy(value)))
+            return
+
+        # No precise assertion possible, so assert on type.
+        typ = type(value)
+        if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
+            if self._is_type_importable(typ):
+                trace.add_entry(
+                    position,
+                    ass.IsInstanceAssertion(var_name, typ.__module__, typ.__qualname__),
+                )
+            else:
+                trace.add_entry(
+                    position,
+                    ass.TypeNameAssertion(var_name, typ.__module__, typ.__qualname__),
+                )
+        if isinstance(value, Sized):
+            try:
+                length = len(value)
+            except BaseException as err:  # noqa: BLE001
+                # Could not get len, so give up on this reference.
+                _LOGGER.debug(err)
+                return
+            trace.add_entry(position, ass.CollectionLengthAssertion(var_name, length))
 
     @staticmethod
-    def _is_type_importable(
-        typ: type,
-        module_provider: ex.ModuleProvider,
-    ) -> bool:
-        """Check if a type can be imported in the test context.
+    def _is_type_importable(typ: type) -> bool:
+        """Check whether a type can be referenced from the generated test file.
+
+        Unlike main's ``ExecutionContext``-based writer, the libcst exporter
+        (``pynguin.testcase.export.TestSuiteWriter``) only ever imports the SUT
+        module (under its alias) plus builtins; it does not track and import
+        arbitrary modules referenced by assertions. An ``IsInstanceAssertion``
+        is therefore only safe for builtins or types defined in the SUT module
+        itself -- anything else falls back to the always-safe
+        ``TypeNameAssertion``, which only compares string names and needs no
+        import.
 
         Args:
-            typ: The type to check
-            module_provider: The module provider
+            typ: The type to check.
 
         Returns:
-            True if the type is importable, False otherwise
+            True, if an isinstance-based assertion can safely be rendered.
         """
-        try:
-            if not hasattr(typ, "__module__") or not hasattr(typ, "__qualname__"):
-                return False
-
-            # Try to get the module
-            module_provider.get_module(typ.__module__)
-
-            # Check if it's a built-in type that doesn't need importing
-            if typ.__module__ == "builtins":
-                return True
-
-            # For user-defined types, verify they're accessible
-            # by checking if we can resolve the qualified name
-            module = module_provider.get_module(typ.__module__)
-            parts = typ.__qualname__.split(".")
-            obj = module
-            for part in parts:
-                if not hasattr(obj, part):
-                    return False
-                obj = getattr(obj, part)
-
-            return obj is typ
-
-        except Exception:  # noqa: BLE001
-            # If anything goes wrong, the type is not safely importable
+        if not hasattr(typ, "__module__") or not hasattr(typ, "__qualname__"):
             return False
-
-    @staticmethod
-    def _should_ignore(field, attr_value):
-        return (
-            field.startswith("_")
-            or field.endswith("__")
-            or callable(attr_value)
-            or isinstance(attr_value, ModuleType)
-        )
+        if typ.__module__ == "builtins":
+            return True
+        return typ.__module__ == config.configuration.module_name
 
 
 class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
-    """This remote observer is used to check if assertions hold."""
+    """This remote observer is used to check if assertions hold.
+
+    Adapted from main's ``ExecutionContext``-based verification: instead of
+    wrapping an exception-raising statement in ``pytest.raises`` before
+    execution, exception-only statements are checked directly against the
+    real exception the executor already captured for that statement (the
+    per-statement loop in ``TestCaseExecutor._execute_test_case`` gives us
+    this for free). Regular value assertions are rendered to source via
+    ``assertion_to_cst`` and executed directly against the shared namespace,
+    same as main did via ``execute_ast``.
+    """
 
     class RemoteAssertionExecutorLocalState(threading.local):
         """Local state for assertion executor."""
@@ -327,6 +228,8 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
         def __init__(self):  # noqa: D107
             super().__init__()
             self.trace = at.AssertionVerificationTrace()
+            # See RemoteAssertionTraceObserver.RemoteAssertionLocalState.position.
+            self.position: int = 0
 
     def __init__(self):  # noqa: D107
         super().__init__()
@@ -349,6 +252,43 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
             test_case: Not used
         """
 
+    def after_statement_execution(  # noqa: D102
+        self,
+        statement: tc.Statement,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        position = self._state.position
+        self._state.position = position + 1
+
+        if statement.has_only_exception_assertion():
+            assertion = next(iter(statement.assertions))
+            expected_name = assertion.exception_type_name  # type: ignore[attr-defined]
+            if exception is None:
+                # The expected exception was not raised.
+                self._state.trace.failed[position].add(0)
+            elif type(exception).__name__ != expected_name:
+                # A different exception was raised; treat as an error, not a
+                # (clean) assertion violation, mirroring main.
+                self._state.trace.error[position].add(0)
+            return
+
+        for idx, assertion in enumerate(statement.assertions):
+            cst_node = assertion_to_cst(assertion)
+            if cst_node is None:
+                continue
+            code_str = cst.Module(body=[cst_node]).code
+            try:
+                exec(compile(code_str, "<assertion>", "exec"), namespace)  # noqa: S102
+            except TracingAbortedException:
+                # Must always propagate, so the watchdog thread can be killed.
+                raise
+            except AssertionError:
+                self._state.trace.failed[position].add(idx)
+            except BaseException as exc:  # noqa: BLE001
+                _LOGGER.debug(exc)
+                self._state.trace.error[position].add(idx)
+
     def after_test_case_execution(  # noqa: D102
         self,
         executor: ex.TestCaseExecutor,
@@ -356,44 +296,3 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
         result: ex.ExecutionResult,
     ) -> None:
         result.assertion_verification_trace = self._state.trace
-
-    def before_statement_execution(  # noqa: D102
-        self, statement: st.Statement, node: ast.stmt, exec_ctx: ex.ExecutionContext
-    ) -> ast.stmt:
-        if statement.has_only_exception_assertion():
-            return exec_ctx.node_for_assertion(next(iter(statement.assertions)), node)
-        return node
-
-    def after_statement_execution(  # noqa: D102
-        self,
-        statement: st.Statement,
-        executor: ex.TestCaseExecutor,
-        exec_ctx: ex.ExecutionContext,
-        exception: BaseException | None,
-    ) -> None:
-        if statement.has_only_exception_assertion():
-            if exception is None:
-                return
-            # If we have an exception assertion, all we have to do is check the
-            # exception.
-            if isinstance(exception, Failed):
-                # Failed indicates that the expected assertion was not raised
-                self._state.trace.failed[statement.get_position()].add(0)
-            else:
-                self._state.trace.error[statement.get_position()].add(0)
-        else:
-            # Other assertions are executed after the statement.
-            for idx, assertion in enumerate(statement.assertions):
-                exc = executor.execute_ast(
-                    exec_ctx.wrap_node_in_module(
-                        exec_ctx.node_for_assertion(assertion, ast.stmt())
-                    ),
-                    exec_ctx,
-                )
-                if exc is None:
-                    continue
-
-                if isinstance(exc, AssertionError):
-                    self._state.trace.failed[statement.get_position()].add(idx)
-                else:
-                    self._state.trace.error[statement.get_position()].add(idx)

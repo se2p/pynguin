@@ -149,6 +149,24 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_unused_configs = true
 
+# The following modules belong to subsystems that were disabled (kept on disk but
+# inert) during the libcst test-case representation migration. They still use the
+# old per-statement representation API and are excluded from type checking until
+# they are migrated. See TC_REPRESENTATION_PLAN.md.
+[[tool.mypy.overrides]]
+module = [
+  "pynguin.testcase.localsearch",
+  "pynguin.testcase.localsearchstatement",
+  "pynguin.testcase.llmlocalsearch",
+  "pynguin.analyses.seeding",
+  "pynguin.slicer.statementslicingobserver",
+  "pynguin.assertion.llmassertiongenerator",
+  "pynguin.large_language_model.parsing.deserializer",
+  "pynguin.large_language_model.parsing.helpers",
+  "pynguin.large_language_model.helpers.testcasereferencecopier",
+]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = [
   "tests",
@@ -267,6 +285,11 @@ max-complexity = 10
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
+# The exported test-suite license header embeds the repo's SPDX copyright text,
+# which uses an EN DASH in the year range (2019–2026).
+"src/pynguin/testcase/export.py" = [
+  "RUF001", # String contains ambiguous EN DASH (part of the SPDX license header)
+]
 "tests/**/*.py" = [
   "D100", # Missing docstring in public module
   "D101", # Missing docstring in public class

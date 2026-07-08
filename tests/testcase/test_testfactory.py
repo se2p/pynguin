@@ -4,1074 +4,668 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-import enum
-import importlib
-import inspect
-import re
-from inspect import Parameter, Signature
-from typing import TYPE_CHECKING, cast
-from unittest import mock
-from unittest.mock import MagicMock, call, patch
+"""Tests for the libcst-backed :mod:`pynguin.testcase.testfactory`.
 
+These tests target the non-disabled surface of the re-derived ``TestFactory``:
+statement insertion/deletion, variable reuse by exact/subtype, primitive value
+and call mutation, recursive object creation with depth limiting, parameter
+satisfaction (including positional-only / optional handling) and enum building.
+
+Disabled features (field statements, the ``change_statement_type`` operator,
+pynguinml, reference-carrying collections and seeding) are intentionally not
+covered here.
+"""
+
+from __future__ import annotations
+
+import collections.abc
+import enum
+import operator
+from inspect import Parameter, Signature
+from unittest import mock
+from unittest.mock import MagicMock
+
+import libcst as cst
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testcase.statement as stmt
+import pynguin.testcase.testcase as tc
 import pynguin.testcase.testfactory as tf
-import pynguin.testcase.variablereference as vr
 import pynguin.utils.generic.genericaccessibleobject as gao
-import pynguin.utils.typetracing as tt
 from pynguin.analyses.constants import EmptyConstantProvider
 from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.typesystem import AnyType, InferredSignature, NoneType, StringSubtype
-from pynguin.testcase.statement import FieldStatement, IntPrimitiveStatement
-from pynguin.utils.exceptions import ConstructionFailedException
-from pynguin.utils.orderedset import OrderedSet
-from tests.fixtures.examples.monkey import Monkey
-from tests.testutils import feed_typesystem
-
-if TYPE_CHECKING:
-    from pynguin.utils.generic.genericaccessibleobject import GenericField
-
-
-def test_append_statement_unknown_type(test_case_mock):
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    with pytest.raises(ConstructionFailedException):
-        factory.append_statement(test_case_mock, MagicMock(Monkey))
-
-
-@pytest.mark.parametrize(
-    "method",
-    [
-        "add_constructor",
-        "add_method",
-        "add_function",
-        "add_field",
-    ],
+from pynguin.analyses.typesystem import (
+    AnyType,
+    InferredSignature,
+    Instance,
+    NoneType,
+    TypeInfo,
+    TypeSystem,
 )
-def test_check_recursion_depth_guard(test_case_mock, method):
-    with pytest.raises(ConstructionFailedException):
-        getattr(tf.TestFactory(MagicMock(ModuleTestCluster)), method)(
-            test_case_mock, MagicMock(stmt.Statement), recursion_depth=11
-        )
+from tests.fixtures.accessibles.accessible import SomeType, simple_function
+from tests.testcase._builders import assign, call_stmt, int_stmt, make_test_case, stmt
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "statement",
-    [
-        (MagicMock(stmt.ConstructorStatement)),
-        (MagicMock(stmt.MethodStatement)),
-        (MagicMock(stmt.FunctionStatement, should_mutate=True)),
-        (MagicMock(stmt.FieldStatement)),
-        (MagicMock(stmt.PrimitiveStatement)),
-    ],
-)
-def test_append_statement(test_case_mock, statement):
-    called = False
-
-    def mock_method(_t, _s, position=0, allow_none=True):  # noqa: ARG001, FBT002
-        nonlocal called
-        called = True
-
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    factory.add_constructor = mock_method
-    factory.add_method = mock_method
-    factory.add_function = mock_method
-    factory.add_field = mock_method
-    factory.add_primitive = mock_method
-    factory.append_statement(test_case_mock, statement)
-    assert called
+def _make_factory(cluster=None, provider=None) -> tf.TestFactory:
+    """Build a factory over a (mock) cluster with an optional constant provider."""
+    if cluster is None:
+        cluster = MagicMock(ModuleTestCluster)
+    return tf.TestFactory(cluster, provider)
 
 
-@pytest.mark.parametrize(
-    "statement",
-    [
-        (MagicMock(gao.GenericConstructor)),
-        (MagicMock(gao.GenericMethod)),
-        (MagicMock(gao.GenericFunction)),
-        (MagicMock(gao.GenericField)),
-    ],
-)
-def test_append_generic_statement(test_case_mock, statement):
-    called = False
-
-    def mock_method(
-        _t,
-        _s,
-        position=0,  # noqa: ARG001
-        allow_none=True,  # noqa: ARG001, FBT002
-        recursion_depth=11,  # noqa: ARG001
-    ):
-        nonlocal called
-        called = True
-
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    factory.add_constructor = mock_method
-    factory.add_method = mock_method
-    factory.add_function = mock_method
-    factory.add_field = mock_method
-    factory.add_primitive = mock_method
-    result = factory.append_generic_accessible(test_case_mock, statement)
-    assert result is None
-    assert called
-
-
-def test_append_illegal_generic_statement(test_case_mock):
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    with pytest.raises(ConstructionFailedException):
-        factory.append_generic_accessible(
-            test_case_mock, MagicMock(stmt.PrimitiveStatement), position=42
-        )
-
-
-def test_add_primitive(test_case_mock):
-    statement = MagicMock(stmt.PrimitiveStatement)
-    statement.clone.return_value = statement
-    factory = tf.TestFactory(MagicMock(ModuleTestCluster))
-    factory.add_primitive(test_case_mock, statement)
-    statement.clone.assert_called_once()
-    test_case_mock.add_variable_creating_statement.assert_called_once()
-
-
-def test_add_constructor(provide_callables_from_fixtures_modules, default_test_case):
-    generic_constructor = gao.GenericConstructor(
-        owner=default_test_case.test_cluster.type_system.to_type_info(
-            provide_callables_from_fixtures_modules["Basket"]
-        ),
-        inferred_signature=InferredSignature(
-            signature=Signature(
-                parameters=[
-                    Parameter(name="foo", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-                ]
-            ),
-            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
-            original_parameters={
-                "foo": default_test_case.test_cluster.type_system.convert_type_hint(int)
-            },
-            type_system=default_test_case.test_cluster.type_system,
-        ),
-    )
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory.add_constructor(default_test_case, generic_constructor, position=0)
-    assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(
-        provide_callables_from_fixtures_modules["Basket"]
-    )
-    assert default_test_case.size() == 2
-
-
-def test_add_method(provide_callables_from_fixtures_modules, default_test_case):
-    object_ = Monkey("foo")
-    methods = inspect.getmembers(object_, inspect.ismethod)
-    # fmt: off
-    generic_method = gao.GenericMethod(
-        owner=default_test_case.test_cluster.type_system.to_type_info(
-            provide_callables_from_fixtures_modules["Monkey"]
-        ),
-        method=methods[3][1],
-        inferred_signature=InferredSignature(
-            signature=Signature(
-                parameters=[
-                    Parameter(
-                        name="sentence",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=str,
-                    ),
-                ]
-            ),
-            original_return_type=default_test_case.test_cluster.type_system
-            .convert_type_hint(
-                provide_callables_from_fixtures_modules["Monkey"]
-            ),
-            original_parameters={
-                "sentence": default_test_case.test_cluster.type_system
-                .convert_type_hint(str)
-            },
-            type_system=default_test_case.test_cluster.type_system,
-        ),
-    )
-    # fmt: on
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    config.configuration.test_creation.none_probability = 1.0
-    result = factory.add_method(default_test_case, generic_method, position=0, callee=MagicMock())
-    assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(
-        provide_callables_from_fixtures_modules["Monkey"]
-    )
-    assert default_test_case.size() == 2
-
-
-def test_add_function(provide_callables_from_fixtures_modules, default_test_case):
-    config.configuration.test_creation.object_reuse_probability = 0.0
-    generic_function = gao.GenericFunction(
-        function=default_test_case.test_cluster.type_system.to_type_info(
-            provide_callables_from_fixtures_modules["triangle"]
-        ),
-        inferred_signature=InferredSignature(
-            signature=Signature(
-                parameters=[
-                    Parameter(name="x", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-                    Parameter(name="y", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-                    Parameter(name="z", kind=Parameter.POSITIONAL_OR_KEYWORD, annotation=int),
-                ]
-            ),
-            original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
-            original_parameters={
-                "x": default_test_case.test_cluster.type_system.convert_type_hint(int),
-                "y": default_test_case.test_cluster.type_system.convert_type_hint(int),
-                "z": default_test_case.test_cluster.type_system.convert_type_hint(int),
-            },
-            type_system=default_test_case.test_cluster.type_system,
-        ),
-    )
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory.add_function(default_test_case, generic_function, position=0)
-    assert isinstance(result.type, AnyType)
-    assert default_test_case.size() <= 4
-
-
-def test_add_enum(default_test_case):
-    enum_ = enum.Enum("Foo", "BAR")
-    generic_enum = gao.GenericEnum(default_test_case.test_cluster.type_system.to_type_info(enum_))
-    cluster = MagicMock(ModuleTestCluster)
-    factory = tf.TestFactory(cluster)
-    result = factory.add_enum(default_test_case, generic_enum)
-    assert default_test_case.statements[0].value_name == "BAR"
-    assert result.type == default_test_case.test_cluster.type_system.convert_type_hint(enum_)
-    assert default_test_case.size() == 1
-
-
-@pytest.mark.parametrize(
-    "type_",
-    [
-        int,
-        float,
-        bool,
-        str,
-    ],
-)
-def test_create_primitive(type_, default_test_case):
-    default_test_case.test_cluster.type_system.enable_numeric_tower()
-    proper = default_test_case.test_cluster.type_system.convert_type_hint(type_)
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    provider = EmptyConstantProvider()
-    result = factory._create_primitive(
-        default_test_case,
-        proper,
-        position=0,
-        recursion_depth=0,
-        constant_provider=provider,
-    )[0]
-    assert default_test_case.test_cluster.type_system.is_subtype(result.type, proper)
-
-
-def test_attempt_generation_for_unknown_type(default_test_case):
-    default_test_case.test_cluster.type_system.enable_numeric_tower()
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(
-        test_case=default_test_case,
-        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        position=0,
-        recursion_depth=0,
-        allow_none=True,
-    )
-    assert result is None
-
-
-def test_attempt_generation_for_none_type(default_test_case):
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(
-        test_case=default_test_case,
-        parameter_type=NoneType(),
-        position=0,
-        recursion_depth=0,
-        allow_none=True,
-    )
-    assert result.distance == 0
-
-
-def test_attempt_generation_for_int_with_no_probability(default_test_case):
-    config.configuration.test_creation.none_probability = 0.0
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(
-        test_case=default_test_case,
-        parameter_type=default_test_case.test_cluster.type_system.convert_type_hint(MagicMock),
-        position=0,
-        recursion_depth=0,
-        allow_none=True,
-    )
-    assert result is None
-
-
-def test_attempt_generation_for_string_subtype(default_test_case):
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    result = factory._attempt_generation(
-        test_case=default_test_case,
-        parameter_type=StringSubtype(re.compile(r"^bar")),
-        position=0,
-        recursion_depth=0,
-        allow_none=True,
-    )
-    assert result.distance == 0
-
-
-def test_attempt_generation_for_type_from_cluster(default_test_case):
-    def mock_method(_, position, recursion_depth, allow_none, type_generators):
-        assert position == 0  # pragma: no cover
-        assert recursion_depth == 0  # pragma: no cover
-        assert allow_none  # pragma: no cover
-        assert isinstance(type_generators, gao.GenericAccessibleObject)  # pragma: no cover
-
-    default_test_case.test_cluster.get_generators_for = lambda _: MagicMock(
-        gao.GenericAccessibleObject
-    )  # pragma: no cover
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    factory._attempt_generation_for_type = mock_method
-    factory._attempt_generation(
-        test_case=default_test_case,
-        parameter_type=NoneType(),
-        position=0,
-        recursion_depth=0,
-        allow_none=True,
+def _make_signature(params, param_types, return_type, type_system) -> InferredSignature:
+    """Build an :class:`InferredSignature` from raw inspect parameters."""
+    return InferredSignature(
+        signature=Signature(parameters=params),
+        original_return_type=return_type,
+        original_parameters=param_types,
+        type_system=type_system,
     )
 
 
-def test__rollback_changes_mid(default_test_case):
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 10))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 15))
-
-    cloned = default_test_case.clone()
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 7.5), 1)
-    assert cloned != default_test_case
-
-    tf.TestFactory._rollback_changes(default_test_case, cloned.size(), 1)
-    assert cloned == default_test_case
-
-
-def test__rollback_changes_end(default_test_case):
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 10))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 15))
-
-    cloned = default_test_case.clone()
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 7.5), 3)
-    assert cloned != default_test_case
-
-    tf.TestFactory._rollback_changes(default_test_case, cloned.size(), 3)
-    assert cloned == default_test_case
-
-
-def test__rollback_changes_nothing_to_rollback(default_test_case):
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 10))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 15))
-
-    cloned = default_test_case.clone()
-
-    tf.TestFactory._rollback_changes(default_test_case, cloned.size(), 3)
-    assert cloned == default_test_case
-
-
-def test__dependencies_satisfied_no_dependencies():
-    factory = tf.TestFactory(ModuleTestCluster(0))
-    assert factory._dependencies_satisfied(OrderedSet(), [])
-
-
-@pytest.mark.parametrize(
-    "exist,req,result",
-    [
-        ([int, bool], [int, float], False),
-        ([int, bool], [int, bool], True),
-        ([], [], True),
-        ([], [int], False),
-    ],
-)
-def test__dependencies_satisfied(default_test_case, exist, req, result):
-    factory = tf.TestFactory(ModuleTestCluster(0))
-    objects = [
-        vr.VariableReference(
-            default_test_case,
-            default_test_case.test_cluster.type_system.convert_type_hint(ex),
-        )
-        for ex in exist
+def _positional_only_function(type_system) -> gao.GenericFunction:
+    """A function with positional-only params: required ``a`` + optional ``b``/``c``."""
+    params = [
+        Parameter("a", Parameter.POSITIONAL_ONLY, annotation=int),
+        Parameter("b", Parameter.POSITIONAL_ONLY, annotation=int, default=0),
+        Parameter("c", Parameter.POSITIONAL_ONLY, annotation=int, default=0),
     ]
-    assert (
-        factory._dependencies_satisfied(
-            OrderedSet([
-                default_test_case.test_cluster.type_system.convert_type_hint(re) for re in req
-            ]),
-            objects,
-        )
-        is result
-    )
-
-
-def test__get_possible_calls_no_calls(type_system):
-    cluster = MagicMock(ModuleTestCluster)
-    cluster.get_generators_for.return_value = OrderedSet()
-    assert (
-        tf.TestFactory(cluster)._get_possible_calls(type_system.convert_type_hint(int), [], {})
-        == []
-    )
-
-
-def test__get_possible_calls_single_call(default_test_case, function_mock):
-    cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda _: ({function_mock})
-    assert tf.TestFactory(cluster)._get_possible_calls(
-        cluster.type_system.convert_type_hint(float),
-        [vr.VariableReference(default_test_case, cluster.type_system.convert_type_hint(float))],
-        {},
-    ) == [function_mock]
-
-
-def test__get_possible_calls_no_match(default_test_case, function_mock):
-    cluster = default_test_case.test_cluster
-    cluster.get_generators_for = lambda _: ({function_mock})
-    assert (
-        tf.TestFactory(cluster)._get_possible_calls(
-            cluster.type_system.convert_type_hint(float),
-            [vr.VariableReference(default_test_case, cluster.type_system.convert_type_hint(int))],
-            {},
-        )
-        == []
-    )
-
-
-@pytest.fixture
-def sample_test_case(function_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
-    float_function2 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_function1.ret_val}
-    )
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(float_prim2)
-    default_test_case.add_statement(float_function1)
-    default_test_case.add_statement(float_function2)
-    return default_test_case
-
-
-def test__get_reference_position_multi(sample_test_case):
-    assert tf.TestFactory._get_reference_positions(sample_test_case, 0) == {
-        0,
-        2,
-        3,
+    param_types = {
+        "a": Instance(TypeInfo(int)),
+        "b": Instance(TypeInfo(int)),
+        "c": Instance(TypeInfo(int)),
     }
-
-
-def test__get_reference_position_single(sample_test_case):
-    assert tf.TestFactory._get_reference_positions(sample_test_case, 3) == {3}
-
-
-def test__recursive_delete_inclusion_multi(sample_test_case):
-    to_delete = set()
-    tf.TestFactory._recursive_delete_inclusion(sample_test_case, to_delete, 0)
-    assert to_delete == {0, 2, 3}
-
-
-def test__recursive_delete_inclusion_single(sample_test_case):
-    to_delete = set()
-    tf.TestFactory._recursive_delete_inclusion(sample_test_case, to_delete, 3)
-    assert to_delete == {3}
-
-
-def test_delete_statement_multi(sample_test_case):
-    tf.TestFactory.delete_statement(sample_test_case, 0)
-    assert sample_test_case.size() == 1
-
-
-def test_delete_statement_single(sample_test_case):
-    tf.TestFactory.delete_statement(sample_test_case, 3)
-    assert sample_test_case.size() == 3
-
-
-def test_delete_statement_reverse(test_case_mock):
-    with mock.patch.object(tf.TestFactory, "_recursive_delete_inclusion") as rec_mock:
-        rec_mock.side_effect = lambda _t, delete, _p: delete.update({1, 2, 3})
-        tf.TestFactory.delete_statement(test_case_mock, 0)
-        test_case_mock.remove.assert_has_calls([call(3), call(2), call(1)])
-
-
-def test_get_reuse_parameters(default_test_case):
-    float0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float1 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    default_test_case.add_statement(float0)
-    default_test_case.add_statement(float1)
-    sign_mock = MagicMock(inspect.Signature)
-    params = {
-        "test0": default_test_case.test_cluster.type_system.convert_type_hint(float),
-        "test1": default_test_case.test_cluster.type_system.convert_type_hint(float),
-    }
-    inf_sig = InferredSignature(
-        original_parameters=params,
-        signature=sign_mock,
-        type_system=default_test_case.test_cluster.type_system,
-        original_return_type=default_test_case.test_cluster.type_system.convert_type_hint(None),
-    )
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch("pynguin.testcase.testfactory.is_optional_parameter") as optional_mock:
-            optional_mock.side_effect = [False, True]
-            assert tf.TestFactory._get_reuse_parameters(default_test_case, inf_sig, 1, {}) == {
-                "test0": float0.ret_val
-            }
-
-
-def test_insert_random_statement_empty_call(default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
-            ins_mock.return_value = True
-            assert (
-                test_factory.insert_random_statement(default_test_case, default_test_case.size())
-                == 0
-            )
-            ins_mock.assert_called_with(default_test_case, 0)
-
-
-def test_insert_random_statement_empty_on_object(default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 1.0
-        with mock.patch.object(test_factory, "insert_random_call_on_object") as ins_mock:
-            ins_mock.return_value = True
-            assert (
-                test_factory.insert_random_statement(default_test_case, default_test_case.size())
-                == 0
-            )
-            ins_mock.assert_called_with(default_test_case, 0)
-
-
-def test_insert_random_statement_non_empty(default_test_case):
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
-            ins_mock.return_value = True
-            assert test_factory.insert_random_statement(
-                default_test_case, default_test_case.size()
-            ) in range(default_test_case.size() + 1)
-            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
-
-
-def test_insert_random_statement_non_empty_multi_insert(default_test_case):
-    def side_effect(tc, pos):  # noqa: ARG001
-        tc.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-        tc.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-        return True
-
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
-            ins_mock.side_effect = side_effect
-            assert test_factory.insert_random_statement(
-                default_test_case, default_test_case.size()
-            ) in range(1, 1 + default_test_case.size() + 1)
-            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
-
-
-def test_insert_random_statement_no_success(default_test_case):
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch("pynguin.utils.randomness.next_float") as float_mock:
-        float_mock.return_value = 0.0
-        with mock.patch.object(test_factory, "insert_random_call") as ins_mock:
-            ins_mock.return_value = False
-            assert (
-                test_factory.insert_random_statement(default_test_case, default_test_case.size())
-                == -1
-            )
-            assert ins_mock.call_args_list[0].args[1] in range(default_test_case.size() + 1)
-
-
-def test_insert_random_call_on_object_no_success(default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 0
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
-        select_mock.return_value = None
-        assert not test_factory.insert_random_call_on_object(default_test_case, 0)
-        select_mock.assert_called_with(default_test_case, 0)
-
-
-def test_insert_random_call_on_object_success(variable_reference_mock, default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
-        select_mock.return_value = variable_reference_mock
-        with mock.patch.object(test_factory, "insert_random_call_on_object_at") as insert_mock:
-            insert_mock.return_value = True
-            assert test_factory.insert_random_call_on_object(default_test_case, 0)
-            select_mock.assert_called_with(default_test_case, 0)
-            insert_mock.assert_called_with(default_test_case, variable_reference_mock, 0)
-
-
-def test_insert_random_call_on_object_retry(variable_reference_mock, default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.num_accessible_objects_under_test.return_value = 1
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "_select_random_variable_for_call") as select_mock:
-        select_mock.return_value = variable_reference_mock
-        with mock.patch.object(
-            test_factory, "insert_random_call_on_object_at"
-        ) as insert_random_at_mock:
-            insert_random_at_mock.return_value = False
-            with mock.patch.object(test_factory, "insert_random_call") as insert_random_mock:
-                insert_random_mock.return_value = False
-                assert not test_factory.insert_random_call_on_object(default_test_case, 0)
-                select_mock.assert_called_with(default_test_case, 0)
-                insert_random_at_mock.assert_called_with(
-                    default_test_case, variable_reference_mock, 0
-                )
-                insert_random_mock.assert_called_with(default_test_case, 0)
-
-
-def test_insert_random_call_on_object_at_no_accessible(test_case_mock, variable_reference_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_random_call_for.side_effect = ConstructionFailedException()
-    test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.type = float
-    assert not test_factory.insert_random_call_on_object_at(
-        test_case_mock, variable_reference_mock, 0
-    )
-
-
-@pytest.mark.parametrize("result", [True, False])
-def test_insert_random_call_on_object_at_success(test_case_mock, variable_reference_mock, result):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    variable_reference_mock.type = float
-    with mock.patch.object(test_factory, "add_call_for") as call_mock:
-        call_mock.return_value = result
-        assert (
-            test_factory.insert_random_call_on_object_at(test_case_mock, variable_reference_mock, 0)
-            == result
-        )
-
-
-def test_add_call_for_field(field_mock, variable_reference_mock, test_case_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "add_field") as add_field:
-        assert test_factory.add_call_for(
-            test_case_mock, variable_reference_mock, field_mock, position=0
-        )
-        add_field.assert_called_with(
-            test_case_mock, field_mock, position=0, callee=variable_reference_mock
-        )
-
-
-def test_add_call_for_method(method_mock, variable_reference_mock, test_case_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "add_method") as add_field:
-        assert test_factory.add_call_for(
-            test_case_mock, variable_reference_mock, method_mock, position=0
-        )
-        add_field.assert_called_with(
-            test_case_mock, method_mock, position=0, callee=variable_reference_mock
-        )
-
-
-def test_add_call_for_rollback(method_mock, variable_reference_mock, default_test_case):
-    def side_effect(tc, f, position, callee=None):  # noqa: ARG001
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, value=5), position=position)
-        raise ConstructionFailedException
-
-    int0 = stmt.IntPrimitiveStatement(default_test_case, 3)
-    default_test_case.add_statement(int0)
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "add_method") as add_field:
-        add_field.side_effect = side_effect
-        assert not test_factory.add_call_for(
-            default_test_case, variable_reference_mock, method_mock, position=0
-        )
-        assert default_test_case.statements == [int0]
-
-
-def test_add_call_for_unknown(variable_reference_mock, test_case_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    unknown = MagicMock(gao.GenericAccessibleObject)
-    unknown.is_method.return_value = False
-    unknown.is_field.return_value = False
-    with pytest.raises(RuntimeError):
-        test_factory.add_call_for(test_case_mock, variable_reference_mock, unknown, 0)
-
-
-def test_select_random_variable_for_call_one(constructor_mock, function_mock, default_test_case):
-    default_test_case.add_statement(
-        stmt.NoneStatement(
-            default_test_case,
-        )
-    )
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 5.0))
-    default_test_case.add_statement(stmt.FunctionStatement(default_test_case, function_mock))
-    const = stmt.ConstructorStatement(default_test_case, constructor_mock)
-    default_test_case.add_statement(const)
-    assert (
-        tf.TestFactory._select_random_variable_for_call(default_test_case, default_test_case.size())
-        == const.ret_val
-    )
-
-
-def test_select_random_variable_for_call_none(function_mock, default_test_case):
-    default_test_case.add_statement(stmt.NoneStatement(default_test_case))
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 5.0))
-    default_test_case.add_statement(stmt.FunctionStatement(default_test_case, function_mock))
-    assert (
-        tf.TestFactory._select_random_variable_for_call(default_test_case, default_test_case.size())
-        is None
-    )
-
-
-def test_insert_random_call_no_accessible(test_case_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_random_accessible.return_value = None
-    test_factory = tf.TestFactory(test_cluster)
-    assert not test_factory.insert_random_call(test_case_mock, 0)
-
-
-def test_insert_random_call_success(test_case_mock):
-    test_cluster = MagicMock(ModuleTestCluster)
-    acc = MagicMock(gao.GenericAccessibleObject)
-    test_cluster.get_random_accessible.return_value = acc
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "append_generic_accessible") as append_mock:
-        assert test_factory.insert_random_call(test_case_mock, position=0)
-        append_mock.assert_called_with(test_case_mock, acc, position=0)
-
-
-def test_insert_random_call_rollback(default_test_case):
-    def side_effect(tc, f, position, callee=None):  # noqa: ARG001
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
-        tc.add_statement(stmt.IntPrimitiveStatement(tc, 5), position=position)
-        raise ConstructionFailedException
-
-    int0 = stmt.IntPrimitiveStatement(default_test_case, 3)
-    default_test_case.add_statement(int0)
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "append_generic_accessible") as append_generic_mock:
-        append_generic_mock.side_effect = side_effect
-        assert not test_factory.insert_random_call(default_test_case, 0)
-        assert default_test_case.statements == [int0]
-
-
-def test_delete_statement_gracefully_success(function_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim2.ret_val}
-    )
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(float_prim2)
-    default_test_case.add_statement(float_function1)
-    assert tf.TestFactory.delete_statement_gracefully(default_test_case, 1)
-    assert default_test_case.statements[1].references(float_prim.ret_val)
-    assert default_test_case.size() == 2
-
-
-def test_delete_statement_gracefully_no_alternatives(function_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(float_function1)
-    assert tf.TestFactory.delete_statement_gracefully(default_test_case, 0)
-    assert default_test_case.size() == 0
-
-
-def test_delete_statement_gracefully_no_dependencies(default_test_case):
-    float_prim0 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_prim1 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    default_test_case.add_statement(float_prim0)
-    default_test_case.add_statement(float_prim1)
-    default_test_case.add_statement(float_prim2)
-    assert tf.TestFactory.delete_statement_gracefully(default_test_case, 1)
-    assert default_test_case.statements == [float_prim0, float_prim2]
-
-
-def test_delete_statement_gracefully_ml_statements(function_mock, default_test_case):
-    config.configuration.pynguinml.ml_testing_enabled = True
-    importlib.reload(tf)
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_prim2 = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_ml_specific_function = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim2.ret_val}, should_mutate=False
-    )
-    float_function = stmt.FunctionStatement(
-        default_test_case,
-        function_mock,
-        {"z": float_prim2.ret_val},
-    )
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(float_prim2)
-    default_test_case.add_statement(float_ml_specific_function)
-    assert tf.MLTestFactory.delete_statement_gracefully(default_test_case, 1)
-    assert default_test_case.size() == 1
-
-    default_test_case.add_statement(float_prim2)
-    default_test_case.add_statement(float_function)
-    assert tf.MLTestFactory.delete_statement_gracefully(default_test_case, 1)
-    assert default_test_case.size() == 2
-    assert default_test_case.statements[1].references(float_prim.ret_val)
-
-
-def test_change_random_call_unknown_type(default_test_case):
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = []
-    test_factory = tf.TestFactory(test_cluster)
-    none_statement = stmt.NoneStatement(default_test_case)
-    default_test_case.add_statement(none_statement)
-    assert not test_factory.change_random_call(default_test_case, none_statement)
-
-
-def test_change_random_call_no_calls(function_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(float_function1)
-
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = {function_mock}
-    test_factory = tf.TestFactory(test_cluster)
-    assert not test_factory.change_random_call(default_test_case, float_function1)
-
-
-def test_change_random_call_primitive(function_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    default_test_case.add_statement(float_prim)
-
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = {function_mock}
-    test_factory = tf.TestFactory(test_cluster)
-    assert not test_factory.change_random_call(default_test_case, float_prim)
-
-
-def test_change_random_call_success(
-    function_mock, method_mock, constructor_mock, default_test_case
-):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    int0 = stmt.IntPrimitiveStatement(default_test_case, 2)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
-    const = stmt.ConstructorStatement(default_test_case, constructor_mock)
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(int0)
-    default_test_case.add_statement(const)
-    default_test_case.add_statement(float_function1)
-
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "change_call") as change_mock:
-        assert test_factory.change_random_call(default_test_case, float_function1)
-        # fmt: off
-        change_mock.assert_called_with(
-            default_test_case,
-            float_function1,
-            method_mock,
-            {
-                function_mock.inferred_signature: function_mock.inferred_signature
-                .get_parameter_types(
-                    {}
-                ),
-                method_mock.inferred_signature: method_mock.inferred_signature
-                .get_parameter_types(
-                    {}
-                ),
-            },
-        )
-        # fmt: on
-
-
-def test_change_random_call_failed(function_mock, method_mock, constructor_mock, default_test_case):
-    float_prim = stmt.FloatPrimitiveStatement(default_test_case, 5.0)
-    int0 = stmt.IntPrimitiveStatement(default_test_case, 2)
-    float_function1 = stmt.FunctionStatement(
-        default_test_case, function_mock, {"z": float_prim.ret_val}
-    )
-    const = stmt.ConstructorStatement(default_test_case, constructor_mock)
-    default_test_case.add_statement(float_prim)
-    default_test_case.add_statement(int0)
-    default_test_case.add_statement(const)
-    default_test_case.add_statement(float_function1)
-
-    test_cluster = MagicMock(ModuleTestCluster)
-    test_cluster.get_generators_for.return_value = {function_mock, method_mock}
-    test_factory = tf.TestFactory(test_cluster)
-    with mock.patch.object(test_factory, "change_call") as change_mock:
-        change_mock.side_effect = ConstructionFailedException()
-        assert not test_factory.change_random_call(default_test_case, float_function1)
-        # fmt: off
-        change_mock.assert_called_with(
-            default_test_case,
-            float_function1,
-            method_mock,
-            {
-                function_mock.inferred_signature: function_mock.inferred_signature
-                .get_parameter_types(
-                    {}
-                ),
-                method_mock.inferred_signature: method_mock.inferred_signature
-                .get_parameter_types(
-                    {}
-                ),
-            },
-        )
-        # fmt: on
-
-
-def test_change_call_method(constructor_mock, method_mock, default_test_case):
-    default_test_case.add_statement(stmt.ConstructorStatement(default_test_case, constructor_mock))
-    default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 3))
-    to_replace = stmt.NoneStatement(default_test_case)
-    default_test_case.add_statement(to_replace)
-    test_cluster = default_test_case.test_cluster
-    feed_typesystem(test_cluster.type_system, constructor_mock)
-    feed_typesystem(test_cluster.type_system, method_mock)
-    test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, method_mock, {})
-    assert default_test_case.statements[2].accessible_object() == method_mock
-    assert default_test_case.statements[2].ret_val is to_replace.ret_val
-
-
-def test_change_call_constructor(constructor_mock, default_test_case):
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
-    to_replace = stmt.NoneStatement(default_test_case)
-    default_test_case.add_statement(to_replace)
-    test_cluster = default_test_case.test_cluster
-    feed_typesystem(test_cluster.type_system, constructor_mock)
-    test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, constructor_mock, {})
-    assert default_test_case.statements[1].accessible_object() == constructor_mock
-    assert default_test_case.statements[1].ret_val is to_replace.ret_val
-
-
-def test_change_call_function(function_mock, default_test_case):
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
-    to_replace = stmt.NoneStatement(default_test_case)
-    default_test_case.add_statement(to_replace)
-    test_cluster = default_test_case.test_cluster
-    feed_typesystem(test_cluster.type_system, function_mock)
-    test_factory = tf.TestFactory(test_cluster)
-    test_factory.change_call(default_test_case, to_replace, function_mock, {})
-    assert default_test_case.statements[1].accessible_object() == function_mock
-    assert default_test_case.statements[1].ret_val is to_replace.ret_val
-
-
-def test_change_call_unknown(default_test_case):
-    default_test_case.add_statement(stmt.FloatPrimitiveStatement(default_test_case, 3.5))
-    to_replace = stmt.NoneStatement(default_test_case)
-    default_test_case.add_statement(to_replace)
-    test_cluster = default_test_case.test_cluster
-    test_factory = tf.TestFactory(test_cluster)
-    acc = MagicMock(gao.GenericAccessibleObject)
-    acc.is_method.return_value = False
-    acc.is_constructor.return_value = False
-    acc.is_function.return_value = False
-    acc.is_enum.return_value = False
-    with pytest.raises(AssertionError):
-        test_factory.change_call(default_test_case, to_replace, acc, {})
-
-
-def test_add_method_type_tracing_union_type(default_test_case):
-    generic_method = gao.GenericMethod(
-        owner=MagicMock(),
-        method=MagicMock(),
-        inferred_signature=InferredSignature(
-            signature=Signature(
-                parameters=[
-                    Parameter(
-                        name="sentence",
-                        kind=Parameter.POSITIONAL_OR_KEYWORD,
-                        annotation=float | int,
-                    ),
-                ]
-            ),
-            original_return_type=MagicMock(),
-            original_parameters={
-                "sentence": default_test_case.test_cluster.type_system.convert_type_hint(str)
-            },
-            type_system=default_test_case.test_cluster.type_system,
+    return gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            params, param_types, Instance(TypeInfo(float)), type_system
         ),
     )
 
-    usage_trace = MagicMock(tt.UsageTraceNode)
-    usage_trace.find_path = lambda _: None
-    usage_trace.__len__.return_value = 1
-    usage_trace.children = {}
-    ordered_set = OrderedSet()
-    ordered_set.add(float | int)
-    usage_trace.type_checks = ordered_set
-    generic_method.inferred_signature.usage_trace["sentence"] = usage_trace
-    factory = tf.TestFactory(default_test_case.test_cluster)
-    factory.add_method(default_test_case, generic_method, position=0, callee=MagicMock())
+
+def _make_enum() -> gao.GenericEnum:
+    """A GenericEnum over a small runtime enum."""
+    Color = enum.Enum("Color", "RED GREEN BLUE")  # noqa: N806
+    return gao.GenericEnum(TypeInfo(Color))
 
 
-def test_change_random_field_call(default_test_case, field_mock, variable_reference_mock):
-    statement = FieldStatement(default_test_case, field_mock, variable_reference_mock)
-    default_test_case.add_statement(statement)
-    test_cluster = default_test_case.test_cluster
-    test_factory = tf.TestFactory(test_cluster)
-    position = default_test_case.size() - 1
-    replacement_field: GenericField = MagicMock()
-    replacement_list: list[GenericField] = [replacement_field, statement.accessible_object()]
-    with patch.object(test_factory, "_get_possible_calls", return_value=replacement_list):
-        assert test_factory.change_random_field_call(default_test_case, position)
-        assert default_test_case.statements[position].accessible_object() == replacement_field
+def _bad_function(type_system) -> gao.GenericFunction:
+    """A function whose callable has a non-identifier name (``<lambda>``)."""
+    bad = lambda z: z  # noqa: E731
+    bad.__name__ = "<lambda>"
+    return gao.GenericFunction(
+        function=bad,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, NoneType(), type_system),
+    )
 
 
-def test_change_random_field_call_fail(default_test_case, field_mock, variable_reference_mock):
-    statement = FieldStatement(default_test_case, field_mock, variable_reference_mock)
-    default_test_case.add_statement(statement)
-    test_cluster = default_test_case.test_cluster
-    test_factory = tf.TestFactory(test_cluster)
-    position = default_test_case.size() - 1
-    replacement_list: list[GenericField] = [cast("GenericField", statement.accessible_object())]
-    with patch.object(test_factory, "_get_possible_calls", return_value=replacement_list):
-        assert not test_factory.change_random_field_call(default_test_case, position)
-        assert (
-            default_test_case.statements[position].accessible_object()
-            == statement.accessible_object()
+def _bad_method(type_system) -> gao.GenericMethod:
+    """A method whose callable has a non-identifier name (``<lambda>``)."""
+    bad = lambda self: self  # noqa: E731
+    bad.__name__ = "<lambda>"
+    return gao.GenericMethod(
+        owner=TypeInfo(SomeType),
+        method=bad,  # type: ignore[arg-type]
+        inferred_signature=_make_signature([], {}, NoneType(), type_system),
+    )
+
+
+def _var_args_function(type_system) -> gao.GenericFunction:
+    """A function with an untyped param plus ``*args`` / ``**kwargs``."""
+    params = [
+        Parameter("p", Parameter.POSITIONAL_OR_KEYWORD),
+        Parameter("args", Parameter.VAR_POSITIONAL),
+        Parameter("kwargs", Parameter.VAR_KEYWORD),
+    ]
+    param_types = {"p": AnyType(), "args": AnyType(), "kwargs": AnyType()}
+    return gao.GenericFunction(
+        function=simple_function,  # type: ignore[arg-type]
+        inferred_signature=_make_signature(
+            params, param_types, Instance(TypeInfo(float)), type_system
+        ),
+    )
+
+
+def _call_expr(node) -> cst.Call:
+    """Extract the ``cst.Call`` from an ``lhs = call(...)`` statement node."""
+    assert isinstance(node, cst.SimpleStatementLine)
+    small = node.body[0]
+    assert isinstance(small, cst.Assign)
+    call = small.value
+    assert isinstance(call, cst.Call)
+    return call
+
+
+def _call_with(name, expr, accessible, bound_type=None) -> tc.Statement:
+    """Build an assignment statement and attach an accessible object to it."""
+    statement = call_stmt(name, expr, bound_type=bound_type)
+    statement.accessible = accessible
+    return statement
+
+
+def _accessible_index(test_case: tc.TestCase, accessible) -> int | None:
+    """Return the index of the first statement bound to *accessible*."""
+    for idx, statement in enumerate(test_case.statements()):
+        if statement.accessible is accessible:
+            return idx
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Construction / trivial public API
+# ---------------------------------------------------------------------------
+
+
+def test_init_defaults_constant_provider():
+    factory = _make_factory()
+    assert isinstance(factory._constant_provider, EmptyConstantProvider)
+
+
+def test_insert_random_statement_no_accessible():
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.get_random_accessible.return_value = None
+    assert tf.TestFactory(cluster).insert_random_statement(tc.TestCase(), 0) == -1
+
+
+@pytest.mark.parametrize(
+    "position,expected_first,expected_last",
+    [
+        (-1, "var_0", "var_9"),  # append at the end
+        (0, "var_9", "var_0"),  # insert at the front
+    ],
+)
+def test_append_statement_positions(position, expected_first, expected_last):
+    test_case = make_test_case(int_stmt("var_0", 1))
+    _make_factory().append_statement(test_case, int_stmt("var_9", 9), position=position)
+    assert test_case.size() == 2
+    assert test_case.get_statement(0).bound_variable == expected_first
+    assert test_case.get_statement(1).bound_variable == expected_last
+
+
+@pytest.mark.parametrize(
+    "position,expected,remaining",
+    [
+        (0, True, 1),
+        (5, False, 2),
+        (-1, False, 2),
+    ],
+)
+def test_delete_statement(position, expected, remaining):
+    test_case = make_test_case(int_stmt("var_0", 1), int_stmt("var_1", 2))
+    assert tf.TestFactory.delete_statement(test_case, position) is expected
+    assert test_case.size() == remaining
+
+
+@pytest.mark.parametrize(
+    "builder,position,expected,size_after",
+    [
+        # out of range -> False, nothing removed
+        (lambda: make_test_case(int_stmt("var_0", 1)), 9, False, 1),
+        # cascade: var_1 reads var_0 -> deleting 0 removes both
+        (
+            lambda: make_test_case(int_stmt("var_0", 1), assign("var_1", "f(var_0)")),
+            0,
+            True,
+            0,
+        ),
+        # independent statements -> only the target is removed
+        (
+            lambda: make_test_case(int_stmt("var_0", 1), int_stmt("var_1", 2)),
+            0,
+            True,
+            1,
+        ),
+    ],
+)
+def test_delete_statement_gracefully(builder, position, expected, size_after):
+    test_case = builder()
+    assert tf.TestFactory.delete_statement_gracefully(test_case, position) is expected
+    assert test_case.size() == size_after
+
+
+# ---------------------------------------------------------------------------
+# Variable lookup
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw,statements,position,expected",
+    [
+        # raw None never matches
+        (None, [int_stmt("var_0", 1)], 1, None),
+        # exact type match
+        (int, [int_stmt("var_0", 1)], 1, "var_0"),
+        # subtype match: bool is a subclass of int
+        (int, [assign("var_0", "True", bound_type=bool)], 1, "var_0"),
+        # no match
+        (int, [assign("var_0", "'x'", bound_type=str)], 1, None),
+        # position limit excludes statements at/after position
+        (int, [int_stmt("var_0", 1)], 0, None),
+    ],
+)
+def test_find_variable_of_type(raw, statements, position, expected):
+    test_case = make_test_case(*statements)
+    assert tf.TestFactory._find_variable_of_type(test_case, raw, position) == expected
+
+
+@pytest.mark.parametrize(
+    "raw,node_type", [(list, cst.List), (dict, cst.Dict), (set, (cst.Set, cst.Call))]
+)
+def test_fallback_literal_value_collection(raw, node_type):
+    value = _make_factory()._fallback_literal_value(raw)
+    assert isinstance(value, node_type)
+
+
+# ---------------------------------------------------------------------------
+# Value mutation (primitives)
+# ---------------------------------------------------------------------------
+
+
+def _compound_statement() -> tc.Statement:
+    node = cst.parse_module("if var_0:\n    pass\n").body[0]
+    return tc.Statement(node=node, bound_variable="var_0", bound_type=int)
+
+
+@pytest.mark.parametrize(
+    "builder,position",
+    [
+        # out of range
+        (lambda: make_test_case(int_stmt("var_0", 1)), 9),
+        # bound_type is not a literal type
+        (lambda: make_test_case(_call_with("var_0", "_.SomeType()", None, bound_type=SomeType)), 0),
+        # bound_type is None
+        (lambda: make_test_case(stmt("var_0", bound_variable="var_0")), 0),
+        # node is a compound statement (not SimpleStatementLine)
+        (lambda: make_test_case(_compound_statement()), 0),
+        # SimpleStatementLine whose first small statement is not an Assign
+        (lambda: make_test_case(stmt("var_0", bound_variable="var_0", bound_type=int)), 0),
+    ],
+)
+def test_mutate_value_returns_false(builder, position):
+    assert _make_factory().mutate_value(builder(), position) is False
+
+
+def test_mutate_value_success():
+    test_case = make_test_case(int_stmt("var_0", 5))
+    assert _make_factory().mutate_value(test_case, 0) is True
+    mutated = test_case.get_statement(0)
+    assert mutated.bound_variable == "var_0"
+    assert mutated.bound_type is int
+    assert isinstance(mutated.node, cst.SimpleStatementLine)
+
+
+# ---------------------------------------------------------------------------
+# Call mutation
+# ---------------------------------------------------------------------------
+
+
+def test_mutate_call_returns_false_out_of_range():
+    assert _make_factory().mutate_call(tc.TestCase(), 9) is False
+
+
+def test_mutate_call_returns_false_no_accessible():
+    # primitive statement carries no accessible object
+    test_case = make_test_case(int_stmt("var_0", 5))
+    assert _make_factory().mutate_call(test_case, 0) is False
+
+
+def test_mutate_call_returns_false_unknown_accessible():
+    unknown = MagicMock(gao.GenericAccessibleObject)
+    test_case = make_test_case(_call_with("var_0", "_.thing()", unknown))
+    assert _make_factory().mutate_call(test_case, 0) is False
+
+
+def test_mutate_call_method_without_receiver_returns_false(method_mock):
+    # no SomeType variable in scope -> receiver cannot be found
+    test_case = make_test_case(_call_with("var_0", "obj.simple_method(x)", method_mock))
+    assert _make_factory().mutate_call(test_case, 0) is False
+
+
+def test_mutate_call_constructor(constructor_mock):
+    test_case = make_test_case(
+        _call_with("var_0", "_.SomeType(y)", constructor_mock, bound_type=SomeType)
+    )
+    assert _make_factory().mutate_call(test_case, 0) is True
+    node = test_case.get_statement(0).node
+    assert "SomeType" in cst.Module(body=[node]).code
+
+
+def test_mutate_call_function(function_mock):
+    test_case = make_test_case(
+        _call_with("var_0", "_.simple_function(z)", function_mock, bound_type=float)
+    )
+    assert _make_factory().mutate_call(test_case, 0) is True
+    assert "simple_function" in cst.Module(body=[test_case.get_statement(0).node]).code
+
+
+def test_mutate_call_method(method_mock):
+    test_case = make_test_case(
+        assign("obj", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "obj.simple_method(x)", method_mock, bound_type=float),
+    )
+    assert _make_factory().mutate_call(test_case, 1) is True
+    assert "simple_method" in cst.Module(body=[test_case.get_statement(1).node]).code
+
+
+def test_mutate_call_enum():
+    enum_gao = _make_enum()
+    test_case = make_test_case(_call_with("var_0", "_.Color.RED", enum_gao))
+    assert _make_factory().mutate_call(test_case, 0) is True
+    assert "Color" in cst.Module(body=[test_case.get_statement(0).node]).code
+
+
+def test_mutate_call_regenerates_positional_only_args(type_system):
+    config.configuration.test_creation.skip_optional_parameter_probability = 1.0
+    func = _positional_only_function(type_system)
+    test_case = make_test_case(
+        _call_with("var_0", "_.simple_function(1, 2, 3)", func, bound_type=float)
+    )
+    assert _make_factory().mutate_call(test_case, 0) is True
+    call = _call_expr(test_case.get_statement(0).node)
+    # optional b and c are skipped; only the required positional-only ``a`` remains
+    assert len(call.args) == 1
+    assert call.args[0].keyword is None
+
+
+# ---------------------------------------------------------------------------
+# Parameter satisfaction during emission
+# ---------------------------------------------------------------------------
+
+
+def test_satisfy_params_positional_only(type_system):
+    config.configuration.test_creation.skip_optional_parameter_probability = 1.0
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    func = _positional_only_function(type_system)
+    test_case = tc.TestCase()
+    position = factory.append_generic_accessible(test_case, func)
+    assert position >= 0
+    call = _call_expr(test_case.get_statement(position).node)
+    # only the required positional-only parameter is emitted, as a positional arg
+    assert len(call.args) == 1
+    assert call.args[0].keyword is None
+
+
+@pytest.mark.parametrize("kind", ["enum", "method", "bad_function", "bad_method", "unknown"])
+def test_append_generic_accessible(kind, type_system, constructor_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+
+    accessible: gao.GenericAccessibleObject
+    needle: str | None
+    if kind == "enum":
+        accessible = _make_enum()
+        expected_ok, needle = True, "Color"
+    elif kind == "method":
+        # receiver is auto-created via the constructor generator
+        accessible = gao.GenericMethod(
+            owner=TypeInfo(SomeType),
+            method=SomeType.simple_method,  # type: ignore[arg-type]
+            inferred_signature=_make_signature(
+                [Parameter("x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int)],
+                {"x": Instance(TypeInfo(int))},
+                Instance(TypeInfo(float)),
+                type_system,
+            ),
         )
+        expected_ok, needle = True, "simple_method"
+    elif kind == "bad_function":
+        accessible = _bad_function(type_system)
+        expected_ok, needle = False, None
+    elif kind == "bad_method":
+        accessible = _bad_method(type_system)
+        expected_ok, needle = False, None
+    else:  # unknown accessible type
+        accessible = MagicMock(gao.GenericAccessibleObject)
+        expected_ok, needle = False, None
+
+    result = factory.append_generic_accessible(test_case, accessible)
+    if expected_ok:
+        assert needle is not None
+        assert result >= 0
+        assert needle in test_case.to_code()
+    else:
+        assert result == -1
 
 
-def test_change_field_call_wrong_statement(default_test_case):
-    statement = IntPrimitiveStatement(default_test_case, 42)
-    default_test_case.add_statement(statement)
-    test_cluster = default_test_case.test_cluster
-    test_factory = tf.TestFactory(test_cluster)
-    position = default_test_case.size() - 1
-    assert not test_factory.change_random_field_call(default_test_case, position)
+# ---------------------------------------------------------------------------
+# Recursive object creation / depth limiting
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", ["depth_limit", "no_generators", "success"])
+def test_create_var_of_type(kind, constructor_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    if kind == "no_generators":
+        cluster.get_generators_for = lambda _: []
+    else:
+        cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+    param_type = Instance(TypeInfo(SomeType))
+    depth = config.configuration.test_creation.max_recursion if kind == "depth_limit" else 0
+
+    name, _cursor = factory._create_var_of_type(test_case, param_type, SomeType, 0, depth)
+
+    if kind == "success":
+        assert name is not None
+        assert test_case.size() >= 1
+    else:
+        assert name is None
+        assert test_case.size() == 0
+
+
+# ---------------------------------------------------------------------------
+# change_random_call + _build_replacement_node
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", ["out_of_range", "primitive", "no_candidates"])
+def test_change_random_call_returns_false(kind, function_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    # the statement's own accessible is the only generator -> no alternative
+    cluster.get_generators_for = lambda _: {function_mock}
+    factory = tf.TestFactory(cluster)
+    if kind == "out_of_range":
+        test_case = make_test_case(int_stmt("var_0", 1))
+        position = 9
+    elif kind == "primitive":
+        # a primitive statement carries no callable accessible
+        test_case = make_test_case(int_stmt("var_0", 1))
+        position = 0
+    else:  # no_candidates
+        test_case = make_test_case(_call_with("var_0", "_.simple_function(z)", function_mock))
+        position = 0
+    assert factory.change_random_call(test_case, position) is False
+
+
+def test_change_random_call_method_unbuildable(function_mock, method_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    calls = {"n": 0}
+
+    def generators(_):
+        calls["n"] += 1
+        # first call yields the replacement candidate; receiver creation finds none
+        return {function_mock, method_mock} if calls["n"] == 1 else []
+
+    cluster.get_generators_for = generators
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(_call_with("var_0", "_.simple_function(z)", function_mock))
+    assert factory.change_random_call(test_case, 0) is False
+
+
+@pytest.mark.parametrize("kind", ["constructor", "function", "method", "enum"])
+def test_change_random_call_success(kind, constructor_mock, function_mock, method_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    factory = tf.TestFactory(cluster)
+
+    original: gao.GenericAccessibleObject
+    replacement: gao.GenericAccessibleObject
+    if kind == "constructor":
+        original = function_mock
+        replacement = constructor_mock
+        statements = [_call_with("var_0", "_.simple_function(z)", original)]
+        position = 0
+    elif kind == "function":
+        original = constructor_mock
+        replacement = function_mock
+        statements = [_call_with("var_0", "_.SomeType(y)", original)]
+        position = 0
+    elif kind == "method":
+        original = function_mock
+        replacement = method_mock
+        statements = [
+            assign("obj", "_.SomeType()", bound_type=SomeType),
+            _call_with("var_1", "_.simple_function(z)", original),
+        ]
+        position = 1
+    else:  # enum
+        original = function_mock
+        replacement = _make_enum()
+        statements = [_call_with("var_0", "_.simple_function(z)", original)]
+        position = 0
+
+    cluster.get_generators_for = lambda _: {original, replacement}
+    test_case = make_test_case(*statements)
+    assert factory.change_random_call(test_case, position) is True
+    assert _accessible_index(test_case, replacement) is not None
+
+
+@pytest.mark.parametrize("kind", ["bad_function", "bad_method", "unknown"])
+def test_change_random_call_unbuildable_replacement(kind, constructor_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    replacement: gao.GenericAccessibleObject
+    if kind == "bad_function":
+        replacement = _bad_function(type_system)
+    elif kind == "bad_method":
+        replacement = _bad_method(type_system)
+    else:
+        replacement = MagicMock(gao.GenericAccessibleObject)
+    cluster.get_generators_for = lambda _: {constructor_mock, replacement}
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(_call_with("var_0", "_.SomeType(y)", constructor_mock))
+    assert factory.change_random_call(test_case, 0) is False
+
+
+# ---------------------------------------------------------------------------
+# Low-level argument resolution / variable reuse
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", ["mapped_collection", "unresolvable_fallback", "any_var_reuse"])
+def test_resolve_arg_value(kind):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    cluster.get_generators_for = lambda _: []
+    factory = tf.TestFactory(cluster)
+
+    if kind == "mapped_collection":
+        # abstract collection is not a literal type but maps to a concrete builtin
+        test_case = tc.TestCase()
+        value, _cursor = factory._resolve_arg_value(
+            test_case, Instance(TypeInfo(list)), collections.abc.Iterable, 0, 0
+        )
+        assert isinstance(value, cst.BaseExpression)
+    elif kind == "unresolvable_fallback":
+        # unconstructible type with no reusable variable -> fallback literal
+        test_case = tc.TestCase()
+        value, _cursor = factory._resolve_arg_value(
+            test_case, Instance(TypeInfo(SomeType)), SomeType, 0, 0
+        )
+        assert isinstance(value, cst.Name)
+    else:  # any_var_reuse
+        test_case = make_test_case(int_stmt("var_0", 1))
+        with mock.patch.object(tf.randomness, "next_bool", return_value=True):
+            value, _cursor = factory._resolve_arg_value(
+                test_case, Instance(TypeInfo(SomeType)), SomeType, 1, 0
+            )
+        assert isinstance(value, cst.Name)
+        assert value.value == "var_0"
+
+
+@pytest.mark.parametrize("kind", ["none_raw", "primitive_reuse", "object_create"])
+def test_create_or_reuse_var(kind, constructor_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+
+    if kind == "none_raw":
+        name, _cursor = factory._create_or_reuse_var(tc.TestCase(), AnyType(), None, 0, 0)
+        assert name is None
+    elif kind == "primitive_reuse":
+        test_case = make_test_case(int_stmt("var_0", 1))
+        with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+            name, _cursor = factory._create_or_reuse_var(
+                test_case, Instance(TypeInfo(int)), int, 1, 0
+            )
+        assert name == "var_0"
+    else:  # object_create
+        test_case = tc.TestCase()
+        name, _cursor = factory._create_or_reuse_var(
+            test_case, Instance(TypeInfo(SomeType)), SomeType, 0, 0
+        )
+        assert name is not None
+        assert test_case.size() >= 1
+
+
+@pytest.mark.parametrize(
+    "position,expected",
+    [
+        (2, "var_0"),  # a bound variable in scope is returned
+        (0, None),  # nothing in scope before position 0
+    ],
+)
+def test_find_any_variable(position, expected):
+    test_case = make_test_case(int_stmt("var_0", 1), int_stmt("var_1", 2))
+    with mock.patch.object(tf.randomness, "choice", side_effect=operator.itemgetter(0)):
+        result = tf.TestFactory._find_any_variable(test_case, position)
+    assert result == expected
+
+
+def test_mutate_call_skips_var_args_and_reuses_variable(type_system):
+    # p is untyped (Any); *args/**kwargs are skipped; a prior variable is reused
+    func = _var_args_function(type_system)
+    test_case = make_test_case(
+        int_stmt("var_0", 1),
+        _call_with("var_1", "_.simple_function(var_0)", func, bound_type=float),
+    )
+    with mock.patch.object(tf.randomness, "next_bool", return_value=True):
+        assert _make_factory().mutate_call(test_case, 1) is True
+    call = _call_expr(test_case.get_statement(1).node)
+    assert len(call.args) == 1  # only p survives; *args/**kwargs are dropped
+
+
+def test_mutate_call_var_args_fallback_literal(type_system):
+    # no reusable variable in scope -> untyped param falls back to a literal
+    func = _var_args_function(type_system)
+    test_case = make_test_case(_call_with("var_0", "_.simple_function()", func, bound_type=float))
+    assert _make_factory().mutate_call(test_case, 0) is True
+
+
+def test_mutate_call_bad_function_name_returns_false(type_system):
+    func = _bad_function(type_system)
+    test_case = make_test_case(_call_with("var_0", "_.thing()", func))
+    assert _make_factory().mutate_call(test_case, 0) is False
+
+
+def test_mutate_call_bad_method_name_returns_false(type_system):
+    method = _bad_method(type_system)
+    test_case = make_test_case(
+        assign("obj", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "obj.thing()", method),
+    )
+    assert _make_factory().mutate_call(test_case, 1) is False

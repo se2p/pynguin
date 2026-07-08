@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
-import pynguin.testcase.statement as stmt
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -91,12 +90,14 @@ class TestCaseChromosome(chrom.Chromosome):
         )
         assert self._test_factory is not None, "Crossover requires a test factory."
 
-        offspring_test_case = self.test_case.clone(position1)
-
-        for j in range(position2, other.test_case.size()):
-            self._test_factory.append_statement(
-                offspring_test_case, other.test_case.get_statement(j)
+        offspring_test_case = self.test_case.clone()
+        # Keep only the first `position1` statements of this parent.
+        if offspring_test_case.size() > position1:
+            offspring_test_case.remove_statements_batch(
+                set(range(position1, offspring_test_case.size()))
             )
+
+        offspring_test_case.append_test_case_from(other.test_case, position2)
 
         if offspring_test_case.size() < config.configuration.search_algorithm.chromosome_length:
             self._test_case = offspring_test_case
@@ -111,7 +112,10 @@ class TestCaseChromosome(chrom.Chromosome):
         ):
             last_mutatable_position = self.get_last_mutatable_statement()
             if last_mutatable_position is not None:
-                self._test_case.chop(last_mutatable_position)
+                # Remove all statements after the last mutatable position.
+                self._test_case.remove_statements_batch(
+                    set(range(last_mutatable_position + 1, self._test_case.size()))
+                )
                 changed = True
 
         # In case mutation removes all calls on the SUT.
@@ -170,24 +174,22 @@ class TestCaseChromosome(chrom.Chromosome):
         changed = False
         p_per_statement = 1.0 / (last_mutatable_statement + 1.0)
         position = 0
-        while position <= last_mutatable_statement:
+        while position <= last_mutatable_statement and position < self.size():
             if randomness.next_float() < p_per_statement:
                 statement = self._test_case.get_statement(position)
-                if not isinstance(statement, stmt.VariableCreatingStatement):
-                    continue
-                old_distance = statement.ret_val.distance
-                ret_val = statement.ret_val
-                if statement.mutate():
-                    changed = True
-                else:
+                if statement.bound_variable is not None:
                     assert self._test_factory, "Mutation requires a test factory."
-                    if self._test_factory.change_random_call(
-                        self._test_case,
-                        statement,
-                    ):
+                    if statement.accessible is None:
+                        # Primitive statement: regenerate the literal value.
+                        if self._test_factory.mutate_value(self._test_case, position):
+                            changed = True
+                    # Call statement: first try to regenerate argument values
+                    # (mirrors the original statement.mutate() path), then
+                    # fall back to replacing the call with a different one.
+                    elif self._test_factory.mutate_call(
+                        self._test_case, position
+                    ) or self._test_factory.change_random_call(self._test_case, position):
                         changed = True
-                statement.ret_val.distance = old_distance
-                position = ret_val.get_statement_position()
             position += 1
 
         return changed

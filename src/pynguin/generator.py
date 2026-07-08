@@ -44,7 +44,6 @@ except ImportError:
 import weakref
 
 import pynguin.assertion.assertiongenerator as ag
-import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.strategies as ms
@@ -73,7 +72,6 @@ from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.assertion.mutation_analysis.transformer import ParentNodeTransformer
 from pynguin.instrumentation.machinery import InstrumentationFinder, install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
-from pynguin.slicer.statementslicingobserver import RemoteStatementSlicingObserver
 from pynguin.testcase import export
 from pynguin.testcase.execution import (
     RemoteAssertionExecutionObserver,
@@ -669,6 +667,10 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
     # traces slices for test cases after execution
     coverage_metrics = config.configuration.statistics_output.coverage_metrics
     if config.CoverageMetric.CHECKED in coverage_metrics:
+        from pynguin.slicer.statementslicingobserver import (  # noqa: PLC0415
+            RemoteStatementSlicingObserver,
+        )
+
         executor.add_remote_observer(RemoteStatementSlicingObserver())
 
     algorithm: GenerationAlgorithm = _instantiate_test_generation_strategy(
@@ -727,7 +729,11 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
     # Export the generated test suites
     if config.configuration.test_case_output.export_strategy == config.ExportStrategy.PY_TEST:
         try:
-            _export_chromosome(generation_result, sut_uses_random=test_cluster.sut_uses_random)
+            _export_chromosome(
+                generation_result,
+                sut_uses_random=test_cluster.sut_uses_random,
+                subject_properties=executor.subject_properties,
+            )
 
             # Apply LLM-based test refinement if enabled
             if config.configuration.llm_refinement.enabled:
@@ -755,7 +761,6 @@ def _run() -> ReturnCode:  # noqa: C901, PLR0915
 
                 except Exception as refinement_ex:
                     _LOGGER.exception("LLM refinement failed: %s", refinement_ex)
-
         except Exception as ex:
             _LOGGER.exception("Export to PyTest failed: %s", ex)
 
@@ -1054,6 +1059,8 @@ def _setup_mutation_analysis_assertion_generator(
     mutation_controller = MutationController(mutant_generator, module_ast, module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
+        import pynguin.assertion.llmassertiongenerator as lag  # noqa: PLC0415
+
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
             executor, mutation_controller
         )
@@ -1074,6 +1081,8 @@ def _generate_assertions(executor, generation_result, test_cluster):
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
         if ass_gen == config.AssertionGenerator.LLM:
+            import pynguin.assertion.llmassertiongenerator as lag  # noqa: PLC0415
+
             generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
             generator = _setup_mutation_analysis_assertion_generator(executor)
         elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
@@ -1161,45 +1170,35 @@ def _collect_miscellaneous_statistics(test_cluster: ModuleTestCluster) -> None:
 
 def _export_chromosome(
     chromosome: chrom.Chromosome,
-    file_name_suffix: str = "",
     *,
     sut_uses_random: bool = False,
+    subject_properties: SubjectProperties | None = None,
 ) -> None:
     """Export the given chromosome.
 
     Args:
         chromosome: the chromosome to export.
-        file_name_suffix: Suffix that can be added to the file name to distinguish
-            between different results e.g., failing and succeeding test cases.
         sut_uses_random: Whether the SUT transitively uses Python's random module.
             If True, an autouse fixture that reseeds random is emitted.
+        subject_properties: The subject properties, forwarded to the writer so it can
+            disable/rebind the instrumentation tracer during per-statement exception
+            detection (otherwise the tracer's thread-identity guard aborts the
+            exporter's re-execution and pollutes the suite with bogus
+            ``pytest.raises(TracingAbortedException)`` wrappers).
 
     Returns:
         The name of the target file
     """
-    module_name = config.configuration.module_name.replace(".", "_")
-    target_file = (
-        Path(config.configuration.test_case_output.output_path).resolve()
-        / f"test_{module_name}{file_name_suffix}.py"
-    )
-    store_call_return = (
-        config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM
-    )
-    export_visitor = export.PyTestChromosomeToAstVisitor(
-        store_call_return=store_call_return,
-        no_xfail=config.configuration.test_case_output.no_xfail,
-        sut_module_name=config.configuration.module_name,
-        pynguin_seed=config.configuration.seeding.seed if sut_uses_random else None,
-    )
+    output_dir = Path(config.configuration.test_case_output.output_path).resolve()
 
-    chromosome.accept(export_visitor)
-    module_ast, coverage_by_import_only = export_visitor.to_module()
-    export.save_module_to_file(
-        module_ast,
-        target_file,
+    writer = export.TestSuiteWriter()
+    target_file = writer.write(
+        cast("tsc.TestSuiteChromosome", chromosome),
+        config.configuration.module_name,
+        output_dir,
+        project_path=config.configuration.project_path,
         format_with_black=config.configuration.test_case_output.format_with_black,
-        module_name_with_coverage=config.configuration.module_name
-        if coverage_by_import_only
-        else None,
+        seed=config.configuration.seeding.seed if sut_uses_random else None,
+        subject_properties=subject_properties,
     )
     _LOGGER.info("Written %i test cases to %s", chromosome.size(), target_file)

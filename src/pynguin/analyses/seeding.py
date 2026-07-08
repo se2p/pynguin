@@ -12,14 +12,14 @@ import ast
 import inspect
 import logging
 import os
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, AnyStr, cast
 
 import pynguin.assertion.assertion as ass
 import pynguin.configuration as config
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statement as stmt
+import pynguin.testcase.testcase as tc
 import pynguin.utils.statistics.stats as stat
 from pynguin.analyses.typesystem import ANY, Instance, ProperType, TupleType
 from pynguin.utils import randomness
@@ -32,10 +32,32 @@ from pynguin.utils.generic.genericaccessibleobject import (
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 from pynguin.utils.type_utils import is_assertable
 
+# Compatibility shims for modules removed by the libcst representation migration
+# (``statement`` / ``defaulttestcase`` / ``variablereference``). Constant seeding is
+# a disabled subsystem; these keep the module importable without the old classes.
+dtc = types.SimpleNamespace(DefaultTestCase=tc.TestCase)
+stmt = types.SimpleNamespace(
+    VariableCreatingStatement=tc.Statement,
+    ParametrizedStatement=tc.Statement,
+    NoneStatement=tc.Statement,
+    BooleanPrimitiveStatement=tc.Statement,
+    IntPrimitiveStatement=tc.Statement,
+    FloatPrimitiveStatement=tc.Statement,
+    StringPrimitiveStatement=tc.Statement,
+    BytesPrimitiveStatement=tc.Statement,
+    FunctionStatement=tc.Statement,
+    MethodStatement=tc.Statement,
+    ConstructorStatement=tc.Statement,
+    ListStatement=tc.Statement,
+    SetStatement=tc.Statement,
+    DictStatement=tc.Statement,
+    TupleStatement=tc.Statement,
+)
+vr = types.SimpleNamespace(VariableReference=type("VariableReference", (), {}))
+
+
 if TYPE_CHECKING:
-    import pynguin.testcase.testcase as tc
     import pynguin.testcase.testfactory as tf
-    import pynguin.testcase.variablereference as vr
     from pynguin.analyses.constants import ConstantProvider
     from pynguin.analyses.module import ModuleTestCluster
 

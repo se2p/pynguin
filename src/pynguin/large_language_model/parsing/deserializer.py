@@ -16,18 +16,15 @@ from __future__ import annotations
 import ast
 import inspect
 import logging
+import types
 from typing import TYPE_CHECKING, Any, cast
 
-import pynguin.testcase.defaulttestcase as dtc
+import pynguin.testcase.testcase as tc
 from pynguin import configuration as config
 from pynguin.analyses.seeding import get_collection_type
 from pynguin.analyses.typesystem import AnyType, Instance, ProperType, TupleType
 from pynguin.assertion import assertion as ass
 from pynguin.large_language_model.parsing.helpers import _count_all_statements
-from pynguin.testcase import statement as stmt
-from pynguin.testcase import variablereference as vr
-from pynguin.testcase.statement import ASTAssignStatement
-from pynguin.testcase.variablereference import FieldReference, Reference
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
@@ -36,6 +33,36 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericMethod,
 )
 from pynguin.utils.type_utils import is_assertable
+
+# Compatibility shims for modules removed by the libcst representation migration
+# (``statement`` / ``defaulttestcase`` / ``variablereference``). LLM deserialization
+# is a disabled subsystem; these keep the module importable without the old classes.
+_Reference = type("VariableReference", (), {})
+dtc = types.SimpleNamespace(DefaultTestCase=tc.TestCase)
+stmt = types.SimpleNamespace(
+    VariableCreatingStatement=tc.Statement,
+    ParametrizedStatement=tc.Statement,
+    NoneStatement=tc.Statement,
+    BooleanPrimitiveStatement=tc.Statement,
+    IntPrimitiveStatement=tc.Statement,
+    FloatPrimitiveStatement=tc.Statement,
+    StringPrimitiveStatement=tc.Statement,
+    BytesPrimitiveStatement=tc.Statement,
+    FunctionStatement=tc.Statement,
+    MethodStatement=tc.Statement,
+    ConstructorStatement=tc.Statement,
+    ListStatement=tc.Statement,
+    SetStatement=tc.Statement,
+    DictStatement=tc.Statement,
+    TupleStatement=tc.Statement,
+)
+vr = types.SimpleNamespace(
+    VariableReference=_Reference, FieldReference=_Reference, Reference=_Reference
+)
+ASTAssignStatement = tc.Statement
+FieldReference = _Reference
+Reference = _Reference
+
 
 if TYPE_CHECKING:
     from pynguin.analyses.module import TestCluster

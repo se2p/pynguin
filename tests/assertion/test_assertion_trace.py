@@ -52,17 +52,13 @@ def test_clone(assertion_trace):
 
 
 def test_get_assertions_empty(assertion_trace):
-    statement = MagicMock()
-    statement.get_position.return_value = 3
-    assert assertion_trace.get_assertions(statement) == OrderedSet()
+    assert assertion_trace.get_assertions(3) == OrderedSet()
 
 
 def test_get_assertions(assertion_trace):
     entry = MagicMock()
     assertion_trace.add_entry(3, entry)
-    statement = MagicMock()
-    statement.get_position.return_value = 3
-    assert assertion_trace.get_assertions(statement) == OrderedSet([entry])
+    assert assertion_trace.get_assertions(3) == OrderedSet([entry])
 
 
 def test_merge():

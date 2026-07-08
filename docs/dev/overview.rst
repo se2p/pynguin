@@ -54,7 +54,7 @@ In case a more complex object is required as a parameter, Pynguin will attempt t
 
 Pynguin then uses an genetic algorithm, such as for example the DynaMOSA algorithm, to mutate, select and do crossover.
 
-The :class:`pynguin.testcase.testcase.TestCase` class provides the abstract base for test cases, with :class:`pynguin.testcase.defaulttestcase.DefaultTestCase` being the concrete implementation. The :class:`pynguin.ga.testcasefactory.TestCaseFactory` and its subclasses are responsible for creating new test cases during the search process.
+The :class:`pynguin.testcase.testcase.TestCase` class represents a test case. The :class:`pynguin.ga.testcasefactory.TestCaseFactory` and its subclasses are responsible for creating new test cases during the search process.
 
 Test Case Execution
 ~~~~~~~~~~~~~~~~~~~

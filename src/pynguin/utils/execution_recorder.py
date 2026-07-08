@@ -13,9 +13,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
-from pynguin.ga.testcasechromosome import TestCaseChromosome
-from pynguin.testcase import export
-from pynguin.testcase.export import PyTestChromosomeToAstVisitor
 
 if TYPE_CHECKING:
     import types
@@ -35,11 +32,8 @@ def store_pytest(test_case: tc.TestCase, target_file: Path) -> None:
         target_file: The file to store the test case to.
     """
     try:
-        chromosome = TestCaseChromosome(test_case)
-        exporter = PyTestChromosomeToAstVisitor()
-        chromosome.accept(exporter)
-        module_ast, _ = exporter.to_module()
-        export.save_module_to_file(module_ast, target_file, format_with_black=False)
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_file.write_text(test_case.to_code())
 
     except Exception as e:  # noqa: BLE001
         _LOGGER.warning("Failed to export test case to code: %s", e)

@@ -62,8 +62,8 @@ DEFAULT_TIMEOUT_S = 3600
 BUNDLED_EXAMPLES: list[tuple[str, str, list[str]]] = [
     ("codetiming", "codetiming", ["codetiming._timers"]),
     ("first", "first", ["first"]),
-    ("python-slugify", "slugify", ["slugify"]),
-    ("tzlocal", "tzlocal", ["tzlocal"]),
+    ("python-slugify", "slugify", ["slugify.slugify"]),
+    ("tzlocal", "tzlocal", ["tzlocal.unix"]),
     ("untangle", "untangle", ["untangle"]),
 ]
 
@@ -126,7 +126,12 @@ def _find_package_path(top_level_package: str) -> str | None:
     if spec is None:
         return None
     if spec.origin:
-        return str(Path(spec.origin).parent.parent)
+        origin = Path(spec.origin)
+        if origin.name == "__init__.py":
+            # Package: origin is pkg/__init__.py, so site-packages is two levels up.
+            return str(origin.parent.parent)
+        # Top-level single-file module: origin sits directly in site-packages.
+        return str(origin.parent)
     if spec.submodule_search_locations:
         locs = list(spec.submodule_search_locations)
         if locs:

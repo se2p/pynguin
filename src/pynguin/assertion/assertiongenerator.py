@@ -134,7 +134,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     @staticmethod
     def __remove_non_holding_assertions(test: tc.TestCase, result: ex.ExecutionResult):
-        for idx, statement in enumerate(test.statements):
+        for idx, statement in enumerate(test.statements()):
             pos_to_key = dict(enumerate(statement.assertions))
 
             to_delete: OrderedSet[int] = OrderedSet()
@@ -151,8 +151,8 @@ class AssertionGenerator(cv.ChromosomeVisitor):
         # we keep track of the last assertions and only assert things, if they
         # have changed.
         previous_statement_assertions: OrderedSet[ass.Assertion] = OrderedSet()
-        for statement in test_case.statements:
-            current_statement_assertions = result.assertion_trace.get_assertions(statement)
+        for position, statement in enumerate(test_case.statements()):
+            current_statement_assertions = result.assertion_trace.get_assertions(position)
             for assertion in current_statement_assertions:
                 if (
                     not config.configuration.test_case_output.allow_stale_assertions
@@ -170,11 +170,10 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                         "of a test case with its assertions was reached"
                     )
                     return
-                statement.add_assertion(assertion)
+                statement.assertions.append(assertion)
 
-            # Only update the previously seen assertions when we encounter a
-            # statement that actually affects assertions.
-            if statement.affects_assertions:
+            # A statement "affects assertions" if it binds a variable.
+            if statement.bound_variable is not None:
                 previous_statement_assertions = current_statement_assertions
 
 
@@ -487,7 +486,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
                 # Ignore timed out executions
                 if result is not None and len(mut.timed_out_by) == 0:
                     merged.merge(result.assertion_verification_trace)
-            for stmt_idx, statement in enumerate(test.statements):
+            for stmt_idx, statement in enumerate(test.statements()):
                 for assertion_idx, assertion in reversed(list(enumerate(statement.assertions))):
                     if not merged.was_violated(stmt_idx, assertion_idx):
                         statement.assertions.remove(assertion)
@@ -520,7 +519,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             )
             keep = _select_minimal_assertions(kill_map)
 
-            for stmt_idx, statement in enumerate(test.statements):
+            for stmt_idx, statement in enumerate(test.statements()):
                 if statement.has_only_exception_assertion():
                     continue
                 for assertion_idx, assertion in reversed(list(enumerate(statement.assertions))):
@@ -547,7 +546,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
             Mapping from ``(stmt_idx, assertion_idx)`` to the killed mutant indices.
         """
         kill_map: dict[tuple[int, int], set[int]] = {}
-        for stmt_idx, statement in enumerate(test.statements):
+        for stmt_idx, statement in enumerate(test.statements()):
             if statement.has_only_exception_assertion():
                 continue
             for assertion_idx in range(len(statement.assertions)):
