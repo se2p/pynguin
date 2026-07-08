@@ -163,6 +163,28 @@ def test__minimize_assertions():
         assert isinstance(result_accept_mock.call_args.args[0], pp.AssertionMinimization)
 
 
+def test_generate_assertions_tracks_total_assertions_for_mutation_analysis():
+    config.configuration.test_case_output.assertion_generation = (
+        config.AssertionGenerator.MUTATION_ANALYSIS
+    )
+    test_case_1 = MagicMock()
+    test_case_1.get_assertions.return_value = [MagicMock(), MagicMock()]
+    chromosome_1 = MagicMock(test_case=test_case_1)
+    test_case_2 = MagicMock()
+    test_case_2.get_assertions.return_value = [MagicMock()]
+    chromosome_2 = MagicMock(test_case=test_case_2)
+    generation_result = MagicMock(test_case_chromosomes=[chromosome_1, chromosome_2])
+
+    with (
+        mock.patch.object(gen, "_setup_mutation_analysis_assertion_generator") as setup_mock,
+        mock.patch.object(gen.stat, "track_output_variable") as track_mock,
+    ):
+        gen._generate_assertions(MagicMock(), generation_result, MagicMock())
+
+    setup_mock.assert_called_once()
+    track_mock.assert_called_once_with(RuntimeVariable.Assertions, 3)
+
+
 def test__setup_report_dir(tmp_path: Path):
     path = tmp_path / "foo" / "bar"
     config.configuration.statistics_output.report_dir = path.absolute()
