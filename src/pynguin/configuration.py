@@ -675,6 +675,12 @@ class TestCreationConfiguration:
     """When adding or modifying a call on an object, use a random modifier instead
     of only modifiers for that type. Expects values in [0, 1]."""
 
+    generate_field_statements: bool = False
+    """Whether to discover public fields/properties of analysed classes and emit
+    attribute-access statements (``var_1 = var_0.field``) for them. Off by default
+    because it is new behaviour relative to the class-based representation, where
+    fields only ever entered generation through the LLM subsystem."""
+
 
 @dataclasses.dataclass
 class GeneratorSelectionConfiguration:
@@ -757,6 +763,11 @@ class SearchAlgorithmConfiguration:
     change_parameter_probability: float = 0.1
     """Probability of replacing parameters when mutating a method or constructor
     statement in a test case.  Expects values in [0,1]"""
+
+    change_statement_type_probability: float = 0.05
+    """Probability, per mutated statement, of replacing it with a statement of a
+    different generated type (keeping its bound variable) instead of the regular
+    value/call mutation.  Expects values in [0,1]."""
 
     tournament_size: int = 4
     """Number of individuals for tournament selection."""

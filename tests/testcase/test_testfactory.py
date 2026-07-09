@@ -843,3 +843,202 @@ def test_tuple_typed_collection_fixed_length(constructor_mock):
     elements = test_case.get_statement(coll_index).node.body[0].value.elements
     assert len(elements) == 2
     _assert_refs_bound_before(test_case, coll_index)
+
+
+# ---------------------------------------------------------------------------
+# Field-access statements (DISABLED_SUBSYSTEMS.md #13)
+# ---------------------------------------------------------------------------
+
+
+def _attr_rhs(node) -> cst.Attribute:
+    """Extract the ``cst.Attribute`` RHS from a ``lhs = recv.field`` statement."""
+    assert isinstance(node, cst.SimpleStatementLine)
+    small = node.body[0]
+    assert isinstance(small, cst.Assign)
+    assert isinstance(small.value, cst.Attribute)
+    return small.value
+
+
+def _field(name, field_type=None):
+    """Build a ``GenericField`` over ``SomeType`` for *name*."""
+    return gao.GenericField(
+        TypeInfo(SomeType), name, Instance(TypeInfo(float if field_type is None else field_type))
+    )
+
+
+def test_emit_accessible_field_creates_receiver(constructor_mock, field_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+    test_case = tc.TestCase()
+
+    pos = factory._emit_accessible(test_case, field_mock, 0, 0)
+
+    assert pos >= 0
+    field_stmt = test_case.get_statement(pos)
+    assert field_stmt.accessible is field_mock
+    assert field_stmt.bound_type is float
+    attr = _attr_rhs(field_stmt.node)
+    assert attr.attr.value == "y"
+    receiver_name = attr.value.value
+    # the receiver was constructed before the field access
+    assert any(
+        s.bound_variable == receiver_name and s.accessible is constructor_mock
+        for s in test_case.statements()[:pos]
+    )
+
+
+def test_emit_accessible_field_no_receiver_returns_minus_one(field_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: []  # no way to build a receiver
+    factory = tf.TestFactory(cluster)
+    with mock.patch.object(tf.randomness, "next_bool", return_value=False):
+        assert factory._emit_accessible(tc.TestCase(), field_mock, 0, 0) == -1
+
+
+def test_change_random_field_call_swaps_field(field_mock, type_system):
+    other = _field("z")
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: {field_mock, other}
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(
+        assign("var_0", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "var_0.y", field_mock, bound_type=float),
+    )
+
+    assert factory.change_random_field_call(test_case, 1) is True
+
+    attr = _attr_rhs(test_case.get_statement(1).node)
+    assert attr.value.value == "var_0"  # receiver preserved
+    assert attr.attr.value == "z"  # field swapped
+    assert test_case.get_statement(1).accessible is other
+    assert test_case.get_statement(1).bound_variable == "var_1"
+
+
+def test_change_random_field_call_no_alternatives(field_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_generators_for = lambda _: {field_mock}
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(
+        assign("var_0", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "var_0.y", field_mock, bound_type=float),
+    )
+    assert factory.change_random_field_call(test_case, 1) is False
+
+
+def test_change_random_field_call_non_field_statement(constructor_mock):
+    test_case = make_test_case(_call_with("var_0", "_.SomeType(y)", constructor_mock))
+    assert _make_factory().change_random_field_call(test_case, 0) is False
+
+
+def test_mutate_call_field_repicks_receiver(field_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(
+        assign("var_0", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "var_0.y", field_mock, bound_type=float),
+    )
+
+    assert factory.mutate_call(test_case, 1) is True
+
+    attr = _attr_rhs(test_case.get_statement(1).node)
+    assert attr.attr.value == "y"
+    assert attr.value.value == "var_0"  # only one SomeType var in scope
+    assert test_case.get_statement(1).accessible is field_mock
+    assert test_case.get_statement(1).bound_variable == "var_1"
+
+
+def test_mutate_call_field_no_receiver_returns_false(field_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(_call_with("var_0", "missing.y", field_mock, bound_type=float))
+    assert factory.mutate_call(test_case, 0) is False
+
+
+def test_field_statement_delete_cascade(field_mock):
+    test_case = make_test_case(
+        assign("var_0", "_.SomeType()", bound_type=SomeType),
+        _call_with("var_1", "var_0.y", field_mock, bound_type=float),
+    )
+    # deleting the receiver cascades to the field read (name-based dependency)
+    assert tf.TestFactory.delete_statement_gracefully(test_case, 0) is True
+    assert test_case.size() == 0
+
+
+# ---------------------------------------------------------------------------
+# change_statement_type mutation operator (DISABLED_SUBSYSTEMS.md #14)
+# ---------------------------------------------------------------------------
+
+
+def test_change_statement_type_primitive():
+    factory = _make_factory()
+    test_case = make_test_case(int_stmt("var_0", 5), assign("var_1", "f(var_0)"))
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.0):
+        assert factory.change_statement_type(test_case, 0) is True
+    stmt0 = test_case.get_statement(0)
+    assert stmt0.bound_variable == "var_0"
+    assert stmt0.accessible is None
+    assert stmt0.bound_type in {bool, float, str, bytes}  # different from int
+    # later reader untouched, code still parses
+    assert test_case.get_statement(1).bound_variable == "var_1"
+    cst.parse_module(test_case.to_code())
+
+
+def test_change_statement_type_collection():
+    factory = _make_factory()
+    test_case = make_test_case(int_stmt("var_0", 5))
+    with mock.patch.object(tf.randomness, "next_float", return_value=0.5):
+        assert factory.change_statement_type(test_case, 0) is True
+    stmt0 = test_case.get_statement(0)
+    assert stmt0.bound_type in {list, set, tuple, dict}
+    assert stmt0.accessible is None
+
+
+def test_change_statement_type_accessible_inserts_deps(constructor_mock, type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_random_accessible.return_value = constructor_mock
+    cluster.get_generators_for = lambda _: [constructor_mock]
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(
+        assign("var_0", "'x'", bound_type=str),
+        assign("var_1", "f(var_0)"),
+    )
+    size_before = test_case.size()
+    with mock.patch.object(tf.randomness, "next_float", return_value=1.0):
+        assert factory.change_statement_type(test_case, 0) is True
+    idx = _accessible_index(test_case, constructor_mock)
+    assert idx is not None
+    # the replaced statement keeps the original variable name
+    assert test_case.get_statement(idx).bound_variable == "var_0"
+    # a dependency statement was inserted (test case grew)
+    assert test_case.size() > size_before
+    cst.parse_module(test_case.to_code())
+
+
+def test_change_statement_type_out_of_range():
+    factory = _make_factory()
+    test_case = make_test_case(int_stmt("var_0", 1))
+    assert factory.change_statement_type(test_case, 5) is False
+
+
+def test_change_statement_type_no_bound_variable():
+    factory = _make_factory()
+    test_case = make_test_case(stmt("print(1)"))
+    assert factory.change_statement_type(test_case, 0) is False
+
+
+def test_change_statement_type_no_accessible_available(type_system):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = type_system
+    cluster.get_random_accessible.return_value = None
+    factory = tf.TestFactory(cluster)
+    test_case = make_test_case(int_stmt("var_0", 1))
+    with mock.patch.object(tf.randomness, "next_float", return_value=1.0):
+        assert factory.change_statement_type(test_case, 0) is False

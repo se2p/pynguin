@@ -93,6 +93,25 @@ def _proper_type_to_raw(typ: ProperType | None) -> type | None:
     return None
 
 
+def _field_rhs(stmt: Statement) -> cst.Attribute | None:
+    """Return the ``Attribute`` RHS of a field-access statement, if it is one.
+
+    Args:
+        stmt: The statement to inspect.
+
+    Returns:
+        The ``cst.Attribute`` node on the RHS, or ``None`` if *stmt* is not a
+        simple ``var = <receiver>.<field>`` assignment.
+    """
+    if not isinstance(stmt.node, cst.SimpleStatementLine):
+        return None
+    body = stmt.node.body
+    if not body or not isinstance(body[0], cst.Assign):
+        return None
+    value = body[0].value
+    return value if isinstance(value, cst.Attribute) else None
+
+
 def _method_call_name(accessible: gao.GenericMethod) -> str | None:
     """Return the identifier under which a method can be called, if any.
 
@@ -316,7 +335,7 @@ class TestFactory:
             return False
         statement = test_case.get_statement(position)
         if statement.accessible is None or not isinstance(
-            statement.accessible, gao.GenericCallableAccessibleObject
+            statement.accessible, (gao.GenericCallableAccessibleObject, gao.GenericField)
         ):
             return False
 
@@ -327,7 +346,6 @@ class TestFactory:
             return False
 
         replacement = randomness.choice(candidates)
-        old_var = statement.bound_variable
         pre_size = test_case.size()
 
         built = self._build_replacement_node(test_case, replacement, position)
@@ -335,10 +353,156 @@ class TestFactory:
             return False
         node, bound_type, _cursor = built
 
-        # Number of dependency statements inserted before the old statement.
+        return self._replace_with_node(
+            test_case, position, pre_size, node, bound_type, replacement, keep_assertions=False
+        )
+
+    def change_statement_type(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replace the statement at *position* with one of a different type.
+
+        Keeps the statement's bound variable name so later readers stay valid
+        (they reference the name, which survives); the value they read may now
+        be of a different type, which is deliberate search pressure.  Rolls the
+        three-way choice of the reference implementation, reusing the local
+        search different-type weights so behaviour matches when local search is
+        active:
+
+        * ``p <= ls_different_type_primitive_probability`` -> random primitive
+          literal;
+        * ``p <= ...primitive + ...collection`` -> random collection literal;
+        * otherwise -> a random generator accessible.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to change.
+
+        Returns:
+            True if the statement type was changed.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        stmt = test_case.get_statement(position)
+        if stmt.bound_variable is None:
+            return False
+
+        probability = randomness.next_float()
+        primitive_p = config.configuration.local_search.ls_different_type_primitive_probability
+        collection_p = config.configuration.local_search.ls_different_type_collection_probability
+        if probability <= primitive_p:
+            return self._change_to_literal(
+                test_case, position, stmt, (bool, int, float, str, bytes)
+            )
+        if probability <= primitive_p + collection_p:
+            return self._change_to_literal(test_case, position, stmt, (list, set, tuple, dict))
+        return self._change_to_accessible(test_case, position, stmt)
+
+    def _change_to_literal(
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        stmt: Statement,
+        raw_types: tuple[type, ...],
+    ) -> bool:
+        """Replace *stmt* in place with a literal of a type drawn from *raw_types*.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to change.
+            stmt: The statement being replaced.
+            raw_types: The candidate python types to draw the new type from.
+
+        Returns:
+            True if the statement was changed.
+        """
+        choices = [t for t in raw_types if t is not stmt.bound_type]
+        if not choices:
+            return False
+        new_raw = randomness.choice(choices)
+        expr = literalgen.generate_literal(new_raw, self._constant_provider)
+        assign_var = stmt.bound_variable
+        assert assign_var is not None
+        new_node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(assign_var))],
+                    value=expr,
+                )
+            ]
+        )
+        test_case.replace_statement(
+            position,
+            Statement(
+                node=new_node,
+                bound_variable=assign_var,
+                bound_type=new_raw,
+                accessible=None,
+            ),
+        )
+        return True
+
+    def _change_to_accessible(self, test_case: tc.TestCase, position: int, stmt: Statement) -> bool:
+        """Replace *stmt* with a call to a random generator accessible.
+
+        Dependency statements are inserted before *position*; the resulting
+        statement is bound to *stmt*'s original variable name.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to change.
+            stmt: The statement being replaced.
+
+        Returns:
+            True if the statement was changed.
+        """
+        accessible = self._test_cluster.get_random_accessible()
+        if accessible is None or accessible == stmt.accessible:
+            return False
+        pre_size = test_case.size()
+        built = self._build_replacement_node(test_case, accessible, position)
+        if built is None:
+            return False
+        node, bound_type, _cursor = built
+        return self._replace_with_node(
+            test_case, position, pre_size, node, bound_type, accessible, keep_assertions=False
+        )
+
+    def _replace_with_node(  # noqa: PLR0917
+        self,
+        test_case: tc.TestCase,
+        position: int,
+        pre_size: int,
+        node: cst.BaseExpression,
+        bound_type: type | None,
+        accessible: gao.GenericAccessibleObject | None,
+        *,
+        keep_assertions: bool,
+    ) -> bool:
+        """Bind *node* to the (shifted) statement at *position*'s variable.
+
+        Dependency statements inserted before *position* since *pre_size* shift
+        the original statement to ``position + num_deps``; its variable name is
+        reused (or a fresh one allocated) for the replacement assignment.
+
+        Args:
+            test_case: The test case being modified.
+            position: The original index of the replaced statement.
+            pre_size: The test case size before dependency statements were added.
+            node: The RHS expression of the replacement assignment.
+            bound_type: The bound type of the replacement.
+            accessible: The accessible attached to the replacement, if any.
+            keep_assertions: Whether to carry over the old statement's assertions.
+
+        Returns:
+            True.
+        """
         num_deps = test_case.size() - pre_size
         old_index = position + num_deps
-        assign_var = old_var if old_var is not None else test_case.next_var_name()
+        old_stmt = test_case.get_statement(old_index)
+        assign_var = (
+            old_stmt.bound_variable
+            if old_stmt.bound_variable is not None
+            else test_case.next_var_name()
+        )
         new_assign = cst.SimpleStatementLine(
             body=[
                 cst.Assign(
@@ -353,6 +517,59 @@ class TestFactory:
                 node=new_assign,
                 bound_variable=assign_var,
                 bound_type=bound_type,
+                accessible=accessible,
+                assertions=list(old_stmt.assertions) if keep_assertions else [],
+            ),
+        )
+        return True
+
+    def change_random_field_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replace the field read at *position* with another same-typed field.
+
+        The receiver variable is kept; only the accessed attribute is swapped
+        for another field of the same generated type.  Assertions and the bound
+        variable are preserved.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the field statement to change.
+
+        Returns:
+            True if the field was swapped.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        statement = test_case.get_statement(position)
+        accessible = statement.accessible
+        if not isinstance(accessible, gao.GenericField):
+            return False
+        rhs = _field_rhs(statement)
+        if rhs is None or statement.bound_variable is None:
+            return False
+        candidates = [
+            a
+            for a in self._test_cluster.get_generators_for(accessible.generated_type())
+            if isinstance(a, gao.GenericField) and a != accessible
+        ]
+        if not candidates:
+            return False
+        replacement = randomness.choice(candidates)
+        new_rhs = rhs.with_changes(attr=cst.Name(replacement.field))
+        new_node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(statement.bound_variable))],
+                    value=new_rhs,
+                )
+            ]
+        )
+        test_case.replace_statement(
+            position,
+            Statement(
+                node=new_node,
+                bound_variable=statement.bound_variable,
+                bound_type=statement.bound_type,
+                assertions=list(statement.assertions),
                 accessible=replacement,
             ),
         )
@@ -425,6 +642,8 @@ class TestFactory:
         if isinstance(replacement, gao.GenericEnum):
             node, bound_type = self._build_enum(replacement)
             return node, bound_type, cursor
+        if isinstance(replacement, gao.GenericField):
+            return self._build_field(test_case, replacement, cursor, 0)
         return None
 
     # ------------------------------------------------------------------
@@ -474,6 +693,11 @@ class TestFactory:
             node, bound_type, cursor = built_fn
         elif isinstance(accessible, gao.GenericEnum):
             node, bound_type = self._build_enum(accessible)
+        elif isinstance(accessible, gao.GenericField):
+            built_field = self._build_field(test_case, accessible, cursor, depth)
+            if built_field is None:
+                return -1
+            node, bound_type, cursor = built_field
         else:
             return -1
 
@@ -620,6 +844,50 @@ class TestFactory:
         )
         bound_type = _raw_type_or_none(owner.raw_type) if owner is not None else None
         return node, bound_type
+
+    def _build_field(
+        self,
+        test_case: tc.TestCase,
+        accessible: gao.GenericField,
+        cursor: int,
+        depth: int,
+    ) -> tuple[cst.BaseExpression, type | None, int] | None:
+        """Build the CST node for a field access, acquiring a receiver if needed.
+
+        Emits ``<receiver>.<field>`` where the receiver is an in-scope variable of
+        the field owner's type, creating one via a generator when none is
+        available.  Mirrors :meth:`_build_method` including the permissive
+        wrong-typed-receiver coin flip.
+
+        Args:
+            test_case: The test case to extend with dependency statements.
+            accessible: The field to access.
+            cursor: Current insertion cursor.
+            depth: Current recursion depth.
+
+        Returns:
+            A tuple of (attribute node, bound type, updated cursor), or ``None``
+            if the field name is not an identifier or no receiver could be found
+            or created.
+        """
+        if not accessible.field.isidentifier():
+            return None
+        owner_raw = _raw_type_or_none(accessible.owner.raw_type)
+        receiver = self._find_variable_of_type(test_case, owner_raw, cursor)
+        if receiver is None:
+            owner_type = self._test_cluster.type_system.make_instance(accessible.owner)
+            receiver, cursor = self._create_var_of_type(
+                test_case, owner_type, owner_raw, cursor, depth
+            )
+        if receiver is None and randomness.next_bool():
+            # Deliberately wrong-typed receiver: reaches duck-typed attribute
+            # access, mirroring the permissive receiver selection of methods.
+            receiver = self._find_any_variable(test_case, cursor)
+        if receiver is None:
+            return None
+        node = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(accessible.field))
+        bound_type = _proper_type_to_raw(accessible.generated_type())
+        return node, bound_type, cursor
 
     # ------------------------------------------------------------------
     # Parameter satisfaction
@@ -1284,7 +1552,7 @@ class TestFactory:
             return literalgen.generate_literal(fallback, self._constant_provider, pool)
         return cst.Name("None")
 
-    def mutate_call(self, test_case: tc.TestCase, position: int) -> bool:
+    def mutate_call(self, test_case: tc.TestCase, position: int) -> bool:  # noqa: C901
         """Regenerate the argument values of the call statement at *position*.
 
         This mirrors the original ``statement.mutate()`` behaviour: it keeps the
@@ -1355,6 +1623,12 @@ class TestFactory:
                 value=cst.Attribute(value=cst.Name(self._module_alias()), attr=cst.Name(enum_name)),
                 attr=cst.Name(member),
             )
+        elif isinstance(accessible, gao.GenericField):
+            owner_raw = _raw_type_or_none(accessible.owner.raw_type)
+            receiver = self._find_variable_of_type(test_case, owner_raw, position)
+            if receiver is None:
+                return False
+            new_call = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(accessible.field))
         else:
             return False
 
@@ -1604,6 +1878,25 @@ class MLTestFactory(TestFactory):
         if test_case.get_statement(position).ml_info is not None:
             return False
         return super().mutate_call(test_case, position)
+
+    def change_statement_type(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replace the statement at *position*, never touching ML statements.
+
+        ML statement chains are atomic; replacing a single member with an
+        arbitrary-typed statement would break the chain.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to change.
+
+        Returns:
+            True if the statement type was changed.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        if test_case.get_statement(position).ml_info is not None:
+            return False
+        return super().change_statement_type(test_case, position)
 
     def _satisfy_params(  # noqa: C901
         self,

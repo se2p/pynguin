@@ -88,6 +88,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericEnum,
+    GenericField,
     GenericFunction,
     GenericMethod,
 )
@@ -1588,6 +1589,59 @@ def __analyse_class(
             test_cluster=test_cluster,
             add_to_test=add_to_test,
         )
+
+    __analyse_fields(
+        type_info=type_info,
+        type_inference_provider=type_inference_provider,
+        test_cluster=test_cluster,
+    )
+
+
+def __analyse_fields(
+    *,
+    type_info: TypeInfo,
+    type_inference_provider: InferenceProvider,
+    test_cluster: ModuleTestCluster,
+) -> None:
+    """Discover public fields/properties of a class and register them.
+
+    For every public, non-callable class attribute a :class:`GenericField` is
+    built and registered as both a generator (so field reads can satisfy the
+    need for a value of the field's type) and a modifier (so they can be added
+    as calls on an object of the owner's type).  ``property`` objects use their
+    getter's return annotation as the field type; plain data attributes use the
+    runtime type of their value.
+
+    Gated behind ``test_creation.generate_field_statements`` (off by default);
+    when disabled this is a no-op.
+
+    Args:
+        type_info: The type whose fields are analysed.
+        type_inference_provider: The provider for type inference.
+        test_cluster: The test cluster to register the fields with.
+    """
+    if not config.configuration.test_creation.generate_field_statements:
+        return
+    raw_type = type_info.raw_type
+    if not isinstance(raw_type, type):
+        return
+    for name, value in vars(raw_type).items():
+        if name.startswith("_") or name in IGNORED_SYMBOLS:
+            continue
+        field_type: ProperType
+        if isinstance(value, property):
+            if value.fget is None:
+                continue
+            field_type = test_cluster.type_system.infer_type_info(
+                value.fget, type_inference_provider=type_inference_provider
+            ).return_type
+        elif callable(value) or isinstance(value, (classmethod, staticmethod)):
+            continue
+        else:
+            field_type = test_cluster.type_system.convert_type_hint(type(value))
+        field = GenericField(type_info, name, field_type)
+        test_cluster.add_generator(field)
+        test_cluster.add_modifier(type_info, field)
 
 
 # Some symbols are not interesting for us.

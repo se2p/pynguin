@@ -35,6 +35,7 @@ from pynguin.utils.generic.genericaccessibleobject import (
     GenericCallableAccessibleObject,
     GenericConstructor,
     GenericEnum,
+    GenericField,
     GenericFunction,
     GenericMethod,
 )
@@ -890,3 +891,35 @@ def test_create_module_test_cluster_tournament_selection():
     )
     with pytest.raises(ValueError, match="Unsupported generator selection algorithm"):
         ModuleTestCluster(linenos=-1)
+
+
+def _owned_field_names(objs_by_key, owner_suffix):
+    """Collect GenericField names whose owner matches *owner_suffix*."""
+    return {
+        obj.field
+        for objs in objs_by_key.values()
+        for obj in objs
+        if isinstance(obj, GenericField) and obj.owner.full_name.endswith(owner_suffix)
+    }
+
+
+def test_analyse_fields_disabled_by_default():
+    cluster = generate_test_cluster("tests.fixtures.cluster.fields")
+    fields = [
+        obj for objs in cluster.modifiers.values() for obj in objs if isinstance(obj, GenericField)
+    ]
+    assert fields == []
+
+
+def test_analyse_fields_registers_public_fields():
+    config.configuration.test_creation.generate_field_statements = True
+    cluster = generate_test_cluster("tests.fixtures.cluster.fields")
+    # Fields are registered as modifiers on their owner type (public attributes
+    # and property, but not the private method).
+    modifier_fields = _owned_field_names(cluster.modifiers, "WithFields")
+    assert {"counter", "helper", "value"} <= modifier_fields
+    assert "_private" not in modifier_fields
+    # Non-primitive-typed fields are also registered as generators (primitive
+    # generators are intentionally not retained by the generator provider).
+    generator_fields = _owned_field_names(cluster.generators, "WithFields")
+    assert "helper" in generator_fields

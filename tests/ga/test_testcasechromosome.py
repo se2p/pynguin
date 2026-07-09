@@ -236,6 +236,8 @@ def test_mutation_change_single_prim_delegates_to_mutate_value(
     factory = MagicMock(tf.TestFactory)
     factory.mutate_value.return_value = mutate_value_result
     chromosome._test_factory = factory
+    # Disable the change_statement_type gate so mutation reaches mutate_value.
+    config.configuration.search_algorithm.change_statement_type_probability = 0.0
     with mock.patch("pynguin.utils.randomness.next_float", return_value=0.0):
         assert chromosome._mutation_change() is mutate_value_result
     factory.mutate_value.assert_called_once_with(test_case, 0)
@@ -274,6 +276,8 @@ def test_mutation_change_call(
     statement = call_stmt("var_0", "SomeType(var_0)")
     statement.accessible = constructor_mock
     default_test_case.add_statement(statement)
+    # Disable the change_statement_type gate so mutation reaches mutate_call.
+    config.configuration.search_algorithm.change_statement_type_probability = 0.0
     with mock.patch("pynguin.utils.randomness.next_float", return_value=0.0):
         assert chromosome._mutation_change() is expected
     factory.mutate_call.assert_called_once_with(default_test_case, 0)
@@ -281,6 +285,38 @@ def test_mutation_change_call(
         factory.change_random_call.assert_not_called()
     else:
         factory.change_random_call.assert_called_once_with(default_test_case, 0)
+
+
+def test_mutation_change_fires_change_statement_type(constructor_mock, default_test_case):
+    """When the gate probability fires, mutation delegates to change_statement_type."""
+    factory = MagicMock(tf.TestFactory)
+    factory.change_statement_type.return_value = True
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=factory)
+    statement = call_stmt("var_0", "SomeType(var_0)")
+    statement.accessible = constructor_mock
+    default_test_case.add_statement(statement)
+    config.configuration.search_algorithm.change_statement_type_probability = 1.0
+    with mock.patch("pynguin.utils.randomness.next_float", return_value=0.0):
+        assert chromosome._mutation_change() is True
+    factory.change_statement_type.assert_called_once_with(default_test_case, 0)
+    factory.mutate_call.assert_not_called()
+    factory.change_random_call.assert_not_called()
+
+
+def test_mutation_change_field_delegates_to_field_call(field_mock, default_test_case):
+    """A field statement is mutated via change_random_field_call, then mutate_call."""
+    factory = MagicMock(tf.TestFactory)
+    factory.change_random_field_call.return_value = False
+    factory.mutate_call.return_value = True
+    chromosome = tcc.TestCaseChromosome(default_test_case, test_factory=factory)
+    statement = call_stmt("var_0", "var_1.value")
+    statement.accessible = field_mock
+    default_test_case.add_statement(statement)
+    config.configuration.search_algorithm.change_statement_type_probability = 0.0
+    with mock.patch("pynguin.utils.randomness.next_float", return_value=0.0):
+        assert chromosome._mutation_change() is True
+    factory.change_random_field_call.assert_called_once_with(default_test_case, 0)
+    factory.mutate_call.assert_called_once_with(default_test_case, 0)
 
 
 # --------------------------------------------------------------------------------

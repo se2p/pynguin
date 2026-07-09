@@ -31,6 +31,7 @@ module_name = ""
 algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
+element_visibility = "PUBLIC"
 subprocess = false
 subprocess_if_recommended = true
 use_master_worker = true
@@ -43,6 +44,7 @@ export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
 allow_stale_assertions = false
+filter_assertions_in_subprocess = true
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
 maximum_mutation_time = -1
@@ -158,6 +160,7 @@ max_attempts = 1000
 insertion_uut = 0.5
 max_size = 100
 use_random_object_for_call = 0.0
+generate_field_statements = false
 
 [generator_selection]
 generator_selection_algorithm = "RANK_SELECTION"
@@ -183,6 +186,7 @@ test_insert_probability = 0.3333333333333333
 statement_insertion_probability = 0.5
 random_perturbation = 0.2
 change_parameter_probability = 0.1
+change_statement_type_probability = 0.05
 tournament_size = 4
 rank_bias = 1.68
 selection = "RANK_SELECTION"
@@ -202,6 +206,12 @@ only_cover = []
 no_cover = []
 enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
+
+[llm_refinement]
+enabled = false
+max_repair_iterations = 3
+save_original = true
+save_refined = true
 
 [local_search]
 local_search = true
@@ -251,6 +261,7 @@ def expected_txt(tmp_path):
  'max_length_test_case=2500, '
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
+ 'filter_assertions_in_subprocess=True, '
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_mutation_time=-1, "
  'maximum_mutants=-1, post_process=True, '
@@ -305,7 +316,8 @@ def expected_txt(tmp_path):
  'original_type_weight=5, type_tracing_weight=10, type_tracing_kept_guesses=2, '
  'wrap_var_param_type_probability=0.7, negate_type=0.1, '
  'skip_optional_parameter_probability=0.7, max_attempts=1000, '
- 'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0), '
+ 'insertion_uut=0.5, max_size=100, use_random_object_for_call=0.0, '
+ 'generate_field_statements=False), '
  'generator_selection=GeneratorSelectionConfiguration(generator_selection_algorithm=<Selection.RANK_SELECTION: '
  "'RANK_SELECTION'>, generator_selection_bias=1.7, generator_any_distance=30, "
  'generator_not_constructor_penalty=10.0, generator_param_penalty=1.0, '
@@ -317,8 +329,9 @@ def expected_txt(tmp_path):
  'test_change_probability=0.3333333333333333, '
  'test_insert_probability=0.3333333333333333, '
  'statement_insertion_probability=0.5, random_perturbation=0.2, '
- 'change_parameter_probability=0.1, tournament_size=4, rank_bias=1.68, '
- "selection=<Selection.RANK_SELECTION: 'RANK_SELECTION'>, use_archive=False, "
+ 'change_parameter_probability=0.1, change_statement_type_probability=0.05, '
+ 'tournament_size=4, rank_bias=1.68, selection=<Selection.RANK_SELECTION: '
+ "'RANK_SELECTION'>, use_archive=False, "
  'filter_covered_targets_from_test_cluster=False, number_of_mutations=3), '
  'mio=MIOConfiguration(initial_config=MIOPhaseConfiguration(number_of_tests_per_target=10, '
  'random_test_or_from_archive_probability=0.5, number_of_mutations=1), '
@@ -328,8 +341,12 @@ def expected_txt(tmp_path):
  'random=RandomConfiguration(max_sequence_length=10, '
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
- 'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
- 'subprocess=False, subprocess_if_recommended=True, '
+ 'enable_inline_pragma_no_cover=True), '
+ 'llm_refinement=LLMRefinementConfiguration(enabled=False, '
+ 'max_repair_iterations=3, max_tests=None, save_original=True, '
+ 'save_refined=True), ignore_modules=[], ignore_methods=[], '
+ "element_visibility=<ElementVisibility.PUBLIC: 'PUBLIC'>, subprocess=False, "
+ 'subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
  'local_search_llm=False, local_search_primitives=True, '
@@ -352,6 +369,8 @@ def expected_txt(tmp_path):
 def expected_parameters() -> str:
     return """--algorithm
 RANDOM
+--element_visibility
+PUBLIC
 --filesystem_isolation
 False
 --generator_selection.generator_any_distance
@@ -388,6 +407,16 @@ False
 gpt-4o-mini
 --large_language_model.temperature
 0.8
+--llm_refinement.enabled
+False
+--llm_refinement.max_repair_iterations
+3
+--llm_refinement.max_tests
+None
+--llm_refinement.save_original
+True
+--llm_refinement.save_refined
+True
 --local_search.local_search
 True
 --local_search.local_search_collections
@@ -454,6 +483,8 @@ False
 10
 --search_algorithm.change_parameter_probability
 0.1
+--search_algorithm.change_statement_type_probability
+0.05
 --search_algorithm.chop_max_length
 True
 --search_algorithm.chromosome_length
@@ -581,6 +612,8 @@ MUTATION_ANALYSIS
 True
 --test_case_output.export_strategy
 PY_TEST
+--test_case_output.filter_assertions_in_subprocess
+True
 --test_case_output.float_precision
 0.01
 --test_case_output.format_with_black
@@ -611,6 +644,8 @@ True
 0.5
 --test_creation.collection_size
 5
+--test_creation.generate_field_statements
+False
 --test_creation.insertion_uut
 0.5
 --test_creation.max_attempts

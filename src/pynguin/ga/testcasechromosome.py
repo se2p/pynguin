@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
 import pynguin.ga.chromosome as chrom
+import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -177,22 +178,48 @@ class TestCaseChromosome(chrom.Chromosome):
         while position <= last_mutatable_statement and position < self.size():
             if randomness.next_float() < p_per_statement:
                 statement = self._test_case.get_statement(position)
-                if statement.bound_variable is not None:
-                    assert self._test_factory, "Mutation requires a test factory."
-                    if statement.accessible is None:
-                        # Primitive statement: regenerate the literal value.
-                        if self._test_factory.mutate_value(self._test_case, position):
-                            changed = True
-                    # Call statement: first try to regenerate argument values
-                    # (mirrors the original statement.mutate() path), then
-                    # fall back to replacing the call with a different one.
-                    elif self._test_factory.mutate_call(
-                        self._test_case, position
-                    ) or self._test_factory.change_random_call(self._test_case, position):
-                        changed = True
+                if statement.bound_variable is not None and self._mutate_statement(
+                    position, statement
+                ):
+                    changed = True
             position += 1
 
         return changed
+
+    def _mutate_statement(self, position: int, statement: tc.Statement) -> bool:
+        """Apply a single change mutation to the statement at *position*.
+
+        Args:
+            position: The index of the statement to mutate.
+            statement: The statement at *position*.
+
+        Returns:
+            Whether the statement was changed.
+        """
+        assert self._test_factory, "Mutation requires a test factory."
+        if (
+            randomness.next_float()
+            < config.configuration.search_algorithm.change_statement_type_probability
+            and self._test_factory.change_statement_type(self._test_case, position)
+        ):
+            # Replace the statement with one of a different type, keeping its
+            # bound variable (Evosuite change_statement_type). On failure, fall
+            # through to the regular value/call mutation below.
+            return True
+        if statement.accessible is None:
+            # Primitive statement: regenerate the literal value.
+            return self._test_factory.mutate_value(self._test_case, position)
+        if isinstance(statement.accessible, gao.GenericField):
+            # Field statement: swap the accessed field, else re-pick the receiver.
+            return self._test_factory.change_random_field_call(
+                self._test_case, position
+            ) or self._test_factory.mutate_call(self._test_case, position)
+        # Call statement: first try to regenerate argument values (mirrors the
+        # original statement.mutate() path), then fall back to replacing the
+        # call with a different one.
+        return self._test_factory.mutate_call(
+            self._test_case, position
+        ) or self._test_factory.change_random_call(self._test_case, position)
 
     def _mutation_insert(self) -> bool:
         """Insertion mutation operation.
