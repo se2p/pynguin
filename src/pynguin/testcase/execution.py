@@ -326,6 +326,12 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
             super().__init__()
             self.return_type_trace: dict[int, type] = {}
             self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
+            # Statements are executed in a simple loop (see
+            # TestCaseExecutor._execute_test_case), so unlike the old AST-based
+            # ExecutionContext there is no Statement.get_position(); track the
+            # position ourselves, incremented once per after_statement_execution
+            # call. Not part of `state` — meaningless after execution finishes.
+            self.position: int = 0
 
     def __init__(self):
         """Initializes the remote observer."""
@@ -350,6 +356,47 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
         Args:
             test_case: Not used
         """
+
+    def after_statement_execution(  # noqa: D102
+        self,
+        statement: tc.Statement,
+        executor: TestCaseExecutor,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        position = self._return_type_local_state.position
+        self._return_type_local_state.position = position + 1
+
+        if exception is not None:
+            return
+
+        bound_variable = statement.bound_variable
+        if bound_variable is None or bound_variable not in namespace:
+            return
+
+        value = namespace[bound_variable]
+        self._return_type_local_state.return_type_trace[position] = type(value)
+
+        # TODO(fk) Hardcoded support for generics.
+        # Try to guess generic arguments from elements.
+        # `value` may be an arbitrary SUT object (or, once type-tracing's proxy
+        # is installed, an ObjectProxy) whose `__len__`/`__iter__` misbehave;
+        # guard the probing so a misbehaving object cannot abort the trace.
+        with contextlib.suppress(Exception):
+            if type(value) in {set, list} and len(value) > 0:
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(next(iter(value))),
+                )
+            elif isinstance(value, dict) and len(value) > 0:
+                first_item = next(iter(value.items()))
+                self._return_type_local_state.return_type_generic_args[position] = (
+                    type(first_item[0]),
+                    type(first_item[1]),
+                )
+            elif type(value) is tuple:
+                self._return_type_local_state.return_type_generic_args[position] = tuple(
+                    type(v) for v in value
+                )
 
     def after_test_case_execution(  # noqa: D102
         self,
