@@ -356,7 +356,7 @@ def test_setup_and_check_no_subprocess():
         # Call the function
         result = gen._setup_and_check()
 
-        # Verify the result
+        # Verify the results
         assert result is not None
         executor, cluster, _provider = result
         assert isinstance(executor, gen.TestCaseExecutor)
