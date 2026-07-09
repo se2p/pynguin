@@ -224,6 +224,9 @@ cluster-experiment:
     USER: "pynguin-tool"
     HOST: "defender.fim.uni-passau.de"
     SCRATCH: "/scratch/${USER}"
+    SETTINGS_TOML: "rundefinitions/coverage-check.toml"
+    PROJECTS_XML: "rundefinitions/coverage-check.xml"
+    EXPERIMENT_NAME: "coverage-check"
   before_script:
     - apt-get update && apt-get install -y sshpass openssh-client
     - mkdir -p ~/.ssh
@@ -233,6 +236,9 @@ cluster-experiment:
     - |
       sshpass -p "$DEFENDER_PYNGUIN_TOOL_PASSWORD" ssh -o StrictHostKeyChecking=no ${USER}@${HOST} "
         echo '✅ Logged into $HOST';
+        export SETTINGS_TOML=\"$SETTINGS_TOML\";
+        export PROJECTS_XML=\"$PROJECTS_XML\";
+        export EXPERIMENT_NAME=\"$EXPERIMENT_NAME\";
         bash $SCRATCH/pynguin-experiments/src/pynguin_experiments/execution/run-remote-experiment.sh \"$GIT_TAG\"
       " | tee experiment.log
       echo "✅ Experiment executed on $HOST."
