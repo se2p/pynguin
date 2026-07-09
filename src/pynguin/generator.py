@@ -1188,7 +1188,7 @@ def _export_chromosome(
     """
     output_dir = Path(config.configuration.test_case_output.output_path).resolve()
 
-    writer = export.TestSuiteWriter()
+    writer = export.TestSuiteWriter(no_xfail=config.configuration.test_case_output.no_xfail)
     target_file = writer.write(
         cast("tsc.TestSuiteChromosome", chromosome),
         config.configuration.module_name,

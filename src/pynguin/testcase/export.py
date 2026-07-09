@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import re
 import sys
 import threading
 from pathlib import Path
@@ -21,12 +22,13 @@ from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.testcase.execution import OutputSuppressionContext, _suppress_logging
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.fs_isolation import FilesystemIsolation
-from pynguin.utils.naming import get_module_alias
+from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
+from pynguin.utils.naming import canonical_module_name, get_module_alias
 
 if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.instrumentation.tracer import SubjectProperties
-    from pynguin.testcase.testcase import TestCase
+    from pynguin.testcase.testcase import Statement, TestCase
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,17 +114,67 @@ _LICENSE_HEADER = """\
 #  This file was automatically generated using Pynguin.
 """
 
+_COVERAGE_BY_IMPORT_COMMENT = "# Importing this module achieves coverage.\n"
+
+
+def _xfail_decorator() -> cst.Decorator:
+    """Build the ``@pytest.mark.xfail(strict=True)`` decorator node.
+
+    Returns:
+        The CST decorator node.
+    """
+    return cst.Decorator(
+        decorator=cst.Call(
+            func=cst.Attribute(
+                value=cst.Attribute(value=cst.Name("pytest"), attr=cst.Name("mark")),
+                attr=cst.Name("xfail"),
+            ),
+            args=[
+                cst.Arg(
+                    keyword=cst.Name("strict"),
+                    value=cst.Name("True"),
+                    equal=cst.AssignEqual(
+                        whitespace_before=cst.SimpleWhitespace(""),
+                        whitespace_after=cst.SimpleWhitespace(""),
+                    ),
+                )
+            ],
+        )
+    )
+
+
+def _is_expected_exception(stmt: Statement, exc_type: type[BaseException]) -> bool:
+    """Check whether ``exc_type`` is declared as expected by the statement's callable.
+
+    Args:
+        stmt: The statement that raised ``exc_type``.
+        exc_type: The exception type raised while re-executing the statement.
+
+    Returns:
+        True if the statement's accessible object declares ``exc_type`` (by name)
+        among its expected exceptions.
+    """
+    acc = stmt.accessible
+    return (
+        isinstance(acc, GenericCallableAccessibleObject)
+        and exc_type.__name__ in acc.expected_exceptions
+    )
+
 
 class TestSuiteWriter:
     """Writes a suite of test cases as a single pytest-compatible Python file."""
 
-    def __init__(self, *, filesystem_isolation: bool = True) -> None:
+    def __init__(self, *, filesystem_isolation: bool = True, no_xfail: bool = False) -> None:
         """Initializes the test suite writer.
 
         Args:
             filesystem_isolation: Whether to use filesystem isolation during execution.
+            no_xfail: If True, unexpected exceptions are wrapped with
+                ``pytest.raises(...)`` instead of marking the whole test with
+                ``@pytest.mark.xfail(strict=True)``.
         """
         self._filesystem_isolation = filesystem_isolation
+        self._no_xfail = no_xfail
 
     def _per_statement_exceptions(
         self,
@@ -185,8 +237,15 @@ class TestSuiteWriter:
         idx: int,
         tc: TestCase,
         exc_types: list[type[BaseException] | None],
-    ) -> cst.FunctionDef:
-        """Build a test function, wrapping failing statements with pytest.raises.
+    ) -> tuple[cst.FunctionDef, set[type[BaseException]]]:
+        """Build a test function, handling expected and unexpected failures.
+
+        A statement whose re-execution raised an exception is handled in one of
+        two ways: if the exception is declared as expected by the statement's
+        callable (or ``no_xfail`` is set, forcing this for every exception), it
+        is wrapped in ``with pytest.raises(...):``. Otherwise the statement is
+        emitted bare and the whole function is marked
+        ``@pytest.mark.xfail(strict=True)``.
 
         Args:
             idx: The index used to name the test function.
@@ -194,14 +253,19 @@ class TestSuiteWriter:
             exc_types: Per-statement exception types (parallel to tc.statements()).
 
         Returns:
-            The CST function definition for this test case.
+            A tuple of the CST function definition for this test case and the
+            set of exception types actually referenced in a
+            ``pytest.raises(...)`` call (used by the caller to determine which
+            exception-type imports are still needed).
         """
         body: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
+        used_exc_types: set[type[BaseException]] = set()
+        is_failing = False
 
         for stmt, exc_type in zip(tc.statements(), exc_types, strict=False):
             if exc_type is None:
                 body.append(stmt.node)
-            else:
+            elif self._no_xfail or _is_expected_exception(stmt, exc_type):
                 wrapped = cst.With(
                     items=[
                         cst.WithItem(
@@ -217,6 +281,10 @@ class TestSuiteWriter:
                     body=cst.IndentedBlock(body=[stmt.node]),
                 )
                 body.append(wrapped)
+                used_exc_types.add(exc_type)
+            else:
+                body.append(stmt.node)
+                is_failing = True
             # Append assertion nodes for this statement
             for assertion in stmt.assertions:
                 cst_node = assertion_to_cst(assertion)
@@ -234,10 +302,16 @@ class TestSuiteWriter:
         if not body:
             body = [cst.SimpleStatementLine(body=[cst.Pass()])]
 
-        return cst.FunctionDef(
-            name=cst.Name(f"test_{idx}"),
-            params=cst.Parameters(),
-            body=cst.IndentedBlock(body=body),
+        decorators = (_xfail_decorator(),) if is_failing else ()
+
+        return (
+            cst.FunctionDef(
+                name=cst.Name(f"test_{idx}"),
+                params=cst.Parameters(),
+                body=cst.IndentedBlock(body=body),
+                decorators=decorators,
+            ),
+            used_exc_types,
         )
 
     @staticmethod
@@ -323,10 +397,15 @@ class TestSuiteWriter:
         module_alias = get_module_alias(module_name)
         module_name_part = module_name.rsplit(".", 1)[-1]
         out_file = output_path / f"test_{module_name_part}.py"
+        # The canonical name is used only for *emitted* code (import statements
+        # in the generated file); in-process work (importlib lookups below) keeps
+        # using the raw, configured ``module_name``, which is guaranteed to
+        # resolve in this process.
+        canonical_name = canonical_module_name(module_name)
 
         functions: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         needs_pytest = False
-        all_exc_types: set[type] = set()
+        used_exc_types: set[type[BaseException]] = set()
 
         # Build one test function per test case chromosome in the suite
         for idx, individual in enumerate(suite.test_case_chromosomes):
@@ -335,21 +414,27 @@ class TestSuiteWriter:
             exc_types = self._per_statement_exceptions(
                 tc, module_name, project_path, subject_properties
             )
-            all_exc_types.update(e for e in exc_types if e is not None)
             if any(e is not None for e in exc_types):
                 needs_pytest = True
-            functions.append(self._build_test_function(idx, tc, exc_types))
+            func, func_used_exc_types = self._build_test_function(idx, tc, exc_types)
+            used_exc_types.update(func_used_exc_types)
+            functions.append(func)
 
-        if not functions:
-            # Empty suite: write a placeholder
-            functions = [cst.parse_statement("def test_placeholder():\n    pass\n")]
+        # An empty suite still imports the SUT below, so coverage-by-import keeps
+        # working; mark the file so the emitted import gets a coverage comment and
+        # a `# noqa: F401` (nothing in the file otherwise references the import).
+        coverage_by_import_only = not functions
+        if coverage_by_import_only:
+            functions = [cst.parse_statement("def test_empty():\n    pass\n")]
 
         preamble: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
 
-        # Build exception imports for non-builtin exception types
+        # Build exception imports for non-builtin exception types that are still
+        # referenced by a pytest.raises(...) call (exceptions handled via the
+        # xfail marker are emitted bare and need no import).
         exc_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = []
         by_module: dict[str, list[str]] = {}
-        for exc_type in all_exc_types:
+        for exc_type in used_exc_types:
             if exc_type.__module__ != "builtins":
                 by_module.setdefault(exc_type.__module__, []).append(exc_type.__name__)
         for mod in sorted(by_module):
@@ -371,7 +456,7 @@ class TestSuiteWriter:
             public_names = []
         if public_names:
             names_str = ", ".join(public_names)
-            star_stmt = cst.parse_statement(f"from {module_name} import {names_str}\n")
+            star_stmt = cst.parse_statement(f"from {canonical_name} import {names_str}\n")
         else:
             star_stmt = None
         sut_import_stmts: list[cst.SimpleStatementLine | cst.BaseCompoundStatement] = [
@@ -379,8 +464,8 @@ class TestSuiteWriter:
         ]
         module_alias = get_module_alias(module_name)
         sut_import_stmts.extend([
-            cst.parse_statement(f"import {module_name}\n"),
-            cst.parse_statement(f"{module_alias} = sys.modules['{module_name}']\n"),
+            cst.parse_statement(f"import {canonical_name}\n"),
+            cst.parse_statement(f"{module_alias} = sys.modules['{canonical_name}']\n"),
         ])
         if star_stmt is not None:
             sut_import_stmts.append(star_stmt)
@@ -433,6 +518,13 @@ class TestSuiteWriter:
                     _LOGGER.warning(
                         "Could not format the module '%s' with black: %s", module_name, e
                     )
+
+        if coverage_by_import_only:
+            # Mark the SUT import so linters/autofixers don't strip it as unused,
+            # and explain why an otherwise-unused import is present.
+            pattern = re.compile(rf"^import {re.escape(canonical_name)}\b", re.MULTILINE)
+            output = pattern.sub(f"import {canonical_name}  # noqa: F401", output, count=1)
+            output = _COVERAGE_BY_IMPORT_COMMENT + output
 
         out_file.write_text(_LICENSE_HEADER + "\n" + output)
         return out_file

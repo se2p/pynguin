@@ -9,9 +9,15 @@
 These tests target the current architecture: ``TestSuiteWriter`` renders a
 ``TestSuiteChromosome`` (a list of ``TestCaseChromosome``, each wrapping a
 ``pynguin.testcase.testcase.TestCase`` of libcst-backed ``Statement`` objects)
-to a single pytest file. Failing statements are wrapped individually in
-``with pytest.raises(...):`` rather than marking the whole test ``xfail``, and
-an empty suite is rendered as a ``test_placeholder`` function.
+to a single pytest file. A statement whose re-execution raises an *expected*
+exception (declared by the SUT's callable, or when ``no_xfail`` is set) is
+wrapped in ``with pytest.raises(...):``; an *unexpected* exception is emitted
+bare and the whole test function is marked ``@pytest.mark.xfail(strict=True)``.
+An empty suite is rendered as a ``test_empty`` function that still imports the
+SUT (coverage-by-import), annotated with a comment and ``# noqa: F401``. The
+SUT import uses the module's canonical dotted name (derived from
+``importlib.util.find_spec(...).origin``) rather than the literal configured
+name.
 """
 
 from __future__ import annotations
@@ -31,6 +37,7 @@ import pynguin.testcase.testcase as tc
 from pynguin.testcase import export
 from pynguin.testcase.export import TestSuiteWriter
 from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
 from pynguin.utils.naming import get_module_alias
 from tests.testcase._builders import assign, int_stmt, make_test_case, stmt
 
@@ -66,10 +73,11 @@ def test_build_test_function_plain_statement():
     writer = TestSuiteWriter()
     test_case = make_test_case(int_stmt("int_0", 5))
 
-    func = writer._build_test_function(0, test_case, [None])
+    func, used_exc_types = writer._build_test_function(0, test_case, [None])
 
     assert func.name.value == "test_0"
     assert _code_of(func) == "def test_0():\n    int_0 = 5\n"
+    assert used_exc_types == set()
 
 
 def test_build_test_function_with_object_assertion():
@@ -78,20 +86,23 @@ def test_build_test_function_with_object_assertion():
     test_case = make_test_case(int_stmt("int_0", 5))
     test_case.get_statement(-1).assertions.append(ass.ObjectAssertion("int_0", 5))
 
-    func = writer._build_test_function(0, test_case, [None])
+    func, _ = writer._build_test_function(0, test_case, [None])
 
     assert _code_of(func) == "def test_0():\n    int_0 = 5\n    assert int_0 == 5\n"
 
 
-def test_build_test_function_exception_statement_wraps_pytest_raises():
-    """A statement whose exc type is not None is wrapped in pytest.raises."""
+def test_build_test_function_expected_exception_still_uses_pytest_raises():
+    """An exception declared as expected by the statement's accessible is wrapped."""
     writer = TestSuiteWriter()
+    accessible = mock.Mock(spec=GenericCallableAccessibleObject)
+    accessible.expected_exceptions = {"ValueError"}
     test_case = make_test_case(
         assign("float_0", "42.23"),
         stmt("simple_function(float_0)"),
     )
+    test_case.get_statement(-1).accessible = accessible
 
-    func = writer._build_test_function(0, test_case, [None, ValueError])
+    func, used_exc_types = writer._build_test_function(0, test_case, [None, ValueError])
 
     assert _code_of(func) == (
         "def test_0():\n"
@@ -99,6 +110,40 @@ def test_build_test_function_exception_statement_wraps_pytest_raises():
         "    with pytest.raises(ValueError):\n"
         "        simple_function(float_0)\n"
     )
+    assert used_exc_types == {ValueError}
+    assert func.decorators == ()
+
+
+def test_build_test_function_unexpected_exception_gets_xfail_marker():
+    """An exception not declared as expected is emitted bare, function gets xfail."""
+    writer = TestSuiteWriter()
+    test_case = make_test_case(
+        assign("float_0", "42.23"),
+        stmt("simple_function(float_0)"),
+    )
+
+    func, used_exc_types = writer._build_test_function(0, test_case, [None, ValueError])
+
+    assert _code_of(func) == (
+        "@pytest.mark.xfail(strict=True)\n"
+        "def test_0():\n    float_0 = 42.23\n    simple_function(float_0)\n"
+    )
+    assert used_exc_types == set()
+    assert len(func.decorators) == 1
+
+
+def test_build_test_function_no_xfail_true_wraps_everything():
+    """With no_xfail=True even undeclared exceptions are wrapped, never marked xfail."""
+    writer = TestSuiteWriter(no_xfail=True)
+    test_case = make_test_case(stmt("some_call()"))
+
+    func, used_exc_types = writer._build_test_function(0, test_case, [RuntimeError])
+
+    assert _code_of(func) == (
+        "def test_0():\n    with pytest.raises(RuntimeError):\n        some_call()\n"
+    )
+    assert used_exc_types == {RuntimeError}
+    assert func.decorators == ()
 
 
 def test_build_test_function_exception_statement_with_trailing_assertion():
@@ -108,11 +153,11 @@ def test_build_test_function_exception_statement_with_trailing_assertion():
     ``ExceptionAssertion`` renders to nothing while other assertion kinds would
     still be emitted at the outer indentation level.
     """
-    writer = TestSuiteWriter()
+    writer = TestSuiteWriter(no_xfail=True)
     test_case = make_test_case(stmt("some_call()"))
     test_case.get_statement(-1).assertions.append(ass.ObjectAssertion("var_0", 1))
 
-    func = writer._build_test_function(0, test_case, [RuntimeError])
+    func, _ = writer._build_test_function(0, test_case, [RuntimeError])
 
     assert _code_of(func) == (
         "def test_0():\n"
@@ -124,11 +169,11 @@ def test_build_test_function_exception_statement_with_trailing_assertion():
 
 def test_build_test_function_exception_assertion_produces_no_extra_code():
     """ExceptionAssertion renders to no CST node, so only the with-block remains."""
-    writer = TestSuiteWriter()
+    writer = TestSuiteWriter(no_xfail=True)
     test_case = make_test_case(stmt("some_call()"))
     test_case.get_statement(-1).assertions.append(ass.ExceptionAssertion("builtins", "ValueError"))
 
-    func = writer._build_test_function(0, test_case, [ValueError])
+    func, _ = writer._build_test_function(0, test_case, [ValueError])
 
     assert _code_of(func) == (
         "def test_0():\n    with pytest.raises(ValueError):\n        some_call()\n"
@@ -140,7 +185,7 @@ def test_build_test_function_empty_statements_uses_placeholder_pass():
     writer = TestSuiteWriter()
     test_case = tc.TestCase()
 
-    func = writer._build_test_function(0, test_case, [])
+    func, _ = writer._build_test_function(0, test_case, [])
 
     assert _code_of(func) == "def test_0():\n    pass\n"
 
@@ -151,7 +196,7 @@ def test_build_test_function_raw_code_fallback_success(monkeypatch):
     test_case = tc.TestCase()
     monkeypatch.setattr(test_case, "to_code", lambda: "x = 1\ny = 2\n")
 
-    func = writer._build_test_function(0, test_case, [])
+    func, _ = writer._build_test_function(0, test_case, [])
 
     assert _code_of(func) == "def test_0():\n    x = 1\n    y = 2\n"
 
@@ -162,7 +207,7 @@ def test_build_test_function_raw_code_fallback_invalid_syntax_suppressed(monkeyp
     test_case = tc.TestCase()
     monkeypatch.setattr(test_case, "to_code", lambda: "def(:::not valid python")
 
-    func = writer._build_test_function(0, test_case, [])
+    func, _ = writer._build_test_function(0, test_case, [])
 
     assert _code_of(func) == "def test_0():\n    pass\n"
 
@@ -183,7 +228,7 @@ def test_to_code_empty_test_case_is_pass():
 
 
 # ---------------------------------------------------------------------------
-# TestSuiteWriter.write(): empty-suite placeholder
+# TestSuiteWriter.write(): empty-suite coverage-by-import fallback
 # ---------------------------------------------------------------------------
 
 
@@ -195,9 +240,39 @@ def test_write_empty_suite_emits_placeholder(tmp_path: Path):
     out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
 
     content = out_file.read_text(encoding="utf-8")
-    assert "def test_placeholder():" in content
+    assert "def test_empty():" in content
     assert "pass" in content
     assert "import pytest" not in content
+    assert "# Importing this module achieves coverage." in content
+    assert f"import {module_name}  # noqa: F401" in content
+
+
+def test_write_nonempty_suite_has_no_coverage_comment(tmp_path: Path):
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(int_stmt("int_0", 5))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "# Importing this module achieves coverage." not in content
+    assert "# noqa: F401" not in content
+
+
+def test_write_empty_suite_import_survives_black(tmp_path: Path):
+    """The noqa/comment post-processing runs after black, and must still apply."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    suite = tsc.TestSuiteChromosome()
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=True)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "# Importing this module achieves coverage." in content
+    assert f"import {module_name}  # noqa: F401" in content
+    compile(content, str(out_file), "exec")
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +283,7 @@ def test_write_empty_suite_emits_placeholder(tmp_path: Path):
 def test_write_wraps_raising_statement_and_imports_pytest(tmp_path: Path):
     module_name = "tests.fixtures.accessibles.accessible"
     module_alias = get_module_alias(module_name)
-    writer = TestSuiteWriter()
+    writer = TestSuiteWriter(no_xfail=True)
     test_case = make_test_case(
         int_stmt("int_0", 5),
         assign("some_type_0", f"{module_alias}.SomeType(int_0)"),
@@ -230,7 +305,7 @@ def test_write_wraps_raising_statement_and_imports_pytest(tmp_path: Path):
 
 def test_write_imports_non_builtins_exception_type(tmp_path: Path):
     module_name = "tests.fixtures.accessibles.accessible"
-    writer = TestSuiteWriter()
+    writer = TestSuiteWriter(no_xfail=True)
     test_case = make_test_case(stmt("some_call()"))
     suite = tsc.TestSuiteChromosome()
     suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
@@ -245,6 +320,47 @@ def test_write_imports_non_builtins_exception_type(tmp_path: Path):
     content = out_file.read_text(encoding="utf-8")
     assert f"from {__name__} import _CustomExportError" in content
     assert "with pytest.raises(_CustomExportError):" in content
+
+
+def test_write_xfail_imports_pytest(tmp_path: Path):
+    """An unexpected exception (no_xfail=False, no declared accessible) gets xfail."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[ValueError],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pytest" in content
+    assert "@pytest.mark.xfail(strict=True)" in content
+    assert "pytest.raises" not in content
+
+
+def test_write_no_xfail_excludes_unused_exception_import(tmp_path: Path):
+    """An unexpected non-builtin exception handled via xfail needs no import."""
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    suite = tsc.TestSuiteChromosome()
+    suite.add_test_case_chromosome(tcc.TestCaseChromosome(test_case))
+
+    with mock.patch.object(
+        TestSuiteWriter,
+        "_per_statement_exceptions",
+        return_value=[_CustomExportError],
+    ):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert f"from {__name__} import _CustomExportError" not in content
+    assert "@pytest.mark.xfail(strict=True)" in content
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +395,25 @@ def test_write_nonexistent_module_falls_back_gracefully(tmp_path: Path):
     # No public names could be resolved, so no `from <module> import ...` line.
     assert f"from {bogus_module} import" not in content
     assert str(tmp_path) in sys.path
+
+
+# ---------------------------------------------------------------------------
+# TestSuiteWriter.write(): module-name canonicalization
+# ---------------------------------------------------------------------------
+
+
+def test_write_emits_canonical_sut_import(tmp_path: Path):
+    """A non-canonical (``src.``-prefixed) module name is canonicalized on export."""
+    module_name = "src.pynguin.utils.namingscope"
+    writer = TestSuiteWriter()
+    suite = tsc.TestSuiteChromosome()
+
+    out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "import pynguin.utils.namingscope" in content
+    assert "sys.modules['pynguin.utils.namingscope']" in content
+    assert "src.pynguin.utils.namingscope" not in content
 
 
 # ---------------------------------------------------------------------------
