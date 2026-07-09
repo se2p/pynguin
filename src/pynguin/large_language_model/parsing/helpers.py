@@ -8,10 +8,6 @@
 
 import ast
 import logging
-import sys
-
-import pynguin.testcase.testcase as tc
-import pynguin.utils.namingscope as ns
 
 logger = logging.getLogger(__name__)
 
@@ -116,74 +112,6 @@ def is_expr_or_stmt(node: ast.AST):
         Whether node is an expression or statement
     """
     return isinstance(node, ast.expr | ast.stmt)
-
-
-def unparse_test_case(test_case: tc.TestCase) -> str | None:
-    """Convert a test case to its AST representation as a string.
-
-    Args:
-        test_case (tc.TestCase): The test case to convert.
-
-    Returns:
-        str | None: The Python code as a string, or None if an error occurs.
-    """
-    naming = ns.NamingScope("module")
-
-    import pynguin.testcase.testcase_to_ast as tta  # noqa: PLC0415
-
-    visitor = tta.TestCaseToAstVisitor(
-        module_aliases=naming, common_modules=set(), store_call_return=True
-    )
-    try:
-        test_case.accept(visitor)
-        test_case_ast = visitor.test_case_ast
-
-        name = "test_generated_function"
-        args = ast.arguments(
-            posonlyargs=[],
-            args=[],
-            vararg=None,
-            kwonlyargs=[],
-            kw_defaults=[],
-            kwarg=None,
-            defaults=[],
-        )
-        decorator_list: list[ast.expr] = []
-        returns = None
-        type_comment = None
-
-        if sys.version_info >= (3, 12):
-            func_def = ast.FunctionDef(
-                name=name,
-                args=args,
-                body=test_case_ast,
-                decorator_list=decorator_list,
-                returns=returns,
-                type_comment=type_comment,
-                type_params=[],
-            )
-        else:
-            func_def = ast.FunctionDef(
-                name=name,
-                args=args,
-                body=test_case_ast,
-                decorator_list=decorator_list,
-                returns=returns,
-                type_comment=type_comment,
-            )
-
-        # Wrap the function definition in an ast.Module
-        module_node = ast.Module(body=[func_def], type_ignores=[])
-        ast.fix_missing_locations(module_node)
-
-        # Ensure the module node is valid
-        if not isinstance(module_node, ast.Module):
-            raise ValueError("The module node is not valid.")
-
-        return ast.unparse(module_node)
-    except BaseException as e:  # noqa: BLE001
-        logger.error("Error processing test case AST: %s", e)
-        return None
 
 
 def add_line_numbers(original: str) -> str:

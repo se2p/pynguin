@@ -1,6 +1,6 @@
 #  This file is part of Pynguin.
 #
-#  SPDX-FileCopyrightText: 2019–2024 Pynguin Contributors
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
 #
 #  SPDX-License-Identifier: MIT
 #
@@ -15,21 +15,16 @@ from typing import TYPE_CHECKING
 import pynguin.ga.chromosomevisitor as cv
 import pynguin.ga.testcasechromosome as tcc
 import pynguin.ga.testsuitechromosome as tsc
-import pynguin.large_language_model.helpers.testcasereferencecopier as trc
-import pynguin.testcase.testcase as tc
-import pynguin.testcase.variablereference as vr
 import pynguin.utils.statistics.stats as stat
 from pynguin.assertion.assertiongenerator import MutationAnalysisAssertionGenerator
 from pynguin.large_language_model.llmagent import LLMAgent
-from pynguin.large_language_model.parsing.deserializer import (
-    deserialize_code_to_testcases,
-)
-from pynguin.large_language_model.parsing.helpers import unparse_test_case
+from pynguin.large_language_model.parsing.deserializer import parse_assertion
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
-    from pynguin.testcase.statement import Statement
+
 _logger = logging.getLogger(__name__)
 
 
@@ -47,29 +42,46 @@ def extract_assertions(input_str: str) -> list[str]:
     return re.findall(r"^\s*assert.*", input_str, flags=re.MULTILINE)
 
 
-def indent_assertions(assertions_list: list[str]) -> str:
-    """Indent each line of the given assertions list.
+def _binding_index(test_case: tc.TestCase) -> dict[str, type | None]:
+    """Map bound variable names to their (best-effort) type, last binding wins.
 
     Args:
-        assertions_list (list[str]): The list containing assertion strings.
+        test_case: The test case to index.
 
     Returns:
-        str: The indented assertions string.
+        The mapping from bound variable name to type.
     """
-    return "\n".join("    " + assertion.strip() for assertion in assertions_list)
+    index: dict[str, type | None] = {}
+    for statement in test_case.statements():
+        if statement.bound_variable is not None:
+            index[statement.bound_variable] = statement.bound_type
+    return index
 
 
-def add_assertions_for_test_case(statement: Statement, test_case: tc.TestCase):
-    """Adds assertion to testcase if they exist on the statement."""
-    if statement.assertions:
-        original_statement = test_case.statements[statement.get_position()]
-        original_statement.assertions = statement.assertions
+def _last_binding_index(test_case: tc.TestCase, var: str) -> int | None:
+    """Return the index of the last statement binding *var*, if any.
+
+    Args:
+        test_case: The test case to search.
+        var: The variable name to look for.
+
+    Returns:
+        The statement index, or ``None`` if *var* is never bound.
+    """
+    for index in range(test_case.size() - 1, -1, -1):
+        if test_case.get_statement(index).bound_variable == var:
+            return index
+    return None
 
 
 class LLMAssertionGenerator(cv.ChromosomeVisitor):
     """An assertion generator using a Large Language Model (LLM).
 
     This class generates regression assertions for test cases using an LLM.
+    Because the internal representation renders statements back to their
+    actual ``var_N`` source, the LLM's returned ``assert`` lines refer to the
+    same names already used in the test case: no re-deserialization of the
+    whole test and no reference-copying is required.
     """
 
     def __init__(self, test_cluster: ModuleTestCluster, model: LLMAgent | None = None):
@@ -98,60 +110,38 @@ class LLMAssertionGenerator(cv.ChromosomeVisitor):
         """
         self._add_assertions_for([chrom.test_case for chrom in chromosome.test_case_chromosomes])
 
-    def _add_assertions_for(self, test_cases: list[tc.TestCase]):
+    def _add_assertions_for(self, test_cases: list[tc.TestCase]) -> None:
         """Add assertions for the given list of test cases.
 
-        Generates assertions using the _model. Extracts assertions from the retrieved code
-        and deserializes the code into TestCase objects. Copies references from the original
-        test cases to the LLM-generated-deserialized ones. Replaces the original assertions
-        with the deserialized ones.
+        Queries the LLM with the rendered test-case source, extracts
+        ``assert`` lines from the response, and attaches each parseable one
+        to the statement that (last) bound the referenced variable.
 
         Args:
             test_cases (list[tc.TestCase]): The test cases to add assertions for.
         """
         total_assertions_added = 0
         total_assertions_from_llm = 0
-        refs_replacement_dict: dict[vr.Reference, vr.Reference] = {}
-        for test_case in test_cases:  # noqa: PLR1702
-            test_case_source_code = unparse_test_case(test_case)
-            if test_case_source_code is not None:
-                python_code: str | None = self._model.generate_assertions_for_test_case(
-                    test_case_source_code
-                )
-                if python_code is not None:
-                    extracted_assertions = extract_assertions(python_code)
-                    total_assertions_from_llm += len(extracted_assertions)
-                    indented_assertions = indent_assertions(extracted_assertions)
-                    new_test_case_source_code = test_case_source_code + "\n" + indented_assertions
-                    result = deserialize_code_to_testcases(
-                        test_file_contents=new_test_case_source_code,
-                        test_cluster=self._test_cluster,
-                    )
-                    if result is None:
-                        _logger.error(
-                            "Failed to deserialize test case %s",
-                            new_test_case_source_code,
-                        )
-                        continue
-
-                    (
-                        tcs,
-                        _,
-                        _,
-                        _,
-                    ) = result
-
-                    if tcs and len(tcs) > 0:
-                        deserialized_test_case: tc.TestCase = tcs[0]
-                        trc.TestCaseReferenceCopier(
-                            original=test_case,
-                            target=deserialized_test_case,
-                            refs_replacement_dict=refs_replacement_dict,
-                        ).copy()
-                        for statement in deserialized_test_case.statements:
-                            if len(statement.assertions):
-                                add_assertions_for_test_case(statement, test_case)
-                                total_assertions_added += len(statement.assertions)
+        for test_case in test_cases:
+            if test_case.size() == 0:
+                continue
+            code = test_case.to_test_function().code
+            response = self._model.generate_assertions_for_test_case(code)
+            if response is None:
+                continue
+            extracted_assertions = extract_assertions(response)
+            total_assertions_from_llm += len(extracted_assertions)
+            known_vars = _binding_index(test_case)
+            for line in extracted_assertions:
+                parsed = parse_assertion(line, known_vars)
+                if parsed is None:
+                    continue
+                var, assertion = parsed
+                index = _last_binding_index(test_case, var)
+                if index is None:
+                    continue
+                test_case.get_statement(index).assertions.append(assertion)
+                total_assertions_added += 1
 
         stat.set_output_variable_for_runtime_variable(
             RuntimeVariable.TotalAssertionsAddedFromLLM, total_assertions_added

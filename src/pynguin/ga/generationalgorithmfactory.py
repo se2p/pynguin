@@ -22,6 +22,7 @@ import pynguin.ga.algorithms.archive as arch
 import pynguin.ga.chromosome as chrom
 import pynguin.ga.computations as ff
 import pynguin.ga.coveragegoals as bg
+import pynguin.ga.llmtestsuitechromosomefactory as ltscf
 import pynguin.ga.searchobserver as so
 import pynguin.ga.testcasechromosomefactory as tccf
 import pynguin.ga.testcasefactory as tcf
@@ -32,6 +33,7 @@ import pynguin.utils.statistics.statisticsobserver as sso
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.module import FilteredModuleTestCluster, ModuleTestCluster
 from pynguin.ga.algorithms.dynamosaalgorithm import DynaMOSAAlgorithm
+from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm
 from pynguin.ga.algorithms.mioalgorithm import MIOAlgorithm
 from pynguin.ga.algorithms.mosaalgorithm import MOSAAlgorithm
 from pynguin.ga.algorithms.randomalgorithm import RandomAlgorithm
@@ -142,6 +144,7 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
 
     _strategies: ClassVar[dict[config.Algorithm, Callable[[], GenerationAlgorithm]]] = {
         config.Algorithm.DYNAMOSA: DynaMOSAAlgorithm,
+        config.Algorithm.LLMOSA: LLMOSAAlgorithm,
         config.Algorithm.MIO: MIOAlgorithm,
         config.Algorithm.MOSA: MOSAAlgorithm,
         config.Algorithm.RANDOM: RandomAlgorithm,
@@ -223,8 +226,6 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
                 test_case_chromosome_factory, strategy.archive
             )
         if config.configuration.algorithm == config.Algorithm.LLMOSA:
-            import pynguin.ga.llmtestsuitechromosomefactory as ltscf  # noqa: PLC0415
-
             return ltscf.LLMTestSuiteChromosomeFactory(
                 test_case_chromosome_factory,
                 strategy.test_factory,
@@ -297,11 +298,6 @@ class TestSuiteGenerationAlgorithmFactory(GenerationAlgorithmFactory[tsc.TestSui
         Raises:
             ConfigurationException: if an unknown algorithm was requested
         """
-        if config.configuration.algorithm == config.Algorithm.LLMOSA:
-            from pynguin.ga.algorithms.llmosalgorithm import LLMOSAAlgorithm  # noqa: PLC0415
-
-            cls._logger.info("Using strategy: %s", config.configuration.algorithm)
-            return LLMOSAAlgorithm()
         if config.configuration.algorithm in cls._strategies:
             strategy = cls._strategies.get(config.configuration.algorithm)
             assert strategy, "Strategy cannot be defined as None"

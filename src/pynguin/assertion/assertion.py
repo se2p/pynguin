@@ -12,7 +12,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    import pynguin.testcase.variablereference as vr
     from pynguin.slicer.executionflowbuilder import UniqueInstruction
 
 
@@ -41,7 +40,7 @@ class Assertion:
         """
 
     @abstractmethod
-    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> Assertion:
+    def clone(self, memo: dict[str, str]) -> Assertion:
         """Clone this assertion.
 
         Args:
@@ -62,25 +61,25 @@ class Assertion:
 class ReferenceAssertion(Assertion, ABC):
     """An assertion on a single reference."""
 
-    def __init__(self, source: vr.Reference):  # noqa: D107
+    def __init__(self, source: str):  # noqa: D107
         super().__init__()
         self._source = source
 
     @property
-    def source(self) -> vr.Reference:
-        """Provides the reference on which we assert something.
+    def source(self) -> str:
+        """Provides the variable name on which we assert something.
 
         Returns:
-            The reference on which we assert something.
+            The variable name on which we assert something.
         """
         return self._source
 
     @source.setter
-    def source(self, value: vr.Reference) -> None:
-        """Set the reference to be used for assertions.
+    def source(self, value: str) -> None:
+        """Set the variable name to be used for assertions.
 
         Args:
-            value (vr.Reference): The reference to set for assertions.
+            value: The variable name to set for assertions.
         """
         self._source = value
 
@@ -97,7 +96,7 @@ class TypeNameAssertion(ReferenceAssertion):
         assert f"{type(int_0).__module__}.{type(int_0).__qualname__}" == "builtins.int"
     """
 
-    def __init__(self, source: vr.Reference, module: str, qualname: str):  # noqa: D107
+    def __init__(self, source: str, module: str, qualname: str):  # noqa: D107
         super().__init__(source)
         self._module = module
         self._qualname = qualname
@@ -124,7 +123,7 @@ class TypeNameAssertion(ReferenceAssertion):
         visitor.visit_type_name_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> TypeNameAssertion:
         return TypeNameAssertion(memo.get(self._source, self._source), self._module, self._qualname)
 
@@ -150,7 +149,7 @@ class FloatAssertion(ReferenceAssertion):
         assert float_0 == pytest.approx(42, rel=0.01, abs=0.01)
     """
 
-    def __init__(self, source: vr.Reference, value: float):  # noqa: D107
+    def __init__(self, source: str, value: float):  # noqa: D107
         super().__init__(source)
         self._value = value
 
@@ -167,7 +166,7 @@ class FloatAssertion(ReferenceAssertion):
         visitor.visit_float_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> FloatAssertion:
         return FloatAssertion(memo.get(self._source, self._source), self._value)
 
@@ -197,7 +196,7 @@ class ObjectAssertion(ReferenceAssertion):
         assert var_2 == "Foobar"
     """
 
-    def __init__(self, source: vr.Reference, value: Any):  # noqa: D107
+    def __init__(self, source: str, value: Any):  # noqa: D107
         super().__init__(source)
         self._object = value
 
@@ -214,7 +213,7 @@ class ObjectAssertion(ReferenceAssertion):
         visitor.visit_object_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> ObjectAssertion:
         return ObjectAssertion(memo.get(self._source, self._source), self._object)
 
@@ -238,7 +237,7 @@ class IsInstanceAssertion(ReferenceAssertion):
     """An assertion that checks if a reference is an instance of a given type."""
 
     def __init__(  # noqa: D107
-        self, source: vr.Reference, module: str, qualname: str
+        self, source: str, module: str, qualname: str
     ):
         super().__init__(source)
         self._module = module
@@ -266,7 +265,7 @@ class IsInstanceAssertion(ReferenceAssertion):
         visitor.visit_isinstance_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> IsInstanceAssertion:
         return IsInstanceAssertion(
             memo.get(self._source, self._source), self._module, self._qualname
@@ -298,7 +297,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         assert len(var_0) == 42
     """
 
-    def __init__(self, source: vr.Reference, length: int):  # noqa: D107
+    def __init__(self, source: str, length: int):  # noqa: D107
         super().__init__(source)
         self._length = length
 
@@ -315,7 +314,7 @@ class CollectionLengthAssertion(ReferenceAssertion):
         visitor.visit_collection_length_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> CollectionLengthAssertion:
         return CollectionLengthAssertion(memo.get(self._source, self._source), self._length)
 
@@ -354,7 +353,7 @@ class ExceptionAssertion(Assertion):
         visitor.visit_exception_assertion(self)
 
     def clone(  # noqa: D102
-        self, memo: dict[vr.VariableReference, vr.VariableReference]
+        self, memo: dict[str, str]
     ) -> Assertion:
         return ExceptionAssertion(self._module, self._exception_type_name)
 

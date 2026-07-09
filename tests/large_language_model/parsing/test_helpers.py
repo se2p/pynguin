@@ -7,16 +7,13 @@
 """Tests for the helpers module."""
 
 import ast
-from unittest.mock import MagicMock, patch
 
-import pynguin.testcase.testcase as tc
 from pynguin.large_language_model.parsing.helpers import (
     add_line_numbers,
     has_bound_variables,
     has_call,
     is_expr_or_stmt,
     key_in_dict,
-    unparse_test_case,
 )
 
 
@@ -259,89 +256,6 @@ def test_is_expr_or_stmt_with_non_expr_or_stmt():
 
     # Verify the result is False
     assert result is False
-
-
-def test_unparse_test_case_success():
-    """Test unparse_test_case with a valid test case."""
-    # Create a mock test case
-    test_case = MagicMock(spec=tc.TestCase)
-
-    # Mock the TestCaseToAstVisitor
-    mock_visitor = MagicMock()
-    mock_visitor.test_case_ast = [ast.Expr(value=ast.Constant(value=1))]
-
-    # Patch the TestCaseToAstVisitor constructor
-    with patch("pynguin.testcase.testcase_to_ast.TestCaseToAstVisitor", return_value=mock_visitor):
-        # Call unparse_test_case
-        result = unparse_test_case(test_case)
-
-        # Verify the result is a string
-        assert isinstance(result, str)
-        assert "test_generated_function" in result
-
-
-def test_unparse_test_case_invalid_module():
-    """Test unparse_test_case with an invalid module."""
-    # Create a mock test case
-    test_case = MagicMock(spec=tc.TestCase)
-
-    # Mock the TestCaseToAstVisitor
-    mock_visitor = MagicMock()
-    mock_visitor.test_case_ast = [ast.Expr(value=ast.Constant(value=1))]
-
-    # Patch the TestCaseToAstVisitor constructor and ast.Module
-    with (
-        patch("pynguin.testcase.testcase_to_ast.TestCaseToAstVisitor", return_value=mock_visitor),
-        patch("ast.Module", return_value="not_a_module"),
-    ):
-        # Call unparse_test_case and expect it to return None
-        result = unparse_test_case(test_case)
-        assert result is None
-
-
-def test_unparse_test_case_invalid_module_type():
-    """Test unparse_test_case with an invalid module type."""
-    # Create a mock test case
-    test_case = MagicMock(spec=tc.TestCase)
-
-    # Mock the TestCaseToAstVisitor
-    mock_visitor = MagicMock()
-    mock_visitor.test_case_ast = [ast.Expr(value=ast.Constant(value=1))]
-
-    # Create a custom module class that will fail the isinstance check
-    class FakeModule:
-        pass
-
-    # Patch the TestCaseToAstVisitor constructor and other dependencies
-    with (
-        patch("pynguin.testcase.testcase_to_ast.TestCaseToAstVisitor", return_value=mock_visitor),
-        patch("ast.Module", return_value=FakeModule()),
-        patch("ast.fix_missing_locations"),
-        patch("pynguin.large_language_model.parsing.helpers.logger.error") as mock_logger,
-    ):
-        # Call unparse_test_case
-        result = unparse_test_case(test_case)
-
-        # Verify the result is None
-        assert result is None
-
-        # Verify the logger was called with an error message
-        mock_logger.assert_called_once()
-
-
-def test_unparse_test_case_exception():
-    """Test unparse_test_case with an exception."""
-    # Create a mock test case
-    test_case = MagicMock(spec=tc.TestCase)
-
-    # Create a mock visitor that raises an exception when accept is called
-    test_case.accept.side_effect = Exception("Test exception")
-
-    # Call unparse_test_case
-    result = unparse_test_case(test_case)
-
-    # Verify the result is None
-    assert result is None
 
 
 def test_add_line_numbers():

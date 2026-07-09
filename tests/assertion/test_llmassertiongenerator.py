@@ -10,23 +10,27 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import pynguin.assertion.assertion as ass
-import pynguin.large_language_model.helpers.testcasereferencecopier as trc
-import pynguin.testcase.statement as stmt
+import pynguin.ga.testcasechromosome as tcc
 import pynguin.testcase.testcase as tc
-import pynguin.testcase.variablereference as vr
-from pynguin.analyses.module import generate_test_cluster
+import pynguin.utils.statistics.stats as stat
+from pynguin.assertion.assertion import (
+    CollectionLengthAssertion,
+    FloatAssertion,
+    IsInstanceAssertion,
+    ObjectAssertion,
+)
+from pynguin.assertion.assertiongenerator import MutationAnalysisAssertionGenerator
 from pynguin.assertion.llmassertiongenerator import (
     LLMAssertionGenerator,
     MutationAnalysisLLMAssertionGenerator,
     extract_assertions,
-    indent_assertions,
 )
 from pynguin.assertion.mutation_analysis.controller import MutationController
 from pynguin.ga.testsuitechromosome import TestSuiteChromosome
 from pynguin.large_language_model.llmagent import LLMAgent
 from pynguin.testcase.execution import TestCaseExecutor
-from pynguin.utils.orderedset import OrderedSet
+from pynguin.utils.statistics.runtimevariable import RuntimeVariable
+from tests.conftest import _make_statement
 
 
 def test_extract_assertions():
@@ -43,172 +47,177 @@ def foo():
     assert extract_assertions(input_str) == expected_assertions
 
 
-def test_indent_assertions():
-    assertions_list = ["assert x == 5", "assert y > 5"]
-    expected_result = "    assert x == 5\n    assert y > 5"
-    assert indent_assertions(assertions_list) == expected_result
+def test_extract_assertions_no_matches():
+    assert extract_assertions("x = 1\ny = 2\n") == []
 
 
 @pytest.fixture
-def llm_agent():
-    model = MagicMock(LLMAgent)
-    model.generate_assertions_for_test_case.return_value = """assert True
-x = 1
-assert x == 1"""
-    return model
+def test_cluster():
+    cluster = MagicMock()
+    cluster.accessible_objects_under_test = []
+    return cluster
 
 
-@pytest.fixture
-def test_case_chromosome():
-    test_case_chromosome = MagicMock()
-    test_case_chromosome.test_case = MagicMock(spec=tc.TestCase)
-    return test_case_chromosome
-
-
-def create_test_case():
-    """Helper function to create a mock TestCase with one statement and one assertion."""
-    test_case = MagicMock(spec=tc.TestCase)
-    test_case_statement = MagicMock(spec=stmt.Statement)
-    test_case_statement.get_position.return_value = 0
-    test_case.statements = [test_case_statement]
-
-    test_case_statement.assertions = [MagicMock(spec=ass.Assertion)]
-    test_case_statement.assertions[0].source = MagicMock(spec=vr.VariableReference)
-    test_case_statement.assertions[0].object = MagicMock()
-
+def _build_test_case() -> tc.TestCase:
+    """A small hand-built test case: var_0 = 5; var_1 = var_0."""
+    test_case = tc.TestCase()
+    test_case.add_statement(_make_statement("var_0 = 5", bound_variable="var_0", bound_type=int))
+    test_case.add_statement(
+        _make_statement("var_1 = var_0", bound_variable="var_1", bound_type=int)
+    )
     return test_case
 
 
 @pytest.fixture
-def test_case_from_llm():
-    return create_test_case()
+def llm_agent_mock():
+    return MagicMock(spec=LLMAgent)
 
 
-@pytest.fixture
-def llm_assertion_generator(llm_agent):
-    test_cluster = generate_test_cluster("tests.fixtures.grammar.parameters")
-    return LLMAssertionGenerator(test_cluster, llm_agent)
+def test_add_assertions_for_test_case_chromosome(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_case.return_value = (
+        "assert var_0 == 5\nassert True\nassert var_1 == 5"
+    )
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+
+    with patch.object(stat, "set_output_variable_for_runtime_variable") as mock_set:
+        generator.visit_test_case_chromosome(chromosome)
+
+    llm_agent_mock.generate_assertions_for_test_case.assert_called_once()
+    # The generated code that was sent to the model should reference the test
+    # case's own var names.
+    sent_code = llm_agent_mock.generate_assertions_for_test_case.call_args[0][0]
+    assert "var_0" in sent_code
+    assert "var_1" in sent_code
+
+    # "assert True" is not a supported shape (test is a Constant, not a Name) and
+    # must be skipped.
+    assert test_case.get_statement(0).assertions == [ObjectAssertion("var_0", 5)]
+    assert test_case.get_statement(1).assertions == [ObjectAssertion("var_1", 5)]
+
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsAddedFromLLM, 2)
+    mock_set.assert_any_call(RuntimeVariable.TotalAssertionsReceivedFromLLM, 3)
 
 
-def test_llm_assertion_generator(llm_assertion_generator, test_case_chromosome, test_case_from_llm):
-    with patch(
-        "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
-    ) as deserialize_mock:
-        deserialize_mock.return_value = ([test_case_from_llm], None, None, None)
+def test_add_assertions_skips_empty_test_case(test_cluster, llm_agent_mock):
+    empty_test_case = tc.TestCase()
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = empty_test_case
 
-        # Adds the assertion statements from test_case_from_llm to the
-        # test_case_chromosome
-        llm_assertion_generator.visit_test_case_chromosome(test_case_chromosome)
+    generator.visit_test_case_chromosome(chromosome)
 
-        # Assert that the assertions are added correctly
-        assert (
-            test_case_chromosome.test_case.statements[0].assertions[0].object
-            == test_case_from_llm.statements[0].assertions[0].object
-        )
-        assert (
-            test_case_chromosome.test_case.statements[0].assertions[0].source
-            == test_case_from_llm.statements[0].assertions[0].source
-        )
+    llm_agent_mock.generate_assertions_for_test_case.assert_not_called()
 
 
-def test_visit_test_suite_chromosome(
-    llm_assertion_generator, test_case_chromosome, test_case_from_llm
-):
-    with patch(
-        "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
-    ) as deserialize_mock:
-        deserialize_mock.return_value = ([test_case_from_llm], None, None, None)
+def test_add_assertions_skips_none_response(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_case.return_value = None
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
 
-        # Create a test suite chromosome with the test case chromosome
-        test_suite_chromosome = TestSuiteChromosome()
-        test_suite_chromosome.add_test_case_chromosome(test_case_chromosome)
+    generator.visit_test_case_chromosome(chromosome)
 
-        # Call the method to test
-        llm_assertion_generator.visit_test_suite_chromosome(test_suite_chromosome)
-
-        # Assert that the assertions are added correctly
-        assert (
-            test_case_chromosome.test_case.statements[0].assertions[0].object
-            == test_case_from_llm.statements[0].assertions[0].object
-        )
-        assert (
-            test_case_chromosome.test_case.statements[0].assertions[0].source
-            == test_case_from_llm.statements[0].assertions[0].source
-        )
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == []
 
 
-def test_deserialize_failure(llm_assertion_generator, test_case_chromosome):
-    with (
-        patch(
-            "pynguin.assertion.llmassertiongenerator.deserialize_code_to_testcases"
-        ) as deserialize_mock,
-        patch("pynguin.assertion.llmassertiongenerator._logger") as logger_mock,
-    ):
-        # Set up the mock to return None, simulating a deserialization failure
-        deserialize_mock.return_value = None
+def test_add_assertions_unparseable_line_is_skipped(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_case.return_value = (
+        "assert not a valid python expression at all !!!"
+    )
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
 
-        # Call the method to test
-        llm_assertion_generator.visit_test_case_chromosome(test_case_chromosome)
+    generator.visit_test_case_chromosome(chromosome)
 
-        # Verify that the error was logged
-        logger_mock.error.assert_called_once()
-
-        # Verify that execution continued without raising an exception
-        # This is implicit since we reached this point without an exception
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == []
 
 
-def create_mock_test_case():
-    test_case = MagicMock(spec=tc.TestCase)
-    var_ref = MagicMock(spec=vr.VariableReference)
-    statement = MagicMock(spec=stmt.Statement)
+def test_add_assertions_unknown_variable_is_skipped(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_case.return_value = "assert unknown_var == 1"
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
 
-    statement.get_position.return_value = 0
-    statement.ret_val = var_ref
-    statement.callee = var_ref
-    statement.args = {"arg1": var_ref}
-    statement.assertions = OrderedSet([ass.ObjectAssertion(var_ref, object())])
+    generator.visit_test_case_chromosome(chromosome)
 
-    test_case.statements = [statement]
-
-    return test_case, var_ref
+    assert test_case.get_statement(0).assertions == []
+    assert test_case.get_statement(1).assertions == []
 
 
-def test_copy_test_case_references():
-    original_test_case, original_var_ref = create_mock_test_case()
-    target_test_case, target_var_ref = create_mock_test_case()
+def test_add_assertions_various_shapes(test_cluster, llm_agent_mock):
+    test_case = tc.TestCase()
+    test_case.add_statement(_make_statement("var_0 = 5", bound_variable="var_0", bound_type=int))
+    test_case.add_statement(
+        _make_statement("var_1 = 2.5", bound_variable="var_1", bound_type=float)
+    )
+    test_case.add_statement(_make_statement("var_2 = 'hi'", bound_variable="var_2", bound_type=str))
+    test_case.add_statement(
+        _make_statement("var_3 = [1, 2]", bound_variable="var_3", bound_type=list)
+    )
+    llm_agent_mock.generate_assertions_for_test_case.return_value = (
+        "assert var_0 == 5\n"
+        "assert var_1 == 2.5\n"
+        "assert isinstance(var_2, str)\n"
+        "assert len(var_3) == 2"
+    )
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
 
-    refs_replacement_dict = {}
-    trc.TestCaseReferenceCopier(original_test_case, target_test_case, refs_replacement_dict).copy()
+    generator.visit_test_case_chromosome(chromosome)
 
-    target_statement = target_test_case.statements[0]
+    assert test_case.get_statement(0).assertions == [ObjectAssertion("var_0", 5)]
+    assert test_case.get_statement(1).assertions == [FloatAssertion("var_1", 2.5)]
+    assert test_case.get_statement(2).assertions == [
+        IsInstanceAssertion("var_2", "builtins", "str")
+    ]
+    assert test_case.get_statement(3).assertions == [CollectionLengthAssertion("var_3", 2)]
 
-    assert refs_replacement_dict[target_var_ref] == original_var_ref
-    assert target_statement.ret_val == original_var_ref
-    assert target_statement.callee == original_var_ref
-    assert target_statement.args["arg1"] == original_var_ref
-    assert len(target_statement.assertions) == 1
-    assert next(iter(target_statement.assertions)).source == original_var_ref
+
+def test_visit_test_suite_chromosome(test_cluster, llm_agent_mock):
+    test_case = _build_test_case()
+    llm_agent_mock.generate_assertions_for_test_case.return_value = "assert var_0 == 5"
+    generator = LLMAssertionGenerator(test_cluster, llm_agent_mock)
+
+    chromosome = MagicMock(spec=tcc.TestCaseChromosome)
+    chromosome.test_case = test_case
+    test_suite_chromosome = TestSuiteChromosome()
+    test_suite_chromosome.add_test_case_chromosome(chromosome)
+
+    generator.visit_test_suite_chromosome(test_suite_chromosome)
+
+    assert test_case.get_statement(0).assertions == [ObjectAssertion("var_0", 5)]
+
+
+def test_llm_assertion_generator_default_model(test_cluster):
+    with patch("pynguin.assertion.llmassertiongenerator.LLMAgent") as mock_agent_cls:
+        mock_agent_cls.return_value = MagicMock(spec=LLMAgent)
+        generator = LLMAssertionGenerator(test_cluster)
+    mock_agent_cls.assert_called_once()
+    assert generator._model is mock_agent_cls.return_value
 
 
 def test_mutation_analysis_llm_assertion_generator():
-    # Create mock objects for the required arguments
     plain_executor = MagicMock(spec=TestCaseExecutor)
     mutation_controller = MagicMock(spec=MutationController)
 
-    # Create a mock for the parent class's _handle_add_assertions method
-    with patch(
-        "pynguin.assertion.assertiongenerator.MutationAnalysisAssertionGenerator._handle_add_assertions"
+    with patch.object(
+        MutationAnalysisAssertionGenerator, "_handle_add_assertions"
     ) as mock_handle_add_assertions:
-        # Create an instance of MutationAnalysisLLMAssertionGenerator with the required arguments
         generator = MutationAnalysisLLMAssertionGenerator(
             plain_executor=plain_executor, mutation_controller=mutation_controller
         )
 
-        # Create a mock test case
         test_case = MagicMock(spec=tc.TestCase)
-
-        # Call the _add_assertions method
         generator._add_assertions([test_case])
 
-        # Verify that the parent class's _handle_add_assertions method was called with the test case
         mock_handle_add_assertions.assert_called_once_with([test_case])

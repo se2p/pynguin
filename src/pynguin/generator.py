@@ -44,6 +44,7 @@ except ImportError:
 import weakref
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.assertion.llmassertiongenerator as lag
 import pynguin.assertion.mutation_analysis.mutators as mu
 import pynguin.assertion.mutation_analysis.operators as mo
 import pynguin.assertion.mutation_analysis.strategies as ms
@@ -1059,8 +1060,6 @@ def _setup_mutation_analysis_assertion_generator(
     mutation_controller = MutationController(mutant_generator, module_ast, module)
     assertion_generator: ag.MutationAnalysisAssertionGenerator
     if config.configuration.test_case_output.assertion_generation is config.AssertionGenerator.LLM:
-        import pynguin.assertion.llmassertiongenerator as lag  # noqa: PLC0415
-
         assertion_generator = lag.MutationAnalysisLLMAssertionGenerator(
             executor, mutation_controller
         )
@@ -1081,8 +1080,6 @@ def _generate_assertions(executor, generation_result, test_cluster):
         _LOGGER.info("Start generating assertions")
         generator: cv.ChromosomeVisitor
         if ass_gen == config.AssertionGenerator.LLM:
-            import pynguin.assertion.llmassertiongenerator as lag  # noqa: PLC0415
-
             generation_result.accept(lag.LLMAssertionGenerator(test_cluster))
             generator = _setup_mutation_analysis_assertion_generator(executor)
         elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:

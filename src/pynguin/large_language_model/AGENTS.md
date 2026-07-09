@@ -10,7 +10,7 @@ SPDX-License-Identifier: CC-BY-4.0
 
 This directory contains the optional LLM integration for Pynguin, which enhances test generation using OpenAI's language models. This feature requires the `openai` extra to be installed.
 
-**Timestamp:** 2026-01-30
+**Timestamp:** 2026-07-09
 
 ## Overview
 
@@ -75,21 +75,38 @@ Prompt templates for different LLM tasks:
 
 ### parsing/
 
-Parsing and transformation of LLM-generated code:
+Parsing and transformation of LLM-generated code. The internal representation
+is libcst-backed (`pynguin.testcase.testcase.TestCase`/`Statement`), so
+deserialization is "parse + validate + normalize" rather than reconstructing a
+separate statement class hierarchy or `VariableReference` graph.
 
-- **deserializer.py**: Convert AST to Pynguin TestCase objects
-  - `StatementDeserializer`: Converts AST nodes to statements
-    - Handles assignments, calls, collections, assertions
-    - Maintains variable reference dictionary
-    - Tracks uninterpreted statements
-  - `AstToTestCaseTransformer`: AST visitor for test functions
-    - Extracts test functions (starting with `test_`)
-    - Supports partial parsing of test cases
-    - Tracks parsing statistics
+- **deserializer.py**: Convert LLM-emitted source to Pynguin `TestCase` objects
+  - `DeserializationResult` (dataclass): `test_cases`, `total_statements`,
+    `parsed_statements`, `uninterpreted_statements`
+  - `deserialize_code_to_testcases(test_file_contents, test_cluster, *,
+    create_assertions=None) -> DeserializationResult | None`: runs
+    `rewrite_tests()`, then libcst-parses the result and deserializes every
+    top-level `test_*`/`seed_test_*` function; returns `None` only if the
+    rewritten source cannot be parsed as libcst at all
+  - `CstStatementDeserializer(test_cluster, *, create_assertions)`: per-test-
+    function parser (`deserialize_function`)
+    - Resolves calls against `test_cluster.accessible_objects_under_test`
+      (`GenericConstructor`/`GenericMethod`/`GenericFunction`)
+    - Renames bound variables to fresh `var_N` names, consistently across
+      both the binding statement's own target and all later references
+    - Normalizes SUT imports/references to the canonical
+      `<module_alias>.member` form; drops the import lines
+    - Lifts supported `assert` shapes into `Assertion` objects via
+      `parse_assertion()`
+  - `parse_assertion(node, known_vars)`: module-level, shared with
+    `pynguin.assertion.llmassertiongenerator`; supports bare-name,
+    equality/`is`-with-literal, `isinstance`, `len(...) ==`, and `or`-split
+    assert shapes
 
 - **rewriter.py**: Rewrite LLM code to Pynguin format
   - `StmtRewriter`: AST transformer for code normalization
-    - Extracts sub-expressions into variables
+    - Extracts sub-expressions into variables (including hoisting literal
+      list/dict/set/tuple elements into separate assignments)
     - Handles control flow (if, for, while, try)
     - Processes comprehensions and lambdas
     - Manages variable scoping
@@ -98,26 +115,22 @@ Parsing and transformation of LLM-generated code:
     - Removes `self` references
     - Converts class methods to standalone functions
 
-- **helpers.py**: Utility functions
-  - `unparse_test_case()`: Convert TestCase to Python code
+- **helpers.py**: Utility functions (`unparse_test_case()` was removed;
+  rendering now goes through `TestCase.to_code()`/`to_test_function()`)
   - `add_line_numbers()`: Add line numbers to code
   - `has_bound_variables()`: Check variable binding
   - `has_call()`: Detect function calls in AST
 
-- **type_str_parser.py**: Parse type strings (not read but exists)
-
-- **astscoping.py**: AST scoping analysis (not read but exists)
+- **type_str_parser.py**: Parse type strings
 
 ### helpers/
 
-Helper utilities for test case manipulation:
-
-- **testcasereferencecopier.py**: Copy references between test cases
-  - `TestCaseReferenceCopier`: Handles reference updates
-    - Copies return values, callees, arguments
-    - Updates assertion references
-    - Maintains reference replacement dictionary
-  - Used when cloning or modifying test cases
+Currently empty (apart from `__init__.py`). Previously held
+`testcasereferencecopier.py`, which copied `VariableReference`-graph
+references between `DefaultTestCase` instances; that is no longer needed
+since the libcst-backed `TestCase`/`Statement` model references variables by
+name and `TestCase.append_test_case`/`clone()` handle copying/renaming
+directly.
 
 ## Key Features
 

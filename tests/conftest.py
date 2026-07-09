@@ -586,11 +586,6 @@ collect_ignore = [
     # --- disabled subsystem: constant seeding -------------------------------------
     "analyses/test_seeding.py",
     "analyses/test_initialpopulationseeding.py",
-    # --- disabled subsystem: LLM --------------------------------------------------
-    "assertion/test_llmassertiongenerator.py",
-    "ga/algorithms/test_llmosalgorithm.py",
-    "ga/test_llmtestsuitechromosomefactory.py",
-    "large_language_model",
     # --- disabled subsystem: local search -----------------------------------------
     "testcase/test_localsearch.py",
     "testcase/test_llmlocalsearch.py",

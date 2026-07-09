@@ -19,7 +19,6 @@ from pynguin.ga.computations import CoverageFunction, FitnessFunction
 from pynguin.large_language_model.parsing.deserializer import (
     deserialize_code_to_testcases,
 )
-from pynguin.large_language_model.parsing.helpers import unparse_test_case
 from pynguin.large_language_model.parsing.rewriter import rewrite_tests
 from pynguin.testcase.testfactory import TestFactory
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -86,33 +85,33 @@ class LLMTestCaseHandler:
         save_llm_tests_to_file(llm_query_results, "llm_query_results.txt")
         llm_test_cases_str = self.extract_test_cases_from_llm_output(llm_query_results)
 
-        deserialized_code_to_testcases = deserialize_code_to_testcases(
+        deserialization_result = deserialize_code_to_testcases(
             llm_test_cases_str, test_cluster=test_cluster
         )
 
-        if deserialized_code_to_testcases is None:
+        if deserialization_result is None:
             _logger.error(
                 "Failed to deserialize test cases %s",
                 llm_test_cases_str,
             )
             return []
 
-        (
-            test_cases,
-            total_statements,
-            parsed_statements,
-            uninterpreted_statements,
-        ) = deserialized_code_to_testcases
+        test_cases = deserialization_result.test_cases
 
         tests_source_code = "\n\n".join(
-            unparse_test_case(test_case) or "" for test_case in test_cases
+            test_case.to_test_function(i).code for i, test_case in enumerate(test_cases)
         )
         save_llm_tests_to_file(tests_source_code, "deserializer_llm_test_cases.py")
 
-        stat.track_output_variable(RuntimeVariable.LLMTotalParsedStatements, parsed_statements)
-        stat.track_output_variable(RuntimeVariable.LLMTotalStatements, total_statements)
         stat.track_output_variable(
-            RuntimeVariable.LLMUninterpretedStatements, uninterpreted_statements
+            RuntimeVariable.LLMTotalParsedStatements, deserialization_result.parsed_statements
+        )
+        stat.track_output_variable(
+            RuntimeVariable.LLMTotalStatements, deserialization_result.total_statements
+        )
+        stat.track_output_variable(
+            RuntimeVariable.LLMUninterpretedStatements,
+            deserialization_result.uninterpreted_statements,
         )
 
         for test_case in test_cases:

@@ -10,27 +10,21 @@ SPDX-License-Identifier: CC-BY-4.0
 
 Helper utilities for LLM integration test case manipulation.
 
-**Timestamp:** 2026-01-30
+**Timestamp:** 2026-07-09
 
 ## Overview
 
-This module provides utility functions for copying and manipulating test case references during LLM-based test generation.
-
-## Key Components
-
-### testcasereferencecopier.py
-
-**TestCaseReferenceCopier**: Handles reference updates between test cases
-- Copies return values, callees, and arguments
-- Updates assertion references
-- Maintains reference replacement dictionary
-- Used when cloning or modifying test cases from LLM output
-
-## Usage Context
-
-Referenced by:
-- `llmtestcasehandler.py`: When integrating LLM-generated test cases
-- Deserialization pipeline: During test case transformation
+This package is currently empty apart from `__init__.py`. It previously held
+`testcasereferencecopier.py` (`TestCaseReferenceCopier`), which copied
+`VariableReference`-graph references between `DefaultTestCase` instances. That
+class-based test-case representation was replaced by the libcst-backed
+`pynguin.testcase.testcase.TestCase`/`Statement` model, whose statements
+reference each other purely by variable-name string (`Statement.bound_variable`,
+`Statement.used_variables()`), so no separate reference-graph copying step is
+needed any more: copying/renaming statements between test cases is handled
+directly by `TestCase.append_test_case`/`append_test_case_from` (see
+`pynguin.testcase.testcase`), and `TestCase.clone()` deep-copies statements
+(including their `assertions`) without any reference rewriting.
 
 ## Related Modules
 
