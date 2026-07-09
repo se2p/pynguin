@@ -29,6 +29,8 @@ from pynguin.testcase.execution import (
 )
 
 if TYPE_CHECKING:
+    import libcst as cst
+
     import pynguin.ga.testsuitechromosome as tsc
     import pynguin.testcase.testcase as tc
     from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
@@ -427,9 +429,13 @@ class RemoteMaxStatementExecutionsObserver(RemoteStoppingConditionObserver):
         ]
 
     def before_statement_execution(  # noqa: D102
-        self, statement: tc.Statement, namespace: dict[str, Any]
-    ) -> None:
+        self,
+        statement: tc.Statement,
+        node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
+        namespace: dict[str, Any],
+    ) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
         self._state._num_executed_statements += 1  # noqa: SLF001
+        return node
 
     def after_test_case_execution(  # noqa: D102
         self,

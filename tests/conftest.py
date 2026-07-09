@@ -588,7 +588,6 @@ def execution_trace() -> ExecutionTrace:
 collect_ignore = [
     # --- still parked: not yet migrated / disabled --------------------------------
     "assertion/test_assertion_generation_integration.py",
-    "testcase/execution/test_typetracing.py",
     # --- TODO: migrate to libcst representation (written against old repr) ---------
     # These exercise components that were rewritten for the new representation
     # (testfactory, testcasechromosome, postprocess, export, executor, assertions).

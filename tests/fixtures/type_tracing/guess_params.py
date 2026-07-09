@@ -9,3 +9,7 @@ def foo(a, b, c):
     print(3 * a)
     print(4 + b)
     print(c / 5)
+
+
+def identity(a):
+    return a

@@ -26,7 +26,7 @@ from abc import abstractmethod
 from pathlib import Path
 from queue import Empty, Queue
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import dill  # noqa: S403
 import libcst as cst
@@ -126,18 +126,28 @@ class RemoteExecutionObserver(abc.ABC):
             test_case: The test cases that will be executed.
         """
 
-    def before_statement_execution(  # noqa: B027
-        self, statement: tc.Statement, namespace: dict[str, Any]
-    ) -> None:
+    def before_statement_execution(
+        self,
+        statement: tc.Statement,
+        node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
+        namespace: dict[str, Any],
+    ) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
         """Called before a single statement is executed.
 
-        No-op by default; observers that need per-statement observation should
-        override this.
+        Returns ``node`` unchanged by default; observers that need to rewrite the
+        node before it is executed (e.g. to inject proxies) should override this
+        and return the modified node. The (possibly modified) node returned here is
+        what actually gets executed, so overriders must return a valid node.
 
         Args:
             statement: The statement that is about to be executed.
+            node: The CST node that is about to be executed for this statement.
             namespace: The shared namespace the statement will execute in.
+
+        Returns:
+            The CST node to execute (``node`` unchanged by default).
         """
+        return node
 
     def after_statement_execution(  # noqa: B027
         self,
@@ -943,8 +953,8 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             ):
                 namespace = self._build_namespace()
                 for idx, statement in enumerate(test_case.statements()):
-                    self._before_statement_execution(statement, namespace)
-                    exception = self._exec_statement(statement, namespace)
+                    node = self._before_statement_execution(statement, namespace)
+                    exception = self._exec_statement(node, namespace)
                     self._after_statement_execution(statement, namespace, exception)
                     if exception is not None:
                         result.report_new_thrown_exception(idx, exception)
@@ -1017,23 +1027,25 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         return None
 
     def _exec_statement(
-        self, statement: tc.Statement, namespace: dict[str, Any]
+        self,
+        node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
+        namespace: dict[str, Any],
     ) -> BaseException | None:
-        """Render and execute a single statement against the shared namespace.
+        """Render and execute a single CST node against the shared namespace.
 
         Args:
-            statement: The statement to execute.
+            node: The (possibly observer-rewritten) CST node to execute.
             namespace: The shared namespace (used as both globals and locals).
 
         Returns:
             The raised exception, if any, otherwise ``None``.
         """
-        code_str = cst.Module(body=[statement.node]).code
+        code_str = cst.Module(body=[node]).code
         return self.execute_source(code_str, namespace)
 
     def _before_statement_execution(
         self, statement: tc.Statement, namespace: dict[str, Any]
-    ) -> None:
+    ) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
         # Check if the current thread is still the one that should be executing
         # Otherwise raise an exception to kill it.
         self._subject_properties.instrumentation_tracer.check()
@@ -1041,9 +1053,14 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         # We need to disable the tracer, because an observer might interact with an
         # object of the SUT and trigger code execution, which is not caused by the
         # test case and should therefore not be in the trace.
+        #
+        # Observers may rewrite the node (e.g. type tracing injects proxies); the
+        # node is threaded through all observers and the final one is executed.
+        node: cst.SimpleStatementLine | cst.BaseCompoundStatement = statement.node
         with self._subject_properties.instrumentation_tracer.temporarily_disable():
             for observer in self._yield_remote_observers():
-                observer.before_statement_execution(statement, namespace)
+                node = observer.before_statement_execution(statement, node, namespace)
+        return node
 
     def _after_statement_execution(
         self,
@@ -1947,6 +1964,108 @@ class TypeTracingTestCaseExecutor(AbstractTestCaseExecutor):
         return result
 
 
+# Sentinel marking an argument whose runtime value could not be resolved.
+_UNRESOLVED = object()
+
+
+def _find_call(
+    node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
+) -> cst.Call | None:
+    """Return the top-level call of a statement node, if it wraps one.
+
+    Covers ``var_0 = module_.f(...)``, ``var_0 = var_1.m(...)`` and demoted
+    ``module_.f(...)`` expression statements.
+
+    Args:
+        node: The statement's CST node.
+
+    Returns:
+        The wrapped ``cst.Call``, or ``None`` if the node does not wrap one.
+    """
+    if not isinstance(node, cst.SimpleStatementLine) or not node.body:
+        return None
+    small = node.body[0]
+    if not isinstance(small, cst.Assign | cst.AnnAssign | cst.Expr):
+        return None
+    value = small.value
+    if isinstance(value, cst.Call):
+        return value
+    return None
+
+
+def _map_args_to_params(
+    call: cst.Call, signature: inspect.Signature
+) -> list[tuple[int, str, inspect.Parameter]]:
+    """Map each call argument to the parameter it binds.
+
+    Keyword args resolve by name; positional args consume the signature's
+    positional parameters (``POSITIONAL_ONLY`` / ``POSITIONAL_OR_KEYWORD``,
+    skipping a leading ``self``) in declaration order. ``*args`` / ``**kwargs``
+    expansions and unresolvable keyword args are skipped.
+
+    Args:
+        call: The call whose arguments to map.
+        signature: The callable's inferred signature.
+
+    Returns:
+        A list of ``(arg_index, param_name, parameter)`` tuples.
+    """
+    parameters = signature.parameters
+    positional = [
+        param
+        for param in parameters.values()
+        if param.kind
+        in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+        and param.name != "self"
+    ]
+    result: list[tuple[int, str, inspect.Parameter]] = []
+    pos_index = 0
+    for index, arg in enumerate(call.args):
+        if arg.star:
+            # *args / **kwargs expansion; do not proxy.
+            continue
+        if arg.keyword is not None:
+            name = arg.keyword.value
+            param = parameters.get(name)
+            if param is None:
+                continue
+            result.append((index, name, param))
+        else:
+            if pos_index >= len(positional):
+                continue
+            param = positional[pos_index]
+            pos_index += 1
+            result.append((index, param.name, param))
+    return result
+
+
+def _resolve_arg_value(arg: cst.Arg, namespace: dict[str, Any], renderer: cst.Module) -> Any:
+    """Resolve the runtime value of a call argument in the namespace.
+
+    A ``cst.Name`` argument is looked up directly; any other (inline literal)
+    argument is evaluated against the namespace. Generated literals are
+    side-effect-free and the instrumentation tracer is disabled here.
+
+    Args:
+        arg: The call argument.
+        namespace: The shared execution namespace.
+        renderer: A ``cst.Module`` used to render nodes to source.
+
+    Returns:
+        The resolved value, or ``_UNRESOLVED`` if it could not be obtained.
+    """
+    value = arg.value
+    if isinstance(value, cst.Name):
+        try:
+            return namespace[value.value]
+        except KeyError:
+            return _UNRESOLVED
+    try:
+        return eval(renderer.code_for_node(value), namespace)  # noqa: S307
+    except BaseException:  # noqa: BLE001
+        return _UNRESOLVED
+
+
 class RemoteTypeTracingObserver(RemoteExecutionObserver):
     """A remote execution observer used for type tracing."""
 
@@ -1957,6 +2076,13 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
             super().__init__()
             # Active proxies per statement position and argument name.
             self.proxies: dict[tuple[int, str], tt.ObjectProxy] = {}
+            # Position counter, incremented once per statement. A fresh thread per
+            # test case guarantees this starts at 0 and, because execution stops at
+            # the first exception, equals the statement index.
+            self.position: int = 0
+            # Temp proxy names injected for the current statement, cleaned up in
+            # after_statement_execution so proxies do not leak into later statements.
+            self.current_temp_names: list[str] = []
 
     def __init__(self):
         """Initializes the remote observer."""
@@ -1979,6 +2105,68 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
         Args:
             test_case: Not used
         """
+
+    def before_statement_execution(  # noqa: D102
+        self,
+        statement: tc.Statement,
+        node: cst.SimpleStatementLine | cst.BaseCompoundStatement,
+        namespace: dict[str, Any],
+    ) -> cst.SimpleStatementLine | cst.BaseCompoundStatement:
+        position = self._local_state.position
+        self._local_state.position = position + 1
+        self._local_state.current_temp_names = []
+        accessible = statement.accessible
+        if not isinstance(accessible, gao.GenericCallableAccessibleObject):
+            return node
+        call = _find_call(node)
+        if call is None:
+            return node
+        signature = accessible.inferred_signature.signature
+        mapping = _map_args_to_params(call, signature)
+        if not mapping:
+            return node
+        new_args = list(call.args)
+        renderer = cst.Module(body=[])
+        changed = False
+        for index, name, param in mapping:
+            arg = call.args[index]
+            value = _resolve_arg_value(arg, namespace, renderer)
+            if value is _UNRESOLVED:
+                continue
+            proxy = tt.ObjectProxy(
+                value,
+                usage_trace=tt.UsageTraceNode(name=name),
+                is_kwargs=param.kind == inspect.Parameter.VAR_KEYWORD,
+            )
+            temp = f"_pyn_proxy_{position}_{index}"
+            namespace[temp] = proxy
+            self._local_state.current_temp_names.append(temp)
+            self._local_state.proxies[position, name] = proxy
+            new_args[index] = arg.with_changes(value=cst.Name(temp))
+            changed = True
+        if not changed:
+            return node
+        return cast(
+            "cst.SimpleStatementLine | cst.BaseCompoundStatement",
+            node.deep_replace(call, call.with_changes(args=new_args)),
+        )
+
+    def after_statement_execution(  # noqa: D102
+        self,
+        statement: tc.Statement,
+        executor: TestCaseExecutor,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        for temp in self._local_state.current_temp_names:
+            namespace.pop(temp, None)
+        self._local_state.current_temp_names = []
+        if exception is None and statement.bound_variable is not None:
+            bound_variable = statement.bound_variable
+            if bound_variable in namespace:
+                # Unwrap a possibly-proxied return value so proxies do not leak into
+                # later statements. (Containers of proxies still leak, as on main.)
+                namespace[bound_variable] = tt.unwrap(namespace[bound_variable])
 
     def after_test_case_execution(  # noqa: D102
         self,
