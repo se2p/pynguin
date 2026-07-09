@@ -292,6 +292,9 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         source: str,
         position: int,
         trace: at.AssertionTrace,
+        *,
+        depth: int = 0,
+        max_depth: int = 1,
     ) -> None:
         """Check if we can generate an assertion for the given reference.
 
@@ -303,11 +306,40 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             position: The position of the test case after which the assertions
                 are made.
             trace: The assertion trace where the observed assertions are stored.
+            depth: The current recursion depth.
+            max_depth: The maximum recursion depth.
         """
         resolved = self._resolve_source(namespace, source)
         if resolved is _UNRESOLVED:
             return
         value = tt.unwrap(resolved)
+        self._check_value(source, value, position, trace, depth=depth, max_depth=max_depth)
+
+    def _check_value(
+        self,
+        source: str,
+        value: Any,
+        position: int,
+        trace: at.AssertionTrace,
+        *,
+        depth: int,
+        max_depth: int,
+    ) -> None:
+        """Check if we can generate an assertion for the given (resolved) value.
+
+        For complex types, we do one recursion step, i.e., try to assert
+        anything on the public fields of the given object.
+
+        Args:
+            source: The (possibly dotted) reference path this value was
+                resolved from.
+            value: The already-resolved, already-unwrapped value.
+            position: The position of the test case after which the assertions
+                are made.
+            trace: The assertion trace where the observed assertions are stored.
+            depth: The current recursion depth.
+            max_depth: The maximum recursion depth.
+        """
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(source, value))
             return
@@ -315,6 +347,32 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             trace.add_entry(position, ass.ObjectAssertion(source, copy.deepcopy(value)))
             return
 
+        self._check_type_and_recurse(
+            source, value, position, trace, depth=depth, max_depth=max_depth
+        )
+
+    def _check_type_and_recurse(
+        self,
+        source: str,
+        value: Any,
+        position: int,
+        trace: at.AssertionTrace,
+        *,
+        depth: int,
+        max_depth: int,
+    ) -> None:
+        """Assert on the type/length of a non-assertable value, then recurse.
+
+        Args:
+            source: The (possibly dotted) reference path this value was
+                resolved from.
+            value: The already-resolved, already-unwrapped value.
+            position: The position of the test case after which the assertions
+                are made.
+            trace: The assertion trace where the observed assertions are stored.
+            depth: The current recursion depth.
+            max_depth: The maximum recursion depth.
+        """
         # No precise assertion possible, so assert on type.
         typ = type(value)
         if hasattr(typ, "__module__") and hasattr(typ, "__qualname__"):
@@ -332,10 +390,26 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             try:
                 length = len(value)
             except BaseException as err:  # noqa: BLE001
-                # Could not get len, so give up on this reference.
+                # Could not get len, so continue down to the field recursion below.
                 _LOGGER.debug(err)
+            else:
+                trace.add_entry(position, ass.CollectionLengthAssertion(source, length))
                 return
-            trace.add_entry(position, ass.CollectionLengthAssertion(source, length))
+
+        if depth < max_depth and hasattr(value, "__dict__"):
+            # Reference is a complex object; try to assert something on its
+            # public fields (one recursion step, mirroring main).
+            for field, field_value in vars(value).items():
+                if self._should_ignore(field, field_value):
+                    continue
+                self._check_value(
+                    f"{source}.{field}",
+                    tt.unwrap(field_value),
+                    position,
+                    trace,
+                    depth=depth + 1,
+                    max_depth=max_depth,
+                )
 
     @staticmethod
     def _is_type_importable(typ: type) -> bool:

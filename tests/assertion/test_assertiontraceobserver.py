@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import sys
 import types
-
 from types import ModuleType
 from unittest import mock
 from unittest.mock import MagicMock
@@ -56,6 +55,53 @@ class _SizedRaising:
 
     def __len__(self) -> int:
         raise RuntimeError("no length")
+
+
+class _WithFields:
+    """A non-assertable object with public/private/callable fields.
+
+    Used to exercise the recursive field-assertion descent.
+    """
+
+    def __init__(self) -> None:
+        self.pub_int = 42
+        self.pub_float = 1.5
+        self._private = "hidden"
+        self.method_field = lambda: None
+
+
+class _NestedOuter:
+    """A non-assertable object whose only public field is itself opaque."""
+
+    def __init__(self) -> None:
+        self.child = _WithFields()
+
+
+class _SizedRaisingWithFields:
+    """A Sized object whose ``__len__`` raises but that also has fields.
+
+    Recursion should fall through to the fields since no length assertion
+    could be produced.
+    """
+
+    def __init__(self) -> None:
+        self.field = 5
+
+    def __len__(self) -> int:
+        raise RuntimeError("no length")
+
+
+class _SizedWorkingWithFields:
+    """A Sized object whose ``__len__`` succeeds and that also has fields.
+
+    Recursion must not happen since a length assertion was already produced.
+    """
+
+    def __init__(self) -> None:
+        self.field = 5
+
+    def __len__(self) -> int:
+        return 3
 
 
 class _ClazzWithStatics:
@@ -223,9 +269,75 @@ def test_sized_object_with_failing_len_is_swallowed():
 
     recorded = _assertions_at(observer, 0)
     # The type-name assertion is still recorded, but no length assertion, as
-    # ``len()`` raised and the reference is given up on.
+    # ``len()`` raised; the reference falls through to field recursion
+    # instead, which yields nothing extra since ``_SizedRaising`` has no
+    # public instance fields.
     assert any(isinstance(a, ass.TypeNameAssertion) for a in recorded)
     assert not any(isinstance(a, ass.CollectionLengthAssertion) for a in recorded)
+
+
+# --- RemoteAssertionTraceObserver: recursive field assertions -----------------
+
+
+def test_recursive_field_assertions_recorded_for_public_fields():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = _WithFields()
+    statement = b.assign("var_0", "object()", bound_type=_WithFields)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
+
+    recorded = _assertions_at(observer, 0)
+    by_source = {a.source: a for a in recorded}
+
+    assert isinstance(by_source["var_0.pub_int"], ass.ObjectAssertion)
+    assert by_source["var_0.pub_int"].object == 42
+    assert isinstance(by_source["var_0.pub_float"], ass.FloatAssertion)
+    assert by_source["var_0.pub_float"].value == 1.5
+
+    # Private and callable fields must not leak into the trace.
+    assert not any(source.endswith("_private") for source in by_source)
+    assert not any(source.endswith("method_field") for source in by_source)
+
+
+def test_recursive_field_assertions_stop_at_max_depth():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = _NestedOuter()
+    statement = b.assign("var_0", "object()", bound_type=_NestedOuter)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded}
+
+    # Depth 1: the child object itself gets a type assertion.
+    assert "var_0.child" in sources
+    # Depth 2 (fields-of-fields) is beyond max_depth=1 and must not appear.
+    assert not any(source.startswith("var_0.child.") for source in sources)
+
+
+def test_sized_object_with_working_len_does_not_recurse_into_fields():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = _SizedWorkingWithFields()
+    statement = b.assign("var_0", "object()", bound_type=_SizedWorkingWithFields)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded}
+    assert "var_0" in sources
+    assert not any(source.startswith("var_0.field") for source in sources)
+    length_assertion = next(a for a in recorded if isinstance(a, ass.CollectionLengthAssertion))
+    assert length_assertion.length == 3
+
+
+def test_sized_object_with_failing_len_recurses_into_fields():
+    observer = ato.RemoteAssertionTraceObserver()
+    value = _SizedRaisingWithFields()
+    statement = b.assign("var_0", "object()", bound_type=_SizedRaisingWithFields)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
+
+    recorded = _assertions_at(observer, 0)
+    by_source = {a.source: a for a in recorded}
+    assert not any(isinstance(a, ass.CollectionLengthAssertion) for a in recorded)
+    assert isinstance(by_source["var_0.field"], ass.ObjectAssertion)
+    assert by_source["var_0.field"].object == 5
 
 
 # --- RemoteAssertionTraceObserver: _is_type_importable ------------------------
