@@ -12,6 +12,7 @@ import copy
 import logging
 import threading
 from collections.abc import Sized
+from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 import libcst as cst
@@ -23,12 +24,17 @@ import pynguin.testcase.execution as ex
 import pynguin.utils.typetracing as tt
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.utils.exceptions import TracingAbortedException
+from pynguin.utils.naming import get_module_alias
 from pynguin.utils.type_utils import is_assertable, is_primitive_type
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
 _LOGGER = logging.getLogger(__name__)
+
+# Sentinel returned by ``RemoteAssertionTraceObserver._resolve_source`` when a
+# (possibly dotted) reference path cannot be resolved against the namespace.
+_UNRESOLVED = object()
 
 
 class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
@@ -114,9 +120,14 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         """Generate assertions for the variable a statement just bound.
 
         Mirrors main's ``RemoteAssertionTraceObserver._handle``, adapted to the
-        libcst representation: references are plain variable names looked up in
-        the shared execution namespace instead of ``VariableReference``s
-        resolved through an ``ExecutionContext``.
+        libcst representation: references are plain variable names, or dotted
+        attribute-access paths rooted at a namespace entry (e.g. module static
+        fields), looked up in the shared execution namespace instead of
+        ``VariableReference``s resolved through an ``ExecutionContext``.
+
+        In addition to the bound variable and the watch list, this also
+        (re-)checks the public static fields of the module under test after
+        every statement, mirroring main's module-field enumeration.
 
         Args:
             bound_variable: The name of the variable the statement bound.
@@ -138,6 +149,61 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         for var_name in watch_list:
             self._check_reference(namespace, var_name, position, trace)
 
+        # Check the static fields of the module under test. Unlike main (which
+        # enumerated every imported module), the libcst representation only
+        # ever imports the SUT module into the namespace (under its alias), so
+        # this covers the SUT module only.
+        module_alias = get_module_alias(config.configuration.module_name)
+        module = namespace.get(module_alias)
+        if isinstance(module, ModuleType):
+            for field, field_value in vars(module).items():
+                if self._should_ignore(field, field_value):
+                    continue
+                self._check_reference(namespace, f"{module_alias}.{field}", position, trace)
+
+    @staticmethod
+    def _should_ignore(field: str, value: Any) -> bool:
+        """Check whether a static field should be ignored for assertions.
+
+        Args:
+            field: The name of the field.
+            value: The value of the field.
+
+        Returns:
+            True, if the field should not be turned into an assertion.
+        """
+        return (
+            field.startswith("_")
+            or field.endswith("__")
+            or callable(value)
+            or isinstance(value, ModuleType)
+        )
+
+    @staticmethod
+    def _resolve_source(namespace: dict[str, Any], source: str) -> Any:
+        """Resolve a (possibly dotted) reference path against the namespace.
+
+        Args:
+            namespace: The shared execution namespace.
+            source: A variable name, or a dotted attribute-access path rooted
+                at a namespace entry (e.g. a module field's
+                ``"<alias>.<field>"``).
+
+        Returns:
+            The resolved value, or ``_UNRESOLVED`` if the root is not in the
+            namespace or an attribute in the path could not be accessed.
+        """
+        root, *attrs = source.split(".")
+        if root not in namespace:
+            return _UNRESOLVED
+        value = namespace[root]
+        try:
+            for attr in attrs:
+                value = getattr(value, attr)
+        except BaseException:  # noqa: BLE001  descriptors may raise anything
+            return _UNRESOLVED
+        return tt.unwrap(value)
+
     def _check_reference(
         self,
         namespace: dict[str, Any],
@@ -149,12 +215,15 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 
         Args:
             namespace: The shared execution namespace.
-            var_name: The name of the variable that should be checked.
+            var_name: The name of the variable (or dotted reference path)
+                that should be checked.
             position: The position of the test case after which the assertions
                 are made.
             trace: The assertion trace where the observed assertions are stored.
         """
-        value = tt.unwrap(namespace.get(var_name))
+        value = self._resolve_source(namespace, var_name)
+        if value is _UNRESOLVED:
+            return
         if isinstance(value, float):
             trace.add_entry(position, ass.FloatAssertion(var_name, value))
             return

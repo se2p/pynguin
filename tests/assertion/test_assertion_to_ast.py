@@ -204,3 +204,25 @@ def test_render_assertion_from_fixture(request, fixture_name, expected):
 def test_exception_fixture_assertion_renders_none(exception_test_with_except_assertion):
     assertion = exception_test_with_except_assertion.get_statement(-1).assertions[-1]
     assert render(assertion) is None
+
+
+# --- dotted (module/attribute) reference sources -------------------------------
+
+
+@pytest.mark.parametrize(
+    "source, expected",
+    [
+        ("assertions_.static_state", "assert assertions_.static_state == 0"),
+        ("plus_0.calculations", "assert plus_0.calculations == 0"),
+        ("a.b.c", "assert a.b.c == 0"),
+    ],
+)
+def test_object_assertion_dotted_source(source, expected):
+    assertion = ass.ObjectAssertion(source, 0)
+    assert render(assertion) == expected
+
+
+def test_render_multiple_assertions_fixture_dotted_source(plus_test_with_multiple_assertions):
+    statement = plus_test_with_multiple_assertions.get_statement(-1)
+    dotted = next(a for a in statement.assertions if a.source == "plus_0.calculations")
+    assert render(dotted) == "assert plus_0.calculations == 1"

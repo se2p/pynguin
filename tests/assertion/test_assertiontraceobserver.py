@@ -21,6 +21,7 @@ representation:
 
 from __future__ import annotations
 
+import types
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -30,6 +31,7 @@ import pynguin.assertion.assertion as ass
 import pynguin.assertion.assertiontraceobserver as ato
 import pynguin.configuration as config
 import pynguin.testcase.testcase as tc
+from pynguin.utils.naming import get_module_alias
 from tests.testcase import _builders as b
 
 # --- helper objects -----------------------------------------------------------
@@ -220,6 +222,146 @@ def test_is_type_importable_other_module_false():
 def test_is_type_importable_sut_module_true():
     config.configuration.module_name = _Custom.__module__
     assert ato.RemoteAssertionTraceObserver._is_type_importable(_Custom) is True
+
+
+# --- RemoteAssertionTraceObserver: _should_ignore -----------------------------
+
+
+@pytest.mark.parametrize(
+    "field, value, expected",
+    [
+        ("_private", 1, True),
+        ("__dunder__", 1, True),
+        ("public", lambda: None, True),
+        ("submodule", types, True),
+        ("public", 42, False),
+        ("PUBLIC_CONST", "hello", False),
+    ],
+)
+def test_should_ignore(field, value, expected):
+    assert ato.RemoteAssertionTraceObserver._should_ignore(field, value) is expected
+
+
+# --- RemoteAssertionTraceObserver: _resolve_source -----------------------------
+
+
+def test_resolve_source_flat_hit():
+    value = ato.RemoteAssertionTraceObserver._resolve_source({"var_0": 42}, "var_0")
+    assert value == 42
+
+
+def test_resolve_source_dotted_hit():
+    module = types.ModuleType("fake_module")
+    module.static_state = 5
+    value = ato.RemoteAssertionTraceObserver._resolve_source(
+        {"module_": module}, "module_.static_state"
+    )
+    assert value == 5
+
+
+def test_resolve_source_missing_root_is_unresolved():
+    value = ato.RemoteAssertionTraceObserver._resolve_source({}, "missing")
+    assert value is ato._UNRESOLVED
+
+
+def test_resolve_source_missing_attribute_is_unresolved():
+    module = types.ModuleType("fake_module")
+    value = ato.RemoteAssertionTraceObserver._resolve_source(
+        {"module_": module}, "module_.does_not_exist"
+    )
+    assert value is ato._UNRESOLVED
+
+
+def test_resolve_source_raising_descriptor_is_unresolved():
+    class _Raising:
+        @property
+        def boom(self):
+            raise RuntimeError("nope")
+
+    value = ato.RemoteAssertionTraceObserver._resolve_source({"obj": _Raising()}, "obj.boom")
+    assert value is ato._UNRESOLVED
+
+
+# --- RemoteAssertionTraceObserver: module static-field assertions -------------
+
+
+def _make_sut_module(**attrs) -> tuple[types.ModuleType, str]:
+    module = types.ModuleType("fake_sut_module")
+    for name, value in attrs.items():
+        setattr(module, name, value)
+    config.configuration.module_name = module.__name__
+    alias = get_module_alias(module.__name__)
+    return module, alias
+
+
+def test_handle_records_module_field_assertion():
+    observer = ato.RemoteAssertionTraceObserver()
+    module, alias = _make_sut_module(static_state=0)
+    # Module-field enumeration piggybacks on _handle, which only runs for
+    # statements that bind a variable (see after_statement_execution); use an
+    # unrelated primitive-binding statement to trigger it, like a real
+    # SUT-mutating call followed by further statements would.
+    namespace = {alias: module, "var_0": 1}
+
+    statement = b.assign("var_0", "1", bound_type=int)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert ass.ObjectAssertion(f"{alias}.static_state", 0) in recorded
+
+
+def test_handle_ignores_private_dunder_callable_and_submodule_fields():
+    observer = ato.RemoteAssertionTraceObserver()
+    module, alias = _make_sut_module(
+        _private=1,
+        __dunder__=2,
+        public_func=lambda: None,
+        submodule=types,
+        visible=3,
+    )
+    namespace = {alias: module, "var_0": 1}
+
+    statement = b.assign("var_0", "1", bound_type=int)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    sources = {a.source for a in recorded if isinstance(a, ass.ReferenceAssertion)}
+    assert f"{alias}.visible" in sources
+    assert f"{alias}._private" not in sources
+    assert f"{alias}.__dunder__" not in sources
+    assert f"{alias}.public_func" not in sources
+    assert f"{alias}.submodule" not in sources
+
+
+def test_handle_module_field_rechecked_after_every_statement():
+    observer = ato.RemoteAssertionTraceObserver()
+    module, alias = _make_sut_module(static_state=0)
+    namespace = {alias: module, "var_0": 1, "var_1": 2}
+
+    observer.after_statement_execution(
+        b.assign("var_0", "1", bound_type=int), None, namespace, None
+    )
+    module.static_state = 1
+    observer.after_statement_execution(
+        b.assign("var_1", "2", bound_type=int), None, namespace, None
+    )
+
+    assert ass.ObjectAssertion(f"{alias}.static_state", 0) in _assertions_at(observer, 0)
+    assert ass.ObjectAssertion(f"{alias}.static_state", 1) in _assertions_at(observer, 1)
+
+
+def test_handle_no_sut_module_in_namespace_records_nothing_extra():
+    observer = ato.RemoteAssertionTraceObserver()
+    config.configuration.module_name = "some.module"
+    # Namespace does not contain the module alias at all.
+    statement = b.assign("var_0", "1", bound_type=int)
+    observer.after_statement_execution(statement, None, {"var_0": 1}, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert all(
+        not (isinstance(a, ass.ReferenceAssertion) and a.source.startswith("some_module_"))
+        for a in recorded
+    )
 
 
 # --- RemoteAssertionVerificationObserver: state -------------------------------
