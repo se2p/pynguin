@@ -593,9 +593,6 @@ collect_ignore = [
     # is re-ported to the libcst representation.
     "analyses/test_seeding.py",
     "analyses/test_initialpopulationseeding.py",
-    # --- disabled subsystem: local search -----------------------------------------
-    "testcase/test_localsearch.py",
-    "testcase/test_llmlocalsearch.py",
     # --- still parked: not yet migrated / disabled --------------------------------
     "assertion/test_assertion_generation_integration.py",
     "testcase/execution/test_typetracing.py",

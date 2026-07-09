@@ -735,3 +735,110 @@ def mutate_literal(
     if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
         return generate_literal(raw, constant_provider)
     return _dispatch_mutate(expr, raw, constant_provider)
+
+
+# ---------------------------------------------------------------------------
+# Value-access layer (used by local search, see testcase/localsearchstatement.py)
+# ---------------------------------------------------------------------------
+
+
+def _parse_primitive_literal(expr: cst.BaseExpression, raw: type) -> object | None:
+    """Parse a primitive (bool/int/float/str/bytes) literal expression.
+
+    Args:
+        expr: The CST expression to parse.
+        raw: The expected primitive Python type.
+
+    Returns:
+        The parsed value, or ``None`` if ``expr`` is not a literal of that type.
+    """
+    if raw is bool:
+        if isinstance(expr, cst.Name) and expr.value in {"True", "False"}:
+            return expr.value == "True"
+        return None
+    if raw is int:
+        return _parse_int(expr)
+    if raw is float:
+        return _parse_float(expr)
+    # str / bytes
+    if isinstance(expr, cst.SimpleString):
+        value = expr.evaluated_value
+        if isinstance(value, raw):
+            return value
+    return None
+
+
+def parse_literal(expr: cst.BaseExpression, raw: type | None) -> object | None:
+    """Parse a CST literal expression back into a Python value.
+
+    Args:
+        expr: The CST expression to parse.
+        raw: The expected Python type; the parsed value must be an instance of
+            it (or, for ``bool``, exactly a ``cst.Name`` boolean literal).
+
+    Returns:
+        The parsed Python value, or ``None`` if ``expr`` is not a parseable
+        literal of the expected type.
+    """
+    import ast  # noqa: PLC0415
+
+    if raw in {bool, int, float, str, bytes}:
+        assert raw is not None
+        return _parse_primitive_literal(expr, raw)
+    try:
+        code = cst.Module(body=[]).code_for_node(expr)
+        value = ast.literal_eval(code)
+    except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+        return None
+    if raw is not None and not isinstance(value, raw):
+        return None
+    return value
+
+
+def _collection_to_cst(value: list | tuple | set | dict) -> cst.BaseExpression:
+    """Render a collection value as a CST literal expression.
+
+    Args:
+        value: The collection to render.
+
+    Returns:
+        A CST expression representing ``value``.
+    """
+    if isinstance(value, list):
+        return cst.List(elements=[cst.Element(value=literal_to_cst(v)) for v in value])
+    if isinstance(value, tuple):
+        elems = [cst.Element(value=literal_to_cst(v)) for v in value]
+        return cst.Tuple(elements=_tuple_elements(elems))
+    if isinstance(value, set):
+        if not value:
+            return cst.Call(func=cst.Name("set"))
+        return cst.Set(elements=[cst.Element(value=literal_to_cst(v)) for v in value])
+    return cst.Dict(
+        elements=[
+            cst.DictElement(key=literal_to_cst(k), value=literal_to_cst(v))
+            for k, v in value.items()
+        ]
+    )
+
+
+def literal_to_cst(value: object) -> cst.BaseExpression:
+    """Render an exact Python value as a CST literal expression (inverse of parsing).
+
+    Args:
+        value: The Python value to render.
+
+    Returns:
+        A CST expression representing ``value``.  Falls back to ``cst.Name("None")``
+        for values that have no literal representation.
+    """
+    if isinstance(value, bool):
+        return cst.Name("True" if value else "False")
+    if isinstance(value, int):
+        return _int_to_cst(value)
+    if isinstance(value, float):
+        return _float_to_cst(value)
+    if isinstance(value, str | bytes):
+        return cst.SimpleString(repr(value))
+    if isinstance(value, list | tuple | set | dict):
+        return _collection_to_cst(value)
+    return cst.Name("None")

@@ -203,7 +203,7 @@ enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
 
 [local_search]
-local_search = false
+local_search = true
 local_search_same_datatype = true
 local_search_different_datatype = false
 local_search_llm = false
@@ -328,7 +328,7 @@ def expected_txt(tmp_path):
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
  'subprocess=False, subprocess_if_recommended=True, '
- 'local_search=LocalSearchConfiguration(local_search=False, '
+ 'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
  'local_search_llm=False, local_search_primitives=True, '
  'local_search_collections=False, local_search_complex_objects=False, '
@@ -387,7 +387,7 @@ gpt-4o-mini
 --large_language_model.temperature
 0.8
 --local_search.local_search
-False
+True
 --local_search.local_search_collections
 False
 --local_search.local_search_complex_objects

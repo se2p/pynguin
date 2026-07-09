@@ -892,11 +892,8 @@ class LLMConfiguration:
 class LocalSearchConfiguration:
     """Configurations for local search."""
 
-    local_search: bool = False
-    """Defines if local search is generally enabled or not.
-
-    Disabled by default: the local-search subsystem has not yet been ported to the
-    libcst test-case representation."""
+    local_search: bool = True
+    """Defines if local search is generally enabled or not."""
 
     local_search_same_datatype: bool = True
     """Defines if local search within same datatype is enabled or not"""

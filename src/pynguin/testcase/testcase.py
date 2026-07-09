@@ -123,6 +123,13 @@ class Statement:
     assertions: list[ass.Assertion] = dataclasses.field(default_factory=list)
     accessible: GenericAccessibleObject | None = None
     ml_info: MLStatementInfo | None = None
+    local_search_applied: bool = dataclasses.field(default=False, compare=False, repr=False)
+    """Whether local search already tried the same-datatype strategy on this exact
+    value once (mirrors the old ``PrimitiveStatement.local_search_applied`` marker,
+    used to decide when to escape a local optimum by randomizing the value first).
+    Not carried over by :meth:`TestCase.clone` or :meth:`TestCase.append_test_case_from`
+    (both rebuild ``Statement`` instances without passing it), so it resets to
+    ``False`` on clone -- a deliberate, slightly more exploratory choice."""
     _used_vars: frozenset[str] | None = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )

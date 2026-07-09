@@ -12,17 +12,14 @@ import time
 from typing import TYPE_CHECKING
 
 import pynguin.configuration as config
+import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.stats as stat
 from pynguin.ga.testcasechromosome import TestCaseChromosome
 from pynguin.testcase.llmlocalsearch import LLMLocalSearch
 from pynguin.testcase.localsearchobjective import LocalSearchObjective
-from pynguin.testcase.localsearchstatement import choose_local_search_statement
-from pynguin.testcase.statement import (
-    BooleanPrimitiveStatement,
-    CollectionStatement,
-    EnumPrimitiveStatement,
-    PrimitiveStatement,
-    Statement,
+from pynguin.testcase.localsearchstatement import (
+    choose_local_search_statement,
+    randomize_literal_value,
 )
 from pynguin.utils import randomness
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
@@ -31,7 +28,19 @@ if TYPE_CHECKING:
     from pynguin.ga.testsuitechromosome import TestSuiteChromosome
     from pynguin.testcase.execution import TestCaseExecutor
     from pynguin.testcase.localsearchtimer import LocalSearchTimer
+    from pynguin.testcase.testcase import Statement
     from pynguin.testcase.testfactory import TestFactory
+
+_PRIMITIVE_TYPES = (bool, int, float, str, bytes)
+_COLLECTION_TYPES = (list, set, tuple, dict)
+
+
+def _is_primitive_statement(statement: Statement) -> bool:
+    return statement.bound_type in _PRIMITIVE_TYPES
+
+
+def _is_collection_statement(statement: Statement) -> bool:
+    return statement.bound_type in _COLLECTION_TYPES
 
 
 class TestCaseLocalSearch:
@@ -45,9 +54,9 @@ class TestCaseLocalSearch:
         """Initializes the local search for a test case.
 
         Args:
-            suite (TestSuiteChromosome): The test suite containing the test case.
-            executor (TestCaseExecutor): The executor to run the test cases.
-            timer (LocalSearchTimer): The timer which limits the local search run.
+            suite: The test suite containing the test case.
+            executor: The executor to run the test cases.
+            timer: The timer which limits the local search run.
         """
         self._max_mutations: int = config.configuration.local_search.ls_max_different_type_mutations
         self._suite = suite
@@ -63,25 +72,27 @@ class TestCaseLocalSearch:
         """Executes local search on the test case.
 
         Args:
-            chromosome (TestCaseChromosome): The test chromosome.
-            factory (TestFactory): The factory to modify the test case.
-            objective (LocalSearchObjective): The objective to check if improvements are made.
+            chromosome: The test chromosome.
+            factory: The factory to modify the test case.
+            objective: The objective to check if improvements are made.
         """
         assert objective is not None
 
-        # We iterate backwards because we would have to update the iterator every time when new
-        # statements are added in the local search methods, which results in later statements not
-        # being executed as likely as the first statement.
-        # Not updating the iterator would lead to local search being applied to the same statement
-        # twice.
-        for i in range(len(chromosome.test_case.statements) - 1, -1, -1):
+        # We iterate backwards because we would have to update the iterator every
+        # time new statements are added by the local search methods, which would
+        # result in later statements being searched less often than earlier ones.
+        # Not updating the iterator would risk applying local search to the same
+        # statement twice.
+        for i in range(chromosome.test_case.size() - 1, -1, -1):
             if self._timer.limit_reached():
                 return
+            if i >= chromosome.test_case.size():
+                continue
+            statement = chromosome.test_case.get_statement(i)
             if (
                 randomness.next_float()
                 <= config.configuration.local_search.local_search_probability
-                and self._check_statement_type_enabled(chromosome.test_case.statements[i])
-                and i < len(chromosome.test_case.statements)
+                and self._check_statement_type_enabled(statement)
             ):
                 methods: list = []
                 stat.add_to_runtime_variable(RuntimeVariable.LocalSearchTotalStatements, 1)
@@ -109,23 +120,18 @@ class TestCaseLocalSearch:
                         )
                 else:
                     self._logger.debug(
-                        "No local search method is activated, despite general local search being "
-                        "activated!"
+                        "No local search method is activated, despite general local search "
+                        "being activated!"
                     )
                     return
 
     @staticmethod
     def _check_statement_type_enabled(statement: Statement) -> bool:
+        cfg = config.configuration.local_search
         return (
-            (
-                isinstance(statement, PrimitiveStatement)
-                and config.configuration.local_search.local_search_primitives
-            )
-            or (
-                isinstance(statement, CollectionStatement)
-                and config.configuration.local_search.local_search_collections
-            )
-            or config.configuration.local_search.local_search_complex_objects
+            (_is_primitive_statement(statement) and cfg.local_search_primitives)
+            or (_is_collection_statement(statement) and cfg.local_search_collections)
+            or cfg.local_search_complex_objects
         )
 
     def _search_same_datatype(
@@ -135,32 +141,28 @@ class TestCaseLocalSearch:
         objective: LocalSearchObjective,
         position: int,
     ) -> bool:
-        statement = chromosome.test_case.statements[position]
-        # Randomize value because it's likely to be at a local optima
-        if isinstance(statement, PrimitiveStatement) and statement.local_search_applied:
+        statement = chromosome.test_case.get_statement(position)
+        # Randomize the value first because it's likely to be at a local optimum
+        # already (this same statement was searched in a previous generation).
+        if _is_primitive_statement(statement) and statement.local_search_applied:
             self._logger.debug(
-                "Randomizing value of statement %s at position %d since local "
-                "search was already applied.",
-                statement,
+                "Randomizing value of statement at position %d since local search "
+                "was already applied.",
                 position,
             )
-            statement.randomize_value()
+            randomize_literal_value(chromosome.test_case, position)
 
         local_search_statement = choose_local_search_statement(
             chromosome, position, objective, factory, self._timer
         )
         if local_search_statement is not None:
-            self._logger.debug("Local search statement found for the statement %s", statement)
+            self._logger.debug("Local search statement found for position %d", position)
             improved = local_search_statement.search()
-            statement = chromosome.test_case.statements[position]
-            if isinstance(statement, PrimitiveStatement):
+            statement = chromosome.test_case.get_statement(position)
+            if _is_primitive_statement(statement):
                 statement.local_search_applied = True
             return improved
-        self._logger.debug(
-            "No local search statement found for the statement %s at position %d",
-            statement,
-            position,
-        )
+        self._logger.debug("No local search statement found for position %d", position)
         return False
 
     def _search_different_datatype(
@@ -170,36 +172,17 @@ class TestCaseLocalSearch:
         objective: LocalSearchObjective,
         position: int,
     ) -> bool:
-        statement = chromosome.test_case.statements[position]
+        # The libcst branch has no `TestFactory.change_statement_type` (disabled
+        # feature #14 in DISABLED_SUBSYSTEMS.md), so different-datatype search
+        # cannot be ported yet. This is only reached when
+        # `local_search_different_datatype=True`, which is not the default.
+        del chromosome, factory, objective, position  # unused: no-op strategy
         self._logger.debug(
-            "Local search on different datatype for statement %s at position %d",
-            statement.__class__,
-            position,
+            "Different-datatype local search is unavailable on this branch: "
+            "TestFactory.change_statement_type has not been re-implemented for "
+            "the libcst representation (see DISABLED_SUBSYSTEMS.md #14)."
         )
-        old_test_case = chromosome.test_case.clone()
-        last_execution_result = chromosome.get_last_execution_result()
-        assert last_execution_result is not None
-
-        counter = 0
-        found = False
-        while not found and counter < self._max_mutations and not self._timer.limit_reached():
-            old_size = len(chromosome.test_case.statements)
-            if factory.change_statement_type(chromosome, position) and objective.has_improved(
-                chromosome
-            ):
-                self._logger.debug("Local search has found another possible datatype")
-                found = True
-                position += len(chromosome.test_case.statements) - old_size
-            else:
-                chromosome.test_case = old_test_case.clone()
-                chromosome.set_last_execution_result(last_execution_result)
-            counter += 1
-
-        if not found:
-            self._logger.debug("Local search did not find another possible datatype.")
-        else:
-            self._search_same_datatype(chromosome, factory, objective, position)
-        return found
+        return False
 
     def _search_llm(
         self,
@@ -208,14 +191,13 @@ class TestCaseLocalSearch:
         objective: LocalSearchObjective,
         position: int,
     ) -> bool:
-        statement = chromosome.test_case.statements[position]
-        # Not querying LLM for boolean or enum primitives since this is too expensive to query
-        # for llm requests
-        if isinstance(statement, (BooleanPrimitiveStatement, EnumPrimitiveStatement)):
+        statement = chromosome.test_case.get_statement(position)
+        # Not querying the LLM for boolean or enum values since that is too
+        # expensive for what it's worth; fall back to same-datatype search.
+        if statement.bound_type is bool or isinstance(statement.accessible, gao.GenericEnum):
             self._logger.debug(
-                "Skipping LLM local search for statement %s at position %d since it's a "
-                "boolean or enum primitive. Instead use same datatype local search.",
-                statement,
+                "Skipping LLM local search for statement at position %d since it's a "
+                "boolean or enum value. Using same-datatype local search instead.",
                 position,
             )
             return self._search_same_datatype(chromosome, factory, objective, position)
@@ -239,10 +221,10 @@ class TestSuiteLocalSearch:
         """Executes local search on the suite.
 
         Args:
-            chromosome (Chromosome): The test suite chromosome to be modified.
-            factory (TestFactory): The factory to modify the test cases.
-            executor (TestCaseExecutor): The executor to run the test cases.
-            timer (LocalSearchTimer): The timer to manage the local search budget.
+            chromosome: The test suite chromosome to be modified.
+            factory: The factory to modify the test cases.
+            executor: The executor to run the test cases.
+            timer: The timer to manage the local search budget.
         """
         start_time = int(time.perf_counter()) * 1000
         stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchIterations, 1)
@@ -264,14 +246,14 @@ class TestSuiteLocalSearch:
         stat.add_to_runtime_variable(RuntimeVariable.TotalLocalSearchTime, time_dif)
 
     def double_branch_coverage(self, suite: TestSuiteChromosome) -> None:
-        """Expand the test cases that each branch is at least covered twice.
+        """Expand the test cases so that each branch is covered at least twice.
 
         This ensures that switching through branches increases the coverage properly
-        so that after mutating a statement, the previously covered branch still
-        stays covered. This is similar to Evosuite.
+        so that after mutating a statement, the previously covered branch still stays
+        covered. This is similar to EvoSuite.
 
         Args:
-            suite (TestSuiteChromosome): the test suite which should be extended.
+            suite: The test suite which should be extended.
         """
         self._logger.debug("Starting double branch coverage check")
         old_test_count = len(suite.test_case_chromosomes)
@@ -280,7 +262,8 @@ class TestSuiteLocalSearch:
 
         for test_case in suite.test_case_chromosomes:
             execution_result = test_case.get_last_execution_result()
-            assert execution_result is not None
+            if execution_result is None:
+                continue
             for (
                 key,
                 value,

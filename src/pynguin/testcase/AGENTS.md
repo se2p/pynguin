@@ -139,11 +139,11 @@ Visitor pattern for test case implementations:
 ### Local Search & Optimization
 
 **Local Search Components**:
-- `localsearch.py` - Local search strategies
-- `localsearchstatement.py` - Statement-level local search
+- `localsearch.py` - Test-case/suite-level orchestration (backwards statement iteration, probability gating, double-branch-coverage duplication)
+- `localsearchstatement.py` - Per-statement strategies (AVM for int/float, string/bytes char search, bool flip, enum sweep, literal collections, call statements); dispatch by `Statement.bound_type`/`accessible`; value access via `literalgen.parse_literal`/`literal_to_cst`
 - `localsearchtimer.py` - Timing control
-- `localsearchobjective.py` - Objective functions
-- `llmlocalsearch.py` - LLM-assisted local search
+- `localsearchobjective.py` - Objective functions (suite-fitness oracle)
+- `llmlocalsearch.py` - LLM-assisted local search (currently an inert, default-off hook; re-enable together with the LLM subsystem)
 
 ### Test Factory
 
