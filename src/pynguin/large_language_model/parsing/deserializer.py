@@ -151,6 +151,13 @@ class _RootNameCollector(cst.CSTVisitor):
     def leave_AssignTarget(self, original_node: cst.AssignTarget) -> None:  # noqa: N802
         self._in_target -= 1
 
+    def visit_Arg(self, node: cst.Arg) -> bool:  # noqa: N802
+        # A call argument's ``keyword`` (e.g. ``param4`` in ``f(param4=x)``) is a
+        # parameter name, not a variable read; only its ``value`` is. Visit the
+        # value manually and skip the rest of the node's children.
+        node.value.visit(self)
+        return False
+
     def visit_Attribute(self, node: cst.Attribute) -> bool:  # noqa: N802
         chain = _dotted_chain(node)
         if chain is not None:
@@ -368,6 +375,31 @@ class _SutReferenceNormalizer(cst.CSTTransformer):
         return self._replacements.pop(id(original_node), updated_node)
 
 
+def normalize_sut_references(module: cst.Module, module_name: str, module_alias: str) -> cst.Module:
+    """Rewrite every reference to *module_name* in *module* to the canonical alias.
+
+    ``CstStatementDeserializer.deserialize_function`` runs :class:`_SutReferenceNormalizer`
+    over each individual function body, matching the shape of LLM-flattened code
+    (where the rewriter pre-pass hoists imports into every test function). Callers
+    that instead have a single, module-level SUT import shared by every test
+    function -- e.g. Pynguin's own exported test suites, consumed by
+    initial-population seeding -- should normalize the whole module once with this
+    function before handing individual ``FunctionDef``s to
+    :meth:`CstStatementDeserializer.deserialize_function`.
+
+    Args:
+        module: The module to normalize.
+        module_name: The dotted name of the module under test.
+        module_alias: The canonical alias for the module under test.
+
+    Returns:
+        The normalized module, with SUT imports removed and references rewritten.
+    """
+    normalized = module.visit(_SutReferenceNormalizer(module_name, module_alias))
+    assert isinstance(normalized, cst.Module)
+    return normalized
+
+
 # ---------------------------------------------------------------------------
 # Assertion lifting (shared between the deserializer and the LLM assertion
 # generator's round-trip)
@@ -581,10 +613,16 @@ class CstStatementDeserializer:
         else:
             return None
 
+        # A bare call (``Foo()``) or a call through the canonical module alias
+        # (``<alias>.Foo()``, the form ``_SutReferenceNormalizer`` rewrites SUT
+        # references to) both refer to a constructor/module-level function, not
+        # a method call on an instance.
+        is_module_level_call = receiver_name is None or receiver_name == self._module_alias
+
         for obj in self._test_cluster.accessible_objects_under_test:
             if isinstance(obj, GenericConstructor):
                 owner_name = obj.owner.name if obj.owner is not None else None
-                if receiver_name is None and call_name == owner_name:
+                if is_module_level_call and call_name == owner_name:
                     return obj
             elif isinstance(obj, GenericMethod):
                 if receiver_name is not None and call_name == obj.method_name:
@@ -597,7 +635,7 @@ class CstStatementDeserializer:
                         return obj
             elif (
                 isinstance(obj, GenericFunction)
-                and receiver_name is None
+                and is_module_level_call
                 and call_name == obj.function_name
             ):
                 return obj

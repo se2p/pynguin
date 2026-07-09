@@ -578,21 +578,14 @@ def execution_trace() -> ExecutionTrace:
 # -- COLLECTION IGNORES ----------------------------------------------------------------
 # The libcst test-case representation removed the old per-statement representation
 # (statement.py / variablereference.py / defaulttestcase.py / statement_to_ast.py /
-# testcase_to_ast.py / testcasevisitor.py) and disabled four subsystems (LLM, dynamic
-# slicer, local search, constant seeding). The following test modules target removed
-# code or disabled subsystems and are not collected. They should be rewritten or
+# testcase_to_ast.py / testcasevisitor.py). LLM, dynamic slicer, local search,
+# constant seeding and initial-population/AST seeding have all since been
+# re-enabled against the libcst representation -- see tests/testcase/test_literalgen.py,
+# test_constant_seeding_integration.py, tests/analyses/test_seeding.py and
+# test_initialpopulationseeding.py. The following test modules target removed code
+# or still-disabled subsystems and are not collected. They should be rewritten or
 # removed in a follow-up; they are listed here so the rest of the suite can run.
 collect_ignore = [
-    # --- disabled subsystem: initial-population / AST seeding (point 6) -----------
-    # NOTE: constant seeding itself (seeding the constant pool into generated
-    # literals) is live and default-on -- see TestFactory/literalgen.py and
-    # tests/testcase/test_literalgen.py + test_constant_seeding_integration.py.
-    # These two files instead exercise AstToTestCaseTransformer /
-    # InitialPopulationProvider, which still depend on removed modules
-    # (defaulttestcase, old export API) and stay ignored until that subsystem
-    # is re-ported to the libcst representation.
-    "analyses/test_seeding.py",
-    "analyses/test_initialpopulationseeding.py",
     # --- still parked: not yet migrated / disabled --------------------------------
     "assertion/test_assertion_generation_integration.py",
     "testcase/execution/test_typetracing.py",
