@@ -77,6 +77,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     def after_statement_execution(  # noqa: D102
         self,
         statement: tc.Statement,
+        executor: ex.TestCaseExecutor,
         namespace: dict[str, Any],
         exception: BaseException | None,
     ) -> None:
@@ -255,6 +256,7 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
     def after_statement_execution(  # noqa: D102
         self,
         statement: tc.Statement,
+        executor: ex.TestCaseExecutor,
         namespace: dict[str, Any],
         exception: BaseException | None,
     ) -> None:

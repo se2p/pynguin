@@ -45,6 +45,8 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 import pynguin.utils.statistics.stats as stat
 import pynguin.utils.typetracing as tt
 from pynguin.analyses.typesystem import Instance, ProperType, TupleType
+from pynguin.assertion.assertion_to_ast import assertion_to_cst
+from pynguin.instrumentation import AST_FILENAME
 from pynguin.instrumentation.machinery import InstrumentationFinder
 from pynguin.instrumentation.tracer import ExecutedAssertion, ExecutionTrace, ExecutionTracer
 from pynguin.instrumentation.transformer import InstrumentationTransformer
@@ -71,8 +73,6 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
-
-_GENERATED_TEST_FILENAME = "<generated_test>"
 
 
 class RemoteExecutionObserver(abc.ABC):
@@ -142,6 +142,7 @@ class RemoteExecutionObserver(abc.ABC):
     def after_statement_execution(  # noqa: B027
         self,
         statement: tc.Statement,
+        executor: TestCaseExecutor,
         namespace: dict[str, Any],
         exception: BaseException | None,
     ) -> None:
@@ -152,6 +153,7 @@ class RemoteExecutionObserver(abc.ABC):
 
         Args:
             statement: The statement that was executed.
+            executor: The executor that executed the statement.
             namespace: The shared namespace the statement executed in.
             exception: The exception raised by the statement, if any.
         """
@@ -229,7 +231,17 @@ class ExecutionObserver(abc.ABC):
 class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
     """A remote observer which executes the assertions of statements.
 
+    Executes each statement's assertions right after the statement, with
+    checked-coverage instrumentation enabled (when the executor was configured
+    for it via ``set_instrument(True)``), and records their trace positions
+    via the instrumentation tracer so they can later be sliced.
+
     Enables slicing on the recorded data.
+
+    Note: this observer must only be registered together with
+    ``executor.set_instrument(True)``; otherwise the assertion code executes
+    uninstrumented and ``ExecutionTracer.track_assertion_position`` will fail
+    to find a boolean-jump instruction to record.
     """
 
     def before_test_case_execution(self, test_case: tc.TestCase):
@@ -238,6 +250,46 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
         Args:
             test_case: not used
         """
+
+    def after_statement_execution(
+        self,
+        statement: tc.Statement,
+        executor: TestCaseExecutor,
+        namespace: dict[str, Any],
+        exception: BaseException | None,
+    ) -> None:
+        """Execute the statement's assertions, instrumented, and track them.
+
+        Args:
+            statement: The statement that was executed.
+            executor: The executor that executed the statement.
+            namespace: The shared namespace the statement executed in.
+            exception: The exception raised by the statement, if any.
+        """
+        tracer = executor.subject_properties.instrumentation_tracer
+        with tracer.temporarily_enable():
+            if statement.has_only_exception_assertion():
+                if exception is not None:
+                    tracer.track_exception_assertion(statement)
+                return
+            if exception is not None:
+                # The bound variable (if any) is undefined; assertions on it
+                # cannot meaningfully hold. Deliberate deviation from main,
+                # which still executed them against a stale exec context.
+                return
+            for assertion in statement.assertions:
+                cst_node = assertion_to_cst(assertion)
+                if cst_node is None:
+                    # E.g. an ExceptionAssertion mixed in with other
+                    # assertions; handled structurally elsewhere.
+                    continue
+                code_str = cst.Module(body=[cst_node]).code
+                assertion_exception = executor.execute_source(code_str, namespace)
+                if assertion_exception is not None:
+                    # A failed/erroring assertion has no meaningful boolean
+                    # jump to record; skip tracking its position.
+                    continue
+                tracer.track_assertion_position(assertion)
 
     def after_test_case_execution(
         self,
@@ -934,6 +986,36 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
         namespace[module_alias] = module
         return namespace
 
+    def execute_source(self, code_str: str, namespace: dict[str, Any]) -> BaseException | None:
+        """Compile and execute source code against the shared namespace.
+
+        Compiles with ``AST_FILENAME`` (matching the filename that the whole
+        instrumentation/slicing stack special-cases for test code, see
+        ``pynguin.instrumentation.AST_FILENAME``) and, if this executor was
+        configured for checked-coverage instrumentation
+        (``set_instrument(True)``), applies ``self._checked_transformer``
+        before executing, so that every executed instruction is appended to
+        the trace and can later be used as a dynamic-slicing criterion.
+
+        Args:
+            code_str: The source code to compile and execute.
+            namespace: The shared namespace (used as both globals and locals).
+
+        Returns:
+            The raised exception, if any, otherwise ``None``.
+        """
+        code = compile(code_str, AST_FILENAME, "exec")
+        if self._instrument:
+            code = self._checked_transformer.instrument_code(code)
+        try:
+            exec(code, namespace)  # noqa: S102
+        except TracingAbortedException:
+            # Must always propagate, so the watchdog thread can be killed.
+            raise
+        except BaseException as exc:  # noqa: BLE001
+            return exc
+        return None
+
     def _exec_statement(
         self, statement: tc.Statement, namespace: dict[str, Any]
     ) -> BaseException | None:
@@ -947,16 +1029,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
             The raised exception, if any, otherwise ``None``.
         """
         code_str = cst.Module(body=[statement.node]).code
-        try:
-            exec(  # noqa: S102
-                compile(code_str, _GENERATED_TEST_FILENAME, "exec"), namespace
-            )
-        except TracingAbortedException:
-            # Must always propagate, so the watchdog thread can be killed.
-            raise
-        except BaseException as exc:  # noqa: BLE001
-            return exc
-        return None
+        return self.execute_source(code_str, namespace)
 
     def _before_statement_execution(
         self, statement: tc.Statement, namespace: dict[str, Any]
@@ -983,7 +1056,7 @@ class TestCaseExecutor(AbstractTestCaseExecutor):
 
         with self._subject_properties.instrumentation_tracer.temporarily_disable():
             for observer in reversed(tuple(self._yield_remote_observers())):
-                observer.after_statement_execution(statement, namespace, exception)
+                observer.after_statement_execution(statement, self, namespace, exception)
 
     def _after_test_case_execution(self, test_case: tc.TestCase, result: ExecutionResult) -> None:
         """Collect the trace data after each executed test case.

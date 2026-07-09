@@ -920,10 +920,13 @@ def compute_statement_checked_lines(
     known_code_objects = subject_properties.existing_code_objects
     dynamic_slicer = DynamicSlicer(known_code_objects)
     checked_lines_ids = set()
-    for statement in statements:
-        # ``get_position`` belongs to the pre-libcst slicer representation; checked
-        # coverage is a disabled subsystem still exercised via position-bearing mocks.
-        position = statement.get_position()  # type: ignore[attr-defined]
+    for position, statement in enumerate(statements):
+        if statement.bound_variable is None:
+            # Unbound Expr statements (e.g. produced by
+            # remove_unused_variables()) carry no STORE instruction and thus
+            # never get a slicing criterion; skip them without treating this
+            # as an execution-aborting gap.
+            continue
         if position not in statement_slicing_criteria:
             # if there is no slicing criterion there was an exception during
             # the test case execution and the latter statements after the one

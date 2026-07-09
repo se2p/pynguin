@@ -236,14 +236,13 @@ def test_statement_checked_coverage_half_covered(subject_properties_mock, trace_
     mock_instr_1.code_object_id = 0
     mock_instr_1.file = "foo"
     statement = MagicMock()
+    statement.bound_variable = "var_0"
     statements = [statement]
-    with patch.object(DynamicSlicer, "slice") as slice_mock:  # noqa: SIM117
-        with patch.object(statement, "get_position") as position_mock:
-            position_mock.return_value = 1
-            slice_mock.return_value = [mock_instr_1]
-            assert ff.compute_statement_checked_lines(
-                statements, trace_mock, subject_properties_mock, {1: MagicMock()}
-            ) == {0}
+    with patch.object(DynamicSlicer, "slice") as slice_mock:
+        slice_mock.return_value = [mock_instr_1]
+        assert ff.compute_statement_checked_lines(
+            statements, trace_mock, subject_properties_mock, {0: MagicMock()}
+        ) == {0}
 
 
 def test_statement_checked_coverage_fully_covered(subject_properties_mock, trace_mock):
@@ -261,14 +260,13 @@ def test_statement_checked_coverage_fully_covered(subject_properties_mock, trace
     mock_instr_2.file = "foo"
 
     statement = MagicMock()
+    statement.bound_variable = "var_0"
     statements = [statement]
-    with patch.object(DynamicSlicer, "slice") as slice_mock:  # noqa: SIM117
-        with patch.object(statement, "get_position") as position_mock:
-            position_mock.return_value = 1
-            slice_mock.return_value = [mock_instr_1, mock_instr_2]
-            assert ff.compute_statement_checked_lines(
-                statements, trace_mock, subject_properties_mock, {1: MagicMock()}
-            ) == {0, 1}
+    with patch.object(DynamicSlicer, "slice") as slice_mock:
+        slice_mock.return_value = [mock_instr_1, mock_instr_2]
+        assert ff.compute_statement_checked_lines(
+            statements, trace_mock, subject_properties_mock, {0: MagicMock()}
+        ) == {0, 1}
 
 
 def test_analyze_traces_empty():

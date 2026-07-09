@@ -92,7 +92,7 @@ def test_before_test_case_execution_noop():
 def test_exception_records_exception_assertion():
     observer = ato.RemoteAssertionTraceObserver()
     statement = b.assign("var_0", "0", bound_type=int)
-    observer.after_statement_execution(statement, {"var_0": 0}, ValueError("boom"))
+    observer.after_statement_execution(statement, None, {"var_0": 0}, ValueError("boom"))
 
     recorded = _assertions_at(observer, 0)
     assert len(recorded) == 1
@@ -104,14 +104,14 @@ def test_exception_records_exception_assertion():
 def test_no_bound_variable_records_nothing():
     observer = ato.RemoteAssertionTraceObserver()
     statement = b.stmt("print('x')")  # no bound_variable
-    observer.after_statement_execution(statement, {}, None)
+    observer.after_statement_execution(statement, None, {}, None)
     assert _assertions_at(observer, 0) == []
 
 
 def test_position_increments_between_statements():
     observer = ato.RemoteAssertionTraceObserver()
-    observer.after_statement_execution(b.assign("a", "1", bound_type=int), {"a": 1}, None)
-    observer.after_statement_execution(b.assign("b", "2", bound_type=int), {"b": 2}, None)
+    observer.after_statement_execution(b.assign("a", "1", bound_type=int), None, {"a": 1}, None)
+    observer.after_statement_execution(b.assign("b", "2", bound_type=int), None, {"b": 2}, None)
     assert isinstance(_assertions_at(observer, 0)[0], ass.ObjectAssertion)
     assert isinstance(_assertions_at(observer, 1)[0], ass.ObjectAssertion)
 
@@ -128,7 +128,7 @@ def test_position_increments_between_statements():
 def test_primitive_value_records_expected_assertion(value, expected_type, check):
     observer = ato.RemoteAssertionTraceObserver()
     statement = b.assign("var_0", repr(value), bound_type=type(value))
-    observer.after_statement_execution(statement, {"var_0": value}, None)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
 
     recorded = _assertions_at(observer, 0)
     assert len(recorded) == 1
@@ -142,7 +142,7 @@ def test_assertable_collection_records_object_assertion():
     # A list is assertable but is not a primitive and lives in ``builtins``,
     # so it is neither watched nor checked -> no assertion recorded.
     statement = b.assign("var_0", "[1, 2, 3]", bound_type=list)
-    observer.after_statement_execution(statement, {"var_0": [1, 2, 3]}, None)
+    observer.after_statement_execution(statement, None, {"var_0": [1, 2, 3]}, None)
     assert _assertions_at(observer, 0) == []
 
 
@@ -150,7 +150,7 @@ def test_non_builtins_object_records_type_name_assertion():
     observer = ato.RemoteAssertionTraceObserver()
     value = _Custom()
     statement = b.assign("var_0", "object()", bound_type=_Custom)
-    observer.after_statement_execution(statement, {"var_0": value}, None)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
 
     recorded = _assertions_at(observer, 0)
     assert len(recorded) == 1
@@ -165,7 +165,7 @@ def test_non_builtins_object_records_isinstance_when_importable():
     config.configuration.module_name = _Custom.__module__
     value = _Custom()
     statement = b.assign("var_0", "object()", bound_type=_Custom)
-    observer.after_statement_execution(statement, {"var_0": value}, None)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
 
     recorded = _assertions_at(observer, 0)
     assert len(recorded) == 1
@@ -177,7 +177,7 @@ def test_sized_non_assertable_object_records_type_and_length():
     observer = ato.RemoteAssertionTraceObserver()
     value = _SizedCustom()
     statement = b.assign("var_0", "object()", bound_type=_SizedCustom)
-    observer.after_statement_execution(statement, {"var_0": value}, None)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
 
     recorded = _assertions_at(observer, 0)
     types = {type(a) for a in recorded}
@@ -191,7 +191,7 @@ def test_sized_object_with_failing_len_is_swallowed():
     observer = ato.RemoteAssertionTraceObserver()
     value = _SizedRaising()
     statement = b.assign("var_0", "object()", bound_type=_SizedRaising)
-    observer.after_statement_execution(statement, {"var_0": value}, None)
+    observer.after_statement_execution(statement, None, {"var_0": value}, None)
 
     recorded = _assertions_at(observer, 0)
     # The type-name assertion is still recorded, but no length assertion, as
@@ -260,14 +260,14 @@ def _exception_statement() -> tc.Statement:
 
 def test_verification_exception_matches_is_clean():
     observer = ato.RemoteAssertionVerificationObserver()
-    observer.after_statement_execution(_exception_statement(), {}, ValueError())
+    observer.after_statement_execution(_exception_statement(), None, {}, ValueError())
     assert observer._state.trace.failed == {}
     assert observer._state.trace.error == {}
 
 
 def test_verification_exception_missing_marks_failed():
     observer = ato.RemoteAssertionVerificationObserver()
-    observer.after_statement_execution(_exception_statement(), {}, None)
+    observer.after_statement_execution(_exception_statement(), None, {}, None)
     assert 0 in observer._state.trace.failed
     assert 0 in observer._state.trace.failed[0]
     assert observer._state.trace.error == {}
@@ -275,7 +275,7 @@ def test_verification_exception_missing_marks_failed():
 
 def test_verification_exception_wrong_type_marks_error():
     observer = ato.RemoteAssertionVerificationObserver()
-    observer.after_statement_execution(_exception_statement(), {}, KeyError())
+    observer.after_statement_execution(_exception_statement(), None, {}, KeyError())
     assert 0 in observer._state.trace.error
     assert 0 in observer._state.trace.error[0]
     assert observer._state.trace.failed == {}
@@ -294,7 +294,7 @@ def _value_statement(*assertions: ass.Assertion) -> tc.Statement:
 def test_verification_passing_value_assertion_is_clean():
     observer = ato.RemoteAssertionVerificationObserver()
     statement = _value_statement(ass.ObjectAssertion("var_0", 46))
-    observer.after_statement_execution(statement, {"var_0": 46}, None)
+    observer.after_statement_execution(statement, None, {"var_0": 46}, None)
     assert observer._state.trace.failed == {}
     assert observer._state.trace.error == {}
 
@@ -302,7 +302,7 @@ def test_verification_passing_value_assertion_is_clean():
 def test_verification_failing_value_assertion_marks_failed():
     observer = ato.RemoteAssertionVerificationObserver()
     statement = _value_statement(ass.ObjectAssertion("var_0", 46))
-    observer.after_statement_execution(statement, {"var_0": 99}, None)
+    observer.after_statement_execution(statement, None, {"var_0": 99}, None)
     assert 0 in observer._state.trace.failed
     assert 0 in observer._state.trace.failed[0]
 
@@ -311,7 +311,7 @@ def test_verification_erroring_value_assertion_marks_error():
     observer = ato.RemoteAssertionVerificationObserver()
     # len() on an int raises TypeError -> recorded as an error, not a failure.
     statement = _value_statement(ass.CollectionLengthAssertion("var_0", 3))
-    observer.after_statement_execution(statement, {"var_0": 5}, None)
+    observer.after_statement_execution(statement, None, {"var_0": 5}, None)
     assert 0 in observer._state.trace.error
     assert 0 in observer._state.trace.error[0]
 
@@ -319,7 +319,7 @@ def test_verification_erroring_value_assertion_marks_error():
 def test_verification_float_assertion_uses_pytest_namespace():
     observer = ato.RemoteAssertionVerificationObserver()
     statement = _value_statement(ass.FloatAssertion("var_0", 1.5))
-    observer.after_statement_execution(statement, {"var_0": 1.5, "pytest": pytest}, None)
+    observer.after_statement_execution(statement, None, {"var_0": 1.5, "pytest": pytest}, None)
     assert observer._state.trace.failed == {}
     assert observer._state.trace.error == {}
 
@@ -332,6 +332,6 @@ def test_verification_skips_exception_assertion_in_mixed_statement():
         ass.ExceptionAssertion(module="builtins", exception_type_name="ValueError"),
         ass.ObjectAssertion("var_0", 46),
     )
-    observer.after_statement_execution(statement, {"var_0": 46}, None)
+    observer.after_statement_execution(statement, None, {"var_0": 46}, None)
     assert observer._state.trace.failed == {}
     assert observer._state.trace.error == {}

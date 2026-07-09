@@ -57,8 +57,13 @@ def _make_assert(test: cst.BaseExpression) -> cst.SimpleStatementLine:
     return cst.SimpleStatementLine(body=[cst.Assert(test=test)])
 
 
-def _name(var: str) -> cst.Name:
-    return cst.Name(var)
+def _name(var: str) -> cst.BaseExpression:
+    # ``var`` is usually a bare variable name, but may also be a dotted
+    # attribute-access path (e.g. ``plus_0.calculations``) when the assertion
+    # source refers to an object's attribute rather than a bound variable
+    # itself; parse it as an expression rather than assuming a plain
+    # identifier.
+    return cst.parse_expression(var)
 
 
 def _float_assertion_to_cst(

@@ -1640,12 +1640,7 @@ class ExecutionTracer(AbstractExecutionTracer):  # noqa: PLR0904
     def track_exception_assertion(  # noqa: D102
         self, statement: stmt.Statement
     ) -> None:
-        # Under the libcst representation ``Statement`` exposes its assertions as a
-        # plain list; the former ``has_only_exception_assertion`` helper is recomputed
-        # here: the statement must carry exactly one assertion and it must be an
-        # ``ExceptionAssertion``.
-        assert len(statement.assertions) == 1
-        assert isinstance(next(iter(statement.assertions)), ass.ExceptionAssertion)
+        assert statement.has_only_exception_assertion()
         trace = self._thread_local_state.trace
         error_call_position = len(trace.executed_instructions) - 1
         trace.executed_assertions.append(

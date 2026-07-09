@@ -457,12 +457,12 @@ def _plus_test_case() -> tc.TestCase:
     """Build the shared ``plus`` test case in the libcst representation.
 
     int_0 = 42
-    plus_0 = module_0.Plus()
+    plus_0 = plus_.Plus()
     int_1 = plus_0.plus_four(int_0)
     """
     test_case = tc.TestCase()
     test_case.add_statement(_make_statement("int_0 = 42", bound_variable="int_0", bound_type=int))
-    test_case.add_statement(_make_statement("plus_0 = module_0.Plus()", bound_variable="plus_0"))
+    test_case.add_statement(_make_statement("plus_0 = plus_.Plus()", bound_variable="plus_0"))
     test_case.add_statement(
         _make_statement("int_1 = plus_0.plus_four(int_0)", bound_variable="int_1", bound_type=int)
     )
@@ -497,13 +497,13 @@ def plus_test_with_type_name_assertion() -> tc.TestCase:
 def exception_test_with_except_assertion() -> tc.TestCase:
     """Exception test case with an exception assertion.
 
-    exception_test_0 = module_0.ExceptionTest()
+    exception_test_0 = exception_.ExceptionTest()
     var_0 = exception_test_0.throw()
     """
     test_case = tc.TestCase()
     test_case.add_statement(
         _make_statement(
-            "exception_test_0 = module_0.ExceptionTest()",
+            "exception_test_0 = exception_.ExceptionTest()",
             bound_variable="exception_test_0",
         )
     )
@@ -523,12 +523,12 @@ def exception_test_with_except_assertion() -> tc.TestCase:
 def list_test_with_len_assertion() -> tc.TestCase:
     """List test case with a collection-length assertion.
 
-    list_test_0 = module_0.ListTest()
+    list_test_0 = list_.ListTest()
     assert len(list_test_0.attribute) == 3
     """
     test_case = tc.TestCase()
     test_case.add_statement(
-        _make_statement("list_test_0 = module_0.ListTest()", bound_variable="list_test_0")
+        _make_statement("list_test_0 = list_.ListTest()", bound_variable="list_test_0")
     )
     test_case.get_statement(-1).assertions.append(
         ass.CollectionLengthAssertion("list_test_0.attribute", 3)
@@ -591,10 +591,6 @@ collect_ignore = [
     "ga/algorithms/test_llmosalgorithm.py",
     "ga/test_llmtestsuitechromosomefactory.py",
     "large_language_model",
-    # --- disabled subsystem: dynamic slicer / checked coverage --------------------
-    "slicer/test_assertionslicer.py",
-    "slicer/test_statementslicer.py",
-    "ga/test_coveragegoals.py",
     # --- disabled subsystem: local search -----------------------------------------
     "testcase/test_localsearch.py",
     "testcase/test_llmlocalsearch.py",
@@ -610,6 +606,12 @@ collect_ignore = [
     "ga/algorithms/test_randomalgorithm.py",
     "testcase/execution/test_subprocesstestcaseexecutor.py",
     "testcase/execution/test_subprocesstestcaseexecutor_integration.py",
+    # Despite the "dynamic slicer / checked coverage" collect_ignore comment it used
+    # to sit under, this file does not actually exercise CheckedCoverageGoal /
+    # StatementCheckedCoverageTestFitness at all -- it tests BranchGoal /
+    # LineCoverageGoal fitness via AstToTestCaseTransformer/DefaultTestCase (old
+    # representation), which is out of scope for the checked-coverage rework.
+    "ga/test_coveragegoals.py",
 ]
 
 
