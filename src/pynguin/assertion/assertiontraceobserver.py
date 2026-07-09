@@ -25,15 +25,22 @@ import pynguin.utils.typetracing as tt
 from pynguin.assertion.assertion_to_ast import assertion_to_cst
 from pynguin.utils.exceptions import TracingAbortedException
 from pynguin.utils.naming import get_module_alias
-from pynguin.utils.type_utils import is_assertable, is_primitive_type
+from pynguin.utils.type_utils import (
+    is_assertable,
+    is_collection_type,
+    is_ignorable_type,
+    is_primitive_type,
+)
 
 if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
 
 _LOGGER = logging.getLogger(__name__)
 
-# Sentinel returned by ``RemoteAssertionTraceObserver._resolve_source`` when a
-# (possibly dotted) reference path cannot be resolved against the namespace.
+# Sentinel returned by ``_resolve_source`` when a dotted reference path (e.g.
+# ``"<module_alias>.ClassName.field"``) could not be resolved against the
+# current namespace -- either the root name is unknown, or an attribute
+# access along the chain raised.
 _UNRESOLVED = object()
 
 
@@ -120,14 +127,14 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         """Generate assertions for the variable a statement just bound.
 
         Mirrors main's ``RemoteAssertionTraceObserver._handle``, adapted to the
-        libcst representation: references are plain variable names, or dotted
-        attribute-access paths rooted at a namespace entry (e.g. module static
-        fields), looked up in the shared execution namespace instead of
-        ``VariableReference``s resolved through an ``ExecutionContext``.
-
-        In addition to the bound variable and the watch list, this also
-        (re-)checks the public static fields of the module under test after
-        every statement, mirroring main's module-field enumeration.
+        libcst representation: references are plain variable names (or, for
+        class-level static fields, dotted attribute paths) looked up in the
+        shared execution namespace instead of ``VariableReference``s resolved
+        through an ``ExecutionContext``. After checking the freshly bound
+        variable and the watch list, also asserts on the public static fields
+        of the module under test and on the public static fields of the classes
+        of currently watched objects (mirrors main's module- and class-static
+        enumeration blocks).
 
         Args:
             bound_variable: The name of the variable the statement bound.
@@ -161,22 +168,95 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                     continue
                 self._check_reference(namespace, f"{module_alias}.{field}", position, trace)
 
-    @staticmethod
-    def _should_ignore(field: str, value: Any) -> bool:
-        """Check whether a static field should be ignored for assertions.
+        self._check_static_class_fields(namespace, watch_list, position, trace)
+
+    def _check_static_class_fields(
+        self,
+        namespace: dict[str, Any],
+        watch_list: list[str],
+        position: int,
+        trace: at.AssertionTrace,
+    ) -> None:
+        """Assert on public class-level (static) fields of watched objects.
+
+        Mirrors main's class-static-field enumeration block at the end of
+        ``_handle``: for every distinct type among the currently watched
+        objects, assert on its public, non-callable class attributes (e.g. a
+        class-level counter mutated by a method). Restricted to classes
+        defined in the SUT module, matching the scope the libcst exporter can
+        actually import (only the SUT module is ever imported, see
+        ``_is_type_importable``); a set is used instead of main's list to
+        avoid re-asserting the same class once per watched instance.
 
         Args:
-            field: The name of the field.
-            value: The value of the field.
+            namespace: The shared execution namespace.
+            watch_list: Names of currently watched (non-primitive, non-builtin)
+                variables.
+            position: The position of the statement after whose execution the
+                state is observed.
+            trace: The assertion trace where the observed assertions are stored.
+        """
+        module_alias = get_module_alias(config.configuration.module_name)
+        seen_types = {type(tt.unwrap(namespace.get(name))) for name in watch_list}
+        for seen_type in seen_types:
+            if not self._is_static_field_owner(seen_type):
+                continue
+            class_source = ".".join([module_alias, *seen_type.__qualname__.split(".")])
+            for field, field_value in vars(seen_type).items():
+                if self._should_ignore(field, field_value):
+                    continue
+                self._check_reference(namespace, f"{class_source}.{field}", position, trace)
+
+    @staticmethod
+    def _is_static_field_owner(seen_type: type) -> bool:
+        """Check whether a type's class-level fields should be enumerated.
+
+        Args:
+            seen_type: The type of a currently watched object.
 
         Returns:
-            True, if the field should not be turned into an assertion.
+            True, if ``seen_type`` is a plain, SUT-module-defined class whose
+            ``vars()`` can be walked for public static fields.
+        """
+        if (
+            is_primitive_type(seen_type)
+            or is_collection_type(seen_type)
+            or is_ignorable_type(seen_type)
+            or not hasattr(seen_type, "__dict__")
+        ):
+            return False
+        if not hasattr(seen_type, "__module__") or not hasattr(seen_type, "__qualname__"):
+            return False
+        return (
+            seen_type.__module__ == config.configuration.module_name
+            and "<locals>" not in seen_type.__qualname__
+        )
+
+    @staticmethod
+    def _should_ignore(field: str, attr_value: Any) -> bool:
+        """Check whether a class/module attribute should be skipped.
+
+        Ported verbatim (in spirit) from main's
+        ``RemoteAssertionTraceObserver._should_ignore``: private/dunder names,
+        methods, and (sub-)modules are not asserted on. Also skips descriptors
+        that ``callable()`` does not catch (``staticmethod``/``classmethod``/
+        ``property`` objects), which is a deliberate, strictly-better deviation
+        from main -- main's ``vars(cls)`` walk hit the same descriptors and
+        fell through to a harmless-but-noisy ``TypeNameAssertion`` on e.g.
+        ``builtins.classmethod``.
+
+        Args:
+            field: The attribute's name.
+            attr_value: The attribute's value.
+
+        Returns:
+            True, if the attribute should not be asserted on.
         """
         return (
             field.startswith("_")
             or field.endswith("__")
-            or callable(value)
-            or isinstance(value, ModuleType)
+            or callable(attr_value)
+            or isinstance(attr_value, ModuleType | staticmethod | classmethod | property)
         )
 
     @staticmethod
@@ -185,13 +265,14 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 
         Args:
             namespace: The shared execution namespace.
-            source: A variable name, or a dotted attribute-access path rooted
-                at a namespace entry (e.g. a module field's
-                ``"<alias>.<field>"``).
+            source: A bare variable name, or a dotted attribute-access path
+                (e.g. ``"<module_alias>.ClassName.field"``) rooted at a name in
+                the namespace.
 
         Returns:
-            The resolved value, or ``_UNRESOLVED`` if the root is not in the
-            namespace or an attribute in the path could not be accessed.
+            The resolved (still wrapped) value, or ``_UNRESOLVED`` if the root
+            name is not in the namespace or an attribute access along the
+            chain raised.
         """
         root, *attrs = source.split(".")
         if root not in namespace:
@@ -200,35 +281,38 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         try:
             for attr in attrs:
                 value = getattr(value, attr)
-        except BaseException:  # noqa: BLE001  descriptors may raise anything
+        except BaseException as err:  # noqa: BLE001 - descriptors may raise anything
+            _LOGGER.debug(err)
             return _UNRESOLVED
-        return tt.unwrap(value)
+        return value
 
     def _check_reference(
         self,
         namespace: dict[str, Any],
-        var_name: str,
+        source: str,
         position: int,
         trace: at.AssertionTrace,
     ) -> None:
-        """Check if we can generate an assertion for the given variable.
+        """Check if we can generate an assertion for the given reference.
 
         Args:
             namespace: The shared execution namespace.
-            var_name: The name of the variable (or dotted reference path)
-                that should be checked.
+            source: The (possibly dotted) reference path that should be
+                checked, e.g. a bare variable name or a class-static field
+                path such as ``"<module_alias>.ClassName.field"``.
             position: The position of the test case after which the assertions
                 are made.
             trace: The assertion trace where the observed assertions are stored.
         """
-        value = self._resolve_source(namespace, var_name)
-        if value is _UNRESOLVED:
+        resolved = self._resolve_source(namespace, source)
+        if resolved is _UNRESOLVED:
             return
+        value = tt.unwrap(resolved)
         if isinstance(value, float):
-            trace.add_entry(position, ass.FloatAssertion(var_name, value))
+            trace.add_entry(position, ass.FloatAssertion(source, value))
             return
         if is_assertable(value):
-            trace.add_entry(position, ass.ObjectAssertion(var_name, copy.deepcopy(value)))
+            trace.add_entry(position, ass.ObjectAssertion(source, copy.deepcopy(value)))
             return
 
         # No precise assertion possible, so assert on type.
@@ -237,12 +321,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             if self._is_type_importable(typ):
                 trace.add_entry(
                     position,
-                    ass.IsInstanceAssertion(var_name, typ.__module__, typ.__qualname__),
+                    ass.IsInstanceAssertion(source, typ.__module__, typ.__qualname__),
                 )
             else:
                 trace.add_entry(
                     position,
-                    ass.TypeNameAssertion(var_name, typ.__module__, typ.__qualname__),
+                    ass.TypeNameAssertion(source, typ.__module__, typ.__qualname__),
                 )
         if isinstance(value, Sized):
             try:
@@ -251,7 +335,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
                 # Could not get len, so give up on this reference.
                 _LOGGER.debug(err)
                 return
-            trace.add_entry(position, ass.CollectionLengthAssertion(var_name, length))
+            trace.add_entry(position, ass.CollectionLengthAssertion(source, length))
 
     @staticmethod
     def _is_type_importable(typ: type) -> bool:

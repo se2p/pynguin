@@ -21,7 +21,10 @@ representation:
 
 from __future__ import annotations
 
+import sys
 import types
+
+from types import ModuleType
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -53,6 +56,29 @@ class _SizedRaising:
 
     def __len__(self) -> int:
         raise RuntimeError("no length")
+
+
+class _ClazzWithStatics:
+    """A class with a public class-level field.
+
+    Used to exercise static class-field assertions.
+    """
+
+    counter = 0
+    _private = 1
+
+    @staticmethod
+    def static_helper() -> None:
+        """A static method; must not be treated as a static field."""
+
+    @classmethod
+    def class_helper(cls) -> None:
+        """A class method; must not be treated as a static field."""
+
+    @property
+    def prop(self) -> int:
+        """A property; must not be treated as a static field."""
+        return self.counter
 
 
 def _assertions_at(observer: ato.RemoteAssertionTraceObserver, position: int) -> list:
@@ -224,7 +250,7 @@ def test_is_type_importable_sut_module_true():
     assert ato.RemoteAssertionTraceObserver._is_type_importable(_Custom) is True
 
 
-# --- RemoteAssertionTraceObserver: _should_ignore -----------------------------
+# --- RemoteAssertionTraceObserver: _should_ignore ------------------------------
 
 
 @pytest.mark.parametrize(
@@ -232,10 +258,14 @@ def test_is_type_importable_sut_module_true():
     [
         ("_private", 1, True),
         ("__dunder__", 1, True),
-        ("public", lambda: None, True),
-        ("submodule", types, True),
+        ("trailing__", 1, True),
+        ("method", lambda: None, True),
+        ("submodule", ModuleType("m"), True),
+        ("static", staticmethod(lambda: None), True),
+        ("clsmethod", classmethod(lambda *_a: None), True),
+        ("prop", property(lambda *_a: None), True),
         ("public", 42, False),
-        ("PUBLIC_CONST", "hello", False),
+        ("public_str", "value", False),
     ],
 )
 def test_should_ignore(field, value, expected):
@@ -245,41 +275,33 @@ def test_should_ignore(field, value, expected):
 # --- RemoteAssertionTraceObserver: _resolve_source -----------------------------
 
 
-def test_resolve_source_flat_hit():
-    value = ato.RemoteAssertionTraceObserver._resolve_source({"var_0": 42}, "var_0")
-    assert value == 42
+def test_resolve_source_bare_name_hit():
+    namespace = {"var_0": 42}
+    assert ato.RemoteAssertionTraceObserver._resolve_source(namespace, "var_0") == 42
 
 
 def test_resolve_source_dotted_hit():
-    module = types.ModuleType("fake_module")
-    module.static_state = 5
-    value = ato.RemoteAssertionTraceObserver._resolve_source(
-        {"module_": module}, "module_.static_state"
+    namespace = {"mod_": _ClazzWithStatics}
+    assert (
+        ato.RemoteAssertionTraceObserver._resolve_source(namespace, "mod_.counter")
+        == _ClazzWithStatics.counter
     )
-    assert value == 5
 
 
 def test_resolve_source_missing_root_is_unresolved():
-    value = ato.RemoteAssertionTraceObserver._resolve_source({}, "missing")
-    assert value is ato._UNRESOLVED
+    assert ato.RemoteAssertionTraceObserver._resolve_source({}, "missing.field") is ato._UNRESOLVED
 
 
-def test_resolve_source_missing_attribute_is_unresolved():
-    module = types.ModuleType("fake_module")
-    value = ato.RemoteAssertionTraceObserver._resolve_source(
-        {"module_": module}, "module_.does_not_exist"
-    )
-    assert value is ato._UNRESOLVED
-
-
-def test_resolve_source_raising_descriptor_is_unresolved():
+def test_resolve_source_raising_attribute_is_unresolved():
     class _Raising:
         @property
         def boom(self):
             raise RuntimeError("nope")
 
-    value = ato.RemoteAssertionTraceObserver._resolve_source({"obj": _Raising()}, "obj.boom")
-    assert value is ato._UNRESOLVED
+    namespace = {"var_0": _Raising()}
+    assert (
+        ato.RemoteAssertionTraceObserver._resolve_source(namespace, "var_0.boom") is ato._UNRESOLVED
+    )
 
 
 # --- RemoteAssertionTraceObserver: module static-field assertions -------------
@@ -361,6 +383,96 @@ def test_handle_no_sut_module_in_namespace_records_nothing_extra():
     assert all(
         not (isinstance(a, ass.ReferenceAssertion) and a.source.startswith("some_module_"))
         for a in recorded
+    )
+
+
+# --- RemoteAssertionTraceObserver: static class-field assertions --------------
+
+
+def test_class_static_field_assertion_recorded_and_updates():
+    observer = ato.RemoteAssertionTraceObserver()
+    config.configuration.module_name = _ClazzWithStatics.__module__
+    module_alias = get_module_alias(_ClazzWithStatics.__module__)
+    class_source = f"{module_alias}.{_ClazzWithStatics.__qualname__}.counter"
+
+    _ClazzWithStatics.counter = 0
+    instance = _ClazzWithStatics()
+    namespace: dict = {
+        module_alias: sys.modules[_ClazzWithStatics.__module__],
+        "var_0": instance,
+    }
+
+    statement = b.assign("var_0", "ClazzWithStatics()", bound_type=_ClazzWithStatics)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    matches = [
+        a for a in recorded if isinstance(a, ass.ObjectAssertion) and a.source == class_source
+    ]
+    assert len(matches) == 1
+    assert matches[0].object == 0
+    # Private class attrs and methods/descriptors must not leak into the trace.
+    assert not any(
+        isinstance(a, ass.ObjectAssertion) and a.source.endswith("_private") for a in recorded
+    )
+
+    # Mutate the class-level field and re-check via the watch list on the
+    # next statement.
+    _ClazzWithStatics.counter = 1
+    namespace["b"] = 2
+    statement2 = b.assign("b", "2", bound_type=int)
+    observer.after_statement_execution(statement2, None, namespace, None)
+
+    recorded2 = _assertions_at(observer, 1)
+    matches2 = [
+        a for a in recorded2 if isinstance(a, ass.ObjectAssertion) and a.source == class_source
+    ]
+    assert len(matches2) == 1
+    assert matches2[0].object == 1
+
+
+def test_class_static_field_assertion_skipped_for_other_module():
+    observer = ato.RemoteAssertionTraceObserver()
+    config.configuration.module_name = "some.other.module"
+    module_alias = get_module_alias(_ClazzWithStatics.__module__)
+
+    instance = _ClazzWithStatics()
+    namespace: dict = {
+        module_alias: sys.modules[_ClazzWithStatics.__module__],
+        "var_0": instance,
+    }
+    statement = b.assign("var_0", "ClazzWithStatics()", bound_type=_ClazzWithStatics)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert not any(
+        isinstance(a, ass.ObjectAssertion) and a.source.endswith(".counter") for a in recorded
+    )
+
+
+def test_class_static_field_assertion_skipped_for_locals_class():
+    def _make_local_class():
+        class _Local:
+            value = 1
+
+        return _Local
+
+    local_cls = _make_local_class()
+    observer = ato.RemoteAssertionTraceObserver()
+    config.configuration.module_name = local_cls.__module__
+    module_alias = get_module_alias(local_cls.__module__)
+
+    instance = local_cls()
+    namespace: dict = {
+        module_alias: sys.modules[local_cls.__module__],
+        "var_0": instance,
+    }
+    statement = b.assign("var_0", "Local()", bound_type=local_cls)
+    observer.after_statement_execution(statement, None, namespace, None)
+
+    recorded = _assertions_at(observer, 0)
+    assert not any(
+        isinstance(a, ass.ObjectAssertion) and a.source.endswith(".value") for a in recorded
     )
 
 
