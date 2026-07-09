@@ -150,6 +150,74 @@ def test_generate_literal_unrecognised_returns_none(raw):
 
 
 # ---------------------------------------------------------------------------
+# Collection-element constant seeding
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("tp", [list, set, tuple])
+def test_generate_literal_collection_elements_use_seeded_constants(tp):
+    """Non-empty collections should only contain seeded values.
+
+    With reuse probability 1.0, non-empty collections should only ever
+    contain seeded int/float/str values (bool elements stay random).
+    """
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    provider = _FixedConstantProvider()
+    seeded_values = {provider.get_constant_for(int), provider.get_constant_for(float)}
+    seeded_str = provider.get_constant_for(str)
+    seen_non_empty = False
+    for _ in range(60):
+        node = lg.generate_literal(tp, provider)
+        value = _eval(node)
+        if len(value) == 0:
+            continue
+        seen_non_empty = True
+        for element in value:
+            if isinstance(element, bool):
+                continue
+            if isinstance(element, str):
+                assert element == seeded_str
+            else:
+                assert element in seeded_values
+    assert seen_non_empty
+
+
+def test_generate_literal_dict_uses_seeded_constants():
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    provider = _FixedConstantProvider()
+    seeded_values = {provider.get_constant_for(int), provider.get_constant_for(float)}
+    seeded_str = provider.get_constant_for(str)
+    seen_non_empty = False
+    for _ in range(60):
+        value = _eval(lg.generate_literal(dict, provider))
+        if len(value) == 0:
+            continue
+        seen_non_empty = True
+        for key, element in value.items():
+            assert key == seeded_str
+            if isinstance(element, bool):
+                continue
+            if isinstance(element, str):
+                assert element == seeded_str
+            else:
+                assert element in seeded_values
+    assert seen_non_empty
+
+
+@pytest.mark.parametrize("tp", [list, set, tuple, dict])
+def test_generate_literal_collection_elements_not_seeded_when_probability_zero(tp):
+    """With reuse probability 0.0, seeded sentinel values never appear."""
+    config.configuration.seeding.seeded_primitives_reuse_probability = 0.0
+    provider = _FixedConstantProvider()
+    for _ in range(60):
+        value = _eval(lg.generate_literal(tp, provider))
+        flat = value.values() if tp is dict else value
+        assert 4242 not in flat
+        assert 3.5 not in flat
+        assert "seeded-value" not in flat
+
+
+# ---------------------------------------------------------------------------
 # CST render helpers: round-trip properties
 # ---------------------------------------------------------------------------
 
