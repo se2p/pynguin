@@ -24,7 +24,7 @@ import libcst as cst
 import pynguin.configuration as config
 import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
-from pynguin.analyses.typesystem import Instance, ProperType
+from pynguin.analyses.typesystem import Instance, ProperType, TupleType
 from pynguin.testcase import literalgen
 from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils import randomness
@@ -41,6 +41,26 @@ if TYPE_CHECKING:
 
 
 _LOGGER = logging.getLogger(__name__)
+
+# Concrete builtin collection types that are emitted as named, possibly
+# reference-carrying statements rather than inline scalar literals.
+_COLLECTION_RAWS: frozenset[type] = frozenset({list, set, tuple, dict})
+
+# Builtin type objects that a ``type``-annotated parameter may be bound to.
+# Rendered as bare ``cst.Name`` nodes, valid in any execution namespace.
+_BUILTIN_CLASS_POOL: tuple[type, ...] = (
+    int,
+    float,
+    str,
+    bool,
+    bytes,
+    complex,
+    list,
+    dict,
+    set,
+    tuple,
+    object,
+)
 
 
 def _raw_type_or_none(raw: type | types.UnionType) -> type | None:
@@ -706,13 +726,26 @@ class TestFactory:
         var_name, cursor = self._create_or_reuse_var(test_case, param_type, raw, cursor, depth)
         if var_name is not None:
             return cst.Name(var_name), cursor
+        if raw is type:
+            emitted = self._emit_class_statement(test_case, cursor)
+            if emitted is not None:
+                return cst.Name(emitted[0]), emitted[1]
+        if raw is not None and raw in _COLLECTION_RAWS:
+            # Named, possibly reference-carrying collection statement.
+            var_name, cursor = self._emit_collection_statement(
+                test_case, raw, param_type, cursor, depth
+            )
+            return cst.Name(var_name), cursor
         if raw is not None and raw in literalgen.LITERAL_TYPES:
             # Emit as a named statement so it can be reused and mutated later.
             var_name, cursor = self._emit_primitive_statement(test_case, raw, cursor)
             return cst.Name(var_name), cursor
         mapped = literalgen.map_abstract_collection(raw) if raw is not None else None
         if mapped is not None:
-            return literalgen.generate_literal(mapped, self._constant_provider), cursor
+            var_name, cursor = self._emit_collection_statement(
+                test_case, mapped, param_type, cursor, depth
+            )
+            return cst.Name(var_name), cursor
         # Unresolvable (Any) parameter, or a type we can neither reuse nor
         # construct: coin-flip between reusing an arbitrary in-scope variable
         # and generating a literal.  Real objects reach code that accesses
@@ -751,6 +784,329 @@ class TestFactory:
         )
         return var_name, position + 1
 
+    # ------------------------------------------------------------------
+    # Class / type-object literals
+    # ------------------------------------------------------------------
+
+    def _class_literal_candidates(self) -> list[cst.BaseExpression]:
+        """Return the candidate expressions a ``type`` parameter may reference.
+
+        Includes every class declared in the module under test (rendered as
+        ``module_alias.ClassName``) plus a fixed pool of builtin type objects
+        (rendered as bare ``cst.Name`` nodes).  Nested classes (whose qualname
+        contains a dot) are skipped because they are not reachable as a simple
+        ``alias.Name`` attribute, and widening beyond the SUT module would
+        require extra import machinery in the exporter.
+
+        Returns:
+            A non-empty list of CST expressions usable as a class literal RHS.
+        """
+        candidates: list[cst.BaseExpression] = [
+            cst.Name(builtin.__name__) for builtin in _BUILTIN_CLASS_POOL
+        ]
+        module_name = config.configuration.module_name
+        alias = self._module_alias()
+        for type_info in self._test_cluster.type_system.get_all_types():
+            if type_info.module != module_name:
+                continue
+            if "." in type_info.qualname:
+                continue
+            if not type_info.name.isidentifier():
+                continue
+            candidates.append(cst.Attribute(value=cst.Name(alias), attr=cst.Name(type_info.name)))
+        return candidates
+
+    def _emit_class_statement(
+        self, test_case: tc.TestCase, position: int
+    ) -> tuple[str, int] | None:
+        """Insert a ``var_N = <class literal>`` statement at *position*.
+
+        Args:
+            test_case: The test case to extend.
+            position: The cursor position at which to insert.
+
+        Returns:
+            A tuple of (newly allocated variable name, updated cursor), or
+            ``None`` if no candidate class literal is available.
+        """
+        candidates = self._class_literal_candidates()
+        if not candidates:
+            return None
+        expr = randomness.choice(candidates)
+        var_name = test_case.next_var_name()
+        node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                    value=expr,
+                )
+            ]
+        )
+        test_case.insert_statement(
+            position, Statement(node=node, bound_variable=var_name, bound_type=type)
+        )
+        return var_name, position + 1
+
+    def _mutate_class_literal(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replace a class-literal statement's RHS with a different candidate.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the class-literal statement.
+
+        Returns:
+            True if the RHS was changed to a different class literal.
+        """
+        stmt = test_case.get_statement(position)
+        if stmt.bound_variable is None or not isinstance(stmt.node, cst.SimpleStatementLine):
+            return False
+        body = stmt.node.body
+        if not body or not isinstance(body[0], cst.Assign):
+            return False
+        old_code = cst.Module(body=[]).code_for_node(body[0].value)
+        candidates = [
+            expr
+            for expr in self._class_literal_candidates()
+            if cst.Module(body=[]).code_for_node(expr) != old_code
+        ]
+        if not candidates:
+            return False
+        new_expr = randomness.choice(candidates)
+        new_node = stmt.node.with_changes(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(stmt.bound_variable))],
+                    value=new_expr,
+                )
+            ]
+        )
+        test_case.replace_statement(
+            position,
+            Statement(
+                node=new_node,
+                bound_variable=stmt.bound_variable,
+                bound_type=type,
+                assertions=list(stmt.assertions),
+                accessible=None,
+            ),
+        )
+        return True
+
+    # ------------------------------------------------------------------
+    # Reference-carrying collection literals
+    # ------------------------------------------------------------------
+
+    def _reference_pool(self, test_case: tc.TestCase, position: int) -> list[cst.BaseExpression]:
+        """Return ``cst.Name`` references to variables bound before *position*.
+
+        Args:
+            test_case: The test case to scan.
+            position: Only variables bound strictly before this index are pooled.
+
+        Returns:
+            A list of ``cst.Name`` nodes referencing in-scope variables.
+        """
+        return [
+            cst.Name(statement.bound_variable)
+            for idx, statement in enumerate(test_case.statements())
+            if idx < position and statement.bound_variable is not None
+        ]
+
+    def _collection_element(
+        self,
+        test_case: tc.TestCase,
+        elem_type: ProperType | None,
+        cursor: int,
+        depth: int,
+    ) -> tuple[cst.BaseExpression, int]:
+        """Build one collection element, creating a dependency variable if typed.
+
+        For a resolvable element type, an existing variable is reused or a new
+        producer statement is inserted before the collection (the element then
+        becomes a ``cst.Name`` reference).  For primitive element types a named
+        literal statement is emitted so the reference can later be mutated.  When
+        the element type is unknown, a pooled reference or a random literal is
+        used inline.
+
+        Args:
+            test_case: The test case to extend.
+            elem_type: The element ProperType, or ``None`` if unknown.
+            cursor: Current insertion cursor.
+            depth: Current recursion depth.
+
+        Returns:
+            A tuple of (element expression, updated cursor).
+        """
+        if elem_type is not None:
+            raw_elem = _proper_type_to_raw(elem_type)
+            var, cursor = self._create_or_reuse_var(test_case, elem_type, raw_elem, cursor, depth)
+            if var is not None:
+                return cst.Name(var), cursor
+            if raw_elem is not None and raw_elem in _COLLECTION_RAWS:
+                var, cursor = self._emit_collection_statement(
+                    test_case, raw_elem, elem_type, cursor, depth
+                )
+                return cst.Name(var), cursor
+            if raw_elem is not None and raw_elem in literalgen.LITERAL_TYPES:
+                var, cursor = self._emit_primitive_statement(test_case, raw_elem, cursor)
+                return cst.Name(var), cursor
+        pool = self._reference_pool(test_case, cursor)
+        return literalgen._element_value(self._constant_provider, pool), cursor  # noqa: SLF001
+
+    def _collection_element_types(
+        self, raw: type, param_type: ProperType | None
+    ) -> tuple[list[ProperType | None], bool]:
+        """Determine element types and size behaviour for a collection parameter.
+
+        Args:
+            raw: The concrete collection type (``list``/``set``/``tuple``/``dict``).
+            param_type: The parameter's ProperType, carrying generic args.
+
+        Returns:
+            A tuple of (per-slot element types, fixed_size).  ``fixed_size`` is
+            True only for a typed, known-size tuple, where the length is dictated
+            by the number of type args.
+        """
+        size = randomness.next_int(0, config.configuration.test_creation.collection_size + 1)
+        if raw is tuple:
+            if (
+                isinstance(param_type, TupleType)
+                and not param_type.unknown_size
+                and param_type.args
+            ):
+                return list(param_type.args), True
+            return [None] * size, False
+        if raw is dict:
+            return [None] * size, False  # dict handled specially by the caller
+        elem_type: ProperType | None = None
+        if isinstance(param_type, Instance) and param_type.args:
+            elem_type = param_type.args[0]
+        return [elem_type] * size, False
+
+    def _emit_collection_statement(
+        self,
+        test_case: tc.TestCase,
+        raw: type,
+        param_type: ProperType | None,
+        position: int,
+        depth: int,
+    ) -> tuple[str, int]:
+        """Insert a named collection statement, creating typed element deps first.
+
+        The collection's elements may be ``cst.Name`` references to variables
+        bound *before* the collection statement (typed element producers inserted
+        here, or arbitrary in-scope variables via the reference pool), enabling
+        reference-carrying collections such as ``list_2 = [int_0, int_1]``.
+
+        Args:
+            test_case: The test case to extend.
+            raw: The concrete collection type to build.
+            param_type: The parameter's ProperType (for element-type inference).
+            position: The cursor position at which to insert dependencies.
+            depth: Current recursion depth (guards against runaway recursion).
+
+        Returns:
+            A tuple of (newly allocated variable name, updated cursor).
+        """
+        cursor = position
+        if depth >= config.configuration.test_creation.max_recursion:
+            # Too deep for element construction: emit a pooled/literal collection.
+            pool = self._reference_pool(test_case, cursor)
+            expr = literalgen.generate_literal(raw, self._constant_provider, pool)
+            return self._insert_collection(test_case, expr, raw, cursor)
+
+        if raw is dict:
+            expr, cursor = self._build_dict(test_case, param_type, cursor, depth)
+            return self._insert_collection(test_case, expr, raw, cursor)
+
+        elem_types, _fixed = self._collection_element_types(raw, param_type)
+        element_nodes: list[cst.BaseExpression] = []
+        for elem_type in elem_types:
+            value, cursor = self._collection_element(test_case, elem_type, cursor, depth + 1)
+            element_nodes.append(value)
+
+        if raw is list:
+            expr = cst.List(elements=[cst.Element(value=v) for v in element_nodes])
+        elif raw is set:
+            if not element_nodes:
+                expr = cst.Call(func=cst.Name("set"))
+            else:
+                expr = cst.Set(elements=[cst.Element(value=v) for v in element_nodes])
+        else:  # tuple
+            tuple_elements = [cst.Element(value=v) for v in element_nodes]
+            expr = cst.Tuple(elements=literalgen._tuple_elements(tuple_elements))  # noqa: SLF001
+        return self._insert_collection(test_case, expr, raw, cursor)
+
+    def _build_dict(
+        self,
+        test_case: tc.TestCase,
+        param_type: ProperType | None,
+        cursor: int,
+        depth: int,
+    ) -> tuple[cst.BaseExpression, int]:
+        """Build a dict expression with literal keys and reference-aware values.
+
+        Keys stay literal (of the annotated key primitive type when known, else
+        strings) so the mapping remains hashable; values may reference existing
+        variables via :meth:`_collection_element`.
+
+        Args:
+            test_case: The test case to extend.
+            param_type: The parameter's ProperType (for key/value type inference).
+            cursor: Current insertion cursor.
+            depth: Current recursion depth.
+
+        Returns:
+            A tuple of (dict expression, updated cursor).
+        """
+        size = randomness.next_int(0, config.configuration.test_creation.collection_size + 1)
+        key_type: ProperType | None = None
+        value_type: ProperType | None = None
+        if isinstance(param_type, Instance) and len(param_type.args) >= 2:
+            key_type, value_type = param_type.args[0], param_type.args[1]
+        key_raw = _proper_type_to_raw(key_type) if key_type is not None else None
+        entries: list[cst.DictElement] = []
+        for _ in range(size):
+            if (
+                key_raw is not None
+                and key_raw in literalgen.LITERAL_TYPES
+                and (key_raw not in _COLLECTION_RAWS)
+            ):
+                key_expr = literalgen.generate_literal(key_raw, self._constant_provider)
+            else:
+                key_expr = literalgen.generate_literal(str, self._constant_provider)
+            value_expr, cursor = self._collection_element(test_case, value_type, cursor, depth + 1)
+            entries.append(cst.DictElement(key=key_expr, value=value_expr))
+        return cst.Dict(elements=entries), cursor
+
+    def _insert_collection(
+        self, test_case: tc.TestCase, expr: cst.BaseExpression, raw: type, cursor: int
+    ) -> tuple[str, int]:
+        """Insert a ``var_N = <collection expr>`` statement at *cursor*.
+
+        Args:
+            test_case: The test case to extend.
+            expr: The collection RHS expression.
+            raw: The collection type to register as ``bound_type``.
+            cursor: The insertion cursor.
+
+        Returns:
+            A tuple of (newly allocated variable name, updated cursor).
+        """
+        var_name = test_case.next_var_name()
+        node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                    value=expr,
+                )
+            ]
+        )
+        test_case.insert_statement(
+            cursor, Statement(node=node, bound_variable=var_name, bound_type=raw)
+        )
+        return var_name, cursor + 1
+
     def mutate_value(self, test_case: tc.TestCase, position: int) -> bool:
         """Perturb the literal value of the primitive statement at *position*.
 
@@ -768,6 +1124,8 @@ class TestFactory:
         if not (0 <= position < test_case.size()):
             return False
         stmt = test_case.get_statement(position)
+        if stmt.bound_type is type:
+            return self._mutate_class_literal(test_case, position)
         if stmt.bound_type is None or stmt.bound_type not in literalgen.LITERAL_TYPES:
             return False
         assert stmt.bound_variable is not None
@@ -780,7 +1138,14 @@ class TestFactory:
             return False
         old_expr: cst.BaseExpression = body[0].value
 
-        new_expr = literalgen.mutate_literal(old_expr, stmt.bound_type, self._constant_provider)
+        # Reference-carrying collections may mutate towards/away from variable
+        # references bound strictly before this statement.
+        pool: list[cst.BaseExpression] = (
+            self._reference_pool(test_case, position) if stmt.bound_type in _COLLECTION_RAWS else []
+        )
+        new_expr = literalgen.mutate_literal(
+            old_expr, stmt.bound_type, self._constant_provider, pool
+        )
         new_node = stmt.node.with_changes(
             body=[
                 cst.Assign(
@@ -801,7 +1166,7 @@ class TestFactory:
         )
         return True
 
-    def _regen_args_in_place(
+    def _regen_args_in_place(  # noqa: C901
         self,
         test_case: tc.TestCase,
         signature: InferredSignature,
@@ -868,10 +1233,17 @@ class TestFactory:
             value: cst.BaseExpression
             if existing is not None and randomness.next_bool():
                 value = cst.Name(existing)
+            elif raw is type:
+                value = randomness.choice(self._class_literal_candidates())
             elif raw is not None and raw in literalgen.LITERAL_TYPES:
-                value = literalgen.generate_literal(raw, self._constant_provider)
+                # Collections may reference in-scope variables inline (no new
+                # dependency statements are inserted here).
+                inline_pool: list[cst.BaseExpression] = (
+                    self._reference_pool(test_case, position) if raw in _COLLECTION_RAWS else []
+                )
+                value = literalgen.generate_literal(raw, self._constant_provider, inline_pool)
             else:
-                value = self._fallback_literal_value(raw)
+                value = self._fallback_literal_value(raw, self._reference_pool(test_case, position))
 
             if is_positional_only:
                 args.append(cst.Arg(value=value))
@@ -880,7 +1252,11 @@ class TestFactory:
 
         return args
 
-    def _fallback_literal_value(self, raw: type | None) -> cst.BaseExpression:
+    def _fallback_literal_value(
+        self,
+        raw: type | None,
+        element_pool: list[cst.BaseExpression] | None = None,
+    ) -> cst.BaseExpression:
         """Return a fallback CST literal for types not handled by create-or-reuse.
 
         Tries abstract-collection mapping first (e.g. ``Iterable`` → ``list``).
@@ -890,19 +1266,22 @@ class TestFactory:
 
         Args:
             raw: The concrete Python class, or ``None`` for AnyType.
+            element_pool: Optional in-scope reference expressions usable when the
+                fallback generates a collection literal.
 
         Returns:
             A CST expression suitable for use as an argument literal.
         """
+        pool = element_pool if element_pool is not None else []
         mapped = literalgen.map_abstract_collection(raw) if raw is not None else None
         if mapped is not None:
-            return literalgen.generate_literal(mapped, self._constant_provider)
+            return literalgen.generate_literal(mapped, self._constant_provider, pool)
         if raw is None:
             # AnyType / unresolvable: random primitive, occasionally None.
             if randomness.next_float() < 0.1:
                 return cst.Name("None")
             fallback = randomness.choice(sorted(literalgen.LITERAL_TYPES, key=str))
-            return literalgen.generate_literal(fallback, self._constant_provider)
+            return literalgen.generate_literal(fallback, self._constant_provider, pool)
         return cst.Name("None")
 
     def mutate_call(self, test_case: tc.TestCase, position: int) -> bool:
@@ -1036,7 +1415,7 @@ class TestFactory:
         if raw is None:
             return None, position
 
-        is_primitive = issubclass(raw, (bool, int, float, str, bytes))
+        is_primitive = issubclass(raw, (bool, int, float, complex, str, bytes))
         existing = self._find_variable_of_type(test_case, raw, position)
 
         if existing is not None:

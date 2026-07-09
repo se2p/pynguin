@@ -39,6 +39,7 @@ from pynguin.analyses.typesystem import (
     InferredSignature,
     Instance,
     NoneType,
+    TupleType,
     TypeInfo,
     TypeSystem,
 )
@@ -669,3 +670,176 @@ def test_mutate_call_bad_method_name_returns_false(type_system):
         _call_with("var_1", "obj.thing()", method),
     )
     assert _make_factory().mutate_call(test_case, 1) is False
+
+
+# ---------------------------------------------------------------------------
+# Complex-number & class/type-object primitives (DISABLED_SUBSYSTEMS point 15)
+# ---------------------------------------------------------------------------
+
+
+def _bare_cluster():
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+    cluster.get_generators_for = lambda _: []
+    return cluster
+
+
+def test_resolve_arg_value_complex_emits_named_statement():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    value, cursor = factory._resolve_arg_value(
+        test_case, Instance(TypeInfo(complex)), complex, 0, 0
+    )
+    assert isinstance(value, cst.Name)
+    assert cursor == 1
+    stmt = test_case.get_statement(0)
+    assert stmt.bound_type is complex
+    rhs = stmt.node.body[0].value
+    assert isinstance(rhs, cst.Call)
+    assert rhs.func.value == "complex"
+
+
+def test_mutate_value_perturbs_complex():
+    factory = tf.TestFactory(_bare_cluster())
+    config.configuration.search_algorithm.random_perturbation = 0.0
+    test_case = make_test_case(assign("var_0", "complex(1.0, 2.0)", bound_type=complex))
+    assert factory.mutate_value(test_case, 0) is True
+    rhs = test_case.get_statement(0).node.body[0].value
+    assert isinstance(rhs, cst.Call)
+    assert rhs.func.value == "complex"
+
+
+def test_class_literal_candidates_include_builtins_and_sut_class():
+    cluster = _bare_cluster()
+    cluster.type_system.to_type_info(SomeType)
+    config.configuration.module_name = SomeType.__module__
+    factory = tf.TestFactory(cluster)
+    rendered = {
+        cst.Module(body=[]).code_for_node(node) for node in factory._class_literal_candidates()
+    }
+    assert "int" in rendered
+    assert "object" in rendered
+    alias = tf.get_module_alias(SomeType.__module__)
+    assert f"{alias}.SomeType" in rendered
+
+
+def test_resolve_arg_value_type_emits_class_literal():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = tc.TestCase()
+    value, cursor = factory._resolve_arg_value(test_case, Instance(TypeInfo(type)), type, 0, 0)
+    assert isinstance(value, cst.Name)
+    assert cursor == 1
+    assert test_case.get_statement(0).bound_type is type
+
+
+def test_mutate_value_swaps_class_literal():
+    factory = tf.TestFactory(_bare_cluster())
+    test_case = make_test_case(assign("var_0", "int", bound_type=type))
+    assert factory.mutate_value(test_case, 0) is True
+    new_rhs = cst.Module(body=[]).code_for_node(test_case.get_statement(0).node.body[0].value)
+    assert new_rhs != "int"
+    assert test_case.get_statement(0).bound_type is type
+
+
+# ---------------------------------------------------------------------------
+# Reference-carrying collections (DISABLED_SUBSYSTEMS point 16)
+# ---------------------------------------------------------------------------
+
+
+def _cluster_with_sometype_generator(constructor_mock):
+    cluster = MagicMock(ModuleTestCluster)
+    cluster.type_system = TypeSystem()
+
+    def gens(param_type):
+        if isinstance(param_type, Instance) and param_type.type.raw_type is SomeType:
+            return [constructor_mock]
+        return []
+
+    cluster.get_generators_for = gens
+    return cluster
+
+
+def _assert_refs_bound_before(test_case, index):
+    """Every variable used by statement *index* is bound strictly before it."""
+    bound_before = {
+        s.bound_variable for s in test_case.statements()[:index] if s.bound_variable is not None
+    }
+    used = test_case.get_statement(index).used_variables()
+    var_refs = {name for name in used if name.startswith("var_")}
+    assert var_refs <= bound_before
+
+
+def test_typed_list_collection_carries_references(constructor_mock):
+    factory = tf.TestFactory(_cluster_with_sometype_generator(constructor_mock))
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    list_type = Instance(TypeInfo(list), (Instance(TypeInfo(SomeType)),))
+    saw_reference = False
+    for _ in range(40):
+        test_case = tc.TestCase()
+        var, cursor = factory._emit_collection_statement(test_case, list, list_type, 0, 0)
+        coll_index = cursor - 1
+        coll_stmt = test_case.get_statement(coll_index)
+        assert coll_stmt.bound_variable == var
+        assert coll_stmt.bound_type is list
+        _assert_refs_bound_before(test_case, coll_index)
+        elements = coll_stmt.node.body[0].value.elements
+        if any(
+            isinstance(e.value, cst.Name) and e.value.value.startswith("var_") for e in elements
+        ):
+            saw_reference = True
+    assert saw_reference
+
+
+def test_typed_dict_keys_literal_values_referenceable(constructor_mock):
+    factory = tf.TestFactory(_cluster_with_sometype_generator(constructor_mock))
+    dict_type = Instance(TypeInfo(dict), (Instance(TypeInfo(str)), Instance(TypeInfo(SomeType))))
+    for _ in range(20):
+        test_case = tc.TestCase()
+        _var, cursor = factory._emit_collection_statement(test_case, dict, dict_type, 0, 0)
+        coll_index = cursor - 1
+        _assert_refs_bound_before(test_case, coll_index)
+        for entry in test_case.get_statement(coll_index).node.body[0].value.elements:
+            # keys stay literal strings (never a var reference)
+            assert not (isinstance(entry.key, cst.Name) and entry.key.value.startswith("var_"))
+
+
+def test_untyped_collection_uses_reference_pool():
+    factory = tf.TestFactory(_bare_cluster())
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    saw_reference = False
+    for _ in range(40):
+        test_case = make_test_case(int_stmt("var_0", 1), int_stmt("var_1", 2))
+        _var, cursor = factory._emit_collection_statement(test_case, list, None, 2, 0)
+        coll_index = cursor - 1
+        _assert_refs_bound_before(test_case, coll_index)
+        elements = test_case.get_statement(coll_index).node.body[0].value.elements
+        if any(
+            isinstance(e.value, cst.Name) and e.value.value in {"var_0", "var_1"} for e in elements
+        ):
+            saw_reference = True
+    assert saw_reference
+
+
+def test_mutate_value_reference_list_keeps_refs_valid():
+    factory = tf.TestFactory(_bare_cluster())
+    config.configuration.search_algorithm.random_perturbation = 0.0
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    for _ in range(30):
+        test_case = make_test_case(
+            int_stmt("var_0", 1),
+            int_stmt("var_1", 2),
+            assign("var_2", "[var_0]", bound_type=list),
+        )
+        assert factory.mutate_value(test_case, 2) is True
+        _assert_refs_bound_before(test_case, 2)
+
+
+def test_tuple_typed_collection_fixed_length(constructor_mock):
+    factory = tf.TestFactory(_cluster_with_sometype_generator(constructor_mock))
+    tuple_type = TupleType((Instance(TypeInfo(int)), Instance(TypeInfo(int))))
+    test_case = tc.TestCase()
+    _var, cursor = factory._emit_collection_statement(test_case, tuple, tuple_type, 0, 0)
+    coll_index = cursor - 1
+    elements = test_case.get_statement(coll_index).node.body[0].value.elements
+    assert len(elements) == 2
+    _assert_refs_bound_before(test_case, coll_index)

@@ -617,6 +617,11 @@ class TestCreationConfiguration:
     collection_size: int = 5
     """Maximum length of randomly generated collections"""
 
+    collection_reference_probability: float = 0.5
+    """Probability that a collection element slot uses a reference to an existing
+    in-scope variable instead of a fresh literal, when a reference pool is
+    available. Expects values in [0,1]."""
+
     primitive_reuse_probability: float = 0.5
     """Probability to reuse an existing primitive in a test case, if available.
     Expects values in [0,1]"""

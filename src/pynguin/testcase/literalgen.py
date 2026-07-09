@@ -34,7 +34,18 @@ if TYPE_CHECKING:
 # Public constants
 # ---------------------------------------------------------------------------
 
-LITERAL_TYPES: frozenset[type] = frozenset({bool, int, float, str, bytes, list, dict, set, tuple})
+LITERAL_TYPES: frozenset[type] = frozenset({
+    bool,
+    int,
+    float,
+    complex,
+    str,
+    bytes,
+    list,
+    dict,
+    set,
+    tuple,
+})
 
 # Primitive element types used when populating collection literals.
 _PRIMITIVE_ELEMENT_TYPES: tuple[type, ...] = (int, str, bool, float)
@@ -187,6 +198,34 @@ def _random_primitive_element(constant_provider: ConstantProvider) -> cst.BaseEx
     return _gen_str(constant_provider)
 
 
+def _element_value(
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+) -> cst.BaseExpression:
+    """Choose a collection element: a pooled reference expression or a literal.
+
+    When *element_pool* is non-empty, an entry (typically a ``cst.Name``
+    referring to an earlier statement's bound variable) is used with probability
+    ``test_creation.collection_reference_probability``; otherwise a fresh random
+    primitive literal is generated.  Pool entries are immutable CST nodes and are
+    therefore safe to share between statements.
+
+    Args:
+        constant_provider: Provider consulted when generating a literal element.
+        element_pool: Candidate reference expressions for element slots.
+
+    Returns:
+        A CST expression for a single collection element.
+    """
+    if (
+        element_pool
+        and randomness.next_float()
+        < config.configuration.test_creation.collection_reference_probability
+    ):
+        return randomness.choice(element_pool)
+    return _random_primitive_element(constant_provider)
+
+
 def _tuple_elements(
     elements: Sequence[cst.BaseElement],
 ) -> Sequence[cst.BaseElement]:
@@ -253,6 +292,48 @@ def _parse_float(expr: cst.BaseExpression) -> float | None:
     return None
 
 
+def _parse_component(expr: cst.BaseExpression) -> float | None:
+    """Parse a real number component (int or float) from a CST expression.
+
+    Args:
+        expr: The CST expression to inspect.
+
+    Returns:
+        The numeric value as ``float``, or ``None`` if not parseable.
+    """
+    as_float = _parse_float(expr)
+    if as_float is not None:
+        return as_float
+    as_int = _parse_int(expr)
+    if as_int is not None:
+        return float(as_int)
+    return None
+
+
+def _parse_complex(expr: cst.BaseExpression) -> complex | None:
+    """Extract a complex value from a ``complex(real, imag)`` call expression.
+
+    Args:
+        expr: The CST expression to inspect.
+
+    Returns:
+        The complex value, or ``None`` if the expression does not match the
+        ``complex(<real>, <imag>)`` call shape with numeric arguments.
+    """
+    if (
+        not isinstance(expr, cst.Call)
+        or not isinstance(expr.func, cst.Name)
+        or expr.func.value != "complex"
+        or len(expr.args) != 2
+    ):
+        return None
+    real = _parse_component(expr.args[0].value)
+    imag = _parse_component(expr.args[1].value)
+    if real is None or imag is None:
+        return None
+    return complex(real, imag)
+
+
 # ---------------------------------------------------------------------------
 # Per-type generation helpers
 # ---------------------------------------------------------------------------
@@ -296,6 +377,47 @@ def _gen_float(constant_provider: ConstantProvider) -> cst.BaseExpression:
     return _float_to_cst(round(randomness.next_gaussian() * tc.max_int, 2))
 
 
+def _complex_to_cst(value: complex) -> cst.BaseExpression:
+    """Render a complex value as a ``complex(real, imag)`` call expression.
+
+    The call form (as opposed to the ``1+2j`` imaginary-literal form) round-trips
+    trivially through :func:`_parse_complex` and is valid in any namespace.
+
+    Args:
+        value: The complex value to render.
+
+    Returns:
+        A ``cst.Call`` node of shape ``complex(<real>, <imag>)``.
+    """
+    return cst.Call(
+        func=cst.Name("complex"),
+        args=[
+            cst.Arg(value=_float_to_cst(value.real)),
+            cst.Arg(value=_float_to_cst(value.imag)),
+        ],
+    )
+
+
+def _gen_complex(constant_provider: ConstantProvider) -> cst.BaseExpression:
+    """Generate a complex literal CST node.
+
+    Args:
+        constant_provider: Provider that may supply seeded complex values.
+
+    Returns:
+        A ``cst.Call`` expression of shape ``complex(<real>, <imag>)``.
+    """
+    tc = config.configuration.test_creation
+    seed_prob = config.configuration.seeding.seeded_primitives_reuse_probability
+    if randomness.next_float() < seed_prob:
+        seeded = constant_provider.get_constant_for(complex)
+        if seeded is not None:
+            return _complex_to_cst(seeded)
+    real = round(randomness.next_gaussian() * tc.max_int, randomness.next_int(0, 8))
+    imag = round(randomness.next_gaussian() * tc.max_int, randomness.next_int(0, 8))
+    return _complex_to_cst(complex(real, imag))
+
+
 def _gen_str(constant_provider: ConstantProvider) -> cst.BaseExpression:
     """Generate a string literal CST node.
 
@@ -334,11 +456,15 @@ def _gen_bytes(constant_provider: ConstantProvider) -> cst.BaseExpression:
     return cst.SimpleString(repr(randomness.next_bytes(length)))
 
 
-def _gen_list(constant_provider: ConstantProvider) -> cst.BaseExpression:
+def _gen_list(
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+) -> cst.BaseExpression:
     """Generate a list literal CST node.
 
     Args:
         constant_provider: Provider that may supply seeded values for elements.
+        element_pool: Optional reference expressions usable as elements.
 
     Returns:
         A ``cst.List`` node, empty or with 1-3 (possibly seeded) elements.
@@ -346,11 +472,16 @@ def _gen_list(constant_provider: ConstantProvider) -> cst.BaseExpression:
     if randomness.next_bool():
         return cst.List(elements=[])
     count = randomness.next_int(1, min(3, config.configuration.test_creation.collection_size) + 1)
-    elems = [cst.Element(value=_random_primitive_element(constant_provider)) for _ in range(count)]
+    elems = [
+        cst.Element(value=_element_value(constant_provider, element_pool)) for _ in range(count)
+    ]
     return cst.List(elements=elems)
 
 
-def _gen_set(constant_provider: ConstantProvider) -> cst.BaseExpression:
+def _gen_set(
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+) -> cst.BaseExpression:
     """Generate a set literal CST node.
 
     Empty sets are rendered as ``set()`` because there is no empty-set literal
@@ -358,6 +489,7 @@ def _gen_set(constant_provider: ConstantProvider) -> cst.BaseExpression:
 
     Args:
         constant_provider: Provider that may supply seeded values for elements.
+        element_pool: Optional reference expressions usable as elements.
 
     Returns:
         A ``cst.Call`` (empty) or ``cst.Set`` (non-empty) node.
@@ -365,15 +497,21 @@ def _gen_set(constant_provider: ConstantProvider) -> cst.BaseExpression:
     if randomness.next_bool():
         return cst.Call(func=cst.Name("set"))
     count = randomness.next_int(1, min(3, config.configuration.test_creation.collection_size) + 1)
-    elems = [cst.Element(value=_random_primitive_element(constant_provider)) for _ in range(count)]
+    elems = [
+        cst.Element(value=_element_value(constant_provider, element_pool)) for _ in range(count)
+    ]
     return cst.Set(elements=elems)
 
 
-def _gen_tuple(constant_provider: ConstantProvider) -> cst.BaseExpression:
+def _gen_tuple(
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+) -> cst.BaseExpression:
     """Generate a tuple literal CST node.
 
     Args:
         constant_provider: Provider that may supply seeded values for elements.
+        element_pool: Optional reference expressions usable as elements.
 
     Returns:
         A ``cst.Tuple`` node, empty or with 1-3 (possibly seeded) elements.
@@ -382,22 +520,27 @@ def _gen_tuple(constant_provider: ConstantProvider) -> cst.BaseExpression:
         return cst.Tuple(elements=[])
     count = randomness.next_int(1, min(3, config.configuration.test_creation.collection_size) + 1)
     raw_elems = [
-        cst.Element(value=_random_primitive_element(constant_provider)) for _ in range(count)
+        cst.Element(value=_element_value(constant_provider, element_pool)) for _ in range(count)
     ]
     return cst.Tuple(elements=_tuple_elements(raw_elems))
 
 
-def _gen_dict(constant_provider: ConstantProvider) -> cst.BaseExpression:
+def _gen_dict(
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
+) -> cst.BaseExpression:
     """Generate a dict literal CST node.
 
     Args:
         constant_provider: Provider that may supply seeded values for keys
             and values.
+        element_pool: Optional reference expressions usable as dict values.
+            Keys stay literal strings so the collection remains hashable.
 
     Returns:
         A ``cst.Dict`` node, empty or with 1-3 entries whose keys are
         (possibly seeded) strings and whose values are (possibly seeded)
-        primitives.
+        primitives or pooled references.
     """
     if randomness.next_bool():
         return cst.Dict(elements=[])
@@ -405,7 +548,7 @@ def _gen_dict(constant_provider: ConstantProvider) -> cst.BaseExpression:
     dict_elems = [
         cst.DictElement(
             key=_gen_str(constant_provider),
-            value=_random_primitive_element(constant_provider),
+            value=_element_value(constant_provider, element_pool),
         )
         for _ in range(count)
     ]
@@ -453,6 +596,51 @@ def _mutate_float(
         return _gen_float(constant_provider)
     delta = randomness.next_gaussian() * config.configuration.test_creation.max_delta
     return _float_to_cst(current + delta)
+
+
+def _mutate_complex(
+    expr: cst.BaseExpression, constant_provider: ConstantProvider
+) -> cst.BaseExpression:
+    """Mutate a complex literal with the reference implementation's 3-way delta.
+
+    One of three perturbations is applied with equal probability: add a
+    ``gauss * max_delta`` delta to the real or imaginary component, add a plain
+    ``gauss`` delta to one component, or re-round one component to a random
+    precision.  Falls back to a freshly generated complex when the expression is
+    not a parseable ``complex(...)`` call.
+
+    Args:
+        expr: The current CST expression.
+        constant_provider: Fallback constant provider.
+
+    Returns:
+        A new CST expression for the mutated complex.
+    """
+    current = _parse_complex(expr)
+    if current is None:
+        return _gen_complex(constant_provider)
+    real, imag = current.real, current.imag
+    max_delta = config.configuration.test_creation.max_delta
+    choice = randomness.next_int(0, 3)
+    if choice == 0:
+        delta = randomness.next_gaussian() * max_delta
+        if randomness.next_bool():
+            real += delta
+        else:
+            imag += delta
+    elif choice == 1:
+        delta = randomness.next_gaussian()
+        if randomness.next_bool():
+            real += delta
+        else:
+            imag += delta
+    else:
+        precision = randomness.next_int(0, 8)
+        if randomness.next_bool():
+            real = round(real, precision)
+        else:
+            imag = round(imag, precision)
+    return _complex_to_cst(complex(real, imag))
 
 
 def _mutate_str(
@@ -509,7 +697,9 @@ def _mutate_bytes(
 
 
 def _mutate_list(
-    expr: cst.BaseExpression, constant_provider: ConstantProvider
+    expr: cst.BaseExpression,
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Mutate a list literal by appending or removing a random element.
 
@@ -517,23 +707,26 @@ def _mutate_list(
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended element.
+        element_pool: Optional reference expressions usable as a new element.
 
     Returns:
         A new ``cst.List`` node.
     """
     if not isinstance(expr, cst.List):
-        return _gen_list(constant_provider)
+        return _gen_list(constant_provider, element_pool)
     elems = list(expr.elements)
     if elems and randomness.next_bool():
         idx = randomness.next_int(0, len(elems))
         elems = elems[:idx] + elems[idx + 1 :]
     else:
-        elems += [cst.Element(value=_random_primitive_element(constant_provider))]
+        elems += [cst.Element(value=_element_value(constant_provider, element_pool))]
     return expr.with_changes(elements=elems)
 
 
 def _mutate_tuple(
-    expr: cst.BaseExpression, constant_provider: ConstantProvider
+    expr: cst.BaseExpression,
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Mutate a tuple literal by appending or removing a random element.
 
@@ -541,23 +734,26 @@ def _mutate_tuple(
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended element.
+        element_pool: Optional reference expressions usable as a new element.
 
     Returns:
         A new ``cst.Tuple`` node.
     """
     if not isinstance(expr, cst.Tuple):
-        return _gen_tuple(constant_provider)
+        return _gen_tuple(constant_provider, element_pool)
     elems = list(expr.elements)
     if elems and randomness.next_bool():
         idx = randomness.next_int(0, len(elems))
         elems = elems[:idx] + elems[idx + 1 :]
     else:
-        elems += [cst.Element(value=_random_primitive_element(constant_provider))]
+        elems += [cst.Element(value=_element_value(constant_provider, element_pool))]
     return expr.with_changes(elements=_tuple_elements(elems))
 
 
 def _mutate_dict(
-    expr: cst.BaseExpression, constant_provider: ConstantProvider
+    expr: cst.BaseExpression,
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Mutate a dict literal by appending or removing a random entry.
 
@@ -565,12 +761,13 @@ def _mutate_dict(
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended entry's key and value.
+        element_pool: Optional reference expressions usable as a new value.
 
     Returns:
         A new ``cst.Dict`` node.
     """
     if not isinstance(expr, cst.Dict):
-        return _gen_dict(constant_provider)
+        return _gen_dict(constant_provider, element_pool)
     delems = list(expr.elements)
     if delems and randomness.next_bool():
         idx = randomness.next_int(0, len(delems))
@@ -578,14 +775,16 @@ def _mutate_dict(
     else:
         new_entry = cst.DictElement(
             key=_gen_str(constant_provider),
-            value=_random_primitive_element(constant_provider),
+            value=_element_value(constant_provider, element_pool),
         )
         delems += [new_entry]
     return expr.with_changes(elements=delems)
 
 
 def _mutate_set(
-    expr: cst.BaseExpression, constant_provider: ConstantProvider
+    expr: cst.BaseExpression,
+    constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Mutate a set literal by appending or removing a random element.
 
@@ -596,14 +795,17 @@ def _mutate_set(
         expr: The current CST expression.
         constant_provider: Provider that may supply seeded values for a newly
             appended element.
+        element_pool: Optional reference expressions usable as a new element.
 
     Returns:
         A ``cst.Call`` or ``cst.Set`` node.
     """
     if isinstance(expr, cst.Call):
-        return cst.Set(elements=[cst.Element(value=_random_primitive_element(constant_provider))])
+        return cst.Set(
+            elements=[cst.Element(value=_element_value(constant_provider, element_pool))]
+        )
     if not isinstance(expr, cst.Set):
-        return _gen_set(constant_provider)
+        return _gen_set(constant_provider, element_pool)
     selems = list(expr.elements)
     if selems and randomness.next_bool():
         idx = randomness.next_int(0, len(selems))
@@ -611,7 +813,7 @@ def _mutate_set(
         if not selems:
             return cst.Call(func=cst.Name("set"))
     else:
-        selems += [cst.Element(value=_random_primitive_element(constant_provider))]
+        selems += [cst.Element(value=_element_value(constant_provider, element_pool))]
     return expr.with_changes(elements=selems)
 
 
@@ -620,21 +822,25 @@ def _mutate_set(
 # ---------------------------------------------------------------------------
 
 
-def generate_literal(
+def generate_literal(  # noqa: C901
     raw: type | None,
     constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Generate a libcst expression node for the given Python type.
 
     Uses constant seeding via ``constant_provider`` for primitive types when a
     seeded value is available, otherwise falls back to random generation.  For
     collection types, produces empty or small non-empty literals whose elements
-    are randomly typed primitives.
+    are randomly typed primitives or, when *element_pool* is provided, references
+    to existing variables.
 
     Args:
         raw: The Python type for which to generate a literal, or ``None``.
         constant_provider: A provider that may supply seeded constant values
             for primitive types.
+        element_pool: Optional reference expressions usable as collection
+            elements (ignored for scalar types).
 
     Returns:
         A ``cst.BaseExpression`` node representing the generated literal.
@@ -646,18 +852,20 @@ def generate_literal(
         return _gen_int(constant_provider)
     if raw is float:
         return _gen_float(constant_provider)
+    if raw is complex:
+        return _gen_complex(constant_provider)
     if raw is str:
         return _gen_str(constant_provider)
     if raw is bytes:
         return _gen_bytes(constant_provider)
     if raw is list:
-        return _gen_list(constant_provider)
+        return _gen_list(constant_provider, element_pool)
     if raw is set:
-        return _gen_set(constant_provider)
+        return _gen_set(constant_provider, element_pool)
     if raw is tuple:
-        return _gen_tuple(constant_provider)
+        return _gen_tuple(constant_provider, element_pool)
     if raw is dict:
-        return _gen_dict(constant_provider)
+        return _gen_dict(constant_provider, element_pool)
     return cst.Name("None")
 
 
@@ -675,10 +883,11 @@ def _mutate_bool(expr: cst.BaseExpression) -> cst.BaseExpression:
     return cst.Name("True" if randomness.next_bool() else "False")
 
 
-def _dispatch_mutate(
+def _dispatch_mutate(  # noqa: C901
     expr: cst.BaseExpression,
     raw: type | None,
     constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Dispatch a type-specific mutation without the random-perturbation guard.
 
@@ -686,6 +895,7 @@ def _dispatch_mutate(
         expr: The current CST expression.
         raw: The Python type of the literal, or ``None``.
         constant_provider: Provider used as fallback when parsing fails.
+        element_pool: Optional reference expressions for collection mutation.
 
     Returns:
         A mutated ``cst.BaseExpression``.
@@ -696,25 +906,28 @@ def _dispatch_mutate(
         return _mutate_int(expr, constant_provider)
     if raw is float:
         return _mutate_float(expr, constant_provider)
+    if raw is complex:
+        return _mutate_complex(expr, constant_provider)
     if raw is str:
         return _mutate_str(expr, constant_provider)
     if raw is bytes:
         return _mutate_bytes(expr, constant_provider)
     if raw is list:
-        return _mutate_list(expr, constant_provider)
+        return _mutate_list(expr, constant_provider, element_pool)
     if raw is tuple:
-        return _mutate_tuple(expr, constant_provider)
+        return _mutate_tuple(expr, constant_provider, element_pool)
     if raw is dict:
-        return _mutate_dict(expr, constant_provider)
+        return _mutate_dict(expr, constant_provider, element_pool)
     if raw is set:
-        return _mutate_set(expr, constant_provider)
-    return generate_literal(raw, constant_provider)
+        return _mutate_set(expr, constant_provider, element_pool)
+    return generate_literal(raw, constant_provider, element_pool)
 
 
 def mutate_literal(
     expr: cst.BaseExpression,
     raw: type | None,
     constant_provider: ConstantProvider,
+    element_pool: Sequence[cst.BaseExpression] = (),
 ) -> cst.BaseExpression:
     """Perturb an existing literal CST expression.
 
@@ -728,13 +941,15 @@ def mutate_literal(
         raw: The Python type of the literal, or ``None``.
         constant_provider: A provider that may supply seeded constant values
             when falling back to :func:`generate_literal`.
+        element_pool: Optional reference expressions usable as collection
+            elements (ignored for scalar types).
 
     Returns:
         A new ``cst.BaseExpression`` that is a perturbation of ``expr``.
     """
     if randomness.next_float() < config.configuration.search_algorithm.random_perturbation:
-        return generate_literal(raw, constant_provider)
-    return _dispatch_mutate(expr, raw, constant_provider)
+        return generate_literal(raw, constant_provider, element_pool)
+    return _dispatch_mutate(expr, raw, constant_provider, element_pool)
 
 
 # ---------------------------------------------------------------------------
@@ -782,6 +997,8 @@ def parse_literal(expr: cst.BaseExpression, raw: type | None) -> object | None:
     """
     import ast  # noqa: PLC0415
 
+    if raw is complex:
+        return _parse_complex(expr)
     if raw in {bool, int, float, str, bytes}:
         assert raw is not None
         return _parse_primitive_literal(expr, raw)
@@ -837,6 +1054,8 @@ def literal_to_cst(value: object) -> cst.BaseExpression:
         return _int_to_cst(value)
     if isinstance(value, float):
         return _float_to_cst(value)
+    if isinstance(value, complex):
+        return _complex_to_cst(value)
     if isinstance(value, str | bytes):
         return cst.SimpleString(repr(value))
     if isinstance(value, list | tuple | set | dict):

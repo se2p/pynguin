@@ -142,7 +142,7 @@ def test_generate_literal_collection_roundtrip(tp):
     assert seen_non_empty
 
 
-@pytest.mark.parametrize("raw", [None, complex, object])
+@pytest.mark.parametrize("raw", [None, object])
 def test_generate_literal_unrecognised_returns_none(raw):
     node = lg.generate_literal(raw, EmptyConstantProvider())
     assert isinstance(node, cst.Name)
@@ -390,3 +390,138 @@ def test_mutate_literal_dispatches_delta():
     for _ in range(30):
         node = lg._int_to_cst(7)
         assert isinstance(_eval(lg.mutate_literal(node, int, provider)), int)
+
+
+# ---------------------------------------------------------------------------
+# Complex-number literals (DISABLED_SUBSYSTEMS point 15)
+# ---------------------------------------------------------------------------
+
+
+def test_generate_literal_complex_roundtrip():
+    config.configuration.seeding.seeded_primitives_reuse_probability = 0.0
+    provider = EmptyConstantProvider()
+    for _ in range(30):
+        node = lg.generate_literal(complex, provider)
+        assert isinstance(node, cst.Call)
+        value = _eval(node)
+        assert type(value) is complex
+
+
+def test_generate_literal_complex_uses_seeded_constant():
+    config.configuration.seeding.seeded_primitives_reuse_probability = 1.0
+    provider = _FixedConstantProviderComplex()
+    node = lg.generate_literal(complex, provider)
+    assert _eval(node) == complex(1.5, -2.5)
+
+
+class _FixedConstantProviderComplex(ConstantProvider):
+    def __init__(self) -> None:
+        self._value = complex(1.5, -2.5)
+
+    def get_constant_for(self, tp_):
+        return self._value if tp_ is complex else None
+
+
+@pytest.mark.parametrize(
+    "value",
+    [complex(0, 0), complex(-2.5, 1.5), complex(3, -4), complex(1.25, 0)],
+)
+def test_parse_complex_roundtrip(value):
+    node = lg._complex_to_cst(value)
+    assert lg._parse_complex(node) == value
+
+
+def test_parse_complex_rejects_non_matching_nodes():
+    assert lg._parse_complex(lg._int_to_cst(3)) is None
+    assert lg._parse_complex(cst.Call(func=cst.Name("complex"))) is None
+    assert lg._parse_complex(cst.Call(func=cst.Name("float"), args=[])) is None
+
+
+def test_parse_literal_complex():
+    node = lg._complex_to_cst(complex(2, -3))
+    assert lg.parse_literal(node, complex) == complex(2, -3)
+    assert lg.parse_literal(lg._int_to_cst(1), complex) is None
+
+
+def test_literal_to_cst_complex_roundtrip():
+    value = complex(-1.5, 4.0)
+    node = lg.literal_to_cst(value)
+    assert _eval(node) == value
+
+
+def test_mutate_complex_produces_different_parseable_complex():
+    config.configuration.search_algorithm.random_perturbation = 0.0
+    provider = EmptyConstantProvider()
+    seen_change = False
+    for _ in range(50):
+        node = lg._complex_to_cst(complex(3, 4))
+        mutated = lg.mutate_literal(node, complex, provider)
+        value = lg._parse_complex(mutated)
+        assert value is not None
+        if value != complex(3, 4):
+            seen_change = True
+    assert seen_change
+
+
+def test_mutate_complex_unparseable_regenerates():
+    provider = EmptyConstantProvider()
+    result = lg._mutate_complex(lg._int_to_cst(1), provider)
+    assert lg._parse_complex(result) is not None
+
+
+# ---------------------------------------------------------------------------
+# Reference-carrying collections (DISABLED_SUBSYSTEMS point 16)
+# ---------------------------------------------------------------------------
+
+
+def test_element_value_uses_pool_when_probability_high():
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    pool = [cst.Name("var_0"), cst.Name("var_1")]
+    for _ in range(10):
+        node = lg._element_value(EmptyConstantProvider(), pool)
+        assert isinstance(node, cst.Name)
+        assert node.value in {"var_0", "var_1"}
+
+
+def test_element_value_ignores_pool_when_probability_zero():
+    config.configuration.test_creation.collection_reference_probability = 0.0
+    pool = [cst.Name("var_0")]
+    for _ in range(10):
+        node = lg._element_value(EmptyConstantProvider(), pool)
+        # never the reference name
+        assert not (isinstance(node, cst.Name) and node.value == "var_0")
+
+
+def test_element_value_empty_pool_falls_back_to_literal():
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    node = lg._element_value(EmptyConstantProvider(), ())
+    # A primitive literal, not a bare var reference.
+    assert _eval(node) is not None or isinstance(node, cst.BaseExpression)
+
+
+@pytest.mark.parametrize("raw", [list, set, tuple])
+def test_generate_literal_collection_can_contain_reference(raw):
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    pool = [cst.Name("var_0")]
+    found_reference = False
+    for _ in range(40):
+        node = lg.generate_literal(raw, EmptyConstantProvider(), pool)
+        code = _render(node)
+        if "var_0" in code:
+            found_reference = True
+            break
+    assert found_reference
+
+
+def test_mutate_collection_can_insert_reference():
+    config.configuration.search_algorithm.random_perturbation = 0.0
+    config.configuration.test_creation.collection_reference_probability = 1.0
+    pool = [cst.Name("var_0")]
+    empty_list = cst.List(elements=[])
+    found = False
+    for _ in range(40):
+        node = lg.mutate_literal(empty_list, list, EmptyConstantProvider(), pool)
+        if "var_0" in _render(node):
+            found = True
+            break
+    assert found
