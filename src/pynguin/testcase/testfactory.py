@@ -26,8 +26,9 @@ import pynguin.utils.generic.genericaccessibleobject as gao
 from pynguin.analyses.constants import ConstantProvider, EmptyConstantProvider
 from pynguin.analyses.typesystem import Instance, ProperType
 from pynguin.testcase import literalgen
-from pynguin.testcase.testcase import Statement
+from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils import randomness
+from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.naming import get_module_alias
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     import pynguin.testcase.testcase as tc
     from pynguin.analyses.module import ModuleTestCluster
     from pynguin.analyses.typesystem import InferredSignature
+    from pynguin.utils.pynguinml.mlparameter import MLParameter
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +89,21 @@ def _method_call_name(accessible: gao.GenericMethod) -> str | None:
     """
     name = accessible.method_name or getattr(accessible.callable, "__name__", None)
     return name if isinstance(name, str) and name.isidentifier() else None
+
+
+def _ndarray_mutation_elements(value: object, *, is_tuple: bool) -> list | None:
+    """Extract a mutation-ready element list from a parsed ML value.
+
+    Args:
+        value: The value parsed from the statement's current RHS expression.
+        is_tuple: Whether the statement's payload is rendered as a tuple.
+
+    Returns:
+        A plain list of elements, or ``None`` if *value* has the wrong shape.
+    """
+    if is_tuple:
+        return list(value) if isinstance(value, tuple) else None
+    return value if isinstance(value, list) else None
 
 
 def _function_call_name(accessible: gao.GenericFunction) -> str | None:
@@ -344,7 +361,7 @@ class TestFactory:
         """
         if isinstance(replacement, gao.GenericConstructor):
             args, cursor = self._satisfy_params(
-                test_case, replacement.inferred_signature, cursor, 0
+                test_case, replacement.inferred_signature, cursor, 0, accessible=replacement
             )
             owner = replacement.owner
             class_name = owner.name if owner is not None else "object"
@@ -367,7 +384,7 @@ class TestFactory:
             if receiver is None:
                 return None
             args, cursor = self._satisfy_params(
-                test_case, replacement.inferred_signature, cursor, 0
+                test_case, replacement.inferred_signature, cursor, 0, accessible=replacement
             )
             func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
             bound_type_m = _proper_type_to_raw(replacement.generated_type())
@@ -377,7 +394,7 @@ class TestFactory:
             if function_name is None:
                 return None
             args, cursor = self._satisfy_params(
-                test_case, replacement.inferred_signature, cursor, 0
+                test_case, replacement.inferred_signature, cursor, 0, accessible=replacement
             )
             func = cst.Attribute(
                 value=cst.Name(self._module_alias()),
@@ -477,7 +494,9 @@ class TestFactory:
         Returns:
             A tuple of (call node, bound type, updated cursor).
         """
-        args, cursor = self._satisfy_params(test_case, accessible.inferred_signature, cursor, depth)
+        args, cursor = self._satisfy_params(
+            test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
+        )
         owner = accessible.owner
         class_name = owner.name if owner is not None else "object"
         func = cst.Attribute(
@@ -523,7 +542,9 @@ class TestFactory:
             receiver = self._find_any_variable(test_case, cursor)
         if receiver is None:
             return None
-        args, cursor = self._satisfy_params(test_case, accessible.inferred_signature, cursor, depth)
+        args, cursor = self._satisfy_params(
+            test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
+        )
         func = cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name))
         bound_type = _proper_type_to_raw(accessible.generated_type())
         return cst.Call(func=func, args=args), bound_type, cursor
@@ -550,7 +571,9 @@ class TestFactory:
         func_name = _function_call_name(accessible)
         if func_name is None:
             return None
-        args, cursor = self._satisfy_params(test_case, accessible.inferred_signature, cursor, depth)
+        args, cursor = self._satisfy_params(
+            test_case, accessible.inferred_signature, cursor, depth, accessible=accessible
+        )
         func = cst.Attribute(value=cst.Name(self._module_alias()), attr=cst.Name(func_name))
         bound_type = _proper_type_to_raw(accessible.generated_type())
         return cst.Call(func=func, args=args), bound_type, cursor
@@ -588,6 +611,7 @@ class TestFactory:
         signature: InferredSignature,
         position: int,
         depth: int,
+        accessible: gao.GenericCallableAccessibleObject | None = None,
     ) -> tuple[list[cst.Arg], int]:
         """Build the argument list for a call, reusing or generating values.
 
@@ -606,6 +630,9 @@ class TestFactory:
             signature: The inferred signature of the callable.
             position: The insertion cursor; advances with each inserted dep.
             depth: Current recursion depth for object creation.
+            accessible: The callable accessible the parameters are satisfied
+                for; ignored by the base implementation, used by ML-aware
+                subclasses to look up constraint data.
 
         Returns:
             A tuple of (arg list, updated cursor).
@@ -779,6 +806,7 @@ class TestFactory:
         test_case: tc.TestCase,
         signature: InferredSignature,
         position: int,
+        accessible: gao.GenericCallableAccessibleObject | None = None,
     ) -> list[cst.Arg]:
         """Regenerate call arguments without adding new statements to *test_case*.
 
@@ -791,6 +819,9 @@ class TestFactory:
             test_case: The test case whose existing variables may be reused.
             signature: The inferred signature of the callable being mutated.
             position: Only consider statements before this index for reuse.
+            accessible: The callable accessible the arguments belong to;
+                ignored by the base implementation, available to ML-aware
+                subclasses.
 
         Returns:
             A freshly generated list of CST arguments.
@@ -898,7 +929,9 @@ class TestFactory:
 
         accessible = stmt.accessible
         if isinstance(accessible, gao.GenericConstructor):
-            args = self._regen_args_in_place(test_case, accessible.inferred_signature, position)
+            args = self._regen_args_in_place(
+                test_case, accessible.inferred_signature, position, accessible=accessible
+            )
             owner = accessible.owner
             class_name = owner.name if owner is not None else "object"
             new_call: cst.BaseExpression = cst.Call(
@@ -913,7 +946,9 @@ class TestFactory:
             receiver = self._find_variable_of_type(test_case, owner_raw, position)
             if receiver is None:
                 return False
-            args = self._regen_args_in_place(test_case, accessible.inferred_signature, position)
+            args = self._regen_args_in_place(
+                test_case, accessible.inferred_signature, position, accessible=accessible
+            )
             new_call = cst.Call(
                 func=cst.Attribute(value=cst.Name(receiver), attr=cst.Name(method_name)),
                 args=args,
@@ -922,7 +957,9 @@ class TestFactory:
             function_name = _function_call_name(accessible)
             if function_name is None:
                 return False
-            args = self._regen_args_in_place(test_case, accessible.inferred_signature, position)
+            args = self._regen_args_in_place(
+                test_case, accessible.inferred_signature, position, accessible=accessible
+            )
             new_call = cst.Call(
                 func=cst.Attribute(
                     value=cst.Name(self._module_alias()),
@@ -1116,7 +1153,570 @@ class TestFactory:
 class MLTestFactory(TestFactory):
     """A factory variant for ML-specific test-case generation.
 
-    The ML-specific generation path is currently inert; this subclass exists so
-    that wiring expecting ``MLTestFactory`` keeps working. It defers to the base
-    factory for all behaviour.
+    Consults the per-parameter constraint data (:class:`MLParameter`) attached
+    to accessibles via :meth:`ModuleTestCluster.get_ml_data_for` and emits the
+    classic ML statement chain::
+
+        var_0 = [[7, -3], [0, 12]]                  # ndarray literal
+        var_1 = 'int32'                             # dtype pick
+        var_2 = np.array(object=var_0, dtype=var_1)  # ml_call
+        var_3 = torch.tensor(x=var_2)                # ml_call (optional)
+
+    ML-specific statements carry :class:`MLStatementInfo` metadata and are
+    treated as an atomic unit by mutation and crossover.
     """
+
+    def append_statement(
+        self,
+        test_case: tc.TestCase,
+        statement: Statement,
+        *,
+        position: int = -1,
+        allow_none: bool = True,
+    ) -> None:
+        """Append an already-built statement, refusing ML-specific statements.
+
+        ML statement chains (ndarray + dtype + ``np.array`` + constructor) are
+        atomic; appending single members during crossover would produce broken
+        chains, so such statements are silently ignored (mirrors the behaviour
+        of the class-based implementation).
+
+        Args:
+            test_case: The test case to extend.
+            statement: The statement to append.
+            position: The position to insert at; ``-1`` appends at the end.
+            allow_none: Unused; kept for API compatibility.
+        """
+        if statement.ml_info is not None:
+            return
+        super().append_statement(test_case, statement, position=position, allow_none=allow_none)
+
+    def change_random_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Replace the call at *position*, never touching ML statements.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to change.
+
+        Returns:
+            True if the call was changed.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        if test_case.get_statement(position).ml_info is not None:
+            return False
+        return super().change_random_call(test_case, position)
+
+    def mutate_call(self, test_case: tc.TestCase, position: int) -> bool:
+        """Regenerate the argument values of the call at *position*.
+
+        ML statements are never mutated this way; their glue calls
+        (``np.array``/constructor) must keep their exact arguments.
+
+        Args:
+            test_case: The test case to modify.
+            position: Index of the statement to mutate.
+
+        Returns:
+            True if the statement was mutated.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        if test_case.get_statement(position).ml_info is not None:
+            return False
+        return super().mutate_call(test_case, position)
+
+    def _satisfy_params(  # noqa: C901
+        self,
+        test_case: tc.TestCase,
+        signature: InferredSignature,
+        position: int,
+        depth: int,
+        accessible: gao.GenericCallableAccessibleObject | None = None,
+    ) -> tuple[list[cst.Arg], int]:
+        """Build the argument list, consulting ML constraints when available.
+
+        Falls back to the base implementation when no constraint data exists
+        for *accessible* or when the ``ignore_constraints_probability`` coin
+        flip says so.  Otherwise, values are emitted in the constraint
+        *generation order* (shape/dtype dependencies first) while the final
+        argument list is assembled in signature order.
+
+        Args:
+            test_case: The test case providing reusable variables.
+            signature: The inferred signature of the callable.
+            position: The insertion cursor; advances with each inserted dep.
+            depth: Current recursion depth for object creation.
+            accessible: The callable accessible the parameters are satisfied for.
+
+        Returns:
+            A tuple of (arg list, updated cursor).
+        """
+        ml_data = None
+        if accessible is not None and isinstance(accessible, gao.GenericCallableAccessibleObject):
+            ml_data = self._test_cluster.get_ml_data_for(accessible)
+        if (
+            ml_data is None
+            or not ml_data.parameters
+            or randomness.next_float()
+            < config.configuration.pynguinml.ignore_constraints_probability
+        ):
+            return super()._satisfy_params(test_case, signature, position, depth, accessible)
+
+        import pynguin.utils.pynguinml.ml_testfactory_utils as mltu  # noqa: PLC0415
+
+        mltu.reset_parameter_objects(ml_data.parameters)
+
+        # First pass (signature order): decide skip/include and arg style once.
+        included: dict[str, tuple[ProperType, bool]] = {}
+        positional_only_skipped = False
+        for name, param_type in signature.original_parameters.items():
+            param = signature.signature.parameters.get(name)
+            if param is not None and param.kind in {
+                inspect.Parameter.VAR_POSITIONAL,
+                inspect.Parameter.VAR_KEYWORD,
+            }:
+                continue
+
+            is_positional_only = (
+                param is not None and param.kind == inspect.Parameter.POSITIONAL_ONLY
+            )
+            has_default = param is not None and param.default is not inspect.Parameter.empty
+
+            if is_positional_only and positional_only_skipped:
+                continue
+
+            if has_default and (
+                randomness.next_float()
+                < config.configuration.test_creation.skip_optional_parameter_probability
+            ):
+                if is_positional_only:
+                    positional_only_skipped = True
+                continue
+
+            included[name] = (param_type, is_positional_only)
+
+        # Second pass (generation order): emit values so that parameters that
+        # other parameters' shapes/dtypes depend on are generated first.
+        ordered = mltu.change_generation_order(
+            ml_data.generation_order,
+            {name: typ for name, (typ, _) in included.items()},
+        )
+        values: dict[str, cst.BaseExpression] = {}
+        cursor = position
+        for name, param_type in ordered.items():
+            parameter_obj = ml_data.parameters.get(name)
+            raw = _proper_type_to_raw(param_type)
+            if parameter_obj is None:
+                value, cursor = self._resolve_arg_value(test_case, param_type, raw, cursor, depth)
+            else:
+                try:
+                    value, cursor = self._ml_arg_for_parameter(
+                        test_case, parameter_obj, cursor, depth
+                    )
+                except ConstructionFailedException:
+                    _LOGGER.debug(
+                        "Construction via constraints failed for parameter %r; "
+                        "falling back to default generation.",
+                        name,
+                    )
+                    value, cursor = self._resolve_arg_value(
+                        test_case, param_type, raw, cursor, depth
+                    )
+            values[name] = value
+
+        # Third pass (signature order): assemble the final argument list.
+        args: list[cst.Arg] = []
+        for name, (_, is_positional_only) in included.items():
+            value = values[name]
+            if is_positional_only:
+                args.append(cst.Arg(value=value))
+            else:
+                args.append(cst.Arg(keyword=cst.Name(name), value=value))
+        return args, cursor
+
+    def _ml_arg_for_parameter(  # noqa: PLR0914
+        self,
+        test_case: tc.TestCase,
+        parameter_obj: MLParameter,
+        cursor: int,
+        depth: int,
+    ) -> tuple[cst.BaseExpression, int]:
+        """Generate the argument value for a constrained parameter.
+
+        Port of the class-based ``_attempt_generation_by_constraints``: picks
+        enum values, dtypes, shapes, and payloads per the parameter's
+        constraints and emits the ML statement chain into *test_case*.
+
+        Args:
+            test_case: The test case to extend.
+            parameter_obj: The constraint data of the parameter.
+            cursor: Current insertion cursor.
+            depth: Current recursion depth (unused; ML values are leaves).
+
+        Returns:
+            A tuple of (argument expression, updated cursor).
+
+        Raises:
+            ConstructionFailedException: If no value satisfying the
+                constraints could be generated.
+        """
+        del depth  # ML-generated values never recurse into object creation.
+        import pynguin.utils.pynguinml.ml_parsing_utils as mlpu  # noqa: PLC0415
+        import pynguin.utils.pynguinml.ml_testfactory_utils as mltu  # noqa: PLC0415
+        from pynguin.utils.pynguinml import ndarray_cst  # noqa: PLC0415
+
+        if parameter_obj.valid_enum_values:
+            allowed = list(mlpu.convert_values(parameter_obj.valid_enum_values))
+            value = randomness.choice(allowed)
+            parameter_obj.current_data = value
+            var, cursor = self._emit_ml_assign(
+                test_case,
+                ndarray_cst.ml_value_to_cst(value),
+                cursor,
+                MLStatementInfo(kind="allowed_values", allowed_values=allowed),
+                bound_type=type(value),
+            )
+            return cst.Name(var), cursor
+
+        dtype = mltu.select_dtype(parameter_obj)
+
+        if "None" in dtype:
+            parameter_obj.current_data = None
+            var, cursor = self._emit_ml_assign(
+                test_case,
+                cst.Name("None"),
+                cursor,
+                MLStatementInfo(kind="ml_scalar", dtype="None"),
+                bound_type=None,
+            )
+            return cst.Name(var), cursor
+
+        ndim = mltu.select_ndim(parameter_obj, dtype)
+        shape = mltu.generate_shape(parameter_obj, ndim)
+        # A var dependency can change the ndim, so derive it from the shape.
+        ndim = len(shape)
+
+        if ndim == 0:
+            return self._emit_ml_scalar(test_case, parameter_obj, dtype, cursor)
+
+        nested, low, high = mltu.generate_ndarray(parameter_obj, shape, dtype)
+        as_tuple = parameter_obj.structure == "tuple" and ndim == 1
+        payload: list | tuple = tuple(nested) if as_tuple else nested
+        # The structure constraint means the SUT consumes the plain list/tuple
+        # directly; only then is the variable eligible for generic reuse.
+        is_final_value = parameter_obj.structure is not None and ndim == 1
+        bound_type: type | None = None
+        if is_final_value:
+            bound_type = tuple if as_tuple else list
+        ndarray_var, cursor = self._emit_ml_assign(
+            test_case,
+            ndarray_cst.ml_value_to_cst(payload),
+            cursor,
+            MLStatementInfo(
+                kind="ndarray",
+                dtype=dtype,
+                low=float(low),
+                high=float(high),
+                is_tuple=as_tuple,
+            ),
+            bound_type=bound_type,
+        )
+        if is_final_value:
+            return cst.Name(ndarray_var), cursor
+
+        dtype_var, cursor = self._emit_ml_assign(
+            test_case,
+            ndarray_cst.ml_value_to_cst(dtype),
+            cursor,
+            MLStatementInfo(kind="allowed_values", allowed_values=[dtype]),
+            bound_type=None,
+        )
+        var, cursor = self._emit_tensor_calls(test_case, ndarray_var, dtype_var, cursor)
+        return cst.Name(var), cursor
+
+    def _emit_ml_scalar(
+        self,
+        test_case: tc.TestCase,
+        parameter_obj: MLParameter,
+        dtype: str,
+        cursor: int,
+    ) -> tuple[cst.BaseExpression, int]:
+        """Emit a ``var_N = <scalar literal>`` statement for a 0-dim parameter.
+
+        Args:
+            test_case: The test case to extend.
+            parameter_obj: The constraint data of the parameter.
+            dtype: The selected numpy dtype name.
+            cursor: Current insertion cursor.
+
+        Returns:
+            A tuple of (argument expression, updated cursor).
+
+        Raises:
+            ConstructionFailedException: If the dtype has no scalar generation
+                strategy (e.g. ``str``).
+        """
+        import pynguin.utils.pynguinml.ml_testfactory_utils as mltu  # noqa: PLC0415
+        from pynguin.utils.pynguinml import ndarray_cst  # noqa: PLC0415
+
+        value: bool | int | float | complex
+        low: float
+        high: float
+        if dtype == "bool":
+            low = high = 0.0
+            value = randomness.next_bool()
+        elif dtype.startswith(("int", "uint")):
+            low, high = mltu.get_range(parameter_obj, dtype)
+            value = randomness.next_int(int(low), int(high) + 1)
+        elif dtype.startswith("float"):
+            low, high = mltu.get_range(parameter_obj, dtype)
+            precision = randomness.next_int(0, 7)
+            value = round(low + (high - low) * randomness.next_float(), precision)
+        elif dtype.startswith("complex"):
+            low, high = mltu.get_range(parameter_obj, "float64")
+            real = round(low + (high - low) * randomness.next_float(), randomness.next_int(0, 7))
+            imag = round(low + (high - low) * randomness.next_float(), randomness.next_int(0, 7))
+            value = complex(real, imag)
+        else:
+            # str and other exotic dtypes: defer to the base generation path.
+            raise ConstructionFailedException(
+                f"No ML scalar generation strategy for dtype {dtype}."
+            )
+
+        parameter_obj.current_data = value
+        var, cursor = self._emit_ml_assign(
+            test_case,
+            ndarray_cst.ml_value_to_cst(value),
+            cursor,
+            MLStatementInfo(kind="ml_scalar", dtype=dtype, low=float(low), high=float(high)),
+            bound_type=type(value),
+        )
+        return cst.Name(var), cursor
+
+    def _emit_tensor_calls(
+        self,
+        test_case: tc.TestCase,
+        ndarray_var: str,
+        dtype_var: str,
+        cursor: int,
+    ) -> tuple[str, int]:
+        """Emit the ``np.array(...)`` call and the optional constructor call.
+
+        Args:
+            test_case: The test case to extend.
+            ndarray_var: The variable name of the ndarray literal.
+            dtype_var: The variable name of the dtype string.
+            cursor: Current insertion cursor.
+
+        Returns:
+            A tuple of (variable name of the final tensor value, updated cursor).
+        """
+        import pynguin.utils.pynguinml.ml_testing_resources as tr  # noqa: PLC0415
+
+        np_call = cst.Call(
+            func=cst.Attribute(value=cst.Name("np"), attr=cst.Name("array")),
+            args=[
+                cst.Arg(keyword=cst.Name("object"), value=cst.Name(ndarray_var)),
+                cst.Arg(keyword=cst.Name("dtype"), value=cst.Name(dtype_var)),
+            ],
+        )
+        nparray_var, cursor = self._emit_ml_assign(
+            test_case,
+            np_call,
+            cursor,
+            MLStatementInfo(kind="ml_call"),
+            bound_type=None,
+            accessible=tr.get_nparray_function(self._test_cluster),
+        )
+
+        constructor = tr.get_constructor_function(self._test_cluster)
+        if constructor is None:
+            return nparray_var, cursor
+
+        func = _attribute_chain(config.configuration.pynguinml.constructor_function)
+        parameter_name = config.configuration.pynguinml.constructor_function_parameter
+        ctor_call = cst.Call(
+            func=func,
+            args=[cst.Arg(keyword=cst.Name(parameter_name), value=cst.Name(nparray_var))],
+        )
+        tensor_var, cursor = self._emit_ml_assign(
+            test_case,
+            ctor_call,
+            cursor,
+            MLStatementInfo(kind="ml_call"),
+            bound_type=None,
+            accessible=constructor,
+        )
+        return tensor_var, cursor
+
+    def _emit_ml_assign(  # noqa: PLR0917
+        self,
+        test_case: tc.TestCase,
+        expr: cst.BaseExpression,
+        cursor: int,
+        ml_info: MLStatementInfo,
+        bound_type: type | None = None,
+        accessible: gao.GenericAccessibleObject | None = None,
+    ) -> tuple[str, int]:
+        """Insert a ``var_N = <expr>`` statement carrying ML metadata.
+
+        Args:
+            test_case: The test case to extend.
+            expr: The RHS expression of the assignment.
+            cursor: Current insertion cursor.
+            ml_info: The ML metadata to attach to the statement.
+            bound_type: The type the bound variable is registered under.
+            accessible: The accessible attached to the statement (for
+                ``np.array``/constructor calls).
+
+        Returns:
+            A tuple of (newly allocated variable name, updated cursor).
+        """
+        var_name = test_case.next_var_name()
+        node = cst.SimpleStatementLine(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(var_name))],
+                    value=expr,
+                )
+            ]
+        )
+        test_case.insert_statement(
+            cursor,
+            Statement(
+                node=node,
+                bound_variable=var_name,
+                bound_type=bound_type,
+                accessible=accessible,
+                ml_info=ml_info,
+            ),
+        )
+        return var_name, cursor + 1
+
+    def mutate_value(self, test_case: tc.TestCase, position: int) -> bool:
+        """Perturb the value of the statement at *position*, ML-aware.
+
+        ML metadata drives the mutation: ``ml_call`` statements are never
+        mutated, ``allowed_values`` statements re-pick from their pool,
+        ``ml_scalar`` statements re-draw from their ``[low, high]`` range, and
+        ``ndarray`` statements are mutated shape-aware.  Statements without ML
+        metadata are handled by the base implementation.
+
+        Args:
+            test_case: The test case to modify.
+            position: The index of the statement to mutate.
+
+        Returns:
+            True if the statement was mutated.
+        """
+        if not (0 <= position < test_case.size()):
+            return False
+        stmt = test_case.get_statement(position)
+        info = stmt.ml_info
+        if info is None:
+            return super().mutate_value(test_case, position)
+        if info.kind == "ml_call" or stmt.bound_variable is None:
+            return False
+
+        # Extract the current RHS expression from the CST node.
+        if not isinstance(stmt.node, cst.SimpleStatementLine):
+            return False
+        body = stmt.node.body
+        if not body or not isinstance(body[0], cst.Assign):
+            return False
+        old_expr: cst.BaseExpression = body[0].value
+
+        new_expr = self._mutated_ml_expr(info, old_expr)
+        if new_expr is None:
+            return False
+
+        new_node = stmt.node.with_changes(
+            body=[
+                cst.Assign(
+                    targets=[cst.AssignTarget(target=cst.Name(stmt.bound_variable))],
+                    value=new_expr,
+                )
+            ]
+        )
+        test_case.replace_statement(
+            position,
+            Statement(
+                node=new_node,
+                bound_variable=stmt.bound_variable,
+                bound_type=stmt.bound_type,
+                assertions=list(stmt.assertions),
+                accessible=stmt.accessible,
+                ml_info=info,
+            ),
+        )
+        return True
+
+    @staticmethod
+    def _mutated_ml_expr(
+        info: MLStatementInfo, old_expr: cst.BaseExpression
+    ) -> cst.BaseExpression | None:
+        """Compute a mutated RHS expression for an ML statement.
+
+        Args:
+            info: The ML metadata of the statement.
+            old_expr: The current RHS expression.
+
+        Returns:
+            The mutated expression, or ``None`` if no mutation is possible.
+        """
+        from pynguin.utils.pynguinml import ndarray_cst, ndarray_mutation  # noqa: PLC0415
+
+        if info.kind == "allowed_values":
+            if not info.allowed_values or len(info.allowed_values) <= 1:
+                return None
+            new_value = randomness.choice(info.allowed_values)
+            return ndarray_cst.ml_value_to_cst(new_value)
+
+        if info.kind == "ml_scalar":
+            if info.dtype is None or info.dtype == "None" or info.low is None or info.high is None:
+                return None
+            scalar = ndarray_mutation.replacement_value(info.dtype, info.low, info.high)
+            return ndarray_cst.ml_value_to_cst(scalar)
+
+        if info.kind == "ndarray":
+            if info.dtype is None or info.low is None or info.high is None:
+                return None
+            value = ndarray_cst.ml_cst_to_value(old_expr)
+            elements = _ndarray_mutation_elements(value, is_tuple=info.is_tuple)
+            if elements is None:
+                return None
+            elements, changed = ndarray_mutation.mutate_ndarray(
+                elements, info.dtype, info.low, info.high
+            )
+            if not changed:
+                return None
+            payload: list | tuple = tuple(elements) if info.is_tuple else elements
+            return ndarray_cst.ml_value_to_cst(payload)
+
+        return None
+
+    # Note: _regen_args_in_place is deliberately NOT overridden.  Regenerating
+    # arguments in place cannot rebuild ML statement chains (that would require
+    # inserting new statements), and mutate_call already refuses to touch ML
+    # statements themselves; for non-ML calls with constrained signatures the
+    # base behaviour (reuse variables / inline literals) is an acceptable,
+    # conservative fallback.
+
+
+def _attribute_chain(dotted_path: str) -> cst.BaseExpression:
+    """Build a CST attribute chain from a dotted path.
+
+    E.g. ``"torch.tensor"`` becomes ``Attribute(Name("torch"), Name("tensor"))``.
+
+    Args:
+        dotted_path: The dotted path, e.g. ``"torch.tensor"``.
+
+    Returns:
+        A ``cst.Name`` for a bare identifier, else a nested ``cst.Attribute``.
+    """
+    parts = dotted_path.split(".")
+    node: cst.BaseExpression = cst.Name(parts[0])
+    for part in parts[1:]:
+        node = cst.Attribute(value=node, attr=cst.Name(part))
+    return node

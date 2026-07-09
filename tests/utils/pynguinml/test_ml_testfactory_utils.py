@@ -6,12 +6,13 @@
 #
 from unittest.mock import MagicMock, patch
 
+import libcst as cst
 import numpy as np
 import pytest
 
-import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_testfactory_utils as mltu
 from pynguin.analyses.typesystem import AnyType
+from pynguin.testcase.testcase import MLStatementInfo, Statement
 from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.pynguinml import np_rng
 from pynguin.utils.pynguinml.mlparameter import MLParameter, Range
@@ -359,19 +360,21 @@ def test_reset_parameter_objects():
 
 
 def test_is_ml_statement():
-    mock_stmt = MagicMock(spec=stmt.FunctionStatement)
-    mock_stmt.should_mutate = False
-    assert mltu.is_ml_statement(mock_stmt) is True
+    node = cst.parse_statement("var_0 = [1, 2]")
 
-    mock_stmt = MagicMock(spec=stmt.FunctionStatement)
-    mock_stmt.should_mutate = True
-    assert mltu.is_ml_statement(mock_stmt) is False
+    ndarray_stmt = Statement(node=node, ml_info=MLStatementInfo(kind="ndarray", dtype="int32"))
+    assert mltu.is_ml_statement(ndarray_stmt) is True
 
-    mock_stmt = MagicMock(spec=stmt.NdArrayStatement)
-    assert mltu.is_ml_statement(mock_stmt) is True
+    allowed_stmt = Statement(
+        node=node, ml_info=MLStatementInfo(kind="allowed_values", allowed_values=["int32"])
+    )
+    assert mltu.is_ml_statement(allowed_stmt) is True
 
-    mock_stmt = MagicMock(spec=stmt.AllowedValuesStatement)
-    assert mltu.is_ml_statement(mock_stmt) is True
+    call_stmt = Statement(node=node, ml_info=MLStatementInfo(kind="ml_call"))
+    assert mltu.is_ml_statement(call_stmt) is True
 
-    mock_stmt = MagicMock(spec=stmt.ListStatement)
-    assert mltu.is_ml_statement(mock_stmt) is False
+    scalar_stmt = Statement(node=node, ml_info=MLStatementInfo(kind="ml_scalar", dtype="int32"))
+    assert mltu.is_ml_statement(scalar_stmt) is True
+
+    plain_stmt = Statement(node=node)
+    assert mltu.is_ml_statement(plain_stmt) is False

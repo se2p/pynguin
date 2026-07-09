@@ -27,7 +27,6 @@ if not NUMPY_AVAILABLE:
         "NumPy is not available. You can install it with poetry install --with numpy."
     )
 
-import pynguin.testcase.statement as stmt
 import pynguin.utils.pynguinml.ml_parsing_utils as mlpu
 from pynguin.analyses.constants import MLConstantPool
 from pynguin.utils import randomness
@@ -35,6 +34,7 @@ from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.pynguinml.np_rng import get_rng
 
 if TYPE_CHECKING:
+    import pynguin.testcase.testcase as tc
     from pynguin.analyses.typesystem import ProperType
     from pynguin.utils.pynguinml.mlparameter import MLParameter
 
@@ -414,7 +414,19 @@ def generate_ndarray(parameter_obj: MLParameter, shape: list, dtype: str):
     raise ConstructionFailedException(f"Could not generate based on the datatype {dtype}.")
 
 
-def _get_range(parameter_obj: MLParameter, np_dtype: str):
+def get_range(parameter_obj: MLParameter, np_dtype: str) -> tuple[int | float, int | float]:
+    """Determine the value range to use for the given parameter and dtype.
+
+    Combines the default range of the dtype with the parameter's declared
+    valid ranges, clamped to the configured ``max_int``.
+
+    Args:
+        parameter_obj: The parameter object carrying range constraints.
+        np_dtype: The numpy dtype name, e.g. ``"int32"``.
+
+    Returns:
+        A tuple ``(low, high)`` with the selected bounds.
+    """
     default_low, default_high = mlpu.get_default_range(np_dtype)
     default_low = max(default_low, -config.configuration.test_creation.max_int)
     default_high = min(default_high, config.configuration.test_creation.max_int)
@@ -453,6 +465,10 @@ def _get_range(parameter_obj: MLParameter, np_dtype: str):
         high = max(high, low)
 
     return low, high
+
+
+# Backwards-compatible alias for the previously private helper.
+_get_range = get_range
 
 
 def _generate_int(np_dtype: str, shape: list, low: float, high: float):
@@ -520,8 +536,13 @@ def reset_parameter_objects(parameters: dict[str, MLParameter | None]) -> None:
     ml_constant_pool.reset()
 
 
-def is_ml_statement(statement: stmt.Statement):
-    """Returns if a statement is an ML-specific statement."""
-    if isinstance(statement, stmt.FunctionStatement) and not statement.should_mutate:
-        return True
-    return isinstance(statement, stmt.NdArrayStatement | stmt.AllowedValuesStatement)
+def is_ml_statement(statement: tc.Statement) -> bool:
+    """Returns whether a statement is an ML-specific statement.
+
+    Args:
+        statement: The statement to check.
+
+    Returns:
+        True if the statement carries ML metadata, False otherwise.
+    """
+    return statement.ml_info is not None

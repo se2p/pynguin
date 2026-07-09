@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import libcst as cst
 
@@ -89,6 +89,31 @@ class _VariableRenamer(cst.CSTTransformer):
 
 
 @dataclasses.dataclass
+class MLStatementInfo:
+    """Metadata describing an ML-specific statement.
+
+    The libcst representation has no statement subclasses, so ML-specific
+    statements (ndarray literals, dtype picks, ``np.array``/tensor-constructor
+    calls) are plain :class:`Statement` instances carrying this metadata
+    instead. It is the successor of the old ``NdArrayStatement`` /
+    ``AllowedValuesStatement`` classes and the ``FunctionStatement.should_mutate
+    is False`` marker.
+    """
+
+    kind: Literal["ndarray", "allowed_values", "ml_scalar", "ml_call"]
+    dtype: str | None = None
+    """Numpy dtype name, e.g. ``"int32"``, for ``ndarray``/``ml_scalar`` kinds."""
+    low: float | None = None
+    """Lower bound of the value range used to generate the payload."""
+    high: float | None = None
+    """Upper bound of the value range used to generate the payload."""
+    is_tuple: bool = False
+    """Whether a 1-D ``ndarray`` payload is rendered/mutated as a tuple."""
+    allowed_values: list[int | float | bool | str] | None = None
+    """The pool of values an ``allowed_values`` statement was picked from."""
+
+
+@dataclasses.dataclass
 class Statement:
     """Wraps a single libcst statement node."""
 
@@ -97,6 +122,7 @@ class Statement:
     bound_type: type | None = None
     assertions: list[ass.Assertion] = dataclasses.field(default_factory=list)
     accessible: GenericAccessibleObject | None = None
+    ml_info: MLStatementInfo | None = None
     _used_vars: frozenset[str] | None = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )
@@ -356,6 +382,7 @@ class TestCase:  # noqa: PLR0904
                     bound_type=stmt.bound_type,
                     assertions=list(stmt.assertions),
                     accessible=stmt.accessible,
+                    ml_info=stmt.ml_info,
                 )
             )
 
@@ -536,6 +563,7 @@ class TestCase:  # noqa: PLR0904
                 bound_type=stmt.bound_type,
                 assertions=list(stmt.assertions),
                 accessible=stmt.accessible,
+                ml_info=stmt.ml_info,
             )
             s._used_vars = stmt._used_vars  # noqa: SLF001 # propagate cached set; nodes are immutable
             cloned.append(s)

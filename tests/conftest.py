@@ -598,8 +598,6 @@ collect_ignore = [
     # --- disabled subsystem: local search -----------------------------------------
     "testcase/test_localsearch.py",
     "testcase/test_llmlocalsearch.py",
-    # --- disabled subsystem: pynguinml --------------------------------------------
-    "utils/pynguinml/test_ml_testfactory_utils.py",
     # --- still parked: not yet migrated / disabled --------------------------------
     "assertion/test_assertion_generation_integration.py",
     "testcase/execution/test_typetracing.py",
