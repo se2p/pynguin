@@ -20,8 +20,8 @@ import random
 import time
 
 import pynguin.configuration as config
-from pynguin.large_language_model.llmagent import set_api_key
 from pynguin.utils.llm import extract_code
+from pynguin.utils.openai_key_resolver import require_api_key
 
 try:
     import openai
@@ -36,6 +36,19 @@ except ImportError:
     OPENAI_AVAILABLE = False
 
 _logger = logging.getLogger(__name__)
+
+
+def set_api_key() -> None:
+    """Resolve and set the global OpenAI API key for the refinement client.
+
+    Reuses Pynguin's shared key resolution/validation
+    (:func:`pynguin.utils.openai_key_resolver.require_api_key`) and assigns the
+    resolved value to the module-global ``openai.api_key`` used by
+    :meth:`LLMClient._request_once`.
+    """
+    if OPENAI_AVAILABLE:
+        openai.api_key = require_api_key().get_secret_value()
+
 
 # A low temperature keeps code generation deterministic and consistent, which
 # matters for refinement where we want reproducible edits.
