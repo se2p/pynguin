@@ -230,6 +230,69 @@ def test_canonical_module_name(module_name: str, expected_canonical: str) -> Non
     assert matched == [expected_canonical]
 
 
+def _install_shadow_pkg(tmp_path: Path, monkeypatch) -> None:
+    """Install ``shadowpkg`` where a ``retry`` function shadows the ``retry`` submodule."""
+    import sys  # noqa: PLC0415
+
+    pkg = tmp_path / "shadowpkg"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from shadowpkg.retry import Retryer\n\n\ndef retry(*a, **k):\n    return Retryer()\n"
+    )
+    (pkg / "retry.py").write_text("class Retryer:\n    pass\n\n\ndef retry_all(x):\n    return x\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    for name in ("shadowpkg", "shadowpkg.retry"):
+        monkeypatch.delitem(sys.modules, name, raising=False)
+
+
+def test_is_shadowed_submodule(tmp_path: Path, monkeypatch) -> None:
+    _install_shadow_pkg(tmp_path, monkeypatch)
+    # The submodule is shadowed by a same-named function on the package.
+    assert export._is_shadowed_submodule("shadowpkg.retry") is True
+    # A dotless name and a genuine (non-shadowed) module are not shadowed.
+    assert export._is_shadowed_submodule("shadowpkg") is False
+    assert export._is_shadowed_submodule("importlib.util") is False
+
+
+def test_shadowed_submodule_uses_importlib_import(tmp_path: Path, monkeypatch) -> None:
+    _install_shadow_pkg(tmp_path, monkeypatch)
+
+    visitor = PyTestChromosomeToAstVisitor()
+    alias_name = visitor.module_aliases.get_name("shadowpkg.retry")
+    module_ast, _ = visitor.to_module()
+
+    # The alias must be bound via importlib.import_module, not a plain `import ... as`,
+    # and a plain top-level `import importlib` must be present to support it.
+    assert any(
+        isinstance(node, ast.Import) and any(a.name == "importlib" for a in node.names)
+        for node in module_ast.body
+    )
+    assigns = [
+        node
+        for node in module_ast.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == alias_name
+    ]
+    assert len(assigns) == 1
+    call = assigns[0].value
+    assert isinstance(call, ast.Call)
+    assert isinstance(call.func, ast.Attribute)
+    assert call.func.attr == "import_module"
+    assert isinstance(call.args[0], ast.Constant)
+    assert call.args[0].value == "shadowpkg.retry"
+
+    # Executing the generated import block binds the real module (exposes Retryer),
+    # whereas a plain `import shadowpkg.retry as x` would bind the shadowing function.
+    import_block = ast.Module(
+        body=[n for n in module_ast.body if isinstance(n, ast.Import | ast.Assign)],
+        type_ignores=[],
+    )
+    namespace: dict = {}
+    exec(compile(ast.fix_missing_locations(import_block), "<gen>", "exec"), namespace)  # noqa: S102
+    assert hasattr(namespace[alias_name], "Retryer")
+
+
 def test_export_integration(subject_properties: SubjectProperties, tmp_path: Path):
     module_name = "tests.fixtures.examples.unasserted_exceptions"
     config.configuration.module_name = module_name
