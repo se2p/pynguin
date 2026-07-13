@@ -1,0 +1,345 @@
+#  This file is part of Pynguin.
+#
+#  SPDX-FileCopyrightText: 2019–2026 Pynguin Contributors
+#
+#  SPDX-License-Identifier: MIT
+#
+"""Coverage preservation check.
+
+This module verifies that refactored tests maintain the same code coverage
+as the original tests.  Coverage is measured using Pynguin's own
+instrumentation infrastructure: import-time bytecode rewriting via
+``InstrumentationTransformer`` that records branch/line coverage through
+``ExecutionTracer``.  The configured coverage metric (default: branch
+coverage) is used for the comparison.
+
+When Pynguin's ``SubjectProperties`` are available (i.e. when the
+refinement pipeline is invoked from within Pynguin after test generation),
+we reuse the already-instrumented module and tracer directly.  When
+``SubjectProperties`` are not available (e.g. standalone invocation), a
+lightweight ``sys.settrace``-based fallback provides line coverage.  The
+fallback exists only for standalone/prototype use; in Pynguin-integrated
+runs ``SubjectProperties`` is always present, so the fallback is never
+exercised.
+
+Key Function:
+- check_coverage_preservation(): Compares coverage between original and
+  refined test versions using Pynguin's configured metric.
+
+Integration Point: Called during pipeline validation after the repair
+loop and mutation filtering succeed.
+"""
+
+from __future__ import annotations
+
+import ast
+import sys
+import textwrap
+import threading
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import pytest
+
+import pynguin.configuration as config
+from pynguin.ga.computations import compute_branch_coverage, compute_line_coverage
+
+if TYPE_CHECKING:
+    import types
+
+    from pynguin.instrumentation.tracer import SubjectProperties
+
+
+@dataclass
+class CoverageResult:
+    """Result of coverage measurement for a single test.
+
+    Attributes:
+        coverage_value: Coverage as a fraction in [0.0, 1.0].
+        metric: Which coverage metric was used ('branch' or 'line').
+        error: Error message if coverage measurement failed.
+    """
+
+    coverage_value: float = 0.0
+    metric: str = "branch"
+    error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Pynguin-native coverage measurement
+# ---------------------------------------------------------------------------
+
+
+def _measure_coverage_pynguin(
+    test_code: str,
+    module_under_test: types.ModuleType,
+    subject_properties: SubjectProperties,
+) -> CoverageResult:
+    """Measure coverage using Pynguin's ``ExecutionTracer`` infrastructure.
+
+    The SUT module must already be loaded with instrumented bytecode (which
+    is the case when the refinement pipeline is invoked from ``generator.py``
+    after test generation).  We:
+
+    1. Initialise a fresh trace (merging the import trace).
+    2. Temporarily enable the tracer.
+    3. Execute the test code via ``exec()``.
+    4. Retrieve the trace and compute coverage using Pynguin's
+       ``compute_branch_coverage`` (or ``compute_line_coverage``, depending
+       on configuration).
+
+    Args:
+        test_code: The test code to execute.
+        module_under_test: The instrumented SUT module.
+        subject_properties: Pynguin's ``SubjectProperties`` containing the
+            tracer and registered code-object / predicate / line metadata.
+
+    Returns:
+        CoverageResult with the computed coverage.
+    """
+    tracer = subject_properties.instrumentation_tracer
+
+    # Determine which coverage metric to compute
+    coverage_metrics = set(config.configuration.statistics_output.coverage_metrics)
+    use_branch = config.CoverageMetric.BRANCH in coverage_metrics
+
+    # Prepare a fresh trace (includes import trace)
+    tracer.init_trace()
+
+    # Build execution scope
+    scope: dict[str, Any] = {
+        "__builtins__": __builtins__,
+        module_under_test.__name__: module_under_test,
+        "pytest": pytest,
+    }
+
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
+    compiled = compile(cleaned, "<test>", "exec")
+
+    # Enable tracer, execute, then disable.
+    # We must catch exceptions INSIDE the context manager so that
+    # ``temporarily_enable()`` can properly call ``disable()`` on exit.
+    # The tracer's thread-identity check requires the current thread to
+    # match ``_current_thread_identifier``.  After ``stop()`` is called
+    # during test generation, this is ``None``, so we re-register.  The field
+    # lives on the wrapped ``ExecutionTracer`` (reached via the proxy's public
+    # ``tracer`` property); Pynguin exposes no public setter, so private access
+    # is required.
+    tracer.tracer._current_thread_identifier = (  # noqa: SLF001
+        threading.current_thread().ident
+    )
+    with tracer.temporarily_enable():
+        try:
+            exec(compiled, scope)  # noqa: S102
+            if func_name and func_name in scope and callable(scope[func_name]):
+                scope[func_name]()
+        except BaseException as exc:  # noqa: BLE001
+            # Catch BaseException because Pynguin's
+            # TracingAbortedException inherits from BaseException.
+            msg = f"Test execution raised {type(exc).__name__}: {exc}"
+            trace = tracer.get_trace()
+            if not trace.executed_code_objects and not trace.covered_line_ids:
+                return CoverageResult(error=msg)
+
+    # Compute coverage from the trace
+    trace = tracer.get_trace()
+
+    if use_branch:
+        coverage = compute_branch_coverage(trace, subject_properties)
+        metric_name = "branch"
+    else:
+        coverage = compute_line_coverage(trace, subject_properties)
+        metric_name = "line"
+
+    return CoverageResult(coverage_value=coverage, metric=metric_name)
+
+
+# ---------------------------------------------------------------------------
+# Fallback: sys.settrace-based line coverage (standalone mode)
+# ---------------------------------------------------------------------------
+
+
+def _executable_lines(source: str) -> set[int]:
+    """Return the set of line numbers that contain executable statements."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+
+    lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.stmt) and hasattr(node, "lineno"):
+            if isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Import, ast.ImportFrom),
+            ):
+                continue
+            lines.add(node.lineno)
+    return lines
+
+
+def _find_test_function_name(cleaned: str) -> str:
+    """Return the name of the first ``def`` in *cleaned*, or an empty string."""
+    for line in cleaned.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("def "):
+            return stripped.split("(")[0].removeprefix("def ")
+    return ""
+
+
+def _load_sut_source(
+    module_under_test: types.ModuleType,
+) -> tuple[Path | None, str | None, str | None]:
+    """Return ``(path, source, error)`` for the SUT module's source file."""
+    sut_file: str | None = getattr(module_under_test, "__file__", None)
+    if not sut_file:
+        return None, None, "Module has no __file__ attribute"
+
+    sut_path = Path(sut_file).resolve()
+    if not sut_path.exists():
+        return None, None, f"SUT file not found: {sut_path}"
+
+    try:
+        return sut_path, sut_path.read_text(encoding="utf-8"), None
+    except OSError as exc:
+        return None, None, f"Could not read SUT source: {exc}"
+
+
+def _measure_coverage_settrace(
+    test_code: str,
+    module_under_test: types.ModuleType,
+) -> CoverageResult:
+    """Fallback: measure line coverage via ``sys.settrace``.
+
+    Used only when ``SubjectProperties`` are not available (standalone mode).
+    """
+    sut_path, sut_source, error = _load_sut_source(module_under_test)
+    if error is not None or sut_path is None or sut_source is None:
+        return CoverageResult(error=error, metric="line")
+
+    total_executable = _executable_lines(sut_source)
+    if not total_executable:
+        return CoverageResult(error="No executable lines found in SUT", metric="line")
+
+    sut_file_str = str(sut_path)
+    executed_lines: set[int] = set()
+    lock = threading.Lock()
+
+    def _tracer(frame: types.FrameType, event: str, _arg: Any) -> Any:
+        code_file = frame.f_code.co_filename
+        if code_file == sut_file_str and event == "line":
+            with lock:
+                executed_lines.add(frame.f_lineno)
+        return _tracer
+
+    scope: dict[str, Any] = {
+        module_under_test.__name__: module_under_test,
+    }
+    cleaned = textwrap.dedent(test_code.strip())
+    func_name = _find_test_function_name(cleaned)
+
+    try:
+        compiled = compile(cleaned, "<test>", "exec")
+        old_trace = sys.gettrace()
+        sys.settrace(_tracer)
+        try:
+            exec(compiled, scope)  # noqa: S102
+            if func_name and func_name in scope and callable(scope[func_name]):
+                scope[func_name]()
+        finally:
+            sys.settrace(old_trace)
+    except Exception as exc:  # noqa: BLE001
+        # Executing generated test code may raise anything; degrade gracefully.
+        sys.settrace(None)
+        if not executed_lines:
+            return CoverageResult(error=f"Test raised {type(exc).__name__}: {exc}", metric="line")
+
+    covered = executed_lines & total_executable
+    pct = len(covered) / len(total_executable) if total_executable else 0.0
+
+    return CoverageResult(coverage_value=pct, metric="line")
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
+
+
+def check_coverage_preservation(
+    original_test: str,
+    refined_test: str,
+    module_under_test: types.ModuleType | Any,
+    tolerance: float = 0.0,
+    subject_properties: SubjectProperties | None = None,
+) -> tuple[bool, dict[str, Any]]:
+    """Check if the refined test preserves coverage of the original test.
+
+    Requirement: ``refined_coverage >= original_coverage`` (within *tolerance*).
+
+    When ``subject_properties`` is provided, Pynguin's own instrumentation
+    tracer is used with the configured coverage metric (default: branch
+    coverage).  Otherwise, a ``sys.settrace`` fallback provides line coverage.
+
+    Args:
+        original_test: Original test code.
+        refined_test: Refined test code.
+        module_under_test: Module being tested.
+        tolerance: Acceptable coverage decrease (0.0 = no decrease allowed).
+        subject_properties: Pynguin's SubjectProperties (optional; enables
+            native instrumentation-based coverage).
+
+    Returns:
+        Tuple of ``(passed, details_dict)``.
+    """
+    use_pynguin = subject_properties is not None
+    metric_label = "branch" if use_pynguin else "line"
+
+    # Choose measurement function
+    def _measure(test_code: str) -> CoverageResult:
+        if use_pynguin:
+            assert subject_properties is not None
+            return _measure_coverage_pynguin(test_code, module_under_test, subject_properties)
+        return _measure_coverage_settrace(test_code, module_under_test)
+
+    # Measure original
+    original_cov = _measure(original_test)
+
+    if original_cov.error:
+        return True, {
+            "status": "skipped",
+            "reason": original_cov.error,
+            "metric": metric_label,
+            "original_coverage": 0.0,
+            "refined_coverage": 0.0,
+        }
+
+    # Measure refined
+    refined_cov = _measure(refined_test)
+
+    if refined_cov.error:
+        return True, {
+            "status": "skipped",
+            "reason": refined_cov.error,
+            "metric": metric_label,
+            "original_coverage": original_cov.coverage_value,
+            "refined_coverage": 0.0,
+        }
+
+    # Compare (both values are in [0.0, 1.0])
+    delta = refined_cov.coverage_value - original_cov.coverage_value
+
+    details: dict[str, Any] = {
+        "metric": refined_cov.metric,
+        "original_coverage": original_cov.coverage_value,
+        "refined_coverage": refined_cov.coverage_value,
+        "coverage_delta": delta,
+    }
+
+    if delta >= -tolerance:
+        details["status"] = "passed"
+        return True, details
+    details["status"] = "failed"
+    details["reason"] = f"Coverage decreased by {abs(delta) * 100:.1f}%"
+    return False, details

@@ -202,6 +202,12 @@ no_cover = []
 enable_inline_pynguin_no_cover = true
 enable_inline_pragma_no_cover = true
 
+[llm_refinement]
+enabled = false
+max_repair_iterations = 3
+save_original = true
+save_refined = true
+
 [local_search]
 local_search = true
 local_search_same_datatype = true
@@ -235,7 +241,8 @@ number_of_tests_per_target = 1
 random_test_or_from_archive_probability = 0.0
 number_of_mutations = 10
 """
-    expected = expected.replace("{REPORT_DIR}", str(tmp_path))
+    escaped_report_dir = str(tmp_path).replace("\\", "\\\\")
+    expected = expected.replace("{REPORT_DIR}", escaped_report_dir)
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_toml.write_text(expected)
     return expected_toml
@@ -326,8 +333,11 @@ def expected_txt(tmp_path):
  'random=RandomConfiguration(max_sequence_length=10, '
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
- 'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
- 'subprocess=False, subprocess_if_recommended=True, '
+ 'enable_inline_pragma_no_cover=True), '
+ 'llm_refinement=LLMRefinementConfiguration(enabled=False, '
+ 'max_repair_iterations=3, max_tests=None, save_original=True, '
+ 'save_refined=True), ignore_modules=[], ignore_methods=[], subprocess=False, '
+ 'subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
  'local_search_llm=False, local_search_primitives=True, '
@@ -339,8 +349,11 @@ def expected_txt(tmp_path):
  'ls_different_type_primitive_probability=0.3, '
  'ls_different_type_collection_probability=0.3, ls_dict_max_insertions=10, '
  'ls_llm_whole_module=False), use_master_worker=True, '
- 'filesystem_isolation=False)')"""  # noqa:E501
-    expected = expected.replace("{REPORT_DIR}", str(tmp_path))
+ 'filesystem_isolation=False)')"""  # noqa: E501
+    # In the pprint output, backslashes go through two levels of repr escaping:
+    # repr(config) escapes \ to \\, then pprint.pformat repr-escapes again to \\\\
+    path_in_pprint = repr(str(tmp_path))[1:-1].replace("\\", "\\\\")
+    expected = expected.replace("{REPORT_DIR}", path_in_pprint)
     expected = expected.replace("{SEED}", str(config.configuration.seeding.seed))
     expected_txt.write_text(expected)
     return expected_txt
@@ -386,6 +399,16 @@ False
 gpt-4o-mini
 --large_language_model.temperature
 0.8
+--llm_refinement.enabled
+False
+--llm_refinement.max_repair_iterations
+3
+--llm_refinement.max_tests
+None
+--llm_refinement.save_original
+True
+--llm_refinement.save_refined
+True
 --local_search.local_search
 True
 --local_search.local_search_collections
