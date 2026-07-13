@@ -19,6 +19,7 @@ import itertools
 import json
 import logging
 import queue
+import re
 import types
 import typing
 from collections import defaultdict
@@ -75,7 +76,7 @@ from pynguin.analyses.typesystem import (
     UnionType,
     Unsupported,
 )
-from pynguin.configuration import TypeInferenceStrategy
+from pynguin.configuration import ElementVisibility, TypeInferenceStrategy
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
@@ -1290,6 +1291,51 @@ def __is_private(method_name: str) -> bool:
     return method_name.startswith("__") and not method_name.endswith("__")
 
 
+__NAME_MANGLED_PATTERN = re.compile(r"^_[A-Za-z][A-Za-z0-9]*__\w+$")
+
+
+def __is_name_mangled(name: str) -> bool:
+    """Checks whether ``name`` looks like a name-mangled private attribute.
+
+    Python mangles a class-private name ``__attr`` defined in class ``Foo`` to
+    ``_Foo__attr``. Since the leading underscores of the class name are
+    stripped during mangling, the mangled name always starts with a single
+    underscore, followed by an identifier not starting with an underscore,
+    followed by a double underscore and the (non-dunder) original name.
+
+    Args:
+        name: The name to check.
+
+    Returns:
+        True, if the name looks like a name-mangled private attribute.
+    """
+    return bool(__NAME_MANGLED_PATTERN.fullmatch(name)) and not name.endswith("__")
+
+
+def __should_skip_by_visibility(name: str, *, add_to_test: bool) -> bool:
+    """Determines whether an element should be skipped based on its visibility.
+
+    Args:
+        name: The (unqualified) name of the element.
+        add_to_test: Whether the element belongs to the module under test.
+
+    Returns:
+        True, if the element should be skipped from analysis.
+    """
+    if not add_to_test:
+        # The relaxed visibility handling only applies to the module under test;
+        # non-public elements of dependency modules are always excluded.
+        return __is_private(name) or __is_protected(name)
+
+    match config.configuration.element_visibility:
+        case ElementVisibility.ALL:
+            return False
+        case ElementVisibility.PROTECTED:
+            return __is_private(name) or __is_name_mangled(name)
+        case _:
+            return __is_private(name) or __is_protected(name)
+
+
 def __is_method_defined_in_class(class_: type | types.UnionType, method: object) -> bool:
     return class_ == get_class_that_defined_method(method)
 
@@ -1357,7 +1403,7 @@ def __analyse_function(
     test_cluster: ModuleTestCluster,
     add_to_test: bool,
 ) -> None:
-    if __is_private(func_name) or __is_protected(func_name):
+    if __should_skip_by_visibility(func_name.rpartition(".")[2], add_to_test=add_to_test):
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
@@ -1557,8 +1603,7 @@ def __analyse_method(
 ) -> None:
     if (
         __is_annotate(method_name)
-        or __is_private(method_name)
-        or __is_protected(method_name)
+        or __should_skip_by_visibility(method_name.rpartition(".")[2], add_to_test=add_to_test)
         or __is_constructor(method_name)
         or not __is_method_defined_in_class(type_info.raw_type, method)
     ):
@@ -1935,32 +1980,47 @@ def _load_typeevalpy_data() -> ParsedTypeEvalPyData | None:
         return None
 
 
-def _collect_public_callables(module: ModuleType) -> Sequence[Callable[..., Any]]:
-    """Collects a list of all public accessibles in a module."""
-    callables = []
-    seen = set()
-
-    def add(obj):
-        if id(obj) not in seen:
-            callables.append(obj)
-            seen.add(id(obj))
-
+def __collect_module_level_functions(
+    module: ModuleType, add: Callable[[Callable[..., Any]], None]
+) -> None:
     for name, obj in vars(module).items():
-        if name.startswith("_") and name != "__init__":
+        if name != "__init__" and __should_skip_by_visibility(name, add_to_test=True):
             continue
         if inspect.isfunction(obj) and obj.__module__ == module.__name__:
             add(obj)
 
+
+def __collect_class_methods(module: ModuleType, add: Callable[[Callable[..., Any]], None]) -> None:
     for cls_name, cls in vars(module).items():
+        if not inspect.isclass(cls) or cls.__module__ != module.__name__:
+            continue
+        # The private-class filter is only applied for PUBLIC visibility; other
+        # visibility levels never filter classes by name (matching the main
+        # analysis, which does not filter classes based on their name).
         if (
-            cls_name.startswith("_")
-            or not inspect.isclass(cls)
-            or cls.__module__ != module.__name__
+            config.configuration.element_visibility == ElementVisibility.PUBLIC
+            and cls_name.startswith("_")
         ):
             continue
         for meth_name, member in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if not meth_name.startswith("_"):
+            if __is_constructor(meth_name):
+                continue
+            if not __should_skip_by_visibility(meth_name, add_to_test=True):
                 add(member)
+
+
+def _collect_public_callables(module: ModuleType) -> Sequence[Callable[..., Any]]:
+    """Collects a list of all public accessibles in a module."""
+    callables: list[Callable[..., Any]] = []
+    seen: set[int] = set()
+
+    def add(obj: Callable[..., Any]) -> None:
+        if id(obj) not in seen:
+            callables.append(obj)
+            seen.add(id(obj))
+
+    __collect_module_level_functions(module, add)
+    __collect_class_methods(module, add)
 
     return callables
 

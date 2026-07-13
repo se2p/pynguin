@@ -187,6 +187,20 @@ class SubtypeInferenceStrategy(str, enum.Enum):
     """Infer subtypes for strings."""
 
 
+class ElementVisibility(str, enum.Enum):
+    """Which elements of a module are considered for test generation."""
+
+    PUBLIC = "PUBLIC"
+    """Only include public elements (default, current behavior)."""
+
+    PROTECTED = "PROTECTED"
+    """Include public and protected elements (single leading underscore)."""
+
+    ALL = "ALL"
+    """Include public, protected, and private elements (double leading
+    underscore, including name-mangled)."""
+
+
 class StatisticsBackend(str, enum.Enum):
     """The different available statistics backends to write statistics."""
 
@@ -1021,6 +1035,13 @@ class Configuration:
 
     ignore_methods: list[str] = dataclasses.field(default_factory=list)
     """Ignore the methods specified here from the module analysis."""
+
+    element_visibility: ElementVisibility = ElementVisibility.PUBLIC
+    """Which elements (by naming convention) of the module under test are included in
+    the test cluster: PUBLIC (default) only public elements, PROTECTED also elements
+    with a single leading underscore, ALL also private (double leading underscore,
+    including name-mangled) elements. Only applies to the module under test;
+    non-public elements of dependency modules are always excluded."""
 
     subprocess: bool = False
     """Run the test generation in a subprocess."""

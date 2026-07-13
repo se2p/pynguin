@@ -31,6 +31,7 @@ module_name = ""
 algorithm = "RANDOM"
 ignore_modules = []
 ignore_methods = []
+element_visibility = "PUBLIC"
 subprocess = false
 subprocess_if_recommended = true
 use_master_worker = true
@@ -327,7 +328,8 @@ def expected_txt(tmp_path):
  'max_sequences_combined=10), to_cover=ToCoverConfiguration(only_cover=[], '
  'no_cover=[], enable_inline_pynguin_no_cover=True, '
  'enable_inline_pragma_no_cover=True), ignore_modules=[], ignore_methods=[], '
- 'subprocess=False, subprocess_if_recommended=True, '
+ "element_visibility=<ElementVisibility.PUBLIC: 'PUBLIC'>, subprocess=False, "
+ 'subprocess_if_recommended=True, '
  'local_search=LocalSearchConfiguration(local_search=True, '
  'local_search_same_datatype=True, local_search_different_datatype=False, '
  'local_search_llm=False, local_search_primitives=True, '
@@ -350,6 +352,8 @@ def expected_txt(tmp_path):
 def expected_parameters() -> str:
     return """--algorithm
 RANDOM
+--element_visibility
+PUBLIC
 --filesystem_isolation
 False
 --generator_selection.generator_any_distance
