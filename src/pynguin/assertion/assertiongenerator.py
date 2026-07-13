@@ -38,6 +38,29 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def create_filtering_executor(
+    plain_executor: ex.TestCaseExecutor,
+) -> ex.TestCaseExecutor | None:
+    """Build the executor to use for the assertion-filtering pass.
+
+    Returns a fresh-subprocess executor so that filtering catches per-process
+    nondeterminism, or ``None`` (meaning: reuse the plain executor and filter
+    in-process) when subprocess filtering is disabled or the plain executor already
+    runs in a subprocess.
+
+    Args:
+        plain_executor: The executor used for the in-process capture pass.
+
+    Returns:
+        A subprocess executor for filtering, or ``None`` to filter in-process.
+    """
+    if not config.configuration.test_case_output.filter_assertions_in_subprocess:
+        return None
+    if isinstance(plain_executor, ex.SubprocessTestCaseExecutor):
+        return None
+    return ex.SubprocessTestCaseExecutor(SubjectProperties())
+
+
 class AssertionGenerator(cv.ChromosomeVisitor):
     """A simple assertion generator.
 
@@ -46,7 +69,13 @@ class AssertionGenerator(cv.ChromosomeVisitor):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, plain_executor: ex.TestCaseExecutor, filtering_executions: int = 1):
+    def __init__(
+        self,
+        plain_executor: ex.TestCaseExecutor,
+        filtering_executions: int = 1,
+        *,
+        filtering_executor: ex.TestCaseExecutor | None = None,
+    ):
         """Create new assertion generator.
 
         Args:
@@ -55,9 +84,15 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             filtering_executions: How often should the tests be executed to filter
                 out trivially flaky assertions, e.g., str representations based on
                 memory locations.
+            filtering_executor: The executor used for the filtering executions. When
+                a fresh-subprocess executor is supplied, filtering also catches
+                per-process nondeterminism (``id()``, identity hashing, ``hash()`` of
+                str/bytes, once-computed timestamps) that in-process re-execution
+                cannot observe. Defaults to ``plain_executor`` (in-process filtering).
         """
         self._filtering_executions = filtering_executions
         self._plain_executor = plain_executor
+        self._filtering_executor = filtering_executor or plain_executor
 
     def visit_test_suite_chromosome(  # noqa: D102
         self, chromosome: tsc.TestSuiteChromosome
@@ -81,8 +116,10 @@ class AssertionGenerator(cv.ChromosomeVisitor):
             ):
                 self._add_assertions_for(test, result)
 
-        # Perform filtering executions to remove trivially flaky assertions.
-        with self._plain_executor.temporarily_add_remote_observer(
+        # Perform filtering executions to remove trivially flaky assertions. These run
+        # on the (possibly subprocess) filtering executor so that per-process
+        # nondeterminism is exercised, not just per-execution nondeterminism.
+        with self._filtering_executor.temporarily_add_remote_observer(
             ato.RemoteAssertionVerificationObserver()
         ):
             for _ in range(self._filtering_executions):
@@ -91,7 +128,7 @@ class AssertionGenerator(cv.ChromosomeVisitor):
                 randomness.RNG.shuffle(shuffled_copy)
                 for test, result in zip(
                     shuffled_copy,
-                    self._plain_executor.execute_multiple(shuffled_copy),
+                    self._filtering_executor.execute_multiple(shuffled_copy),
                     strict=True,
                 ):
                     self.__remove_non_holding_assertions(test, result)
@@ -284,6 +321,7 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         plain_executor: ex.TestCaseExecutor,
         mutation_controller: ct.MutationController,
         *,
+        filtering_executor: ex.TestCaseExecutor | None = None,
         testing: bool = False,
     ):
         """Initializes the generator.
@@ -291,9 +329,11 @@ class MutationAnalysisAssertionGenerator(AssertionGenerator):
         Args:
             plain_executor: Executor used for plain execution
             mutation_controller: Controller for mutation analysis
+            filtering_executor: Executor used for the assertion-filtering pass; see
+                :class:`AssertionGenerator`. Defaults to in-process filtering.
             testing: Enable test mode, currently required for integration testing.
         """
-        super().__init__(plain_executor)
+        super().__init__(plain_executor, filtering_executor=filtering_executor)
 
         # We use a separate executor to execute tests on the mutants.
         subject_properties = SubjectProperties()

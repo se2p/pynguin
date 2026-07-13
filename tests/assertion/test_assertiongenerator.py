@@ -4,16 +4,78 @@
 #
 #  SPDX-License-Identifier: MIT
 #
+from unittest.mock import MagicMock
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
 import pynguin.assertion.assertiongenerator as ag
+import pynguin.configuration as config
+import pynguin.testcase.execution as ex
 
 
 class _FakeResult:
     def __init__(self, *, timeout=False):
         self.timeout = timeout
+
+
+def _executor_mock():
+    executor = MagicMock()
+    # No test cases -> the strict-zip loops iterate over an empty result list.
+    executor.execute_multiple.return_value = []
+    return executor
+
+
+def test_filtering_executor_defaults_to_plain_executor():
+    plain = _executor_mock()
+    generator = ag.AssertionGenerator(plain)
+    assert generator._filtering_executor is plain
+
+
+def test_filtering_executor_uses_supplied_executor():
+    plain = _executor_mock()
+    filtering = _executor_mock()
+    generator = ag.AssertionGenerator(plain, filtering_executor=filtering)
+    assert generator._filtering_executor is filtering
+
+
+def test_capture_and_filtering_run_on_separate_executors():
+    # The capture pass runs once on the plain executor; the filtering pass runs
+    # ``filtering_executions`` times on the (fresh-process) filtering executor.
+    plain = _executor_mock()
+    filtering = _executor_mock()
+    generator = ag.AssertionGenerator(plain, filtering_executions=2, filtering_executor=filtering)
+
+    generator._add_assertions([])
+
+    plain.execute_multiple.assert_called_once()
+    assert filtering.execute_multiple.call_count == 2
+
+
+def test_create_filtering_executor_disabled(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration.test_case_output, "filter_assertions_in_subprocess", False
+    )
+    assert ag.create_filtering_executor(_executor_mock()) is None
+
+
+def test_create_filtering_executor_already_subprocess(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration.test_case_output, "filter_assertions_in_subprocess", True
+    )
+    subprocess_executor = MagicMock(spec=ex.SubprocessTestCaseExecutor)
+    assert ag.create_filtering_executor(subprocess_executor) is None
+
+
+def test_create_filtering_executor_builds_subprocess_executor(monkeypatch):
+    monkeypatch.setattr(
+        config.configuration.test_case_output, "filter_assertions_in_subprocess", True
+    )
+    # A plain (non-subprocess) executor yields a fresh subprocess filtering executor.
+    # Construction does not spawn a process; that only happens on execution.
+    result = ag.create_filtering_executor(MagicMock(spec=ex.TestCaseExecutor))
+    assert isinstance(result, ex.SubprocessTestCaseExecutor)
 
 
 @pytest.mark.parametrize("created,killed,timeout,score", [(5, 2, 1, 0.5), (1, 0, 1, 1.0)])

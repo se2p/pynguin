@@ -43,6 +43,7 @@ export_strategy = "PY_TEST"
 max_length_test_case = 2500
 assertion_generation = "MUTATION_ANALYSIS"
 allow_stale_assertions = false
+filter_assertions_in_subprocess = true
 mutation_strategy = "FIRST_ORDER_MUTANTS"
 mutation_order = 1
 maximum_mutation_time = -1
@@ -250,6 +251,7 @@ def expected_txt(tmp_path):
  'max_length_test_case=2500, '
  'assertion_generation=<AssertionGenerator.MUTATION_ANALYSIS: '
  "'MUTATION_ANALYSIS'>, allow_stale_assertions=False, "
+ 'filter_assertions_in_subprocess=True, '
  'mutation_strategy=<MutationStrategy.FIRST_ORDER_MUTANTS: '
  "'FIRST_ORDER_MUTANTS'>, mutation_order=1, maximum_mutation_time=-1, "
  'maximum_mutants=-1, post_process=True, '
@@ -579,6 +581,8 @@ MUTATION_ANALYSIS
 True
 --test_case_output.export_strategy
 PY_TEST
+--test_case_output.filter_assertions_in_subprocess
+True
 --test_case_output.float_precision
 0.01
 --test_case_output.format_with_black

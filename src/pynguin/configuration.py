@@ -326,6 +326,13 @@ class TestCaseOutputConfiguration:
     allow_stale_assertions: bool = False
     """Allow assertion on things that did not change between statement executions."""
 
+    filter_assertions_in_subprocess: bool = True
+    """Run the assertion-filtering executions in a fresh subprocess. Filtering in a
+    separate process exercises per-process nondeterminism (object ``id()``, identity
+    hashing, ``hash()`` of str/bytes, once-computed timestamps) that an in-process
+    re-execution cannot observe, so assertions hard-coding such values are dropped
+    instead of surviving to fail in a downstream ``pytest`` run."""
+
     mutation_strategy: MutationStrategy = MutationStrategy.FIRST_ORDER_MUTANTS
     """The strategy that shall be used for creating mutants in the mutation analysis
     assertion generation method."""
