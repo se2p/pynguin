@@ -594,7 +594,19 @@ def _track_final_metrics(
         dynamic_constant_provider,
         executor.subject_properties,
     ):
-        return None
+        # Re-instrumenting the SUT for the final metrics re-executes the
+        # module's top-level code. Modules that register a name into a
+        # process-global, duplicate-rejecting registry on import (e.g.
+        # networkx's dispatch registry or SQLAlchemy's type registry) raise on
+        # this second execution. Rather than discarding the already-generated
+        # test suite, keep it and fall back to the metrics that were already
+        # tracked during generation.
+        _LOGGER.warning(
+            "Could not re-instrument the SUT for final metrics; exporting the "
+            "generated test suite with the metrics tracked during generation "
+            "instead of discarding it."
+        )
+        return set(cov_metrics)
 
     # force new execution of the test cases after new instrumentation
     _reset_cache_for_result(generation_result)

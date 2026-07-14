@@ -138,6 +138,34 @@ def test__track_one_coverage_while_optimising_for_other(optimize, track, existin
     assert [type(elem[1]) for elem in to_calculate] == added
 
 
+def test__track_final_metrics_reload_failure_does_not_discard_suite():
+    # Regression test for the SUT-reload double-registration bug: when the
+    # final-metrics re-instrumentation reload fails (e.g. a module that
+    # registers into a duplicate-rejecting global registry on import, such as
+    # networkx's dispatch registry or SQLAlchemy's type registry), the
+    # already-generated suite must NOT be discarded. _track_final_metrics must
+    # return a non-None set so run_pynguin proceeds to export the suite instead
+    # of returning FINAL_METRICS_TRACKING_FAILED.
+    config.configuration.statistics_output.output_variables = []
+    config.configuration.statistics_output.coverage_metrics = {config.CoverageMetric.BRANCH}
+    algorithm = MagicMock(
+        test_suite_coverage_functions=[ff.TestSuiteBranchCoverageFunction(MagicMock())]
+    )
+    with (
+        mock.patch.object(gen, "_reload_instrumentation_loader", return_value=False),
+        mock.patch.object(gen, "_reset_cache_for_result") as reset_mock,
+    ):
+        result = gen._track_final_metrics(
+            algorithm,
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+        )
+    assert result == {config.CoverageMetric.BRANCH}
+    # The suite must not be re-executed against the broken/half-reloaded module.
+    reset_mock.assert_not_called()
+
+
 def test__reset_cache_for_result():
     test_case = MagicMock()
     result = MagicMock(test_case_chromosomes=[test_case])
