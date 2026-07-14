@@ -81,7 +81,6 @@ from pynguin.utils import randomness
 from pynguin.utils.exceptions import (
     ConstraintValidationError,
     ConstructionFailedException,
-    CoroutineFoundException,
 )
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
@@ -1361,10 +1360,16 @@ def __analyse_function(
         LOGGER.debug("Skipping function %s from analysis", func_name)
         return
     if inspect.iscoroutinefunction(func) or inspect.isasyncgenfunction(func):
+        # Pynguin cannot execute coroutines (see issue #62 / MR !59), so we skip
+        # them instead of aborting the whole module and still test its
+        # synchronous members.
         if add_to_test:
-            raise CoroutineFoundException("Found coroutine in SUT: %s", func_name)
-        # Coroutine outside the SUT are not problematic, just exclude them.
-        LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
+            LOGGER.warning(
+                "Skipping coroutine %s: Pynguin only tests the non-async parts of this module.",
+                func_name,
+            )
+        else:
+            LOGGER.debug("Skipping coroutine %s outside of SUT", func_name)
         return
 
     LOGGER.debug("Analysing function %s", func_name)
@@ -1565,10 +1570,16 @@ def __analyse_method(
         LOGGER.debug("Skipping method %s from analysis", method_name)
         return
     if inspect.iscoroutinefunction(method) or inspect.isasyncgenfunction(method):
+        # Pynguin cannot execute coroutines (see issue #62 / MR !59), so we skip
+        # them instead of aborting the whole module and still test its
+        # synchronous members.
         if add_to_test:
-            raise CoroutineFoundException("Found coroutine in SUT: %s", method_name)
-        # Coroutine outside the SUT are not problematic, just exclude them.
-        LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
+            LOGGER.warning(
+                "Skipping coroutine %s: Pynguin only tests the non-async parts of this module.",
+                method_name,
+            )
+        else:
+            LOGGER.debug("Skipping coroutine %s outside of SUT", method_name)
         return
 
     LOGGER.debug("Analysing method %s.%s", type_info.full_name, method_name)

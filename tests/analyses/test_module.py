@@ -28,7 +28,7 @@ from pynguin.analyses.module import (
 from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
-from pynguin.utils.exceptions import ConstructionFailedException, CoroutineFoundException
+from pynguin.utils.exceptions import ConstructionFailedException
 from pynguin.utils.generic.genericaccessibleobject import (
     GenericAccessibleObject,
     GenericCallableAccessibleObject,
@@ -492,9 +492,18 @@ def test_enums():
     "module_name",
     ["async_func", "async_gen", "async_class_gen", "async_class_method"],
 )
-def test_analyse_async_function_or_method(module_name):
-    with pytest.raises(CoroutineFoundException):
-        generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+def test_analyse_async_function_or_method_does_not_abort(module_name):
+    # A coroutine in the SUT must be skipped, not abort the whole module.
+    cluster = generate_test_cluster(f"tests.fixtures.cluster.{module_name}")
+    assert cluster is not None
+
+
+def test_analyse_mixed_async_and_sync_keeps_sync():
+    cluster = generate_test_cluster("tests.fixtures.cluster.async_and_sync")
+    names = {getattr(obj, "function_name", None) for obj in cluster.accessible_objects_under_test}
+    # The synchronous function stays testable, the coroutine is skipped.
+    assert "sync_bar" in names
+    assert "async_foo" not in names
 
 
 def test_analyse_async_as_dependency():
