@@ -1051,7 +1051,11 @@ def _setup_mutation_analysis_assertion_generator(
             executor, mutation_controller
         )
     else:
-        assertion_generator = ag.MutationAnalysisAssertionGenerator(executor, mutation_controller)
+        assertion_generator = ag.MutationAnalysisAssertionGenerator(
+            executor,
+            mutation_controller,
+            filtering_executor=ag.create_filtering_executor(executor),
+        )
 
     _LOGGER.info("Generated %d mutants", mutation_controller.mutant_count())
     return assertion_generator
@@ -1068,7 +1072,9 @@ def _generate_assertions(executor, generation_result, test_cluster):
         elif ass_gen == config.AssertionGenerator.MUTATION_ANALYSIS:
             generator = _setup_mutation_analysis_assertion_generator(executor)
         else:
-            generator = ag.AssertionGenerator(executor)
+            generator = ag.AssertionGenerator(
+                executor, filtering_executor=ag.create_filtering_executor(executor)
+            )
         generation_result.accept(generator)
 
         # Track total number of assertions after generation
