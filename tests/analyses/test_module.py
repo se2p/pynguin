@@ -633,6 +633,14 @@ def test_analyse_mixed_async_and_sync_keeps_sync():
     assert "async_foo" not in names
 
 
+def test_analyse_module_with_lazy_globals_mutation():
+    # Inspecting a member of this module triggers a PEP 562 module-level
+    # ``__getattr__`` that caches a new key into the module globals mid-analysis.
+    # This must not raise "dictionary changed size during iteration".
+    cluster = generate_test_cluster("tests.fixtures.cluster.lazy_module_getattr")
+    assert cluster is not None
+
+
 def test_analyse_async_as_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
     assert len(cluster.generators) == 4

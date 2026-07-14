@@ -1875,8 +1875,12 @@ def __check_c_modules(
             non_whitelisted_modules.add(module.__name__)
         return non_whitelisted_modules
 
-    # If the module is Python, inspect its members too:
-    for element in vars(module).values():
+    # If the module is Python, inspect its members too.
+    # Snapshot the values first: inspecting a member can mutate the module's
+    # globals (e.g. a PEP 562 module-level ``__getattr__`` that lazily caches
+    # results), which would otherwise raise "dictionary changed size during
+    # iteration" while iterating the live ``__dict__``.
+    for element in list(vars(module).values()):
         if inspect.isfunction(element) or inspect.isclass(element):
             try:
                 inspect.getsource(element)
