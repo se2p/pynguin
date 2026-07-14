@@ -27,6 +27,7 @@ from pynguin.analyses.module import (
 )
 from pynguin.analyses.type_inference import HintInference
 from pynguin.analyses.typesystem import ANY, AnyType, ProperType, TypeInfo, UnionType
+from pynguin.configuration import ElementVisibility
 from pynguin.ga.operators.selection import RandomSelection, RankSelection
 from pynguin.utils.exceptions import ConstructionFailedException, CoroutineFoundException
 from pynguin.utils.generic.genericaccessibleobject import (
@@ -461,6 +462,132 @@ def test_private_method_not_added():
     cluster = generate_test_cluster("tests.fixtures.examples.private_methods")
     assert len(cluster.accessible_objects_under_test) == 1
     assert isinstance(next(iter(cluster.accessible_objects_under_test)), GenericConstructor)
+
+
+def __extract_accessible_names(
+    accessible_objects: OrderedSet[GenericAccessibleObject],
+) -> set[str]:
+    names = set()
+    for elem in accessible_objects:
+        if isinstance(elem, GenericConstructor):
+            names.add(f"{elem.owner.name}.__init__")
+        elif isinstance(elem, GenericMethod):
+            names.add(f"{elem.owner.name}.{elem.callable.__name__}")
+        elif isinstance(elem, GenericFunction):
+            names.add(elem.function_name)
+        else:
+            raise AssertionError(f"Unexpected accessible object type: {type(elem)}")
+    return names
+
+
+@pytest.mark.parametrize(
+    "visibility,expected",
+    [
+        (
+            ElementVisibility.PUBLIC,
+            {
+                "public_function",
+                "PublicClass.__init__",
+                "PublicClass.public_method",
+                "_ProtectedClass.__init__",
+                "_ProtectedClass.public_method",
+            },
+        ),
+        (
+            ElementVisibility.PROTECTED,
+            {
+                "public_function",
+                "_protected_function",
+                "PublicClass.__init__",
+                "PublicClass.public_method",
+                "PublicClass._protected_method",
+                "_ProtectedClass.__init__",
+                "_ProtectedClass.public_method",
+            },
+        ),
+        (
+            ElementVisibility.ALL,
+            {
+                "public_function",
+                "_protected_function",
+                "__private_function",
+                "PublicClass.__init__",
+                "PublicClass.public_method",
+                "PublicClass._protected_method",
+                "PublicClass.__private_method",
+                "_ProtectedClass.__init__",
+                "_ProtectedClass.public_method",
+            },
+        ),
+    ],
+)
+def test_element_visibility_config(visibility, expected):
+    config.configuration.element_visibility = visibility
+    cluster = generate_test_cluster("tests.fixtures.cluster.visibility", TypeInferenceStrategy.NONE)
+    names = __extract_accessible_names(cluster.accessible_objects_under_test)
+    assert names == expected
+
+
+def test_element_visibility_only_applies_to_sut():
+    # Dependency modules must always be treated as PUBLIC-only, regardless of the
+    # configured visibility for the module under test.
+    config.configuration.element_visibility = ElementVisibility.ALL
+    cluster = generate_test_cluster(
+        "tests.fixtures.cluster.visibility_dependency", TypeInferenceStrategy.NONE
+    )
+    dependency_method_names = {
+        generator.callable.__name__
+        for generators in cluster.modifiers.values()
+        for generator in generators
+        if isinstance(generator, GenericMethod) and generator.owner.name == "PublicClass"
+    }
+    assert dependency_method_names == {"public_method"}
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("_Foo__helper", True),
+        ("_A__x", True),
+        ("_protected", False),
+        ("__dunder__", False),
+        ("__private", False),
+        ("normal", False),
+        ("_", False),
+        ("__", False),
+    ],
+)
+def test_is_name_mangled(name, expected):
+    is_name_mangled = module.__dict__["__is_name_mangled"]
+    assert is_name_mangled(name) == expected
+
+
+def test_collect_public_callables_respects_visibility():
+    parsed = parse_module("tests.fixtures.cluster.visibility")
+
+    config.configuration.element_visibility = ElementVisibility.PUBLIC
+    public_names = {c.__name__ for c in module._collect_public_callables(parsed.module)}
+    assert public_names == {"public_function", "public_method"}
+
+    config.configuration.element_visibility = ElementVisibility.PROTECTED
+    protected_names = {c.__name__ for c in module._collect_public_callables(parsed.module)}
+    assert protected_names == {
+        "public_function",
+        "_protected_function",
+        "public_method",
+        "_protected_method",
+    }
+
+    config.configuration.element_visibility = ElementVisibility.ALL
+    all_names = {c.__name__ for c in module._collect_public_callables(parsed.module)}
+    assert all_names == {
+        "public_function",
+        "_protected_function",
+        "__private_function",
+        "public_method",
+        "_protected_method",
+        "__private_method",
+    }
 
 
 def test_overridden_inherited_methods():
