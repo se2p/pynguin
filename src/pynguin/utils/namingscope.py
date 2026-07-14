@@ -188,4 +188,7 @@ def snake_case(name: str) -> str:
         The snake-cased string.
     """
     assert len(name) > 0, "Cannot snake_case empty string"
-    return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")
+    snaked = "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")
+    # A class name such as ``_256ColorCache`` snake-cases to ``256_color_cache``,
+    # which is not a valid Python identifier; keep a leading underscore in that case.
+    return f"_{snaked}" if snaked[:1].isdigit() else snaked

@@ -120,9 +120,13 @@ def test_variable_type_has_name(variable_type_naming_scope, type_system):
     assert variable_type_naming_scope.is_known_name(var)
 
 
-@pytest.mark.parametrize("before,after", [("FooBar", "foo_bar"), ("abc", "abc")])
+@pytest.mark.parametrize(
+    "before,after",
+    [("FooBar", "foo_bar"), ("abc", "abc"), ("_256ColorCache", "_256_color_cache")],
+)
 def test_snake_case(before, after):
     assert ns.snake_case(before) == after
+    assert after.isidentifier()
 
 
 def test_snake_case_empty():
