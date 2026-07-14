@@ -60,11 +60,12 @@ class AbstractOverriddenElementModification(MutationOperator):
         parent_names: list[str] = []
 
         while parent is not None:
-            if not isinstance(parent, ast.Module):
-                parent_names.append(parent.name)  # type: ignore[attr-defined]
-            if not isinstance(parent, ast.ClassDef) and not isinstance(parent, ast.Module):
+            if isinstance(parent, ast.Module):
+                break
+            if not isinstance(parent, ast.ClassDef):
                 return None
-            parent = parent.parent  # type: ignore[attr-defined,union-attr]
+            parent_names.append(parent.name)
+            parent = parent.parent  # type: ignore[attr-defined]
 
         try:
             klass = getattr_rec(self.module, reversed(parent_names))
