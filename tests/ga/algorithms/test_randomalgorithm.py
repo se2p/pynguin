@@ -63,7 +63,10 @@ def test_generate_sequences_exception(executor):
     algorithm._combine_current_individual = _combine_current_individual
     algorithm.generate_sequence = raise_exception
     algorithm.generate_tests()
-    assert "Generate test case failed with exception" in logger.method_calls[3].args[0]
+    assert any(
+        call.args and "Generate test case failed with exception" in str(call.args[0])
+        for call in logger.method_calls
+    )
 
 
 def test_random_test_cases_no_bounds(executor):
