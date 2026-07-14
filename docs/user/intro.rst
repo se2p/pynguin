@@ -208,6 +208,11 @@ Theses on Pynguin
 
 This is an (incomplete) list of theses done on Pynguin.
 
+* A. Abidi: **Enhancing the Readability of Python Generated Unit Tests using Large
+  Language Models**. Master's Thesis. University of Passau, 2026.
+
+  Improved the readability of the generated unit tests by post-processing them with an LLM
+
 * L Vögl: **Improving Automated Unit Test Generation with Realistic String Inputs**.
   Bachelor's Thesis. University of Passau, 2025.
 

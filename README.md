@@ -135,6 +135,7 @@ Contributors:
 - [Louis Leppelmann](https://github.com/Tudeldu)
 - [Alexander Wüst](https://github.com/Ravaqor)
 - [Altin Hajdari](https://github.com/AltinHajdari)
+- [Ahmed Abidi](https://github.com/AhmedHedi0)
 - [Abdelillah Aissani](https://github.com/Abassion)
 - [Juan Altmayer Pizzorno](https://github.com/jaltmayerpizzorno)
 - [Lucas Berg](https://github.com/BergLucas)
