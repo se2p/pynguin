@@ -67,11 +67,38 @@ def _dotted_from_origin(origin: str) -> str | None:
     return ".".join([*rel.parent.parts, stem])
 
 
+def _resolves_to_same_origin(dotted: str, origin: str) -> bool:
+    """Check whether importing ``dotted`` resolves to the file at ``origin``.
+
+    Args:
+        dotted: The candidate dotted module name.
+        origin: The origin (file path) the name must resolve to.
+
+    Returns:
+        True iff ``dotted`` is importable and points to the same file as ``origin``.
+    """
+    try:
+        other = importlib.util.find_spec(dotted)
+    except (ImportError, AttributeError, ValueError):
+        return False
+    other_origin = getattr(other, "origin", None)
+    if not other_origin:
+        return False
+    return Path(other_origin).resolve() == Path(origin).resolve()
+
+
 def _canonical_module_name(name: str) -> str:
     """Return a fully qualified module name for use in import statements.
 
     Strategy:
-    1) Try ``importlib.util.find_spec(name)`` and derive from ``spec.origin``.
+    1) Try ``importlib.util.find_spec(name)`` and derive from ``spec.origin`` -- but
+       only trust that origin-derived name when it actually imports back to the same
+       file. The filesystem derivation climbs while ``__init__.py`` files exist, which
+       drops a leading PEP 420 namespace-package segment (a directory without an
+       ``__init__.py`` that is nonetheless importable, e.g. ``google`` in
+       ``google.auth._helpers``); the resulting ``auth._helpers`` would emit an
+       unimportable ``import auth._helpers``. Stripping a genuinely non-canonical
+       prefix such as ``src`` is kept because the shortened name still resolves.
     2) Fall back to ``spec.name`` if available.
     3) Otherwise, return ``name`` unchanged.
 
@@ -88,7 +115,7 @@ def _canonical_module_name(name: str) -> str:
 
     if spec and getattr(spec, "origin", None):
         dotted = _dotted_from_origin(spec.origin)  # type: ignore[arg-type]
-        if dotted:
+        if dotted and _resolves_to_same_origin(dotted, spec.origin):  # type: ignore[arg-type]
             return dotted
     if spec and getattr(spec, "name", None):
         return spec.name
