@@ -205,6 +205,27 @@ MODULE_BLACKLIST = frozenset((
 METHOD_BLACKLIST = frozenset(("time.sleep",))
 
 
+def _is_function(element: Any) -> bool:
+    """Whether the element is a module-level function we can analyse.
+
+    Besides plain functions this also accepts callables wrapped by
+    ``functools.cache`` / ``functools.lru_cache`` (a
+    ``functools._lru_cache_wrapper``), for which ``inspect.isfunction`` returns
+    ``False``. Without this a cache-decorated public function would be silently
+    dropped from the test cluster.
+
+    Args:
+        element: The element to check
+
+    Returns:
+        Is the element a (possibly cache-wrapped) function?
+    """
+    return inspect.isfunction(element) or (
+        isinstance(element, functools._lru_cache_wrapper)  # noqa: SLF001
+        and inspect.isfunction(inspect.unwrap(element))
+    )
+
+
 def _is_blacklisted(element: Any) -> bool:
     """Checks if the given element belongs to the blacklist.
 
@@ -227,19 +248,21 @@ def _is_blacklisted(element: Any) -> bool:
                 # Allow some builtin types
                 return False
             return element.__module__ in module_blacklist
-        if inspect.isfunction(element):
+        if _is_function(element):
             # Some modules can be run standalone using a main function or provide a small
             # set of tests ('test'). We don't want to include those functions.
             # Importing certain modules such as inspect, that use or import C-functions can
             # lead to __module__ being None. We want to exclude these functions as well.
+            # Unwrap so cache-wrapped functions are checked against their real name/module.
+            func = inspect.unwrap(element)
             return (
-                element.__module__ is None
-                or element.__module__ in module_blacklist
-                or element.__qualname__.startswith((
+                func.__module__ is None
+                or func.__module__ in module_blacklist
+                or func.__qualname__.startswith((
                     "main",
                     "test",
                 ))
-                or f"{element.__module__}.{element.__qualname__}" in method_blacklist
+                or f"{func.__module__}.{func.__qualname__}" in method_blacklist
             )
     except Exception:  # noqa: BLE001
         LOGGER.warning(
@@ -1838,7 +1861,7 @@ def __analyse_included_functions(
     seen_functions: set,
 ) -> None:
     for current in filter(
-        lambda x: inspect.isfunction(x) and not _is_blacklisted(x),
+        lambda x: _is_function(x) and not _is_blacklisted(x),
         vars(module).values(),
     ):
         if current in seen_functions:

@@ -641,6 +641,17 @@ def test_analyse_module_with_lazy_globals_mutation():
     assert cluster is not None
 
 
+def test_analyse_cache_decorated_function():
+    # A public function decorated with @functools.cache is wrapped in a
+    # functools._lru_cache_wrapper, for which inspect.isfunction is False. It must
+    # still be exposed as an object under test instead of being silently dropped.
+    cluster = generate_test_cluster("tests.fixtures.cluster.cached_function")
+    assert cluster.num_accessible_objects_under_test() >= 1
+    accessible = cluster.accessible_objects_under_test.pop()
+    assert isinstance(accessible, GenericFunction)
+    assert accessible.function_name == "rebase"
+
+
 def test_analyse_async_as_dependency():
     cluster = generate_test_cluster("tests.fixtures.cluster.uses_async_dependency")
     assert len(cluster.generators) == 4
