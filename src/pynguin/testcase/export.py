@@ -96,6 +96,34 @@ def _canonical_module_name(name: str) -> str:
     return name
 
 
+def _is_shadowed_submodule(dotted: str) -> bool:
+    """Whether ``import <dotted> as x`` would bind something other than the submodule.
+
+    ``import a.b as x`` binds ``x`` to ``getattr(a, "b")``, not to
+    ``sys.modules["a.b"]``. If package ``a``'s ``__init__`` binds the name ``b`` to
+    something else (commonly a function with the same name as the submodule, e.g.
+    tenacity's ``retry`` decorator shadowing the ``tenacity.retry`` submodule), the
+    plain import binds that shadowing object and every ``x.<attr>`` access fails on
+    the unmutated code. Such modules must instead be imported via
+    ``importlib.import_module`` which always returns the real module.
+
+    Args:
+        dotted: The fully qualified module name to be imported.
+
+    Returns:
+        True iff a parent-package attribute shadows the submodule.
+    """
+    if "." not in dotted:
+        return False
+    parent, _, child = dotted.rpartition(".")
+    try:
+        package = importlib.import_module(parent)
+        submodule = importlib.import_module(dotted)
+    except Exception:  # noqa: BLE001
+        return False
+    return getattr(package, child, None) is not submodule
+
+
 @dataclasses.dataclass
 class _AstConversionResult:
     """Result of converting a test case and its assertions to AST."""
@@ -188,17 +216,34 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             imports.extend(
                 ast.Import(names=[ast.alias(name=module, asname=None)]) for module in common_modules
             )
+        alias_stmts: list[ast.stmt] = []
+        needs_importlib = False
         for module_name, alias in module_aliases:
-            imports.append(
-                ast.Import(
-                    names=[
-                        ast.alias(
-                            name=_canonical_module_name(module_name),
-                            asname=alias,
-                        )
-                    ]
+            canonical = _canonical_module_name(module_name)
+            if _is_shadowed_submodule(canonical):
+                # A same-named parent-package attribute shadows this submodule, so
+                # ``import canonical as alias`` would bind the shadow. Bind the real
+                # module via ``importlib.import_module`` instead.
+                needs_importlib = True
+                alias_stmts.append(
+                    ast.Assign(
+                        targets=[ast.Name(id=alias, ctx=ast.Store())],
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(id="importlib", ctx=ast.Load()),
+                                attr="import_module",
+                                ctx=ast.Load(),
+                            ),
+                            args=[ast.Constant(value=canonical)],
+                            keywords=[],
+                        ),
+                    )
                 )
-            )
+            else:
+                alias_stmts.append(ast.Import(names=[ast.alias(name=canonical, asname=alias)]))
+        if needs_importlib:
+            imports.append(ast.Import(names=[ast.alias(name="importlib", asname=None)]))
+        imports.extend(alias_stmts)
         return imports
 
     @staticmethod
