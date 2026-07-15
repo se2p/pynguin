@@ -222,10 +222,20 @@ class PyTestChromosomeToAstVisitor(cv.ChromosomeVisitor):
             test_case_chromosome.accept(self)
 
     def visit_test_case_chromosome(self, chromosome) -> None:  # noqa: D102
+        exec_result = chromosome.get_last_execution_result()
+        if exec_result is not None and exec_result.timeout:
+            # A generation-time execution timeout yields an empty ExecutionResult
+            # with no per-statement exceptions. The assertion/is_failing logic only
+            # guards a statement (with pytest.raises or @xfail) when its exception is
+            # recorded in the execution result, so a deterministically raising
+            # statement whose generating run timed out would be exported unguarded and
+            # then fail on the unmutated SUT under plain pytest. The oracle is
+            # unreliable, so drop the test from the exported suite.
+            return
         visitor = tc_to_ast.TestCaseToAstVisitor(
             module_aliases=self._module_aliases,
             common_modules=self._common_modules,
-            exec_result=chromosome.get_last_execution_result(),
+            exec_result=exec_result,
             store_call_return=self._store_call_return,
             no_xfail=self._no_xfail,
         )

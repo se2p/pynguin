@@ -119,6 +119,38 @@ def test_case_0():
     )
 
 
+def test_export_drops_test_case_with_timeout_result(exportable_test_case, tmp_path):
+    """A test whose generating execution timed out is dropped from export.
+
+    On a generation-time execution timeout, Pynguin records an empty
+    ExecutionResult with no per-statement exceptions. Because assertion guards and
+    the is_failing flag are derived only from those exceptions, a deterministically
+    raising statement would otherwise be exported unguarded and fail on the
+    unmutated SUT under plain pytest. Such a test is dropped instead.
+    """
+    from pynguin.testcase.execution import ExecutionResult  # noqa: PLC0415
+
+    # Without a timeout, the chromosome is exported normally.
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case.accept(exporter)
+    module_ast, _ = exporter.to_module()
+    normal_path = tmp_path / "normal.py"
+    export.save_module_to_file(module_ast, normal_path)
+    assert "def test_case_0" in normal_path.read_text()
+
+    # With a timed-out (empty) execution result, the test is dropped.
+    exportable_test_case.set_last_execution_result(ExecutionResult(timeout=True))
+    timeout_exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case.accept(timeout_exporter)
+    timeout_module_ast, coverage_by_import_only = timeout_exporter.to_module()
+
+    timeout_path = tmp_path / "timeout.py"
+    export.save_module_to_file(timeout_module_ast, timeout_path)
+    content = timeout_path.read_text()
+    assert "def test_case_0" not in content
+    assert coverage_by_import_only is False
+
+
 def test_export_lambda(exportable_test_case_with_lambda, tmp_path):
     path = tmp_path / "generated_with_unexpected_exception.py"
     exporter = export.PyTestChromosomeToAstVisitor(store_call_return=True)
