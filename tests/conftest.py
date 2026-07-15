@@ -576,23 +576,11 @@ def execution_trace() -> ExecutionTrace:
 
 
 # -- COLLECTION IGNORES ----------------------------------------------------------------
-# The libcst test-case representation removed the old per-statement representation
-# (statement.py / variablereference.py / defaulttestcase.py / statement_to_ast.py /
-# testcase_to_ast.py / testcasevisitor.py). LLM, dynamic slicer, local search,
-# constant seeding and initial-population/AST seeding have all since been
-# re-enabled against the libcst representation -- see tests/testcase/test_literalgen.py,
-# test_constant_seeding_integration.py, tests/analyses/test_seeding.py and
-# test_initialpopulationseeding.py. The following test modules target removed code
-# or still-disabled subsystems and are not collected. They should be rewritten or
-# removed in a follow-up; they are listed here so the rest of the suite can run.
+# The test modules below are not yet migrated to the libcst test-case model, so they
+# are not collected. The subsystems they exercise are all enabled; the tests just need
+# rewriting in a follow-up. They are listed here so the rest of the suite can run.
 collect_ignore = [
-    # --- still parked: not yet migrated / disabled --------------------------------
     "assertion/test_assertion_generation_integration.py",
-    # --- TODO: migrate to libcst representation (written against old repr) ---------
-    # These exercise components that were rewritten for the new representation
-    # (testfactory, testcasechromosome, postprocess, export, executor, assertions).
-    # They still construct DefaultTestCase / old Statement objects and must be
-    # rewritten as libcst-based tests in a follow-up.
     "assertion/test_assertion.py",
     "ga/algorithms/test_randomalgorithm.py",
     "testcase/execution/test_subprocesstestcaseexecutor.py",
