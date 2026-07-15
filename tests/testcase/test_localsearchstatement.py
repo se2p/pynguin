@@ -301,13 +301,13 @@ def test_bytes_replace_values_avm_converges_to_target_byte():
     assert get_literal_value(tc.get_statement(0), bytes) == b"a"
 
 
-def test_bytes_add_values_inserts_helpful_byte():
+def test_bytes_add_values_grows_toward_target_length():
     tc = make_test_case(bytes_stmt("var_0", b""))
     objective = _FitnessObjective(tc, bytes, lambda v: abs(len(v) - 3))
     search = BytesLocalSearch(_chromosome(tc), 0, objective, MagicMock(), _no_limit_timer())
     assert search.add_values() is True
-    # A single insertion lowers the length penalty; the byte 97 ('a') is used.
-    assert get_literal_value(tc.get_statement(0), bytes) == b"a"
+    # Repeated insertions grow the literal toward the target length of 3.
+    assert len(cast("bytes", get_literal_value(tc.get_statement(0), bytes))) == 3
 
 
 def test_bytes_iterate_bytes_rejects_out_of_range_value():

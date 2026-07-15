@@ -615,6 +615,7 @@ class BytesLocalSearch(PrimitiveLocalSearch):
             set_literal_value(self._chromosome.test_case, self._position, candidate)
             if self._objective.has_improved(self._chromosome):
                 improved = True
+                value = candidate
                 self._snapshot()
                 finished = False
                 while not finished and not self._timer.limit_reached():
@@ -623,6 +624,7 @@ class BytesLocalSearch(PrimitiveLocalSearch):
                         finished = False
                     if self._iterate_bytes(i, -1):
                         finished = False
+                value = cast("bytes", get_literal_value(self._statement(), bytes))
             else:
                 self._restore()
             i += 1
