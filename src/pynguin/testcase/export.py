@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib
 import logging
 import re
@@ -295,8 +296,6 @@ class TestSuiteWriter:
             # No Statement objects — check if this is a seed with raw code.
             raw_code = tc.to_code().strip()
             if raw_code and raw_code != "pass":
-                import contextlib  # noqa: PLC0415
-
                 with contextlib.suppress(Exception):
                     body = list(cst.parse_module(raw_code).body)
         if not body:

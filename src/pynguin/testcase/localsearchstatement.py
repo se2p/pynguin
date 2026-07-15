@@ -50,6 +50,7 @@ from pynguin.testcase import literalgen
 from pynguin.testcase.localsearchobjective import LocalSearchImprovement as LS_Imp
 from pynguin.testcase.testcase import Statement
 from pynguin.utils import randomness
+from pynguin.utils.naming import get_module_alias
 from pynguin.utils.statistics.runtimevariable import RuntimeVariable
 
 if TYPE_CHECKING:
@@ -382,8 +383,6 @@ class EnumLocalSearch(StatementLocalSearch):
         return None
 
     def _set_member(self, stmt: Statement, member_name: str) -> None:
-        from pynguin.utils.naming import get_module_alias  # noqa: PLC0415
-
         assert isinstance(stmt.accessible, gao.GenericEnum)
         owner = stmt.accessible.owner
         enum_name = owner.name if owner is not None else "Enum"

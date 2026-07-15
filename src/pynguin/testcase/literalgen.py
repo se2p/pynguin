@@ -15,6 +15,7 @@ perturbation-based mutation.
 
 from __future__ import annotations
 
+import ast
 import collections.abc
 import math
 from typing import TYPE_CHECKING
@@ -995,8 +996,6 @@ def parse_literal(expr: cst.BaseExpression, raw: type | None) -> object | None:
         The parsed Python value, or ``None`` if ``expr`` is not a parseable
         literal of the expected type.
     """
-    import ast  # noqa: PLC0415
-
     if raw is complex:
         return _parse_complex(expr)
     if raw in {bool, int, float, str, bytes}:

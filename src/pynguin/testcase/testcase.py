@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Literal
 
 import libcst as cst
 
+from pynguin.assertion.assertion import ExceptionAssertion
 from pynguin.utils import randomness
 
 if TYPE_CHECKING:
@@ -139,8 +140,6 @@ class Statement:
         Returns:
             True, if there is only an exception assertion.
         """
-        from pynguin.assertion.assertion import ExceptionAssertion  # noqa: PLC0415
-
         return len(self.assertions) == 1 and isinstance(
             next(iter(self.assertions)), ExceptionAssertion
         )
