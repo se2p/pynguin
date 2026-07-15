@@ -42,7 +42,10 @@ from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import TestCaseExecutor
 from pynguin.testcase.export import TestSuiteWriter
-from pynguin.utils.generic.genericaccessibleobject import GenericCallableAccessibleObject
+from pynguin.utils.generic.genericaccessibleobject import (
+    GenericCallableAccessibleObject,
+    GenericFunction,
+)
 from pynguin.utils.naming import get_module_alias
 from tests.testcase._builders import (
     assign,
@@ -51,6 +54,7 @@ from tests.testcase._builders import (
     float_stmt,
     int_stmt,
     make_test_case,
+    stmt,
     str_stmt,
 )
 
@@ -758,3 +762,65 @@ def test_add_exception_assertion(
         suite.accept(ag.AssertionGenerator(TestCaseExecutor(subject_properties)))
 
         assert _exception_assertion_names(test_case) == [expected_exception_name]
+
+
+def _accessible_expecting(*exception_names: str) -> GenericFunction:
+    """A real ``GenericCallableAccessibleObject`` declaring *exception_names*.
+
+    The exporter's expected-vs-unexpected decision (``_is_expected_exception``)
+    only consults ``expected_exceptions`` and an ``isinstance`` check against
+    :class:`GenericCallableAccessibleObject`, so the wrapped callable and its
+    signature are irrelevant to that branch and are cheap mocks. The
+    ``expected_exceptions`` set, however, is real data the production code
+    genuinely tests membership against -- it is *not* pinned to force a branch.
+    """
+    return GenericFunction(mock.MagicMock(), mock.MagicMock(), set(exception_names))
+
+
+@pytest.mark.parametrize(
+    "expected_names,raised,expect_xfail",
+    [
+        # The raised type is NOT declared expected by the statement's callable, so
+        # the exporter treats it as an *unexpected* failure: the statement is
+        # emitted bare and the whole test is marked ``@pytest.mark.xfail(strict=True)``.
+        (("KeyError",), ValueError, True),
+        # The raised type IS declared expected, so the exporter wraps the statement
+        # in ``with pytest.raises(ValueError):`` and adds no xfail marker.
+        (("ValueError",), ValueError, False),
+    ],
+)
+def test_write_exports_expected_and_unexpected_exception_branches(
+    expected_names, raised, expect_xfail, tmp_path
+):
+    """Drive the *public* exporter ``write()`` through both exception branches.
+
+    A real :class:`GenericFunction` supplies the ``expected_exceptions`` set, so
+    ``_is_expected_exception`` picks the ``@pytest.mark.xfail(strict=True)`` or the
+    ``pytest.raises`` branch depending on whether the raised type is declared. The
+    generated file is written and read back, asserting on the real emitted source.
+    """
+    module_name = "tests.fixtures.accessibles.accessible"
+    writer = TestSuiteWriter()
+    test_case = make_test_case(stmt("some_call()"))
+    test_case.get_statement(0).accessible = _accessible_expecting(*expected_names)
+    suite = _suite(test_case)
+
+    # Pin the detected per-statement exception (the exception *detection* is not
+    # under test here); the expected-vs-unexpected classification below runs for
+    # real against the accessible's declared ``expected_exceptions``.
+    with mock.patch.object(TestSuiteWriter, "_per_statement_exceptions", return_value=[raised]):
+        out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
+
+    source = out_file.read_text(encoding="utf-8")
+
+    assert "import pytest" in source
+    if expect_xfail:
+        assert "@pytest.mark.xfail(strict=True)" in source
+        # The offending statement is emitted bare (never wrapped in pytest.raises).
+        assert "pytest.raises" not in source
+        assert "\n    some_call()\n" in source
+    else:
+        # Wrapped in a with-block (8-space body indent), no xfail marker anywhere.
+        assert f"with pytest.raises({raised.__name__}):" in source
+        assert "\n        some_call()\n" in source
+        assert "xfail" not in source
