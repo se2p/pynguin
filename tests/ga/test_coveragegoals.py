@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-import ast
+import contextlib
 import importlib
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -15,20 +15,48 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import pynguin.configuration as config
 import pynguin.ga.coveragegoals as bg
 import pynguin.ga.testcasechromosome as tcc
-import pynguin.testcase.defaulttestcase as dtc
 import pynguin.utils.controlflowdistance as cfd
-from pynguin.analyses.constants import EmptyConstantProvider
-from pynguin.analyses.module import ModuleTestCluster, generate_test_cluster
-from pynguin.analyses.seeding import AstToTestCaseTransformer
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import ExecutionTrace, LineMetaData, SubjectProperties
 from pynguin.testcase.execution import ExecutionResult, TestCaseExecutor
+from pynguin.utils.naming import get_module_alias
 from pynguin.utils.orderedset import OrderedSet
+from tests.testcase._builders import call_stmt, int_stmt, make_test_case
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
+
+
+# -- HELPERS ---------------------------------------------------------------------------
+
+
+@contextlib.contextmanager
+def _instrumented_executor(
+    module_name: str, subject_properties: SubjectProperties
+) -> Iterator[TestCaseExecutor]:
+    """Install the import hook, load *module_name* instrumented, yield an executor.
+
+    The configured module name drives the SUT alias used inside the test cases, the
+    module is (re)loaded inside the instrumentation tracer so its code objects are
+    recorded, and the executor runs afterwards while the import hook is still active.
+    """
+    config.configuration.module_name = module_name
+    with install_import_hook(module_name, subject_properties):
+        with subject_properties.instrumentation_tracer:
+            module = importlib.import_module(module_name)
+            importlib.reload(module)
+        yield TestCaseExecutor(subject_properties)
+
+
+def _chromosome(*statements) -> tcc.TestCaseChromosome:
+    """Wrap the given libcst statements in a fresh test-case chromosome."""
+    return tcc.TestCaseChromosome(test_case=make_test_case(*statements))
+
+
+# -- COVERAGE-GOAL OBJECT TESTS --------------------------------------------------------
 
 
 @pytest.fixture
@@ -131,6 +159,9 @@ def test_non_root_get_distance(branch_goal, mocker):
     mock.assert_called_once()
 
 
+# -- BRANCH-COVERAGE FITNESS FUNCTION TESTS --------------------------------------------
+
+
 @pytest.fixture
 def empty_function():
     return bg.BranchCoverageTestFitness(MagicMock(TestCaseExecutor), MagicMock())
@@ -160,14 +191,28 @@ def test_compute_fitness_values_mocked(executor_mock: MagicMock, execution_trace
         run_suite_mock.assert_called_with(indiv)
 
 
+def _get_test_for_no_branches_fixture(module_name: str) -> tcc.TestCaseChromosome:
+    """Build a branchless test case exercising ``identity`` and ``DummyClass``.
+
+    The test case is equivalent to::
+
+        int_0 = 5
+        var_0 = module_0.identity(int_0)
+        dummy_0 = module_0.DummyClass(var_0)
+        var_1 = dummy_0.get_x()
+    """
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", 5),
+        call_stmt("var_0", f"{alias}.identity(int_0)", bound_type=int),
+        call_stmt("dummy_0", f"{alias}.DummyClass(var_0)"),
+        call_stmt("var_1", "dummy_0.get_x()", bound_type=int),
+    )
+
+
 def test_compute_fitness_values_no_branches(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.branchcoverage.nobranches"
-    with install_import_hook(module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
+    with _instrumented_executor(module_name, subject_properties) as executor:
         chromosome = _get_test_for_no_branches_fixture(module_name)
         pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
@@ -190,47 +235,27 @@ def test_compute_fitness_values_no_branches(subject_properties: SubjectPropertie
 
 
 def _get_test_for_simple_nesting_no_branch_covered(
-    module_name,
+    module_name: str,
 ) -> tcc.TestCaseChromosome:
-    cluster = generate_test_cluster(module_name)
-    transformer = AstToTestCaseTransformer(
-        cluster,
-        False,  # noqa: FBT003
-        EmptyConstantProvider(),
+    """``foo(10, 10)`` -- neither outer nor inner branch is taken."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", 10),
+        int_stmt("int_1", 10),
+        call_stmt("var_0", f"{alias}.foo(int_0, int_1)", bound_type=int),
     )
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 10
-    int_1 = 10
-    var_0 = module_0.foo(int_0, int_1)
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-    return tcc.TestCaseChromosome(test_case=test_case)
 
 
 def _get_test_for_simple_nesting_outer_branch_covered(
-    module_name,
+    module_name: str,
 ) -> tcc.TestCaseChromosome:
-    cluster = generate_test_cluster(module_name)
-    transformer = AstToTestCaseTransformer(
-        cluster,
-        False,  # noqa: FBT003
-        EmptyConstantProvider(),
+    """``foo(0, 10)`` -- the outer branch is taken, the inner one is not."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", 0),
+        int_stmt("int_1", 10),
+        call_stmt("var_0", f"{alias}.foo(int_0, int_1)", bound_type=int),
     )
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 0
-    int_1 = 10
-    var_0 = module_0.foo(int_0, int_1)
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-    return tcc.TestCaseChromosome(test_case=test_case)
 
 
 @pytest.mark.parametrize(
@@ -246,12 +271,7 @@ def test_fitness_simple_nesting(
     subject_properties: SubjectProperties,
 ):
     module_name = "tests.fixtures.branchcoverage.simplenesting"
-    with install_import_hook(module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
+    with _instrumented_executor(module_name, subject_properties) as executor:
         chromosome = chrom_factory(module_name)
         pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
@@ -267,84 +287,98 @@ def test_fitness_simple_nesting(
         assert fitness == pytest.approx(expected_fitness)
 
 
+def _single_branch_positive(module_name: str) -> tcc.TestCaseChromosome:
+    """``first(5)`` -- the ``a > 0`` branch is taken."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", 5),
+        call_stmt("var_0", f"{alias}.first(int_0)", bound_type=int),
+    )
+
+
+def _single_branch_negative(module_name: str) -> tcc.TestCaseChromosome:
+    """``first(-5)`` -- the ``a > 0`` branch is not taken."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", -5),
+        call_stmt("var_0", f"{alias}.first(int_0)", bound_type=int),
+    )
+
+
+def _nested_branches_negative(module_name: str) -> tcc.TestCaseChromosome:
+    """``nested_branches(-50)``."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", -50),
+        call_stmt("var_0", f"{alias}.nested_branches(int_0)", bound_type=int),
+    )
+
+
+def _covered_functions_not_covered(module_name: str) -> tcc.TestCaseChromosome:
+    """Call only the ``not_covered*`` functions; the ``covered`` goal stays open."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", -50),
+        int_stmt("int_1", 10),
+        int_stmt("int_2", 5),
+        call_stmt("var_0", f"{alias}.not_covered1(int_0, int_1)", bound_type=int),
+        call_stmt("var_1", f"{alias}.not_covered2(int_0, int_1)", bound_type=int),
+        call_stmt("var_2", f"{alias}.not_covered3(int_0, int_1, int_2)", bound_type=int),
+    )
+
+
+def _covered_functions_covered(module_name: str) -> tcc.TestCaseChromosome:
+    """Call the ``covered`` function; both remaining goals are then satisfied."""
+    alias = get_module_alias(module_name)
+    return _chromosome(
+        int_stmt("int_0", 1),
+        call_stmt("var_0", f"{alias}.covered(int_0)", bound_type=int),
+    )
+
+
 @pytest.mark.parametrize(
-    "module_name, expected_fitness, test_case",
+    "module_name, expected_fitness, chrom_factory",
     [
-        (
+        pytest.param(
             "tests.fixtures.branchcoverage.singlebranches",
             0.8333333333333334,
-            """def test_case_0():
-    int_0 = 5
-    var_0 = module_0.first(int_0)
-""",
+            _single_branch_positive,
         ),
-        (
+        pytest.param(
             "tests.fixtures.branchcoverage.singlebranches",
             0.85714285,
-            """def test_case_0():
-    int_0 = -5
-    var_0 = module_0.first(int_0)
-""",
+            _single_branch_negative,
         ),
-        (
+        pytest.param(
             "tests.fixtures.branchcoverage.twomethodsinglebranches",
             10.85714285,
-            """def test_case_0():
-    int_0 = -5
-    var_0 = module_0.first(int_0)
-""",
+            _single_branch_negative,
         ),
-        (
+        pytest.param(
             "tests.fixtures.branchcoverage.nestedbranches",
             5.906593406593407,
-            """def test_case_0():
-    int_0 = -50
-    var_0 = module_0.nested_branches(int_0)
-""",
+            _nested_branches_negative,
         ),
-        (
+        pytest.param(
             "tests.fixtures.instrumentation.covered_functions",
             1.0,  # module executed but not the `covered` function
-            """def test_case_0():
-    int_0 = -50
-    int_1 = 10
-    int_2 = 5
-    var_0 = module_0.not_covered1(int_0, int_1)
-    var_1 = module_0.not_covered2(int_0, int_1)
-    var_2 = module_0.not_covered3(int_0, int_1, int_2)
-""",
+            _covered_functions_not_covered,
         ),
-        (
+        pytest.param(
             "tests.fixtures.instrumentation.covered_functions",
             0.0,  # module and `covered` function executed
-            """def test_case_0():
-    int_0 = 1
-    var_0 = covered.covered(int_0)
-""",
+            _covered_functions_covered,
         ),
     ],
 )
 def test_compute_fitness_values_branches(
-    test_case, expected_fitness, module_name, subject_properties: SubjectProperties
+    module_name: str,
+    expected_fitness: float,
+    chrom_factory: Callable[[str], tcc.TestCaseChromosome],
+    subject_properties: SubjectProperties,
 ):
-    with install_import_hook(module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
-
-        cluster = generate_test_cluster(module_name)
-
-        transformer = AstToTestCaseTransformer(
-            cluster,
-            False,  # noqa: FBT003
-            EmptyConstantProvider(),
-        )
-        transformer.visit(ast.parse(test_case))
-        test_case = transformer.testcases[0]
-        chromosome = tcc.TestCaseChromosome(test_case=test_case)
-
+    with _instrumented_executor(module_name, subject_properties) as executor:
+        chromosome = chrom_factory(module_name)
         pool = bg.BranchGoalPool(subject_properties)
         goals = bg.create_branch_coverage_fitness_functions(executor, pool)
         for goal in goals:
@@ -353,36 +387,12 @@ def test_compute_fitness_values_branches(
         assert fitness == pytest.approx(expected_fitness)
 
 
-def _get_test_for_no_branches_fixture(module_name) -> tcc.TestCaseChromosome:
-    cluster = generate_test_cluster(module_name)
-
-    transformer = AstToTestCaseTransformer(
-        cluster,
-        False,  # noqa: FBT003
-        EmptyConstantProvider(),
-    )
-    transformer.visit(
-        ast.parse(
-            """def test_case_0():
-    int_0 = 5
-    var_0 = module_0.identity(int_0)
-    dummy_0 = module_0.DummyClass(var_0)
-    var_1 = dummy_0.get_x()
-"""
-        )
-    )
-    test_case = transformer.testcases[0]
-    return tcc.TestCaseChromosome(test_case=test_case)
+# -- LINE-COVERAGE FITNESS FUNCTION TESTS ----------------------------------------------
 
 
 def test_compute_fitness_values_statement_coverage_empty(subject_properties: SubjectProperties):
     module_name = "tests.fixtures.linecoverage.emptyfile"
-    with install_import_hook(module_name, subject_properties):
-        with subject_properties.instrumentation_tracer:
-            module = importlib.import_module(module_name)
-            importlib.reload(module)
-
-        executor = TestCaseExecutor(subject_properties)
+    with _instrumented_executor(module_name, subject_properties) as executor:
         chromosome = _get_empty_test()
         goals = bg.create_line_coverage_fitness_functions(executor)
         assert not goals
@@ -476,6 +486,4 @@ def _get_lines_data_for_plus_module():
 
 
 def _get_empty_test() -> tcc.TestCaseChromosome:
-    cluster = ModuleTestCluster(0)
-    test_case = dtc.DefaultTestCase(cluster)
-    return tcc.TestCaseChromosome(test_case=test_case)
+    return _chromosome()

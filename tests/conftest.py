@@ -597,12 +597,6 @@ collect_ignore = [
     "ga/algorithms/test_randomalgorithm.py",
     "testcase/execution/test_subprocesstestcaseexecutor.py",
     "testcase/execution/test_subprocesstestcaseexecutor_integration.py",
-    # Despite the "dynamic slicer / checked coverage" collect_ignore comment it used
-    # to sit under, this file does not actually exercise CheckedCoverageGoal /
-    # StatementCheckedCoverageTestFitness at all -- it tests BranchGoal /
-    # LineCoverageGoal fitness via AstToTestCaseTransformer/DefaultTestCase (old
-    # representation), which is out of scope for the checked-coverage rework.
-    "ga/test_coveragegoals.py",
 ]
 
 
