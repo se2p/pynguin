@@ -7,7 +7,6 @@
 """Tests for the exception handling in SubprocessTestCaseExecutor."""
 
 import importlib
-import inspect
 import logging
 import multiprocessing.connection as mp_conn
 import os
@@ -19,10 +18,6 @@ from unittest.mock import patch
 import pytest
 
 import pynguin.configuration as config
-import pynguin.testcase.defaulttestcase as dtc
-import pynguin.testcase.statement as stmt
-from pynguin.analyses.module import ModuleTestCluster
-from pynguin.analyses.typesystem import InferredSignature, NoneType
 from pynguin.instrumentation.machinery import install_import_hook
 from pynguin.instrumentation.tracer import SubjectProperties
 from pynguin.testcase.execution import (
@@ -30,8 +25,7 @@ from pynguin.testcase.execution import (
     PatchRandomOnUnpickle,
     SubprocessTestCaseExecutor,
 )
-from pynguin.utils.generic.genericaccessibleobject import GenericFunction
-from tests.fixtures.crash.seg_fault import cause_segmentation_fault
+from tests.testcase._builders import int_stmt, make_test_case, stmt
 
 
 class SegFaultOutputSuppressionContext:
@@ -57,19 +51,6 @@ class SegFaultOutputSuppressionContext:
         signal.signal(signal.SIGSEGV, self._original_sigsegv_handler)
         if self._devnull is not None:
             self._devnull.close()
-
-
-@pytest.fixture
-def cause_seg_fault_mock(type_system) -> GenericFunction:
-    return GenericFunction(
-        function=cause_segmentation_fault,
-        inferred_signature=InferredSignature(
-            signature=inspect.Signature(),
-            original_return_type=NoneType(),
-            original_parameters={},
-            type_system=type_system,
-        ),
-    )
 
 
 def test_subprocess_exception_suppression(subject_properties: SubjectProperties):
@@ -116,10 +97,9 @@ def test_subprocess_exception_suppression(subject_properties: SubjectProperties)
 
 
 @pytest.fixture
-def cause_seg_fault_test_case(cause_seg_fault_mock):
-    test_case = dtc.DefaultTestCase(ModuleTestCluster(0))
-    test_case.add_statement(stmt.FunctionStatement(test_case, cause_seg_fault_mock))
-    return test_case
+def cause_seg_fault_test_case():
+    """A libcst test case that calls the crash fixture's segfault function."""
+    return make_test_case(stmt("cause_segmentation_fault()"))
 
 
 def test_subprocess_exception_logging(caplog, subject_properties: SubjectProperties):
@@ -192,7 +172,7 @@ def test_eof_error_during_receiving_results(
             importlib.reload(module)
 
         # Add a statement to the test case
-        default_test_case.add_statement(stmt.IntPrimitiveStatement(default_test_case, 5))
+        default_test_case.add_statement(int_stmt("var_0", 5))
 
         subprocess_executor = SubprocessTestCaseExecutor(subject_properties)
 
