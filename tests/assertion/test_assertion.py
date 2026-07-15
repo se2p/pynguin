@@ -4,56 +4,51 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-from typing import cast
 from unittest.mock import MagicMock
 
 import pytest
 
 import pynguin.assertion.assertion as ass
 from pynguin.assertion.assertion import Assertion, AssertionVisitor
-from pynguin.testcase import variablereference as vr
 
 
 class FooReferenceAssertion(ass.ReferenceAssertion):
     def accept(self, visitor: AssertionVisitor) -> None:
         pass  # pragma: no cover
 
-    def clone(self, memo: dict[vr.VariableReference, vr.VariableReference]) -> Assertion:
-        pass  # pragma: no cover
+    def clone(self, memo: dict[str, str]) -> Assertion:
+        return self  # pragma: no cover
 
     def __eq__(self, other: object) -> bool:
-        pass  # pragma: no cover
+        return self is other  # pragma: no cover
 
     def __hash__(self) -> int:
-        pass  # pragma: no cover
+        return id(self)  # pragma: no cover
 
 
 def test_reference_assertion_source():
-    ref = MagicMock()
-    foo = FooReferenceAssertion(ref)
-    assert foo.source == ref
+    foo = FooReferenceAssertion("var_0")
+    assert foo.source == "var_0"
 
 
 def test_reference_assertion_source_setter():
-    ref1 = MagicMock()
-    ref2 = MagicMock()
-    foo = FooReferenceAssertion(ref1)
-    foo.source = ref2
-    assert foo.source == ref2
+    foo = FooReferenceAssertion("var_0")
+    foo.source = "var_1"
+    assert foo.source == "var_1"
 
 
 @pytest.mark.parametrize(
     "assertion,method",
     [
-        (ass.TypeNameAssertion(MagicMock(), "", ""), "visit_type_name_assertion"),
-        (ass.FloatAssertion(MagicMock(), 3.7), "visit_float_assertion"),
-        (ass.ObjectAssertion(MagicMock(), [1]), "visit_object_assertion"),
+        (ass.TypeNameAssertion("var_0", "", ""), "visit_type_name_assertion"),
+        (ass.FloatAssertion("var_0", 3.7), "visit_float_assertion"),
+        (ass.ObjectAssertion("var_0", [1]), "visit_object_assertion"),
         (
-            ass.IsInstanceAssertion(MagicMock(), "builtins", "int"),
+            ass.IsInstanceAssertion("var_0", "builtins", "int"),
             "visit_isinstance_assertion",
         ),
         (
-            ass.CollectionLengthAssertion(MagicMock(), 5),
+            ass.CollectionLengthAssertion("var_0", 5),
             "visit_collection_length_assertion",
         ),
         (
@@ -71,15 +66,15 @@ def test_assertion_accept(assertion, method):
 @pytest.mark.parametrize(
     "assertion",
     [
-        (ass.TypeNameAssertion(vr.VariableReference(MagicMock(), int), "builtins", "int")),
-        (ass.FloatAssertion(vr.VariableReference(MagicMock(), int), 3.7)),
-        (ass.ObjectAssertion(vr.VariableReference(MagicMock(), int), [1])),
-        (ass.IsInstanceAssertion(vr.VariableReference(MagicMock(), int), "builtins", "int")),
-        (ass.CollectionLengthAssertion(vr.VariableReference(MagicMock(), int), 5)),
+        (ass.TypeNameAssertion("var_0", "builtins", "int")),
+        (ass.FloatAssertion("var_0", 3.7)),
+        (ass.ObjectAssertion("var_0", [1])),
+        (ass.IsInstanceAssertion("var_0", "builtins", "int")),
+        (ass.CollectionLengthAssertion("var_0", 5)),
     ],
 )
 def test_assertion_clone(assertion):
-    source = cast("vr.VariableReference", assertion.source)
+    source = assertion.source
     cloned = assertion.clone({source: source})
     assert cloned == assertion
     assert hash(cloned) == hash(assertion)
@@ -89,42 +84,42 @@ def test_assertion_clone(assertion):
     "assertion,different",
     [
         (
-            ass.TypeNameAssertion(0, "foo", "bar"),
-            ass.TypeNameAssertion(1, "foo", "bar"),
+            ass.TypeNameAssertion("var_0", "foo", "bar"),
+            ass.TypeNameAssertion("var_1", "foo", "bar"),
         ),
         (
-            ass.TypeNameAssertion(0, "foo", "bar"),
-            ass.TypeNameAssertion(1, "fob", "bar"),
+            ass.TypeNameAssertion("var_0", "foo", "bar"),
+            ass.TypeNameAssertion("var_1", "fob", "bar"),
         ),
         (
-            ass.TypeNameAssertion(0, "foo", "bar"),
-            ass.TypeNameAssertion(1, "fob", "baz"),
+            ass.TypeNameAssertion("var_0", "foo", "bar"),
+            ass.TypeNameAssertion("var_1", "fob", "baz"),
         ),
         (
-            ass.FloatAssertion(0, 3.7),
-            ass.FloatAssertion(vr.VariableReference(1, int), 3.7),
+            ass.FloatAssertion("var_0", 3.7),
+            ass.FloatAssertion("var_1", 3.7),
         ),
         (
-            ass.FloatAssertion(0, 3.7),
-            ass.FloatAssertion(vr.VariableReference(0, int), 3.8),
+            ass.FloatAssertion("var_0", 3.7),
+            ass.FloatAssertion("var_0", 3.8),
         ),
-        (ass.ObjectAssertion(0, [1]), ass.ObjectAssertion(1, [1])),
-        (ass.ObjectAssertion(0, [1]), ass.ObjectAssertion(1, [2])),
+        (ass.ObjectAssertion("var_0", [1]), ass.ObjectAssertion("var_1", [1])),
+        (ass.ObjectAssertion("var_0", [1]), ass.ObjectAssertion("var_1", [2])),
         (
-            ass.IsInstanceAssertion(0, "builtins", "int"),
-            ass.IsInstanceAssertion(1, "builtins", "int"),
-        ),
-        (
-            ass.IsInstanceAssertion(0, "builtins", "int"),
-            ass.IsInstanceAssertion(0, "builtins", "str"),
+            ass.IsInstanceAssertion("var_0", "builtins", "int"),
+            ass.IsInstanceAssertion("var_1", "builtins", "int"),
         ),
         (
-            ass.CollectionLengthAssertion(0, 5),
-            ass.CollectionLengthAssertion(1, 5),
+            ass.IsInstanceAssertion("var_0", "builtins", "int"),
+            ass.IsInstanceAssertion("var_0", "builtins", "str"),
         ),
         (
-            ass.CollectionLengthAssertion(0, 5),
-            ass.CollectionLengthAssertion(0, 3),
+            ass.CollectionLengthAssertion("var_0", 5),
+            ass.CollectionLengthAssertion("var_1", 5),
+        ),
+        (
+            ass.CollectionLengthAssertion("var_0", 5),
+            ass.CollectionLengthAssertion("var_0", 3),
         ),
     ],
 )
@@ -134,17 +129,17 @@ def test_assertion_eq(assertion, different):
 
 
 def test_float_assertion_value():
-    assertion = ass.FloatAssertion(MagicMock(), 3.0)
+    assertion = ass.FloatAssertion("var_0", 3.0)
     assert assertion.value == 3.0
 
 
 def test_object_assertion_object():
-    assertion = ass.ObjectAssertion(MagicMock(), [3])
+    assertion = ass.ObjectAssertion("var_0", [3])
     assert assertion.object == [3]
 
 
 def test_collection_length_assertion_length():
-    assertion = ass.CollectionLengthAssertion(MagicMock(), 3)
+    assertion = ass.CollectionLengthAssertion("var_0", 3)
     assert assertion.length == 3
 
 
@@ -155,6 +150,6 @@ def test_exception_assertion():
 
 
 def test_isinstance_assertion_expected_type():
-    assertion = ass.IsInstanceAssertion(MagicMock(), "builtins", "int")
+    assertion = ass.IsInstanceAssertion("var_0", "builtins", "int")
     assert assertion.module == "builtins"
     assert assertion.qualname == "int"
