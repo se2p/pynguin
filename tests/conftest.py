@@ -575,17 +575,4 @@ def execution_trace() -> ExecutionTrace:
     return ExecutionTrace()
 
 
-# -- COLLECTION IGNORES ----------------------------------------------------------------
-# The test modules below are not yet migrated to the libcst test-case model, so they
-# are not collected. The subsystems they exercise are all enabled; the tests just need
-# rewriting in a follow-up. They are listed here so the rest of the suite can run.
-collect_ignore = [
-    "assertion/test_assertion_generation_integration.py",
-    "assertion/test_assertion.py",
-    "ga/algorithms/test_randomalgorithm.py",
-    "testcase/execution/test_subprocesstestcaseexecutor.py",
-    "testcase/execution/test_subprocesstestcaseexecutor_integration.py",
-]
-
-
 # -- CONFIGURATIONS AND EXTENSIONS FOR PYTEST ------------------------------------------
