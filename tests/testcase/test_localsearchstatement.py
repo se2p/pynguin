@@ -205,12 +205,15 @@ def test_integer_local_search_false_when_not_int_literal():
     assert search.search() is False
 
 
-def test_float_local_search_converges_to_target():
+def test_float_local_search_converges_to_fractional_target():
+    # A fractional target forces FloatLocalSearch's sub-integer precision loop:
+    # the integer phase only reaches 2.0, so converging to 2.25 needs the float
+    # refinement the integer search lacks.
     tc = make_test_case(float_stmt("var_0", 0.0))
-    objective = _FitnessObjective(tc, float, lambda v: abs(3.0 - v))
+    objective = _FitnessObjective(tc, float, lambda v: abs(2.25 - v))
     search = FloatLocalSearch(_chromosome(tc), 0, objective, MagicMock(), _no_limit_timer())
     assert search.search() is True
-    assert get_literal_value(tc.get_statement(0), float) == pytest.approx(3.0)
+    assert get_literal_value(tc.get_statement(0), float) == pytest.approx(2.25)
 
 
 # ---------------------------------------------------------------------------
