@@ -62,6 +62,35 @@ def test_case_1():
     )
 
 
+def test_export_survives_black_import_failure(exportable_test_case, tmp_path, monkeypatch):
+    """A failing ``import black`` must not discard the generated tests.
+
+    Regression test: black is imported lazily to format the output. If importing
+    black raises (e.g. the SUT on sys.path shadows one of black's dependencies and
+    black's module-level code crashes), the exporter must still write the full,
+    unformatted test module -- not just the two-line header.
+    """
+    import sys  # noqa: PLC0415
+
+    # ``import black`` raises ImportError when its sys.modules entry is None,
+    # simulating black's import blowing up.
+    monkeypatch.setitem(sys.modules, "black", None)
+    monkeypatch.setitem(sys.modules, "black.parsing", None)
+
+    path = tmp_path / "generated.py"
+    exporter = export.PyTestChromosomeToAstVisitor()
+    exportable_test_case.accept(exporter)
+    module_ast, _ = exporter.to_module()
+    export.save_module_to_file(module_ast, path, format_with_black=True)
+
+    content = path.read_text()
+    assert content.startswith(export._PYNGUIN_FILE_HEADER)
+    # The test body survived: the file is more than the bare header.
+    assert content != export._PYNGUIN_FILE_HEADER
+    assert "def test_case_0():" in content
+    assert "module_0.simple_function" in content
+
+
 def test_export_sequence_expected_exception(
     exportable_test_case_with_expected_asserted_exception, tmp_path
 ):

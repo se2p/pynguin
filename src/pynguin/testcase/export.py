@@ -545,15 +545,21 @@ def save_module_to_file(
         file.write(_PYNGUIN_FILE_HEADER)
         output = ast.unparse(ast.fix_missing_locations(module))
         if format_with_black:
-            # Import of black might cause problems if it is a SUT dependency,
-            # so we only import it if we need it.
-            import black  # noqa: PLC0415
-            import black.parsing  # noqa: PLC0415
-
+            # Import of black might cause problems if it is a SUT dependency, so we
+            # only import it if we need it. Importing black must never discard the
+            # generated tests: if it fails (e.g. black's module-level code crashes
+            # because the SUT on sys.path shadows one of black's own dependencies),
+            # fall back to the unformatted -- but still valid -- output.
             try:
-                output = black.format_str(output, mode=black.FileMode())
-            except black.parsing.InvalidInput as e:
-                _LOGGER.warning("Could not format the module '%s' with black: %s", target, e)
+                import black  # noqa: PLC0415
+                import black.parsing  # noqa: PLC0415
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.warning("Could not import black to format the module '%s': %s", target, e)
+            else:
+                try:
+                    output = black.format_str(output, mode=black.FileMode())
+                except black.parsing.InvalidInput as e:
+                    _LOGGER.warning("Could not format the module '%s' with black: %s", target, e)
 
         # Add a newline after the seed patch
         output = output.replace(
