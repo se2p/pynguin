@@ -203,8 +203,8 @@ def test_raising_statement_without_exception_assertion_records_nothing(
     """Raising statements without an ExceptionAssertion record nothing.
 
     A statement that raises without carrying an ExceptionAssertion should
-    not produce an ExecutedAssertion (deliberate deviation vs. main, see
-    RemoteAssertionExecutionObserver docstring).
+    not produce an ExecutedAssertion (see the RemoteAssertionExecutionObserver
+    docstring).
     """
     module_name = "tests.fixtures.linecoverage.plus"
     import pynguin.testcase.testcase as tc  # noqa: PLC0415

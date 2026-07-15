@@ -6,11 +6,11 @@
 #
 """Provides a factory for libcst-backed test-case generation.
 
-This factory is re-derived against the existing analysis model
+This factory builds on the analysis model
 (:class:`~pynguin.analyses.module.ModuleTestCluster` and
 :class:`~pynguin.utils.generic.genericaccessibleobject.GenericAccessibleObject`).
 It emits :mod:`libcst` nodes directly and refers to variables by *name*
-(``var_N``) instead of ``VariableReference`` objects.
+(``var_N``).
 """
 
 from __future__ import annotations

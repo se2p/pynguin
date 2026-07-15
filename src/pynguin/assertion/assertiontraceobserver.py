@@ -58,14 +58,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
             super().__init__()
             self.trace: at.AssertionTrace = at.AssertionTrace()
             # Variables (by name) whose value is continually re-checked after
-            # every subsequent statement, mirroring main's watch_list of
-            # VariableReferences.
+            # every subsequent statement.
             self.watch_list: list[str] = []
             # Statements are executed in a simple loop (see
-            # TestCaseExecutor._execute_test_case), so unlike the old AST-based
-            # ExecutionContext there is no Statement.get_position(); track the
-            # position ourselves, incremented once per after_statement_execution
-            # call.
+            # TestCaseExecutor._execute_test_case); there is no
+            # Statement.get_position(), so track the position ourselves,
+            # incremented once per after_statement_execution call.
             self.position: int = 0
 
     def __init__(self) -> None:  # noqa: D107
@@ -126,15 +124,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     ) -> None:
         """Generate assertions for the variable a statement just bound.
 
-        Mirrors main's ``RemoteAssertionTraceObserver._handle``, adapted to the
-        libcst representation: references are plain variable names (or, for
-        class-level static fields, dotted attribute paths) looked up in the
-        shared execution namespace instead of ``VariableReference``s resolved
-        through an ``ExecutionContext``. After checking the freshly bound
-        variable and the watch list, also asserts on the public static fields
-        of the module under test and on the public static fields of the classes
-        of currently watched objects (mirrors main's module- and class-static
-        enumeration blocks).
+        References are plain variable names (or, for class-level static
+        fields, dotted attribute paths) looked up in the shared execution
+        namespace. After checking the freshly bound variable and the watch
+        list, also asserts on the public static fields of the module under
+        test and on the public static fields of the classes of currently
+        watched objects.
 
         Args:
             bound_variable: The name of the variable the statement bound.
@@ -156,9 +151,8 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
         for var_name in watch_list:
             self._check_reference(namespace, var_name, position, trace)
 
-        # Check the static fields of the module under test. Unlike main (which
-        # enumerated every imported module), the libcst representation only
-        # ever imports the SUT module into the namespace (under its alias), so
+        # Check the static fields of the module under test. Only the SUT
+        # module is ever imported into the namespace (under its alias), so
         # this covers the SUT module only.
         module_alias = get_module_alias(config.configuration.module_name)
         module = namespace.get(module_alias)
@@ -179,14 +173,13 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     ) -> None:
         """Assert on public class-level (static) fields of watched objects.
 
-        Mirrors main's class-static-field enumeration block at the end of
-        ``_handle``: for every distinct type among the currently watched
-        objects, assert on its public, non-callable class attributes (e.g. a
-        class-level counter mutated by a method). Restricted to classes
-        defined in the SUT module, matching the scope the libcst exporter can
-        actually import (only the SUT module is ever imported, see
-        ``_is_type_importable``); a set is used instead of main's list to
-        avoid re-asserting the same class once per watched instance.
+        For every distinct type among the currently watched objects, assert
+        on its public, non-callable class attributes (e.g. a class-level
+        counter mutated by a method). Restricted to classes defined in the
+        SUT module, matching the scope the exporter can actually import (only
+        the SUT module is ever imported, see ``_is_type_importable``); a set
+        is used to avoid re-asserting the same class once per watched
+        instance.
 
         Args:
             namespace: The shared execution namespace.
@@ -236,14 +229,11 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     def _should_ignore(field: str, attr_value: Any) -> bool:
         """Check whether a class/module attribute should be skipped.
 
-        Ported verbatim (in spirit) from main's
-        ``RemoteAssertionTraceObserver._should_ignore``: private/dunder names,
-        methods, and (sub-)modules are not asserted on. Also skips descriptors
-        that ``callable()`` does not catch (``staticmethod``/``classmethod``/
-        ``property`` objects), which is a deliberate, strictly-better deviation
-        from main -- main's ``vars(cls)`` walk hit the same descriptors and
-        fell through to a harmless-but-noisy ``TypeNameAssertion`` on e.g.
-        ``builtins.classmethod``.
+        Private/dunder names, methods, and (sub-)modules are not asserted on.
+        Also skips descriptors that ``callable()`` does not catch
+        (``staticmethod``/``classmethod``/``property`` objects), which would
+        otherwise fall through to a harmless-but-noisy ``TypeNameAssertion`` on
+        e.g. ``builtins.classmethod``.
 
         Args:
             field: The attribute's name.
@@ -398,7 +388,7 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 
         if depth < max_depth and hasattr(value, "__dict__"):
             # Reference is a complex object; try to assert something on its
-            # public fields (one recursion step, mirroring main).
+            # public fields (one recursion step).
             for field, field_value in vars(value).items():
                 if self._should_ignore(field, field_value):
                     continue
@@ -415,14 +405,13 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
     def _is_type_importable(typ: type) -> bool:
         """Check whether a type can be referenced from the generated test file.
 
-        Unlike main's ``ExecutionContext``-based writer, the libcst exporter
-        (``pynguin.testcase.export.TestSuiteWriter``) only ever imports the SUT
-        module (under its alias) plus builtins; it does not track and import
-        arbitrary modules referenced by assertions. An ``IsInstanceAssertion``
-        is therefore only safe for builtins or types defined in the SUT module
-        itself -- anything else falls back to the always-safe
-        ``TypeNameAssertion``, which only compares string names and needs no
-        import.
+        The exporter (``pynguin.testcase.export.TestSuiteWriter``) only ever
+        imports the SUT module (under its alias) plus builtins; it does not
+        track and import arbitrary modules referenced by assertions. An
+        ``IsInstanceAssertion`` is therefore only safe for builtins or types
+        defined in the SUT module itself -- anything else falls back to the
+        always-safe ``TypeNameAssertion``, which only compares string names
+        and needs no import.
 
         Args:
             typ: The type to check.
@@ -440,14 +429,12 @@ class RemoteAssertionTraceObserver(ex.RemoteExecutionObserver):
 class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
     """This remote observer is used to check if assertions hold.
 
-    Adapted from main's ``ExecutionContext``-based verification: instead of
-    wrapping an exception-raising statement in ``pytest.raises`` before
-    execution, exception-only statements are checked directly against the
-    real exception the executor already captured for that statement (the
+    Instead of wrapping an exception-raising statement in ``pytest.raises``
+    before execution, exception-only statements are checked directly against
+    the real exception the executor already captured for that statement (the
     per-statement loop in ``TestCaseExecutor._execute_test_case`` gives us
     this for free). Regular value assertions are rendered to source via
-    ``assertion_to_cst`` and executed directly against the shared namespace,
-    same as main did via ``execute_ast``.
+    ``assertion_to_cst`` and executed directly against the shared namespace.
     """
 
     class RemoteAssertionExecutorLocalState(threading.local):
@@ -498,7 +485,7 @@ class RemoteAssertionVerificationObserver(ex.RemoteExecutionObserver):
                 self._state.trace.failed[position].add(0)
             elif type(exception).__name__ != expected_name:
                 # A different exception was raised; treat as an error, not a
-                # (clean) assertion violation, mirroring main.
+                # (clean) assertion violation.
                 self._state.trace.error[position].add(0)
             return
 

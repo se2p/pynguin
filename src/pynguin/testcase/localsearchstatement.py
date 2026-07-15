@@ -5,15 +5,14 @@
 #  SPDX-License-Identifier: MIT
 """Provides the local search strategies for the libcst test-case representation.
 
-This is a re-port of the pre-libcst local search strategies (see
-``REENABLEMENT_PLAN.md`` section "1. Local search" for the design). The old model
-mutated live ``Statement`` objects in place; the new model represents a statement as
-an immutable CST node wrapped in :class:`~pynguin.testcase.testcase.Statement`, so
-every mutation here builds a fresh CST node and replaces the statement via
+See ``REENABLEMENT_PLAN.md`` section "1. Local search" for the design. A
+statement is represented as an immutable CST node wrapped in
+:class:`~pynguin.testcase.testcase.Statement`, so every mutation here builds a
+fresh CST node and replaces the statement via
 :meth:`~pynguin.testcase.testcase.TestCase.replace_statement`.
 
-Three statement kinds from the old representation no longer exist and their
-strategies are therefore dropped (referenced ``DISABLED_SUBSYSTEMS.md`` entries):
+The following statement kinds are not generated, so their strategies are absent
+(see the referenced ``DISABLED_SUBSYSTEMS.md`` entries):
 
 * ``ComplexLocalSearch`` -- complex-number primitives are not generated (#15).
 * ``ClassLocalSearch`` -- class-object primitives are not generated (#15).
@@ -64,9 +63,9 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 # Local search never has access to the seeded constant pool (that lives behind
-# TestFactory's private ``_constant_provider``, and TestFactory is out of scope for
-# this change), so randomisation during local search always uses an unseeded
-# provider. This only affects exploration quality, not correctness.
+# TestFactory's private ``_constant_provider``), so randomisation during local
+# search always uses an unseeded provider. This only affects exploration
+# quality, not correctness.
 _FALLBACK_CONSTANT_PROVIDER = EmptyConstantProvider()
 
 _PRIMITIVE_TYPES = (bool, int, float, str, bytes)
@@ -164,8 +163,8 @@ def set_literal_value(test_case: TestCase, position: int, value: object) -> bool
 def randomize_literal_value(test_case: TestCase, position: int) -> bool:
     """Overwrite the statement's value with a freshly generated literal of its type.
 
-    Mirrors the old ``PrimitiveStatement.randomize_value()``. Used to escape a local
-    optimum before a same-datatype search is retried on the same statement.
+    Used to escape a local optimum before a same-datatype search is retried on
+    the same statement.
 
     Args:
         test_case: The test case to modify.
@@ -816,8 +815,8 @@ def choose_local_search_statement(
 ) -> StatementLocalSearch | None:
     """Chooses the local search strategy for the statement at the position.
 
-    Dispatch is by ``bound_type``/``accessible`` (the new representation has no
-    per-type statement classes). ``bool`` is checked before ``int`` explicitly since
+    Dispatch is by ``bound_type``/``accessible`` (there are no per-type
+    statement classes). ``bool`` is checked before ``int`` explicitly since
     both are plain ``type`` objects here (no ``isinstance`` subclass ambiguity, but
     kept in this order to mirror the original dispatch intent).
 

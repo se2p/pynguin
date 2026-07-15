@@ -306,8 +306,7 @@ def test_double_branch_coverage_no_duplicates_when_all_covered_twice():
 
 
 # ---------------------------------------------------------------------------
-# Regression guard: importing/wiring local search must not crash (was an
-# ImportError landmine on this branch before the libcst port, see
+# Regression guard: importing/wiring local search must not crash (see
 # DISABLED_SUBSYSTEMS.md #1).
 # ---------------------------------------------------------------------------
 

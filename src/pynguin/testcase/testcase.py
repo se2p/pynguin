@@ -92,12 +92,11 @@ class _VariableRenamer(cst.CSTTransformer):
 class MLStatementInfo:
     """Metadata describing an ML-specific statement.
 
-    The libcst representation has no statement subclasses, so ML-specific
-    statements (ndarray literals, dtype picks, ``np.array``/tensor-constructor
-    calls) are plain :class:`Statement` instances carrying this metadata
-    instead. It is the successor of the old ``NdArrayStatement`` /
-    ``AllowedValuesStatement`` classes and the ``FunctionStatement.should_mutate
-    is False`` marker.
+    There are no statement subclasses, so ML-specific statements (ndarray
+    literals, dtype picks, ``np.array``/tensor-constructor calls) are plain
+    :class:`Statement` instances carrying this metadata instead. The ``kind``
+    field distinguishes the ndarray, allowed-values, ML-scalar, and ML-call
+    variants.
     """
 
     kind: Literal["ndarray", "allowed_values", "ml_scalar", "ml_call"]
@@ -125,11 +124,11 @@ class Statement:
     ml_info: MLStatementInfo | None = None
     local_search_applied: bool = dataclasses.field(default=False, compare=False, repr=False)
     """Whether local search already tried the same-datatype strategy on this exact
-    value once (mirrors the old ``PrimitiveStatement.local_search_applied`` marker,
-    used to decide when to escape a local optimum by randomizing the value first).
-    Not carried over by :meth:`TestCase.clone` or :meth:`TestCase.append_test_case_from`
-    (both rebuild ``Statement`` instances without passing it), so it resets to
-    ``False`` on clone -- a deliberate, slightly more exploratory choice."""
+    value once, used to decide when to escape a local optimum by randomizing the
+    value first. Not carried over by :meth:`TestCase.clone` or
+    :meth:`TestCase.append_test_case_from` (both rebuild ``Statement`` instances
+    without passing it), so it resets to ``False`` on clone -- a deliberate,
+    slightly more exploratory choice."""
     _used_vars: frozenset[str] | None = dataclasses.field(
         default=None, init=False, repr=False, compare=False
     )

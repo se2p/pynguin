@@ -168,10 +168,9 @@ def parse_seed_module(
 
     Every top-level ``FunctionDef`` named ``test_*``/``seed_test_*`` is parsed
     independently via :class:`CstStatementDeserializer`; a function contributes
-    a test case only if at least one of its statements could be admitted (unlike
-    the old AST-based transformer, a function is not required to be *fully*
-    parsable to contribute a partial test case -- see
-    ``CstStatementDeserializer`` for the admission rules).
+    a test case only if at least one of its statements could be admitted. A
+    function is not required to be *fully* parsable to contribute a partial
+    test case -- see ``CstStatementDeserializer`` for the admission rules.
 
     Args:
         source: The source code of the module to parse.

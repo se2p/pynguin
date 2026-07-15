@@ -6,11 +6,10 @@
 #
 """Tests for the libcst-based assertion renderer ``assertion_to_cst``.
 
-The old AST-visitor representation (``PyTestAssertionToAstVisitor``) was removed
-with the libcst test-case rewrite.  Assertions now carry plain variable-name
-strings as their ``source`` and are rendered by :func:`assertion_to_cst`, which
-returns a ``libcst.SimpleStatementLine`` (or ``None`` for exception assertions,
-which the writer handles structurally via ``pytest.raises``).
+Assertions carry plain variable-name strings as their ``source`` and are
+rendered by :func:`assertion_to_cst`, which returns a
+``libcst.SimpleStatementLine`` (or ``None`` for exception assertions, which the
+writer handles structurally via ``pytest.raises``).
 """
 
 from __future__ import annotations

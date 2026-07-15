@@ -4,7 +4,7 @@
 #
 #  SPDX-License-Identifier: MIT
 #
-"""Provides an assertion visitor to transform assertions to AST."""
+"""Renders assertions to libcst nodes for the generated test source."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import pynguin.utils.type_utils as tu
 from pynguin.utils.naming import get_module_alias
 
 # ---------------------------------------------------------------------------
-# libcst-based assertion rendering (new representation)
+# libcst-based assertion rendering
 # ---------------------------------------------------------------------------
 
 _DEFAULT_FLOAT_PRECISION = 0.01

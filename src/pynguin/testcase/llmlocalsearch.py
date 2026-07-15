@@ -5,18 +5,15 @@
 #  SPDX-License-Identifier: MIT
 """Provides the (currently inert) hook for LLM-based local search.
 
-The LLM local-search round trip has not been re-implemented for the libcst
-test-case representation. ``REENABLEMENT_PLAN.md`` (section "1. Local search",
-design point (f)) lays out how to do it:
+The LLM local-search round trip is not yet implemented.
+``REENABLEMENT_PLAN.md`` (section "1. Local search", design point (f)) lays
+out how to do it:
 
-1. Serialize the test case via ``test_case.to_test_function().code`` instead of the
-   removed ``unparse_test_case`` helper.
+1. Serialize the test case via ``test_case.to_test_function().code``.
 2. Shorten the LLM context via ``test_case.forward_dependencies(position)`` plus
-   ``statement.accessible`` instead of the removed
-   ``get_forward_dependencies``/``accessible_object()`` APIs.
+   ``statement.accessible``.
 3. Deserialize the LLM's reply with a small dedicated CST-based parser (proposed at
-   ``src/pynguin/large_language_model/parsing/cst_deserializer.py``) instead of
-   resurrecting the old, now-shimmed ``deserializer.py``.
+   ``src/pynguin/large_language_model/parsing/cst_deserializer.py``).
 
 Step 3 lives in the ``large_language_model`` package, which is out of scope for this
 change (it is being re-enabled concurrently as its own subsystem). Until it lands,

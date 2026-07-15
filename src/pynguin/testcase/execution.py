@@ -284,8 +284,7 @@ class RemoteAssertionExecutionObserver(RemoteExecutionObserver):
                 return
             if exception is not None:
                 # The bound variable (if any) is undefined; assertions on it
-                # cannot meaningfully hold. Deliberate deviation from main,
-                # which still executed them against a stale exec context.
+                # cannot meaningfully hold, so skip them.
                 return
             for assertion in statement.assertions:
                 cst_node = assertion_to_cst(assertion)
@@ -327,10 +326,10 @@ class RemoteReturnTypeObserver(RemoteExecutionObserver):
             self.return_type_trace: dict[int, type] = {}
             self.return_type_generic_args: dict[int, tuple[type, ...]] = {}
             # Statements are executed in a simple loop (see
-            # TestCaseExecutor._execute_test_case), so unlike the old AST-based
-            # ExecutionContext there is no Statement.get_position(); track the
-            # position ourselves, incremented once per after_statement_execution
-            # call. Not part of `state` — meaningless after execution finishes.
+            # TestCaseExecutor._execute_test_case); there is no
+            # Statement.get_position(), so track the position ourselves,
+            # incremented once per after_statement_execution call. Not part of
+            # `state` — meaningless after execution finishes.
             self.position: int = 0
 
     def __init__(self):
@@ -1573,8 +1572,7 @@ class SubprocessTestCaseExecutor(TestCaseExecutor):
     def _minimize(self, test_case: tc.TestCase, exit_code: int | None) -> tc.TestCase:
         test_case_to_minimize = test_case.clone()
         minimizer = pp.CrashPreservingMinimizationVisitor(self)
-        # Under the libcst representation test cases no longer implement ``accept``;
-        # the per-test-case minimisation visitors are invoked directly.
+        # The per-test-case minimisation visitors are invoked directly.
         minimizer.visit_default_test_case(test_case_to_minimize)
 
         # Verify that the minimized test case still crashes
@@ -2212,7 +2210,7 @@ class RemoteTypeTracingObserver(RemoteExecutionObserver):
             bound_variable = statement.bound_variable
             if bound_variable in namespace:
                 # Unwrap a possibly-proxied return value so proxies do not leak into
-                # later statements. (Containers of proxies still leak, as on main.)
+                # later statements. (Containers of proxies still leak.)
                 namespace[bound_variable] = tt.unwrap(namespace[bound_variable])
 
     def after_test_case_execution(  # noqa: D102

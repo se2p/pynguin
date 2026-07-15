@@ -6,9 +6,6 @@
 #
 """Tests for the libcst-based assertion trace/verification observers.
 
-The old ``ExecutionContext``-based observers were rewritten for the libcst
-representation:
-
 * :class:`RemoteAssertionTraceObserver` observes the per-statement execution.
   ``after_statement_execution`` receives the executed ``tc.Statement``, the
   shared execution ``namespace`` (a plain ``dict``) and the exception raised by

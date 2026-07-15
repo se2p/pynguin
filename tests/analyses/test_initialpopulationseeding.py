@@ -190,16 +190,13 @@ def test_create_assertion(constant_provider, tmp_path, dummy_test_cluster):
 def test_not_working_cases(
     constant_provider, tmp_path, dummy_test_cluster, fixture_name, expected_len
 ):
-    """These fixtures exercise constructs discarded entirely by ``main``'s parser.
+    """These fixtures exercise partially unparsable seed functions.
 
-    ``main``'s all-or-nothing AST transformer discarded a whole test case on the
-    first unparsable construct. The libcst-based parser is more lenient: a
-    function contributes a (possibly partial) test case as long as at least one
-    of its statements is admissible, so ``wrongfunctionnameseed``/
-    ``notknowncall``/``wrongassignseed`` now seed a (partially uninterpreted)
-    test case instead of nothing; only ``notprimseed`` (referencing a type that
-    is neither a known variable nor resolvable against the test cluster) still
-    yields zero test cases.
+    The parser admits a partial test case when at least one of a function's
+    statements is admissible, so ``wrongfunctionnameseed``/``notknowncall``/
+    ``wrongassignseed`` seed a (partially uninterpreted) test case; only
+    ``notprimseed`` (referencing a type that is neither a known variable nor
+    resolvable against the test cluster) yields zero test cases.
     """
     config.configuration.module_name = DUMMY_MODULE_NAME
     seed_dir = _dummy_seed_dir(tmp_path, fixture_name)

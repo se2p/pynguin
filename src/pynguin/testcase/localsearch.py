@@ -172,9 +172,9 @@ class TestCaseLocalSearch:
         objective: LocalSearchObjective,
         position: int,
     ) -> bool:
-        # The libcst branch has no `TestFactory.change_statement_type` (disabled
-        # feature #14 in DISABLED_SUBSYSTEMS.md), so different-datatype search
-        # cannot be ported yet. This is only reached when
+        # There is no `TestFactory.change_statement_type` (disabled feature #14
+        # in DISABLED_SUBSYSTEMS.md), so different-datatype search is
+        # unavailable. This is only reached when
         # `local_search_different_datatype=True`, which is not the default.
         del chromosome, factory, objective, position  # unused: no-op strategy
         self._logger.debug(

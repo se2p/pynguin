@@ -6,9 +6,8 @@
 #
 """Shape-aware mutation operators for ML-generated ndarrays (nested lists).
 
-These functions port the mutation behaviour of the old ``NdArrayStatement``
-(class-based test-case model) onto plain nested Python lists, so the
-libcst-based ``MLTestFactory`` can mutate ndarray literals in place.
+These functions mutate ndarrays represented as plain nested Python lists, so
+the ``MLTestFactory`` can mutate ndarray literals in place.
 """
 
 from __future__ import annotations
@@ -143,8 +142,7 @@ def random_insertion(elements: list, np_dtype: str, low: float, high: float) -> 
 def mutate_ndarray(elements: list, np_dtype: str, low: float, high: float) -> tuple[list, bool]:
     """Apply deletion/replacement/insertion mutations to a nested list.
 
-    Reproduces the operator scheduling of the old ``CollectionStatement.mutate``:
-    each operator fires with its configured probability, and the results are
+    Each operator fires with its configured probability, and the results are
     combined.
 
     Args:

@@ -9,10 +9,8 @@
 
 Because the internal representation stores libcst statement nodes directly,
 turning LLM-generated source into ``TestCase``/``Statement`` objects is mostly
-"parse + validate + normalize": we no longer need to reconstruct a separate
-class hierarchy (``IntPrimitiveStatement``, ``MethodStatement``, ...) or a
-``VariableReference`` graph the way the CodaMosa-derived implementation on
-``main`` does.
+"parse + validate + normalize": there is no separate statement class hierarchy
+or variable-reference graph to reconstruct.
 """
 
 from __future__ import annotations
