@@ -49,43 +49,12 @@ utils/
 
 ---
 
-### Naming Scope Module
-**File:** `namingscope.py`
-**Purpose:** Maps objects to unique human-friendly variable names
-
-**Key Classes:**
-- `AbstractNamingScope` - Interface for naming strategies
-- `NamingScope` - Maps objects to numbered names (e.g., `var_0`, `var_1`)
-  - Constructor: `prefix="var"`, optional `new_name_callback`
-  - Methods: `get_name()`, `is_known_name()`, `__len__()`, `__iter__()`
-- `VariableTypeNamingScope` - Names variables by their type
-  - Uses static type annotations + optional runtime type trace
-  - Generates names like `string_0`, `integer_1`
-  - Supports return type traces for improved naming
-
-**Helper Functions:**
-- `snake_case(name)` - Convert CamelCase to snake_case
-
-**Usage:** Test code generation, generating readable variable names in test cases
-
----
-
 ### Collection Utilities
 **File:** `collection_utils.py`
 **Purpose:** Generic dictionary and collection helpers
 
 **Functions:**
 - `dict_without_keys(dict, keys)` - Returns dict with specified keys removed
-
----
-
-### AST Utilities
-**File:** `ast_util.py`
-**Purpose:** Abstract Syntax Tree manipulation
-
-**Functions:**
-- AST node creation and inspection utilities
-- Node type checking and transformation
 
 ---
 
@@ -290,7 +259,6 @@ Statistics tracking and reporting infrastructure.
 
 ### With Test Generation
 - `randomness.RNG` - All test case mutations and random choices
-- `namingscope` - Variable naming in generated test code
 - `statistics` - Fitness and coverage tracking during search
 
 ### With ML Testing
@@ -308,10 +276,9 @@ Statistics tracking and reporting infrastructure.
 ## Key Design Patterns
 
 1. **Singleton Pattern:** `randomness.RNG` - Single seeded RNG instance
-2. **Strategy Pattern:** Naming scopes (`NamingScope`, `VariableTypeNamingScope`)
-3. **Observer Pattern:** Statistics tracking with pluggable backends
-4. **Factory Pattern:** Output variable creation
-5. **Queue Pattern:** Thread-safe variable tracking
+2. **Observer Pattern:** Statistics tracking with pluggable backends
+3. **Factory Pattern:** Output variable creation
+4. **Queue Pattern:** Thread-safe variable tracking
 
 ---
 
@@ -324,12 +291,6 @@ from pynguin.utils.randomness import RNG, next_int, next_bool
 seed = RNG.get_seed()
 random_int = next_int(0, 100)
 random_bool = next_bool()
-
-# Variable naming
-from pynguin.utils.namingscope import NamingScope
-
-scope = NamingScope(prefix="arg")
-var_name = scope.get_name(some_object)  # "arg_0", "arg_1", ...
 
 # Statistics tracking
 from pynguin.utils.statistics.stats import STATISTICS_TRACKER

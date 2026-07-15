@@ -27,8 +27,8 @@ if TYPE_CHECKING:
         ("importlib.util", "importlib.util"),
         ("builtins", "builtins"),
         ("array", "array"),
-        ("src.pynguin.utils.namingscope", "pynguin.utils.namingscope"),
-        ("pynguin.utils.namingscope", "pynguin.utils.namingscope"),
+        ("src.pynguin.utils.naming", "pynguin.utils.naming"),
+        ("pynguin.utils.naming", "pynguin.utils.naming"),
         ("pynguin_this_module_does_not_exist_at_all", "pynguin_this_module_does_not_exist_at_all"),
     ],
 )

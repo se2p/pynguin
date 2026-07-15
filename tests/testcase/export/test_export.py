@@ -404,16 +404,16 @@ def test_write_nonexistent_module_falls_back_gracefully(tmp_path: Path):
 
 def test_write_emits_canonical_sut_import(tmp_path: Path):
     """A non-canonical (``src.``-prefixed) module name is canonicalized on export."""
-    module_name = "src.pynguin.utils.namingscope"
+    module_name = "src.pynguin.utils.naming"
     writer = TestSuiteWriter()
     suite = tsc.TestSuiteChromosome()
 
     out_file = writer.write(suite, module_name, tmp_path, format_with_black=False)
 
     content = out_file.read_text(encoding="utf-8")
-    assert "import pynguin.utils.namingscope" in content
-    assert "sys.modules['pynguin.utils.namingscope']" in content
-    assert "src.pynguin.utils.namingscope" not in content
+    assert "import pynguin.utils.naming" in content
+    assert "sys.modules['pynguin.utils.naming']" in content
+    assert "src.pynguin.utils.naming" not in content
 
 
 # ---------------------------------------------------------------------------
