@@ -72,6 +72,9 @@ class AbstractOverriddenElementModification(MutationOperator):
         except AttributeError:
             return None
 
+        if not isinstance(klass, type):
+            return None
+
         return any(hasattr(base_klass, name) for base_klass in type.mro(klass)[1:-1])
 
 

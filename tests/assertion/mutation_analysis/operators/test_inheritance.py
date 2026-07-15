@@ -261,6 +261,21 @@ def test_overriding_method_deletion_for_class_defined_in_if_block():
     )
 
 
+def test_overriding_method_deletion_when_class_name_rebound_to_non_class():
+    assert_mutation(
+        OverridingMethodDeletion,
+        inspect.cleandoc(
+            """
+            class Foo:
+                def baz(self, x: int):
+                    pass
+            Foo = None
+            """
+        ),
+        {},
+    )
+
+
 def test_overriding_method_deletion_when_base_class_in_another_module():
     assert_mutation(
         OverridingMethodDeletion,
